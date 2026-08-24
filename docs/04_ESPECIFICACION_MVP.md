@@ -11,7 +11,7 @@ Validar en aula con alumnos reales si el sistema de detección táctil (dedo sob
 ## 3. Funcionalidades Esenciales (Must-Have)
 - [ ] **Canvas con Renglón 3 Zonas:** Renderizado responsivo con `viewBox` fijo que soporte interacción touch.
 - [ ] **Modo 1 - Riel Guiado:** 
-  - La letra `a` muestra su animación mnemotécnica ("Sube la ola, vuelve, cierra y saca pie").
+  - La letra `a` muestra su animación mnemotécnica ("Sube la ola, vuelve, cierra y saca pie") utilizando el orquestador `MorphingDemoLayer`.
   - El usuario debe seguir los checkpoints 1, 2, 3 sin salirse de la tolerancia.
 - [ ] **Modo 2 - Trazo Libre sobre Guía:**
   - El usuario dibuja con su dedo. El trazo se renderiza con tinta fluida.

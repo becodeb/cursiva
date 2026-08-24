@@ -1,7 +1,7 @@
 # Arquitectura Técnica y Motor de Validación de Trazo
 
 ## 1. Stack Tecnológico Sugerido
-- **Frontend:** React + Vite / TypeScript.
+- **Frontend:** React + Vite / TypeScript. lib `perfect-freehand` y las necesarias para la facil gestion e implementación de animaciones.
 - **Backend:** Node.js con Express + TypeScript.
 - **Base de Datos:** PostgreSQL o SQLite para persistencia relacional.
 - **Contenedores:** Docker & Docker Compose para orquestación local y producción.

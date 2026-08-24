@@ -7,7 +7,7 @@ En la transición escolar de nivel primario (especialmente de 1ro a 5to grado), 
 Crear una plataforma web interactiva y gamificada que desarrolle la memoria muscular, el ritmo y la continuidad del trazo cursivo en pantallas táctiles y tablets mediante el uso de dedos o stylus, facilitando la posterior transferencia directa al papel.
 
 ## 3. Metáfora Visual: El Libro Abierto Vivo (Pop-up Book)
-La interfaz principal se organiza como un libro interactivo desplegado:
+La interfaz principal se organiza como un libro interactivo desplegado no usa fondos saturados ni ilustraciones 3D, sino un **lienzo de cuaderno minimalista** (fondo hueso `#FAF8F5`) con sellos botánicos/tinta limpia:
 - **Página Izquierda (El Mundo en Expansión):** Un lienzo ilustrado que comienza en blanco y negro o sepia. A medida que el alumno domina letras y enlaces, el entorno despierta:
   - Letras medias/bajas: Hacen brotar pasto, arbustos y flores.
   - Letras altas: Elevan molinos, árboles altos y nubes en el cielo.
