@@ -1,13 +1,15 @@
 /**
- * Placeholder app shell for the cursiva MVP.
- * The trace canvas, letter registry, guided/free modes, and progress screen
- * ship in later work units (see README.md for the delivery plan).
+ * App shell for the cursiva MVP.
+ * The trace canvas lands in unit 5; guided/free modes (U6) and the
+ * progress screen (U7) mount here in later work units (see README.md).
  */
+import TraceCanvas from './canvas/TraceCanvas'
+
 export default function App() {
   return (
-    <main>
+    <main style={{ maxWidth: 860, margin: '0 auto', padding: '24px 16px' }}>
       <h1>cursiva</h1>
-      <p>Scaffold ready — trace canvas lands in the next work unit.</p>
+      <TraceCanvas />
     </main>
   )
 }

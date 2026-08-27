@@ -1,0 +1,69 @@
+// Drawing surface (trace-canvas "Viewport and Ruled Lines", T3.5): a fixed
+// normalized SVG viewBox `0 0 1000 600` with full-width guides at Y=180 and
+// Y=420 (sky 0–180 / grass 180–420 / roots 420–600), pointer capture into
+// normalized `Point[]` (useTraceInput), and rAF-driven perfect-freehand ink.
+//
+// 60fps strategy (design.md): points live in a ref and the ink `<path>` is
+// mutated once per frame — no setState per move, no resample during drawing.
+// The `Z`-closed ink polygon is the only per-frame cost (sub-ms at capture
+// sizes). Evaluation happens at release time in the U6 modes.
+import { useEffect, useRef } from 'react'
+import { inkPath, traceInk } from './ink'
+import { useTraceInput } from './useTraceInput'
+
+const VIEWBOX = '0 0 1000 600'
+const SKY_GUIDE_Y = 180
+const BASELINE_Y = 420
+
+export default function TraceCanvas() {
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  const inkRef = useRef<SVGPathElement | null>(null)
+  const { bind, pointsRef, isDrawing } = useTraceInput(svgRef)
+
+  useEffect(() => {
+    const path = inkRef.current
+    if (!path) return
+    let raf = 0
+    let lastD = ''
+    const frame = (): void => {
+      const points = pointsRef.current
+      if (points.length === 0) {
+        // Stroke ended or was cancelled: clear the ink (spec "pointercancel clears").
+        if (lastD !== '') {
+          lastD = ''
+          path.setAttribute('d', '')
+        }
+      } else {
+        const d = inkPath(traceInk(points))
+        if (d !== lastD) {
+          lastD = d
+          path.setAttribute('d', d)
+        }
+      }
+      raf = requestAnimationFrame(frame)
+    }
+    raf = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(raf)
+  }, [pointsRef])
+
+  return (
+    <svg
+      ref={svgRef}
+      viewBox={VIEWBOX}
+      width="100%"
+      style={{
+        touchAction: 'none', // spec: pointer events must not scroll/zoom the page
+        display: 'block',
+        cursor: isDrawing ? 'crosshair' : 'default',
+        background: '#fdfcf7',
+        borderRadius: 12,
+      }}
+      aria-label="Trace surface: draw the letter between the sky and grass guides"
+      {...bind}
+    >
+      <line x1={0} y1={SKY_GUIDE_Y} x2={1000} y2={SKY_GUIDE_Y} stroke="#94a3b8" strokeWidth={2} strokeDasharray="12 8" />
+      <line x1={0} y1={BASELINE_Y} x2={1000} y2={BASELINE_Y} stroke="#64748b" strokeWidth={3} strokeDasharray="18 8" />
+      <path ref={inkRef} fill="#1e293b" stroke="none" />
+    </svg>
+  )
+}
