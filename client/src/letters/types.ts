@@ -45,8 +45,15 @@ export interface LetterConfig {
   baselineZone: BaselineZone
   theme: LetterTheme
   pathDefinition: {
-    /** SVG path data ("M 400 420 C ..."). */
+    /** SVG path data ("M 400 420 C ..."). The ductus: the natural single-pass
+     * stroke centerline used for the demo and as the visible guide line. */
     d: string
+    /** Full glyph contour (incl. counter-holes) for the evenodd FILL layer of
+     * the guide. Optional until a glyph provides a separate contour. */
+    guideD?: string
+    /** Dense area point cloud of the REAL glyph (Kalam-derived) — the scoring
+     * target. A trace scores by distance to this cloud (area-cloud model). */
+    ideal: ReadonlyArray<readonly [number, number]>
     /** Virtual stroke width. */
     strokeWidth: number
     checkpoints: LetterCheckpoint[]

@@ -1,11 +1,12 @@
 import type { LetterConfig } from './types'
+import { aArea } from './ideal_a'
 
-// Authored seed per design.md ("Ideal `a` path" decision): the `d` visits all
-// six checkpoints in ascending order, INCLUDING revisiting the apex (480,200)
-// at cierre_ovalo(4). docs/02 pathBézier never revisits the apex, so a literal
-// copy would break the ascending-indices contract — deliberate, flagged
-// deviation (design-vs-spec flag 1). Radii 40/40/45/40/35/45 per the
-// TOLERANT ruling (a keystone, c-range 35-45).
+// Paths extracted from Kalam-Regular (OFL, Google Fonts) glyph outlines,
+// scaled into the middle ruled zone (Y 180–420, baseline 420) of viewBox
+// 0 0 1000 600. a glyph analyzed by dense curve sampling:
+//  - d: exterior contour = the natural single-pass ductus (demo + ideal line)
+//  - guideD: full contour incl. counter-holes (evenodd fill for the guide)
+//  - ideal: area point cloud (generated) — distance-based scoring target
 export const letraA: LetterConfig = {
   id: 'letra_a',
   character: 'a',
@@ -16,20 +17,56 @@ export const letraA: LetterConfig = {
     watermarkAssetSvg: '/assets/themes/mar_ola_a.svg',
   },
   pathDefinition: {
-    // 350,420 → 480,200 → 330,300 → 480,200 → 480,420 → 550,400
-    d: 'M 350 420 C 420 300, 440 230, 480 200 C 430 205, 360 220, 330 300 C 380 250, 420 225, 480 200 C 500 280, 500 360, 480 420 C 485 425, 520 415, 550 400',
-    strokeWidth: 16,
+    d: 'M538.56 186.84 L538.56 186.84 Q559.09 186.84 576.42 207.60 Q593.77 228.37 593.77 245.02 Q593.77 261.67 582.36 279.01 Q587.84 285.86 587.84 290.87 Q587.84 303.65 582.13 334.68 Q576.42 365.70 575.29 375.29 Q574.14 384.87 573.24 390.57 Q572.32 396.27 570.95 401.75 Q569.13 413.16 562.74 413.16 Q554.53 413.16 549.28 398.78 Q544.03 384.41 543.12 361.60 Q502.51 413.16 467.84 413.16 Q446.85 413.16 426.54 395.13 Q406.24 377.11 406.24 357.95 Q406.24 330.57 426.32 290.19 Q446.39 249.81 478.33 218.33 Q510.27 186.84 538.56 186.84',
+    guideD: 'M538.56 186.84 L538.56 186.84 Q559.09 186.84 576.42 207.60 Q593.77 228.37 593.77 245.02 Q593.77 261.67 582.36 279.01 Q587.84 285.86 587.84 290.87 Q587.84 303.65 582.13 334.68 Q576.42 365.70 575.29 375.29 Q574.14 384.87 573.24 390.57 Q572.32 396.27 570.95 401.75 Q569.13 413.16 562.74 413.16 Q554.53 413.16 549.28 398.78 Q544.03 384.41 543.12 361.60 Q502.51 413.16 467.84 413.16 Q446.85 413.16 426.54 395.13 Q406.24 377.11 406.24 357.95 Q406.24 330.57 426.32 290.19 Q446.39 249.81 478.33 218.33 Q510.27 186.84 538.56 186.84 M559.55 267.60 L559.55 267.60 L559.55 267.15 Q559.55 224.71 542.65 224.71 Q524.87 224.71 501.14 250.04 Q477.42 275.36 460.99 307.30 Q444.57 339.24 444.57 357.95 Q444.57 365.70 450.95 370.49 Q457.34 375.29 466.01 375.29 Q487.46 375.29 514.38 346.31 Q541.30 317.34 551.79 275.82 Q553.15 268.97 559.55 267.60',
+    ideal: aArea,
+    strokeWidth: 14,
     checkpoints: [
-      { order: 1, x: 350, y: 420, radius: 40, name: 'inicio_enganche' },
-      { order: 2, x: 480, y: 200, radius: 40, name: 'cresta_ola' },
-      { order: 3, x: 330, y: 300, radius: 45, name: 'retorno_curva' },
-      { order: 4, x: 480, y: 200, radius: 40, name: 'cierre_ovalo' },
-      { order: 5, x: 480, y: 420, radius: 35, name: 'bajada_pie' },
-      { order: 6, x: 550, y: 400, radius: 45, name: 'gancho_salida' },
-    ],
+  {
+    "order": 1,
+    "x": 467.8,
+    "y": 413.2,
+    "radius": 50,
+    "name": "inicio_enganche"
+  },
+  {
+    "order": 2,
+    "x": 406.2,
+    "y": 357.9,
+    "radius": 45,
+    "name": "subida_ola"
+  },
+  {
+    "order": 3,
+    "x": 538.6,
+    "y": 186.8,
+    "radius": 45,
+    "name": "cresta_ola"
+  },
+  {
+    "order": 4,
+    "x": 593.8,
+    "y": 245,
+    "radius": 50,
+    "name": "gancho_salida"
+  },
+  {
+    "order": 5,
+    "x": 562.7,
+    "y": 413.2,
+    "radius": 45,
+    "name": "bajada_pie"
+  },
+  {
+    "order": 6,
+    "x": 467.8,
+    "y": 413.2,
+    "radius": 50,
+    "name": "cierre_ovalo"
+  }
+],
   },
   animationTimeline: [
-    // Simplified analog of the `c` timeline (design.md "`a` timeline"): tint → draw_path → fade.
     {
       id: 'sube_mar_base',
       type: 'slide_in',

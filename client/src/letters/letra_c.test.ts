@@ -2,57 +2,78 @@ import { describe, expect, it } from 'vitest'
 import { letraC } from './letra_c'
 import { pathEndpoints } from './pathEndpoints'
 
-describe('letra_c (La Ola del Mar)', () => {
-  it('replicates docs/07 verbatim: identity, zone and theme', () => {
+/** Index of the ductus endpoint nearest a checkpoint (on-curve reachability). */
+function nearestEndpointIndex(d: string, cp: { x: number; y: number }): number {
+  const eps = pathEndpoints(d)
+  let best = 0
+  let bestDist = Infinity
+  eps.forEach(([x, y], i) => {
+    const dist = Math.hypot(x - cp.x, y - cp.y)
+    if (dist < bestDist) {
+      bestDist = dist
+      best = i
+    }
+  })
+  return best
+}
+
+describe('letra_c (real Kalam glyph)', () => {
+  it('replicates identity, zone and theme from the Kalam extraction', () => {
     expect(letraC.id).toBe('letra_c')
     expect(letraC.character).toBe('c')
     expect(letraC.family).toBe('ola')
     expect(letraC.baselineZone).toBe('media')
-    expect(letraC.pathDefinition.strokeWidth).toBe(16)
+    expect(letraC.pathDefinition.strokeWidth).toBe(14)
     expect(letraC.theme.backgroundColor).toBe('rgba(224, 242, 254, 0.4)')
     expect(letraC.theme.watermarkAssetSvg).toBe('/assets/themes/mar_ola_c.svg')
-    expect(letraC.theme.soundEffectUrl).toBe('/assets/audio/ola_suave.mp3')
   })
 
-  it('keeps the docs/07 path string verbatim', () => {
-    expect(letraC.pathDefinition.d).toBe(
-      'M 400 420 C 440 340, 480 230, 520 200 C 470 200, 410 260, 410 330 C 410 390, 450 420, 500 420 C 530 420, 560 400, 580 380',
-    )
+  it('authors a Q-command ductus starting at inicio and closing on itself', () => {
+    const d = letraC.pathDefinition.d
+    expect(d.startsWith('M485.85 413.16')).toBe(true)
+    const eps = pathEndpoints(d)
+    const start = eps[0]
+    const end = eps[eps.length - 1]
+    expect(Math.hypot(start[0] - 485.85, start[1] - 413.16)).toBeLessThanOrEqual(0.5)
+    expect(Math.hypot(end[0] - 485.85, end[1] - 413.16)).toBeLessThanOrEqual(0.5)
+    expect(d).toContain('Q') // quadratic-Bézier real glyph contour
   })
 
-  it('carries 5 checkpoints: orders exactly 1-5, radii 40/35/40/40/45', () => {
+  it('ships a dense area cloud (>1000 points) as the scoring ideal', () => {
+    expect(letraC.pathDefinition.ideal.length).toBeGreaterThan(1000)
+  })
+
+  it('carries 5 checkpoints: orders exactly 1-5, radii 50/45/45/50/50', () => {
     const checkpoints = letraC.pathDefinition.checkpoints
     expect(checkpoints).toHaveLength(5)
     expect(checkpoints.map((c) => c.order)).toEqual([1, 2, 3, 4, 5])
-    expect(checkpoints.map((c) => c.radius)).toEqual([40, 35, 40, 40, 45])
+    expect(checkpoints.map((c) => c.radius)).toEqual([50, 45, 45, 50, 50])
   })
 
-  it('names checkpoints exactly as docs/07', () => {
+  it('names checkpoints exactly as the Kalam extraction', () => {
     expect(letraC.pathDefinition.checkpoints.map((c) => c.name)).toEqual([
       'inicio_subida',
-      'cresta_ola',
       'retorno_agua',
+      'cresta_ola',
+      'gancho_salida',
       'apoyo_tierra',
-      'salida_gancho',
     ])
   })
 
-  it('keeps the 4-step docs/07 animation timeline', () => {
+  it('every checkpoint is reachable on the ductus (nearest on-curve point ≤ 2px)', () => {
+    const d = letraC.pathDefinition.d
+    for (const cp of letraC.pathDefinition.checkpoints) {
+      const idx = nearestEndpointIndex(d, cp)
+      const [x, y] = pathEndpoints(d)[idx]
+      expect(Math.hypot(x - cp.x, y - cp.y)).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('keeps the 3-step animation timeline', () => {
     expect(letraC.animationTimeline.map((s) => `${s.id}:${s.type}`)).toEqual([
       'sube_mar_base:slide_in',
-      'ola_lateral:slide_in',
       'trazo_tinta_c:draw_path',
       'desvanecer_a_guia:fade_out',
     ])
-  })
-
-  it('visits every checkpoint in ascending order along `d`', () => {
-    const checkpoints = letraC.pathDefinition.checkpoints
-    const endpoints = pathEndpoints(letraC.pathDefinition.d)
-    expect(endpoints.length).toBe(checkpoints.length)
-    checkpoints.forEach((cp, index) => {
-      const [x, y] = endpoints[index]
-      expect([x, y]).toEqual([cp.x, cp.y])
-    })
   })
 })
