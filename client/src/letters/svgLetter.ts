@@ -3,6 +3,7 @@
 // animation authoring. All functions are pure (no DOM) so they run under vitest
 // in node, and the glob-based loader runs at Vite transform time.
 import { resample } from '../canvas/resample'
+import { SECONDARY_STROKE_CHARS, exitKindFor } from './anchors'
 import type { BaselineZone, LetterCheckpoint, LetterConfig, Point } from './types'
 
 /** Clamp `v` into the inclusive range [min, max]. */
@@ -25,8 +26,8 @@ export const DESCENDER_LINE_Y = 540 // below baseline (descenders)
  * onto the ruled line so the stroke bottom rests on the baseline and the top on
  * the appropriate line for the letter's height class.
  */
-const MEDIA_CHARS = 'aceimnorstuvwxz' // body between MIDDLE_LINE and BASELINE
-const ALTA_CHARS = 'bdfhkl' // ascenders: between TOP_LINE and BASELINE
+const MEDIA_CHARS = 'aceimnorsuvwxz' // body between MIDDLE_LINE and BASELINE
+const ALTA_CHARS = 'bdfhklt' // ascenders: between TOP_LINE and BASELINE (t per Zaner-Bloser)
 const BAJA_CHARS = 'gpqy' // descenders: between MIDDLE_LINE and DESCENDER (approx)
 // 'j' → 'mixta' (ascender + descender approx: between TOP_LINE and DESCENDER)
 
@@ -290,8 +291,56 @@ export function flattenPathD(d: string): { points: Point[]; starts: number[] } {
   return { points, starts }
 }
 
-/** Result of {@link reorderForWriting}: the (possibly reordered) polyline plus a
- * gap diagnostic for multi-subpath input. */
+/**
+ * Classify flattened subpaths into writing order: the MAIN subpath first
+ * (the one whose FIRST point is nearest the bbox bottom-left — the entry
+ * anchor proxy), then every secondary subpath after it.
+ *
+ * The entry proxy is `(minX, maxY)` of ALL points: char-independent and
+ * pre-fit, so the classification needs no anchor metadata yet. Ties break to
+ * the LONGER polyline (arc length), then to file order. The result is the
+ * subpath indices `[mainIdx, ...remaining]` — main first, secondaries in a
+ * stable order — which `reorderForWriting` concatenates in.
+ */
+export function classifySubpaths(points: Point[], starts: number[]): number[] {
+  if (starts.length <= 1) return starts.length === 1 ? [0] : []
+
+  let minX = Infinity
+  let maxY = -Infinity
+  for (const p of points) {
+    if (p.x < minX) minX = p.x
+    if (p.y > maxY) maxY = p.y
+  }
+
+  const ends: number[] = [...starts.slice(1), points.length]
+  const distToEntry = (i: number): number => {
+    const first = points[starts[i]]
+    return Math.hypot(first.x - minX, first.y - maxY)
+  }
+  const arcLength = (i: number): number => {
+    let total = 0
+    for (let j = starts[i] + 1; j < ends[i]; j++) {
+      total += Math.hypot(points[j].x - points[j - 1].x, points[j].y - points[j - 1].y)
+    }
+    return total
+  }
+
+  const order = starts.map((_, i) => i)
+  order.sort((a, b) => {
+    const da = distToEntry(a)
+    const db = distToEntry(b)
+    // Ties: nearest-to-entry wins; equidistant → longer polyline; then file order.
+    if (Math.abs(da - db) > 1e-9) return da - db
+    const la = arcLength(a)
+    const lb = arcLength(b)
+    if (la !== lb) return lb - la
+    return a - b
+  })
+  return order
+}
+
+/** Result of {@link reorderForWriting}: the (possibly reordered) polyline plus
+ * a gap diagnostic for multi-subpath input. */
 export interface ReorderedPath {
   /** The polyline in writing order. */
   points: Point[]
@@ -303,58 +352,98 @@ export interface ReorderedPath {
    * paths whose consecutive subpaths touch.
    */
   hasGaps: boolean
+  /**
+   * Arc length (in the ORIGINAL polyline's coordinate space) from the start of
+   * the concatenated polyline to the LAST point of the MAIN subpath. Arc-length
+   * resampling preserves arc positions, and `adjustToRuledZone` scales both
+   * axes uniformly, so the fitted main end is
+   * `pointAtArcLength(fitted, mainEndArc * fit.scaleX)`.
+   */
+  mainEndArc: number
 }
 
 /**
- * Put a flattened polyline into WRITING order, respecting the author's real
- * stroke (the SVG PATH ORDER) — never guessing connections.
+ * Put a flattened polyline into WRITING order:
  *
  *  - single subpath (`starts.length <= 1`): returned VERBATIM. The path order
  *    IS the writing order — the first node of the path is where the stroke
  *    begins and where checkpoint 1 must land. No rotation, no cut, no reversal.
- *  - multiple subpaths: concatenate the subpaths IN THE ORDER THEY APPEAR IN
- *    THE PATH, with no greedy chaining and no reversal. The file order is the
- *    author's word: it may be an oval followed by an exit stroke, etc. We only
- *    report whether the subpaths are physically disconnected (`hasGaps`).
+ *  - multiple subpaths: classify them ({@link classifySubpaths} — main =
+ *    subpath starting nearest the entry anchor, ties → longer, then file
+ *    order) and concatenate main first, secondaries after. The main body is
+ *    the letter; the dot / cross / second diagonal are pen-lift strokes drawn
+ *    AFTER the main path ("finish the word"). Gaps between consecutive
+ *    subpaths are reported (`hasGaps`) so the author knows the strokes do not
+ *    connect node-to-node.
  *
  * A subpath is NEVER reversed. Reversing would flip an anticlockwise oval into
  * a clockwise one and break the pedagogical "anticlockwise turn" rule of the
  * MVP, so a single subpath is passed through unchanged.
  */
 export function reorderForWriting(points: Point[], starts: number[]): ReorderedPath {
-  if (points.length < 2) return { points, hasGaps: false }
+  if (points.length < 2) return { points, hasGaps: false, mainEndArc: 0 }
 
   const dist = (a: Point, b: Point): number => Math.hypot(a.x - b.x, a.y - b.y)
 
   // Single subpath: the author's path order IS the writing order. Return it
   // verbatim — no rotation, cut, or reversal. The first node of the path is
-  // where the stroke begins and where checkpoint 1 must land.
+  // where the stroke begins and where checkpoint 1 must land. The whole path
+  // is the main subpath, so mainEndArc = its total arc length.
   if (starts.length <= 1) {
-    return { points, hasGaps: false }
+    return { points, hasGaps: false, mainEndArc: polylineLength(points) }
   }
 
-  // Multiple subpaths: keep the author's file order exactly. No greedy chain,
-  // no reversal. Split into the per-subpath slices so we can measure gaps.
+  // Multiple subpaths: split into the per-subpath slices, classify (main
+  // first, secondaries after), then concatenate in that order. No greedy
+  // chaining, no reversal.
   const subpaths: Point[][] = []
   for (let s = 0; s < starts.length; s++) {
     const a0 = starts[s]
     const a1 = s + 1 < starts.length ? starts[s + 1] : points.length
     subpaths.push(points.slice(a0, a1))
   }
+  const order = classifySubpaths(points, starts)
 
   // Gap = jump between the LAST point of subpath i and the FIRST point of
-  // subpath i+1. The first point of every subpath i>0 lives at starts[i].
+  // subpath i+1, measured over the CONCATENATED (writing) order.
   let hasGaps = false
-  for (let s = 0; s < subpaths.length - 1; s++) {
-    const lastOfCurrent = subpaths[s][subpaths[s].length - 1]
-    const firstOfNext = subpaths[s + 1][0]
+  for (let k = 0; k < order.length - 1; k++) {
+    const lastOfCurrent = subpaths[order[k]][subpaths[order[k]].length - 1]
+    const firstOfNext = subpaths[order[k + 1]][0]
     if (dist(lastOfCurrent, firstOfNext) > 15) hasGaps = true
   }
 
   const result: Point[] = []
-  for (const sp of subpaths) result.push(...sp)
+  let mainEndArc = 0
+  for (let k = 0; k < order.length; k++) {
+    const sp = subpaths[order[k]]
+    if (k === 0) {
+      // order[0] is the MAIN subpath (nearest the entry anchor); its last
+      // point sits at this arc length from the start of the concatenation.
+      mainEndArc = polylineLength(sp)
+    }
+    for (const p of sp) result.push(p)
+  }
 
-  return { points: result, hasGaps }
+  return { points: result, hasGaps, mainEndArc }
+}
+
+/**
+ * Index into a concatenated polyline of the first point AFTER the MAIN
+ * subpath: walk cumulative arc length until it reaches `mainEndArc` (the main
+ * subpath's total arc length). Returns `points.length` when the main subpath
+ * runs to the end (single-subpath path). The walk uses the exact same
+ * per-segment sums that produced `mainEndArc`, so the boundary lands on the
+ * subpath cut.
+ */
+function mainSpanEndIndex(points: Point[], mainEndArc: number): number {
+  if (mainEndArc <= 0) return 1
+  let acc = 0
+  for (let i = 1; i < points.length; i++) {
+    acc += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
+    if (acc >= mainEndArc - 1e-6) return i + 1
+  }
+  return points.length
 }
 
 /** Build an SVG `d` polyline (`M x y L x y …`) from a list of points. */
@@ -540,11 +629,15 @@ export function transformPathD(
  * Build a complete LetterConfig from a single-stroke path `d`:
  *  - The path is flattened to a dense polyline, then REORDERED into writing
  *    order (a single subpath is passed through unchanged; multiple subpaths
- *    keep their file order), then arc-length resampled.
+ *    are classified — main = the one starting nearest the entry anchor, then
+ *    pen-lift secondaries — see {@link classifySubpaths}), then arc-length
+ *    resampled.
  *  - `d`: the REORDERED + NORMALIZED polyline (`M … L …`), so the demo and the
  *    guide follow the writing direction, not the SVG composition order.
  *  - `guideD`: undefined — there is no glyph contour; TraceCanvas already
  *    handles a missing guide.
+ *  - `anchors`: entry = fitted MAIN start, exit = fitted MAIN end
+ *    (`pointAtArcLength(fitted, mainEndArc * scaleX)`), in viewBox space.
  *  - `ideal`: a dense centerline cloud (resample(fitted, 600)) plus a ±8px
  *    perpendicular band per sample, so the area-cloud scoring rewards strokes
  *    drawn ON the line. ~1800 points total.
@@ -553,9 +646,13 @@ export function transformPathD(
  *  - `family: 'ola'`, `baselineZone` from the char, ola/mar theme, and the
  *    standard 3-step animation timeline (slide_in bg → draw_path → fade_out).
  *
- * Diagnostic: warns if the final stroke endpoint is not near the lower-right
- * corner of the fitted bbox (the conventional writing end), so the author can
- * spot a letter whose ductus does not follow the house convention.
+ * Anchor-aware diagnostics (80px tolerance): warns when the stroke does not
+ * START near the entry anchor (baseline-left of the MAIN span) or does not END
+ * near its letter's exit corner — bottom-right by default, top-right for
+ * `o r v w`, mid-right for `e`. No false fires when a stroke ends at its
+ * declared exit anchor; a genuinely wrong end still warns. The gap warning for
+ * multi-subpath paths is suppressed for the declared secondary-stroke letters
+ * (`i j t f x`), whose dot / cross / second diagonal are intentional pen lifts.
  */
 export function buildLetterConfig(character: string, d: string): LetterConfig {
   const zone = resolveBaselineZone(character)
@@ -569,17 +666,20 @@ export function buildLetterConfig(character: string, d: string): LetterConfig {
     )
   }
 
-  // 2) Put the stroke into WRITING order. We DO NOT guess connections: the path
-  // order is the author's real stroke. A single subpath is returned VERBATIM
-  // (no rotation, cut, or reversal); multiple subpaths are kept in file order.
-  // `hasGaps` flags a path whose subpaths jump > 15px apart.
+  // 2) Put the stroke into WRITING order. We DO NOT guess connections: the
+  // path order is the author's real stroke (a single subpath is returned
+  // VERBATIM; multiple subpaths are classified main-first — see
+  // reorderForWriting). `hasGaps` flags subpaths that jump > 15px apart; for
+  // declared secondary-stroke letters (i j t f x) that jump is the intentional
+  // dot / cross / second-diagonal pen lift, so the gap warning is suppressed.
   const reordered = reorderForWriting(flat.points, flat.starts)
-  if (reordered.hasGaps) {
+  if (reordered.hasGaps && !SECONDARY_STROKE_CHARS.has(character.toLowerCase())) {
     console.warn(
       `[svgLetter] El SVG de '${character}' tiene subpaths separados por más de 15px; ` +
-        'el orden de checkpoints sigue el orden del archivo tal cual. Para un recorrido de ' +
-        'escritura perfecto exportá la letra como UN solo subpath continuo (un solo M) ' +
-        'arrancando en el extremo inferior-izquierdo y terminando en el derecho.',
+        'el orden de checkpoints es main-first (el subpath principal primero y los ' +
+        'secundarios después). Para un recorrido de escritura perfecto exportá la letra ' +
+        'como UN solo subpath continuo (un solo M) arrancando en el extremo ' +
+        'inferior-izquierdo y terminando en el derecho.',
     )
   }
 
@@ -589,42 +689,79 @@ export function buildLetterConfig(character: string, d: string): LetterConfig {
   // 4) Normalize onto the ruled zone (baseline / middle line / centered).
   const fitted = adjustToRuledZone(resampled, zone)
 
-  // Diagnostic: a correctly-ducted letter should START near the lower-left
-  // corner of the fitted bbox (the house convention is to begin the stroke on
-  // the baseline at the left). We no longer rotate by ourselves, so if the
-  // first node is far from that corner the author must fix the draw in the
-  // editor; checkpoint 1 will land wherever the (non-rotated) path begins.
-  {
-    let fMinX = Infinity
-    let fMinY = Infinity
-    let fMaxX = -Infinity
-    let fMaxY = -Infinity
-    for (const p of fitted.points) {
-      if (p.x < fMinX) fMinX = p.x
-      if (p.x > fMaxX) fMaxX = p.x
-      if (p.y < fMinY) fMinY = p.y
-      if (p.y > fMaxY) fMaxY = p.y
-    }
-    const firstFitted = fitted.points[0]
-    const startToCorner = Math.hypot(firstFitted.x - fMinX, firstFitted.y - fMaxY)
-    if (startToCorner > 80) {
-      console.warn(
-        `[svgLetter] El trazo de ${character} no arranca cerca del extremo inferior-izquierdo del renglón; revisá en el editor que el primer nodo toque la línea base abajo a la izquierda.`,
-      )
-    }
+  // 5) MAIN span + anchor-aware diagnostics.
+  // The MAIN subpath's span is the letter body: its corners are derived from
+  // the raw main-subpath bbox mapped through the affine fit, so a secondary
+  // dot / cross must NOT shift the exit corner. Start is checked against the
+  // entry anchor (baseline-left = bottom-left of the MAIN span); the end
+  // against the letter's exit corner per kind — baseline → (maxX, maxY),
+  // top → (maxX, minY), mid → (maxX, midY). Tolerance 80px: an end near its
+  // declared exit anchor never warns; a genuinely wrong end still does.
+  const mainSpanEnd = mainSpanEndIndex(reordered.points, reordered.mainEndArc)
+  let mMinX = Infinity
+  let mMaxX = -Infinity
+  let mMinY = Infinity
+  let mMaxY = -Infinity
+  for (let i = 0; i < mainSpanEnd; i++) {
+    const p = reordered.points[i]
+    if (p.x < mMinX) mMinX = p.x
+    if (p.x > mMaxX) mMaxX = p.x
+    if (p.y < mMinY) mMinY = p.y
+    if (p.y > mMaxY) mMaxY = p.y
+  }
+  // Main-span corners in FITTED space (uniform affine: an axis-aligned bbox
+  // maps to an axis-aligned bbox).
+  const mainMinX = mMinX * fitted.scaleX + fitted.tx
+  const mainMaxX = mMaxX * fitted.scaleX + fitted.tx
+  const mainMinY = mMinY * fitted.scaleY + fitted.ty
+  const mainMaxY = mMaxY * fitted.scaleY + fitted.ty
+
+  // The writing anchors, in viewBox space: entry = fitted MAIN start; exit =
+  // the fitted MAIN end. The main end's arc position survives resample
+  // (arc-length preserving) and scales uniformly with the fit.
+  const firstFitted = fitted.points[0]
+  const mainEnd = pointAtArcLength(fitted.points, reordered.mainEndArc * fitted.scaleX)
+  const entry: Point = { x: firstFitted.x, y: firstFitted.y }
+  const exit: Point = {
+    x: Math.round(mainEnd.x * 100) / 100,
+    y: Math.round(mainEnd.y * 100) / 100,
   }
 
-  // 5) The stored `d` is the REORDERED + NORMALIZED polyline so the animated
+  // Diagnostic: a correctly-ducted letter should START near the entry anchor
+  // (baseline-left). We no longer rotate by ourselves, so if the first node
+  // is far from that corner the author must fix the draw in the editor;
+  // checkpoint 1 will land wherever the (non-rotated) path begins.
+  if (Math.hypot(entry.x - mainMinX, entry.y - mainMaxY) > 80) {
+    console.warn(
+      `[svgLetter] El trazo de ${character} no arranca cerca del extremo inferior-izquierdo del renglón (ancla de entrada); revisá en el editor que el primer nodo toque la línea base abajo a la izquierda.`,
+    )
+  }
+
+  // Diagnostic: the stroke should END near its letter's exit corner — the
+  // bottom-right, top-right or mid-right of the MAIN span per exit kind
+  // (default baseline; o r v w → top; e → mid). No false fires at the anchor.
+  const exitKind = exitKindFor(character)
+  let cornerY = mainMaxY
+  if (exitKind === 'top') cornerY = mainMinY
+  else if (exitKind === 'mid') cornerY = (mainMinY + mainMaxY) / 2
+  const kindLabel = exitKind === 'top' ? 'superior' : exitKind === 'mid' ? 'medio' : 'inferior'
+  if (Math.hypot(exit.x - mainMaxX, exit.y - cornerY) > 80) {
+    console.warn(
+      `[svgLetter] El trazo de ${character} no termina cerca del extremo ${kindLabel}-derecho; revisá la letra en Figma.`,
+    )
+  }
+
+  // 6) The stored `d` is the REORDERED + NORMALIZED polyline so the animated
   // demo (framer-motion pathLength in TraceCanvas) and the guide follow the
   // writing order, not the SVG composition order.
   const dNorm = pathFromPoints(fitted.points)
 
-  // 6) Checkpoints, uniform in arc length over the fitted centerline.
+  // 7) Checkpoints, uniform in arc length over the fitted centerline.
   const sampled = resample(fitted.points, 400)
   const totalLength = polylineLength(sampled)
   const checkpoints = generateCheckpoints(sampled, totalLength)
 
-  // 7) Ideal cloud: dense centerline + a ±8px perpendicular band per sample.
+  // 8) Ideal cloud: dense centerline + a ±8px perpendicular band per sample.
   const center = resample(fitted.points, 600)
   const BAND = 8
   const ideal: Array<[number, number]> = []
@@ -648,33 +785,12 @@ export function buildLetterConfig(character: string, d: string): LetterConfig {
     ])
   }
 
-  // Diagnostic: a correctly-ducted letter should END near the lower-right corner
-  // of the fitted bbox. If it doesn't, warn the author to revisit the Figma draw.
-  {
-    let fMinX = Infinity
-    let fMinY = Infinity
-    let fMaxX = -Infinity
-    let fMaxY = -Infinity
-    for (const p of fitted.points) {
-      if (p.x < fMinX) fMinX = p.x
-      if (p.x > fMaxX) fMaxX = p.x
-      if (p.y < fMinY) fMinY = p.y
-      if (p.y > fMaxY) fMaxY = p.y
-    }
-    const lastFitted = fitted.points[fitted.points.length - 1]
-    const endToCorner = Math.hypot(lastFitted.x - fMaxX, lastFitted.y - fMaxY)
-    if (endToCorner > 80) {
-      console.warn(
-        `[svgLetter] El trazo de ${character} no termina cerca del extremo inferior-derecho; revisá la letra en Figma.`,
-      )
-    }
-  }
-
   return {
     id: `letra_${character}`,
     character,
     family: 'ola',
     baselineZone: zone,
+    anchors: { entry, exit },
     theme: {
       backgroundColor: 'rgba(224, 242, 254, 0.4)',
       watermarkAssetSvg: '/assets/themes/mar_ola_a.svg',

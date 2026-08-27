@@ -12,6 +12,12 @@ export const letraA: LetterConfig = {
   character: 'a',
   family: 'ola',
   baselineZone: 'media',
+  // Anchors derived from the ductus bbox (left-right at the baseline of the
+  // contour): entry = (minX, maxY), exit = (maxX, maxY) in viewBox space.
+  anchors: {
+    entry: { x: 406.24, y: 413.16 },
+    exit: { x: 593.77, y: 413.16 },
+  },
   theme: {
     backgroundColor: 'rgba(224, 242, 254, 0.4)',
     watermarkAssetSvg: '/assets/themes/mar_ola_a.svg',

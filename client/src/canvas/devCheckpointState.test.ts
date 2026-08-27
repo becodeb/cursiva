@@ -16,6 +16,7 @@ function syntheticLetter(): LetterConfig {
     character: 's',
     family: 'ola',
     baselineZone: 'media',
+    anchors: { entry: { x: 100, y: 300 }, exit: { x: 900, y: 300 } },
     theme: { backgroundColor: '#fff', watermarkAssetSvg: '' },
     pathDefinition: {
       d: 'M100 300 L900 300',

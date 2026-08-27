@@ -38,11 +38,23 @@ export interface LetterTheme {
   soundEffectUrl?: string
 }
 
+/** Entry/exit writing anchors in normalized viewBox `0 0 1000 600` space.
+ * `entry` SHALL be baseline-left for all lowercase letters; `exit` SHALL be
+ * baseline-right by default, top-right for `o r v w`, mid-right for `e`. */
+export interface LetterAnchors {
+  /** ViewBox-space point where the stroke begins (fitted MAIN subpath start). */
+  entry: Point
+  /** ViewBox-space point where the stroke ends (fitted MAIN subpath end). */
+  exit: Point
+}
+
 export interface LetterConfig {
   id: string
   character: string
   family: LetterFamily
   baselineZone: BaselineZone
+  /** Writing anchors: where the letter's stroke starts and ends. */
+  anchors: LetterAnchors
   theme: LetterTheme
   pathDefinition: {
     /** SVG path data ("M 400 420 C ..."). The ductus: the natural single-pass

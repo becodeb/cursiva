@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { letraA } from './letra_a'
 import { resample, samplePath } from '../canvas/resample'
+import { exitKindFor } from './anchors'
 import {
   BASELINE_Y,
   MIDDLE_LINE_Y,
@@ -8,6 +9,7 @@ import {
   LETTER_ZONES,
   adjustToRuledZone,
   buildLetterConfig,
+  classifySubpaths,
   extractPathD,
   flattenPathD,
   generateCheckpoints,
@@ -115,6 +117,7 @@ describe('letter zones', () => {
   it('classifies media/alta/baja/mixta and defaults unknown to media', () => {
     expect(resolveBaselineZone('a')).toBe('media')
     expect(resolveBaselineZone('b')).toBe('alta')
+    expect(resolveBaselineZone('t')).toBe('alta')
     expect(resolveBaselineZone('g')).toBe('baja')
     expect(resolveBaselineZone('j')).toBe('mixta')
     expect(resolveBaselineZone('Z')).toBe('media')
@@ -124,8 +127,8 @@ describe('letter zones', () => {
   it('LETTER_ZONES is the union of the zone char groups', () => {
     const keys = Object.keys(LETTER_ZONES)
     expect(keys.length).toBeGreaterThanOrEqual(26)
-    for (const c of 'aceimnorstuvwxz') expect(LETTER_ZONES[c]).toBe('media')
-    for (const c of 'bdfhkl') expect(LETTER_ZONES[c]).toBe('alta')
+    for (const c of 'aceimnorsuvwxz') expect(LETTER_ZONES[c]).toBe('media')
+    for (const c of 'bdfhklt') expect(LETTER_ZONES[c]).toBe('alta')
     for (const c of 'gpqy') expect(LETTER_ZONES[c]).toBe('baja')
     expect(LETTER_ZONES['j']).toBe('mixta')
   })
@@ -536,5 +539,199 @@ describe('loadSvgLetters', () => {
     expect(cfg.pathDefinition.guideD).toBeUndefined()
     expect(cfg.pathDefinition.checkpoints.length).toBeGreaterThanOrEqual(4)
     expect(cfg.pathDefinition.ideal.length).toBeGreaterThan(1500)
+  })
+})
+
+// Shared fixtures for the classification / diagnostics / anchors suites. All
+// are synthetic media-height strokes exercising the pipeline independent of
+// the real a.svg, so coverage survives authoring swaps in the svg/ folder.
+
+/** 'i' whose DOT subpath comes FIRST in the file, the body after it: the
+ * classification must still make the BODY main (it starts at the bbox
+ * bottom-left) and keep the dot AFTER it as the pen-lift stroke. */
+const I_DOT_FIRST =
+  'M520 170 L526 170 L523 176 Z M100 420 L100 240 Q100 190 200 190 L220 240 L220 420 L300 420'
+
+describe('classifySubpaths / reorderForWriting — multi-subpath writing order', () => {
+  it("classifies the body as MAIN for a dot-first 'i': body first, dot after", () => {
+    const flat = flattenPathD(I_DOT_FIRST)
+    expect(flat.starts.length).toBe(2)
+    const order = classifySubpaths(flat.points, flat.starts)
+    // Subpath 0 is the dot (top-right of the bbox), subpath 1 the body
+    // (starting at the bbox bottom-left) → body main, dot secondary.
+    expect(order).toEqual([1, 0])
+    const { points } = reorderForWriting(flat.points, flat.starts)
+    expect(points[0]).toEqual({ x: 100, y: 420 }) // body start leads
+    expect(points[points.length - 1]).toEqual({ x: 520, y: 170 }) // dot pen-lift last
+  })
+
+  it('mainEndArc ends exactly at the MAIN subpath last point (anchor contract)', () => {
+    const flat = flattenPathD(I_DOT_FIRST)
+    const reordered = reorderForWriting(flat.points, flat.starts)
+    expect(reordered.mainEndArc).toBeGreaterThan(0)
+    expect(reordered.mainEndArc).toBeLessThan(polylineLength(reordered.points))
+    const mainBodyEnd = pointAtArcLength(reordered.points, reordered.mainEndArc)
+    expect(mainBodyEnd.x).toBeCloseTo(300, 0) // body last point (300,420)
+    expect(mainBodyEnd.y).toBeCloseTo(420, 0)
+  })
+
+  it('breaks an entry-distance tie by LONGER polyline (spec tie-break)', () => {
+    // Both subpaths start at (100,400) — equidistant from the entry proxy
+    // (bbox bottom-left). The longer subpath (400px) must become main.
+    const flat = flattenPathD('M100 400 L200 400 M100 400 L200 400 L200 300 L400 300')
+    expect(flat.starts.length).toBe(2)
+    const order = classifySubpaths(flat.points, flat.starts)
+    expect(order[0]).toBe(1) // subpath 1 is the longer polyline
+    const { points } = reorderForWriting(flat.points, flat.starts)
+    expect(points[0]).toEqual({ x: 100, y: 400 })
+    // Main (the longer subpath) ends at (400,300), THEN the secondary appends.
+    expect(points[3]).toEqual({ x: 400, y: 300 })
+    expect(points[points.length - 1]).toEqual({ x: 200, y: 400 })
+  })
+
+  it('breaks an equal-length tie by FILE ORDER (spec tie-break)', () => {
+    // Identical subpaths: same start point AND same arc length → the first
+    // one in the file wins.
+    const flat = flattenPathD('M100 400 L200 400 M100 400 L200 400')
+    expect(flat.starts.length).toBe(2)
+    expect(classifySubpaths(flat.points, flat.starts)).toEqual([0, 1])
+  })
+
+  it('single subpath: mainEndArc equals the total polyline length', () => {
+    const flat = flattenPathD('M0 0 L0 100 L50 100')
+    const reordered = reorderForWriting(flat.points, flat.starts)
+    expect(reordered.mainEndArc).toBeCloseTo(polylineLength(flat.points), 5)
+  })
+})
+
+describe('anchor-aware diagnostics (start vs entry anchor; end vs exit corner)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  /** Media stroke starting EXACTLY at the baseline-left entry anchor and
+   * ending at the TOP-right of its bbox: correct for `o r v w` (top exit),
+   * genuinely wrong for `a` (baseline exit). */
+  const ENDS_TOP_RIGHT = 'M100 420 L100 250 Q100 180 300 180 L820 180'
+  /** Same stroke but finishing at MID-height: correct for `e` (mid exit). */
+  const ENDS_MID_RIGHT = 'M100 420 L100 250 Q100 180 300 180 L800 180 L820 300'
+  /** Starts TOP-LEFT (wrong entry) and ends at the baseline-right. */
+  const WRONG_START = 'M100 200 L150 200 L150 420 L820 420'
+
+  it('o r v w ending at their top-right exit anchor do NOT warn (no false fire)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    for (const ch of 'orvw') buildLetterConfig(ch, ENDS_TOP_RIGHT)
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('e ending at its mid-right exit anchor does NOT warn (no false fire)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    buildLetterConfig('e', ENDS_MID_RIGHT)
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('a ending at its TOP-right corner (not the baseline-right exit) still warns', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    buildLetterConfig('a', ENDS_TOP_RIGHT)
+    expect(warn).toHaveBeenCalled()
+    const message = warn.mock.calls.map((c) => String(c[0])).join('\n')
+    expect(message).toContain('no termina cerca del extremo')
+  })
+
+  it('a wrong start (top-left, far from the entry anchor) warns about the start', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    buildLetterConfig('a', WRONG_START)
+    expect(warn).toHaveBeenCalled()
+    const message = warn.mock.calls.map((c) => String(c[0])).join('\n')
+    expect(message).toContain('no arranca cerca del extremo')
+  })
+
+  it("the 'i' dot jump is an intentional pen lift: the gap warning is suppressed", () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const cfg = buildLetterConfig('i', I_DOT_FIRST)
+    expect(warn).not.toHaveBeenCalled()
+    // The exit anchor must be the MAIN body end (baseline, right of entry) —
+    // the dot sits ABOVE the body (drawn after), so a dot-shifted exit would
+    // leave the baseline.
+    expect(cfg.anchors.exit.y).toBeCloseTo(BASELINE_Y, 0)
+    expect(cfg.anchors.exit.x).toBeGreaterThan(cfg.anchors.entry.x)
+  })
+})
+
+describe('zones and anchors', () => {
+  it("'t' resolves to the alta (ascender) zone", () => {
+    expect(resolveBaselineZone('t')).toBe('alta')
+    expect(LETTER_ZONES['t']).toBe('alta')
+  })
+
+  it('the media zone set is unchanged except t (spec zone map)', () => {
+    for (const c of 'aceimnorsuvwxz') expect(LETTER_ZONES[c]).toBe('media')
+    expect(LETTER_ZONES['t']).not.toBe('media')
+  })
+
+  it('exitKindFor maps o r v w → top, e → mid, everything else → baseline', () => {
+    for (const c of 'orvw') expect(exitKindFor(c)).toBe('top')
+    expect(exitKindFor('e')).toBe('mid')
+    for (const c of 'abcdfghijklmnpqstuxyz') expect(exitKindFor(c)).toBe('baseline')
+    expect(exitKindFor('O')).toBe('top') // case-insensitive
+  })
+
+  /** Single-subpath fixtures: entry exactly at the baseline-left (minX, maxY)
+   * of the main span; exit at the corner driven by the letter's exit kind. */
+  const A_BASELINE_EXIT = 'M100 420 L100 250 L300 180 L500 180 L600 300 L820 420'
+  const O_TOP_EXIT = 'M100 420 L100 250 L300 180 L500 180 L600 220 L820 180'
+  const E_MID_EXIT = 'M100 420 L100 250 L300 180 L500 180 L600 240 L820 300'
+
+  /** Fitted bbox of the MAIN span, mirroring the pipeline internals. */
+  function fittedBboxOf(ch: string, d: string): {
+    minX: number
+    maxX: number
+    minY: number
+    maxY: number
+  } {
+    const flat = flattenPathD(d)
+    const reordered = reorderForWriting(flat.points, flat.starts)
+    const fitted = adjustToRuledZone(resample(reordered.points, 500), resolveBaselineZone(ch))
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+    for (const p of fitted.points) {
+      if (p.x < minX) minX = p.x
+      if (p.x > maxX) maxX = p.x
+      if (p.y < minY) minY = p.y
+      if (p.y > maxY) maxY = p.y
+    }
+    return { minX, maxX, minY, maxY }
+  }
+
+  it('entry anchor ≈ baseline-left (bottom-left of the main span) for a/o/e', () => {
+    for (const [ch, d] of [
+      ['a', A_BASELINE_EXIT],
+      ['o', O_TOP_EXIT],
+      ['e', E_MID_EXIT],
+    ] as const) {
+      const cfg = buildLetterConfig(ch, d)
+      const bb = fittedBboxOf(ch, d)
+      expect(cfg.anchors.entry.x).toBeCloseTo(bb.minX, 0)
+      expect(cfg.anchors.entry.y).toBeCloseTo(bb.maxY, 0)
+    }
+  })
+
+  it("exit anchor: a ≈ bottom-right, o ≈ top-right, e ≈ mid-right of the main span", () => {
+    const aCfg = buildLetterConfig('a', A_BASELINE_EXIT)
+    const aBb = fittedBboxOf('a', A_BASELINE_EXIT)
+    expect(aCfg.anchors.exit.x).toBeCloseTo(aBb.maxX, 0)
+    expect(aCfg.anchors.exit.y).toBeCloseTo(aBb.maxY, 0)
+
+    const oCfg = buildLetterConfig('o', O_TOP_EXIT)
+    const oBb = fittedBboxOf('o', O_TOP_EXIT)
+    expect(oCfg.anchors.exit.x).toBeCloseTo(oBb.maxX, 0)
+    expect(oCfg.anchors.exit.y).toBeCloseTo(oBb.minY, 0)
+
+    const eCfg = buildLetterConfig('e', E_MID_EXIT)
+    const eBb = fittedBboxOf('e', E_MID_EXIT)
+    expect(eCfg.anchors.exit.x).toBeCloseTo(eBb.maxX, 0)
+    expect(eCfg.anchors.exit.y).toBeCloseTo((eBb.minY + eBb.maxY) / 2, 0)
   })
 })

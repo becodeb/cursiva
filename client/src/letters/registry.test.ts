@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { LETTER_REGISTRY, getLetterConfig } from './registry'
 
 describe('letter registry', () => {
-  it('ships exactly the a and c seeds, both ola/media', () => {
-    expect(Object.keys(LETTER_REGISTRY).sort()).toEqual(['a', 'c'])
+  it('ships the a and c seeds (present at least), all ola/media', () => {
+    // Presence, not an exact-key snapshot: the registry grows to all 26
+    // lowercase letters as hand-drawn SVGs land in the svg/ folder.
+    const keys = Object.keys(LETTER_REGISTRY)
+    expect(keys).toContain('a')
+    expect(keys).toContain('c')
     for (const config of Object.values(LETTER_REGISTRY)) {
       expect(config.family).toBe('ola')
       expect(config.baselineZone).toBe('media')
