@@ -8,7 +8,7 @@ Canonical data model for letters, reconciling docs/02 (`puntosClave`/`pathBézie
 
 ### Requirement: LetterConfig Shape
 
-Every letter MUST be a `LetterConfig` exposing `id`, `character`, `family`, `baselineZone`, `theme`, `pathDefinition` (`d`, `strokeWidth`, `checkpoints`), and `animationTimeline`. All path and checkpoint coordinates MUST be expressed in viewBox `0 0 1000 600` space. Each checkpoint MUST define `x`, `y`, `order` (unique integer, strictly increasing from 1), `radius` (tolerance in virtual px), and MAY define `name`.
+Every letter MUST be a `LetterConfig` exposing `id`, `character`, `family`, `baselineZone`, `theme`, `pathDefinition` (`d`, `guideD`, `ideal`, `strokeWidth`, `checkpoints`), and `animationTimeline`. All path and checkpoint coordinates MUST be expressed in viewBox `0 0 1000 600` space. Each checkpoint MUST define `x`, `y`, `order` (unique integer, strictly increasing from 1), `radius` (tolerance in virtual px), and MAY define `name`.
 
 #### Scenario: Seed `c` replicates docs/07 verbatim
 
@@ -46,13 +46,23 @@ The registry MUST ship seeds `a` and `c` (both `family: 'ola'`, `baselineZone: '
 
 ### Requirement: Path–Checkpoint Consistency
 
-The `pathDefinition.d` ideal path SHALL pass through or near each checkpoint in ascending order; the ideal curve used for scoring is sampled from `d`, not from checkpoints.
+The letter paths SHALL be extracted from the Kalam-Regular font (OFL) glyph outlines, scaled into the middle ruled zone (Y 180–420) of viewBox `0 0 1000 600`:
+- `d` — the exterior ductus (the natural single-pass stroke, now `Q`/`L` commands) used for the demo and as the visible guide line;
+- `guideD` — the FULL glyph contour including counter-holes, rendered as an evenodd FILL so the child sees a real cursive letter;
+- `ideal` — a dense AREA point cloud of the glyph body, the scoring target (distance-based, area-cloud model).
+
+The ductus `d` SHALL pass through or near each checkpoint (as on-curve points reachable along the stroke). For seed `a` the entry (`inicio_enganche`, order 1) and cierre (`cierre_ovalo`, order 6) checkpoints are CO-LOCATED at the same point (467.8, 413.2); the order-gated activation resolves them by ENTRY order — the first visit activates 1, the re-entry (closing the loop) activates 6.
 
 #### Scenario: Sampled ideal path preserves order
 
-- GIVEN seed `c` and its ideal path arc-length-sampled to K points
-- WHEN nearest sampled point to each checkpoint is computed
+- GIVEN seed `c` and its ductus arc-length-sampled to K points
+- WHEN the nearest sampled point to each checkpoint is computed
 - THEN their indices MUST be strictly ascending
+
+#### Scenario: Area cloud drives scoring, not the centerline
+- GIVEN the `ideal` area cloud for a seed
+- WHEN a user trace covers the letter body
+- THEN scoring SHALL use MIN distance to the cloud (area-cloud model), not index pairing to a thin centerline
 
 ## Open Values (design phase)
 
