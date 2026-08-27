@@ -33,8 +33,8 @@ stacked-to-main: every PR targets `main` in order (PR 1 = gh #2 open); no tracke
 
 ## Phase 2: Letters
 
-- [ ] **T2.1** `src/letters/types.ts`: `LetterCheckpoint`, `LetterConfig`, `TraceResult`, `EvaluationResult`. Dep T1.2. ~40
-- [ ] **T2.2** `letra_c.ts` (verbatim docs/07: radii 40/35/40/40/45, orders 1–5), `letra_a.ts` (authored d: apex 480,200/foot 480,420/hook 550,400; radii 40,40,45,40,35,45, ascending 1–6), `registry.ts` (case-insensitive, throws unknown); +tests. Dep T2.1. ~220
+- [x] **T2.1** `src/letters/types.ts`: `LetterCheckpoint`, `LetterConfig`, `TraceResult`, `EvaluationResult`. Dep T1.2. ~40 — DONE in PR 2 (gh #3): commit `feat(client): add letter model types contract` (2a2c62c); types.ts 73 lines (incl. supporting Point/AnimationStep/unions required by exact shapes); typechecked by `tsc --noEmit` and exercised by T2.2 tests
+- [x] **T2.2** `letra_c.ts` (verbatim docs/07: radii 40/35/40/40/45, orders 1–5), `letra_a.ts` (authored d: apex 480,200/foot 480,420/hook 550,400; radii 40,40,45,40,35,45, ascending 1–6), `registry.ts` (case-insensitive, throws unknown); +tests. Dep T2.1. ~220 — DONE in PR 2 (gh #3): commit `feat(client): add letter seeds and registry with tests` (06aaf3f); `npx vitest run src/letters` 3 files/16 tests passed; authored PR diff ≈392 lines (under 400)
 
 ## Phase 3: Canvas
 
