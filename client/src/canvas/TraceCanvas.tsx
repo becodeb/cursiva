@@ -8,10 +8,10 @@
 // The `Z`-closed ink polygon is the only per-frame cost (sub-ms at capture
 // sizes). Evaluation happens at release time in the U6 modes.
 //
-// U6 modes hooks: the surface is shared by the guided mode (animated `demo`,
-// capture `enabled` gating while the demo plays, live `onFrame` rail feed,
-// and an overlay `children` slot for the rescue hints). Free mode later adds
-// the faint guide + release/start callbacks (work unit 6b).
+// U6 modes hooks: the surface is shared by guided (animated `demo`, capture
+// `enabled` gating while the demo plays, live `onFrame` rail feed) and free
+// (faint `guide`, single-release `onRelease`, `onStart` clean retry, and an
+// overlay `children` slot for the star/rescue feedback).
 import { useEffect, useRef, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { inkPath, traceInk } from './ink'
@@ -30,26 +30,35 @@ export interface DrawDemo {
 }
 
 export interface TraceCanvasProps {
+  /** Faint ideal-path guide drawn under the ink (free mode). */
+  guide?: string
   /** Animated draw demo (guided mode) — input is ignored until it ends. */
   demo?: DrawDemo
   /** False ignores pointer input entirely (guided demo phase). */
   enabled?: boolean
+  /** Called when a NEW stroke begins (modes clear the previous feedback). */
+  onStart?: () => void
   /** Called each frame with the live capture (guided rail tracking). */
   onFrame?: (points: TracePoint[], drawing: boolean) => void
-  /** Extra SVG children — rescue hints / feedback overlays. */
+  /** Called exactly once per moved-stroke release (single evaluation). */
+  onRelease?: (points: TracePoint[], pointerType: string) => void
+  /** Extra SVG children — rescue hints / star feedback overlays. */
   children?: ReactNode
 }
 
 export default function TraceCanvas({
+  guide,
   demo,
   enabled = true,
+  onStart,
   onFrame,
+  onRelease,
   children,
 }: TraceCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const inkRef = useRef<SVGPathElement | null>(null)
   const drawingRef = useRef(false)
-  const { bind, pointsRef, isDrawing } = useTraceInput(svgRef, { enabled })
+  const { bind, pointsRef, isDrawing } = useTraceInput(svgRef, { enabled, onStart, onEnd: onRelease })
   useEffect(() => {
     drawingRef.current = isDrawing // mirror so the frame-loop closure never reads stale state
   }, [isDrawing])
@@ -98,6 +107,16 @@ export default function TraceCanvas({
     >
       <line x1={0} y1={SKY_GUIDE_Y} x2={1000} y2={SKY_GUIDE_Y} stroke="#94a3b8" strokeWidth={2} strokeDasharray="12 8" />
       <line x1={0} y1={BASELINE_Y} x2={1000} y2={BASELINE_Y} stroke="#64748b" strokeWidth={3} strokeDasharray="18 8" />
+      {guide && (
+        <path
+          d={guide}
+          fill="none"
+          stroke="#334155"
+          strokeWidth={10}
+          opacity={0.12}
+          pointerEvents="none" // the guide never intercepts pointer input
+        />
+      )}
       {demo && (
         <motion.path
           d={demo.d}

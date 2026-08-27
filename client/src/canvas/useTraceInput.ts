@@ -61,6 +61,10 @@ export interface TraceInput {
 export interface UseTraceInputOptions {
   /** False ignores ALL pointer input (demo phase of guided mode). */
   enabled?: boolean
+  /** Called when a NEW stroke begins, after the buffer is reset (modes clear feedback). */
+  onStart?: () => void
+  /** Called exactly once per moved-stroke release with the captured points (modes evaluate). */
+  onEnd?: (points: TracePoint[], pointerType: string) => void
 }
 
 export function useTraceInput(svgRef: RefObject<SVGSVGElement | null>, options: UseTraceInputOptions = {}): TraceInput {
@@ -83,6 +87,7 @@ export function useTraceInput(svgRef: RefObject<SVGSVGElement | null>, options: 
     activePointerId.current = e.pointerId
     moved.current = false
     pointsRef.current = [p]
+    options.onStart?.() // buffer is fresh — modes clear the previous feedback here
     setIsDrawing(true)
   }
 
@@ -103,8 +108,10 @@ export function useTraceInput(svgRef: RefObject<SVGSVGElement | null>, options: 
     if (svg?.hasPointerCapture(e.pointerId)) svg.releasePointerCapture(e.pointerId)
     activePointerId.current = null
     // Tap (no movement): nothing to evaluate — clear so no ink remains.
-    // Moved stroke: STAYS captured so its ink survives release.
+    // Moved stroke: STAYS captured so its ink survives release, and the
+    // evaluation callback fires exactly once with the full stroke.
     if (!moved.current) pointsRef.current = []
+    else options.onEnd?.(pointsRef.current, e.pointerType)
     setIsDrawing(false)
   }
 
