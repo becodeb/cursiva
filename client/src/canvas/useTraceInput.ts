@@ -58,7 +58,12 @@ export interface TraceInput {
   isDrawing: boolean
 }
 
-export function useTraceInput(svgRef: RefObject<SVGSVGElement | null>): TraceInput {
+export interface UseTraceInputOptions {
+  /** False ignores ALL pointer input (demo phase of guided mode). */
+  enabled?: boolean
+}
+
+export function useTraceInput(svgRef: RefObject<SVGSVGElement | null>, options: UseTraceInputOptions = {}): TraceInput {
   const pointsRef = useRef<TracePoint[]>([])
   const activePointerId = useRef<number | null>(null)
   const moved = useRef(false)
@@ -68,6 +73,7 @@ export function useTraceInput(svgRef: RefObject<SVGSVGElement | null>): TraceInp
     // Primary pointer only: a second finger (non-primary) or a stroke
     // already in progress is ignored (spec "Primary Pointer Only").
     if (!e.isPrimary || activePointerId.current !== null) return
+    if (options.enabled === false) return
     if (e.pointerType === 'mouse' && e.button !== 0) return // left button only
     const svg = svgRef.current
     if (!svg) return
@@ -97,7 +103,7 @@ export function useTraceInput(svgRef: RefObject<SVGSVGElement | null>): TraceInp
     if (svg?.hasPointerCapture(e.pointerId)) svg.releasePointerCapture(e.pointerId)
     activePointerId.current = null
     // Tap (no movement): nothing to evaluate — clear so no ink remains.
-    // Moved stroke: STAYS captured so its ink persists after release.
+    // Moved stroke: STAYS captured so its ink survives release.
     if (!moved.current) pointsRef.current = []
     setIsDrawing(false)
   }
