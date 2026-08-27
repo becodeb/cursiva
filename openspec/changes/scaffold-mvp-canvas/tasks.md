@@ -3,11 +3,11 @@
 ## Workload Forecast
 
 Estimated changed lines: ~1800 (tests/configs/assets incl.)
-Chain strategy: pending (stacked | feature-chain | size:exception)
+Chain strategy: stacked-to-main (orchestrator decision, auto-chain)
 
-Decision needed before apply: Yes
+Decision needed before apply: Yes — resolved: `auto-chain`, `stacked-to-main`
 Chained PRs recommended: Yes
-Chain strategy: pending
+Chain strategy: stacked-to-main
 400-line budget risk: High
 
 ### Work Units
@@ -23,13 +23,13 @@ Chain strategy: pending
 | 7 | Progress+screen | PR 7 | `npx vitest run src/progress` | dev: live%,persist,bloom | remove dirs |
 
 Unit mapping: U1=T1.1–1.3,T7.2, U2=T2.1–2.2, U3=T3.1,3.2,4.3, U4=T4.1–4.2, U5=T3.3–3.5, U6=T5.1–5.3, U7=T6.1–6.2.
-feature-chain: PR 1 → tracker; later → previous branch. Threat matrix N/A → no RED tests.
+stacked-to-main: every PR targets `main` in order (PR 1 = gh #2 open); no tracker branch. Threat matrix N/A → no RED tests.
 
 ## Phase 1: Scaffold
 
-- [ ] **T1.1** Root `package.json`: npm workspaces `["client"]`, private. Dep: none. ~20
-- [ ] **T1.2** `client/` Vite+React+TS: react/react-dom/perfect-freehand/framer-motion; vite/plugin-react/typescript/vitest/types; tsconfig, vite.config.ts (vitest=first runner), `"test":"vitest run"`. Dep T1.1. ~130
-- [ ] **T1.3** `index.html`, `src/main.tsx`, `App.tsx` placeholder + smoke test + README. Dep T1.2. ~70
+- [x] **T1.1** Root `package.json`: npm workspaces `["client"]`, private. Dep: none. ~20 — DONE in PR 1 (gh #2): commit `chore(root): add npm workspaces manifest and gitignore`
+- [x] **T1.2** `client/` Vite+React+TS: react/react-dom/perfect-freehand/framer-motion; vite/plugin-react/typescript/vitest/types; tsconfig, vite.config.ts (vitest=first runner), `"test":"vitest run"`. Dep T1.1. ~130 — DONE in PR 1 (gh #2): commit `build(client): scaffold vite react ts workspace with vitest`; latest majors (vite 8.2.2, vitest 4.1.11, react 19.2.8, TS 7.0.2); `npm test` 1/1 pass; `npm run build` green
+- [x] **T1.3** `index.html`, `src/main.tsx`, `App.tsx` placeholder + smoke test + README. Dep T1.2. ~70 — DONE in PR 1 (gh #2): commit `feat(client): add placeholder app shell, smoke test, and readme`; SSR smoke test; dev server serves placeholder (HTTP 200)
 
 ## Phase 2: Letters
 
@@ -64,4 +64,4 @@ feature-chain: PR 1 → tracker; later → previous branch. Threat matrix N/A �
 ## Phase 7: Verify/Docs
 
 - [ ] **T7.1** Device checklist (manual): avg frame ≤17ms pointermove; 2nd finger ignored; cancel clears; ergonomics. Dep T5.3, T6.2. ~15
-- [ ] **T7.2** README note in T1.3 — no separate task.
+- [x] **T7.2** README note in T1.3 — no separate task. — DONE: folded into T1.3; `client/README.md` carries docs/02-04-07 pointers + delivery plan
