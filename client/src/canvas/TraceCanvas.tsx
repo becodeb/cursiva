@@ -28,7 +28,7 @@ export default function TraceCanvas() {
     const frame = (): void => {
       const points = pointsRef.current
       if (points.length === 0) {
-        // Stroke ended or was cancelled: clear the ink (spec "pointercancel clears").
+        // Stroke ended or cancelled: clear the ink (spec "pointercancel clears").
         if (lastD !== '') {
           lastD = ''
           path.setAttribute('d', '')

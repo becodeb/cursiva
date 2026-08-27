@@ -1,7 +1,5 @@
-// ink.ts contract tests (trace-canvas "Ink Rendering" scenarios, T3.3).
-// Assertions are written against perfect-freehand's documented geometry —
-// closed polygon outlining the centerline, render-only (no mutation) — not
-// against the module's own helpers.
+// ink.ts contract tests (trace-canvas "Ink Rendering", T3.3): geometry
+// asserted independently (point-in-polygon, distances), not via module helpers.
 import { describe, expect, it } from 'vitest'
 import type { Point } from '../letters/types'
 import { inkPath, traceInk } from './ink'

@@ -1,9 +1,7 @@
-// useTraceInput normalization contract (trace-canvas "Correct normalization"
-// scenario, T3.4). The browser owns `getScreenCTM().inverse()`; this module
-// owns the affine application of the inverted matrix, which is pure and is
-// asserted here against hand-computed values. Pointer-state behaviors
-// (primary-only, cancel discards) are exercised by the browser runtime
-// harness (device checklist T7.1 tracks perceived-lag bounds).
+// useTraceInput normalization (trace-canvas "Correct normalization", T3.4):
+// the browser owns `getScreenCTM().inverse()`; the affine application is
+// pure and asserted against hand-computed values. Pointer-state behaviors
+// (primary-only, cancel discards) run in the browser runtime harness.
 import { describe, expect, it } from 'vitest'
 import { canvasPoint } from './useTraceInput'
 

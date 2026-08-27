@@ -1,8 +1,4 @@
-/**
- * App shell for the cursiva MVP.
- * The trace canvas lands in unit 5; guided/free modes (U6) and the
- * progress screen (U7) mount here in later work units (see README.md).
- */
+/** App shell. Trace canvas (U5); guided/free modes (U6) and the progress screen (U7) mount here later. */
 import TraceCanvas from './canvas/TraceCanvas'
 
 export default function App() {

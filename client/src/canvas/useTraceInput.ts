@@ -1,15 +1,13 @@
 // Pointer capture hook (trace-canvas "Pointer Capture and Normalization",
-// T3.4). Raw screen points are mapped into viewBox space via the INVERSE
-// screen CTM (`getScreenCTM().inverse()`) — naive clientX/clientY scaling is
-// FORBIDDEN (spec). Exactly one active stroke: a second `pointerdown` while
-// one is active is ignored (multi-pointer deferred), and `pointercancel`
-// discards the active stroke.
+// T3.4). Screen points map into viewBox space via the INVERSE screen CTM
+// (`getScreenCTM().inverse()`); naive clientX/clientY scaling is FORBIDDEN
+// (spec). Exactly one active stroke: a second `pointerdown` is ignored
+// (multi-pointer deferred); `pointercancel` discards stroke and ink.
 //
 // 60fps strategy (design.md): points accumulate in a ref — NO setState per
-// move; the canvas owns a rAF loop that re-inks once per frame. Evaluation
-// is a release-time concern (U6 modes): a pointerup without movement is a
-// tap — the buffer empties and nothing is evaluated; a moved stroke stays
-// captured so its ink persists after release (modes own clearing later).
+// move; the canvas rAF loop re-inks once per frame. A pointerup without
+// movement is a tap — buffer emptied, nothing evaluated; a moved stroke
+// persists so its ink survives release (modes own clearing later).
 import { useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react'
 import type { Point } from '../letters/types'
@@ -98,10 +96,8 @@ export function useTraceInput(svgRef: RefObject<SVGSVGElement | null>): TraceInp
     const svg = svgRef.current
     if (svg?.hasPointerCapture(e.pointerId)) svg.releasePointerCapture(e.pointerId)
     activePointerId.current = null
-    // A pointerup without movement is a tap: nothing to evaluate and no ink
-    // to keep — the buffer is cleared (the canvas clears the dot next frame).
-    // A moved stroke STAYS captured: the ink must persist after release
-    // (U6 modes own clearing on retry/evaluation).
+    // Tap (no movement): nothing to evaluate — clear so no ink remains.
+    // Moved stroke: STAYS captured so its ink persists after release.
     if (!moved.current) pointsRef.current = []
     setIsDrawing(false)
   }
