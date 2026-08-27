@@ -1,15 +1,16 @@
 schema: spec-driven
 
 context: |
-  Project: cursiva — cursive-handwriting pedagogy web app. Greenfield repo: only docs/ (Spanish)
-  present, no source code, no manifest, no test runner yet.
-  Intended stack (from docs/02, docs/04, docs/06):
-    - Frontend: React + Vite + TypeScript (perfect-freehand + animation libs)
-    - Backend: Node.js + Express + TypeScript
-    - DB: PostgreSQL or SQLite
-    - Infra: Docker / Docker Compose
-  Canvas: normalized SVG viewBox (0 0 1000 600), Pointer Events API, localStorage/local DB.
+  Project: cursiva — cursive-handwriting pedagogy web app.
+  Instantiated stack (as of change scaffold-mvp-canvas, archived 2026-08-27):
+    - Frontend client: React 19 + Vite 8 + TypeScript 7 (npm-workspaces monorepo, `client/` only)
+    - Render: perfect-freehand; animation: framer-motion 13.x (design referenced 12 — pathLength API stable)
+    - Backend/DB/Infra: NOT yet scaffolded (docs/06 deferred) — Node/Express/Postgres/SQLite/Docker planned later
+  Canvas: normalized SVG viewBox (0 0 1000 600), Pointer Events API (getScreenCTM().inverse()),
+    localStorage (key cursiva.progress.v1).
   Convention: docs are Spanish; technical SDD artifacts default to English.
+  Source of truth: 7 main specs under openspec/specs/ (letter-model, trace-canvas, trace-validation,
+    guided-trace-mode, free-trace-mode, progress-store, main-screen).
 
 rules:
   proposal:
@@ -36,9 +37,10 @@ rules:
 
 testing:
   strict_tdd: false
-  runner: none-detected
+  runner: vitest@4
   note: |
-    No test runner detected in this greenfield repo (only docs/). Once the React/Vite + TS
-    frontend and/or Express + TS backend are scaffolded, re-run sdd-init (or update this block)
-    to set strict_tdd: true and populate test_command (e.g. vitest / jest / supertest).
-    Strict TDD is currently DISABLED because no concrete test command exists.
+    Vitest 4 is the runner for the `client/` frontend (scaffold-mvp-canvas). `npm test` runs
+    `vitest run`; `npm run build` = tsc --noEmit && vite build. 73 tests / 12 files green at
+    archive. Strict TDD stays DISABLED (threat matrix N/A, no RED phase) per design. TS 7 bare
+    `tsc --noEmit` has a known quirk — use `npm run build` instead. Backend runner not yet
+    applicable (docs/06 deferred).
