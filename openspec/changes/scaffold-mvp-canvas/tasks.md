@@ -22,7 +22,10 @@ Chain strategy: stacked-to-main
 | 6 | Modes | PR 6 | `npm test` regression | dev: demo→rail→feedback | remove `src/modes/`+assets |
 | 7 | Progress+screen | PR 7 | `npx vitest run src/progress` | dev: live%,persist,bloom | remove dirs |
 
-Unit mapping: U1=T1.1–1.3,T7.2, U2=T2.1–2.2, U3=T3.1,3.2,4.3, U4=T4.1–4.2, U5=T3.3–3.5, U6=T5.1–5.3, U7=T6.1–6.2.
+> Unit 6 split into two stacked PRs (auto-chain budget rule — authored diff 523 > 400): PR 6a = T5.1 guided
+> (gh #7, `feat/modes`); PR 6b = T5.2+T5.3 free trace + feedback (gh #8, `feat/modes-free`, stacked on 6a). Chain is now 8 PRs (6a, 6b, then unit 7 as the last PR).
+
+Unit mapping: U1=T1.1–1.3,T7.2, U2=T2.1–2.2, U3=T3.1,3.2,4.3, U4=T4.1–4.2, U5=T3.3–3.5, U6=T5.1–5.3 (6a+6b), U7=T6.1–6.2.
 stacked-to-main: every PR targets `main` in order (PR 1 = gh #2 open); no tracker branch. Threat matrix N/A → no RED tests.
 
 ## Phase 1: Scaffold
@@ -52,9 +55,9 @@ stacked-to-main: every PR targets `main` in order (PR 1 = gh #2 open); no tracke
 
 ## Phase 5: Modes
 
-- [ ] **T5.1** `modes/guidedTrace.tsx`: framer-motion pathLength 0→1 (delay/duration); demo input ignored; ready at max(delay+duration)+200ms; radius rail + rescue incl. wrong-direction; handoff. Dep T4.1, T3.5, T2.2. ~140
-- [ ] **T5.2** `modes/freeTrace.tsx`: faint ideal guide; ink only pre-release; single release evaluation (pointerType tolerance); exactly-once feedback; clean retry. Dep T4.3, T3.5. ~100
-- [ ] **T5.3** `tone.ts`+`StarFeedback.tsx`+assets: approval tone only; star per `public/assets/themes/star.svg`; else rescue; `mar_ola_a/c.svg`. Dep T5.2. ~110
+- [x] **T5.1** `modes/guidedTrace.tsx`: framer-motion pathLength 0→1 (delay/duration); demo input ignored; ready at max(delay+duration)+200ms; radius rail + rescue incl. wrong-direction; handoff. Dep T4.1, T3.5, T2.2. ~140 — DONE in PR 6a (gh #7, `feat/modes`): commits `feat(canvas): add mode hooks for the guided demo and rail feed` (136cc73) + `feat(modes): add guided demo and checkpoint rail with rescue hints` (8d0479a). `guidedFollowState` (pure, reuses checkCheckpointOrder) + corridor rescue (widest radius + 10px slack — a passable trace never nags); demo input gated via a new `enabled` capture option; ready measured at 3296/3301ms vs 3200 expected in the browser harness; rail completion in 6a replays the demo, 6b wires it to hand off to free. Tests: 4 (modes.test.ts). Authored diff 248+11 (259).
+- [x] **T5.2** `modes/freeTrace.tsx`: faint ideal guide; ink only pre-release; single release evaluation (pointerType tolerance); exactly-once feedback; clean retry. Dep T4.3, T3.5. ~100 — DONE in PR 6b (gh #8, `feat/modes-free`, stacked on #7): commits `feat(canvas): expose start and release callbacks to the free mode` (7943146) + `feat(modes): add free trace with single-release evaluation and tone feedback` (a9e0e71). Pure `evaluateTrace` (resample → order + continuity + score; TolTouch 18 vs TolPen 12 — ±5px jitter: touch 72.2 approved / pen 58.3 rejected); exactly-once by construction (hook `onEnd` fires per moved release; verified 1 status element + 1 tone play in the harness); `onStart` clears feedback for clean retry.
+- [x] **T5.3** `tone.ts`+`StarFeedback.tsx`+assets: approval tone only; star per `public/assets/themes/star.svg`; else rescue; `mar_ola_a/c.svg`. Dep T5.2. ~110 — DONE in PR 6b (gh #8): `playApprovalTone` = soft C5 sine + exponential envelope through a LAZY shared AudioContext (created on the first approval inside the release gesture; best-effort, headless-safe with `--autoplay-policy=no-user-gesture-required`); star placeholder SVG + rescue text (RescueHint shared with guided); `mar_ola_a.svg`/`mar_ola_c.svg`/`star.svg` added. Tone unit tests via injected fake AudioContext (oscillator/connect/start/envelope asserted; null/throwing ctx safe no-op).
 
 ## Phase 6: Progress + Screen
 
