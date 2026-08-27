@@ -30,15 +30,18 @@ export interface DrawDemo {
 }
 
 export interface TraceCanvasProps {
-  /** Faint ideal-path guide drawn under the ink (free mode). */
+  /** Faint ideal-path guide line drawn under the ink (free mode). */
   guide?: string
+  /** Full glyph contour (incl. counter-holes) for the evenodd FILL layer of
+   * the guide (a real cursive 'a'/'c' shape the child can see and follow). */
+  guideD?: string
   /** Animated draw demo (guided mode) — input is ignored until it ends. */
   demo?: DrawDemo
   /** False ignores pointer input entirely (guided demo phase). */
   enabled?: boolean
   /** Called when a NEW stroke begins (modes clear the previous feedback). */
   onStart?: () => void
-  /** Called each frame with the live capture (guided rail tracking). */
+  /** Called each frame with the live capture (guided rail feed). */
   onFrame?: (points: TracePoint[], drawing: boolean) => void
   /** Called exactly once per moved-stroke release (single evaluation). */
   onRelease?: (points: TracePoint[], pointerType: string) => void
@@ -48,6 +51,7 @@ export interface TraceCanvasProps {
 
 export default function TraceCanvas({
   guide,
+  guideD,
   demo,
   enabled = true,
   onStart,
@@ -107,13 +111,22 @@ export default function TraceCanvas({
     >
       <line x1={0} y1={SKY_GUIDE_Y} x2={1000} y2={SKY_GUIDE_Y} stroke="#94a3b8" strokeWidth={2} strokeDasharray="12 8" />
       <line x1={0} y1={BASELINE_Y} x2={1000} y2={BASELINE_Y} stroke="#64748b" strokeWidth={3} strokeDasharray="18 8" />
+      {guideD && (
+        <path
+          d={guideD}
+          fill="#334155"
+          fillRule="evenodd"
+          opacity={0.06}
+          pointerEvents="none" // the guide never intercepts pointer input
+        />
+      )}
       {guide && (
         <path
           d={guide}
           fill="none"
           stroke="#334155"
           strokeWidth={10}
-          opacity={0.12}
+          opacity={0.15}
           pointerEvents="none" // the guide never intercepts pointer input
         />
       )}
@@ -130,7 +143,14 @@ export default function TraceCanvas({
           pointerEvents="none"
         />
       )}
-      <path ref={inkRef} fill="#1e293b" stroke="none" />
+      <path
+        ref={inkRef}
+        fill="none"
+        stroke="#1e293b"
+        strokeWidth={18}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       {children}
     </svg>
   )

@@ -10,7 +10,7 @@ import { Approval } from '../canvas/validation/constants'
 import { checkCheckpointOrder } from '../canvas/validation/checkpoints'
 import { checkContinuity } from '../canvas/validation/continuity'
 import { penScore, touchScore } from '../canvas/validation/score'
-import { resample, samplePath } from '../canvas/resample'
+import { resample } from '../canvas/resample'
 import TraceCanvas from '../canvas/TraceCanvas'
 import { FeedbackResult } from './StarFeedback'
 import { playApprovalTone } from './tone'
@@ -30,7 +30,7 @@ export function evaluateTrace(points: Point[], letter: LetterConfig, pointerType
   const cps = letter.pathDefinition.checkpoints
   const order = checkCheckpointOrder(resampled, cps)
   const isContinuous = checkContinuity(resampled, cps)
-  const ideal = samplePath(letter.pathDefinition.d)
+  const ideal = letter.pathDefinition.ideal
   const score = pointerType === 'touch' ? touchScore(resampled, ideal) : penScore(resampled, ideal)
   const approved = order.orderPassed && isContinuous && score >= Approval
   return {
@@ -63,6 +63,7 @@ export default function FreeTrace({
   return (
     <TraceCanvas
       guide={letter.pathDefinition.d}
+      guideD={letter.pathDefinition.guideD}
       onStart={() => setResult(null)} // clean retry: hide previous feedback
       onRelease={onRelease}
     >

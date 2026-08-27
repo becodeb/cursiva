@@ -6,9 +6,8 @@
 // order (trace-validation), with a rescue hint when the head leaves the ideal
 // corridor or a wrong-direction contact occurs. Completing the rail emits
 // `onComplete` so the app hands off to free-trace (Mode 2).
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { checkCheckpointOrder } from '../canvas/validation/checkpoints'
-import { samplePath } from '../canvas/resample'
 import TraceCanvas, { type DrawDemo } from '../canvas/TraceCanvas'
 import type { LetterCheckpoint, LetterConfig, Point } from '../letters/types'
 
@@ -32,33 +31,31 @@ export interface GuidedFollow {
   complete: boolean
 }
 
-function dist(a: Point, b: Point): number {
-  const dx = a.x - b.x
-  const dy = a.y - b.y
-  return Math.hypot(dx, dy)
+function distToCloud(head: Point, cloud: ReadonlyArray<readonly [number, number]>): number {
+  let best = Infinity
+  for (let i = 0; i < cloud.length; i++) {
+    const c = cloud[i]
+    const d = Math.hypot(head.x - c[0], head.y - c[1])
+    if (d < best) best = d
+  }
+  return best
 }
 
 /**
  * Live rail state over the accumulated stroke (called once per frame while
- * drawing): strict-order activation reuses checkCheckpointOrder, and the
- * rescue condition is the head leaving the corridor around the ideal path —
- * corridor radius = widest checkpoint tolerance + 10px slack, so a passable
- * trace never nags and a real drift shows the hint (spec "Leaves the rail").
+ * drawing): strict-order activation reuses checkCheckpointOrder, and the rescue
+ * condition is the head leaving the letter AREA — min distance to the dense
+ * ideal cloud exceeds 70px (a child drawing inside the real glyph body is fine;
+ * only a clear drift off the letter shows the hint, spec "Leaves the rail").
  */
 export function guidedFollowState(
   points: Point[],
   checkpoints: LetterCheckpoint[],
-  ideal: Point[],
+  ideal: ReadonlyArray<readonly [number, number]>,
 ): GuidedFollow {
   const order = checkCheckpointOrder(points, checkpoints)
   const head = points[points.length - 1]
-  let offPath = false
-  if (head) {
-    const tol = Math.max(...checkpoints.map((c) => c.radius)) + 10
-    let best = Infinity
-    for (const p of ideal) best = Math.min(best, dist(head, p))
-    offPath = best > tol
-  }
+  const offPath = head ? distToCloud(head, ideal) > 70 : false
   return {
     activated: order.activated,
     wrongDirection: order.wrongDirection,
@@ -81,7 +78,7 @@ export default function GuidedTrace({ letter, onComplete }: { letter: LetterConf
   const [hint, setHint] = useState<null | 'outside' | 'wrong'>(null)
   const [drawing, setDrawing] = useState(false)
   const completed = useRef(false)
-  const ideal = useMemo(() => samplePath(letter.pathDefinition.d), [letter])
+  const ideal = letter.pathDefinition.ideal
 
   useEffect(() => {
     const t = window.setTimeout(() => setPhase('ready'), readyMs)
@@ -109,7 +106,13 @@ export default function GuidedTrace({ letter, onComplete }: { letter: LetterConf
   )
 
   return (
-    <TraceCanvas demo={demo} enabled={phase === 'ready'} onFrame={onFrame}>
+    <TraceCanvas
+      demo={demo}
+      enabled={phase === 'ready'}
+      guide={letter.pathDefinition.d}
+      guideD={letter.pathDefinition.guideD}
+      onFrame={onFrame}
+    >
       {phase === 'demo' && (
         <text x={500} y={90} textAnchor="middle" fontSize={26} fill="#334155">
           Observá el trazo
