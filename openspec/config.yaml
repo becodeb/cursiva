@@ -1,0 +1,44 @@
+schema: spec-driven
+
+context: |
+  Project: cursiva — cursive-handwriting pedagogy web app. Greenfield repo: only docs/ (Spanish)
+  present, no source code, no manifest, no test runner yet.
+  Intended stack (from docs/02, docs/04, docs/06):
+    - Frontend: React + Vite + TypeScript (perfect-freehand + animation libs)
+    - Backend: Node.js + Express + TypeScript
+    - DB: PostgreSQL or SQLite
+    - Infra: Docker / Docker Compose
+  Canvas: normalized SVG viewBox (0 0 1000 600), Pointer Events API, localStorage/local DB.
+  Convention: docs are Spanish; technical SDD artifacts default to English.
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    guidelines:
+      - Follow existing code patterns
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
+
+testing:
+  strict_tdd: false
+  runner: none-detected
+  note: |
+    No test runner detected in this greenfield repo (only docs/). Once the React/Vite + TS
+    frontend and/or Express + TS backend are scaffolded, re-run sdd-init (or update this block)
+    to set strict_tdd: true and populate test_command (e.g. vitest / jest / supertest).
+    Strict TDD is currently DISABLED because no concrete test command exists.
