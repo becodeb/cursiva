@@ -66,6 +66,8 @@ export default function FreeTrace({
       guideD={letter.pathDefinition.guideD}
       onStart={() => setResult(null)} // clean retry: hide previous feedback
       onRelease={onRelease}
+      devCheckpoints={letter.pathDefinition.checkpoints}
+      devIdeal={letter.pathDefinition.ideal}
     >
       {result && <FeedbackResult result={result} />}
     </TraceCanvas>

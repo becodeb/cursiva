@@ -81,6 +81,15 @@ describe('checkCheckpointOrder (strict order 1→N over resampled points)', () =
     }
   })
 
+  it('passing through an already-activated zone again is benign (entry semantics)', () => {
+    // El niño repasa una zona ya activada antes de seguir: no debe romper el orden.
+    const stroke = [entry, subida, entry, cresta, gancho, entry, bajada, cierre]
+    const result = checkCheckpointOrder(stroke, checkpoints)
+    expect(result.orderPassed).toBe(true)
+    expect(result.wrongDirection).toBe(false)
+    expect(result.activated).toEqual([1, 2, 3, 4, 5, 6])
+  })
+
   it('degrades safely on empty input and empty checkpoints', () => {
     expect(checkCheckpointOrder([], checkpoints)).toEqual({
       orderPassed: false,

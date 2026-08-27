@@ -48,6 +48,7 @@ export function checkCheckpointOrder(
   const activated: number[] = []
   const inside = new Array<boolean>(sorted.length).fill(false)
   let expectedOrder = 1
+  let maxActivated = 0
   let wrongDirection = false
 
   for (const p of points) {
@@ -64,10 +65,15 @@ export function checkCheckpointOrder(
       // higher orders are co-located zones (the apex pair), not a direction
       // fault: the same point cannot distinguish them.
       activated.push(expectedOrder)
+      maxActivated = Math.max(maxActivated, expectedOrder)
       expectedOrder += 1
       continue
     }
-    if (entered.some((order) => order > expectedOrder)) {
+    // Re-passing an ALREADY-activated zone is benign (entry semantics): a child
+    // may retrace a completed checkpoint before continuing. Only an entry into a
+    // still-pending, ahead-of-expected zone counts as a true direction fault.
+    const benignReentry = entered.some((order) => order <= maxActivated)
+    if (!benignReentry && entered.some((order) => order > expectedOrder)) {
       wrongDirection = true
     }
   }

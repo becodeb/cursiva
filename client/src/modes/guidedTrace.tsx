@@ -112,6 +112,8 @@ export default function GuidedTrace({ letter, onComplete }: { letter: LetterConf
       guide={letter.pathDefinition.d}
       guideD={letter.pathDefinition.guideD}
       onFrame={onFrame}
+      devCheckpoints={letter.pathDefinition.checkpoints}
+      devIdeal={letter.pathDefinition.ideal}
     >
       {phase === 'demo' && (
         <text x={500} y={90} textAnchor="middle" fontSize={26} fill="#334155">

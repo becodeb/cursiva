@@ -12,13 +12,18 @@
 // `enabled` gating while the demo plays, live `onFrame` rail feed) and free
 // (faint `guide`, single-release `onRelease`, `onStart` clean retry, and an
 // overlay `children` slot for the star/rescue feedback).
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { inkPath, traceInk } from './ink'
 import { useTraceInput, type TracePoint } from './useTraceInput'
+import { isDevMode } from './devMode'
+import { devCheckpointState, type DevCheckpointState } from './devCheckpointState'
+import { DevCheckpointOverlay } from './devCheckpointOverlay'
+import type { LetterCheckpoint } from '../letters/types'
 
 const VIEWBOX = '0 0 1000 600'
 const SKY_GUIDE_Y = 180
+const MIDDLE_GUIDE_Y = 300
 const BASELINE_Y = 420
 
 /** Animated draw demo: framer-motion `pathLength` 0→1, times in seconds. */
@@ -47,6 +52,10 @@ export interface TraceCanvasProps {
   onRelease?: (points: TracePoint[], pointerType: string) => void
   /** Extra SVG children — rescue hints / star feedback overlays. */
   children?: ReactNode
+  /** DEV overlay: checkpoints to visualize (lit in activation order). */
+  devCheckpoints?: LetterCheckpoint[]
+  /** DEV overlay: dense ideal cloud used for the approximate distance score. */
+  devIdeal?: ReadonlyArray<readonly [number, number]>
 }
 
 export default function TraceCanvas({
@@ -58,6 +67,8 @@ export default function TraceCanvas({
   onFrame,
   onRelease,
   children,
+  devCheckpoints,
+  devIdeal,
 }: TraceCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const inkRef = useRef<SVGPathElement | null>(null)
@@ -66,6 +77,20 @@ export default function TraceCanvas({
   useEffect(() => {
     drawingRef.current = isDrawing // mirror so the frame-loop closure never reads stale state
   }, [isDrawing])
+
+  // DEV overlay state. Computed live inside the rAF loop but THROTTLED (~10Hz
+  // and only when the stroke length changed) so it never competes with the
+  // 60fps ink loop for setState. Disabled unless dev mode + both props are set.
+  const devOn = isDevMode() && !!devCheckpoints && !!devIdeal
+  const [devState, setDevState] = useState<DevCheckpointState | null>(null)
+  const devCPRef = useRef(devCheckpoints)
+  const devIdealRef = useRef(devIdeal)
+  const devOnRef = useRef(devOn)
+  const lastLenRef = useRef(-1)
+  const lastTimeRef = useRef(0)
+  devCPRef.current = devCheckpoints
+  devIdealRef.current = devIdeal
+  devOnRef.current = devOn
 
   useEffect(() => {
     const path = inkRef.current
@@ -85,6 +110,14 @@ export default function TraceCanvas({
         if (d !== lastD) {
           lastD = d
           path.setAttribute('d', d)
+        }
+      }
+      if (devOnRef.current && devCPRef.current && devIdealRef.current) {
+        const now = performance.now()
+        if (points.length !== lastLenRef.current || now - lastTimeRef.current >= 100) {
+          lastLenRef.current = points.length
+          lastTimeRef.current = now
+          setDevState(devCheckpointState(points, devCPRef.current, devIdealRef.current))
         }
       }
       onFrame?.(pointsRef.current, drawingRef.current)
@@ -110,6 +143,7 @@ export default function TraceCanvas({
       {...bind}
     >
       <line x1={0} y1={SKY_GUIDE_Y} x2={1000} y2={SKY_GUIDE_Y} stroke="#94a3b8" strokeWidth={2} strokeDasharray="12 8" />
+      <line x1={0} y1={MIDDLE_GUIDE_Y} x2={1000} y2={MIDDLE_GUIDE_Y} stroke="#0ea5e9" strokeWidth={2.5} strokeDasharray="14 6" opacity={0.55} />
       <line x1={0} y1={BASELINE_Y} x2={1000} y2={BASELINE_Y} stroke="#64748b" strokeWidth={3} strokeDasharray="18 8" />
       {guideD && (
         <path
@@ -152,6 +186,9 @@ export default function TraceCanvas({
         strokeLinejoin="round"
       />
       {children}
+      {devOn && devState && devCheckpoints && devIdeal && (
+        <DevCheckpointOverlay checkpoints={devCheckpoints} state={devState} />
+      )}
     </svg>
   )
 }
