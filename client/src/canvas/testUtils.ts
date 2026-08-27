@@ -11,16 +11,39 @@ import type { Point } from '../letters/types'
  */
 const REF_STEPS = 96
 
-/** Independent flatten of SVG `d` (M + C) via the textbook cubic Bézier basis. */
+/**
+ * Tokenize an SVG path `d` (same as resample.ts tokenize): split command letters
+ * from glued numbers so `M538.56 186.84` parses as M, 538.56, 186.84.
+ */
+function tokenize(d: string): string[] {
+  return d
+    .replace(/([MLQCZmlqcz])/g, ' $1 ')
+    .trim()
+    .split(/[\s,]+/)
+    .filter(Boolean)
+}
+
+/**
+ * Quadratic-Bézier subdivision density of the reference flatten. Mirrors
+ * resample.ts Q_SEGMENT_STEPS (co-designed pair) so the reference polyline is
+ * bit-identical to samplePath's and arc-position assertions hold exactly.
+ */
+const REF_Q_STEPS = 48
+
+/** Independent flatten of SVG `d` (M + C + Q + L + Z, multiple subpaths) via the
+ * textbook Bézier bases. Mirrors resample.ts samplePath so "perfect = 100" and
+ * arc-position checks hold exactly. */
 export function referenceFlattenPath(d: string): Point[] {
   const polyline: Point[] = []
-  const tokens = d.trim().split(/[\s,]+/)
+  const tokens = tokenize(d)
   let i = 0
   let current: Point | null = null
+  let subpathStart: Point | null = null
   while (i < tokens.length) {
     const token = tokens[i]
     if (token === 'M') {
       current = { x: Number(tokens[i + 1]), y: Number(tokens[i + 2]) }
+      subpathStart = current
       polyline.push(current)
       i += 3
     } else if (token === 'C') {
@@ -42,6 +65,34 @@ export function referenceFlattenPath(d: string): Point[] {
       }
       current = { x, y }
       i += 7
+    } else if (token === 'Q') {
+      if (current === null) throw new Error(`Path data must start with M: ${d}`)
+      const x1 = Number(tokens[i + 1])
+      const y1 = Number(tokens[i + 2])
+      const x = Number(tokens[i + 3])
+      const y = Number(tokens[i + 4])
+      const p0 = current
+      for (let s = 1; s <= REF_Q_STEPS; s++) {
+        const t = s / REF_Q_STEPS
+        const mt = 1 - t
+        polyline.push({
+          x: mt * mt * p0.x + 2 * mt * t * x1 + t * t * x,
+          y: mt * mt * p0.y + 2 * mt * t * y1 + t * t * y,
+        })
+      }
+      current = { x, y }
+      i += 5
+    } else if (token === 'L') {
+      if (current === null) throw new Error(`Path data must start with M: ${d}`)
+      current = { x: Number(tokens[i + 1]), y: Number(tokens[i + 2]) }
+      polyline.push(current)
+      i += 3
+    } else if (token === 'Z') {
+      if (current && subpathStart) {
+        polyline.push(subpathStart)
+        current = subpathStart
+      }
+      i += 1
     } else {
       throw new Error(`Unexpected path token: ${token}`)
     }

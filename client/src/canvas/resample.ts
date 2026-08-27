@@ -61,22 +61,51 @@ export function resample(points: Point[], k: number = K): Point[] {
 const SEGMENT_STEPS = 96
 
 /**
- * Sample a letter's ideal `d` (SVG `M` + `C`, as authored by the seeds) to
- * exactly `k` equidistant points: flatten into a dense polyline that includes
- * every segment endpoint (= every checkpoint), then `resample`. The sampled
- * ideal mirrors the user-stroke pipeline and preserves ductus order
- * (trace-canvas "Sampled ideal path preserves order" scenario via `c`).
+ * Tokenize an SVG path `d`: split on command letters (M/L/Q/C/Z, keeping them
+ * as their own tokens) and on whitespace/commas between numbers. Real Kalam
+ * glyph paths glue the command to its first number (e.g. `M538.56 186.84`),
+ * so a naive whitespace split would yield `M538.56` and fail to parse.
+ */
+function tokenize(d: string): string[] {
+  return d
+    .replace(/([MLQCZmlqcz])/g, ' $1 ')
+    .trim()
+    .split(/[\s,]+/)
+    .filter(Boolean)
+}
+
+/**
+ * Quadratic-Bézier subdivision density. 48 steps is enough for the gentler Q
+ * segments of the real Kalam glyph contours; must match testUtils.ts so the
+ * reference flatten is bit-identical (co-designed pair).
+ */
+const Q_SEGMENT_STEPS = 48
+
+/**
+ * Sample a letter's ideal `d` (SVG `M` + `C`/`Q` + `L` + `Z`, possibly multiple
+ * subpaths) to exactly `k` equidistant points: flatten into a dense polyline
+ * that includes every on-curve endpoint (= every checkpoint), walking each
+ * subpath sequentially (a `Z` contributes its closure point back to the
+ * subpath start), then `resample`. The cubic path (`C`) behavior is unchanged;
+ * `Q` segments (the real glyph ductus) use Q_SEGMENT_STEPS. The sampled ideal
+ * mirrors the user-stroke pipeline and preserves ductus order.
+ *
+ * NOTE: scoring no longer uses this — it scores against the area cloud
+ * (letter.pathDefinition.ideal). samplePath remains for ductus/consistency
+ * tests and the guided demo feed.
  */
 export function samplePath(d: string, k: number = K): Point[] {
   if (!d.trim()) return []
   const polyline: Point[] = []
-  const tokens = d.trim().split(/[\s,]+/)
+  const tokens = tokenize(d)
   let i = 0
   let current: Point | null = null
+  let subpathStart: Point | null = null
   while (i < tokens.length) {
     const token = tokens[i]
     if (token === 'M') {
       current = { x: Number(tokens[i + 1]), y: Number(tokens[i + 2]) }
+      subpathStart = current
       polyline.push(current)
       i += 3
     } else if (token === 'C') {
@@ -97,6 +126,33 @@ export function samplePath(d: string, k: number = K): Point[] {
       }
       current = { x, y }
       i += 7
+    } else if (token === 'Q') {
+      if (current === null) throw new Error(`Path data must start with M: ${d}`)
+      const x1 = Number(tokens[i + 1])
+      const y1 = Number(tokens[i + 2])
+      const x = Number(tokens[i + 3])
+      const y = Number(tokens[i + 4])
+      const p0 = current
+      for (let s = 1; s <= Q_SEGMENT_STEPS; s++) {
+        const t = s / Q_SEGMENT_STEPS
+        const mt = 1 - t
+        const px = mt * mt * p0.x + 2 * mt * t * x1 + t * t * x
+        const py = mt * mt * p0.y + 2 * mt * t * y1 + t * t * y
+        polyline.push({ x: px, y: py })
+      }
+      current = { x, y }
+      i += 5
+    } else if (token === 'L') {
+      if (current === null) throw new Error(`Path data must start with M: ${d}`)
+      current = { x: Number(tokens[i + 1]), y: Number(tokens[i + 2]) }
+      polyline.push(current)
+      i += 3
+    } else if (token === 'Z') {
+      if (current && subpathStart) {
+        polyline.push(subpathStart) // closure back to the subpath start
+        current = subpathStart
+      }
+      i += 1
     } else {
       throw new Error(`Unexpected path token: ${token}`)
     }

@@ -16,31 +16,33 @@ describe('checkContinuity (lift before the final checkpoint)', () => {
   })
 
   it('marks isContinuous=false when the pen lifts right after checkpoint 2 of `a`', () => {
-    // Spec scenario: lifts after activating order 2 (cresta_ola) — the final
-    // checkpoint (550,400) is never reached.
+    // Lifts after subida_ola (order 2) — the final checkpoint cierre_ovalo
+    // (467.8,413.2, co-located with entry) is never reached.
     const earlyLift = [
-      { x: 350, y: 420 }, // order 1: inicio_enganche
-      { x: 480, y: 200 }, // order 2: cresta_ola (co-located with order 4)
+      { x: 406.2, y: 357.9 }, // order 2: subida_ola
+      { x: 538.6, y: 186.8 }, // order 3: cresta_ola
+      { x: 593.8, y: 245 }, // order 4: gancho_salida
+      { x: 562.7, y: 413.2 }, // order 5: bajada_pie
     ]
     expect(checkContinuity(earlyLift, letraA.pathDefinition.checkpoints)).toBe(false)
   })
 
-  it('marks isContinuous=false when the stroke stops short inside the oval', () => {
-    // Reaches retorno_curva (order 3) but lifts before cierre/gancho.
+  it('marks isContinuous=false when the stroke stops short of the final zone', () => {
+    // Reaches cresta_ola (order 3) but lifts before cierre/bajada.
     const short = [
-      { x: 350, y: 420 },
-      { x: 480, y: 200 },
-      { x: 330, y: 300 },
+      { x: 406.2, y: 357.9 },
+      { x: 538.6, y: 186.8 },
     ]
     expect(checkContinuity(short, letraA.pathDefinition.checkpoints)).toBe(false)
   })
 
   it('is continuous when the stroke passes THROUGH the final zone, even if it then leaves it', () => {
     // Order is not judged here: reaching the final checkpoint before the lift
-    // is what continuity means (approval ANDs order + continuity + score).
+    // is what continuity means (approval ANDs order + continuity + score). The
+    // final zone is cierre_ovalo (467.8,413.2).
     const through = [
-      { x: 550, y: 400 }, // order 6: gancho_salida
-      { x: 480, y: 420 },
+      { x: 467.8, y: 413.2 }, // order 6: cierre_ovalo (the final zone)
+      { x: 562.7, y: 413.2 },
     ]
     expect(checkContinuity(through, letraA.pathDefinition.checkpoints)).toBe(true)
   })
