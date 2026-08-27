@@ -46,8 +46,8 @@ stacked-to-main: every PR targets `main` in order (PR 1 = gh #2 open); no tracke
 
 ## Phase 4: Validation
 
-- [ ] **T4.1** `checkpoints.ts` + tests: strict order; clockwise `a` fails + wrongDirection; skipped fails. Dep T3.1. ~110
-- [ ] **T4.2** `continuity.ts` + test: isContinuous=false on lift before final checkpoint. Dep T3.1. ~50
+- [x] **T4.1** `checkpoints.ts` + tests: strict order; clockwise `a` fails + wrongDirection; skipped fails. Dep T3.1. ~110 — DONE in PR 4 (gh #5): commit `feat(client): add strict checkpoint order validation with tests` (9e8d728); entry-based activation in strict order 1→N; co-located `a` apex pair (cresta order 2 / cierre order 4 at 480,200) order-gated by entry — first apex visit activates 2, re-entry activates 4; counterclockwise via sampled ideal path passes with `activated=[1..6]`, clockwise/out-of-order/skip fail; 7 tests
+- [x] **T4.2** `continuity.ts` + test: isContinuous=false on lift before final checkpoint. Dep T3.1. ~50 — DONE in PR 4 (gh #5): commit `feat(client): add trace continuity check with tests` (1307e73); continuous iff the highest-order checkpoint's radius was entered before the lift; order deliberately not judged (approval ANDs order + continuity + score); spec early-lift scenario asserted false; 6 tests
 - [x] **T4.3** `score.ts` + tests: `max(0, 100 − 100·Σdist/(K·Tol))`, clamp; assert ×100: 5px→72.2/58.3 (touch≥70, pen<70); perfect→100; empty. Dep T3.1, T3.2. ~125 — DONE in PR 3 (gh #4): commit `feat(client): add geometric trace score with touch-pen tolerance` (8e1e982); ×100 asserted numerically: touch 5px 72.2 ≥ 70 approved, pen 5px 58.3 < 70 rejected, perfect → 100; `npx vitest run src/canvas/validation src/canvas/resample.test.ts` 2 files/15 tests passed (305ms); full `npm test` 6 files/32; build green; authored PR diff 397 lines (under 400)
 
 ## Phase 5: Modes
