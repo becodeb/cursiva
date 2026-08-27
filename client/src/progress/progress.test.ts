@@ -82,6 +82,16 @@ describe('LocalProgressStore (T6.1)', () => {
     expect(store.getProgress('a')).toBe(70)
   })
 
+  it('rounds to whole percentages so perfect traces persist as exactly 100', () => {
+    // A runtime-perfect trace scores ~99.99 (float CTM noise); bloom requires
+    // exactly 100, so the store rounds — the design's "perfect = 100" holds.
+    const store = new LocalProgressStore(new FakeStorage())
+    store.setProgress('a', 99.994)
+    store.setProgress('c', 78.84)
+    expect(store.getProgress('a')).toBe(100)
+    expect(store.getProgress('c')).toBe(79)
+  })
+
   it('reads 0 for unknown letters', () => {
     expect(new LocalProgressStore(new FakeStorage()).getProgress('z')).toBe(0)
   })
