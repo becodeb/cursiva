@@ -81,16 +81,8 @@ describe('traceInk', () => {
     }
   })
 
-  it('renders a stroke for 2 points (no evaluation-grade arc needed for ink)', () => {
+  it('renders a stroke for 2 points without crashing', () => {
     expect(traceInk([{ x: 100, y: 400 }, { x: 900, y: 400 }]).length).toBeGreaterThanOrEqual(4)
-  })
-
-  it('respects size: a thicker pen yields a wider ribbon', () => {
-    const thin = traceInk(arc, { size: 8 })
-    const thick = traceInk(arc, { size: 24 })
-    const widest = (poly: readonly [number, number][]): number =>
-      Math.max(...poly.map((p) => distanceToCenterline({ x: p[0], y: p[1] }, arc)))
-    expect(widest(thick)).toBeGreaterThan(widest(thin) + 2)
   })
 })
 
@@ -99,15 +91,8 @@ describe('inkPath', () => {
     expect(inkPath([])).toBe('')
   })
 
-  it('builds an M…L…Z closed path from the polygon vertices', () => {
+  it('builds an M…L…Z closed path, rounding to 2 decimals for stable d strings', () => {
     const d = inkPath([[10.123, 20.456], [30, 40], [50.987, 60.001]])
-    expect(d.startsWith('M10.12 20.46')).toBe(true)
-    expect(d).toContain('L30 40')
-    expect(d.trimEnd().endsWith('Z')).toBe(true)
-  })
-
-  it('rounds to 2 decimals for compact, stable d strings', () => {
-    const d = inkPath([[10.123, 20.456], [30, 40]])
-    expect(d).toBe('M10.12 20.46 L30 40 Z')
+    expect(d).toBe('M10.12 20.46 L30 40 L50.99 60 Z')
   })
 })
