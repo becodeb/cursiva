@@ -38,8 +38,8 @@ stacked-to-main: every PR targets `main` in order (PR 1 = gh #2 open); no tracke
 
 ## Phase 3: Canvas
 
-- [ ] **T3.1** `src/canvas/validation/constants.ts`: K=64, TolPen=12, TolTouch=18, Approval=70. Dep: none. ~10
-- [ ] **T3.2** `src/canvas/resample.ts` + tests: arc-length K=64 equidistant; <2 distinct → empty; ideal-path `d`→K sampler. Dep T3.1. ~125
+- [x] **T3.1** `src/canvas/validation/constants.ts`: K=64, TolPen=12, TolTouch=18, Approval=70. Dep: none. ~10 — DONE in PR 3 (gh #4): commit `feat(client): add trace validation constants for scoring` (6546711)
+- [x] **T3.2** `src/canvas/resample.ts` + tests: arc-length K=64 equidistant; <2 distinct → empty; ideal-path `d`→K sampler. Dep T3.1. ~125 — DONE in PR 3 (gh #4): commit `feat(client): add arc-length resampler and ideal path sampler with tests` (e05149f); interval spacing totalLength/(K−1) endpoint-inclusive (arc-uniform, verified via independent reference walk; chord distances shrink across bends); samplePath anchors letter end checkpoints + preserves ductus order; 7 tests
 - [ ] **T3.3** `src/canvas/ink.ts` + test: getStroke closed polygon; never mutates points. Dep: none. ~45
 - [ ] **T3.4** `src/canvas/useTraceInput.ts`: pointerdown/move/up/cancel; primary only; `getScreenCTM().inverse()` (naive scaling forbidden); ref points; no-move up → no eval; cancel discards. Dep T1.2. ~75
 - [ ] **T3.5** `src/canvas/TraceCanvas.tsx`: SVG `viewBox 0 0 1000 600`, guides Y=180/420 (sky/grass/roots), rAF ink path, `touch-action:none`. Dep T3.3, T3.4. ~80
@@ -48,7 +48,7 @@ stacked-to-main: every PR targets `main` in order (PR 1 = gh #2 open); no tracke
 
 - [ ] **T4.1** `checkpoints.ts` + tests: strict order; clockwise `a` fails + wrongDirection; skipped fails. Dep T3.1. ~110
 - [ ] **T4.2** `continuity.ts` + test: isContinuous=false on lift before final checkpoint. Dep T3.1. ~50
-- [ ] **T4.3** `score.ts` + tests: `max(0, 100 − 100·Σdist/(K·Tol))`, clamp; assert ×100: 5px→72.2/58.3 (touch≥70, pen<70); perfect→100; empty. Dep T3.1, T3.2. ~125
+- [x] **T4.3** `score.ts` + tests: `max(0, 100 − 100·Σdist/(K·Tol))`, clamp; assert ×100: 5px→72.2/58.3 (touch≥70, pen<70); perfect→100; empty. Dep T3.1, T3.2. ~125 — DONE in PR 3 (gh #4): commit `feat(client): add geometric trace score with touch-pen tolerance` (8e1e982); ×100 asserted numerically: touch 5px 72.2 ≥ 70 approved, pen 5px 58.3 < 70 rejected, perfect → 100; `npx vitest run src/canvas/validation src/canvas/resample.test.ts` 2 files/15 tests passed (305ms); full `npm test` 6 files/32; build green; authored PR diff 397 lines (under 400)
 
 ## Phase 5: Modes
 
