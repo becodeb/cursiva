@@ -23,7 +23,8 @@ Chain strategy: stacked-to-main
 | 7 | Progress+screen | PR 7 | `npx vitest run src/progress` | dev: live%,persist,bloom | remove dirs |
 
 > Unit 6 split into two stacked PRs (auto-chain budget rule — authored diff 523 > 400): PR 6a = T5.1 guided
-> (gh #7, `feat/modes`); PR 6b = T5.2+T5.3 free trace + feedback (gh #8, `feat/modes-free`, stacked on 6a). Chain is now 8 PRs (6a, 6b, then unit 7 as the last PR).
+> (gh #7, `feat/modes`); PR 6b = T5.2+T5.3 free trace + feedback (gh #8, `feat/modes-free`, stacked on 6a).
+> Unit 7 shipped as the FINAL PR (gh #9, `feat/progress`, authored diff 393 ≤ 400 — no split needed). CHAIN COMPLETE: 9 PRs total.
 
 Unit mapping: U1=T1.1–1.3,T7.2, U2=T2.1–2.2, U3=T3.1,3.2,4.3, U4=T4.1–4.2, U5=T3.3–3.5, U6=T5.1–5.3 (6a+6b), U7=T6.1–6.2.
 stacked-to-main: every PR targets `main` in order (PR 1 = gh #2 open); no tracker branch. Threat matrix N/A → no RED tests.
@@ -61,10 +62,10 @@ stacked-to-main: every PR targets `main` in order (PR 1 = gh #2 open); no tracke
 
 ## Phase 6: Progress + Screen
 
-- [ ] **T6.1** `progress/ProgressStore.ts`+`LocalProgressStore.ts` (key `cursiva.progress.v1`): clamp 0–100, isolation, monotonic best-of `max(stored,score)`; corrupt → empty+overwrite; unavailable → in-memory no-throw; +scenario tests. Dep T1.2. ~185
-- [ ] **T6.2** `screen/MainScreen.tsx`+`Bloom.tsx`: picker → guided→free; per-letter % refreshes; bloom when all ola=100, on-load derived, replayable. Dep T6.1, T5.3, T2.2. ~145
+- [x] **T6.1** `progress/ProgressStore.ts`+`LocalProgressStore.ts` (key `cursiva.progress.v1`): clamp 0–100, isolation, monotonic best-of `max(stored,score)`; corrupt → empty+overwrite; unavailable → in-memory no-throw; +scenario tests. Dep T1.2. ~185 — DONE in PR 7 (gh #9, `feat/progress`): `ProgressStore` interface + `LocalProgressStore` (JSON map `{"a":85,"c":40}` under `cursiva.progress.v1`), clamp 0–100, per-letter isolation, monotonic best-of `max(stored, norm(value))`, corrupt → empty + overwritten on next write, throwing storage → in-memory fallback never throws; 9 scenario tests (round trip, clamp, isolation, reload, unavailable, corrupt, monotonic, rounding, unknown). EXTENSION (design flag 3 pattern): values round to whole percentages so a runtime-perfect trace (99.99x after float CTM noise) persists as exactly 100 — otherwise the family bloom could never trigger. Harness-proven.
+- [x] **T6.2** `screen/MainScreen.tsx`+`Bloom.tsx`: picker → guided→free; per-letter % refreshes; bloom when all ola=100, on-load derived, replayable. Dep T6.1, T5.3, T2.2. ~145 — DONE in PR 7 (gh #9): `MainScreen` (registry picker `a`/`c` with stored %, live refresh via `FreeTrace.onEvaluate` hook, letter switch restarts guided flow via `key={selected}`), `Bloom` (dormant bud → interactive flower, petals replay on click, derived from stored progress on load and on change), `App.tsx` rewired (smoke test still passes). RUNTIME FIX surfaced by CDP harness: perfect traces could never score exactly 100 (64-pt arc ideal bias ~0.5px + float noise) → ideal flatten density 24→96 steps in `resample.ts` + matching `testUtils.ts` reference (score formula untouched); dense on-curve strokes now score 99.99x → round → 100, bloom reachable end-to-end. Harness: picker→guided→free→approval → `a · 100%` live; reload persists; worse ~78 attempt keeps 100; bloom on-load + replayable; second finger/cancel clean; 0 exceptions.
 
 ## Phase 7: Verify/Docs
 
-- [ ] **T7.1** Device checklist (manual): avg frame ≤17ms pointermove; 2nd finger ignored; cancel clears; ergonomics. Dep T5.3, T6.2. ~15
+- [ ] **T7.1** Device checklist (manual): avg frame ≤17ms pointermove; 2nd finger ignored; cancel clears; ergonomics. Dep T5.3, T6.2. ~15 — REMAINS MANUAL — verify phase (device checklist, not automatable in CI; CDP harness covered second-finger/cancel regressions headlessly in PR 7).
 - [x] **T7.2** README note in T1.3 — no separate task. — DONE: folded into T1.3; `client/README.md` carries docs/02-04-07 pointers + delivery plan
