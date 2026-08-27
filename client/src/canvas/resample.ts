@@ -50,8 +50,15 @@ export function resample(points: Point[], k: number = K): Point[] {
   return out
 }
 
-/** Cubic-Bézier subdivision density used to flatten path `d`. */
-const SEGMENT_STEPS = 24
+/**
+ * Cubic-Bézier subdivision density used to flatten path `d`. 96 steps (vs the
+ * original 24) make the sampled ideal converge to TRUE arc positions (0.5px
+ * bias → ~0.002px): the 24-step flatten under-measured the arc through tight
+ * turns, so even a perfect dense trace scored ~97 and mastery (exactly 100,
+ * bloom) was unreachable at runtime. The reference flatten in testUtils.ts
+ * mirrors this density (co-designed pair).
+ */
+const SEGMENT_STEPS = 96
 
 /**
  * Sample a letter's ideal `d` (SVG `M` + `C`, as authored by the seeds) to

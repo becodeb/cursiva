@@ -4,8 +4,12 @@
 // implementation rather than the module under test.
 import type { Point } from '../letters/types'
 
-/** Cubic-Bézier subdivision density of the reference flatten. */
-const REF_STEPS = 24
+/**
+ * Cubic-Bézier subdivision density of the reference flatten. Mirrors
+ * resample.ts SEGMENT_STEPS (co-designed pair): the reference polyline must
+ * match the ideal sampler's density so "perfect = 100" holds exactly.
+ */
+const REF_STEPS = 96
 
 /** Independent flatten of SVG `d` (M + C) via the textbook cubic Bézier basis. */
 export function referenceFlattenPath(d: string): Point[] {
