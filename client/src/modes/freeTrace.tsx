@@ -43,13 +43,21 @@ export function evaluateTrace(points: Point[], letter: LetterConfig, pointerType
   }
 }
 
-export default function FreeTrace({ letter }: { letter: LetterConfig }) {
+export default function FreeTrace({
+  letter,
+  onEvaluate,
+}: {
+  letter: LetterConfig
+  /** Release hook for the main screen: persists approval progress (T6.2). */
+  onEvaluate?: (result: EvaluationResult) => void
+}) {
   const [result, setResult] = useState<EvaluationResult | null>(null)
 
   const onRelease = (points: Point[], pointerType: string): void => {
     const r = evaluateTrace(points, letter, pointerType)
     setResult(r) // feedback appears exactly once per release
     if (r.approved) playApprovalTone() // approval tone ONLY on approval
+    onEvaluate?.(r)
   }
 
   return (
