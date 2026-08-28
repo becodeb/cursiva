@@ -610,17 +610,34 @@ describe('anchor-aware diagnostics (start vs entry anchor; end vs exit corner)',
   })
 
   /** Media stroke starting EXACTLY at the baseline-left entry anchor and
-   * ending at the TOP-right of its bbox: correct for `o r v w` (top exit),
+   * ending at the TOP-right of its bbox: correct for `o v w` (top exit),
    * genuinely wrong for `a` (baseline exit). */
   const ENDS_TOP_RIGHT = 'M100 420 L100 250 Q100 180 300 180 L820 180'
   /** Same stroke but finishing at MID-height: correct for `e` (mid exit). */
   const ENDS_MID_RIGHT = 'M100 420 L100 250 Q100 180 300 180 L800 180 L820 300'
+  /** Alta stroke (vertical span 180–420) ending at the MID-right (Y≈300):
+   * correct for `b` (mid exit — its hook ends at the middle line). */
+  const ENDS_ALTA_MID_RIGHT = 'M100 420 L100 180 L820 300'
+  /** Media stroke ending at the BASELINE-right: correct for `r` (baseline exit). */
+  const ENDS_BASELINE_RIGHT = 'M100 420 L100 250 L300 180 L500 180 L820 420'
   /** Starts TOP-LEFT (wrong entry) and ends at the baseline-right. */
   const WRONG_START = 'M100 200 L150 200 L150 420 L820 420'
 
-  it('o r v w ending at their top-right exit anchor do NOT warn (no false fire)', () => {
+  it('o v w ending at their top-right exit anchor do NOT warn (no false fire)', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    for (const ch of 'orvw') buildLetterConfig(ch, ENDS_TOP_RIGHT)
+    for (const ch of 'ovw') buildLetterConfig(ch, ENDS_TOP_RIGHT)
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('b ending at its alta mid-right exit anchor does NOT warn (no false fire)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    buildLetterConfig('b', ENDS_ALTA_MID_RIGHT)
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('r ending at its baseline-right exit anchor does NOT warn (no false fire)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    buildLetterConfig('r', ENDS_BASELINE_RIGHT)
     expect(warn).not.toHaveBeenCalled()
   })
 
@@ -669,10 +686,10 @@ describe('zones and anchors', () => {
     expect(LETTER_ZONES['t']).not.toBe('media')
   })
 
-  it('exitKindFor maps o r v w → top, e → mid, everything else → baseline', () => {
-    for (const c of 'orvw') expect(exitKindFor(c)).toBe('top')
-    expect(exitKindFor('e')).toBe('mid')
-    for (const c of 'abcdfghijklmnpqstuxyz') expect(exitKindFor(c)).toBe('baseline')
+  it('exitKindFor maps o v w → top, b e → mid, everything else → baseline', () => {
+    for (const c of 'ovw') expect(exitKindFor(c)).toBe('top')
+    for (const c of 'be') expect(exitKindFor(c)).toBe('mid')
+    for (const c of 'acdfghijklmnpqrstuxyz') expect(exitKindFor(c)).toBe('baseline')
     expect(exitKindFor('O')).toBe('top') // case-insensitive
   })
 
@@ -681,6 +698,7 @@ describe('zones and anchors', () => {
   const A_BASELINE_EXIT = 'M100 420 L100 250 L300 180 L500 180 L600 300 L820 420'
   const O_TOP_EXIT = 'M100 420 L100 250 L300 180 L500 180 L600 220 L820 180'
   const E_MID_EXIT = 'M100 420 L100 250 L300 180 L500 180 L600 240 L820 300'
+  const B_ALTA_MID_EXIT = 'M100 420 L100 180 L820 300'
 
   /** Fitted bbox of the MAIN span, mirroring the pipeline internals. */
   function fittedBboxOf(ch: string, d: string): {
@@ -718,7 +736,7 @@ describe('zones and anchors', () => {
     }
   })
 
-  it("exit anchor: a ≈ bottom-right, o ≈ top-right, e ≈ mid-right of the main span", () => {
+  it("exit anchor: a ≈ bottom-right, o ≈ top-right, b e ≈ mid-right of the main span", () => {
     const aCfg = buildLetterConfig('a', A_BASELINE_EXIT)
     const aBb = fittedBboxOf('a', A_BASELINE_EXIT)
     expect(aCfg.anchors.exit.x).toBeCloseTo(aBb.maxX, 0)
@@ -728,6 +746,11 @@ describe('zones and anchors', () => {
     const oBb = fittedBboxOf('o', O_TOP_EXIT)
     expect(oCfg.anchors.exit.x).toBeCloseTo(oBb.maxX, 0)
     expect(oCfg.anchors.exit.y).toBeCloseTo(oBb.minY, 0)
+
+    const bCfg = buildLetterConfig('b', B_ALTA_MID_EXIT)
+    const bBb = fittedBboxOf('b', B_ALTA_MID_EXIT)
+    expect(bCfg.anchors.exit.x).toBeCloseTo(bBb.maxX, 0)
+    expect(bCfg.anchors.exit.y).toBeCloseTo((bBb.minY + bBb.maxY) / 2, 0)
 
     const eCfg = buildLetterConfig('e', E_MID_EXIT)
     const eBb = fittedBboxOf('e', E_MID_EXIT)

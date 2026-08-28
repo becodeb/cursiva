@@ -64,7 +64,7 @@ The letter paths SHALL be hand-drawn single-stroke ductus: the pen-trajectory ce
 
 ### Requirement: Entry/Exit Anchor Metadata
 
-Every `LetterConfig` MUST expose `entry`/`exit` anchors in viewBox space. `entry` SHALL be `baseline-left` for all lowercase letters; `exit` SHALL be `baseline-right` by default, `top-right` for `o r v w`, `mid-right` for `e`. Anchors SHALL drive writing-order diagnostics.
+Every `LetterConfig` MUST expose `entry`/`exit` anchors in viewBox space. `entry` SHALL be `baseline-left` for all lowercase letters; `exit` SHALL be `baseline-right` by default, `top-right` for `o v w`, `mid-right` for `b e`. Anchors SHALL drive writing-order diagnostics.
 
 #### Scenario: Default baseline-right exit
 
@@ -74,9 +74,9 @@ Every `LetterConfig` MUST expose `entry`/`exit` anchors in viewBox space. `entry
 
 #### Scenario: Top and mid exits
 
-- GIVEN configs for `o r v w` and `e`
+- GIVEN configs for `o v w` and `b e`
 - WHEN each exit is inspected
-- THEN `o r v w` MUST exit `top-right`; `e` MUST exit `mid-right`
+- THEN `o v w` MUST exit `top-right`; `b e` MUST exit `mid-right`
 
 ### Requirement: Multi-Subpath Classification
 
@@ -106,7 +106,7 @@ The pipeline MUST NOT warn on end placement when the stroke ends near its declar
 
 #### Scenario: No false warning for top/mid exits
 
-- GIVEN `o r v w e` ending at their exit anchors
+- GIVEN `o v w` (top), `b e` (mid) and `r` (baseline) ending at their exit anchors
 - WHEN their configs are built
 - THEN no end-corner warning MUST be emitted
 

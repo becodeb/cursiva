@@ -649,7 +649,7 @@ export function transformPathD(
  * Anchor-aware diagnostics (80px tolerance): warns when the stroke does not
  * START near the entry anchor (baseline-left of the MAIN span) or does not END
  * near its letter's exit corner — bottom-right by default, top-right for
- * `o r v w`, mid-right for `e`. No false fires when a stroke ends at its
+ * `o v w`, mid-right for `b e`. No false fires when a stroke ends at its
  * declared exit anchor; a genuinely wrong end still warns. The gap warning for
  * multi-subpath paths is suppressed for the declared secondary-stroke letters
  * (`i j t f x`), whose dot / cross / second diagonal are intentional pen lifts.
@@ -739,7 +739,7 @@ export function buildLetterConfig(character: string, d: string): LetterConfig {
 
   // Diagnostic: the stroke should END near its letter's exit corner — the
   // bottom-right, top-right or mid-right of the MAIN span per exit kind
-  // (default baseline; o r v w → top; e → mid). No false fires at the anchor.
+  // (default baseline; o v w → top; b e → mid). No false fires at the anchor.
   const exitKind = exitKindFor(character)
   let cornerY = mainMaxY
   if (exitKind === 'top') cornerY = mainMinY

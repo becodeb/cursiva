@@ -5,8 +5,10 @@
 //
 // All letters ENTER at baseline-left; the exit varies by letter shape:
 // - default: baseline-right (the stroke finishes on the baseline)
-// - o r v w: top-right (these letters end at the top of their body)
-// - e: mid-right (the e's tongue ends at mid-height)
+// - o v w: top-right (these letters end at the top of their body)
+// - b e: mid-right (b ends at the middle line with its hook; e at mid-height)
+// - r: baseline-right (the arm stays at mid-height but the connecting stroke
+//   descends to the baseline)
 //
 // Letters with intentional pen-lift strokes (dot, cross, second diagonal)
 // are authored as ADDITIONAL subpaths after the main body; the pipeline
@@ -17,9 +19,9 @@ export type ExitKind = 'baseline' | 'top' | 'mid'
 /** Exit kind per lowercase letter; anything not listed defaults to baseline. */
 export const EXIT_BY_CHAR: Readonly<Record<string, ExitKind>> = {
   o: 'top',
-  r: 'top',
   v: 'top',
   w: 'top',
+  b: 'mid',
   e: 'mid',
 }
 

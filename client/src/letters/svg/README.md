@@ -31,7 +31,7 @@ So: 120px from the baseline up to the middle line, 240px up to the top line, and
 | Letter | Zone | Exit anchor | Note |
 |--------|------|-------------|------|
 | a | media | baseline-right | |
-| b | alta | baseline-right | |
+| b | alta | mid-right | termina en la línea media con el gancho (lazo) hacia la derecha |
 | c | media | baseline-right | |
 | d | alta | baseline-right | |
 | e | media | mid-right | tongue ends at mid-height |
@@ -47,7 +47,7 @@ So: 120px from the baseline up to the middle line, 240px up to the top line, and
 | o | media | top-right | ends at the top of the body |
 | p | baja | baseline-right | |
 | q | baja | baseline-right | |
-| r | media | top-right | ends at the top of the body |
+| r | media | baseline-right | el brazo queda a la altura media pero la salida baja a la línea base |
 | s | media | baseline-right | |
 | t | alta | baseline-right | crossbar is a separate subpath |
 | u | media | baseline-right | |
@@ -59,8 +59,8 @@ So: 120px from the baseline up to the middle line, 240px up to the top line, and
 
 The pipeline warns (console, 80px tolerance) when a stroke does not start near
 its entry anchor or does not end near its letter's exit corner — so a wrongly
-drawn letter tells you before the app does. `o r v w` and `e` ended at their
-table anchors never warn.
+drawn letter tells you before the app does. `o v w` (top), `b e` (mid) and `r`
+(baseline) ended at their table anchors never warn.
 
 ## Multi-subpath letters (i, j, t, f, x)
 

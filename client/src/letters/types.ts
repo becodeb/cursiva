@@ -40,7 +40,7 @@ export interface LetterTheme {
 
 /** Entry/exit writing anchors in normalized viewBox `0 0 1000 600` space.
  * `entry` SHALL be baseline-left for all lowercase letters; `exit` SHALL be
- * baseline-right by default, top-right for `o r v w`, mid-right for `e`. */
+ * baseline-right by default, top-right for `o v w`, mid-right for `b e`. */
 export interface LetterAnchors {
   /** ViewBox-space point where the stroke begins (fitted MAIN subpath start). */
   entry: Point
