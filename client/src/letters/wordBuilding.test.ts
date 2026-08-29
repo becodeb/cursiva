@@ -6,6 +6,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { LETTER_REGISTRY } from './registry'
 import { buildWord } from './combinations'
+import { nextWord } from '../screen/MainScreen'
 import { buildLetterConfig, flattenPathD, isWordEligible } from './svgLetter'
 import { letraA } from './letra_a'
 import { DEFERRED_SECONDARY_CHARS } from './anchors'
@@ -290,5 +291,27 @@ describe('buildWord ideal cloud (T2.5)', () => {
     const memberPoints = a.pathDefinition.ideal.length + c.pathDefinition.ideal.length
     // 24 connector samples × 2 perpendicular band points.
     expect(word.pathDefinition.ideal).toHaveLength(memberPoints + 24 * 2)
+  })
+})
+
+describe('nextWord (main-screen keyboard, T5.1/T5.4)', () => {
+  it("appends a registered eligible letter: ['c'] + 'a' → ['c','a']; ca+b → cab", () => {
+    expect(nextWord(['c'], 'a')).toEqual(['c', 'a'])
+    expect(nextWord(['c', 'a'], 'b')).toEqual(['c', 'a', 'b'])
+  })
+
+  it('Backspace pops the last letter; empty word is a no-op', () => {
+    expect(nextWord(['c', 'a'], 'Backspace')).toEqual(['c'])
+    expect(nextWord(['c'], 'Backspace')).toEqual([])
+    expect(nextWord([], 'Backspace')).toEqual([])
+  })
+
+  it('uppercase, modifiers, space, and unknown keys are ignored (null)', () => {
+    expect(nextWord(['c'], 'A')).toBeNull()
+    expect(nextWord(['c'], 'Control')).toBeNull()
+    expect(nextWord(['c'], 'Shift')).toBeNull()
+    expect(nextWord(['c'], ' ')).toBeNull()
+    expect(nextWord(['c'], 'z')).toBeNull() // unregistered → no append
+    expect(nextWord(['c'], 'Enter')).toBeNull()
   })
 })
