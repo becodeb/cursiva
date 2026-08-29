@@ -13,6 +13,7 @@ import { evaluateTrace } from './freeTrace'
 import { playApprovalTone } from './tone'
 import { referenceFlattenPath } from '../canvas/testUtils'
 import { letraA } from '../letters/letra_a'
+import { buildWord } from '../letters/combinations'
 import type { LetterConfig, Point } from '../letters/types'
 
 // Synthetic horizontal-line letter: area = band y∈[282,318] (half-width 18,
@@ -124,6 +125,26 @@ describe('area-cloud scoring against the real Kalam `a`', () => {
   it('a ductus-following trace scores ~100 against the real area cloud', () => {
     const r = evaluateTrace(referenceFlattenPath(letraA.pathDefinition.d), letraA, 'touch')
     expect(r.score).toBeCloseTo(100, 0)
+  })
+})
+
+describe('word rail (buildWord integration, T6.1)', () => {
+  it('a continuous stroke along the assembled word path completes guidedFollowState and evaluateTrace', () => {
+    const word = buildWord(['a', 'c'])
+    const stroke = referenceFlattenPath(word.pathDefinition.d)
+    const follow = guidedFollowState(stroke, word.pathDefinition.checkpoints, word.pathDefinition.ideal)
+    // Every renumbered checkpoint activates in strict 1..N order across the
+    // seam (a → connector → c), with no direction fault and no corridor drift.
+    expect(follow.activated).toEqual(word.pathDefinition.checkpoints.map((cp) => cp.order))
+    expect(follow.complete).toBe(true)
+    expect(follow.wrongDirection).toBe(false)
+    expect(follow.offPath).toBe(false)
+
+    const r = evaluateTrace(stroke, word, 'touch')
+    expect(r.orderPassed).toBe(true)
+    expect(r.isContinuous).toBe(true)
+    expect(r.wrongDirection).toBe(false)
+    expect(r.approved).toBe(true)
   })
 })
 
