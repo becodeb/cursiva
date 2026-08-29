@@ -12,10 +12,10 @@ describe('App shell', () => {
     expect(html).toContain('y1="420"')
   })
 
-  it('renders the combo picker group and the checkpoint overlay toggle (main-screen)', () => {
+  it('renders the checkpoint overlay toggle and no combo picker (main-screen)', () => {
     const html = renderToString(<App />)
-    expect(html).toContain('aria-label="Combinaciones"')
-    expect(html).toContain('aria-label="Combinación ac"')
+    expect(html).not.toContain('aria-label="Combinaciones"')
+    expect(html).not.toContain('Combinación ac')
     expect(html).toContain('Mostrar puntos del trazo')
   })
 })

@@ -5,17 +5,13 @@
 // Progress refreshes after each approval; the store's monotonic best-of keeps
 // mastery stable once reached (lower scores never regress the display).
 //
-// Letter combinations (letter-combinations spec): a SECOND picker group lists
-// every ordered pair from COMBO_REGISTRY (`combo_*` ids never collide with
-// letter keys), launching the same guided → free flow — the combined config IS
-// a LetterConfig, so no mode changes. `LETTER_REGISTRY[key] ?? COMBO_REGISTRY[key]`
-// resolves either selection. The checkpoint overlay toggle threads its state
-// into both modes so the choice carries through the whole flow.
+// Keyboard word building arrives in the word state (see below): `a–z` append,
+// Backspace/Borrar remove, and the flow remounts keyed by the current word.
 import { useMemo, useState } from 'react'
 import GuidedTrace from '../modes/guidedTrace'
 import FreeTrace from '../modes/freeTrace'
 import Bloom from './Bloom'
-import { LETTER_REGISTRY, COMBO_REGISTRY } from '../letters/registry'
+import { LETTER_REGISTRY } from '../letters/registry'
 import type { EvaluationResult } from '../letters/types'
 import type { ProgressStore } from '../progress/ProgressStore'
 
@@ -25,7 +21,6 @@ export interface MainScreenProps {
 
 export default function MainScreen({ store }: MainScreenProps) {
   const letters = useMemo(() => Object.entries(LETTER_REGISTRY), [])
-  const combos = useMemo(() => Object.entries(COMBO_REGISTRY), [])
   const [selected, setSelected] = useState<string>(letters[0][0])
   const [mode, setMode] = useState<'guided' | 'free'>('guided')
   const [showCheckpoints, setShowCheckpoints] = useState(false)
@@ -33,7 +28,7 @@ export default function MainScreen({ store }: MainScreenProps) {
     Object.fromEntries(letters.map(([key]) => [key, store.getProgress(key)])),
   )
 
-  const letter = LETTER_REGISTRY[selected] ?? COMBO_REGISTRY[selected]
+  const letter = LETTER_REGISTRY[selected]
   // Bloom derives from stored progress on load AND re-derives on every change.
   // Combos are family 'enlazada' → filtered out (Bloom is ola-only).
   const bloomed = letters
@@ -77,33 +72,6 @@ export default function MainScreen({ store }: MainScreenProps) {
           </button>
         ))}
       </nav>
-      {combos.length > 0 && (
-        <nav
-          aria-label="Combinaciones"
-          style={{ display: 'flex', gap: 10, justifyContent: 'center', margin: '0 0 16px', flexWrap: 'wrap' }}
-        >
-          {combos.map(([key, cfg]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => start(key)}
-              aria-pressed={selected === key}
-              aria-label={`Combinación ${cfg.character}`}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 999,
-                border: selected === key ? '2px solid #7c3aed' : '1px solid #e2e8f0',
-                background: selected === key ? '#ede9fe' : '#fff',
-                fontWeight: 600,
-                fontSize: 16,
-                cursor: 'pointer',
-              }}
-            >
-              {cfg.character}
-            </button>
-          ))}
-        </nav>
-      )}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
         <button
           type="button"
