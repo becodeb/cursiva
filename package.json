@@ -1,0 +1,16 @@
+{
+  "name": "cursiva",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "client"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w client",
+    "build": "npm run build -w client",
+    "test": "npm run test -w client"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}
