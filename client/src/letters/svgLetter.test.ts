@@ -4,6 +4,7 @@ import { resample, samplePath } from '../canvas/resample'
 import { exitKindFor } from './anchors'
 import {
   BASELINE_Y,
+  DESCENDER_LINE_Y,
   MIDDLE_LINE_Y,
   TOP_LINE_Y,
   LETTER_ZONES,
@@ -120,6 +121,7 @@ describe('letter zones', () => {
     expect(resolveBaselineZone('b')).toBe('alta')
     expect(resolveBaselineZone('t')).toBe('alta')
     expect(resolveBaselineZone('g')).toBe('baja')
+    expect(resolveBaselineZone('f')).toBe('mixta')
     expect(resolveBaselineZone('j')).toBe('mixta')
     expect(resolveBaselineZone('Z')).toBe('media')
     expect(resolveBaselineZone('?')).toBe('media')
@@ -129,8 +131,9 @@ describe('letter zones', () => {
     const keys = Object.keys(LETTER_ZONES)
     expect(keys.length).toBeGreaterThanOrEqual(26)
     for (const c of 'aceimnorsuvwxz') expect(LETTER_ZONES[c]).toBe('media')
-    for (const c of 'bdfhklt') expect(LETTER_ZONES[c]).toBe('alta')
+    for (const c of 'bdhklt') expect(LETTER_ZONES[c]).toBe('alta')
     for (const c of 'gpqy') expect(LETTER_ZONES[c]).toBe('baja')
+    expect(LETTER_ZONES['f']).toBe('mixta')
     expect(LETTER_ZONES['j']).toBe('mixta')
   })
 })
@@ -680,6 +683,23 @@ describe('zones and anchors', () => {
   it("'t' resolves to the alta (ascender) zone", () => {
     expect(resolveBaselineZone('t')).toBe('alta')
     expect(LETTER_ZONES['t']).toBe('alta')
+  })
+
+  it("'f' spans the ascender AND descender: mixta fit reaches top line 180 → descender 540", () => {
+    expect(resolveBaselineZone('f')).toBe('mixta')
+    expect(LETTER_ZONES['f']).toBe('mixta')
+    // A full-height fixture fills the mixta span exactly when its aspect fits
+    // the 500px width budget (scale = min(360/360, 500/400) = 1).
+    const cfg = buildLetterConfig('f', 'M100 420 L100 180 L500 180 L500 540')
+    const flat = flattenPathD(cfg.pathDefinition.d)
+    let minY = Infinity
+    let maxY = -Infinity
+    for (const p of flat.points) {
+      if (p.y < minY) minY = p.y
+      if (p.y > maxY) maxY = p.y
+    }
+    expect(minY).toBeCloseTo(TOP_LINE_Y, 0)
+    expect(maxY).toBeCloseTo(DESCENDER_LINE_Y, 0)
   })
 
   it('the media zone set is unchanged except t (spec zone map)', () => {

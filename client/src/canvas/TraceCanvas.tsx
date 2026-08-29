@@ -1,7 +1,9 @@
-// Drawing surface (trace-canvas "Viewport and Ruled Lines", T3.5): a fixed
-// normalized SVG viewBox `0 0 1000 600` with full-width guides at Y=180 and
-// Y=420 (sky 0–180 / grass 180–420 / roots 420–600), pointer capture into
-// normalized `Point[]` (useTraceInput), and rAF-driven perfect-freehand ink.
+// Drawing surface (trace-canvas "Viewport and Ruled Lines", T3.5/T7.1): a
+// fixed normalized SVG viewBox `0 0 1000 600` with full-width guides at Y=180,
+// Y=300, Y=420 and Y=540 (sky 0–180 / grass 180–420 / roots 420–600; the
+// descender guide at 540 marks the bottom of the roots zone), pointer capture
+// into normalized `Point[]` (useTraceInput), and rAF-driven perfect-freehand
+// ink.
 //
 // 60fps strategy (design.md): points live in a ref and the ink `<path>` is
 // mutated once per frame — no setState per move, no resample during drawing.
@@ -25,6 +27,7 @@ const VIEWBOX = '0 0 1000 600'
 const SKY_GUIDE_Y = 180
 const MIDDLE_GUIDE_Y = 300
 const BASELINE_Y = 420
+const ROOTS_GUIDE_Y = 540 // descender guide: bottom of the roots zone
 
 /** Animated draw demo: framer-motion `pathLength` 0→1, times in seconds. */
 export interface DrawDemo {
@@ -153,6 +156,7 @@ export default function TraceCanvas({
       <line x1={0} y1={SKY_GUIDE_Y} x2={1000} y2={SKY_GUIDE_Y} stroke="#94a3b8" strokeWidth={2} strokeDasharray="12 8" />
       <line x1={0} y1={MIDDLE_GUIDE_Y} x2={1000} y2={MIDDLE_GUIDE_Y} stroke="#0ea5e9" strokeWidth={2.5} strokeDasharray="14 6" opacity={0.55} />
       <line x1={0} y1={BASELINE_Y} x2={1000} y2={BASELINE_Y} stroke="#64748b" strokeWidth={3} strokeDasharray="18 8" />
+      <line x1={0} y1={ROOTS_GUIDE_Y} x2={1000} y2={ROOTS_GUIDE_Y} stroke="#64748b" strokeWidth={2.5} strokeDasharray="18 8" opacity={0.7} />
       {guideD && (
         <path
           d={guideD}

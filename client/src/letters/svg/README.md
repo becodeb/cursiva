@@ -35,7 +35,7 @@ So: 120px from the baseline up to the middle line, 240px up to the top line, and
 | c | media | baseline-right | |
 | d | alta | baseline-right | |
 | e | media | mid-right | tongue ends at mid-height |
-| f | alta | baseline-right | exit checked against the Zaner-Bloser reference |
+| f | mixta | baseline-right | the school-cursive f spans ascender + descender; entry hook stays at the baseline (redraw pending — the pipeline squeezes the current f.svg into 180–540 until it lands) |
 | g | baja | baseline-right | |
 | h | alta | baseline-right | |
 | i | media | baseline-right | dot is a separate subpath |
@@ -93,9 +93,9 @@ The normalization target is chosen by the letter's zone (see `LETTER_ZONES` /
 | Zone     | Letters                            | Vertical span (where it rests)     |
 | -------- | ---------------------------------- | ---------------------------------- |
 | `media`  | `a c e i m n o r s u v w x z`      | middle line (300) → baseline (420) |
-| `alta`   | `b d f h k l t`                    | top line (180) → baseline (420)    |
+| `alta`   | `b d h k l t`                      | top line (180) → baseline (420)    |
 | `baja`   | `g p q y`                          | middle line (300) → descender (540)|
-| `mixta`  | `j`                                | top line (180) → descender (540)   |
+| `mixta`  | `f j`                              | top line (180) → descender (540)   |
 
 Note: `t` is an ascender (`alta`) in this model (Zaner-Bloser style).
 Unknown characters default to `media`.

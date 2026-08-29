@@ -27,15 +27,16 @@ export const DESCENDER_LINE_Y = 540 // below baseline (descenders)
  * the appropriate line for the letter's height class.
  */
 const MEDIA_CHARS = 'aceimnorsuvwxz' // body between MIDDLE_LINE and BASELINE
-const ALTA_CHARS = 'bdfhklt' // ascenders: between TOP_LINE and BASELINE (t per Zaner-Bloser)
+const ALTA_CHARS = 'bdhklt' // ascenders: between TOP_LINE and BASELINE (t per Zaner-Bloser)
 const BAJA_CHARS = 'gpqy' // descenders: between MIDDLE_LINE and DESCENDER (approx)
-// 'j' → 'mixta' (ascender + descender approx: between TOP_LINE and DESCENDER)
+// 'f' and 'j' → 'mixta' (ascender + descender: between TOP_LINE and DESCENDER).
+// The school-cursive f spans the ascender AND descends below the baseline.
 
 const ZONE_GROUPS: ReadonlyArray<{ chars: string; zone: BaselineZone }> = [
   { chars: MEDIA_CHARS, zone: 'media' },
   { chars: ALTA_CHARS, zone: 'alta' },
   { chars: BAJA_CHARS, zone: 'baja' },
-  { chars: 'j', zone: 'mixta' },
+  { chars: 'fj', zone: 'mixta' },
 ]
 
 export const LETTER_ZONES: Record<string, BaselineZone> = Object.fromEntries(

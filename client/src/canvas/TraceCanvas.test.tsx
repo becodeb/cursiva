@@ -34,3 +34,14 @@ describe('TraceCanvas demo prop (multi-step demo rendering)', () => {
     expect(demoPathCount(renderToString(<TraceCanvas />))).toBe(0)
   })
 })
+
+describe('TraceCanvas ruled guides (trace-canvas "Viewport and Ruled Lines", T7.1)', () => {
+  it('renders the four full-width guides at Y=180/300/420/540 in viewBox space', () => {
+    const html = renderToString(<TraceCanvas />)
+    expect(html).toContain('viewBox="0 0 1000 600"')
+    expect(html).toContain('y1="180"')
+    expect(html).toContain('y1="300"')
+    expect(html).toContain('y1="420"')
+    expect(html).toContain('y1="540"') // descender guide: bottom of the roots zone
+  })
+})
