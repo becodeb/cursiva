@@ -40,8 +40,10 @@ export interface TraceCanvasProps {
   /** Full glyph contour (incl. counter-holes) for the evenodd FILL layer of
    * the guide (a real cursive 'a'/'c' shape the child can see and follow). */
   guideD?: string
-  /** Animated draw demo (guided mode) — input is ignored until it ends. */
-  demo?: DrawDemo
+  /** Animated draw demo(s) (guided mode) — input is ignored until they end.
+   * A single `DrawDemo` keeps the previous one-path behavior; an array renders
+   * one `motion.path` per entry, each with its own d/delay/duration. */
+  demo?: DrawDemo | DrawDemo[]
   /** False ignores pointer input entirely (guided demo phase). */
   enabled?: boolean
   /** Called when a NEW stroke begins (modes clear the previous feedback). */
@@ -84,9 +86,10 @@ export default function TraceCanvas({
 
   // DEV overlay state. Computed live inside the rAF loop but THROTTLED (~10Hz
   // and only when the stroke length changed) so it never competes with the
-  // 60fps ink loop for setState. Enabled by dev mode OR the production toggle
-  // (trace-canvas "Checkpoint Overlay Gate"), and only with both props set.
-  const devOn = (isDevMode() || showCheckpoints) && !!devCheckpoints && !!devIdeal
+  // 60fps ink loop for setState. Enabled ONLY by the production toggle AND
+  // both props (trace-canvas "Checkpoint Overlay Gate") — dev mode alone must
+  // NOT force the overlay (it only shows the live score line).
+  const devOn = showCheckpoints && !!devCheckpoints && !!devIdeal
   const [devState, setDevState] = useState<DevCheckpointState | null>(null)
   const devCPRef = useRef(devCheckpoints)
   const devIdealRef = useRef(devIdeal)
@@ -170,17 +173,22 @@ export default function TraceCanvas({
         />
       )}
       {demo && (
-        <motion.path
-          d={demo.d}
-          fill="none"
-          stroke="#0284c7"
-          strokeWidth={demo.strokeWidth}
-          strokeLinecap="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ delay: demo.delay, duration: demo.duration }}
-          pointerEvents="none"
-        />
+        <g>
+          {(Array.isArray(demo) ? demo : [demo]).map((d, idx) => (
+            <motion.path
+              key={idx}
+              d={d.d}
+              fill="none"
+              stroke="#0284c7"
+              strokeWidth={d.strokeWidth}
+              strokeLinecap="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ delay: d.delay, duration: d.duration }}
+              pointerEvents="none"
+            />
+          ))}
+        </g>
       )}
       <path
         ref={inkRef}

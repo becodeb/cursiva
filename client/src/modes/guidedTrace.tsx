@@ -74,13 +74,19 @@ export default function GuidedTrace({
   /** Production overlay toggle from the main screen (dev mode ignores it). */
   showCheckpoints?: boolean
 }) {
-  const draw = letter.animationTimeline.find((s) => s.type === 'draw_path')
-  const demo: DrawDemo = {
-    d: letter.pathDefinition.d,
-    delay: (draw?.delay ?? 0) / 1000,
-    duration: (draw?.duration ?? 1000) / 1000,
-    strokeWidth: letter.pathDefinition.strokeWidth,
-  }
+  // EVERY draw_path step plays: one demo entry per segment with the step's
+  // own delay/duration and `properties.d` (falling back to the letter path
+  // when a step carries none — the single-letter demo stays unchanged).
+  const drawSteps = letter.animationTimeline.filter((s) => s.type === 'draw_path')
+  const demos: DrawDemo[] =
+    drawSteps.length > 0
+      ? drawSteps.map((s) => ({
+          d: (s.properties?.d as string | undefined) ?? letter.pathDefinition.d,
+          delay: (s.delay ?? 0) / 1000,
+          duration: s.duration / 1000,
+          strokeWidth: letter.pathDefinition.strokeWidth,
+        }))
+      : [{ d: letter.pathDefinition.d, delay: 0, duration: 1, strokeWidth: letter.pathDefinition.strokeWidth }]
   // Ready when the FULL timeline has finished: max(delay+duration) + 200ms.
   const readyMs = Math.max(0, ...letter.animationTimeline.map((s) => (s.delay ?? 0) + s.duration)) + 200
   const [phase, setPhase] = useState<'demo' | 'ready'>('demo')
@@ -116,7 +122,7 @@ export default function GuidedTrace({
 
   return (
     <TraceCanvas
-      demo={demo}
+      demo={demos}
       enabled={phase === 'ready'}
       guide={letter.pathDefinition.d}
       guideD={letter.pathDefinition.guideD}
