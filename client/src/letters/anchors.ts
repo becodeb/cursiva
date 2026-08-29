@@ -36,6 +36,13 @@ export const SECONDARY_STROKE_CHARS: ReadonlySet<string> = new Set([
   'x',
 ])
 
+/** Letters whose secondary stroke is DEFERRED to the end of an assembled word
+ * (the `i`/`j` dot, the `t` cross — drawn AFTER every word letter and
+ * connector). `x`'s second diagonal is NOT deferred (drawn immediately after
+ * its main segment), and `f` is NOT deferred (single-path; a future `f` cross
+ * draws immediately — flagged, out of scope). */
+export const DEFERRED_SECONDARY_CHARS: ReadonlySet<string> = new Set(['t', 'i', 'j'])
+
 /** Resolve the exit kind for a character (unknowns/uppercase → baseline). */
 export function exitKindFor(char: string): ExitKind {
   return EXIT_BY_CHAR[char.toLowerCase()] ?? 'baseline'

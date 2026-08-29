@@ -69,6 +69,11 @@ export interface LetterConfig {
     /** Virtual stroke width. */
     strokeWidth: number
     checkpoints: LetterCheckpoint[]
+    /** Arc length from the path start to the MAIN segment end, in viewBox
+     * space. Present ONLY for multi-subpath letters (pen-lift secondaries);
+     * when absent the path SHALL be treated as single-subpath with the cut
+     * at `d` end (letter-model "LetterConfig Shape"). */
+    mainEndArc?: number
   }
   animationTimeline: AnimationStep[]
 }

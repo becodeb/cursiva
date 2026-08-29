@@ -801,6 +801,12 @@ export function buildLetterConfig(character: string, d: string): LetterConfig {
       ideal,
       strokeWidth: 14,
       checkpoints,
+      // Main-end arc recorded ONLY for multi-subpath letters (the reordered
+      // main span's arc length, mapped through the uniform fit). Absent for
+      // a single subpath ⇒ consumers treat the cut as `d` end.
+      ...(flat.starts.length > 1
+        ? { mainEndArc: Math.round(reordered.mainEndArc * fitted.scaleX * 100) / 100 }
+        : {}),
     },
     animationTimeline: [
       {
@@ -827,6 +833,22 @@ export function buildLetterConfig(character: string, d: string): LetterConfig {
       },
     ],
   }
+}
+
+/**
+ * Word eligibility (letter-model "Word Eligibility"): a LETTER passes when the
+ * first point of its stored `d` (flattened) lies within 15px of its `entry`
+ * anchor. The check does NOT require `d.end === exit` (false for multi-subpath
+ * letters — an `i` ends at its dot); the main end resolves via `anchors.exit`
+ * or the stored `mainEndArc`. Kalam-seed glyphs (closed contours whose first
+ * point sits far from the entry anchor) MUST fail. The registry lookup is the
+ * CALLER's responsibility (buildWord / nextWord resolve it first).
+ */
+export function isWordEligible(letter: LetterConfig): boolean {
+  const flat = flattenPathD(letter.pathDefinition.d)
+  const first = flat.points[0]
+  if (!first) return false
+  return Math.hypot(first.x - letter.anchors.entry.x, first.y - letter.anchors.entry.y) <= 15
 }
 
 // Eager Vite glob of every hand-drawn letter SVG in this folder (?raw → string).

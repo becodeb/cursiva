@@ -13,6 +13,7 @@ import {
   extractPathD,
   flattenPathD,
   generateCheckpoints,
+  isWordEligible,
   loadSvgLetters,
   pathFromPoints,
   pointAtArcLength,
@@ -756,5 +757,50 @@ describe('zones and anchors', () => {
     const eBb = fittedBboxOf('e', E_MID_EXIT)
     expect(eCfg.anchors.exit.x).toBeCloseTo(eBb.maxX, 0)
     expect(eCfg.anchors.exit.y).toBeCloseTo((eBb.minY + eBb.maxY) / 2, 0)
+  })
+})
+
+describe('mainEndArc storage (letter-model "LetterConfig Shape")', () => {
+  it('is absent for single-subpath letters (cut defaults to d end)', () => {
+    const cfg = buildLetterConfig('a', 'M0 0 L0 100 L50 100')
+    expect(cfg.pathDefinition.mainEndArc).toBeUndefined()
+  })
+
+  it("is stored for multi-subpath letters, lands at the MAIN body end, and the stored `d` keeps exactly one M", () => {
+    const cfg = buildLetterConfig('i', I_DOT_FIRST)
+    expect(cfg.pathDefinition.mainEndArc).toBeDefined()
+    expect(cfg.pathDefinition.mainEndArc).toBeGreaterThan(0)
+    // The stored d stays a SINGLE-M polyline — never split by M (the dot subpath
+    // is flattened into the same polyline, cut only conceptually at mainEndArc).
+    expect((cfg.pathDefinition.d.match(/m/gi) ?? []).length).toBe(1)
+    // The main-end arc position is the BODY end: it rests on the fitted
+    // baseline (the dot floats above it), so its y is the baseline 420.
+    const flat = flattenPathD(cfg.pathDefinition.d)
+    const mainEnd = pointAtArcLength(flat.points, cfg.pathDefinition.mainEndArc!)
+    expect(Math.abs(mainEnd.y - BASELINE_Y)).toBeLessThanOrEqual(1)
+    expect(mainEnd.x).toBeGreaterThan(cfg.anchors.entry.x) // body advances rightward
+  })
+})
+
+describe('isWordEligible (letter-model "Word Eligibility")', () => {
+  it('passes the hand-drawn svg `a` (first point sits on the entry anchor)', () => {
+    const cfg = buildLetterConfig('a', realAD())
+    expect(isWordEligible(cfg)).toBe(true)
+  })
+
+  it('rejects the Kalam `a` seed: its closed contour starts far from the entry anchor', () => {
+    expect(isWordEligible(letraA)).toBe(false)
+  })
+
+  it('passes an entry-matched synthetic multi-subpath letter even though d.end is its dot', () => {
+    const cfg = buildLetterConfig('i', I_DOT_FIRST) // ends at the dot, not the exit
+    expect(cfg.pathDefinition.mainEndArc).toBeDefined()
+    expect(isWordEligible(cfg)).toBe(true)
+  })
+
+  it('fails degenerate input (no usable first point)', () => {
+    const cfg = buildLetterConfig('a', 'M0 0 L0 100 L50 100')
+    const broken = { ...cfg, pathDefinition: { ...cfg.pathDefinition, d: '' } }
+    expect(isWordEligible(broken)).toBe(false)
   })
 })
