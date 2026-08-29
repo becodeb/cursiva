@@ -1,13 +1,15 @@
-// Main screen (main-screen spec, T6.2): thin book-style home — the letter
+// Main screen (main-screen spec, T6.2/T7.3): thin book-style home — the letter
 // picker lists every registered letter with its stored percentage (from the
 // injected ProgressStore) and APPENDS the pressed letter to the current word;
 // the keyboard builds words too (`a–z` append registered word-eligible letters,
 // Backspace pops, "Borrar" clears); the flow remounts keyed by the word
-// (`word.join('')`) keeping its mode (guided → free) across appends, and the
-// canvas/label render only while the word is non-empty. Progress refreshes
-// after each approval and persists ONLY for single-letter words (multi-letter
-// words never write progress). The Bloom flowers when every `ola` family
-// letter reaches 100.
+// (`word.join('')`) and EVERY append (picker or keyboard) returns the flow to
+// guided mode so the sequential whole-word demo replays from the first letter
+// (mode is no longer kept across appends); Backspace and Borrar do NOT reset
+// the mode. The canvas/label render only while the word is non-empty. Progress
+// refreshes after each approval and persists ONLY for single-letter words
+// (multi-letter words never write progress). The Bloom flowers when every
+// `ola` family letter reaches 100.
 import { useEffect, useMemo, useState } from 'react'
 import GuidedTrace from '../modes/guidedTrace'
 import FreeTrace from '../modes/freeTrace'
@@ -40,13 +42,40 @@ export function nextWord(word: string[], key: string): string[] | null {
   return [...word, key]
 }
 
+/** Word-flow state: the built word plus the current demo phase. */
+export interface WordFlowState {
+  word: string[]
+  mode: 'guided' | 'free'
+}
+
+/**
+ * Reducer for the whole word flow (main-screen "Letter Picker" / "Keyboard
+ * Word Building", T7.3): ANY successful append — picker button or `a–z`
+ * keydown — returns the flow to `guided` so the sequential whole-word demo
+ * replays from the first letter. `Backspace` pops and `Borrar` clears WITHOUT
+ * touching the mode. A refused key leaves the state untouched (same object —
+ * React bails out, no re-render).
+ */
+export function flowWord(state: WordFlowState, key: string): WordFlowState {
+  if (key === 'Borrar') return { ...state, word: [] }
+  if (key === 'Backspace') {
+    const next = nextWord(state.word, key)
+    if (next === null) return state
+    return next === state.word ? state : { ...state, word: next }
+  }
+  const next = nextWord(state.word, key)
+  if (next === null) return state
+  return { word: next, mode: 'guided' }
+}
+
 export default function MainScreen({ store, initialWord }: MainScreenProps) {
   const letters = useMemo(() => Object.entries(LETTER_REGISTRY), [])
-  const [word, setWord] = useState<string[]>(() =>
-    initialWord ?? (letters[0] ? [letters[0][0]] : []),
-  )
+  const [flow, setFlow] = useState<WordFlowState>(() => ({
+    word: initialWord ?? (letters[0] ? [letters[0][0]] : []),
+    mode: 'guided',
+  }))
+  const { word, mode } = flow
   const wordKey = word.join('')
-  const [mode, setMode] = useState<'guided' | 'free'>('guided')
   const [showCheckpoints, setShowCheckpoints] = useState(false)
   const [progress, setProgress] = useState<Record<string, number>>(() =>
     Object.fromEntries(letters.map(([key]) => [key, store.getProgress(key)])),
@@ -60,15 +89,16 @@ export default function MainScreen({ store, initialWord }: MainScreenProps) {
     .every(([key]) => (progress[key] ?? 0) >= 100)
 
   const append = (key: string): void => {
-    setWord((w) => {
-      const next = nextWord(w, key)
-      return next === null ? w : next
-    })
+    // Picker path — the reducer resets the mode to guided on a successful
+    // append, so the whole-word demo replays from the first letter (T7.3).
+    setFlow((s) => flowWord(s, key))
   }
 
   // Window keydown (main-screen "Keyboard Word Building"): focused
   // input/textarea exempt; Ctrl/Alt/Meta/Shift (uppercase included) and the
-  // space bar ignored; Backspace pops + preventDefault; a–z append.
+  // space bar ignored; Backspace pops + preventDefault; a–z append. The
+  // reducer handles the guided reset on append and leaves the mode alone for
+  // Backspace.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       const el = document.activeElement
@@ -84,16 +114,10 @@ export default function MainScreen({ store, initialWord }: MainScreenProps) {
       if (e.key === ' ') return
       if (e.key === 'Backspace') {
         e.preventDefault()
-        setWord((w) => {
-          const next = nextWord(w, e.key)
-          return next === null ? w : next
-        })
+        setFlow((s) => flowWord(s, e.key))
         return
       }
-      setWord((w) => {
-        const next = nextWord(w, e.key)
-        return next === null ? w : next
-      })
+      setFlow((s) => flowWord(s, e.key))
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -151,7 +175,7 @@ export default function MainScreen({ store, initialWord }: MainScreenProps) {
         </button>
         <button
           type="button"
-          onClick={() => setWord([])}
+          onClick={() => setFlow((s) => flowWord(s, 'Borrar'))}
           style={{
             padding: '6px 16px',
             borderRadius: 999,
@@ -171,7 +195,7 @@ export default function MainScreen({ store, initialWord }: MainScreenProps) {
             <GuidedTrace
               key={wordKey}
               letter={letter}
-              onComplete={() => setMode('free')}
+              onComplete={() => setFlow((s) => ({ ...s, mode: 'free' }))}
               showCheckpoints={showCheckpoints}
             />
           ) : (

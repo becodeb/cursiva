@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { LETTER_REGISTRY } from './registry'
 import { buildWord } from './combinations'
-import { nextWord } from '../screen/MainScreen'
+import { nextWord, flowWord, type WordFlowState } from '../screen/MainScreen'
 import { buildLetterConfig, flattenPathD, isWordEligible } from './svgLetter'
 import { letraA } from './letra_a'
 import { DEFERRED_SECONDARY_CHARS } from './anchors'
@@ -312,5 +312,30 @@ describe('nextWord (main-screen keyboard, T5.1/T5.4)', () => {
     expect(nextWord(['c'], ' ')).toBeNull()
     expect(nextWord(['c'], 'z')).toBeNull() // unregistered → no append
     expect(nextWord(['c'], 'Enter')).toBeNull()
+  })
+})
+
+describe('flowWord (T7.3: every append replays the whole-word demo)', () => {
+  const freeFlow = (word: string[]): WordFlowState => ({ word, mode: 'free' })
+
+  it('a successful append — picker OR a–z keydown — returns the flow to guided mode', () => {
+    // 'free' → 'guided': the sequential whole-word demo restarts from letter 1.
+    expect(flowWord(freeFlow(['a']), 'c')).toEqual({ word: ['a', 'c'], mode: 'guided' })
+    expect(flowWord(freeFlow(['c']), 'b')).toEqual({ word: ['c', 'b'], mode: 'guided' })
+  })
+
+  it('Backspace pops WITHOUT resetting the mode (no demo replay on delete)', () => {
+    expect(flowWord(freeFlow(['c', 'a']), 'Backspace')).toEqual({ word: ['c'], mode: 'free' })
+  })
+
+  it('Borrar clears the word WITHOUT resetting the mode', () => {
+    expect(flowWord(freeFlow(['c', 'a']), 'Borrar')).toEqual({ word: [], mode: 'free' })
+  })
+
+  it('a refused key returns the SAME state object (no re-render, no mode change)', () => {
+    const s = freeFlow(['c'])
+    expect(flowWord(s, 'z')).toBe(s) // unregistered letter
+    expect(flowWord(s, 'A')).toBe(s) // uppercase / modifiers / space
+    expect(flowWord(s, ' ')).toBe(s)
   })
 })

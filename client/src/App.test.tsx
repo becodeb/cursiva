@@ -42,4 +42,14 @@ describe('App shell', () => {
     expect(html).not.toContain('y1="180"') // no canvas → no ruled guides
     expect(html).not.toContain('palabra:')
   })
+
+  it('the word flow starts in guided mode: the demo replays from the first letter (T7.3)', () => {
+    const html = renderToString(<App />)
+    // GuidedTrace renders the animated demo path on first render. The
+    // event-driven reset to guided on EVERY append (picker or a–z, but not
+    // Backspace/Borrar) is covered in wordBuilding.test.ts via the pure
+    // flowWord reducer — the vitest env is node, so keydown dispatch cannot
+    // run under SSR here.
+    expect(html).toContain('stroke="#0284c7"')
+  })
 })
