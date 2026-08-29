@@ -159,7 +159,6 @@ describe('buildWord demo timeline', () => {
   })
 
   it('schedules the x second diagonal inside its letter block, before the following connector', () => {
-    const x = buildLetterConfig('x', 'M100 420 L320 210 L540 420 M580 240 L260 410')
     const word = buildWord(['x', 'a'])
     const draws = word.animationTimeline.filter((s) => s.type === 'draw_path')
     // x main 1000/2600 → x tail 3600/600 → connector 4200/500 → a main 4700/2600.
@@ -174,14 +173,6 @@ describe('buildWord demo timeline', () => {
   })
 
   it('defers t/i secondary steps to the end, after every letter and connector', () => {
-    const t = buildLetterConfig(
-      't',
-      'M100 420 L100 180 L820 180 M300 300 L600 300',
-    )
-    const i = buildLetterConfig(
-      'i',
-      'M100 420 L100 240 Q100 190 200 190 L220 240 L220 420 L300 420 M520 170 L526 170 L523 176 Z',
-    )
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
       const word = buildWord(['t', 'i'])
@@ -191,7 +182,7 @@ describe('buildWord demo timeline', () => {
       const kinds = draws.map((d) => d.duration)
       expect(kinds).toEqual([2600, 500, 2600, 600, 600])
       const starts = draws.map((d) => d.delay)
-      expect(starts[3]).toBeGreaterThan(starts[2] + 2600 - 1) // cross starts after i main ends
+      expect(starts[3]!).toBeGreaterThan(starts[2]! + 2600 - 1) // cross starts after i main ends
     } finally {
       vi.restoreAllMocks()
     }

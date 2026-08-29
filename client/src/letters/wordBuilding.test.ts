@@ -115,7 +115,6 @@ describe('buildWord connector (T2.4)', () => {
     const aFlat = flattenPathD(a.pathDefinition.d).points
     const cFlat = flattenPathD(c.pathDefinition.d).points
     const p0 = aFlat[aFlat.length - 1]
-    const p3 = cFlat[0]
     const t0 = normalize({
       x: aFlat[aFlat.length - 1].x - aFlat[aFlat.length - 3].x,
       y: aFlat[aFlat.length - 1].y - aFlat[aFlat.length - 3].y,
