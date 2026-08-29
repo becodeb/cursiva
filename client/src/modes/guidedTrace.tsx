@@ -64,7 +64,16 @@ export function guidedFollowState(
   }
 }
 
-export default function GuidedTrace({ letter, onComplete }: { letter: LetterConfig; onComplete: () => void }) {
+export default function GuidedTrace({
+  letter,
+  onComplete,
+  showCheckpoints = false,
+}: {
+  letter: LetterConfig
+  onComplete: () => void
+  /** Production overlay toggle from the main screen (dev mode ignores it). */
+  showCheckpoints?: boolean
+}) {
   const draw = letter.animationTimeline.find((s) => s.type === 'draw_path')
   const demo: DrawDemo = {
     d: letter.pathDefinition.d,
@@ -114,6 +123,7 @@ export default function GuidedTrace({ letter, onComplete }: { letter: LetterConf
       onFrame={onFrame}
       devCheckpoints={letter.pathDefinition.checkpoints}
       devIdeal={letter.pathDefinition.ideal}
+      showCheckpoints={showCheckpoints}
     >
       {phase === 'demo' && (
         <text x={500} y={90} textAnchor="middle" fontSize={26} fill="#334155">

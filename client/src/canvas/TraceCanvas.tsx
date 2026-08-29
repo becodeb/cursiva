@@ -56,6 +56,9 @@ export interface TraceCanvasProps {
   devCheckpoints?: LetterCheckpoint[]
   /** DEV overlay: dense ideal cloud used for the approximate distance score. */
   devIdeal?: ReadonlyArray<readonly [number, number]>
+  /** Render the checkpoint overlay outside dev mode too (main-screen toggle).
+   * Default false — the dev gate stays unchanged. */
+  showCheckpoints?: boolean
 }
 
 export default function TraceCanvas({
@@ -69,6 +72,7 @@ export default function TraceCanvas({
   children,
   devCheckpoints,
   devIdeal,
+  showCheckpoints = false,
 }: TraceCanvasProps) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const inkRef = useRef<SVGPathElement | null>(null)
@@ -80,8 +84,9 @@ export default function TraceCanvas({
 
   // DEV overlay state. Computed live inside the rAF loop but THROTTLED (~10Hz
   // and only when the stroke length changed) so it never competes with the
-  // 60fps ink loop for setState. Disabled unless dev mode + both props are set.
-  const devOn = isDevMode() && !!devCheckpoints && !!devIdeal
+  // 60fps ink loop for setState. Enabled by dev mode OR the production toggle
+  // (trace-canvas "Checkpoint Overlay Gate"), and only with both props set.
+  const devOn = (isDevMode() || showCheckpoints) && !!devCheckpoints && !!devIdeal
   const [devState, setDevState] = useState<DevCheckpointState | null>(null)
   const devCPRef = useRef(devCheckpoints)
   const devIdealRef = useRef(devIdeal)
@@ -187,7 +192,11 @@ export default function TraceCanvas({
       />
       {children}
       {devOn && devState && devCheckpoints && devIdeal && (
-        <DevCheckpointOverlay checkpoints={devCheckpoints} state={devState} />
+        <DevCheckpointOverlay
+          checkpoints={devCheckpoints}
+          state={devState}
+          showScore={isDevMode()}
+        />
       )}
     </svg>
   )

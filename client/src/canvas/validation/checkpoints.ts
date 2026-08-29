@@ -1,16 +1,18 @@
 // Strict checkpoint-order validation (trace-validation "Checkpoint Order
-// Validation"): a checkpoint activates when the stroke ENTERS its radius zone
-// (outside → inside transition), and activation MUST proceed in strictly
-// increasing order 1→N. Contacting a HIGHER-order zone while a lower-order
-// checkpoint is still pending is an out-of-order activation → order FAILS and
-// the wrong-direction flag is set (docs/02 rescue; docs/04 criterion 1,
-// mechanical). Contacting only already-passed zones is benign.
-//
-// Co-located checkpoints (letra_a: cresta_ola order 2 and cierre_ovalo order 4
-// share center+radius at 480,200 — "order-gated" per design.md) are resolved
-// by ENTRY order: the first apex visit activates 2, the re-entry activates 4.
-// That is why activation tracks entry transitions, not mere containment — a
-// stroke lingering inside a zone must not re-trigger it.
+// Validation"): a checkpoint activates by CONTAINMENT of the expected order —
+// the expected checkpoint activates whenever the head is inside its radius
+// zone, fresh outside→inside entry or not — and activation MUST proceed in
+// strictly increasing order 1→N. Only the expected order ever activates, so
+// co-located or overlapping zones stay order-gated (letra_a's cresta_ola /
+// cierre_ovalo pair: the later order activates no earlier than when expected
+// reaches it). Contacting a HIGHER-order zone while a lower-order checkpoint
+// is still pending latches the wrong-direction flag (docs/02 rescue; docs/04
+// criterion 1, mechanical); re-passing an already-activated zone is benign.
+// A full strict-order pass resets a latched flag — pedagogically intended for
+// reentrant letters like `c`, whose head enters a pending zone before its turn
+// on the backtrack and then completes the pass (trace-validation "Reentrant c
+// backtrack"). A genuine reversal still fails: it can never activate every
+// checkpoint in strict order.
 import type { LetterCheckpoint, Point } from '../../letters/types'
 
 export interface CheckpointOrderResult {
@@ -32,10 +34,11 @@ function byOrder(checkpoints: LetterCheckpoint[]): LetterCheckpoint[] {
 }
 
 /**
- * Walk the resampled stroke in temporal order, activating each checkpoint the
- * moment the stroke first enters its radius, and only while it is the next
- * expected order. Returns whether ALL checkpoints activated in strict order,
- * whether a wrong-direction contact occurred, and the activation record.
+ * Walk the resampled stroke in temporal order, activating the expected
+ * checkpoint the moment the head is inside its radius (containment), and only
+ * while it is the next expected order. Returns whether ALL checkpoints
+ * activated in strict order, whether a wrong-direction contact occurred, and
+ * the activation record.
  *
  * Empty/degenerate input never passes — a defensive floor, not an approval
  * (callers skip evaluation when resample is null).
@@ -50,37 +53,49 @@ export function checkCheckpointOrder(
   let expectedOrder = 1
   let maxActivated = 0
   let wrongDirection = false
+  const N = sorted.length
 
   for (const p of points) {
     const entered: number[] = []
-    for (let i = 0; i < sorted.length; i++) {
+    for (let i = 0; i < N; i++) {
       const cp = sorted[i]
       const nowInside = dist(p, cp) <= cp.radius
       if (nowInside && !inside[i]) entered.push(cp.order)
       inside[i] = nowInside
     }
-    if (entered.length === 0) continue
-    if (entered.includes(expectedOrder)) {
-      // Expected checkpoint reached — activate it. Simultaneously-entered
-      // higher orders are co-located zones (the apex pair), not a direction
-      // fault: the same point cannot distinguish them.
+    // Containment activation: the expected checkpoint activates whenever the
+    // head sits inside its zone — fresh entry or not. Runs BEFORE the
+    // early-continue guard because a reentrant head may already be inside the
+    // expected zone with zero fresh entries (letter `c` backtrack model).
+    // Simultaneously-contained higher orders are co-located zones (the seam
+    // handoff pair), not a direction fault: activation only ever follows the
+    // expected order.
+    const before = activated.length
+    while (expectedOrder <= N && inside[expectedOrder - 1]) {
       activated.push(expectedOrder)
       maxActivated = Math.max(maxActivated, expectedOrder)
       expectedOrder += 1
-      continue
     }
-    // Re-passing an ALREADY-activated zone is benign (entry semantics): a child
-    // may retrace a completed checkpoint before continuing. Only an entry into a
-    // still-pending, ahead-of-expected zone counts as a true direction fault.
+    if (activated.length > before) continue // early-continue guard
+    if (entered.length === 0) continue
+    // Re-passing an ALREADY-activated zone is benign (containment semantics):
+    // a child may retrace a completed checkpoint before continuing. Only an
+    // entry into a still-pending, ahead-of-expected zone counts as a true
+    // direction fault.
     const benignReentry = entered.some((order) => order <= maxActivated)
     if (!benignReentry && entered.some((order) => order > expectedOrder)) {
       wrongDirection = true
     }
   }
 
+  // A full strict-order pass clears a latched wrong-direction flag: reentrant
+  // letters touch a pending zone before its turn by design, and the reset
+  // heals that on completion. Genuine reversals still fail — they never
+  // activate every checkpoint in order.
+  const fullPass = activated.length === N
   return {
-    orderPassed: sorted.length > 0 && !wrongDirection && activated.length === sorted.length,
-    wrongDirection,
+    orderPassed: N > 0 && fullPass,
+    wrongDirection: fullPass ? false : wrongDirection,
     activated,
   }
 }

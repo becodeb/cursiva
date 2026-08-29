@@ -46,10 +46,13 @@ export function evaluateTrace(points: Point[], letter: LetterConfig, pointerType
 export default function FreeTrace({
   letter,
   onEvaluate,
+  showCheckpoints = false,
 }: {
   letter: LetterConfig
   /** Release hook for the main screen: persists approval progress (T6.2). */
   onEvaluate?: (result: EvaluationResult) => void
+  /** Production overlay toggle from the main screen (dev mode ignores it). */
+  showCheckpoints?: boolean
 }) {
   const [result, setResult] = useState<EvaluationResult | null>(null)
 
@@ -68,6 +71,7 @@ export default function FreeTrace({
       onRelease={onRelease}
       devCheckpoints={letter.pathDefinition.checkpoints}
       devIdeal={letter.pathDefinition.ideal}
+      showCheckpoints={showCheckpoints}
     >
       {result && <FeedbackResult result={result} />}
     </TraceCanvas>

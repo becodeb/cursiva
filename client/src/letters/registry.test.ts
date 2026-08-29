@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { LETTER_REGISTRY, getLetterConfig } from './registry'
+import { resolveBaselineZone } from './svgLetter'
 
 describe('letter registry', () => {
-  it('ships the a and c seeds (present at least), all ola/media', () => {
+  it('ships the a and c seeds (present at least), all ola, zone per letter class', () => {
     // Presence, not an exact-key snapshot: the registry grows to all 26
     // lowercase letters as hand-drawn SVGs land in the svg/ folder.
     const keys = Object.keys(LETTER_REGISTRY)
@@ -10,7 +11,9 @@ describe('letter registry', () => {
     expect(keys).toContain('c')
     for (const config of Object.values(LETTER_REGISTRY)) {
       expect(config.family).toBe('ola')
-      expect(config.baselineZone).toBe('media')
+      // Hand-drawn svg letters carry their own ruled zone (b/d/f are 'alta');
+      // seeds resolve to 'media'.
+      expect(config.baselineZone).toBe(resolveBaselineZone(config.character))
     }
   })
 

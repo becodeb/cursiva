@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { letraA } from '../../letters/letra_a'
+import type { LetterCheckpoint } from '../../letters/types'
 import { samplePath } from '../resample'
 import { checkCheckpointOrder } from './checkpoints'
 
@@ -101,5 +102,32 @@ describe('checkCheckpointOrder (strict order 1→N over resampled points)', () =
       wrongDirection: false,
       activated: [],
     })
+  })
+
+  it('reentrant `c` backtrack passes by containment and resets the wrong-direction flag', () => {
+    // c-model fixture (design.md): the head enters cp3's zone BEFORE cp2
+    // activates (backtrack after the bounce at the top) — a genuine fresh
+    // entry into a pending ahead-of-expected zone, so wrongDirection latches.
+    // Containment then fires 2 and 3 from INSIDE the zones (no fresh entry),
+    // and the full strict pass [1..4] resets the latch.
+    const cCheckpoints: LetterCheckpoint[] = [
+      { order: 1, x: 400, y: 405, radius: 42 },
+      { order: 2, x: 442, y: 265, radius: 42 },
+      { order: 3, x: 450, y: 330, radius: 60 },
+      { order: 4, x: 505, y: 403, radius: 40 },
+    ]
+    const reentrantStroke = [
+      { x: 392, y: 410 },
+      { x: 420, y: 335 },
+      { x: 432, y: 290 },
+      { x: 448, y: 280 },
+      { x: 460, y: 305 },
+      { x: 468, y: 330 },
+      { x: 485, y: 390 },
+    ]
+    const result = checkCheckpointOrder(reentrantStroke, cCheckpoints)
+    expect(result.orderPassed).toBe(true)
+    expect(result.wrongDirection).toBe(false)
+    expect(result.activated).toEqual([1, 2, 3, 4])
   })
 })
