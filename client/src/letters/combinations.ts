@@ -1,24 +1,39 @@
 // Free word building (letter-combinations spec): buildWord(names) composes an
 // ORDERED word of registered, word-eligible letters into ONE continuous
 // `enlazada` LetterConfig — n=1 passes the registry config through unchanged.
-// Each subsequent letter is translated so its placed entry lands EXACTLY at
-// `prevEffectiveExit − 20px·u` (u = normalize(prevEffectiveExit − entryNatural),
-// with (1,0) fallback); its main segment is cut at the stored mainEndArc
-// (arc-walk over the flattened translated `d`) or at `d` end when absent; and
-// a cubic-Bézier connector — P0 = previous effective exit, P3 = placed entry,
-// tangents from the joining strokes' last/first ~3 polyline points, control
-// arms |P3−P0|/3 — bridges every seam sampled into exactly 24 uniform `L`
-// steps (skipped when |P3−P0| < 1px).
+// Each subsequent letter's placement is chosen by the PREVIOUS member's exit
+// kind (design.md Decision 2 — hybrid seam):
+//  - `baseline-right` (default): placed entry = round2(prevExit − 20px·u),
+//    u = normalize(prevExit − entryNatural) — the chord formula, unchanged.
+//  - `mid-right` / `top-right` (b e o v w): placed entry stays at the next
+//    letter's OWN natural entry height (dy === 0, horizontal-only translate,
+//    SEAM_GAP reused as the horizontal magnitude) — the connector Bézier
+//    absorbs the full vertical travel.
+// Its main segment is split from the tail via the shared `splitMainTail`
+// (svgLetter.ts): cut at the stored `mainEndArc` (arc-walk over the
+// flattened translated `d`) or at `d` end when absent. A cubic-Bézier
+// connector — P0 = previous effective exit, P3 = placed entry, tangents from
+// the joining strokes' last/first ~3 polyline points, control arms
+// |P3−P0|/3 — bridges every seam sampled into exactly 24 uniform `L` steps
+// (skipped when |P3−P0| < 1px).
 //
-// Effective exit per letter: `x` → its second diagonal end (d end); `t/i/j` →
-// their MAIN end (`anchors.exit` — the deferred dot/cross is appended AFTER
-// every letter and connector, in word order); any single-subpath letter → d end.
-// The stored `d` remains a SINGLE-M polyline, never split by M, so guided /
-// free trace and evaluate consume the word unchanged. Error strings in Spanish,
-// house style.
-import { DEFERRED_SECONDARY_CHARS } from './anchors'
+// Effective exit per letter: `x` → its second diagonal end (d end); `t/i/j/f`
+// → their MAIN end (`anchors.exit` — the deferred dot/cross/crossbar is
+// appended AFTER every letter and connector, in word order; `f` is
+// single-subpath today, so its effective exit resolves identically to the
+// single-subpath case — design.md Decision 4); any single-subpath letter →
+// d end. The stored `d` remains a SINGLE-M polyline, never split by M, so
+// guided/free trace and evaluate consume the word unchanged. Error strings
+// in Spanish, house style.
+import { DEFERRED_SECONDARY_CHARS, exitKindFor } from './anchors'
 import { LETTER_REGISTRY } from './registry'
-import { flattenPathD, isWordEligible, pathFromPoints, transformPathD } from './svgLetter'
+import {
+  flattenPathD,
+  isWordEligible,
+  pathFromPoints,
+  splitMainTail,
+  transformPathD,
+} from './svgLetter'
 import type { AnimationStep, LetterCheckpoint, LetterConfig, Point } from './types'
 
 /** Seam gap in virtual px — the placed entry lands 20px along `u`. */
@@ -45,18 +60,6 @@ function normalize(v: Point): Point {
   const len = Math.hypot(v.x, v.y)
   if (len < 1e-9) return { x: 1, y: 0 }
   return { x: v.x / len, y: v.y / len }
-}
-
-/** Index of the first polyline vertex whose cumulative arc from the start
- * reaches `arc` (walk chords). Returns the last index when `arc` exceeds the
- * polyline — the main then extends to `d` end. */
-function cutAtArc(points: Point[], arc: number): number {
-  let acc = 0
-  for (let i = 1; i < points.length; i++) {
-    acc += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
-    if (acc >= arc - 1e-9) return i
-  }
-  return points.length - 1
 }
 
 /** Index of the polyline vertex nearest `target` (single-subpath cut at the
@@ -161,36 +164,47 @@ export function buildWord(names: string[]): LetterConfig {
     const cfg = members[i]
     const isDeferred = DEFERRED_SECONDARY_CHARS.has(cfg.character)
 
-    // Placement: u = normalize(prevEffectiveExit − entryNatural); placed entry
-    // = round2(prevExit − 20·u). dx/dy are UNROUNDED on purpose: the
-    // transformPathD rounding then reproduces the placed entry EXACTLY
+    // Placement depends on the PREVIOUS member's exit kind (design.md
+    // Decision 2). `baseline-right` (the default) keeps the original chord
+    // formula VERBATIM — byte-identical goldens: u = normalize(prevExit −
+    // entryNatural); placed entry = round2(prevExit − 20·u). `mid-right` /
+    // `top-right` (b e o v w) translate HORIZONTALLY only: the next letter
+    // stays at its own natural entry height (dy === 0, no tunable factor),
+    // reusing SEAM_GAP as the horizontal seam magnitude; the connector Bézier
+    // absorbs 100% of the vertical travel. dx/dy are UNROUNDED on purpose:
+    // the transformPathD rounding then reproduces the placed entry EXACTLY
     // (R(entry + (target − entry)) === target).
     let dx = 0
     let dy = 0
     let placed: Point | null = null
     if (prevExit) {
-      const u = normalize({
-        x: prevExit.x - cfg.anchors.entry.x,
-        y: prevExit.y - cfg.anchors.entry.y,
-      })
-      placed = {
-        x: round2(prevExit.x - SEAM_GAP * u.x),
-        y: round2(prevExit.y - SEAM_GAP * u.y),
+      const prevKind = exitKindFor(members[i - 1].character)
+      if (prevKind === 'baseline') {
+        const u = normalize({
+          x: prevExit.x - cfg.anchors.entry.x,
+          y: prevExit.y - cfg.anchors.entry.y,
+        })
+        placed = {
+          x: round2(prevExit.x - SEAM_GAP * u.x),
+          y: round2(prevExit.y - SEAM_GAP * u.y),
+        }
+      } else {
+        placed = { x: round2(prevExit.x - SEAM_GAP), y: cfg.anchors.entry.y }
       }
       dx = placed.x - cfg.anchors.entry.x
       dy = placed.y - cfg.anchors.entry.y
     }
 
-    // Flatten the TRANSLATED stored `d`, then cut main/tail.
+    // Flatten the TRANSLATED stored `d`, then split main/tail through the
+    // ONE shared cut (svgLetter.ts's splitMainTail — same helper P4 uses for
+    // the solo `segments` render).
     const flat = flattenPathD(transformPathD(cfg.pathDefinition.d, 1, 1, dx, dy))
     const translatedExit = {
       x: round2(cfg.anchors.exit.x + dx),
       y: round2(cfg.anchors.exit.y + dy),
     }
     const mainArc = cfg.pathDefinition.mainEndArc
-    const cut = mainArc !== undefined ? cutAtArc(flat.points, mainArc) : nearestVertex(flat.points, translatedExit)
-    const main = flat.points.slice(0, cut + 1)
-    const tail = flat.points.slice(cut + 1) // strictly after the main end (no shared dup)
+    const { main, tail } = splitMainTail(flat.points, mainArc, translatedExit)
 
     // Effective exit for the NEXT seam: x → d end; deferred → main end
     // (translated exit anchor); single-subpath → d end (identical values).

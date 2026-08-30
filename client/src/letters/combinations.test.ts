@@ -189,6 +189,66 @@ describe('buildWord demo timeline', () => {
   })
 })
 
+describe('buildWord hybrid seam — mid/top exit absorption (design.md Decision 2)', () => {
+  // Seam gap magnitude, mirrored from combinations.ts (reused horizontally for
+  // the absorbed case — no new constant).
+  const SEAM_GAP = 20
+
+  it.each(['b', 'e', 'o', 'v', 'w'] as const)(
+    "%s exits mid/top-right: the next letter's placed entry keeps its OWN natural entry height (dy === 0)",
+    (prevChar) => {
+      const prev = LETTER_REGISTRY[prevChar]
+      const next = LETTER_REGISTRY.a
+      const word = buildWord([prevChar, 'a'])
+      const prevFlat = flattenPathD(prev.pathDefinition.d).points
+      const flat = flattenPathD(word.pathDefinition.d)
+      // prev has no mainEndArc (single-subpath today): its effective exit is
+      // its untranslated `d` end (it's the FIRST member, so dx=dy=0 for it).
+      expect(prev.pathDefinition.mainEndArc).toBeUndefined()
+      const placed = flat.points[prevFlat.length + 24] // first point after prev + the 24 connector steps
+      // dy === 0: the placed entry sits at the SAME height as `a`'s own
+      // natural entry — no vertical rigid translation, fixed rule (no tunable
+      // factor).
+      expect(placed.y).toBeCloseTo(next.anchors.entry.y, 6)
+      // dx: horizontal-only, SEAM_GAP reused as the horizontal magnitude.
+      expect(placed.x).toBeCloseTo(Math.round((prev.anchors.exit.x - SEAM_GAP) * 100) / 100, 2)
+    },
+  )
+
+  it("a baseline-right exit (a→c) is UNCHANGED — byte-identical to the pre-hybrid chord formula", () => {
+    // Regression guard for Decision 2: the baseline branch must stay
+    // byte-identical, so a→c reuses the SAME assertions as the pre-existing
+    // "seam continuity" suite above (kept here as an explicit cross-check).
+    const { p3 } = expectedSeam()
+    const word = buildWord(['a', 'c'])
+    const flat = flattenPathD(word.pathDefinition.d)
+    const aLen = flattenPathD(a.pathDefinition.d).points.length
+    const placed = flat.points[aLen + 24]
+    expect(Math.hypot(placed.x - p3.x, placed.y - p3.y)).toBeLessThan(1e-6)
+  })
+})
+
+describe("f's effectiveExit golden (design.md Decision 4 — deferred but inert today)", () => {
+  it('f is DEFERRED but single-subpath today: no separate deferred step, its effective exit equals the translated `d` end (identical to the single-subpath case)', () => {
+    const f = LETTER_REGISTRY.f
+    expect(f.pathDefinition.mainEndArc).toBeUndefined() // no crossbar authored yet
+    const word = buildWord(['f', 'a'])
+    const draws = word.animationTimeline.filter((s) => s.type === 'draw_path')
+    // f main → connector → a main: NO extra deferred-tail step, the SAME
+    // shape as any baseline two-letter word (e.g. a→c).
+    expect(draws.map((d) => d.duration)).toEqual([2600, 500, 2600])
+    const flat = flattenPathD(word.pathDefinition.d)
+    const fFlat = flattenPathD(f.pathDefinition.d).points
+    // f (the FIRST member, untranslated) is emitted uninterrupted, in full.
+    for (let k = 0; k < fFlat.length; k++) expect(flat.points[k]).toEqual(fFlat[k])
+    // Its effective exit for the seam is exactly its translated exit anchor
+    // === its `d` end (this is the golden this test pins: a future crossbar
+    // would break it, and that break is the intended signal per Decision 4).
+    const seamP0 = flat.points[fFlat.length - 1]
+    expect(seamP0).toEqual(f.anchors.exit)
+  })
+})
+
 describe('COMBO_REGISTRY removal (ordered-pair registry dropped)', () => {
   it('no longer exports COMBO_REGISTRY; the single-letter flow is untouched', () => {
     const combo = (registryModule as unknown as Record<string, unknown>).COMBO_REGISTRY
@@ -198,7 +258,8 @@ describe('COMBO_REGISTRY removal (ordered-pair registry dropped)', () => {
   })
 
   it('rejects unregistered names and the empty word', () => {
-    expect(() => buildWord(['z'])).toThrow(/Letra no configurada: z/)
+    // All 26 lowercase letters are registered, so the sentinel is a non-letter.
+    expect(() => buildWord(['0'])).toThrow(/Letra no configurada: 0/)
     expect(() => buildWord([])).toThrow(/al menos 1 letra/)
   })
 })

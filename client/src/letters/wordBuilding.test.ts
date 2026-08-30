@@ -257,16 +257,19 @@ describe('buildWord meta and refusals (T2.6, T2.1)', () => {
     }
   })
 
-  it('throws for unregistered names and the empty word; the deferral set excludes x/f', () => {
-    expect(() => buildWord(['z'])).toThrow(/Letra no configurada: z/)
+  it('throws for unregistered names and the empty word; the deferral set excludes x, includes f', () => {
+    // All 26 lowercase letters are registered, so the sentinel is a non-letter.
+    expect(() => buildWord(['0'])).toThrow(/Letra no configurada: 0/)
     expect(() => buildWord(['Z'])).toThrow(/Letra no configurada/)
     expect(() => buildWord([])).toThrow(/al menos 1 letra/)
     // The Kalam seed fails eligibility directly (every registered letter is
     // entry-matched today, so the ineligible-throw is reachable only in data).
     expect(isWordEligible(letraA)).toBe(false)
-    expect(DEFERRED_SECONDARY_CHARS).toEqual(new Set(['t', 'i', 'j']))
+    // design.md Decision 4: f is deferred (forward-looking — inert today
+    // because f.svg is single-subpath, no crossbar authored yet).
+    expect(DEFERRED_SECONDARY_CHARS).toEqual(new Set(['t', 'i', 'j', 'f']))
     expect(DEFERRED_SECONDARY_CHARS.has('x')).toBe(false)
-    expect(DEFERRED_SECONDARY_CHARS.has('f')).toBe(false)
+    expect(DEFERRED_SECONDARY_CHARS.has('f')).toBe(true)
   })
 
   it('builds longer words: 4 letters, 3 connectors, per-segment timeline, fade at max+200', () => {
@@ -310,7 +313,7 @@ describe('nextWord (main-screen keyboard, T5.1/T5.4)', () => {
     expect(nextWord(['c'], 'Control')).toBeNull()
     expect(nextWord(['c'], 'Shift')).toBeNull()
     expect(nextWord(['c'], ' ')).toBeNull()
-    expect(nextWord(['c'], 'z')).toBeNull() // unregistered → no append
+    expect(nextWord(['c'], '0')).toBeNull() // not a single a-z key → no append
     expect(nextWord(['c'], 'Enter')).toBeNull()
   })
 })
@@ -334,7 +337,7 @@ describe('flowWord (T7.3: every append replays the whole-word demo)', () => {
 
   it('a refused key returns the SAME state object (no re-render, no mode change)', () => {
     const s = freeFlow(['c'])
-    expect(flowWord(s, 'z')).toBe(s) // unregistered letter
+    expect(flowWord(s, '0')).toBe(s) // not a single a-z key
     expect(flowWord(s, 'A')).toBe(s) // uppercase / modifiers / space
     expect(flowWord(s, ' ')).toBe(s)
   })
