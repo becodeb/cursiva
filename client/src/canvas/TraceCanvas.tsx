@@ -38,8 +38,12 @@ export interface DrawDemo {
 }
 
 export interface TraceCanvasProps {
-  /** Faint ideal-path guide line drawn under the ink (free mode). */
-  guide?: string
+  /** Faint ideal-path guide line drawn under the ink (free mode). A single
+   * `d` string keeps the previous one-path behavior; an array renders one
+   * `<path>` per entry — no connecting line across pen-lift boundaries (a
+   * letter's `pathDefinition.segments`, trace-canvas "Guide Path Pen-Lift
+   * Fidelity"). */
+  guide?: string | string[]
   /** Full glyph contour (incl. counter-holes) for the evenodd FILL layer of
    * the guide (a real cursive 'a'/'c' shape the child can see and follow). */
   guideD?: string
@@ -167,14 +171,20 @@ export default function TraceCanvas({
         />
       )}
       {guide && (
-        <path
-          d={guide}
-          fill="none"
-          stroke="#334155"
-          strokeWidth={10}
-          opacity={0.15}
-          pointerEvents="none" // the guide never intercepts pointer input
-        />
+        <g>
+          {(Array.isArray(guide) ? guide : [guide]).map((gd, idx) => (
+            <path
+              key={idx}
+              d={gd}
+              fill="none"
+              stroke="#334155"
+              strokeWidth={10}
+              strokeLinejoin="round"
+              opacity={0.15}
+              pointerEvents="none" // the guide never intercepts pointer input
+            />
+          ))}
+        </g>
       )}
       {demo && (
         <g>
@@ -186,6 +196,7 @@ export default function TraceCanvas({
               stroke="#0284c7"
               strokeWidth={d.strokeWidth}
               strokeLinecap="round"
+              strokeLinejoin="round"
               initial={{ pathLength: 0 }}
               animate={{ pathLength: 1 }}
               transition={{ delay: d.delay, duration: d.duration }}
