@@ -241,11 +241,11 @@ it costs a maintainer decision and buys nothing.
 
 ## Phase 13: Cross-Cutting Verification (all slices merged)
 
-- [ ] 13.1 Run `npm test` from the repo root — all suites green, including every test added in Phases 1–12.
-- [ ] 13.2 Run `npm run build` from the repo root (`tsc --noEmit && vite build`) — green. Do not run bare `tsc --noEmit` (TS 7 quirk recorded in `openspec/config.yaml`).
-- [ ] 13.3 Grep the full `client/src/detective/`, `client/src/canvas/TraceCanvas.tsx`, `client/src/screen/Deduction.tsx`, `client/src/screen/LevelPlay.tsx` diff plus their `renderToString` test output for the substring `url(#` — MUST find zero new occurrences anywhere in the change (proposal success criterion; trace-canvas spec).
-- [ ] 13.4 C4 — after Phase 10 lands: start the dev server, screenshot the square-wave trail (trail 4) with `scripts/shot.sh <url> <out.png>` against `?nivel=<trail-4-id>`, and confirm by eye that the elbows read as corners rather than merging (the `run ≥ 2·corridorWidth` closed form is derived, not observed, and this repo has no pixel check). Record the pass/fail result and the screenshot path in the verify report.
-- [ ] 13.5 Load a hand-built mid-phase-1 `cursiva.levels.v1` payload (approvals through `f1-paseo`) against the final catalog and confirm no locked dead end end-to-end (integration re-check of Phase 9/11, proposal success criterion).
+- [x] 13.1 Run `npm test` from the repo root — all suites green, including every test added in Phases 1–12. — **791 passed / 45 files.**
+- [x] 13.2 Run `npm run build` from the repo root (`tsc --noEmit && vite build`) — green. Do not run bare `tsc --noEmit` (TS 7 quirk recorded in `openspec/config.yaml`). — **green.**
+- [x] 13.3 Grep the full `client/src/detective/`, `client/src/canvas/TraceCanvas.tsx`, `client/src/screen/Deduction.tsx`, `client/src/screen/LevelPlay.tsx` diff plus their `renderToString` test output for the substring `url(#` — MUST find zero new occurrences anywhere in the change (proposal success criterion; trace-canvas spec). — **zero rendered occurrences**; the five hits are comments and one test name.
+- [x] 13.4 C4 — after Phase 10 lands: start the dev server, screenshot the square-wave trail (trail 4) with `scripts/shot.sh <url> <out.png>` against `?nivel=<trail-4-id>`, and confirm by eye that the elbows read as corners rather than merging (the `run ≥ 2·corridorWidth` closed form is derived, not observed, and this repo has no pixel check). Record the pass/fail result and the screenshot path in the verify report. — **PASS.** `/tmp/fix-trail1.png`, `/tmp/fix-trail4.png` (plus `/tmp/trail2.png`, `/tmp/trail3.png`). Square-wave elbows read as corners with no merging; coil arms keep visible wall; triangular points sharp. Inspecting these also caught three defects the green suite hid — see the S6 commit.
+- [x] 13.5 Load a hand-built mid-phase-1 `cursiva.levels.v1` payload (approvals through `f1-paseo`) against the final catalog and confirm no locked dead end end-to-end (integration re-check of Phase 9/11, proposal success criterion). — **covered** by `catalog.test.ts` "progress migration reaches a mid-campaign child with no locked dead end": real store, real `migratePhase1`, real catalog, `trail3` locked before and unlocked after, `trail4` still locked.
 
 ## Ordering Summary (load-bearing)
 
