@@ -117,21 +117,21 @@ branch.
 
 ## Phase 3: Asset Registry and Palette (design unit 3 — spec: detective-mode R4)
 
-- [ ] 3.1 Create `client/src/detective/assets.ts`: `ClueKind`, `AnimalId`, `ClueArt`, `CLUE_ART`, `ANIMAL_ART`, `GLASS_ART`, placeholder `d` strings centred on the origin.
-- [ ] 3.2 Create `client/src/detective/palette.ts`: `CLUE_DRAINED`, `POND`, `KERNEL`, `PRINT`, `PLUME`, `LAMP`.
-- [ ] 3.3 `palette.test.ts`: the four earned values are pairwise distinct.
-- [ ] 3.4 `palette.test.ts`: `PRINT` has zero chroma (detective-mode spec, "Footprints earn in greyscale only").
-- [ ] 3.5 `palette.test.ts`: none of the four earned values equals or falls in the warm-clay band around `GOAL_COLOR`/`HAZARD_COLOR`/`CARRIER_COLOR` (`TraceCanvas.tsx:149,177,194`).
-- [ ] 3.6 `palette.test.ts`: a trail's earned colour does not appear when that trail's mark is `drained` (detective-mode spec, "Trail colour absent before earning") — assert against the registry mapping, no DOM.
+- [x] 3.1 Create `client/src/detective/assets.ts`: `ClueKind`, `AnimalId`, `ClueArt`, `CLUE_ART`, `ANIMAL_ART`, `GLASS_ART`, placeholder `d` strings centred on the origin.
+- [x] 3.2 Create `client/src/detective/palette.ts`: `CLUE_DRAINED`, `POND`, `KERNEL`, `PRINT`, `PLUME`, `LAMP`.
+- [x] 3.3 `palette.test.ts`: the four earned values are pairwise distinct.
+- [x] 3.4 `palette.test.ts`: `PRINT` has zero chroma (detective-mode spec, "Footprints earn in greyscale only").
+- [x] 3.5 `palette.test.ts`: none of the four earned values equals or falls in the warm-clay band around `GOAL_COLOR`/`HAZARD_COLOR`/`CARRIER_COLOR` (`TraceCanvas.tsx:149,177,194`).
+- [x] 3.6 `palette.test.ts`: a trail's earned colour does not appear when that trail's mark is `drained` (detective-mode spec, "Trail colour absent before earning") — assert against the registry mapping, no DOM.
 
 ## Phase 4: Canvas Clue Layer (design unit 4 — spec: trace-canvas R1)
 
-- [ ] 4.1 `client/src/canvas/TraceCanvas.tsx`: add `TraceClueMark`, `TraceClues`, `clues` prop; render a `<g>` immediately before the ink path, following the `hazards` precedent (`:166-177`, `:893-910`).
-- [ ] 4.2 Add `TraceCarrierArt` prop to override the hardcoded carrier shape (absent = unchanged shipped sage figure).
-- [ ] 4.3 New canvas test: `renderToString` with a `drained` mark asserts the shared grey token as fill/stroke (trace-canvas spec, "Drained mark renders grey").
-- [ ] 4.4 New canvas test: `renderToString` with an `earned` mark asserts the trail's colour `X` (trace-canvas spec, "Earned mark renders its trail colour").
-- [ ] 4.5 New canvas test: `renderToString` with an earned footprint mark asserts black/grey-to-black, never chromatic (trace-canvas spec, "Earned footprint renders black, never chromatic").
-- [ ] 4.6 New canvas test: scan the rendered HTML string for the substring `url(#` with `clues` populated — MUST be absent (trace-canvas spec, "No url() reference is introduced").
+- [x] 4.1 `client/src/canvas/TraceCanvas.tsx`: add `TraceClueMark`, `TraceClues`, `clues` prop; render a `<g>` immediately before the ink path, following the `hazards` precedent (`:166-177`, `:893-910`).
+- [x] 4.2 Add `TraceCarrierArt` prop to override the hardcoded carrier shape (absent = unchanged shipped sage figure).
+- [x] 4.3 New canvas test: `renderToString` with a `drained` mark asserts the shared grey token as fill/stroke (trace-canvas spec, "Drained mark renders grey").
+- [x] 4.4 New canvas test: `renderToString` with an `earned` mark asserts the trail's colour `X` (trace-canvas spec, "Earned mark renders its trail colour").
+- [x] 4.5 New canvas test: `renderToString` with an earned footprint mark asserts black/grey-to-black, never chromatic (trace-canvas spec, "Earned footprint renders black, never chromatic").
+- [x] 4.6 New canvas test: scan the rendered HTML string for the substring `url(#` with `clues` populated — MUST be absent (trace-canvas spec, "No url() reference is introduced").
 
 ## Phase 5: PISTAS Rail (design unit 5 — spec: level-engine R5)
 

@@ -401,3 +401,87 @@ describe('TraceCanvas carrier (LevelConfig.carrier: llevar a alguien, no trazar)
     expect(html).toContain('stroke="#fdfcf7"')
   })
 })
+
+describe('TraceCanvas clues prop (design.md "Decision: clue layer is a new `clues` prop, not `children`")', () => {
+  const drainedMark = {
+    x: 200,
+    y: 300,
+    angle: 0,
+    d: 'M0,-10 L10,10 L-10,10 Z',
+    paint: 'fill' as const,
+    color: '#c8cdd2',
+    scale: 1,
+  }
+  const earnedMark = { ...drainedMark, color: '#3f6f8f' }
+  const earnedFootprintMark = { ...drainedMark, color: '#000000' }
+
+  it('renders nothing without the prop (trace-canvas spec, "Drained mark renders grey")', () => {
+    expect(renderToString(<TraceCanvas />)).not.toContain('#c8cdd2')
+  })
+
+  it('renders a drained mark with the shared grey token (trace-canvas spec, "Drained mark renders grey")', () => {
+    const html = renderToString(<TraceCanvas clues={{ marks: [drainedMark] }} />)
+    expect(html).toContain('fill="#c8cdd2"')
+  })
+
+  it("renders an earned mark with its trail's colour (trace-canvas spec, \"Earned mark renders its trail colour\")", () => {
+    const html = renderToString(<TraceCanvas clues={{ marks: [earnedMark] }} />)
+    expect(html).toContain('fill="#3f6f8f"')
+  })
+
+  it('renders an earned footprint mark black, never chromatic (trace-canvas spec, "Earned footprint renders black, never chromatic")', () => {
+    const html = renderToString(<TraceCanvas clues={{ marks: [earnedFootprintMark] }} />)
+    expect(html).toContain('fill="#000000"')
+  })
+
+  it('introduces no url(#) reference with clues populated (trace-canvas spec, "No url() reference is introduced")', () => {
+    const html = renderToString(<TraceCanvas clues={{ marks: [earnedMark, drainedMark] }} />)
+    expect(html).not.toContain('url(#')
+  })
+
+  it('renders UNDER the live ink, not above it', () => {
+    const html = renderToString(<TraceCanvas clues={{ marks: [earnedMark] }} />)
+    // The only other `#1e293b` (INK_COLOR) occurrence on a bare canvas is the
+    // live ink path itself, so this is a clean z-order check.
+    expect(html.indexOf('#3f6f8f')).toBeLessThan(html.indexOf('#1e293b'))
+  })
+
+  it('paints a `paint: "stroke"` mark with stroke, not fill', () => {
+    const strokeMark = { ...earnedMark, paint: 'stroke' as const }
+    const html = renderToString(<TraceCanvas clues={{ marks: [strokeMark] }} />)
+    expect(html).toContain('stroke="#3f6f8f"')
+    expect(html).toContain('fill="none"')
+  })
+
+  it('positions a mark by translate/rotate/scale, with no offset arithmetic', () => {
+    const html = renderToString(
+      <TraceCanvas clues={{ marks: [{ ...earnedMark, x: 150, y: 250, angle: 45, scale: 0.8 }] }} />,
+    )
+    expect(html).toContain('translate(150 250) rotate(45) scale(0.8)')
+  })
+})
+
+describe('TraceCanvas carrierArt override (design.md "carrierArt override stays")', () => {
+  it('renders the shipped sage shape when the override is absent', () => {
+    const html = renderToString(<TraceCanvas carrier={{ x: 140, y: 260 }} />)
+    expect(html).toContain('#5f8a86')
+    expect(html).toContain('<rect')
+  })
+
+  it('renders the override art in ink instead of the shipped shape when present', () => {
+    const html = renderToString(
+      <TraceCanvas
+        carrier={{ x: 140, y: 260 }}
+        carrierArt={{ d: 'M-9,0 L9,0 M9,9 L18,18', color: '#1e293b' }}
+      />,
+    )
+    expect(html).toContain('stroke="#1e293b"')
+    expect(html).not.toContain('#5f8a86')
+    expect(html).not.toContain('<rect')
+  })
+
+  it('has no effect without a carrier', () => {
+    const html = renderToString(<TraceCanvas carrierArt={{ d: 'M0,0 L1,1', color: '#123456' }} />)
+    expect(html).not.toContain('#123456')
+  })
+})

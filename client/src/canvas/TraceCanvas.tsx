@@ -194,6 +194,57 @@ export type TraceCarrier = TraceMarker
 const CARRIER_COLOR = '#5f8a86'
 const CARRIER_OUTLINE = SHEET_PAPER
 
+/**
+ * One clue mark placed on the sheet (`detective-mode` design unit 4, spec:
+ * trace-canvas "Clue Layer Rendering"), following the `TraceHazards` prop
+ * precedent above: index-aligned readonly data, values computed OUTSIDE this
+ * component. Colour is already resolved by the caller — this component
+ * imports nothing from `detective/` and holds no token of its own, so
+ * `drained` vs. `earned` is entirely the caller's decision (design.md
+ * "Interfaces / Contracts").
+ */
+export interface TraceClueMark {
+  /** Origin-centred registry art, positioned by `translate(x,y)
+   * rotate(angle) scale(scale)` — no offset arithmetic. */
+  x: number
+  y: number
+  angle: number
+  d: string
+  paint: 'fill' | 'stroke'
+  /** `CLUE_DRAINED` while unearned, the trail's registered earned colour once
+   * earned — resolved by the caller, never by this component. */
+  color: string
+  scale: number
+}
+
+/** All of one level's clue marks. Absent = no clue layer, and the surface
+ * pays nothing for it. */
+export interface TraceClues {
+  marks: readonly TraceClueMark[]
+}
+
+/** Stroke width for a `paint: 'stroke'` clue mark. Clue art is small (the
+ * 100-unit em `detective/assets.ts` authors it in), so this stays far under
+ * `INK_WIDTH`. */
+const CLUE_STROKE_WIDTH = 4
+
+/**
+ * Override the hardcoded carrier shape with registry art (design.md "Decision:
+ * assets behind a typed registry..."; "carrierArt override stays"). Absent =
+ * the shipped sage figure below, so every existing caller is untouched. The
+ * magnifying glass is drawn IN INK, not in a colour of its own — that is
+ * what keeps `CARRIER_COLOR` from crowding `PLUME` (design.md "The
+ * magnifying glass is drawn in ink...").
+ */
+export interface TraceCarrierArt {
+  d: string
+  color: string
+}
+
+/** Stroke width for a `carrierArt` override, drawn as a line figure rather
+ * than the shipped filled shapes. */
+const CARRIER_ART_STROKE_WIDTH = 4
+
 /** How long the abandoned ink takes to fade on a reset. Long enough to be seen
  * as a departure rather than a glitch, short enough that the child is not kept
  * waiting to start again. */
@@ -307,6 +358,12 @@ export interface TraceCanvasProps {
   /** Draw a small character riding the fingertip, resting on this point until
    * the stroke begins. Absent = no carrier. */
   carrier?: TraceCarrier
+  /** Override the carrier's shipped shape with registry art, drawn in ink.
+   * Absent = the shipped sage figure. Has no effect without `carrier`. */
+  carrierArt?: TraceCarrierArt
+  /** Clue marks (`detective-mode`), rendered as their own `<g>` layer UNDER
+   * the ink — see `TraceClueMark`. Absent = no clue layer. */
+  clues?: TraceClues
   /** Any CHANGE of this value RESTARTS THE RUN (`LevelConfig.resetOnContact`):
    * the stroke in progress is abandoned, both buffers are emptied, and the ink
    * that was on the sheet FADES rather than vanishing.
@@ -351,6 +408,8 @@ export default function TraceCanvas({
   clearSignal,
   hazards,
   carrier,
+  carrierArt,
+  clues,
   resetSignal,
 }: TraceCanvasProps) {
   // `contain` letterboxes inside its box, so the CSS background would paint the
@@ -882,6 +941,28 @@ export default function TraceCanvas({
           )}
         </g>
       )}
+      {clues && clues.marks.length > 0 && (
+        // Clue layer (design.md "Decision: clue layer is a new `clues`
+        // prop, not `children`"): its own `<g>` immediately BEFORE the ink
+        // path, so marks sit on the ground UNDER both the live ink and the
+        // carrier — the opposite z-order `hazards` uses below, for the
+        // opposite reason (a hazard must be seen coming; a clue mark must
+        // never compete with the child's own trace). No animation: a
+        // mark's colour is a discrete attribute the caller already
+        // resolved, not a value this loop mutates per frame.
+        <g pointerEvents="none">
+          {clues.marks.map((mark, idx) => (
+            <path
+              key={idx}
+              d={mark.d}
+              transform={`translate(${mark.x} ${mark.y}) rotate(${mark.angle}) scale(${mark.scale})`}
+              fill={mark.paint === 'fill' ? mark.color : 'none'}
+              stroke={mark.paint === 'stroke' ? mark.color : 'none'}
+              strokeWidth={mark.paint === 'stroke' ? CLUE_STROKE_WIDTH : undefined}
+            />
+          ))}
+        </g>
+      )}
       <path
         ref={inkRef}
         fill="none"
@@ -918,24 +999,40 @@ export default function TraceCanvas({
           pointerEvents="none"
           transform={`translate(${carrier.x} ${carrier.y})`}
         >
-          <rect
-            x={-11}
-            y={-6}
-            width={22}
-            height={24}
-            rx={9}
-            fill={CARRIER_COLOR}
-            stroke={CARRIER_OUTLINE}
-            strokeWidth={3}
-          />
-          <circle
-            cx={0}
-            cy={-14}
-            r={8}
-            fill={CARRIER_COLOR}
-            stroke={CARRIER_OUTLINE}
-            strokeWidth={3}
-          />
+          {carrierArt ? (
+            // Registry art (e.g. `detective/assets.ts`'s `GLASS_ART`), drawn
+            // IN INK — a colour, not a reward (design.md "The magnifying
+            // glass is drawn in ink...").
+            <path
+              d={carrierArt.d}
+              fill="none"
+              stroke={carrierArt.color}
+              strokeWidth={CARRIER_ART_STROKE_WIDTH}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ) : (
+            <>
+              <rect
+                x={-11}
+                y={-6}
+                width={22}
+                height={24}
+                rx={9}
+                fill={CARRIER_COLOR}
+                stroke={CARRIER_OUTLINE}
+                strokeWidth={3}
+              />
+              <circle
+                cx={0}
+                cy={-14}
+                r={8}
+                fill={CARRIER_COLOR}
+                stroke={CARRIER_OUTLINE}
+                strokeWidth={3}
+              />
+            </>
+          )}
         </g>
       )}
       {children}
