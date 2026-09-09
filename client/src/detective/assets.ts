@@ -20,7 +20,7 @@ import { POND, KERNEL, PRINT, PLUME } from './palette'
 export type ClueKind = 'droplet' | 'corn' | 'footprint' | 'feather'
 
 /** One art per deduction-screen animal choice (design unit 7, a later slice). */
-export type AnimalId = 'gallina' | 'pato' | 'chancho' | 'vaca'
+export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
 
 export interface ClueArt {
   d: string
@@ -56,24 +56,48 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
 /** Placeholder animal silhouettes for the deduction lineup (design unit 7).
  * `ruledOutBy` names the clue kind whose earned mark eliminates this animal —
  * consumed by the (later) deduction screen, not by anything in this slice. */
-export const ANIMAL_ART: Readonly<Record<AnimalId, { d: string; ruledOutBy: ClueKind }>> = {
+/**
+ * The lineup. `gallina` is the culprit: water, corn, three-toed prints and
+ * feathers all point at her, so she carries no `ruledOutBy`.
+ *
+ * Each distractor is ruled out by exactly ONE clue, so every clue the child
+ * collected does real work in the deduction:
+ *
+ * - `pato` by the FOOTPRINT — webbed, not three splayed toes.
+ * - `vaca` by the FEATHER — no feathers.
+ * - `gato` by the CORN — a cat does not eat it.
+ *
+ * The droplet rules out nobody, on purpose: every animal drinks. A child
+ * learning to reason should meet a clue that establishes presence without
+ * narrowing the field, otherwise "there was a clue" and "it was decisive"
+ * collapse into the same idea.
+ *
+ * Art is placeholder and origin-centred, so a group transform places and
+ * scales it. Real art replaces these `d` strings and nothing else.
+ */
+export const ANIMAL_ART: Readonly<
+  Record<AnimalId, { d: string; ruledOutBy: ClueKind | null }>
+> = {
   gallina: {
     d: 'M0,-18 C10,-18 12,-6 6,0 L10,10 L-10,10 L-6,0 C-12,-6 -10,-18 0,-18 Z',
-    ruledOutBy: 'feather',
+    ruledOutBy: null,
   },
   pato: {
     d: 'M0,-14 C9,-14 11,-2 5,4 L8,10 L-8,10 L-5,4 C-11,-2 -9,-14 0,-14 Z',
-    ruledOutBy: 'droplet',
-  },
-  chancho: {
-    d: 'M0,-12 C10,-12 12,0 8,6 L10,10 L-10,10 L-8,6 C-12,0 -10,-12 0,-12 Z',
-    ruledOutBy: 'corn',
+    ruledOutBy: 'footprint',
   },
   vaca: {
     d: 'M0,-16 C12,-16 14,-2 7,4 L10,10 L-10,10 L-7,4 C-14,-2 -12,-16 0,-16 Z',
-    ruledOutBy: 'footprint',
+    ruledOutBy: 'feather',
+  },
+  gato: {
+    d: 'M0,-12 C10,-12 12,0 8,6 L10,10 L-10,10 L-8,6 C-12,0 -10,-12 0,-12 Z',
+    ruledOutBy: 'corn',
   },
 }
+
+/** The animal the four clues actually identify. */
+export const CULPRIT: AnimalId = 'gallina'
 
 /** Placeholder magnifying glass: a lens (stroked circle, via cubic Bézier)
  * plus a handle, origin roughly at the lens edge nearest the handle so the

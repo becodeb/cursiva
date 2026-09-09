@@ -249,3 +249,78 @@ None blocking. One test-authoring pitfall recorded for whoever writes the next `
 ### Status
 
 24/25 assigned tasks complete (7.3 deferred to S6, documented above and in `tasks.md`). Full repo suite: **728/728 tests passing** (up from 704; +24 net — 12 new `PistasRail.test.tsx` + 12 new `LevelPlay.test.tsx`; every S1/S2 test file unmodified and still green; 42 files up from 40). `npm run build` (`tsc --noEmit && vite build`) green. `grep -rn 'url(#' client/src/detective/ client/src/screen/LevelPlay.tsx` finds only comments describing the constraint (no rendered reference). `grep -rn 'font-family\|fontFamily\|@font-face' client/src/` finds only comments describing the constraint (stays at zero rendered occurrences). Ready for verify / next slice (S4).
+
+## Slice S4 — unit 7 (Deduction view; design unit 7, Phase 8)
+
+Mode: Standard (`strict_tdd: false`, per `openspec/config.yaml`). Checked out
+branch: `feat/detective-s3b-wiring-and-textless-shell` (S3's HEAD — the parent
+cuts branches on commit, this batch created none).
+
+### Completed Tasks
+
+- [x] 8.1 `client/src/screen/GameScreen.tsx`: `GameView` gained `{ view: 'deduce' }`, `GameAction` gained `{ type: 'deduce' }`; `nextView`'s new `case 'deduce'` returns `{ view: 'deduce' }` and reads nothing from the catalog.
+- [x] 8.2 `client/src/screen/GameScreen.tsx`: `allEarned(trailIds, records)` (pure) and `resolveNextAction(finishedLevelId, records)` (pure) implemented; `onNext` now dispatches `resolveNextAction(state.levelId, store.all())` instead of always `{ type: 'next', ... }`.
+- [x] 8.3 `client/src/screen/GameScreen.tsx`: `initialView` accepts `?nivel=deduccion` and returns `{ view: 'deduce' }` directly, ahead of the catalog-id lookup.
+- [x] 8.4 Created `client/src/detective/Deduction.tsx` — see "Path deviation" below for WHERE. Reuses the `.cv-play`/`.cv-sheet` shell shape and the real `PistasRail` component (all four slots filed, lamp on); four-animal lineup (`ANIMAL_ART`) on one drawn `M`/`L` ink line; D4 dismissal via the pure `pickAnimal`/`DeductionState`; the dismissed animal's discriminating clue (`ruledOutBy`) is emphasised with that clue's own registry art in its earned colour.
+- [x] 8.5 `GameScreen.test.tsx`: `resolveNextAction('trail4', recordsWith(1))` (three-then-fourth-just-filed) resolves to `{ type: 'deduce' }`, and composing it through `nextView` reaches `{ view: 'deduce' }` — plus a direct `nextView(state, { type: 'deduce' })` unit test.
+- [x] 8.6 `GameScreen.test.tsx`: with one of four trails at `approvals: 0`, `resolveNextAction` never resolves to `deduce` for ANY of the four trail ids, and composing through `nextView` never reaches the deduction view.
+- [x] 8.7 `Deduction.test.tsx`: `DeductionView` at the initial state renders exactly four `.animal-btn` elements.
+- [x] 8.8 `Deduction.test.tsx`: `pickAnimal(state, CULPRIT).closed === true`.
+- [x] 8.9 `Deduction.test.tsx`: `pickAnimal(state, 'pato')` stays `closed: false`, dismisses only `pato`, and the very next `pickAnimal` call (on the returned state, no extra action) can close the case; `DeductionState`'s own keys are asserted to be exactly `['closed', 'dismissed']` — no score/penalty field exists to violate D4 with.
+
+### Path deviation (flagged, not silently resolved)
+
+**`Deduction.tsx` was created at `client/src/detective/Deduction.tsx`, not `client/src/screen/Deduction.tsx`.** `design.md`'s own "File Changes" table and `tasks.md`'s task 8.4 both name `client/src/screen/Deduction.tsx`. The parent's slice-4 assignment prompt for this batch, however, explicitly and repeatedly named `client/src/detective/Deduction.tsx` (both in its "In scope" file list and its own required-verification command, `grep -rn 'url(#' client/src/detective/`, which only covers the `detective/` tree). Given (a) the prompt is the direct, current task assignment and post-dates the design doc, (b) it names the path twice with exact backticks, and (c) its own verification command only makes sense if the file actually lives there, this was treated as a deliberate, corrected placement rather than a typo, and followed as given. Consequence: `Deduction.tsx` and `Deduction.test.tsx` sit alongside `PistasRail.tsx`/`icons.tsx`/`assets.ts`/`palette.ts`/`clues.ts` under `detective/`, consistent with every other detective-mode-specific module already living there — `screen/` keeps only the generic session shell (`GameScreen.tsx`, `LevelPlay.tsx`, `LevelMap.tsx`, `MainScreen.tsx`). **Flag for whoever runs `sdd-verify` or reconciles this against `design.md`**: either treat this as the design's own path correction, or require a follow-up move — the import in `GameScreen.tsx` (`import Deduction from '../detective/Deduction'`) is the only call site and moving the file later is a one-line-plus-one-file change.
+
+### `.cv-play` shell CSS duplication (forced, not a shortcut)
+
+`LevelPlay.tsx` is on this slice's do-not-touch list, so its private `LAYOUT_CSS` constant cannot be imported or exported for reuse. `Deduction.tsx` therefore carries its own small `DEDUCTION_CSS` block, under the SAME class names (`.cv-play`, `.cv-sheet`, `.pistas-rail`, etc.) but trimmed to only the rules this screen actually needs (no title/hint/pillar/coach rules exist here, since this screen has none of those elements). The two screens are never mounted simultaneously (`GameScreen` renders exactly one view at a time), so the duplicate global selectors carry no runtime collision risk. Flag for a future slice: if `LevelPlay.tsx` ever comes back into scope, extracting `LAYOUT_CSS`'s shell rules into a shared module both screens import would remove this duplication.
+
+### Files Changed
+
+| File | Action | What Was Done |
+|------|--------|---------------|
+| `client/src/detective/Deduction.tsx` | Created | `DeductionState`, `initialDeductionState`, `pickAnimal` (pure); `DeductionView` (pure presentational render of a given state); `Deduction` (stateful default export, wraps `useState`). Imports only `react`, `./assets`, `./PistasRail`, `./icons`. |
+| `client/src/detective/Deduction.test.tsx` | Created | Structural `ANIMAL_ART`/`CULPRIT` registry tests (23 tests total in file); `pickAnimal` unit tests; `DeductionView` `renderToString` tests (four choices, accessible names, PISTAS-only text, no `url(#`/border-radius/box-shadow, 64px tap floor, one ground line, rail filed+lamp-on, dismissal styling, clue-hint emphasis, closed-state disabling); one `Deduction` (stateful) smoke test. |
+| `client/src/screen/GameScreen.tsx` | Modified | `GameView`/`GameAction` gained `deduce`; `nextView` gained the `deduce` case; `initialView` accepts `?nivel=deduccion`; new exports `DETECTIVE_TRAIL_IDS`, `allEarned`, `resolveNextAction`; render gained the `state.view === 'deduce'` branch mounting `Deduction`; `onNext` now calls `resolveNextAction` instead of always dispatching `next`. |
+| `client/src/screen/GameScreen.test.tsx` | Created | `nextView`'s new `deduce` case; `?nivel=deduccion` deep link; `allEarned` (all-filed / one-missing / empty-list / absent-record); `resolveNextAction` (8.5's and 8.6's scenarios, the "last trail AND all earned" conjunction, and a non-detective id). Deliberately split from the pre-existing `levelFlow.test.ts` (which already covers `nextView`'s `play`/`next`/`back`/`reset` cases end to end) rather than editing that file, keeping this slice's diff to files the parent's scope actually named. |
+
+### Work Unit Evidence
+
+| Evidence | Unit 7 (`Deduction.tsx`, `GameScreen.tsx`) |
+|---|---|
+| Focused test command / result | `cd client && npx vitest run src/detective src/screen` → **141/141 passed** (11 files: every S1–S3 detective/screen test file unmodified and still green, plus the 2 new files this slice adds) |
+| Runtime harness | N/A per this repo's node-only harness for this class of change (no DOM, no `getBBox`/`getTotalLength`) — every assertion is `renderToString` on a hand-built state or a direct pure-function call, per `design.md`'s own "Testing Strategy" row for this unit ("Node, no DOM, existing GameScreen test pattern") |
+| Rollback boundary | `client/src/detective/Deduction.tsx` + `.test.tsx` revert alone (new, isolated files). `GameScreen.tsx`'s changes are additive except for one line (`onNext`'s dispatch target changed from `{type:'next', ...}` to `resolveNextAction(...)`); the new `deduce`-view render branch and the new exports revert alone as a single hunk. |
+
+### Deviations from Design
+
+1. **File path**: `Deduction.tsx` lives at `client/src/detective/Deduction.tsx`, not `client/src/screen/Deduction.tsx` as `design.md`/`tasks.md` state — see "Path deviation" section above for the full reasoning.
+2. **`.cv-play` shell CSS is duplicated, not imported**, because `LevelPlay.tsx` (the only place `LAYOUT_CSS` is defined) is out of this slice's edit scope — see its own section above.
+3. **`DETECTIVE_TRAIL_IDS` is a locally declared constant (`['trail1','trail2','trail3','trail4']`) in `GameScreen.tsx`, not derived from `LEVELS`.** The catalog does not carry these four trail configs yet (Phase 10 / S6, still out of scope in this session's chain), so `LEVELS.filter(l => l.clue)` would be an empty list today and `allEarned`/`resolveNextAction` would be permanently unreachable until S6 lands. The chosen ids match exactly what `migratePhase1.ts`'s (Phase 9, S5, also not yet landed) `PHASE_1_FORWARD` design.md snippet already names as its migration targets, so no id needs to change when S5/S6 land — only `LEVELS` needs to actually contain configs with these ids, which is already S6's job. Flag for the S6 executor: once the four trail configs exist in `catalog.ts`, confirm their ids are literally `trail1`..`trail4` (or update this constant to match whatever S6 actually ships).
+4. **No `LevelProgressStore`/catalog integration test exercises `resolveNextAction` against a REAL store instance** — `game/LevelProgressStore.ts` is on this slice's do-not-touch list, so `GameScreen.test.tsx` builds plain `Record<string, LevelRecord>` objects by hand (`recordsWith` helper) rather than driving a real `LevelProgressStore`. `resolveNextAction`'s signature only takes `Readonly<Record<string, LevelRecord>>`, which is exactly what `store.all()` already returns, so this is a like-for-like substitution, not a weaker test.
+5. **What happens after the case closes is intentionally minimal.** Neither the spec nor `design.md` says what UI state follows "the case as closed" beyond the scenario's own wording — no navigation-away requirement exists anywhere in the binding inputs. `Deduction`'s own behaviour once `closed: true`: every animal button becomes `disabled` (interaction is over) and the hen simply keeps its normal ink rendering (no new colour is introduced — design.md principle 1 reserves colour for "earned" clues only, not for a correct guess). No `onBack`-adjacent "return to map" auto-navigation was added; `onBack` remains available as the existing back affordance. Flagged for a later slice if product wants an explicit closing beat.
+
+### Issues Found
+
+One test-authoring pitfall, recorded for whoever writes the next `renderToString`-substring test in this file: `.animal-btn[disabled] { cursor: default; }` in `DEDUCTION_CSS` means the bare substring `'disabled'` appears in the rendered HTML (inside the `<style>` block) even when NO button is actually disabled. The "no animal button is disabled" test had to check for the SSR-rendered boolean-attribute form `disabled=""` specifically, not the bare word — otherwise it fails against the stylesheet's own selector, not against any real attribute. Caught immediately by the focused test run (see verification below) and fixed before finishing this slice.
+
+### Remaining Tasks (not in this slice's scope)
+
+- [ ] Phase 7 task 7.3 — still deferred to S6 (unchanged from S3).
+- [ ] Phase 9 — Progress Migration — S5.
+- [ ] Phase 10 — Four Themed Trails — S6.
+- [ ] Phase 11 — Retire Legacy Configs — S6.
+- [ ] Phase 12 — Roadmap Doc — S7.
+- [ ] Phase 13 — Cross-Cutting Verification — after all slices merged.
+
+### Workload / PR Boundary
+
+- Mode: chained PR slice (`feature-branch-chain`, per `tasks.md` forecast).
+- Current work unit: S4 (design unit 7), staying on the checked-out branch `feat/detective-s3b-wiring-and-textless-shell` — this apply batch created no branches, per the parent's instruction.
+- Boundary: `client/src/detective/Deduction.tsx` + `.test.tsx` (new, isolated files) and `client/src/screen/GameScreen.tsx` + `.test.tsx` (one additive/near-additive hunk in the modified file, one new file) are independently revertible — no cross-contamination between the two.
+- Estimated review budget impact: `tasks.md`'s S4 forecast (second correction) was ~620 authored lines at the 2.3x-corrected estimate. `git diff --stat`-equivalent: `Deduction.tsx` ~300 lines, `Deduction.test.tsx` ~250 lines, `GameScreen.tsx` diff ~+95/-6, `GameScreen.test.tsx` ~115 lines — combined ≈ 750 lines. Over the 400 per-PR guard as the corrected forecast anticipated; the natural split (already file-isolated) is `Deduction.tsx`+`.test.tsx` as one PR (~550 lines) and `GameScreen.tsx`+`.test.tsx` as a second, smaller PR (~210 lines) based on the same S3-established branch on top of this one — left for the parent to cut, per the established pattern.
+
+### Status
+
+9/9 assigned tasks (Phase 8) complete. Full repo suite: **764/764 tests passing** (up from 730; +34 net — 23 new `Deduction.test.tsx` tests + 11 new `GameScreen.test.tsx` tests; every S1/S2/S3 test file unmodified and still green; 44 files up from 42). `npm run build` (`tsc --noEmit && vite build`) green — `vite build`'s pre-existing "chunks larger than 500 kB" advisory is unrelated to this change and was already present before this slice. `grep -rn 'url(#' client/src/detective/` finds only comments describing the constraint across `PistasRail.tsx`, `icons.tsx`, `Deduction.tsx` and their test files (no rendered reference). `grep -rn 'font-family\|fontFamily\|@font-face' client/src/detective/Deduction.tsx client/src/screen/GameScreen.tsx` finds nothing at all. Ready for verify / next slice (S5).

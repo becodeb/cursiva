@@ -195,15 +195,15 @@ it costs a maintainer decision and buys nothing.
 
 ## Phase 8: Deduction View (design unit 7 — spec: detective-mode R3, level-engine R4)
 
-- [ ] 8.1 `client/src/screen/GameScreen.tsx`: add `{ view: 'deduce' }` to `GameView`, `{ type: 'deduce' }` to `GameAction`; `nextView` stays catalog-independent.
-- [ ] 8.2 `client/src/screen/GameScreen.tsx`: implement `allEarned` predicate (pure, over plain progress values) and dispatch `deduce` from `onNext` when the finished level is the last trail and all four clues are earned, else `next`.
-- [ ] 8.3 `client/src/screen/GameScreen.tsx`: accept `?nivel=deduccion` in `initialView`, mirroring the existing deep-link pattern (`:47-52`).
-- [ ] 8.4 Create `client/src/screen/Deduction.tsx`: reuses `.cv-play` shell and rail; four-animal lineup on one ink line, D4 dismissal (no penalty, immediate re-pick), discriminating clue MAY be emphasised for the dismissed animal.
-- [ ] 8.5 `GameScreen.test.tsx`: three of four clues filed + fourth trail just completed → `nextView` returns the deduction view (level-engine spec, "Deduction view becomes reachable after the fourth clue").
-- [ ] 8.6 `GameScreen.test.tsx`: fewer than four clues filed → `nextView` never returns the deduction view (level-engine spec, "Deduction view stays unreachable with clues missing").
-- [ ] 8.7 `Deduction.test.tsx`: all four clues earned/filed → deduction screen presents exactly four animal choices (detective-mode spec, "All four clues collected reaches the deduction screen").
-- [ ] 8.8 `Deduction.test.tsx`: picking the hen records the case as closed (detective-mode spec, "Correct pick closes the case").
-- [ ] 8.9 `Deduction.test.tsx`: picking a distractor causes no penalty/score change, case stays open, immediate re-pick available (detective-mode spec, "Wrong pick is free and immediately retryable").
+- [x] 8.1 `client/src/screen/GameScreen.tsx`: add `{ view: 'deduce' }` to `GameView`, `{ type: 'deduce' }` to `GameAction`; `nextView` stays catalog-independent.
+- [x] 8.2 `client/src/screen/GameScreen.tsx`: implement `allEarned` predicate (pure, over plain progress values) and dispatch `deduce` from `onNext` when the finished level is the last trail and all four clues are earned, else `next`.
+- [x] 8.3 `client/src/screen/GameScreen.tsx`: accept `?nivel=deduccion` in `initialView`, mirroring the existing deep-link pattern (`:47-52`).
+- [x] 8.4 Create `client/src/detective/Deduction.tsx` (**deviation**: parent's slice-4 assignment explicitly placed this file under `detective/`, not the `screen/Deduction.tsx` this task and design.md's File Changes table name — see apply-progress.md for the full note): reuses `.cv-play` shell and rail; four-animal lineup on one ink line, D4 dismissal (no penalty, immediate re-pick), discriminating clue MAY be emphasised for the dismissed animal.
+- [x] 8.5 `GameScreen.test.tsx`: three of four clues filed + fourth trail just completed → `nextView` returns the deduction view (level-engine spec, "Deduction view becomes reachable after the fourth clue").
+- [x] 8.6 `GameScreen.test.tsx`: fewer than four clues filed → `nextView` never returns the deduction view (level-engine spec, "Deduction view stays unreachable with clues missing").
+- [x] 8.7 `Deduction.test.tsx`: all four clues earned/filed → deduction screen presents exactly four animal choices (detective-mode spec, "All four clues collected reaches the deduction screen").
+- [x] 8.8 `Deduction.test.tsx`: picking the hen records the case as closed (detective-mode spec, "Correct pick closes the case").
+- [x] 8.9 `Deduction.test.tsx`: picking a distractor causes no penalty/score change, case stays open, immediate re-pick available (detective-mode spec, "Wrong pick is free and immediately retryable").
 
 ## Phase 9: Progress Migration (design unit 8 — spec: level-engine R6) — MUST land before Phase 11
 

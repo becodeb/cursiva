@@ -118,7 +118,7 @@ function drawingBand(
  * is load-bearing: without it a flex child refuses to shrink below its content
  * and the column overflows anyway.
  */
-const LAYOUT_CSS = `
+export const LAYOUT_CSS = `
 .cv-play, .cv-play * { box-sizing: border-box; }
 html, body, #root { margin: 0; padding: 0; }
 .cv-play {
