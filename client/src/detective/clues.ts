@@ -52,11 +52,16 @@ export function emptyClueState(count: number): ClueState {
 
 /**
  * Place `count` clue marks evenly BY ARC LENGTH along `polyline` (total
- * length `length`), at fractions `i / (count − 1)` for `i` in `0..count-1` —
- * the same uniform-in-arc-length convention `letters/svgLetter.ts`'s
- * `generateCheckpoints` already uses for a path's activation zones, so a
- * trail's clue marks and its checkpoints are positioned by the identical
- * rule. `count <= 1` places at most one mark, at the start.
+ * length `length`), at fractions `(i + 1) / (count + 1)` — strictly INTERIOR,
+ * so five marks land at 1/6 through 5/6 and none at an endpoint. `count <= 1`
+ * places at most one mark, at the midpoint.
+ *
+ * This differs on purpose from `generateCheckpoints`' `i / (count - 1)`
+ * convention in `letters/svgLetter.ts`. A checkpoint is an invisible scoring
+ * zone and wants the endpoints; a clue mark is drawn and collected, and at the
+ * endpoints it is both invisible — the start marker and the goal marker cover
+ * it — and pointless, since one is earned on touch-down and the other is
+ * redundant with finishing the trail.
  *
  * Position comes from {@link pointAtArcLength} (`letters/svgLetter.ts`); the
  * facing angle reuses the exact tangent helpers `screen/directionArrow.ts`'s

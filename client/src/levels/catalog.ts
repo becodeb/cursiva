@@ -163,12 +163,14 @@ function wordPaths(id: string, chars: string[]): string[] {
 // branch, already shipped in S3), so the engine's existing pre-attempt route
 // animation is what replaces the written instruction — shown, not written.
 //
-// `carrierArt` is NOT wired from `LevelPlay.tsx` yet (that file is outside
-// this slice's scope), so every trail below keeps `carrier: false` rather
-// than ship the wrong (shipped sage) carrier shape under a detective theme.
-// Flag for whoever wires `TraceCarrierArt` into `LevelPlay`: flip a trail's
-// `carrier` to `true` once the ink magnifying-glass override is actually
-// passed through — a one-line change here, no other edit needed.
+// Every trail sets `carrier: true`: that carrier IS the magnifying glass.
+// `LevelPlay.tsx` passes `carrierArt` with the ink glass override for a
+// detective trail, so the shipped sage shape never renders here.
+//
+// These shipped `carrier: false` for one slice, because the override existed
+// on `TraceCanvas` and nothing passed it — the mode's central mechanic was
+// missing while the suite stayed green, held there by a test that asserted
+// the gap. If a trail ever reads `carrier: false` again, the glass is gone.
 // ─────────────────────────────────────────────────────────────────────────────
 const PHASE_1: LevelConfig[] = [
   {
