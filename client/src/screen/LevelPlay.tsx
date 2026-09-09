@@ -14,6 +14,7 @@
 // all functions of mastery, not one static boolean.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TraceCanvas, {
+  INK_COLOR,
   type DrawDemo,
   type TraceClueMark,
   type TraceCorridor,
@@ -41,6 +42,7 @@ import { CLUE_ART } from '../detective/assets'
 import { CLUE_DRAINED } from '../detective/palette'
 import PistasRail, { type PistasSlot } from '../detective/PistasRail'
 import { BackIcon, ContinueIcon, ReplayIcon, RetryIcon } from '../detective/icons'
+import { GLASS_ART } from '../detective/assets'
 
 /** Seconds one demonstration sub-path takes, and the gap before the next one. */
 const DEMO_DURATION_S = 1.6
@@ -922,6 +924,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // the ROUTE — `target.polyline[0]`, not the start marker, so it is
         // still there on a level that has withdrawn its markers.
         carrier={level.carrier && startMarker ? startMarker : undefined}
+        // The magnifying glass. Drawn in INK rather than given a colour of its
+        // own: it belongs to the world, not to the reward, and colour in this
+        // mode only ever means a clue was earned. It is also what keeps
+        // CARRIER_COLOR from crowding the feather's PLUME — see the palette
+        // suite, which asserts the shipped sage never renders under an
+        // override.
+        carrierArt={isDetectiveTrail ? { ...GLASS_ART, color: INK_COLOR } : undefined}
+        inkOnly={isDetectiveTrail}
         // Any bump restarts the run (docs/01 principle 2).
         resetSignal={resetOnContact ? resetSignal : undefined}
         // Clue marks (design unit 4/6). Absent on every level without a

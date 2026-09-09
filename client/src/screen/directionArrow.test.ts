@@ -5,9 +5,22 @@
 // (docs/02 §5.2).
 import { describe, expect, it } from 'vitest'
 import { buildLevelTarget } from '../levels/buildLevel'
-import { getLevel } from '../levels/catalog'
+import { LEGACY_PHASE_1, LEVELS, getLevel } from '../levels/catalog'
 import { straight } from '../levels/paths'
 import type { Point } from '../letters/types'
+import type { LevelConfig } from '../levels/types'
+
+/**
+ * Looks up an id in the active `LEVELS` catalog first, falling back to
+ * `LEGACY_PHASE_1` (`detective-mode` Phase 11) — `f1-travesia` and
+ * `f1-espiral` are retired, unwired configs, but their geometry is preserved
+ * unchanged, which is all these arrow-math fixtures need.
+ */
+function anyLevel(id: string): LevelConfig {
+  const level = LEVELS.find((l) => l.id === id) ?? LEGACY_PHASE_1.find((l) => l.id === id)
+  if (!level) throw new Error(`Level not found (active or legacy): ${id}`)
+  return level
+}
 import { ARROW_DISTANCE, directionArrowOf, indexAtDistance, tangentAngleAt } from './directionArrow'
 
 /** Unit vector the SVG `rotate(deg)` transform maps `(1, 0)` to. */
@@ -69,7 +82,7 @@ describe('tangentAngleAt — SVG angle convention', () => {
 
 describe('directionArrowOf — real levels', () => {
   const arrowOf = (id: string) => {
-    const arrow = directionArrowOf(buildLevelTarget(getLevel(id)))
+    const arrow = directionArrowOf(buildLevelTarget(anyLevel(id)))
     expect(arrow).toBeDefined()
     return arrow!
   }
@@ -78,7 +91,9 @@ describe('directionArrowOf — real levels', () => {
   // assertions are about `directionArrowOf`, not about which sendero the
   // catalog currently ships, so they must not break when phase 1 is re-authored.
   // A real level supplies the surrounding config; only `paths` is substituted.
-  const withPath = (d: string) => buildLevelTarget({ ...getLevel('f1-travesia'), paths: [d] })
+  // `f1-travesia` is retired behind `LEGACY_PHASE_1` (detective-mode Phase 11)
+  // but still a real, unchanged fixture.
+  const withPath = (d: string) => buildLevelTarget({ ...anyLevel('f1-travesia'), paths: [d] })
   const STRAIGHT = straight()
 
   it('sits on the path, a fixed DISTANCE from the start', () => {

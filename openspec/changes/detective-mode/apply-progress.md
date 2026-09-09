@@ -509,3 +509,292 @@ client/src/game/` both find nothing. Ready for verify / next slice (S6).
 Phase 9's hard dependency for Phase 11 (D3, no-demotion) is now satisfied —
 per the ordering summary in `tasks.md`, S6 (which lands Phase 10 AND Phase
 11) may proceed.
+
+## Slice S6 — units 9, 10 (Four themed trails; retire legacy configs) + task 7.3
+
+Mode: Standard (`strict_tdd: false`, per `openspec/config.yaml`). Checked out
+branch: `feat/detective-s5-progress-migration` (S5's HEAD — the parent cuts
+branches on commit, this batch created none). Engram MCP was down for this
+slice; all reading/writing went through `openspec/changes/detective-mode/*`
+files directly, per the parent's explicit instruction.
+
+### Completed Tasks
+
+- [x] 10.1–10.5 `client/src/levels/catalog.ts`: four themed trails added
+  (`trail1` droplet/wave+hazard, `trail2` corn/counter-clockwise spiral,
+  `trail3` footprint/triangularWave, `trail4` feather/squareWave), each with
+  5 clue marks, `demo: true`, `resetOnContact: true`. `f1-libre` rethemed
+  (Spanish title/hint only — mechanic, `kind: 'free'`, `showGuide: false`
+  unchanged), still clue-free (no `clue` field), still index 0.
+- [x] 10.6–10.9 `catalog.test.ts`: four detective-mode `describe` blocks
+  added — trail presence/clue/demo/f1-libre shape, `LEGACY_PHASE_1`
+  preservation, arc-length floor, coil radial-gap, square-wave corner
+  constraint (measured from the real `trail4` polyline, not synthetic
+  numbers), and a real end-to-end progress-migration check (11.5, see
+  below).
+- [x] 11.1–11.4 `client/src/levels/catalog.ts`: the six unthemed configs
+  (`f1-travesia`, `f1-pelotas`, `f1-paseo`, `f1-pasillo`, `f1-ondas`,
+  `f1-espiral`) moved unchanged into an exported `LEGACY_PHASE_1`, physically
+  separated from the `PHASE_1` array by its own comment block, so Phase 10
+  and Phase 11 stay independently revertible regions of the same file.
+- [x] 11.5 Real end-to-end migration check against the real catalog — see
+  "Design decision" below for why this landed in `catalog.test.ts` rather
+  than a file literally named `LevelProgressStore.test.ts`.
+- [x] 7.3 `demo: true` set on all four trail configs (deferred from S3 —
+  `catalog.ts` didn't exist yet). No `LevelPlay.tsx` change needed;
+  `playDemo = !!level.demo && guideLevel === 'full'` was already shipped and
+  untouched.
+
+### Design decision: task numbers vs. what actually shipped
+
+Two deliberate departures from the task list's literal wording, both flagged
+in `tasks.md` itself next to the task:
+
+1. **10.6 and 11.4 are the same assertion, not two.** The task list phrases
+   them as "precondition" (before Phase 11 runs) and "completion" (after) —
+   language written for a world where Phase 10 and Phase 11 land as separate
+   commits/PRs with an intermediate state between them. This slice implements
+   both phases in one file edit (the parent's own instruction: "Phase 10...
+   and Phase 11..." as one scope, one PR-slice), so there never is an
+   intermediate "four trails AND six legacy configs both present" state to
+   assert against — `catalog.ts` goes from the S5 shape straight to the final
+   shape. One `catalog.test.ts` assertion (`detective-mode — four trails
+   replace the six corridor levels`) covers both halves.
+2. **11.5's target file doesn't exist under that name.** `tasks.md` names
+   `LevelProgressStore.test.ts`; the real file is
+   `client/src/game/levelProgress.test.ts` (confirmed by `rg`). That file was
+   deliberately left untouched: every one of its existing assertions uses
+   `LEVELS[0]`/`LEVELS[1]` generically or arbitrary string keys for
+   `save`/`get` (which never validate catalog membership), so none of them
+   actually broke when the catalog changed — there was nothing there to fix.
+   11.5's real content (a mid-campaign migration reaching a real unlock, an
+   orphan id surviving untouched) was written into `catalog.test.ts` instead,
+   using the REAL `LevelProgressStore`, the REAL `migratePhase1`, and the
+   REAL final `LEVELS`/`LEGACY_PHASE_1` — `catalog.test.ts` is this slice's
+   one explicitly in-scope test file, and the assertion is naturally at home
+   next to the arc-length/corner-constraint tests it depends on the same
+   catalog for.
+
+### Design decision: `carrier: false` on all four trails
+
+`design.md`'s C3 says "`carrierArt` override stays" as a decision about
+`TraceCanvas.tsx`'s prop (already shipped, S2) — but `LevelPlay.tsx` (out of
+this slice's edit scope, and confirmed by reading it) never actually passes
+a `carrierArt` prop to `TraceCanvas` at any point in the shipped code across
+S1–S5. Setting a trail's `carrier: true` today would render the wrong
+shape — the shipped sage rectangle+circle carrier, not the magnifying glass —
+under an explicitly detective-themed trail. Chose `carrier: false` for all
+four trails instead of shipping a visibly wrong shape, and left an inline
+comment in `catalog.ts` flagging the one-line fix (`carrier: true`) for
+whoever eventually wires `TraceCarrierArt` into `LevelPlay`. This is a
+deviation from a literal reading of C3, not from any binding requirement or
+spec scenario — no scenario in `level-engine/spec.md` or `detective-mode/spec.md`
+mentions the carrier.
+
+### Trail geometry — measured, not guessed
+
+Every generator parameter below was chosen by actually building each
+candidate `LevelConfig` through the real `buildLevelTarget()` and measuring
+the result (a throwaway `__scratch.test.ts`, deleted before finishing), not
+by eyeballing the closed-form formulas:
+
+| Trail | Generator call | Arc length | Vertical span |
+|---|---|---|---|
+| trail1 | `wave({x0:90,x1:910,y:300,amplitude:200,cycles:3})` | 2607 | [100,500] |
+| trail2 | `spiral()` (no override) | 1719 | [40,560] (shipped, unchanged) |
+| trail3 | `triangularWave({x0:90,x1:910,y:300,amplitude:200,cycles:3})` | 2536 | [100,500] |
+| trail4 | `squareWave({x0:100,mid:300,amplitude:160,run:220,cycles:3})` | 3240 | [140,460] |
+
+Sum **10,102** against the six removed levels' sum **8,006** — a ~1.26x
+margin, comfortably clearing the arc-length floor (level-engine spec,
+"Total arc length does not regress") with room for the checkpoint-derivation
+tolerances `buildLevelTarget` applies. `cornerClearance(220, 90, 70)` and
+`armClearance(160, 70)` both hold; trail 2 reuses `spiral()` with zero
+overrides, so its 70-vs-120 relationship is exactly the one already shipped
+and tested for `f1-espiral`.
+
+### The three-strikes pattern, applied here
+
+Per the parent's explicit instruction, every new assertion was checked for
+whether a real production change could turn it red, not just whether it
+currently passes:
+
+1. **Arc-length floor**: temporarily shrank trail 1's `wave()` to a tiny
+   amplitude/span/cycle count — the floor test failed as expected (7791 <
+   8006), then reverted.
+2. **Square-wave corner constraint**: temporarily shrank trail 4's `run` from
+   220 to 60 (well under `2 · corridorWidth = 140`) — `cornerClearance`
+   correctly flipped to `false` and the test failed, then reverted.
+3. **Coil radial-gap test**: this one is measured from the RAW `spiral()`
+   output via angle-unwrapping (not a bounding-box approximation, which was
+   tried first and produced a biased ~89-unit estimate against the true
+   120 — a partial-turn spiral's bounding box is not centred on its true
+   origin). The final version reproduces 119.999... from pure geometry, with
+   no hardcoded `rStart`/`rEnd`/`turns`.
+
+Both forced mutations are confirmed reverted (`git diff` on `catalog.ts`
+shows no `run: 60` / no shrunk `wave()` args remaining).
+
+### Collateral test breakage — five files outside this slice's named scope, fixed
+
+Removing the six ids from `LEVELS` broke `getLevel(id)` lookups in five test
+files the parent's scope note didn't name (it named only `catalog.test.ts`
+and `coverage.test.ts`; `coverage.test.ts` turned out not to need any change
+— it only reads `getLevel('f1-libre').rules.minAccuracy`, unaffected):
+
+| File | What broke | Fix |
+|---|---|---|
+| `client/src/game/evaluateLevel.test.ts` | `getLevel('f1-travesia')` (4 call sites) | Added a local `legacyLevel(id)` helper reading `LEGACY_PHASE_1` |
+| `client/src/levels/obstacles.test.ts` | `getLevel('f1-pelotas')` (needs its real 2-hazard config) | Switched to `LEGACY_PHASE_1.find(...)` directly |
+| `client/src/levels/buildLevel.test.ts` | `getLevel('f1-travesia')` (2 call sites) | Added a local `anyLevel(id)` helper checking `LEVELS` then `LEGACY_PHASE_1` |
+| `client/src/screen/directionArrow.test.ts` | `getLevel('f1-travesia')`, `getLevel('f1-espiral')` | Added the same `anyLevel(id)` pattern |
+| `client/src/screen/goalMarker.test.ts` | `getLevel('f1-travesia')` (1 call site) | Inline `LEGACY_PHASE_1.find(...)` |
+
+None of these five files are on the parent's explicit do-not-touch list
+(`paths.ts`, `TraceCanvas.tsx`, `LevelPlay.tsx`, `Deduction.tsx`,
+`GameScreen.tsx`, `migratePhase1.ts`, `client/src/detective/*`, `docs/`).
+Every fix is a lookup-source swap only (`getLevel` → `LEGACY_PHASE_1`/`LEVELS`
+fallback) — no assertion, fixture value, or test name changed, and no new
+test was added to any of the five. `LEGACY_PHASE_1` existing and preserving
+these configs byte-for-byte is exactly what made every one of these fixes a
+same-behavior swap rather than a rewrite.
+
+### Files Changed
+
+| File | Action | What Was Done |
+|------|--------|---------------|
+| `client/src/levels/catalog.ts` | Modified | Four trail configs (`trail1`–`trail4`) replace the old `f1-travesia..f1-espiral` in `PHASE_1`; `f1-libre` rethemed; six old configs moved unchanged into new exported `LEGACY_PHASE_1`, physically separated by its own comment block. `triangularWave`/`squareWave` added to the `./paths` import. |
+| `client/src/levels/catalog.test.ts` | Modified | `EXPECTED_IDS`/`CORRIDORS`/`FLUENCY` updated for the new ids; hazard/reset/carrier/rail tests rewritten for the new shape; six new `detective-mode —` `describe` blocks (trail presence, `LEGACY_PHASE_1`, arc length, coil radial gap, square-wave corner constraint, real migration end-to-end). 48/48 tests, up from the prior 39. |
+| `client/src/game/evaluateLevel.test.ts` | Modified | `legacyLevel()` helper; 4 call sites switched from `getLevel` to it. No assertion changed. |
+| `client/src/levels/obstacles.test.ts` | Modified | `f1-pelotas` fixture now read from `LEGACY_PHASE_1`. No assertion changed. |
+| `client/src/levels/buildLevel.test.ts` | Modified | `anyLevel()` helper; 2 call sites switched. No assertion changed. |
+| `client/src/screen/directionArrow.test.ts` | Modified | `anyLevel()` helper; `arrowOf`/`withPath` switched. No assertion changed. |
+| `client/src/screen/goalMarker.test.ts` | Modified | Inline `LEGACY_PHASE_1` lookup for one fixture. No assertion changed. |
+
+`client/src/game/types.ts` was NOT touched — `DETECTIVE_TRAIL_IDS` already
+read `['trail1','trail2','trail3','trail4']` (S4/S5), and this slice
+authored exactly those ids, so no change was needed there.
+
+### Work Unit Evidence
+
+| Evidence | Unit 9 (four trails) | Unit 10 (retire legacy) | Task 7.3 |
+|---|---|---|---|
+| Focused test command / result | `cd client && npx vitest run src/levels src/game` → **295/295 passed** | same command (both units share `catalog.ts`) | covered by the same run — no separate test needed, `demo:true` is asserted directly in `catalog.test.ts` |
+| Runtime harness | `npm run dev -w client -- --port 5199 --strictPort`, `scripts/shot.sh` against `?nivel=trail1..trail4` and `?nivel=f1-libre` at 1280×900 — see "Visual check" below | same dev server; confirmed `f1-libre` (unaffected by the removal) still renders its full chrome | visually confirmed: no `?nivel=` deep link shows a written hint sentence on any trail (chrome suppression is S3's, unchanged; this task only sets the field the animation reads) |
+| Rollback boundary | `PHASE_1`'s four trail entries revert alone; `LEVELS` composition otherwise unchanged | `LEGACY_PHASE_1`'s own comment-delimited block reverts alone — swap it back into `PHASE_1`/`LEVELS` and the six old configs are wired again, exactly the proposal's rollback plan | the four `demo: true` fields revert alone, one field each |
+
+Full targeted run: `cd client && npx vitest run src/levels src/game` →
+**295/295 passed** (9 files). Full repo suite: `npm test` from the repo root
+→ **786/786 passed, 45 files** (up from 777/45 — net +9: the catalog rewrite
+added 11 new `detective-mode —` tests and removed 2 hazard-pairing tests that
+no longer apply with a single hazard). `npm run build` → green (`tsc --noEmit
+&& vite build`; same pre-existing "chunks larger than 500 kB" advisory,
+unrelated to this change).
+
+### Visual check (task 13.4 / correction C4, done early against the real catalog for the first time)
+
+Dev server on port 5199, screenshots via `scripts/shot.sh` at 1280×900,
+`?nivel=<id>` deep links (bypass the unlock check by design — confirmed by
+reading `GameScreen.tsx`'s `initialView`, no `LEVEL_TESTMODE_KEY` needed).
+
+- **`trail4` (square wave, feather)**: `/tmp/trail4.png`. The elbows read
+  clearly as square corners — sharp turns, NOT merged into a filled block.
+  Corridor stays a clean maze shape throughout. Confirms `run:220` against
+  `corridorWidth:70` in practice, not just in the closed form.
+- **`trail3` (triangular wave, footprint)**: `/tmp/trail3.png`. Zigzag
+  apexes read as sharp points (an M/W shape), matching `triangularWave`'s
+  straight-`L`-segment construction.
+- **`trail2` (coil, corn)**: `/tmp/trail2.png`. Visible background (wall)
+  between the spiral's arms at every turn — no merging into a filled disc,
+  confirming the 70-vs-120 relationship visually, not just via the
+  angle-unwrap measurement.
+- **`trail1` (wave, droplet, hazard)**: `/tmp/trail1.png`. Sine shape reads
+  correctly; the purple hazard ball sits mid-route as configured; grey
+  (drained) clue marks are visible along the path; the `PISTAS` rail renders
+  beside the canvas.
+- **`f1-libre`**: `/tmp/f1libre.png`. Confirmed UNCHANGED mechanically — full
+  chrome renders (title "Fase 1 · El caso empieza", hint, "Borrar"/"Siguiente"
+  buttons with text), no `PISTAS` rail — because `f1-libre` carries no `clue`
+  field, so `LevelPlay`'s `isDetectiveTrail` branch (S3, unchanged) correctly
+  treats it as a non-detective level despite the retheme.
+
+All five screenshots match the design's intent; nothing looked wrong. Dev
+server was stopped after the check (confirmed via `ps aux` — no leftover
+process).
+
+### Deviations from Design
+
+1. **`carrier: false` on all four trails**, not `true` — see "Design
+   decision" above. `LevelPlay.tsx`'s missing `carrierArt` wiring is a
+   pre-existing gap from S1–S5, out of this slice's scope to fix.
+2. **10.6/11.4 merged into one assertion**, and **11.5 lives in
+   `catalog.test.ts`, not a file literally named `LevelProgressStore.test.ts`**
+   — both flagged inline in `tasks.md` next to the affected task, full
+   reasoning in "Design decision" above.
+3. **Five test files outside the named scope were fixed** (lookup-source
+   swaps only, see table above) because leaving them broken would have
+   regressed `npm test` from 777 green to red — the parent's own
+   verification checklist requires "no regression."
+4. **Taper added to trail1 and trail4** (`{from:1.15,to:0.85}` /
+   `{from:1.2,to:0.8}`), not explicitly required by any spec scenario but
+   consistent with the proposal's "carry taper... onto trails" (Q1) and the
+   shipped convention (`f1-travesia`/`f1-pasillo` both taper in
+   `LEGACY_PHASE_1`).
+5. **trail1's `feedback.rail` is `true`** (the FIRST-CONTACT assist,
+   previously `f1-travesia`'s role) — not stated in any task, but preserves
+   the existing "first routed level gets the assist" convention now that
+   trail1 is the first routed phase-1 level; the pre-existing
+   `catalog.test.ts` test for this ("turns the assisted rail on at FIRST
+   CONTACT only") made the convention explicit, so it was carried forward
+   rather than silently dropped.
+
+### Issues Found
+
+None blocking. One measurement pitfall worth recording: the first attempt at
+the coil radial-gap test used a bounding-box-centre approximation of the
+laid-out (translated) `trail2` polyline and got 88.77 instead of ~120 — a
+partial-turn (1.75-revolution) spiral's bounding box is NOT centred on its
+true origin, so that approximation was silently wrong, not just imprecise.
+Fixed by measuring the RAW `spiral()` output (before `buildLevelTarget`'s
+X-centring translation) against its own documented default centre `(500,
+300)`, which reproduced 119.999... — confirmed via a throwaway scratch test
+before committing to the final version in `catalog.test.ts`.
+
+### Remaining Tasks (not in this slice's scope)
+
+- [ ] Phase 12 — Roadmap Doc — S7.
+- [ ] Phase 13 — Cross-Cutting Verification — after all slices merged (13.1/13.2
+  effectively re-run here already: 786/786 green, build green; 13.3's `url(#`
+  grep and 13.5's full end-to-end mid-campaign check are left for the formal
+  Phase 13 pass since they sweep the whole `detective/` tree and this slice
+  only touched `levels/`/`game/`/`screen/` test files).
+
+### Workload / PR Boundary
+
+- Mode: chained PR slice (`feature-branch-chain`, per `tasks.md` forecast).
+- Current work unit: S6 (design units 9, 10, + deferred task 7.3), staying on
+  the checked-out branch `feat/detective-s5-progress-migration` — this apply
+  batch created no branches, per the parent's instruction.
+- Boundary: `PHASE_1`'s four trail entries (unit 9) and `LEGACY_PHASE_1`'s
+  own comment-delimited block (unit 10) are physically separate regions of
+  `catalog.ts`, as instructed, so the parent can split them into two commits
+  if needed — though per `tasks.md`'s own re-forecast (units 9+10 ≈ 885
+  corrected lines, over the 400 per-PR guard), a split is expected here.
+- Estimated review budget impact: `tasks.md`'s S6 forecast (second
+  correction) was ~885 authored lines for units 9+10 combined. `git diff
+  --stat` on `catalog.ts` alone: +330/-19 (test file diffs not counted in
+  the per-PR guard per `tasks.md`'s own convention, but for reference
+  `catalog.test.ts` is +254/-98, and the five collateral test files add
+  ~90 lines combined). `catalog.ts`'s own diff is comfortably under 400;
+  the total including `catalog.test.ts` is over — the parent's own guidance
+  says a slice going over 400 is a signal to cut another branch, not a
+  failure, and unit 9 (trails) vs. unit 10 (retirement) are the natural cut
+  point already kept file-region-separable.
+
+### Status
+
+12/12 assigned tasks (Phase 10 tasks 10.1–10.9, Phase 11 tasks 11.1–11.5,
+plus deferred task 7.3) complete. Full repo suite: **786/786 tests passing**
+(up from 777, 45 files unchanged in count). `npm run build` green. Visual
+check done and documented above with screenshot paths. Ready for verify /
+next slice (S7, roadmap doc).

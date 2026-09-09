@@ -25,7 +25,12 @@ import { EMPTY_RECORD, type LevelAttempt } from '../game/types'
 // hoisted above every import by vitest's transform, so this is safe even
 // though it reads as though it runs after the imports below.
 const traceCanvasProbe: { current: Record<string, unknown> | null } = { current: null }
-vi.mock('../canvas/TraceCanvas', () => ({
+// Spread the real module and override only the default export. Replacing the
+// whole module instead breaks on every named export `LevelPlay` ever adds --
+// it already broke once, on `INK_COLOR`, with an error that points at the mock
+// rather than at the import that needed it.
+vi.mock('../canvas/TraceCanvas', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../canvas/TraceCanvas')>()),
   default: (props: Record<string, unknown>) => {
     traceCanvasProbe.current = props
     return null
@@ -33,6 +38,8 @@ vi.mock('../canvas/TraceCanvas', () => ({
 }))
 
 import LevelPlay, { shouldFileClue } from './LevelPlay'
+import { GLASS_ART } from '../detective/assets'
+import { INK_COLOR } from '../canvas/TraceCanvas'
 
 function makeLevel(over: Partial<LevelConfig> = {}): LevelConfig {
   return {
@@ -146,6 +153,39 @@ describe('LevelPlay chrome branch (design.md Orchestrator Correction C1)', () =>
     )
     expect(textOf(html)).toContain('Fase 3 · Nivel de prueba')
     expect(html).toContain(level.hint)
+  })
+})
+
+describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
+  it('passes the glass art, drawn in ink, on a detective trail', () => {
+    renderToString(
+      <LevelPlay
+        level={makeDetectiveLevel()}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    const art = traceCanvasProbe.current?.carrierArt as { d: string; color: string } | undefined
+    expect(art, 'no carrierArt reached the canvas: the glass would not render').toBeTruthy()
+    expect(art?.d).toBe(GLASS_ART.d)
+    // Ink, not a colour of its own: the glass belongs to the world, and colour
+    // in this mode only ever means a clue was earned.
+    expect(art?.color).toBe(INK_COLOR)
+  })
+
+  it('passes no glass art on an ordinary level', () => {
+    renderToString(
+      <LevelPlay
+        level={makeLevel()}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect(traceCanvasProbe.current?.carrierArt).toBeUndefined()
   })
 })
 

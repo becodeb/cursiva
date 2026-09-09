@@ -2,10 +2,22 @@
 import { describe, expect, it } from 'vitest'
 import type { Point } from '../letters/types'
 import { MAX_CORRIDOR, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget } from './buildLevel'
-import { LEVELS, getLevel } from './catalog'
+import { LEGACY_PHASE_1, LEVELS, getLevel } from './catalog'
 import { flattenPathD } from '../letters/svgLetter'
 import { straight, wave } from './paths'
 import type { LevelConfig } from './types'
+
+/**
+ * Looks up an id in the active `LEVELS` catalog first, falling back to
+ * `LEGACY_PHASE_1` (`detective-mode` Phase 11) — some of these fixtures
+ * (`f1-travesia`, `f1-ondas`, `f1-espiral`) are retired, unwired configs, but
+ * their geometry is preserved unchanged for exactly this kind of test.
+ */
+function anyLevel(id: string): LevelConfig {
+  const level = LEVELS.find((l) => l.id === id) ?? LEGACY_PHASE_1.find((l) => l.id === id)
+  if (!level) throw new Error(`Level not found (active or legacy): ${id}`)
+  return level
+}
 
 function makeConfig(over: Partial<LevelConfig> = {}): LevelConfig {
   return {
@@ -252,7 +264,7 @@ describe('buildLevelTarget — sheet width', () => {
 
   it('keeps a level that fits on the default 1000-wide sheet', () => {
     for (const id of ['f1-travesia', 'f1-ondas', 'f1-espiral', 'f3-a', 'f3-m', 'f4-la', 'f5-ala']) {
-      expect(buildLevelTarget(getLevel(id)).viewBoxWidth).toBe(MIN_VIEWBOX_WIDTH)
+      expect(buildLevelTarget(anyLevel(id)).viewBoxWidth).toBe(MIN_VIEWBOX_WIDTH)
     }
   })
 
@@ -368,8 +380,8 @@ describe('buildLevelTarget — el sendero se estrecha', () => {
     expect(buildLevelTarget(config, 1.5).corridorWidth).toBeCloseTo(150, 6)
   })
 
-  it('tapers the shipped f1-travesia', () => {
-    const { start, end } = bandAtEnds(getLevel('f1-travesia'))
+  it('tapers the retired f1-travesia (LEGACY_PHASE_1, detective-mode Phase 11)', () => {
+    const { start, end } = bandAtEnds(anyLevel('f1-travesia'))
     expect(start).toBeGreaterThan(end)
   })
 

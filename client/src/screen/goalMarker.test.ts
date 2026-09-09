@@ -3,7 +3,7 @@
 // where `target.polyline` ends.
 import { describe, expect, it } from 'vitest'
 import { buildLevelTarget } from '../levels/buildLevel'
-import { LEVELS, getLevel } from '../levels/catalog'
+import { LEGACY_PHASE_1, LEVELS, getLevel } from '../levels/catalog'
 import { goalMarkerOf } from './goalMarker'
 import type { LevelTarget } from '../levels/types'
 
@@ -18,7 +18,11 @@ const ROUTED_LEVEL_IDS = LEVELS.filter((l) => l.kind === 'path').map((l) => l.id
 
 describe('goalMarkerOf', () => {
   it('is the last point of the route on a single-path level', () => {
-    const target = buildLevelTarget(getLevel('f1-travesia'))
+    // f1-travesia is retired behind LEGACY_PHASE_1 (detective-mode Phase 11)
+    // but still a real, unchanged single-path fixture.
+    const travesia = LEGACY_PHASE_1.find((l) => l.id === 'f1-travesia')
+    if (!travesia) throw new Error('LEGACY_PHASE_1 lost f1-travesia')
+    const target = buildLevelTarget(travesia)
     const goal = goalMarkerOf(target)!
     const end = target.polyline[target.polyline.length - 1]
     expect(goal.x).toBeCloseTo(end.x, 6)

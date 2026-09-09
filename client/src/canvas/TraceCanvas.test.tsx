@@ -485,3 +485,34 @@ describe('TraceCanvas carrierArt override (design.md "carrierArt override stays"
     expect(html).not.toContain('#123456')
   })
 })
+
+describe('TraceCanvas inkOnly (detective-mode: the world is ink, colour means earned)', () => {
+  const shipped = { goal: '#b45309', hazard: '#7e6a9e', start: '#22c55e' }
+
+  it('renders none of the shipped marker colours when inkOnly is set', () => {
+    const html = renderToString(
+      <TraceCanvas
+        inkOnly
+        endMarker={{ x: 900, y: 300 }}
+        startMarker={{ x: 100, y: 300 }}
+        directionArrow={{ x: 140, y: 300, angle: 0 }}
+        hazards={{ radii: [32], at: () => ({ x: 500, y: 300 }) }}
+      />,
+    )
+    for (const [name, hex] of Object.entries(shipped)) {
+      expect(html, `inkOnly still rendered the shipped ${name} colour`).not.toContain(hex)
+    }
+  })
+
+  it('still renders them without inkOnly, so the assertion above can fail', () => {
+    const html = renderToString(
+      <TraceCanvas
+        endMarker={{ x: 900, y: 300 }}
+        startMarker={{ x: 100, y: 300 }}
+        directionArrow={{ x: 140, y: 300, angle: 0 }}
+        hazards={{ radii: [32], at: () => ({ x: 500, y: 300 }) }}
+      />,
+    )
+    for (const hex of Object.values(shipped)) expect(html).toContain(hex)
+  })
+})

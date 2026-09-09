@@ -4,7 +4,7 @@
 // still animate and would still be the wrong level.
 import { describe, expect, it } from 'vitest'
 import { buildLevelTarget } from './buildLevel'
-import { getLevel } from './catalog'
+import { LEGACY_PHASE_1 } from './catalog'
 import { OBSTACLE_INK_ALLOWANCE, hitObstacle, obstacleAt } from './obstacles'
 import { straight, sweep } from './paths'
 import type { LevelConfig, LevelTarget, Obstacle } from './types'
@@ -208,8 +208,11 @@ describe('hitObstacle', () => {
   })
 })
 
-describe('the shipped f1-pelotas hazards', () => {
-  const level = getLevel('f1-pelotas')
+describe('the retired f1-pelotas hazards (LEGACY_PHASE_1, detective-mode Phase 11)', () => {
+  // f1-pelotas is unwired from the active LEVELS catalog but its config is
+  // preserved byte-for-byte in LEGACY_PHASE_1, so this remains a real fixture.
+  const level = LEGACY_PHASE_1.find((l) => l.id === 'f1-pelotas')
+  if (!level) throw new Error('LEGACY_PHASE_1 lost f1-pelotas')
   const target = buildLevelTarget(level)
   const obstacles = level.obstacles ?? []
 

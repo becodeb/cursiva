@@ -189,7 +189,7 @@ it costs a maintainer decision and buys nothing.
 
 - [x] 7.1 `client/src/screen/LevelPlay.tsx`: branch chrome rendering — when the active level is a detective trail (or the deduction view), suppress the `Fase 1 · <trail title>` header, hint line, and pillar/coach copy. Phases 2–5 keep existing chrome untouched (conditional branch, not a removal).
 - [x] 7.2 Create `client/src/detective/icons.tsx` (or extend an existing icon module): retry and continue as ink-drawn glyphs, back as an icon affordance, all keeping the shipped 64px tap floor (`LevelPlay.tsx:140`).
-- [ ] 7.3 Set `demo: true` on the four trail configs (ties into Phase 10) so the route animates in place of the removed hint sentence. **Deferred to S6** — this edits the four trail entries in `catalog.ts`, which do not exist until Phase 10 (design unit 9) creates them; `catalog.ts` is explicitly out of this slice's scope. `LevelPlay`'s own `demo:true` handling needs no change (`playDemo = !!level.demo && guideLevel === 'full'` already exists and is untouched) — S6 only needs to set the field.
+- [x] 7.3 Set `demo: true` on the four trail configs (ties into Phase 10) so the route animates in place of the removed hint sentence. Done in S6 — all four trails set `demo: true` in `catalog.ts`; `LevelPlay`'s own `demo:true` handling needed no change.
 - [x] 7.4 `LevelPlay.test.tsx`: `renderToString` for a detective-trail level asserts no title/hint/coach text node is present and control buttons carry no text label.
 - [x] 7.5 `LevelPlay.test.tsx`: `renderToString` for a non-detective (phase 2+) level asserts existing chrome (title, hint, coach copy) is unchanged — regression guard for the branch.
 
@@ -217,23 +217,23 @@ it costs a maintainer decision and buys nothing.
 
 ## Phase 10: Four Themed Trails (design unit 9 — spec: level-engine R3, R7)
 
-- [ ] 10.1 `client/src/levels/catalog.ts`: add trail 1 (sine/droplets, themed hazard per C3 — trail 1 carries the hazard, not trail 2).
-- [ ] 10.2 `client/src/levels/catalog.ts`: add trail 2 (counter-clockwise coil/corn) reusing `spiral()`, `corridorWidth: 70` against the generator's 120 radial gap (D2, `:329`).
-- [ ] 10.3 `client/src/levels/catalog.ts`: add trail 3 (triangular-wave/footprints) using `triangularWave` from Phase 1.
-- [ ] 10.4 `client/src/levels/catalog.ts`: add trail 4 (square-wave/feathers) using `squareWave` from Phase 1; set 5 clue marks per trail (C3).
-- [ ] 10.5 `client/src/levels/catalog.ts`: retheme `f1-libre` (id and kind unchanged) as the opening beat; explicitly no clue mark, no `PISTAS` entry, not tracked by the clue reducer.
-- [ ] 10.6 `catalog.test.ts`: exactly the four detective trail configs are present in `LEVELS`; none of the six removed ids appear yet (this task runs before Phase 11 removes them) (level-engine spec, "Four trails replace the six corridor levels" — precondition half).
-- [ ] 10.7 `catalog.test.ts`: sum of the four trails' `buildLevel().length` ≥ sum of the six removed levels' lengths (level-engine spec, "Total arc length does not regress").
-- [ ] 10.8 `catalog.test.ts`: trail 2's `corridorWidth` < `spiral()`'s radial gap (level-engine spec, "Coil trail's corridor stays narrower than the radial gap").
-- [ ] 10.9 `catalog.test.ts` / clue-reducer test: `f1-libre` played to completion contributes no entry to the `PISTAS` rail's collected set, and its id is absent from the clue reducer's tracked trail ids (detective-mode spec "f1-libre contributes no clue" / "f1-libre is not tracked by the clue reducer").
+- [x] 10.1 `client/src/levels/catalog.ts`: add trail 1 (sine/droplets, themed hazard per C3 — trail 1 carries the hazard, not trail 2).
+- [x] 10.2 `client/src/levels/catalog.ts`: add trail 2 (counter-clockwise coil/corn) reusing `spiral()`, `corridorWidth: 70` against the generator's 120 radial gap (D2, `:329`).
+- [x] 10.3 `client/src/levels/catalog.ts`: add trail 3 (triangular-wave/footprints) using `triangularWave` from Phase 1.
+- [x] 10.4 `client/src/levels/catalog.ts`: add trail 4 (square-wave/feathers) using `squareWave` from Phase 1; set 5 clue marks per trail (C3).
+- [x] 10.5 `client/src/levels/catalog.ts`: retheme `f1-libre` (id and kind unchanged) as the opening beat; explicitly no clue mark, no `PISTAS` entry, not tracked by the clue reducer.
+- [x] 10.6 `catalog.test.ts`: exactly the four detective trail configs are present in `LEVELS`; none of the six removed ids appear yet (this task runs before Phase 11 removes them) (level-engine spec, "Four trails replace the six corridor levels" — precondition half). Landed together with 11.4 as one combined assertion (Phase 10 and 11 land in the same slice here — see S6 apply-progress note).
+- [x] 10.7 `catalog.test.ts`: sum of the four trails' `buildLevel().length` ≥ sum of the six removed levels' lengths (level-engine spec, "Total arc length does not regress").
+- [x] 10.8 `catalog.test.ts`: trail 2's `corridorWidth` < `spiral()`'s radial gap (level-engine spec, "Coil trail's corridor stays narrower than the radial gap"), measured from the real generator output.
+- [x] 10.9 `catalog.test.ts` / clue-reducer test: `f1-libre` played to completion contributes no entry to the `PISTAS` rail's collected set, and its id is absent from the clue reducer's tracked trail ids (detective-mode spec "f1-libre contributes no clue" / "f1-libre is not tracked by the clue reducer"). Asserted structurally (`f1-libre.clue` is `undefined`) — `LevelPlay`/clue reducer wiring already enforces this from S3 (`isDetectiveTrail = !!level.clue`), out of this slice's scope to re-touch.
 
 ## Phase 11: Retire Legacy Configs (design unit 10 — spec: level-engine R3) — HARD DEPENDENCY: Phase 9 tasks 9.1–9.7 MUST be merged before this phase starts (D3, no-demotion rule)
 
-- [ ] 11.1 **Blocked-by-check**: confirm Phase 9 (S5) is merged into the chain before opening this PR — `isUnlocked` is positional (`LEVELS.findIndex`, then `LEVELS[index - 1]`, `LevelProgressStore.ts:123-129`); removing six configs before migration lands would lock trails 2–4 for any child already past `f1-travesia`.
-- [ ] 11.2 `client/src/levels/catalog.ts`: move `f1-travesia`, `f1-pelotas`, `f1-paseo`, `f1-pasillo`, `f1-ondas`, `f1-espiral` out of `LEVELS` into an exported `LEGACY_PHASE_1`, unwired, config bodies unchanged.
-- [ ] 11.3 `catalog.test.ts`: `LEGACY_PHASE_1` exports all six removed configs unchanged and unwired from `LEVELS` (level-engine spec, "LEGACY_PHASE_1 preserves the removed configs").
-- [ ] 11.4 `catalog.test.ts`: none of the six removed ids appear in `LEVELS` (level-engine spec, "Four trails replace the six corridor levels" — completion half).
-- [ ] 11.5 `LevelProgressStore.test.ts`: a stored payload with an id that has no defined replacement (e.g. `f1-ondas`) is left exactly as stored after this catalog swap (level-engine spec, "Unrelated ids remain untouched", re-asserted against the final `LEVELS` shape).
+- [x] 11.1 **Blocked-by-check**: confirm Phase 9 (S5) is merged into the chain before opening this PR — `isUnlocked` is positional (`LEVELS.findIndex`, then `LEVELS[index - 1]`, `LevelProgressStore.ts:123-129`); removing six configs before migration lands would lock trails 2–4 for any child already past `f1-travesia`. Confirmed: S5 landed at HEAD (`client/src/game/migratePhase1.ts` exists) before this slice started, per the parent's own preflight note.
+- [x] 11.2 `client/src/levels/catalog.ts`: move `f1-travesia`, `f1-pelotas`, `f1-paseo`, `f1-pasillo`, `f1-ondas`, `f1-espiral` out of `LEVELS` into an exported `LEGACY_PHASE_1`, unwired, config bodies unchanged.
+- [x] 11.3 `catalog.test.ts`: `LEGACY_PHASE_1` exports all six removed configs unchanged and unwired from `LEVELS` (level-engine spec, "LEGACY_PHASE_1 preserves the removed configs").
+- [x] 11.4 `catalog.test.ts`: none of the six removed ids appear in `LEVELS` (level-engine spec, "Four trails replace the six corridor levels" — completion half).
+- [x] 11.5 Real end-to-end check (not `LevelProgressStore.test.ts` by that literal name — the actual file is `client/src/game/levelProgress.test.ts`, untouched since it doesn't reference the six removed ids' catalog membership): added to `catalog.test.ts` instead, against the REAL `LevelProgressStore` + real `migratePhase1` + real final `LEVELS`/`LEGACY_PHASE_1` — a mid-campaign payload unlocks `trail3` with no dead end, and an orphan id (`f1-ondas`) is left exactly as stored (level-engine spec, "Unrelated ids remain untouched").
 
 ## Phase 12: Roadmap Doc (design unit 11 — D1, Spanish, only `docs/` edit this change may make)
 

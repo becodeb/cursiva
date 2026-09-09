@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest'
 import { resample } from '../canvas/resample'
 import type { TracePoint } from '../canvas/useTraceInput'
 import { buildLevelTarget } from '../levels/buildLevel'
-import { getLevel } from '../levels/catalog'
+import { LEGACY_PHASE_1, getLevel } from '../levels/catalog'
 import { coverageScore } from '../levels/coverage'
-import type { LevelTarget } from '../levels/types'
+import type { LevelConfig, LevelTarget } from '../levels/types'
 import { TolPen, TolTouch } from '../canvas/validation/constants'
 import { evaluateLevel, toleranceFor } from './evaluateLevel'
 
@@ -27,8 +27,20 @@ function offsetStroke(target: LevelTarget, dy: number): TracePoint[] {
   return perfectStroke(target).map((p) => ({ ...p, y: p.y + dy }))
 }
 
-// The first phase-1 route: one long sweep across the whole sheet (docs/08 §5).
-const travesia = buildLevelTarget(getLevel('f1-travesia'))
+/**
+ * `f1-travesia` is retired behind `LEGACY_PHASE_1` (`detective-mode` Phase
+ * 11) — still a real, fully-authored config, just unwired from the active
+ * catalog. These fixtures only need a real long-sweep shape, not catalog
+ * membership.
+ */
+function legacyLevel(id: string): LevelConfig {
+  const level = LEGACY_PHASE_1.find((l) => l.id === id)
+  if (!level) throw new Error(`Legacy level not found: ${id}`)
+  return level
+}
+
+// The retired travesia route: one long sweep across the whole sheet (docs/08 §5).
+const travesia = buildLevelTarget(legacyLevel('f1-travesia'))
 const bucles = buildLevelTarget(getLevel('f2-bucles'))
 
 describe('evaluateLevel — a faithful trace', () => {
@@ -73,8 +85,8 @@ describe('evaluateLevel — direction pillar', () => {
 
   it('keeps the wrongDirection flag for coaching when the level does not enforce order', () => {
     const relaxed = buildLevelTarget({
-      ...getLevel('f1-travesia'),
-      rules: { ...getLevel('f1-travesia').rules, enforceOrder: false },
+      ...legacyLevel('f1-travesia'),
+      rules: { ...legacyLevel('f1-travesia').rules, enforceOrder: false },
     })
     const reversed = [...perfectStroke(relaxed)].reverse().map((p, i) => ({ ...p, t: i * 16 }))
     const attempt = evaluateLevel([reversed], relaxed, 'pen')
@@ -93,8 +105,8 @@ describe('evaluateLevel — accuracy pillar', () => {
   })
 
   it('scales tolerance with the corridor: a wide level is genuinely easier', () => {
-    const wide = buildLevelTarget({ ...getLevel('f1-travesia'), corridorWidth: 220 })
-    const narrow = buildLevelTarget({ ...getLevel('f1-travesia'), corridorWidth: 40 })
+    const wide = buildLevelTarget({ ...legacyLevel('f1-travesia'), corridorWidth: 220 })
+    const narrow = buildLevelTarget({ ...legacyLevel('f1-travesia'), corridorWidth: 40 })
     const drift = 30
     expect(evaluateLevel([offsetStroke(wide, drift)], wide, 'pen').accuracy).toBeGreaterThan(
       evaluateLevel([offsetStroke(narrow, drift)], narrow, 'pen').accuracy,

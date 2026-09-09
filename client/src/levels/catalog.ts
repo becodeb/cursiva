@@ -14,7 +14,20 @@
 import { buildWord } from '../letters/combinations'
 import { LETTER_REGISTRY } from '../letters/registry'
 import type { LetterConfig } from '../letters/types'
-import { crests, garland, hills, loops, spiral, straight, sweep, switchback, transformPath, wave } from './paths'
+import {
+  crests,
+  garland,
+  hills,
+  loops,
+  spiral,
+  squareWave,
+  straight,
+  sweep,
+  switchback,
+  transformPath,
+  triangularWave,
+  wave,
+} from './paths'
 import type { LevelConfig, LevelFeedback, LevelRules, Phase } from './types'
 
 /** Phase headings, as named in docs/08 section 5. */
@@ -124,48 +137,49 @@ function wordPaths(id: string, chars: string[]): string[] {
 // ─────────────────────────────────────────────────────────────────────────────
 // Fase 1 — Control visomotor. TODA LA HOJA EN BLANCO, no el renglón.
 //
-// Every phase-1 level used to sit in the 300-420 band with the three-zone pauta
-// drawn behind it. That was wrong twice over. The ruled lines mean nothing
-// before phase 3, so they were decoration the child had to filter out against
-// docs/01 principle 1 (carga cognitiva controlada); and a 120-unit band trains
-// the fingertip, while phase 1 exists to build the whole-arm and wrist control
-// the letters later depend on ("coordinación ojo-mano, control tónico",
-// docs/01 phase 1). So: `surface: 'blank'`, and the routes span y≈60 to y≈540
-// at varied scales, positions and orientations.
+// `detective-mode` retheme (design units 9-10): the six unthemed corridor
+// levels below are RETIRED — moved unwired to `LEGACY_PHASE_1` further down —
+// and replaced by four themed detective trails, each carrying exactly one
+// clue kind. `f1-libre` stays, rethemed as the opening beat of the case and
+// explicitly clue-free (level-engine spec, "f1-libre Retheme Carries No
+// Clue").
 //
-// `maze: true` on every phase-1 route: the corridor is rendered as walls
-// knocked out of a solid field, which is what a laberinto actually is and what
-// makes figura-fondo perception part of the task. The phase-2 patterns stay
-// soft corridors — a pre-cursive garland is a movement, not a maze.
+// Motor volume is restored by CONFIG, not level count (proposal Q1): the
+// four trails between them keep the taper narrowing, the timed hazard and
+// the arc-length total the six removed levels offered — asserted directly in
+// `catalog.test.ts` ("Total arc length does not regress") rather than eyed.
+// The themed hazard sits on trail 1 alone (design C3: it has the most open
+// interior of the four, and the spiral's 120-unit radial gap against a
+// 70-unit corridor leaves no room for one).
 //
-// The progression is MOTOR, and it climbs one demand at a time:
+//   f1-libre  free scribble, rethemed as the case's opening page — no clue
+//   trail1    droplet / sine wave — carries the one themed hazard
+//   trail2    corn / counter-clockwise coil (D2, reuses the shipped spiral())
+//   trail3    footprint / triangular wave — sharp corners, no curve to approx
+//   trail4    feather / square wave — sharp corners, both clearance rules
 //
-//   f1-libre     free scribble — warm the whole arm up, no rule at all
-//   f1-travesia  one huge sweep — gross movement from the shoulder
-//   f1-pelotas   timed hazards — approach, STOP, wait for the gap, go
-//   f1-paseo     escort, wide corridor — first contact with "the walls matter"
-//   f1-pasillo   escort, narrow and long — hold that precision for a journey
-//   f1-ondas     large tilted curves — wrist rotation
-//   f1-espiral   the spiral — the a/c/o turn
+// `demo: true` on every trail (design C1): the shell renders no title, hint
+// or coach text for a detective trail (`LevelPlay.tsx`'s `isDetectiveTrail`
+// branch, already shipped in S3), so the engine's existing pre-attempt route
+// animation is what replaces the written instruction — shown, not written.
 //
-// Inhibition comes BEFORE precision on purpose. `f1-pelotas` asks the child to
-// hold still on command while the route stays forgiving (84 units wide); the
-// two escort levels then ask for accuracy over the whole journey with the ball
-// gone. Reversing them would ask a child to be precise and to inhibit in the
-// same breath, which is two lessons in one screen (docs/01 principle 1).
-//
-// It still mirrors the order docs/01 phase 1 names — "Rectos, con ángulos, con
-// curvas amplias, con bucles" — with the corners now living inside `f1-pasillo`
-// (its half-turn) instead of in a route made only of corners.
+// `carrierArt` is NOT wired from `LevelPlay.tsx` yet (that file is outside
+// this slice's scope), so every trail below keeps `carrier: false` rather
+// than ship the wrong (shipped sage) carrier shape under a detective theme.
+// Flag for whoever wires `TraceCarrierArt` into `LevelPlay`: flip a trail's
+// `carrier` to `true` once the ink magnifying-glass override is actually
+// passed through — a one-line change here, no other edit needed.
 // ─────────────────────────────────────────────────────────────────────────────
 const PHASE_1: LevelConfig[] = [
   {
     id: 'f1-libre',
     phase: 1,
-    title: 'Garabato libre',
-    hint: 'Dibujá lo que quieras, bien grande, por toda la hoja.',
+    title: 'El caso empieza',
+    hint: 'Antes de investigar, dibujá lo que quieras por toda la hoja.',
     // The most literal answer to "que sea libre": no route, no corridor, no
     // rule about where to start or which way to go. The child warms the arm up.
+    // No `clue` field — clue-free by design (level-engine spec, "f1-libre
+    // contributes no clue" / "f1-libre is not tracked by the clue reducer").
     kind: 'free',
     surface: 'blank',
     maze: false,
@@ -183,6 +197,129 @@ const PHASE_1: LevelConfig[] = [
     showGuide: false,
     letters: [],
   },
+  {
+    id: 'trail1',
+    phase: 1,
+    title: 'El sendero del agua',
+    hint: 'Seguí el sendero de punta a punta.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    // Narrows as the route runs, same "el sendero se estrecha" idea the
+    // retired `f1-travesia` carried.
+    taper: { from: 1.15, to: 0.85 },
+    // ONE themed hazard (design C3: trail 1 has the most open interior of the
+    // four, and it is the only trail this change places a hazard on). Sits at
+    // the midpoint, with room to approach, stop and go on either side.
+    obstacles: [{ at: 0.5, travel: 220, periodMs: 2400, phase: 0, radius: 30 }],
+    resetOnContact: true,
+    carrier: true,
+    // FIRST CONTACT with a routed detective trail: the rail is on here and
+    // nowhere else in phase 1, same convention the retired `f1-travesia`
+    // carried (docs/03 section 6).
+    feedback: feedback(0, true),
+    // A broad sinusoid across the whole sheet — the droplet's open water.
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 200, cycles: 3 })],
+    corridorWidth: 90,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'droplet', count: 5 },
+  },
+  {
+    id: 'trail2',
+    phase: 1,
+    // Counter-clockwise on purpose: the same turn the `a` family needs later
+    // (D2, `explore.md` §5.3 — the proposal's overturned sawtooth suggestion).
+    title: 'El caracol de maíz',
+    hint: 'Girá para este lado, sin levantar el dedo.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    // Shipped defaults, counter-clockwise: no override, so the radial gap
+    // stays exactly the 120 units the corridor width below is measured against.
+    paths: [spiral()],
+    // 70 against the generator's 120 radial gap leaves ~50 units of visible
+    // wall between the arms; wider merges the turns into a filled disc (D2,
+    // `paths.ts:498-502`).
+    corridorWidth: 70,
+    rules: rules(1, true, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'corn', count: 5 },
+  },
+  {
+    id: 'trail3',
+    phase: 1,
+    title: 'El sendero de huellas',
+    hint: 'Seguí las huellas de punta a punta.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    // Sharp-corner sibling of `wave()`: every footprint sits at a real elbow,
+    // not a rounded crest (level-engine spec, "Generators emit only supported
+    // commands" — `triangularWave` is `M`/`L` only).
+    paths: [triangularWave({ x0: 90, x1: 910, y: 300, amplitude: 200, cycles: 3 })],
+    corridorWidth: 90,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'footprint', count: 5 },
+  },
+  {
+    id: 'trail4',
+    phase: 1,
+    title: 'El sendero de plumas',
+    hint: 'Seguí el sendero, esquina por esquina.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    // The last taper of the catalog, same narrowing shape the retired
+    // `f1-pasillo` carried.
+    taper: { from: 1.2, to: 0.8 },
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    // `run: 220`, `amplitude: 160` against `corridorWidth: 70` satisfies BOTH
+    // `cornerClearance` (run ≥ 2·corridorWidth ⇒ 220 ≥ 140) and `armClearance`
+    // (amplitude ≥ corridorWidth ⇒ 160 ≥ 70, wall 250 against a 49 threshold —
+    // level-engine spec, "Square-Wave Corner Constraint").
+    paths: [squareWave({ x0: 100, mid: 300, amplitude: 160, run: 220, cycles: 3 })],
+    corridorWidth: 70,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'feather', count: 5 },
+  },
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Retired phase-1 configs (design unit 10 / Phase 11, `detective-mode`).
+//
+// The six unthemed corridor levels this catalog shipped before the retheme
+// above, UNWIRED from `LEVELS` but kept exported and byte-for-byte unchanged
+// (level-engine spec, "LEGACY_PHASE_1 preserves the removed configs"). This is
+// the whole rollback plan: reverting is swapping this array back into `LEVELS`
+// in place of the four trails, no revert needed (proposal §Rollback Plan).
+//
+// Safe to remove from `LEVELS` only because `client/src/game/migratePhase1.ts`
+// (Phase 9, already shipped) runs a one-time copy-forward migration BEFORE
+// this swap ever reaches a real child's store: `isUnlocked` is positional
+// (`LevelProgressStore.ts:123-129`), so removing these six without that
+// migration landing first would lock trails 2-4 for anyone already past
+// `f1-travesia` (D3, no-demotion). See `tasks.md`'s Ordering Summary.
+// ─────────────────────────────────────────────────────────────────────────────
+export const LEGACY_PHASE_1: readonly LevelConfig[] = [
   {
     id: 'f1-travesia',
     phase: 1,

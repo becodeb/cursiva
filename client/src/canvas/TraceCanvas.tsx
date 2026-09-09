@@ -86,7 +86,7 @@ const MAZE_WALL = '#e2e8f0'
 /** Corridor colour when it is a soft channel rather than a wall. */
 const CORRIDOR_FILL = '#cbd5e1'
 /** Settled and live ink. */
-const INK_COLOR = '#1e293b'
+export const INK_COLOR = '#1e293b'
 const INK_WIDTH = 18
 
 /** Animated draw demo: framer-motion `pathLength` 0→1, times in seconds. */
@@ -361,6 +361,18 @@ export interface TraceCanvasProps {
   /** Override the carrier's shipped shape with registry art, drawn in ink.
    * Absent = the shipped sage figure. Has no effect without `carrier`. */
   carrierArt?: TraceCarrierArt
+  /** Renders the engine's own markers -- goal, start, direction arrow and
+   * hazards -- in INK instead of their shipped colours.
+   *
+   * `detective-mode`'s whole art direction is that the world is ink on paper
+   * and colour means a clue was EARNED. The shipped markers break that on
+   * sight: the goal is `#b45309`, which sits in the warm-clay band the mode's
+   * palette test exists to stay out of, and a hazard is a saturated `#7e6a9e`
+   * circle -- between them the two loudest things on the sheet, and neither is
+   * a clue. That palette test asserted the earned colours do not APPROACH
+   * these; it never asserted these do not RENDER, which was the half that
+   * mattered. */
+  inkOnly?: boolean
   /** Clue marks (`detective-mode`), rendered as their own `<g>` layer UNDER
    * the ink — see `TraceClueMark`. Absent = no clue layer. */
   clues?: TraceClues
@@ -409,6 +421,7 @@ export default function TraceCanvas({
   hazards,
   carrier,
   carrierArt,
+  inkOnly = false,
   clues,
   resetSignal,
 }: TraceCanvasProps) {
@@ -855,14 +868,14 @@ export default function TraceCanvas({
           <polygon
             points={`0,-${GOAL_OUTER_R} ${GOAL_OUTER_R},0 0,${GOAL_OUTER_R} -${GOAL_OUTER_R},0`}
             fill="none"
-            stroke={GOAL_COLOR}
+            stroke={inkOnly ? INK_COLOR : GOAL_COLOR}
             strokeWidth={5}
             strokeLinejoin="round"
           />
           <polygon
             points={`0,-${GOAL_INNER_R} ${GOAL_INNER_R},0 0,${GOAL_INNER_R} -${GOAL_INNER_R},0`}
             fill="none"
-            stroke={GOAL_COLOR}
+            stroke={inkOnly ? INK_COLOR : GOAL_COLOR}
             strokeWidth={4}
             strokeLinejoin="round"
           />
@@ -871,7 +884,15 @@ export default function TraceCanvas({
       {startMarker && (
         // "Empezá desde el punto verde" (docs/03 §7).
         <g pointerEvents="none">
-          <circle cx={startMarker.x} cy={startMarker.y} r={22} fill="#22c55e" opacity={0.9} />
+          <circle
+            cx={startMarker.x}
+            cy={startMarker.y}
+            r={22}
+            fill={inkOnly ? 'none' : '#22c55e'}
+            stroke={inkOnly ? INK_COLOR : 'none'}
+            strokeWidth={inkOnly ? 3 : 0}
+            opacity={0.9}
+          />
           <circle cx={startMarker.x} cy={startMarker.y} r={5} fill="#ffffff" />
         </g>
       )}
@@ -886,7 +907,7 @@ export default function TraceCanvas({
         // (see `screen/directionArrow.ts`).
         <polygon
           points="26,0 -14,-16 -5,0 -14,16"
-          fill="#22c55e"
+          fill={inkOnly ? INK_COLOR : "#22c55e"}
           opacity={0.8}
           transform={`translate(${directionArrow.x} ${directionArrow.y}) rotate(${directionArrow.angle})`}
           pointerEvents="none"
@@ -983,7 +1004,9 @@ export default function TraceCanvas({
               cx={hazardHome[idx]?.x ?? 0}
               cy={hazardHome[idx]?.y ?? 0}
               r={r}
-              fill={HAZARD_COLOR}
+              fill={inkOnly ? 'none' : HAZARD_COLOR}
+              stroke={inkOnly ? INK_COLOR : 'none'}
+              strokeWidth={inkOnly ? 3 : 0}
               opacity={HAZARD_OPACITY}
             />
           ))}

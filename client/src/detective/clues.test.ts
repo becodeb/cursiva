@@ -28,8 +28,23 @@ describe('clueMarks', () => {
   it('places count marks uniformly in arc length, first at the start and last at the end', () => {
     const marks = clueMarks(LINE, LENGTH, 5, 'droplet')
     expect(marks).toHaveLength(5)
-    expect(marks.map((m) => m.x)).toEqual([0, 25, 50, 75, 100])
+    // Interior spacing: (i + 1) / (count + 1) of a 100-unit line.
+    const xs = marks.map((m) => m.x)
+    for (const [i, want] of [100 / 6, 200 / 6, 300 / 6, 400 / 6, 500 / 6].entries()) {
+      expect(xs[i]).toBeCloseTo(want, 6)
+    }
     for (const m of marks) expect(m.y).toBeCloseTo(0, 6)
+  })
+
+  it('never places a mark at either endpoint of the trail', () => {
+    // An endpoint mark is invisible under the start or goal marker, and the
+    // one at arc 0 is earned for free the moment the child touches down.
+    for (const count of [1, 2, 3, 5, 8]) {
+      for (const m of clueMarks(LINE, LENGTH, count, 'droplet')) {
+        expect(m.x, `count ${count}: a mark landed on an endpoint`).toBeGreaterThan(0)
+        expect(m.x, `count ${count}: a mark landed on an endpoint`).toBeLessThan(LENGTH)
+      }
+    }
   })
 
   it('faces along the local tangent (a straight rightward line points at angle 0)', () => {
@@ -42,15 +57,17 @@ describe('clueMarks', () => {
     expect(clueMarks(LINE, LENGTH, -1, 'droplet')).toEqual([])
   })
 
-  it('places a single mark at the start when count is 1', () => {
+  it('places a single mark at the midpoint when count is 1', () => {
+    // 1 / (1 + 1) of the arc. The start is where the glass already sits, so a
+    // lone mark there would be collected before the child moves at all.
     const marks = clueMarks(LINE, LENGTH, 1, 'droplet')
     expect(marks).toHaveLength(1)
-    expect(marks[0].x).toBeCloseTo(0, 6)
+    expect(marks[0].x).toBeCloseTo(LENGTH / 2, 6)
   })
 })
 
 describe('clueTick', () => {
-  const marks: readonly ClueMark[] = clueMarks(LINE, LENGTH, 5, 'droplet') // x = 0, 25, 50, 75, 100
+  const marks: readonly ClueMark[] = clueMarks(LINE, LENGTH, 5, 'droplet') // x = 100/6, 200/6, 50, 400/6, 500/6
   const radius = 5
 
   it('flips a mark from drained to earned in exactly one dispatch, no intermediate state (spec: "Mark flips exactly once as the glass passes")', () => {
@@ -77,21 +94,19 @@ describe('clueTick', () => {
 
   it('a no-op sample (nothing within radius) also returns the SAME state', () => {
     const start = emptyClueState(5)
-    const next = clueTick(start, { x: 12, y: 0 }, marks, radius)
+    // Between the 1/6 mark (16.67) and the 2/6 mark (33.33), further than
+    // `radius` from either. Asserted rather than assumed, so this stays a real
+    // no-op if the spacing ever changes again.
+    const probe = { x: 25, y: 0 }
+    for (const m of marks) expect(Math.abs(m.x - probe.x)).toBeGreaterThan(radius)
+    const next = clueTick(start, probe, marks, radius)
     expect(next).toBe(start)
   })
 
   it('carries no tween, delay or animation field across a stream of position updates while the pointer is down — only discrete drained/earned values (spec: "No motion while the pointer is down")', () => {
-    const positions = [
-      { x: 0, y: 0 },
-      { x: 10, y: 0 },
-      { x: 24, y: 0 },
-      { x: 25, y: 0 },
-      { x: 40, y: 0 },
-      { x: 51, y: 0 },
-      { x: 76, y: 0 },
-      { x: 100, y: 0 },
-    ]
+    // Walk each mark's own position, so the sweep cannot drift out of date
+    // when the spacing changes.
+    const positions = marks.map((mk) => ({ x: mk.x, y: 0 }))
     let state = emptyClueState(5)
     for (const p of positions) {
       state = clueTick(state, p, marks, radius)

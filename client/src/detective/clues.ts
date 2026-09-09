@@ -82,9 +82,19 @@ export function clueMarks(
 ): readonly ClueMark[] {
   if (count <= 0 || polyline.length < 2 || length <= 0) return []
   const marks: ClueMark[] = []
-  const denom = Math.max(1, count - 1)
+  // Marks sit in the INTERIOR of the trail: `(i + 1) / (count + 1)`, so five
+  // marks land at 1/6 .. 5/6 of the arc and none at an endpoint.
+  //
+  // Spacing them `i / (count - 1)` instead puts one at arc 0 and one at the
+  // full length, which fails twice over. Visually both vanish: the start
+  // marker and the glass cover one, the goal marker covers the other, so a
+  // trail configured for five clues shows three. And mechanically the first is
+  // earned for free the instant the child touches the start, while the last is
+  // redundant with finishing the trail at all. A clue has to be collected
+  // ALONG the route or it is not a reward for following it.
+  const denom = count + 1
   for (let i = 0; i < count; i++) {
-    const arc = (i / denom) * length
+    const arc = ((i + 1) / denom) * length
     const point = pointAtArcLength(polyline as Point[], arc)
     const index = indexAtDistance(polyline, arc)
     const angle = tangentAngleAt(polyline, index, TANGENT_SPAN_UNITS)
