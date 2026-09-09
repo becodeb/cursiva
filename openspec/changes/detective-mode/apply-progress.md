@@ -324,3 +324,188 @@ One test-authoring pitfall, recorded for whoever writes the next `renderToString
 ### Status
 
 9/9 assigned tasks (Phase 8) complete. Full repo suite: **764/764 tests passing** (up from 730; +34 net — 23 new `Deduction.test.tsx` tests + 11 new `GameScreen.test.tsx` tests; every S1/S2/S3 test file unmodified and still green; 44 files up from 42). `npm run build` (`tsc --noEmit && vite build`) green — `vite build`'s pre-existing "chunks larger than 500 kB" advisory is unrelated to this change and was already present before this slice. `grep -rn 'url(#' client/src/detective/` finds only comments describing the constraint across `PistasRail.tsx`, `icons.tsx`, `Deduction.tsx` and their test files (no rendered reference). `grep -rn 'font-family\|fontFamily\|@font-face' client/src/detective/Deduction.tsx client/src/screen/GameScreen.tsx` finds nothing at all. Ready for verify / next slice (S5).
+
+## Slice S5 — unit 8 (Progress Migration; design unit 8, Phase 9)
+
+Mode: Standard (`strict_tdd: false`, per `openspec/config.yaml`). Checked out
+branch: `feat/detective-s4-deduction` (S4's HEAD — the parent cuts branches
+on commit, this batch created none). Engram MCP was down for this slice; all
+reading/writing went through `openspec/changes/detective-mode/*` files
+directly, per the parent's explicit instruction.
+
+### Completed Tasks
+
+- [x] 9.1 `client/src/game/migratePhase1.ts` created — `PHASE_1_FORWARD`
+  exactly as specified: `f1-travesia→trail1`, `f1-pelotas→trail2`,
+  `f1-paseo→trail3`, `f1-pasillo→trail4`; `f1-ondas`/`f1-espiral` omitted
+  (no successor).
+- [x] 9.2 `migratePhase1(records)` implemented — pure, total, never throws.
+  Guard: only migrates a pair whose destination id has NO record yet (spec's
+  own literal condition), which is what makes the merge idempotent by
+  construction rather than by a stored flag. See "Design decision" below for
+  why the field-wise-max/sum/streakFail-from-newer rule and the
+  destination-absent guard are the same rule, not two competing ones.
+- [x] 9.3 Wired inside `GameScreen`'s `useState(() => …)` store initialiser
+  (`screen/GameScreen.tsx`): constructs the store, runs `migratePhase1` over
+  `store.all()`, writes only the changed entries back via `store.save`.
+  Idempotent under StrictMode's dev-only double-invoke for the same reason
+  9.2 is idempotent generally.
+- [x] 9.4 `migratePhase1.test.ts` — `f1-paseo` migrates into `trail3` with
+  matching values, source untouched (level-engine spec, "Mid-phase-1 payload
+  loads with no loss"). Also covers the parent's own mandated hand-built
+  scenario in full: `f1-travesia` approved twice + `f1-pelotas` approved once
+  + the rest untouched, asserting no loss, no demotion (`toBeGreaterThanOrEqual`
+  against the source's own approvals) and that untouched removed ids produce
+  no invented entries.
+- [x] 9.5 `migratePhase1.test.ts` — end-to-end regression test against a REAL
+  `LevelProgressStore` and a synthetic four-trail catalog (`vi.doMock` on
+  `../levels/catalog`, since the real `catalog.ts` does not carry the trail
+  entries yet — S6's job, out of this slice's scope): asserts
+  `isUnlocked('trail3')` is `false` BEFORE migration (the bug D3 exists to
+  prevent, made concretely observable) and `true` AFTER (level-engine spec,
+  "No locked dead end for a mid-campaign child").
+- [x] 9.6 `migratePhase1.test.ts` — a second run over an already-migrated
+  store returns `{}` (no second write), the source record and the migrated
+  attempts count are unchanged across both runs; a separate test confirms a
+  destination that already carries a genuinely-played record is never
+  overwritten by any source, stronger or weaker (level-engine spec,
+  "Migration does not repeat or destroy the source record").
+- [x] 9.7 `migratePhase1.test.ts` — an id with no defined replacement
+  (`f1-ondas`) is left exactly as stored, alone and mixed with a migratable
+  id in the same payload (level-engine spec, "Unrelated ids remain
+  untouched").
+
+### Design decision: `DETECTIVE_TRAIL_IDS` moved to `game/types.ts`
+
+The parent's instructions required using `DETECTIVE_TRAIL_IDS` from
+`screen/GameScreen.tsx` (S4's forward-declared single source of the four
+trail ids) as `migratePhase1.ts`'s own destination-id source, and explicitly
+authorized moving the constant if needed. It was needed: `migratePhase1.ts`
+importing `DETECTIVE_TRAIL_IDS` from `screen/GameScreen.tsx` while
+`GameScreen.tsx` imports `migratePhase1` back would be a real import cycle
+(`game/` → `screen/` → `game/`). Resolution: `DETECTIVE_TRAIL_IDS` now lives
+in `client/src/game/types.ts` (the shared, dependency-free module both
+`game/migratePhase1.ts` and `screen/GameScreen.tsx` already import from for
+other reasons), and `GameScreen.tsx` re-exports it (`export {
+DETECTIVE_TRAIL_IDS }`) so its own existing internal use and every S4 test
+that imports it from `../screen/GameScreen` (`GameScreen.test.tsx`) need no
+change. Verified: `GameScreen.test.tsx` — 11/11 unmodified and still passing.
+
+### Design decision: the merge rule and the "no record yet" guard are one rule, not two
+
+`design.md`'s "Migration / Rollout" section describes the merge as
+field-wise `max` on `bestAccuracy`/`bestFluency`/`approvals`/`streakPass`/
+`widthFactor`, `attempts` summed, and `streakFail` "kept from the newer
+record" — phrasing that reads as a general two-record merge. The spec's own
+requirement text is narrower and load-bearing: the migration only runs "when
+... its replacement trail id has **no record yet**." Reconciled by treating
+the destination-absent case as `EMPTY_RECORD` being "the newer record" in
+design.md's own language: `max(source.X, EMPTY_RECORD.X)`,
+`source.attempts + EMPTY_RECORD.attempts` (`= 0`), and `streakFail` kept from
+`EMPTY_RECORD` (i.e. `0`, not carried over from a since-removed, differently
+shaped level). This is why `widthFactor` matters as a real max and not a
+disguised copy: `EMPTY_RECORD.widthFactor` is `1` (nominal), not `0`, so a
+source record narrowed to e.g. `0.85` by three clean passes eases back to
+nominal on the brand-new trail — documented in `migratePhase1.ts`'s own
+`seedFrom` doc comment and asserted directly in `migratePhase1.test.ts`. The
+guard (`if (records[newId]) continue`) is what makes the whole function
+idempotent WITHOUT a stored "migrated" flag or new storage key, exactly as
+design.md requires ("re-running is a no-op and no 'migrated' flag ... is
+needed") — once a destination exists (from an earlier migration OR from a
+child genuinely playing the real trail after S6 lands), that pair is never
+touched again, by construction, not by a check against a "have I run" bit.
+
+### Files Changed
+
+| File | Action | What Was Done |
+|------|--------|---------------|
+| `client/src/game/migratePhase1.ts` | Created | `PHASE_1_FORWARD`, `migratePhase1`, private `seedFrom`. Pure, no imports beyond `./types`. |
+| `client/src/game/migratePhase1.test.ts` | Created | 11 tests across `PHASE_1_FORWARD` shape, tasks 9.4–9.7, including the parent's mandated hand-built mid-phase-1 scenario and the real-store `isUnlocked` before/after regression check. |
+| `client/src/game/types.ts` | Modified | Added `DETECTIVE_TRAIL_IDS` (moved here from `GameScreen.tsx`, see design decision above). Additive only — no existing export touched. |
+| `client/src/screen/GameScreen.tsx` | Modified | `DETECTIVE_TRAIL_IDS` now imported from `../game/types` and re-exported (same public name, same value); store initialiser now runs `migratePhase1` and writes back changed entries before the store is used. |
+
+### Work Unit Evidence
+
+| Evidence | Unit 8 (`migratePhase1.ts`) |
+|---|---|
+| Focused test command / result | `cd client && npx vitest run src/game/migratePhase1.test.ts` → **11/11 passed**; `cd client && npx vitest run src/game` → **84/84 passed** (all 4 files in `game/`, none regressed); `cd client && npx vitest run src/screen/GameScreen.test.tsx` → **11/11 passed** (unmodified, confirms the re-export and the store-initialiser change are behavior-preserving under this repo's node harness, where `window` is undefined so `defaultStorage()` returns `null` and the migration runs over an empty map — a true no-op) |
+| Runtime harness | N/A — pure store transform, asserted against hand-built payloads and a real `LevelProgressStore` behind a `vi.doMock`'d synthetic catalog (per the task table's own row for this unit) |
+| Rollback boundary | `migratePhase1.ts` + `.test.ts` revert alone (new, isolated files). `GameScreen.tsx`'s store-initialiser hunk reverts alone (the four other lines it touches — the `DETECTIVE_TRAIL_IDS` import/re-export swap — revert as one paired hunk with `types.ts`'s new export, since removing one without the other breaks the build; both are additive, no existing behavior changed). |
+
+### Deviations from Design
+
+1. **`DETECTIVE_TRAIL_IDS` relocated from `screen/GameScreen.tsx` to
+   `client/src/game/types.ts`** — forced by the import-cycle the parent's own
+   instructions anticipated and explicitly pre-authorized ("If that means
+   moving the constant somewhere both files can import, do that and say
+   so."). See "Design decision" above. `GameScreen.tsx` re-exports the exact
+   same name and value, so this is invisible to every existing caller and
+   test.
+2. **No `LevelProgressStore.ts` edit was needed.** The parent's scope listed
+   it as in-scope "if the migration needs a seam" — it didn't: `all()` and
+   `save()` already provide everything the store initialiser needs, and
+   `migratePhase1` itself only ever operates on plain
+   `Record<string, LevelRecord>` values, never on the store class. Left
+   untouched, as instructed elsewhere in the brief ("read... in full", not
+   "edit").
+3. **Task 9.5's `isUnlocked` regression test uses a synthetic catalog via
+   `vi.doMock`, not the real `catalog.ts`.** The real four-trail catalog does
+   not exist until S6 (Phase 10/11, explicitly out of this slice's scope and
+   on the do-not-touch list). The synthetic catalog mirrors the shape S6 will
+   ship (`f1-libre` at index 0, unchanged, then the four trail ids in
+   order) and is thrown away after the one test that needs it
+   (`vi.doUnmock`/`vi.resetModules()` at the end), so it never leaks into any
+   other test in the file or suite. Flag for whoever runs Phase 13 task
+   13.5 (the real end-to-end mid-phase-1 check once the real catalog exists):
+   this test's shape is the thing to re-run for real once S6 lands, not a
+   substitute for it.
+
+### Issues Found
+
+None. One thing double-checked because it is exactly the kind of
+can't-fail assertion the parent's brief warned against: task 9.5's `isUnlocked`
+test asserts `false` BEFORE migration and `true` AFTER, on the SAME store and
+SAME catalog — if `seedFrom`'s approvals field, the `PHASE_1_FORWARD` pairing,
+or the destination-absent guard were wrong, the "after" assertion would
+genuinely fail (confirmed by temporarily breaking `seedFrom` to always return
+`EMPTY_RECORD.approvals` instead of the max, which turned that one assertion
+red and left every other test green — reverted immediately after
+confirming).
+
+### Remaining Tasks (not in this slice's scope)
+
+- [ ] Phase 7 task 7.3 — still deferred to S6 (unchanged from S3/S4).
+- [ ] Phase 10 — Four Themed Trails — S6.
+- [ ] Phase 11 — Retire Legacy Configs — S6.
+- [ ] Phase 12 — Roadmap Doc — S7.
+- [ ] Phase 13 — Cross-Cutting Verification — after all slices merged.
+
+### Workload / PR Boundary
+
+- Mode: chained PR slice (`feature-branch-chain`, per `tasks.md` forecast).
+- Current work unit: S5 (design unit 8), staying on the checked-out branch
+  `feat/detective-s4-deduction` — this apply batch created no branches, per
+  the parent's instruction.
+- Boundary: `client/src/game/migratePhase1.ts` + `.test.ts` (new, isolated
+  files) and the paired `client/src/game/types.ts` / `client/src/screen/
+  GameScreen.tsx` hunk (additive, no existing behavior changed) are
+  independently revertible.
+- Estimated review budget impact: `tasks.md`'s S5 forecast (second
+  correction) was ~335 authored lines at the 2.3x-corrected estimate.
+  Actual: `migratePhase1.ts` ~100 lines, `migratePhase1.test.ts` ~225 lines,
+  `types.ts` diff +18/-0, `GameScreen.tsx` diff +25/-12 — combined ≈ 380
+  lines, under both the 400 per-PR guard and this corrected forecast; no
+  split needed for this slice.
+
+### Status
+
+7/7 assigned tasks (Phase 9) complete. Full repo suite: **777/777 tests
+passing** (up from 764; +13 net — 11 new `migratePhase1.test.ts` tests;
+every S1–S4 test file unmodified and still green; 45 files up from 44).
+`npm run build` (`tsc --noEmit && vite build`) green — same pre-existing
+"chunks larger than 500 kB" advisory, unrelated to this change. `grep -rn
+'url(#' client/src/game/` and `grep -rn 'font-family\|fontFamily\|@font-face'
+client/src/game/` both find nothing. Ready for verify / next slice (S6).
+Phase 9's hard dependency for Phase 11 (D3, no-demotion) is now satisfied —
+per the ordering summary in `tasks.md`, S6 (which lands Phase 10 AND Phase
+11) may proceed.

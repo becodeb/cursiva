@@ -207,13 +207,13 @@ it costs a maintainer decision and buys nothing.
 
 ## Phase 9: Progress Migration (design unit 8 — spec: level-engine R6) — MUST land before Phase 11
 
-- [ ] 9.1 Create `client/src/game/migratePhase1.ts`: `PHASE_1_FORWARD` = `[['f1-travesia','trail1'], ['f1-pelotas','trail2'], ['f1-paseo','trail3'], ['f1-pasillo','trail4']]` (`f1-ondas`, `f1-espiral` have no successor, left as orphans).
-- [ ] 9.2 Implement `migratePhase1(records)`: field-wise `max` on `bestAccuracy`, `bestFluency`, `approvals`, `streakPass`, `widthFactor`; `attempts` summed; `streakFail` kept from the newer record; never deletes, never overwrites a higher value; returns only changed entries.
-- [ ] 9.3 Wire the call inside `GameScreen`'s `useState(() => …)` store initialiser, so idempotence covers StrictMode's double-invoke.
-- [ ] 9.4 `migratePhase1.test.ts`: mid-phase-1 payload with approvals on `f1-paseo` migrates into `trail3` with matching values, original record untouched (level-engine spec, "Mid-phase-1 payload loads with no loss").
-- [ ] 9.5 `migratePhase1.test.ts`: after migration, `isUnlocked('trail3')` (or the appropriate replacement) returns `true` for a mid-campaign payload (level-engine spec, "No locked dead end for a mid-campaign child").
-- [ ] 9.6 `migratePhase1.test.ts`: running migration twice on an already-migrated store leaves the source record unchanged and performs no second write (level-engine spec, "Migration does not repeat or destroy the source record").
-- [ ] 9.7 `migratePhase1.test.ts`: an id with no defined replacement is left exactly as stored (level-engine spec, "Unrelated ids remain untouched").
+- [x] 9.1 Create `client/src/game/migratePhase1.ts`: `PHASE_1_FORWARD` = `[['f1-travesia','trail1'], ['f1-pelotas','trail2'], ['f1-paseo','trail3'], ['f1-pasillo','trail4']]` (`f1-ondas`, `f1-espiral` have no successor, left as orphans).
+- [x] 9.2 Implement `migratePhase1(records)`: field-wise `max` on `bestAccuracy`, `bestFluency`, `approvals`, `streakPass`, `widthFactor`; `attempts` summed; `streakFail` kept from the newer record; never deletes, never overwrites a higher value; returns only changed entries.
+- [x] 9.3 Wire the call inside `GameScreen`'s `useState(() => …)` store initialiser, so idempotence covers StrictMode's double-invoke.
+- [x] 9.4 `migratePhase1.test.ts`: mid-phase-1 payload with approvals on `f1-paseo` migrates into `trail3` with matching values, original record untouched (level-engine spec, "Mid-phase-1 payload loads with no loss").
+- [x] 9.5 `migratePhase1.test.ts`: after migration, `isUnlocked('trail3')` (or the appropriate replacement) returns `true` for a mid-campaign payload (level-engine spec, "No locked dead end for a mid-campaign child").
+- [x] 9.6 `migratePhase1.test.ts`: running migration twice on an already-migrated store leaves the source record unchanged and performs no second write (level-engine spec, "Migration does not repeat or destroy the source record").
+- [x] 9.7 `migratePhase1.test.ts`: an id with no defined replacement is left exactly as stored (level-engine spec, "Unrelated ids remain untouched").
 
 ## Phase 10: Four Themed Trails (design unit 9 — spec: level-engine R3, R7)
 

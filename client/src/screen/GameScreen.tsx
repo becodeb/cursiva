@@ -10,7 +10,9 @@ import Deduction from './Deduction'
 import { LEVELS, getLevel, nextLevelId } from '../levels/catalog'
 import { LevelProgressStore } from '../game/LevelProgressStore'
 import { applyAttempt } from '../game/adaptiveTolerance'
+import { DETECTIVE_TRAIL_IDS } from '../game/types'
 import type { LevelAttempt, LevelRecord } from '../game/types'
+import { migratePhase1 } from '../game/migratePhase1'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
@@ -83,17 +85,15 @@ export function initialView(search: string): GameView {
 }
 
 /**
- * The four detective trail ids, in play order (design.md "Migration /
- * Rollout": `f1-travesia→trail1`, `f1-pelotas→trail2`, `f1-paseo→trail3`,
- * `f1-pasillo→trail4`). Named here rather than derived from `LEVELS.filter(l
- * => l.clue)` because the catalog does not carry these entries yet (design
- * unit 9 / Phase 10, S6 — `catalog.ts` is out of this slice's scope): this
- * list names the ids that slice WILL create, using the exact ids
- * `migratePhase1.ts`'s `PHASE_1_FORWARD` (Phase 9, S5) migrates progress
- * into, so this slice compiles and is fully testable today and needs no
- * edit once the catalog lands the real levels.
+ * The four detective trail ids, in play order. MOVED to `game/types.ts` in
+ * S5 (still re-exported here so this file's own existing call sites below,
+ * and every S4 test that imports it from this module, need no change):
+ * `game/migratePhase1.ts` needs the exact same list and `game/` cannot
+ * import from `screen/` without creating a cycle, since `GameScreen.tsx`
+ * itself imports the migration. See `game/types.ts` for the full doc
+ * comment (design.md "Migration / Rollout").
  */
-export const DETECTIVE_TRAIL_IDS: readonly string[] = ['trail1', 'trail2', 'trail3', 'trail4']
+export { DETECTIVE_TRAIL_IDS }
 
 /** The last detective trail — completing it is the only event that can make
  * the deduction screen reachable (design.md "Decision: deduction is a third
@@ -145,8 +145,21 @@ export interface GameScreenProps {
 }
 
 export default function GameScreen({ footer }: GameScreenProps = {}) {
-  // One store per app: reads localStorage once (App.tsx pattern).
-  const [store] = useState(() => new LevelProgressStore())
+  // One store per app: reads localStorage once (App.tsx pattern). The
+  // one-time copy-forward migration (game/migratePhase1.ts, design.md
+  // "Migration / Rollout") runs right here, inside the lazy initialiser, so
+  // it fires exactly once per store construction — including under
+  // StrictMode's double-invoke, which is harmless because the migration is
+  // idempotent by construction (a destination id already carrying a record,
+  // migrated or genuinely played, is never touched again).
+  const [store] = useState(() => {
+    const progressStore = new LevelProgressStore()
+    const migrated = migratePhase1(progressStore.all())
+    for (const [levelId, record] of Object.entries(migrated)) {
+      progressStore.save(levelId, record)
+    }
+    return progressStore
+  })
   const [state, setState] = useState<GameView>(() =>
     initialView(typeof window === 'undefined' ? '' : window.location.search),
   )
