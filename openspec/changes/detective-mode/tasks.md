@@ -31,7 +31,8 @@ zero-dependency change, so isolating it costs nothing and brings S6 to 385
 
 | Slice | Units | Files touched | ± | PR base |
 |---|---|---|---|---|
-| S1 | 1, 2 | `paths.ts`, `clues.ts` | 360 | tracker `feat/detective-mode` |
+| S1a | 1 | `paths.ts`, `paths.test.ts` | 241 actual | tracker `feat/detective-mode` |
+| S1b | 2 | `detective/clues.ts`, `.test.ts` | 227 actual | S1a branch |
 | S2 | 3, 4 | `assets.ts`, `palette.ts`, `TraceCanvas.tsx` | 307 | S1 branch |
 | S3 | 5, 6, 12 | `PistasRail.tsx`, `LevelPlay.tsx`, `icons.tsx` | 305 | S2 branch |
 | S4 | 7 | `Deduction.tsx`, `GameScreen.tsx` | 270 | S3 branch |
@@ -43,6 +44,33 @@ Tracker `feat/detective-mode` is cut from `feat/svg-letters` and stays
 draft/no-merge until S1–S7 are reviewed; only the tracker merges toward
 `feat/svg-letters` → `main`. PR 1 (S1) targets the tracker; each later PR
 targets its immediately previous PR's branch, per `chained-pr` SKILL.md.
+
+### Forecast correction after S1 (measured, not estimated)
+
+S1 forecast 360 authored code lines and delivered **468** (`paths.ts` +143,
+`paths.test.ts` +98, `clues.ts` 123, `clues.test.ts` 104). The native ledger
+counted **581** because it also counts `tasks.md` and `apply-progress.md`.
+Estimation ran **1.30x low**, so the remaining slices are re-forecast at
+`estimate x 1.30`:
+
+| Slice | Units | Forecast | Corrected |
+|---|---|---|---|
+| S2 | 3, 4 | 307 | ~400 |
+| S3 | 5, 6, 12 | 305 | ~397 |
+| S4 | 7 | 270 | ~351 |
+| S5 | 8 | 145 | ~189 |
+| S6 | 9, 10 | 385 | ~501 -> splits |
+| S7 | 11 | 22 | ~29 |
+
+Revised total ≈ **2,330** authored, against 1,794 planned.
+
+**Two budgets, kept separate.** The native `sdd-attempt` changed-line budget is
+attempt accounting and is declared generously so a correct implementation does
+not trip it; S1 tripped it at 400 and needed a maintainer decision for nothing.
+The 400 per-PR guard is the review surface and stays enforced by splitting
+commits onto their own branches, which is what S1a/S1b did and what S6 will
+need. A slice going over 400 is not a failure, it is a signal to cut another
+branch.
 
 ### Suggested Work Units
 
