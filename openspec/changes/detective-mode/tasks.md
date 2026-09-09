@@ -65,27 +65,27 @@ targets its immediately previous PR's branch, per `chained-pr` SKILL.md.
 
 ## Phase 1: Path Generators (design unit 1 — spec: level-engine R1, R2)
 
-- [ ] 1.1 In `client/src/levels/paths.ts`, add `cornerClearance(legLength, interiorDeg, w)`: closed-form `legLength − 2·(w/2)/tan(interiorDeg/2) ≥ w`.
-- [ ] 1.2 Add `triangularWave(...)`, emitting only `M`/`L`, ≥3 flattened points.
-- [ ] 1.3 Add `squareWave(...)`, emitting only `M`/`L`, ≥3 flattened points, satisfying `run ≥ 2·corridorWidth` via `cornerClearance`.
-- [ ] 1.4 `paths.test.ts`: assert command alphabet is `M`/`L` only for both generators (level-engine spec, "Generators emit only supported commands").
-- [ ] 1.5 `paths.test.ts`: assert `transformPath` throws on an injected non-`M`/`L`/`C` command (level-engine spec, "transformPath rejects an unsupported command").
-- [ ] 1.6 `paths.test.ts`: assert flattened point count ≥ 3 for both generators (level-engine spec, "Minimum point count holds").
-- [ ] 1.7 `paths.test.ts`: assert `squareWave` run length exceeds the `cornerClearance`-derived threshold for `corridorWidth = 70` (level-engine spec, "Straight run stays wider than the merge threshold"), using the worked values `run 190`, `amplitude 110`.
+- [x] 1.1 In `client/src/levels/paths.ts`, add `cornerClearance(legLength, interiorDeg, w)`: closed-form `legLength − 2·(w/2)/tan(interiorDeg/2) ≥ w`.
+- [x] 1.2 Add `triangularWave(...)`, emitting only `M`/`L`, ≥3 flattened points.
+- [x] 1.3 Add `squareWave(...)`, emitting only `M`/`L`, ≥3 flattened points, satisfying `run ≥ 2·corridorWidth` via `cornerClearance`.
+- [x] 1.4 `paths.test.ts`: assert command alphabet is `M`/`L` only for both generators (level-engine spec, "Generators emit only supported commands").
+- [x] 1.5 `paths.test.ts`: assert `transformPath` throws on an injected non-`M`/`L`/`C` command (level-engine spec, "transformPath rejects an unsupported command").
+- [x] 1.6 `paths.test.ts`: assert flattened point count ≥ 3 for both generators (level-engine spec, "Minimum point count holds").
+- [x] 1.7 `paths.test.ts`: assert `squareWave` run length exceeds the `cornerClearance`-derived threshold for `corridorWidth = 70` (level-engine spec, "Straight run stays wider than the merge threshold"), using the worked values `run 190`, `amplitude 110`.
 
-- [ ] 1.8 Document `amplitude` on both new generators as the offset from the centreline, matching the shipped contract at `paths.ts:320` ("Extrema land exactly at `y ∓ amplitude`"), so arm-to-arm gap is `2·amplitude` (design C5).
-- [ ] 1.9 Add `armClearance(amplitude, w)` asserting `2·amplitude − w ≥ 0.7·w`, the wall-to-corridor ratio the shipped spiral keeps (`catalog.ts:329`); `squareWave` must satisfy it alongside `cornerClearance`.
-- [ ] 1.10 `paths.test.ts`: assert `armClearance` passes for `w = 70, amplitude = 110` (wall 150 against a 49 threshold) (level-engine spec, "Parallel arms keep a visible wall between them").
-- [ ] 1.11 `paths.test.ts`: assert the constraint **fails** for `w = 70` with `amplitude` misread as a peak-to-peak 70, where the wall would be zero and the trail would render as one filled block (level-engine spec, "The assertion fails on a merging candidate"). A constraint test that can only pass proves nothing.
+- [x] 1.8 Document `amplitude` on both new generators as the offset from the centreline, matching the shipped contract at `paths.ts:320` ("Extrema land exactly at `y ∓ amplitude`"), so arm-to-arm gap is `2·amplitude` (design C5).
+- [x] 1.9 Add `armClearance(amplitude, w)` asserting `2·amplitude − w ≥ 0.7·w`, the wall-to-corridor ratio the shipped spiral keeps (`catalog.ts:329`); `squareWave` must satisfy it alongside `cornerClearance`.
+- [x] 1.10 `paths.test.ts`: assert `armClearance` passes for `w = 70, amplitude = 110` (wall 150 against a 49 threshold) (level-engine spec, "Parallel arms keep a visible wall between them").
+- [x] 1.11 `paths.test.ts`: assert the constraint **fails** for `w = 70` with `amplitude` misread as a peak-to-peak 70, where the wall would be zero and the trail would render as one filled block (level-engine spec, "The assertion fails on a merging candidate"). A constraint test that can only pass proves nothing.
 
 ## Phase 2: Clue Reducer (design unit 2 — spec: detective-mode R1)
 
-- [ ] 2.1 Create `client/src/detective/clues.ts`: `ClueMark`, `ClueState`, `emptyClueState(count)`.
-- [ ] 2.2 Implement `clueMarks(polyline, length, count)` via `pointAtArcLength` + `directionArrowOf`, pure.
-- [ ] 2.3 Implement `clueTick(state, head, marks, radius)`: monotone, discrete flip, no side effect on re-pass.
-- [ ] 2.4 `clues.test.ts`: a mark flips `drained → earned` in one dispatch, no intermediate state (detective-mode spec, "Mark flips exactly once as the glass passes").
-- [ ] 2.5 `clues.test.ts`: a stream of position updates while "down" yields no tween/delay/animation field, discrete values only (detective-mode spec, "No motion while the pointer is down").
-- [ ] 2.6 `clues.test.ts`: re-passing an earned mark returns an equal state and emits no event (detective-mode spec, "Re-passing an earned mark is inert").
+- [x] 2.1 Create `client/src/detective/clues.ts`: `ClueMark`, `ClueState`, `emptyClueState(count)`.
+- [x] 2.2 Implement `clueMarks(polyline, length, count)` via `pointAtArcLength` + `directionArrowOf`, pure.
+- [x] 2.3 Implement `clueTick(state, head, marks, radius)`: monotone, discrete flip, no side effect on re-pass.
+- [x] 2.4 `clues.test.ts`: a mark flips `drained → earned` in one dispatch, no intermediate state (detective-mode spec, "Mark flips exactly once as the glass passes").
+- [x] 2.5 `clues.test.ts`: a stream of position updates while "down" yields no tween/delay/animation field, discrete values only (detective-mode spec, "No motion while the pointer is down").
+- [x] 2.6 `clues.test.ts`: re-passing an earned mark returns an equal state and emits no event (detective-mode spec, "Re-passing an earned mark is inert").
 
 ## Phase 3: Asset Registry and Palette (design unit 3 — spec: detective-mode R4)
 
