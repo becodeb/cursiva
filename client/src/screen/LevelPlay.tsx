@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TraceCanvas, {
   type DrawDemo,
+  type TraceClueMark,
   type TraceCorridor,
   type TraceHazards,
 } from '../canvas/TraceCanvas'
@@ -32,6 +33,14 @@ import { directionArrowOf } from './directionArrow'
 import { goalMarkerOf } from './goalMarker'
 import type { LevelConfig } from '../levels/types'
 import type { LevelAttempt, LevelRecord } from '../game/types'
+// Detective mode (design unit 6, spec: detective-mode "Clue Collection State
+// Machine" / "Trail Completion Lamp and Rail Filing"). A level with no
+// `clue` field is an ordinary level and none of this wiring engages.
+import { clueMarks, clueTick, emptyClueState, type ClueState } from '../detective/clues'
+import { CLUE_ART } from '../detective/assets'
+import { CLUE_DRAINED } from '../detective/palette'
+import PistasRail, { type PistasSlot } from '../detective/PistasRail'
+import { BackIcon, ContinueIcon, ReplayIcon, RetryIcon } from '../detective/icons'
 
 /** Seconds one demonstration sub-path takes, and the gap before the next one. */
 const DEMO_DURATION_S = 1.6
@@ -131,7 +140,24 @@ html, body, #root { margin: 0; padding: 0; }
 .cv-title { margin: 0; font-size: 24px; font-weight: 700; color: #1e293b; text-align: right; }
 .cv-hint { flex: 0 0 auto; margin: 0; font-size: 28px; line-height: 1.3; color: #1e293b; }
 .cv-rotate { flex: 0 0 auto; display: none; margin: 0; font-size: 15px; color: #64748b; }
-.cv-sheet { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.cv-sheet { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+/* The canvas is TraceCanvas's own root svg element — no wrapper element
+ * exists to put a class on, so it is targeted structurally. It grows to
+ * fill whatever the (optional) rail beside it gives back, exactly as it did
+ * as the sole child before the rail existed (design.md "Layout": the rail
+ * is a flex sibling of the canvas, never inside the viewBox). */
+.cv-sheet > svg { flex: 1 1 auto; min-width: 0; min-height: 0; }
+
+/* PISTAS rail (design unit 5, level-engine spec "PISTAS Rail Chrome"). Fixed
+ * DOM column, 96px wide / 72px under the existing max-height:820px query;
+ * turns into a row alongside the canvas under max-height:520px (design.md
+ * "Layout"). Present only on a detective trail (LevelPlay's own branch) —
+ * every other phase's .cv-sheet keeps its single-child layout unchanged. */
+.pistas-rail { flex: 0 0 96px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.pistas-lamp-row { flex: 0 0 auto; }
+.pistas-body { display: flex; flex-direction: row; gap: 6px; align-items: flex-start; }
+.pistas-word { display: flex; flex-direction: column; gap: 2px; }
+.pistas-slots { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
 .cv-result { flex: 0 0 auto; min-height: 96px; display: flex; flex-direction: column; justify-content: center; color: #1e293b; }
 .cv-pillars { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; }
 .cv-pillar { display: inline-flex; align-items: baseline; gap: 8px; font-size: 24px; font-weight: 600; }
@@ -157,6 +183,7 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-coach { margin: 4px 0 0; font-size: 18px; }
   .cv-btn { min-height: 52px; padding: 0 22px; font-size: 18px; }
   .cv-btn-back { min-height: 48px; }
+  .pistas-rail { flex-basis: 72px; }
 }
 
 /* Short viewport: the chrome gives its room back to the canvas. Buttons stop
@@ -189,6 +216,16 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-hint { flex: 1 1 auto; min-width: 0; }
   .cv-result { flex: 0 1 auto; min-height: 0; min-width: 0; }
   .cv-actions { flex: 0 0 auto; }
+
+  /* The rail turns into a row below the canvas instead of a column beside
+   * it (design.md "Layout": short-viewport wireframe). .cv-sheet switches
+   * to a column too, which is a no-op for every non-detective level — it
+   * still has exactly one child. */
+  .cv-sheet { flex-direction: column; gap: 4px; }
+  .pistas-rail { flex: 0 0 auto; flex-direction: row; gap: 10px; }
+  .pistas-body { flex-direction: row; align-items: center; }
+  .pistas-word { flex-direction: row; gap: 4px; }
+  .pistas-slots { flex-direction: row; padding-top: 0; gap: 6px; }
 }
 `
 
@@ -347,6 +384,22 @@ export function standingHintFor(
   return 'Del punto verde hasta la meta'
 }
 
+/**
+ * Whether a trail's clue should file into the `PISTAS` rail (spec:
+ * detective-mode "Trail Completion Lamp and Rail Filing"). Rides the SAME
+ * pass/goal signal every other completion effect uses — `onRelease`'s
+ * `result.approved` — and NOTHING else. In particular it takes no argument
+ * about the clue marks' own `lit` state: a route can have every mark earned
+ * and still fail approval (wrong direction, insufficient fluency, an extra
+ * pen lift, ...), and that MUST NOT file the clue (spec scenario "Filing is
+ * refused mid-trace", D5, `docs/05:14`). Pure and exported — like
+ * `guideLevelFor`/`standingHintFor` above — so the decision is testable
+ * without simulating a pointer release.
+ */
+export function shouldFileClue(hasClueTrail: boolean, approved: boolean): boolean {
+  return hasClueTrail && approved
+}
+
 /** One of the three pillars (docs/03 §7): a star, a name, and a raw value —
  * shown side by side and NEVER averaged into a single grade. */
 function Pillar({
@@ -382,6 +435,17 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   const grid = useMemo(
     () => buildIdealGrid(target.ideal, target.corridorWidth, target.viewBoxWidth),
     [target.ideal, target.corridorWidth, target.viewBoxWidth],
+  )
+
+  // Detective mode (design unit 6). `level.clue` is the sole discriminator
+  // (`levels/types.ts`) — its absence means an ordinary level, and every
+  // branch below stays a no-op. `f1-libre` omits it on purpose (task 10.5),
+  // same as every level authored before this change.
+  const isDetectiveTrail = !!level.clue
+  const clueDef = level.clue
+  const trailClueMarks = useMemo(
+    () => (clueDef ? clueMarks(target.polyline, target.length, clueDef.count, clueDef.kind) : []),
+    [clueDef, target.polyline, target.length],
   )
 
   // One demonstration per sub-path, played in sequence (docs/08 §5).
@@ -430,6 +494,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   const offPathRef = useRef(false)
   const lastCheckRef = useRef(0)
   const contactRef = useRef<ResetDebounce>(NO_CONTACT)
+  // A trail's marks lit so far this run (drained → earned, `clueTick`), and
+  // whether its ONE clue has been filed into the rail. Filing rides
+  // `onRelease`'s existing approval signal — never the marks alone (spec
+  // scenario "Filing is refused mid-trace", D5): all marks earned but the
+  // route not completed must leave both of these exactly where they started.
+  const [clueState, setClueState] = useState<ClueState>(() => emptyClueState(clueDef?.count ?? 0))
+  const [clueFiled, setClueFiled] = useState(false)
 
   const resetSurface = useCallback((): void => {
     setAttempt(null)
@@ -442,11 +513,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   }, [])
 
   // A new level starts its own flow: demo first when the level asks for one AND
-  // the child is still in the full-guide band.
+  // the child is still in the full-guide band. A trail's clue state and filed
+  // flag belong to THIS run — a fresh level (or a restart of the same one via
+  // `level.id` staying put but `clueDef` changing is not possible, so this
+  // effect is the one place they reset) starts every mark drained again.
   useEffect(() => {
     setPhase(playDemo ? 'demo' : 'ready')
     resetSurface()
-  }, [level.id, playDemo, resetSurface])
+    setClueState(emptyClueState(clueDef?.count ?? 0))
+    setClueFiled(false)
+  }, [level.id, playDemo, resetSurface, clueDef?.count])
 
   useEffect(() => {
     if (phase !== 'demo') return
@@ -555,10 +631,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     toneRef.current?.setActive(false)
     setResetSignal((n) => n + 1)
     setRestarted(true)
+    // The route itself is starting over, so any clue marks lit during the
+    // abandoned pass go with it — the child will pass them again on the way
+    // back through. The FILED rail clue is untouched: filing only ever
+    // happens on a completed, approved trail (below), never mid-run, so
+    // there is nothing here for a contact restart to undo.
+    if (clueDef) setClueState(emptyClueState(clueDef.count))
     // `false → true` forces exactly one pulse through the same edge rule the
     // off-path channel uses, so a restart can never turn into a buzzing nag.
     if (feedback.haptics) pulseOnLeaving(false, true)
-  }, [feedback.haptics])
+  }, [feedback.haptics, clueDef])
 
   // The cue is a passing line, not a state the child has to dismiss.
   useEffect(() => {
@@ -606,6 +688,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         offPathRef.current = out
         setOffPath(out)
       }
+      // Detective mode's clue marks ride this SAME 10 Hz sample (design.md
+      // "The rAF loop is not touched"; spec "Clue Collection State Machine")
+      // — no second cloud scan. `clueTick` is monotone and returns the exact
+      // same state reference when nothing flips, so an idle re-pass costs a
+      // no-op setState.
+      if (clueDef && trailClueMarks.length > 0) {
+        setClueState((prev) => clueTick(prev, head, trailClueMarks, target.corridorWidth))
+      }
       // Reset on contact rides THIS SAME sample. The wall answer is the `out`
       // already computed above and the hazard answer is one point-in-circle
       // test per obstacle — no second cloud scan, which is the rule docs/02
@@ -619,7 +709,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         if (next.reset) restartRun()
       }
     },
-    [grid, target, feedback.tone, feedback.haptics, resetOnContact, restartRun],
+    [
+      grid,
+      target,
+      feedback.tone,
+      feedback.haptics,
+      resetOnContact,
+      restartRun,
+      clueDef,
+      trailClueMarks,
+    ],
   )
 
   // Every release re-evaluates the WHOLE stroke set: on a continuous level the
@@ -639,9 +738,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       setAttempt(result)
       setPhase('result')
       if (result.approved) playApprovalTone() // best-effort, approval only
+      // Trail completion lamp and rail filing (spec: detective-mode "Trail
+      // Completion Lamp and Rail Filing"). Filed only ever flips false → true.
+      if (shouldFileClue(!!clueDef, result.approved)) setClueFiled(true)
       onAttempt(result)
     },
-    [target, onAttempt],
+    [target, onAttempt, clueDef],
   )
 
   const replayDemo = (): void => {
@@ -689,23 +791,68 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     [target.ideal, target.corridorWidth],
   )
 
+  // Canvas clue layer (design unit 4, already shipped in `TraceCanvas`):
+  // colour is resolved HERE, never inside the canvas component (design.md
+  // "colour already resolved by the caller"). Drained until `clueTick` says
+  // otherwise, then the trail's own registered colour.
+  const traceClueMarks = useMemo<TraceClueMark[]>(() => {
+    if (!clueDef) return []
+    const art = CLUE_ART[clueDef.kind]
+    return trailClueMarks.map((mark, idx) => ({
+      x: mark.x,
+      y: mark.y,
+      angle: mark.angle,
+      d: art.d,
+      paint: art.paint,
+      color: clueState.lit[idx] ? art.earned : CLUE_DRAINED,
+      scale: 1,
+    }))
+  }, [clueDef, trailClueMarks, clueState])
+
+  // The rail's slot data. This slice only has visibility into the CURRENT
+  // trail — the other three trails' persisted state is wired once the
+  // catalog and `LevelProgressStore` are in scope (a later slice; see the
+  // deviation note in apply-progress.md). `PistasRail` pads the remaining
+  // slots with drained placeholders on its own.
+  const railSlots = useMemo<PistasSlot[]>(
+    () => (clueDef ? [{ kind: clueDef.kind, filed: clueFiled }] : []),
+    [clueDef, clueFiled],
+  )
+
   return (
     <main className="cv-play">
       <style>{LAYOUT_CSS}</style>
       <div className="cv-top">
       <header className="cv-head">
-        <button type="button" onClick={onBack} className="cv-btn cv-btn-back">
-          ‹ Volver
+        <button
+          type="button"
+          onClick={onBack}
+          className="cv-btn cv-btn-back"
+          aria-label={isDetectiveTrail ? 'Volver' : undefined}
+        >
+          {isDetectiveTrail ? <BackIcon /> : '‹ Volver'}
         </button>
-        <h1 className="cv-title">
-          Fase {level.phase} · {level.title}
-        </h1>
+        {/* No level title on a detective trail (Orchestrator Correction C1:
+         * "Hace todo bien grande, bien simple la pantalla, sin texto"). Every
+         * other phase keeps this heading exactly as shipped — this is a
+         * branch, not a removal. */}
+        {!isDetectiveTrail && (
+          <h1 className="cv-title">
+            Fase {level.phase} · {level.title}
+          </h1>
+        )}
       </header>
-      <p className="cv-hint">{level.hint}</p>
+      {/* The standing hint sentence is also suppressed (C1) — a detective
+       * trail's instruction is SHOWN via `demo` (`TraceCanvas.tsx:747`),
+       * never written. */}
+      {!isDetectiveTrail && <p className="cv-hint">{level.hint}</p>}
       </div>
       {/* Upright phones are width-limited and rotating really is the fix, so
-       * the screen says it plainly and keeps playing (docs/04 §3.3). */}
-      <p className="cv-rotate">Girá el dispositivo para dibujar más grande.</p>
+       * the screen says it plainly and keeps playing (docs/04 §3.3). Also
+       * suppressed on a detective trail — the brief's "sin texto" is literal. */}
+      {!isDetectiveTrail && (
+        <p className="cv-rotate">Girá el dispositivo para dibujar más grande.</p>
+      )}
       <div className="cv-sheet">
       <TraceCanvas
         key={`${level.id}-${demoRun}`}
@@ -777,58 +924,85 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         carrier={level.carrier && startMarker ? startMarker : undefined}
         // Any bump restarts the run (docs/01 principle 2).
         resetSignal={resetOnContact ? resetSignal : undefined}
+        // Clue marks (design unit 4/6). Absent on every level without a
+        // `clue` config, so the surface pays nothing for the feature.
+        clues={clueDef ? { marks: traceClueMarks } : undefined}
         onStart={onStart}
         onFrame={onFrame}
         onRelease={onRelease}
       />
+      {/* PISTAS rail (design unit 5, level-engine spec "PISTAS Rail Chrome"):
+       * a flex sibling of the canvas, never inside its viewBox. Present only
+       * on a detective trail. */}
+      {isDetectiveTrail && <PistasRail slots={railSlots} lampOn={clueFiled} />}
       </div>
       <div className="cv-foot">
-      <section aria-label="Resultado del intento" className="cv-result">
-        {attempt ? (
-          <>
-            <div className="cv-pillars">
-              <Pillar
-                label="Precisión"
-                value={String(attempt.accuracy)}
-                filled={attempt.accuracy >= level.rules.minAccuracy}
-              />
-              <Pillar
-                label="Sentido"
-                value={attempt.directionOk && !attempt.wrongDirection ? '✓' : '→'}
-                filled={attempt.directionOk && !attempt.wrongDirection}
-              />
-              <Pillar
-                label="Fluidez"
-                value={fluencyEvaluated ? String(attempt.fluency) : '—'}
-                filled={fluencyEvaluated && attempt.fluency >= level.rules.minFluency}
-                muted={!fluencyEvaluated}
-              />
-            </div>
-            <p className="cv-coach">{coachMessage(attempt)}</p>
-          </>
-        ) : (
-          // The restart cue takes the standing hint's place for a moment. Same
-          // muted slate as every other neutral line on this screen — never red,
-          // and never a different, louder kind of text (docs/01 principle 2).
-          <p
-            className="cv-coach"
-            role={restarted ? 'status' : undefined}
-            style={{ color: '#64748b' }}
-          >
-            {restarted ? RESTART_MESSAGE : standingHintFor(level, guideLevel, phase === 'demo')}
-          </p>
-        )}
-      </section>
+      {/* Pillars and coach copy (accuracy/direction/fluency readouts, the
+       * restart cue, the standing hint) are all suppressed on a detective
+       * trail (C1: no coach or pillar copy). Every other phase's result
+       * section is untouched. */}
+      {!isDetectiveTrail && (
+        <section aria-label="Resultado del intento" className="cv-result">
+          {attempt ? (
+            <>
+              <div className="cv-pillars">
+                <Pillar
+                  label="Precisión"
+                  value={String(attempt.accuracy)}
+                  filled={attempt.accuracy >= level.rules.minAccuracy}
+                />
+                <Pillar
+                  label="Sentido"
+                  value={attempt.directionOk && !attempt.wrongDirection ? '✓' : '→'}
+                  filled={attempt.directionOk && !attempt.wrongDirection}
+                />
+                <Pillar
+                  label="Fluidez"
+                  value={fluencyEvaluated ? String(attempt.fluency) : '—'}
+                  filled={fluencyEvaluated && attempt.fluency >= level.rules.minFluency}
+                  muted={!fluencyEvaluated}
+                />
+              </div>
+              <p className="cv-coach">{coachMessage(attempt)}</p>
+            </>
+          ) : (
+            // The restart cue takes the standing hint's place for a moment. Same
+            // muted slate as every other neutral line on this screen — never red,
+            // and never a different, louder kind of text (docs/01 principle 2).
+            <p
+              className="cv-coach"
+              role={restarted ? 'status' : undefined}
+              style={{ color: '#64748b' }}
+            >
+              {restarted ? RESTART_MESSAGE : standingHintFor(level, guideLevel, phase === 'demo')}
+            </p>
+          )}
+        </section>
+      )}
       <nav aria-label="Acciones" className="cv-actions">
-        <button type="button" onClick={clearAttempt} className="cv-btn">
-          Borrar
+        <button
+          type="button"
+          onClick={clearAttempt}
+          className="cv-btn"
+          aria-label={isDetectiveTrail ? 'Borrar' : undefined}
+        >
+          {isDetectiveTrail ? <RetryIcon /> : 'Borrar'}
         </button>
         {playDemo && (
-          <button type="button" onClick={replayDemo} className="cv-btn">
-            Ver de nuevo
+          <button
+            type="button"
+            onClick={replayDemo}
+            className="cv-btn"
+            aria-label={isDetectiveTrail ? 'Ver de nuevo' : undefined}
+          >
+            {isDetectiveTrail ? <ReplayIcon /> : 'Ver de nuevo'}
           </button>
         )}
-        {level.showGuide && earnedGuideLevel !== 'full' && !guideRequested && (
+        {/* Structurally unreachable on a detective trail anyway — phase 1
+         * always resolves `earnedGuideLevel` to 'full' (`guideLevelFor`), so
+         * this never renders for it. Gated on `isDetectiveTrail` too as
+         * belt-and-braces against a future change to that rule. */}
+        {!isDetectiveTrail && level.showGuide && earnedGuideLevel !== 'full' && !guideRequested && (
           <button type="button" onClick={() => setGuideRequested(true)} className="cv-btn">
             Ver la guía
           </button>
@@ -838,8 +1012,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           onClick={onNext}
           disabled={!attempt?.approved}
           className={`cv-btn ${attempt?.approved ? 'cv-btn-ok' : 'cv-btn-off'}`}
+          aria-label={isDetectiveTrail ? 'Siguiente' : undefined}
         >
-          Siguiente
+          {isDetectiveTrail ? <ContinueIcon /> : 'Siguiente'}
         </button>
       </nav>
       </div>

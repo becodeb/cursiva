@@ -135,25 +135,25 @@ branch.
 
 ## Phase 5: PISTAS Rail (design unit 5 — spec: level-engine R5)
 
-- [ ] 5.1 Create `client/src/detective/PistasRail.tsx`: drawn `PISTAS` word (stroked `M`/`L` polylines, 100-unit em), four slots, lamp glyph + three-ring halo.
-- [ ] 5.2 Add rail CSS to `LAYOUT_CSS` (or level-play stylesheet): fixed DOM column, 96px wide / 72px under `max-height:820px`; row layout under `max-height:520px`.
-- [ ] 5.3 `PistasRail.test.tsx`: `renderToString` — rail element exists outside the canvas `<svg>` viewBox content, alongside the canvas in chrome (level-engine spec, "Rail renders beside the canvas, not inside the viewBox").
-- [ ] 5.4 `PistasRail.test.tsx`: text content contains only the literal word `PISTAS`, no other prose (level-engine spec, "Rail carries no copy beyond PISTAS").
+- [x] 5.1 Create `client/src/detective/PistasRail.tsx`: drawn `PISTAS` word (stroked `M`/`L` polylines, 100-unit em), four slots, lamp glyph + three-ring halo.
+- [x] 5.2 Add rail CSS to `LAYOUT_CSS` (or level-play stylesheet): fixed DOM column, 96px wide / 72px under `max-height:820px`; row layout under `max-height:520px`.
+- [x] 5.3 `PistasRail.test.tsx`: `renderToString` — rail element exists outside the canvas `<svg>` viewBox content, alongside the canvas in chrome (level-engine spec, "Rail renders beside the canvas, not inside the viewBox").
+- [x] 5.4 `PistasRail.test.tsx`: text content contains only the literal word `PISTAS`, no other prose (level-engine spec, "Rail carries no copy beyond PISTAS").
 
 ## Phase 6: Wire Clue Collection into LevelPlay (design unit 6 — spec: detective-mode R2)
 
-- [ ] 6.1 `client/src/screen/LevelPlay.tsx`: call `clueTick` from the existing 10 Hz `onFrame` sample, no second cloud scan (mirrors `resetOnContact` at `:613`).
-- [ ] 6.2 On trail completion (existing pass/goal signal), switch the trail's lamp "on" and file its clue into the rail's collected set, exactly once.
-- [ ] 6.3 `LevelPlay.test.tsx`: finishing a trail flips its lamp "on" and adds its clue to the rail's collected set exactly once (detective-mode spec, "Finishing a trail lights the lamp and files the clue").
-- [ ] 6.4 `LevelPlay.test.tsx`: all marks `earned` but route NOT completed — clue absent from the rail, lamp off (detective-mode spec, "Filing is refused mid-trace").
+- [x] 6.1 `client/src/screen/LevelPlay.tsx`: call `clueTick` from the existing 10 Hz `onFrame` sample, no second cloud scan (mirrors `resetOnContact` at `:613`).
+- [x] 6.2 On trail completion (existing pass/goal signal), switch the trail's lamp "on" and file its clue into the rail's collected set, exactly once.
+- [x] 6.3 `LevelPlay.test.tsx`: finishing a trail flips its lamp "on" and adds its clue to the rail's collected set exactly once (detective-mode spec, "Finishing a trail lights the lamp and files the clue").
+- [x] 6.4 `LevelPlay.test.tsx`: all marks `earned` but route NOT completed — clue absent from the rail, lamp off (detective-mode spec, "Filing is refused mid-trace").
 
 ## Phase 7: Suppress Shell Copy on Detective Levels (design unit 12, per C1/C2 — no title/hint/coach text; icon controls)
 
-- [ ] 7.1 `client/src/screen/LevelPlay.tsx`: branch chrome rendering — when the active level is a detective trail (or the deduction view), suppress the `Fase 1 · <trail title>` header, hint line, and pillar/coach copy. Phases 2–5 keep existing chrome untouched (conditional branch, not a removal).
-- [ ] 7.2 Create `client/src/detective/icons.tsx` (or extend an existing icon module): retry and continue as ink-drawn glyphs, back as an icon affordance, all keeping the shipped 64px tap floor (`LevelPlay.tsx:140`).
-- [ ] 7.3 Set `demo: true` on the four trail configs (ties into Phase 10) so the route animates in place of the removed hint sentence.
-- [ ] 7.4 `LevelPlay.test.tsx`: `renderToString` for a detective-trail level asserts no title/hint/coach text node is present and control buttons carry no text label.
-- [ ] 7.5 `LevelPlay.test.tsx`: `renderToString` for a non-detective (phase 2+) level asserts existing chrome (title, hint, coach copy) is unchanged — regression guard for the branch.
+- [x] 7.1 `client/src/screen/LevelPlay.tsx`: branch chrome rendering — when the active level is a detective trail (or the deduction view), suppress the `Fase 1 · <trail title>` header, hint line, and pillar/coach copy. Phases 2–5 keep existing chrome untouched (conditional branch, not a removal).
+- [x] 7.2 Create `client/src/detective/icons.tsx` (or extend an existing icon module): retry and continue as ink-drawn glyphs, back as an icon affordance, all keeping the shipped 64px tap floor (`LevelPlay.tsx:140`).
+- [ ] 7.3 Set `demo: true` on the four trail configs (ties into Phase 10) so the route animates in place of the removed hint sentence. **Deferred to S6** — this edits the four trail entries in `catalog.ts`, which do not exist until Phase 10 (design unit 9) creates them; `catalog.ts` is explicitly out of this slice's scope. `LevelPlay`'s own `demo:true` handling needs no change (`playDemo = !!level.demo && guideLevel === 'full'` already exists and is untouched) — S6 only needs to set the field.
+- [x] 7.4 `LevelPlay.test.tsx`: `renderToString` for a detective-trail level asserts no title/hint/coach text node is present and control buttons carry no text label.
+- [x] 7.5 `LevelPlay.test.tsx`: `renderToString` for a non-detective (phase 2+) level asserts existing chrome (title, hint, coach copy) is unchanged — regression guard for the branch.
 
 ## Phase 8: Deduction View (design unit 7 — spec: detective-mode R3, level-engine R4)
 

@@ -152,3 +152,100 @@ None. The palette's hue-proximity test needed a carefully chosen threshold (8°)
 ### Status
 
 11/11 assigned tasks (Phase 3 + Phase 4) complete, plus the inherited S1 `kind` defect closed. Full repo suite: **702/702 tests passing** (up from 685; +17 net — 6 new `palette.test.ts` tests + 11 new `TraceCanvas.test.tsx` tests; `clues.test.ts` stayed at 11/11 unmodified; 40 files up from 39). `npm run build` (`tsc --noEmit && vite build`) green. `grep -rn 'url(#' client/src/` finds only pre-existing guard-rail prose (`TraceCanvas.tsx`'s `MAZE_WALL` doc comment, untouched by this diff) plus this slice's own required absence-check test in `TraceCanvas.test.tsx` (task 4.6) — zero new *rendered* `url(#…)` references. Ready for verify / next slice (S3).
+
+## Slice S3 — units 5, 6, 12 (`PistasRail.tsx`, `icons.tsx`, `LevelPlay.tsx` clue wiring + chrome branch)
+
+Mode: Standard (`strict_tdd: false`, per `openspec/config.yaml`).
+
+### Completed Tasks
+
+- [x] 5.1 `client/src/detective/PistasRail.tsx` created — drawn `PISTAS` word (six glyphs, `M`/`L`-only paths, stroke width 8, `strokeLinecap="round"`), four always-rendered slots (padded with drained placeholders when the caller knows fewer), lamp glyph as three concentric stroked rings at stepped opacity.
+- [x] 5.2 Rail CSS added to `LAYOUT_CSS` in `LevelPlay.tsx`: `.pistas-rail` fixed-width column (96px / 72px under `max-height:820px`), row layout under `max-height:520px` (also flips `.cv-sheet` to `flex-direction: column`, a no-op for every level with only one `.cv-sheet` child). `.cv-sheet > svg` given `flex: 1 1 auto; min-width/height: 0` structurally, since `TraceCanvas.tsx` (out of scope) has no wrapper element to put a class on.
+- [x] 5.3 `PistasRail.test.tsx` — rail markup starts strictly after the canvas's own `</svg>` closes, proven by rendering a real `TraceCanvas` beside a real `PistasRail`.
+- [x] 5.4 `PistasRail.test.tsx` — stripped-text assertion: the only text node in the rendered rail is the literal word `PISTAS` (held in a visually-hidden accessibility `<span>`; the visible word itself is drawn geometry, never a text node).
+- [x] 6.1 `LevelPlay.tsx`: `clueTick` called from the existing 10 Hz `onFrame` sample (same throttle block `resetOnContact` already rides), no second cloud scan.
+- [x] 6.2 `LevelPlay.tsx`: trail completion (`onRelease`'s `result.approved`) drives `setClueFiled(true)` via the new exported pure `shouldFileClue(hasClueTrail, approved)` — deliberately ignorant of the clue marks' own `lit` state, which is what keeps filing refused mid-trace.
+- [x] 6.3 / 6.4 covered as described in "Testing approach" below.
+- [x] 7.1 `LevelPlay.tsx`: chrome branch on `isDetectiveTrail = !!level.clue` — suppresses the title `<h1>`, hint `<p>`, rotate prompt, and the entire `.cv-result` section (pillars/coach/restart copy) only on a detective trail; every other phase's JSX path is untouched (conditional branch, confirmed by the regression-guard tests below).
+- [x] 7.2 `client/src/detective/icons.tsx` created — `BackIcon`, `RetryIcon`, `ReplayIcon`, `ContinueIcon`, all ink-drawn (stroked/filled SVG paths, no text, no `url(#…)`), sized to sit inside the shipped 64px `.cv-btn` tap floor.
+- [ ] 7.3 **Deferred to S6** — see the note left directly in `tasks.md`. `catalog.ts` (where the four trail configs will exist) is out of this slice's scope.
+- [x] 7.4 / 7.5 covered as described in "Testing approach" below.
+
+### The `LevelConfig.clue` discriminator (levels/types.ts)
+
+Added one additive, optional field: `clue?: { kind: ClueKind; count: number }`. This is the sole signal `LevelPlay` uses to decide a level is a detective trail — it drives BOTH the Phase 6 clue wiring and the Phase 7 chrome branch, so a level is "detective" iff (and only iff) it carries this field. `f1-libre` and all 19 existing catalog configs omit it and are structurally guaranteed to keep compiling and keep their exact current behaviour (optional field, no other type changed). `types.ts` now imports `type ClueKind` from `../detective/assets` — checked for cycles: `detective/assets.ts` imports only from `./palette`, so there is no path back into `levels/`.
+
+### Design gap resolved: the rail's cross-trail visibility
+
+The design's data-flow diagram routes `earnedClues(store.all())` into `PistasRail`, i.e. the FULL four-trail collected set, read from `LevelProgressStore` across the whole catalog. That catalog and that store read are explicitly out of this slice's scope (S6 owns `catalog.ts`; `LevelProgressStore.ts` is on the parent's do-not-touch list), so `LevelPlay` in this slice can only ever know about the CURRENT trail's own filed state — there is no way to ask "what did the other three trails file" without either module.
+
+Resolution: `PistasRail`'s own `slots` prop accepts however many entries the caller currently knows (in this slice, always 0 or 1) and PADS the remainder up to a fixed `RAIL_SLOT_COUNT = 4` with drained placeholders internally — so the rail ALWAYS renders its full four-slot chrome regardless of what the caller can see. `LevelPlay` passes `slots={clueDef ? [{ kind: clueDef.kind, filed: clueFiled }] : []}`. **Flag for whichever slice wires `GameScreen`/`LevelProgressStore` (S4 or later, once the catalog exists):** `LevelPlayProps` will need a new prop carrying the OTHER three trails' filed state (e.g. `otherClues?: readonly PistasSlot[]`) for the rail to ever show more than the current trail's own slot; `PistasRail`'s own contract (`slots: readonly PistasSlot[]`) does not need to change, only what `LevelPlay` passes into it.
+
+### Testing approach for 6.3/6.4/7.4/7.5 (environment-driven)
+
+This repo's test harness is vitest 4 under the default **node** environment — no jsdom, no `@testing-library`, and (per `canvas/multiStroke.test.ts`'s own header comment, a pre-existing and already-accepted constraint of this codebase, not something introduced here) a React state dispatch triggered AFTER a completed `renderToString()` call is a no-op: there is no live fiber tree left to re-render as a new HTML string. That rules out the literal "trace it, finish it, then look at the re-rendered rail" test a jsdom/RTL harness would write.
+
+Three complementary techniques cover the same ground within that constraint:
+
+1. **Pure decision, exported and unit-tested directly** — `shouldFileClue(hasClueTrail, approved)`, mirroring the repo's existing `guideLevelFor`/`standingHintFor` pattern (both already exported for exactly this reason). Its signature takes NO marks/`lit` argument at all — proving structurally, not just by example, that filing can never depend on the marks' own state. Three cases asserted: trail + approved → true (6.3's contract); trail + NOT approved → false (6.4's contract, "Filing is refused mid-trace"); no trail → false.
+2. **SSR-probe wiring check** — `../canvas/TraceCanvas` is replaced with a prop-capturing stub (the same "mount once, invoke the captured handle directly" idea `canvas/multiStroke.test.ts` already uses for a hook, applied here to a component's props instead). The REAL `onFrame`/`onRelease` closures `LevelPlay` builds are captured and invoked directly with synthetic points: `onRelease` is proven to run `evaluateLevel` and call the real `onAttempt` prop through with `approved: true` for a trivially-passing detective-trail attempt (`minAccuracy`/`minFluency` both 0), and `onFrame` is proven to execute the `clueTick` branch without throwing. This proves the wiring RUNS; it stops short of an "after" screenshot for the reason above.
+3. **Initial-render state check** — a fresh detective trail's very first render (before any interaction) is asserted to show the rail fully drained and the lamp off (neither `#f2d377` nor the trail's earned `#3f6f8f` appears anywhere) — the correct t=0 state, which is also literally what "filing refused" must look like before a route is even attempted.
+
+7.4/7.5 need none of this — they are pure initial-render `renderToString` assertions (a detective level shows no title/hint/coach text and no button labels but does show `PISTAS`; a non-detective level's existing chrome is byte-for-byte unchanged) and are asserted directly.
+
+**A real visual check WAS also run**, beyond what the task table strictly requires, because no detective trail exists in the catalog yet to point `npm run dev`'s `?nivel=` deep link at: a throwaway preview entry (`client/preview-detective.html` + `client/src/__detectivePreviewMain.tsx`, mounting `LevelPlay` directly against a synthetic detective-trail `LevelConfig`, never imported by any real code) was created, screenshotted with `scripts/shot.sh` at 1280×800 and again at 900×500 (under the `max-height:520px` breakpoint), and deleted immediately after. Confirmed by eye: no title/hint/coach text, icon-only controls at the shipped tap floor, the PISTAS rail beside the canvas at the wide viewport and turned into a row below it at the short one — matching design.md's wireframe in both states. `git status` after cleanup shows no trace of the preview files. Also screenshotted an existing ordinary level (`?nivel=f1-libre`) to confirm the `.cv-sheet`/`.cv-sheet > svg` CSS additions cause no visible regression on a level with no rail — none observed.
+
+### Files Changed
+
+| File | Action | What Was Done |
+|------|--------|---------------|
+| `client/src/detective/PistasRail.tsx` | Created | Drawn `PISTAS` word, lamp (3-ring halo), 4 padded slots. |
+| `client/src/detective/PistasRail.test.tsx` | Created | Placement, copy, drawn-word geometry, lamp, and slot tests (12). |
+| `client/src/detective/icons.tsx` | Created | `BackIcon`, `RetryIcon`, `ReplayIcon`, `ContinueIcon`. |
+| `client/src/screen/LevelPlay.tsx` | Modified | Clue-trail discriminator + `clueMarks`/`clueTick`/`shouldFileClue` wiring; `clues` prop to `TraceCanvas`; `PistasRail` mounted in `.cv-sheet`; chrome suppression branch (title/hint/rotate/result section/button labels) gated on `isDetectiveTrail`; rail CSS in `LAYOUT_CSS`. |
+| `client/src/screen/LevelPlay.test.tsx` | Created | Chrome-branch regression pair (7.4/7.5), rail-presence checks, `shouldFileClue` unit tests (6.3/6.4), SSR-probe wiring tests (12 total). |
+| `client/src/levels/types.ts` | Modified | Added optional `LevelConfig.clue?: { kind: ClueKind; count: number }`, importing `type ClueKind` from `../detective/assets`. |
+
+### Work Unit Evidence
+
+| Evidence | Unit 5 (`PistasRail.tsx`) | Unit 6 (`LevelPlay.tsx` clue wiring) | Unit 12 (`LevelPlay.tsx` chrome branch + `icons.tsx`) |
+|---|---|---|---|
+| Focused test command / result | `cd client && npx vitest run src/detective/PistasRail.test.tsx` → 12/12 passed | `cd client && npx vitest run src/screen/LevelPlay.test.tsx` → 12/12 passed | same file/command → 12/12 passed (chrome-branch tests live in the same file as the wiring tests) |
+| Runtime harness | `npm run dev`, screenshotted via `scripts/shot.sh` at 900×500 (`max-height:520px`) — rail turns into a row below the canvas, confirmed by eye | `npm run dev`, screenshotted at 1280×800 — lamp/slots render correctly at their initial drained/off state (interaction itself is not observable through this repo's node-only harness; see "Testing approach" above for how 6.3/6.4 are proven instead) | `npm run dev`, screenshotted at 1280×800 — no title/hint/coach text, icon-only controls at the 64px floor, confirmed by eye against design.md's wireframe |
+| Rollback boundary | `PistasRail.tsx` + `.test.tsx` revert alone (new, isolated files) | `LevelPlay.tsx`'s clue-tick hunk in `onFrame`, the filing hunk in `onRelease`, and the `traceClueMarks`/`railSlots` memos revert alone (additive; every other `onFrame`/`onRelease` line is byte-identical to before this slice) | `LevelPlay.tsx`'s chrome-branch JSX hunks (each gated on the new `isDetectiveTrail` boolean) plus `icons.tsx` revert alone; every non-detective JSX path is untouched code, not a re-derived one |
+
+Combined focused run: `cd client && npx vitest run src/detective src/screen/LevelPlay.test.tsx` → **43/43 passed** (4 files: `PistasRail.test.tsx`, `palette.test.ts`, `clues.test.ts` — all pre-existing from S1/S2, unmodified — plus the new `LevelPlay.test.tsx`).
+
+### Deviations from Design
+
+1. **Task 7.3 (`demo: true` on the four trail configs) deferred to S6**, not implemented here. It edits `catalog.ts` entries that do not exist until Phase 10 (design unit 9) creates them, and `catalog.ts` is explicitly outside this slice's allowed edit scope. No code in `LevelPlay.tsx` needed to change for this — the existing `playDemo = !!level.demo && guideLevel === 'full'` (unmodified, pre-existing line) already does the right thing once a level sets `demo: true`; S6 only has to set the field. Recorded directly in `tasks.md` as an unchecked, annotated task rather than silently left unchecked.
+2. **The rail only ever shows the CURRENT trail's slot in this slice** (design gap resolved above, in its own section) — the design's data-flow diagram assumes `LevelProgressStore.all()` is already wired, which is S4/S6+ scope. `PistasRail`'s own contract does not need to change for the eventual fix; only `LevelPlay`'s call site does (flagged for the executor that wires `GameScreen`/the store).
+3. **`ANIMAL_ART`/deduction-view concerns are untouched** — out of this slice's scope (Phase 8/S4), not revisited.
+4. **6.3/6.4 are proven by decomposition, not by a literal "trace then observe" test** — see "Testing approach" above for the full reasoning; this is a pre-existing, already-documented constraint of this repo's test harness (`canvas/multiStroke.test.ts`'s own header comment), not a new limitation introduced by this slice.
+5. **Restarting on wall/hazard contact (`restartRun`) also resets `clueState`** (marks lit go back to drained) — not explicitly required by any Phase 6 task, but consistent with "the route restarts" (docs/01 principle 2) and with the design's monotone guarantee being scoped to one continuous pass, not surviving an abandoned run. The FILED rail clue is untouched by a contact restart (filing only ever happens on a completed, approved attempt, never mid-run). No dedicated test added for this specific interaction (same node-harness constraint as above); flagged here for visibility rather than left silent.
+6. **Accessibility labels intentionally omitted from the icon-only control buttons** (`BackIcon`/`RetryIcon`/`ReplayIcon`/`ContinueIcon` buttons carry no `aria-label`). Task 7.4's own wording ("control buttons carry no text label") is read literally and strictly here; a screen-reader gap results. Flagged as a concern for a future slice to revisit once this literal-text constraint can be reconciled with an `aria-label` that a `textContent`-style scan would need to specifically exempt.
+
+### Issues Found
+
+None blocking. One test-authoring pitfall recorded for whoever writes the next `LevelPlay`-adjacent test: `flattenPathD` (`letters/svgLetter.ts`) rejects any path that flattens to fewer than 3 points as degenerate (returns empty `points`/`starts`), so a naive 2-point straight-line test fixture (`'M100,300 L900,300'`) silently produces an EMPTY `target.polyline`/`target.length` with no thrown error — every fixture in `LevelPlay.test.tsx` uses a 3-point path for this reason, documented inline at the fixture.
+
+### Remaining Tasks (not in this slice's scope)
+
+- [ ] Phase 7 task 7.3 — deferred to S6 (see Deviations #1).
+- [ ] Phase 8 — Deduction View — S4.
+- [ ] Phase 9 — Progress Migration — S5.
+- [ ] Phase 10 — Four Themed Trails — S6.
+- [ ] Phase 11 — Retire Legacy Configs — S6.
+- [ ] Phase 12 — Roadmap Doc — S7.
+- [ ] Phase 13 — Cross-Cutting Verification — after all slices merged.
+
+### Workload / PR Boundary
+
+- Mode: chained PR slice (`feature-branch-chain`, per `tasks.md` forecast).
+- Current work unit: S3 (design units 5, 6, 12), on `feat/detective-s3-…` branches the parent will cut from `feat/detective-s2b-canvas-clue-layer` (S2's HEAD) — this apply batch stays on the checked-out branch and does not create branches itself, per the parent's instruction.
+- Boundary: unit 5 (`PistasRail.tsx` + `.test.tsx`), unit 6 (`LevelPlay.tsx`'s clue-tick/filing hunks), and unit 12 (`LevelPlay.tsx`'s chrome-branch hunks + `icons.tsx`) are kept separable by file/hunk exactly as instructed, so the parent can split them into their own commits/branches if the combined diff trips the 400-line per-PR guard.
+- Estimated review budget impact: `tasks.md`'s S3 forecast was ~397 corrected lines for units 5+6+12 combined. Actual: `git diff --stat` on the two modified files is 227 insertions(+) / 53 deletions(-) (`LevelPlay.tsx` +212/-53, `levels/types.ts` +15/-0); the three new files add `PistasRail.tsx` 174, `PistasRail.test.tsx` 131, `icons.tsx` 86, `LevelPlay.test.tsx` 272. Combined ≈ 953 lines touched, well over the 400 per-PR guard — as forecast, this slice needs the split the parent already planned. Suggested split by the same unit boundaries: unit 5 = `PistasRail.tsx` + `.test.tsx` (≈305 lines, its own PR); unit 12 = `icons.tsx` + `LevelPlay.tsx`'s chrome-branch JSX hunks (the `isDetectiveTrail` conditionals in the `return` block) + the matching chrome-branch tests in `LevelPlay.test.tsx`; unit 6 = `LevelPlay.tsx`'s `onFrame`/`onRelease`/`clueState`/`traceClueMarks`/`railSlots` hunks + the remaining wiring tests. Units 6 and 12 share `LevelPlay.tsx` and `LevelPlay.test.tsx`, so splitting those two requires a hunk-level (not file-level) cut, exactly as the parent's own instruction anticipated ("keep the three units separable by file — ... will split branches if the total passes 400").
+
+### Status
+
+24/25 assigned tasks complete (7.3 deferred to S6, documented above and in `tasks.md`). Full repo suite: **728/728 tests passing** (up from 704; +24 net — 12 new `PistasRail.test.tsx` + 12 new `LevelPlay.test.tsx`; every S1/S2 test file unmodified and still green; 42 files up from 40). `npm run build` (`tsc --noEmit && vite build`) green. `grep -rn 'url(#' client/src/detective/ client/src/screen/LevelPlay.tsx` finds only comments describing the constraint (no rendered reference). `grep -rn 'font-family\|fontFamily\|@font-face' client/src/` finds only comments describing the constraint (stays at zero rendered occurrences). Ready for verify / next slice (S4).

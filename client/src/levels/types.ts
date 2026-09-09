@@ -3,6 +3,7 @@
 // a whole word are the same thing to the engine — a target path, a corridor
 // width and a set of rules.
 import type { LetterCheckpoint } from '../letters/types'
+import type { ClueKind } from '../detective/assets'
 
 export type Phase = 1 | 2 | 3 | 4 | 5
 
@@ -116,6 +117,20 @@ export interface LevelConfig {
   letters: string[]
   /** Animated demonstration before the attempt. */
   demo?: boolean
+  /**
+   * Marks this level as a detective trail (`detective-mode`). A trail owns
+   * exactly one clue kind and places `count` clue marks along its route
+   * (design.md "Colour Asset Registry"; `detective/clues.ts`'s
+   * `clueMarks`). Optional and additive: every level config that predates
+   * this field simply omits it and stays an ordinary level, so all existing
+   * catalog entries remain valid untouched.
+   *
+   * Absent here on purpose — the catalog wires this onto the four themed
+   * trails (design unit 9, a later slice); `f1-libre` deliberately keeps it
+   * absent too (design unit 9, task 10.5: "no clue mark, no PISTAS entry,
+   * not tracked by the clue reducer").
+   */
+  clue?: { kind: ClueKind; count: number }
 }
 
 /** Runtime target derived from a LevelConfig at load time. */
