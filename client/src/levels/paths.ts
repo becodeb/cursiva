@@ -336,6 +336,149 @@ export function wave(
 }
 
 /**
+ * Corner-clearance closed form (`detective-mode` design, "corner clearance is
+ * one pure closed-form helper"): a ROUNDED join (`strokeLinejoin="round"`)
+ * eats `(w/2)/tan(interiorDeg/2)` of EACH incident leg, so the readable flat
+ * left on a leg of length `legLength` after BOTH its corners consume their
+ * share is `legLength − 2·(w/2)/tan(interiorDeg/2)`. This helper asserts that
+ * flat is at least the corridor width itself, so two consecutive rounded
+ * corners never merge into one filled shape — the same failure mode already
+ * documented for {@link spiral} below. At the square wave's 90° corners this
+ * reduces to `run ≥ 2·corridorWidth`.
+ *
+ * A PREDICATE, not a throw: the failure IS the useful signal here — a level
+ * author who feeds it a merging candidate must see `false` and a test must be
+ * able to assert that directly, not catch an exception.
+ */
+export function cornerClearance(legLength: number, interiorDeg: number, w: number): boolean {
+  const halfAngle = ((interiorDeg / 2) * Math.PI) / 180
+  const consumedPerCorner = w / 2 / Math.tan(halfAngle)
+  return legLength - 2 * consumedPerCorner >= w
+}
+
+/**
+ * Arm-to-arm clearance for a parallel-arm wave (`detective-mode` design C5):
+ * `amplitude` is the offset from the centreline — the SAME convention {@link
+ * wave} already documents ("Extrema land exactly at `y ∓ amplitude`") — so two
+ * consecutive arms of a wave sit `2·amplitude` apart. This asserts that gap
+ * leaves at least the same wall-to-corridor ratio the shipped {@link spiral}
+ * keeps between its turns (~50 of wall against a 70 corridor, `catalog.ts:329`):
+ * `2·amplitude − w ≥ 0.7·w`.
+ *
+ * Reading `amplitude` as a PEAK-TO-PEAK span instead of an offset halves the
+ * real gap and fails this check — that misreading is exactly the bug this
+ * helper exists to catch, not a case it silently tolerates.
+ */
+export function armClearance(amplitude: number, w: number): boolean {
+  return 2 * amplitude - w >= 0.7 * w
+}
+
+/**
+ * Alternating half-period ZIGZAG shared by {@link triangularWave}: the linear
+ * sibling of {@link alternatingArches}. Each half period is two straight `L`
+ * segments — mid-line to the extremum at the half's midpoint, extremum back to
+ * the mid-line — so every apex lands EXACTLY at `mid ∓ amplitude` (no overshoot
+ * possible, unlike a spline) and consecutive half-periods share their mid-line
+ * endpoint. `firstHalfUp` mirrors {@link alternatingArches}: the child's hand
+ * leaves the start going up, never down.
+ */
+function alternatingZigzag(
+  x0: number,
+  x1: number,
+  mid: number,
+  amplitude: number,
+  cycles: number,
+  firstHalfUp: boolean,
+): string {
+  const halves = Math.max(1, Math.round(cycles * 2))
+  const w = (x1 - x0) / halves
+  let d = move(x0, mid)
+  for (let i = 0; i < halves; i++) {
+    const up = firstHalfUp ? i % 2 === 0 : i % 2 === 1
+    const apexY = up ? mid - amplitude : mid + amplitude
+    d += line(x0 + i * w + w / 2, apexY)
+    d += line(x0 + (i + 1) * w, mid)
+  }
+  return d
+}
+
+/**
+ * `detective-mode` trail 3 (footprints) — a triangular wave: the SHARP-CORNER
+ * sibling of {@link wave}, built from straight `L` segments instead of cubic
+ * arches, so the elbow at every apex is a real corner rather than a rounded
+ * crest. `amplitude` is the offset from the centreline, matching {@link wave}'s
+ * shipped convention (`y ∓ amplitude`, arm-to-arm gap `2·amplitude` —
+ * `detective-mode` design C5), so its extrema and {@link wave}'s land in
+ * exactly the same place for the same inputs.
+ *
+ * Emits ONLY `M`/`L` (level-engine spec, "Generators emit only supported
+ * commands") — there is no curve to approximate, a triangle wave IS straight
+ * lines.
+ */
+export function triangularWave(
+  o: { x0?: number; x1?: number; y?: number; amplitude?: number; cycles?: number } = {},
+): string {
+  const x0 = o.x0 ?? 120
+  const x1 = o.x1 ?? 880
+  const y = o.y ?? 300
+  const amplitude = o.amplitude ?? 170
+  const cycles = o.cycles ?? 2
+  return alternatingZigzag(x0, x1, y, amplitude, cycles, true)
+}
+
+/**
+ * `detective-mode` trail 4 (feathers) — a square wave: flat runs of length
+ * `run` at `mid ∓ amplitude`, joined by vertical transitions. `amplitude` is
+ * the offset from the centreline, matching {@link wave}'s shipped convention
+ * (`y ∓ amplitude`, arm-to-arm gap `2·amplitude` — `detective-mode` design
+ * C5), so a wall of `2·amplitude − corridorWidth` separates two parallel arms,
+ * asserted by {@link armClearance}.
+ *
+ * `run` is a first-class parameter, not derived from `x0`/`x1` the way every
+ * other generator here derives its span: the level-engine spec ties `run`
+ * directly to `corridorWidth` via {@link cornerClearance} (`run ≥
+ * 2·corridorWidth`, the ROUNDED-join consumption at each of the flat's two 90°
+ * corners), so the caller must be able to set it independently of how many
+ * cycles the trail runs. Every cycle spans `2·run` — one flat top, one flat
+ * bottom — so the generator's own default width (`run 190 · cycles 2 · 2 =
+ * 760`) reproduces the worked example `x ∈ [120, 880]` design C5 checks
+ * against.
+ *
+ * Emits ONLY `M`/`L` (level-engine spec, "Generators emit only supported
+ * commands"): the corners are corners ON PURPOSE — the whole feature under
+ * test is whether they read as corners once `strokeLinejoin="round"` rounds
+ * them, not whether the path itself curves.
+ */
+export function squareWave(
+  o: {
+    x0?: number
+    mid?: number
+    amplitude?: number
+    run?: number
+    cycles?: number
+  } = {},
+): string {
+  const x0 = o.x0 ?? 120
+  const mid = o.mid ?? 300
+  const amplitude = o.amplitude ?? 110
+  const run = o.run ?? 190
+  const cycles = o.cycles ?? 2
+  const top = mid - amplitude
+  const bottom = mid + amplitude
+  let x = x0
+  let d = move(x, top)
+  for (let i = 0; i < cycles; i++) {
+    x += run
+    d += line(x, top) // end of the flat top run — a 90° corner
+    d += line(x, bottom) // vertical transition down — the paired 90° corner
+    x += run
+    d += line(x, bottom) // end of the flat bottom run — a 90° corner
+    d += line(x, top) // vertical transition up — the paired 90° corner
+  }
+  return d
+}
+
+/**
  * Fase 1 `f1-espiral` — an Archimedean spiral sampled as a polyline, traced
  * from the OUTSIDE INWARD (radius `rStart` → `rEnd`).
  *

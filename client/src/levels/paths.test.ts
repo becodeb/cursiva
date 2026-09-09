@@ -5,7 +5,22 @@
 import { describe, expect, it } from 'vitest'
 import { flattenPathD, polylineLength } from '../letters/svgLetter'
 import type { Point } from '../letters/types'
-import { crests, garland, hills, loops, spiral, straight, sweep, switchback, transformPath, wave } from './paths'
+import {
+  armClearance,
+  cornerClearance,
+  crests,
+  garland,
+  hills,
+  loops,
+  spiral,
+  squareWave,
+  straight,
+  sweep,
+  switchback,
+  transformPath,
+  triangularWave,
+  wave,
+} from './paths'
 
 /** Flatten a generated `d` and fail loudly if it degenerates to nothing. */
 function poly(d: string): Point[] {
@@ -58,6 +73,8 @@ const GENERATORS: ReadonlyArray<{ name: string; d: string; start: Point }> = [
   { name: 'hills', d: hills(), start: { x: 140, y: 435 } },
   { name: 'loops', d: loops(), start: { x: 160, y: 450 } },
   { name: 'crests', d: crests(), start: { x: 120, y: 310 } },
+  { name: 'triangularWave', d: triangularWave(), start: { x: 120, y: 300 } },
+  { name: 'squareWave', d: squareWave(), start: { x: 120, y: 190 } },
 ]
 
 /** Axis-aligned bounding box of a generated path. */
@@ -465,5 +482,84 @@ describe('crests', () => {
     const points = poly(crests())
     expect(points[0].y).toBeCloseTo(310, 6)
     expect(points[3].y).toBeLessThan(points[0].y)
+  })
+})
+
+describe('cornerClearance', () => {
+  it('passes for the design-worked square-wave values (level-engine spec: Straight run stays wider than the merge threshold)', () => {
+    expect(cornerClearance(190, 90, 70)).toBe(true)
+  })
+
+  it('at 90 degrees reduces to run >= 2 * corridorWidth', () => {
+    // 140 is exactly 2w and lands on a floating-point tan(45°) boundary, so
+    // the assertions sit one unit either side of it instead of ON it.
+    expect(cornerClearance(141, 90, 70)).toBe(true)
+    expect(cornerClearance(139, 90, 70)).toBe(false)
+  })
+})
+
+describe('armClearance', () => {
+  it('passes for the design-worked square-wave values (level-engine spec: Parallel arms keep a visible wall between them)', () => {
+    // w = 70, amplitude = 110 -> wall 150 against a 49 threshold.
+    expect(armClearance(110, 70)).toBe(true)
+  })
+
+  it('fails on a misread peak-to-peak amplitude — a constraint test that can only pass proves nothing (level-engine spec: The assertion fails on a merging candidate)', () => {
+    // w = 70 misread as a peak-to-peak amplitude of 70 is an OFFSET of 35: the
+    // arm-to-arm wall (2*35 - 70 = 0) is zero, and the trail renders as one
+    // filled block — exactly the failure this helper exists to catch.
+    expect(armClearance(35, 70)).toBe(false)
+  })
+})
+
+describe('triangularWave', () => {
+  it('emits only M and L commands (level-engine spec: Generators emit only supported commands)', () => {
+    const commands = new Set(triangularWave().match(/[A-Za-z]/g))
+    expect(commands).toEqual(new Set(['M', 'L']))
+  })
+
+  it('produces at least 3 flattened points (level-engine spec: Minimum point count holds)', () => {
+    expect(poly(triangularWave()).length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('lands its extrema exactly at y ∓ amplitude, offset from the centreline (design C5)', () => {
+    const points = poly(triangularWave({ y: 300, amplitude: 170 }))
+    const ys = points.map((p) => p.y)
+    expect(Math.min(...ys)).toBeCloseTo(130, 1) // 300 - 170
+    expect(Math.max(...ys)).toBeCloseTo(470, 1) // 300 + 170
+  })
+})
+
+describe('squareWave', () => {
+  it('emits only M and L commands (level-engine spec: Generators emit only supported commands)', () => {
+    const commands = new Set(squareWave().match(/[A-Za-z]/g))
+    expect(commands).toEqual(new Set(['M', 'L']))
+  })
+
+  it('produces at least 3 flattened points (level-engine spec: Minimum point count holds)', () => {
+    expect(poly(squareWave()).length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('lands its arms exactly at y ∓ amplitude, offset from the centreline (design C5)', () => {
+    const points = poly(squareWave({ mid: 300, amplitude: 110 }))
+    const ys = points.map((p) => p.y)
+    expect(Math.min(...ys)).toBeCloseTo(190, 1) // 300 - 110
+    expect(Math.max(...ys)).toBeCloseTo(410, 1) // 300 + 110
+  })
+
+  it('keeps its flat run at exactly the configured length, over the merge threshold for corridorWidth 70 (level-engine spec: Straight run stays wider than the merge threshold)', () => {
+    const w = 70
+    const run = 190
+    const points = poly(squareWave({ run, amplitude: 110 }))
+    const first = points[0]
+    const firstCornerIndex = points.findIndex((p, i) => i > 0 && p.y !== first.y)
+    const flatEnd = points[firstCornerIndex - 1]
+    expect(flatEnd.y).toBeCloseTo(first.y, 6)
+    expect(flatEnd.x - first.x).toBeCloseTo(run, 1)
+    expect(cornerClearance(run, 90, w)).toBe(true)
+  })
+
+  it('is rejected by transformPath when a non-M/L/C command is injected (level-engine spec: transformPath rejects an unsupported command)', () => {
+    expect(() => transformPath(`${squareWave()} A 1 1 0 0 1 10 10`)).toThrow('comando no soportado')
   })
 })
