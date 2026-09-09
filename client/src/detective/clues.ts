@@ -7,6 +7,7 @@
 import { indexAtDistance, tangentAngleAt } from '../screen/directionArrow'
 import { pointAtArcLength } from '../letters/svgLetter'
 import type { Point } from '../letters/types'
+import type { ClueKind } from './assets'
 
 /**
  * Arc-length span (in sheet units) used for the finite-difference tangent at
@@ -16,24 +17,21 @@ import type { Point } from '../letters/types'
 const TANGENT_SPAN_UNITS = 25
 
 /**
- * One clue mark's fixed placement along a trail: where it sits and which way
- * it faces, so registry art (`detective/assets.ts`, a later slice) can be
- * positioned with `translate(x,y) rotate(angle)` and no offset arithmetic —
- * the same convention `screen/directionArrow.ts`'s `DirectionArrow` already
- * uses.
+ * One clue mark's fixed placement along a trail: where it sits, which way it
+ * faces, and which clue art it draws — so registry art (`detective/assets.ts`)
+ * can be positioned with `translate(x,y) rotate(angle)` and no offset
+ * arithmetic, the same convention `screen/directionArrow.ts`'s
+ * `DirectionArrow` already uses.
  *
- * `kind` (which clue art a mark draws) is deliberately NOT carried here: this
- * slice has no source for it — `clueMarks` receives only a polyline, a
- * length and a count, and the typed `ClueKind` union lives in
- * `detective/assets.ts` (design unit 3, a later slice), which this module
- * must not depend on. The caller that DOES know a trail's kind (the catalog,
- * design unit 9) is expected to pair each mark with it when it builds the
- * canvas layer's props.
+ * `kind` was omitted in the S1 slice that first shipped this type, because
+ * `ClueKind` lives in `detective/assets.ts` (design unit 3), which had not
+ * been created yet. It exists now, so `kind` is populated here.
  */
 export interface ClueMark {
   x: number
   y: number
   angle: number
+  kind: ClueKind
 }
 
 /**
@@ -66,11 +64,21 @@ export function emptyClueState(count: number): ClueState {
  * `directionArrowOf` itself is not callable here because it takes a full
  * `LevelTarget`, not a bare polyline, so this composes its two underlying
  * pure functions directly instead of reimplementing the tangent math.
+ *
+ * `kind` is one value shared by every mark this call produces — a trail owns
+ * exactly one clue kind (design.md "Colour Asset Registry") — so it is a
+ * so a caller that has not yet been updated to pass its trail's real kind
+ * (e.g. the S1-era 11 tests in `clues.test.ts`, none of which assert
+ * `.kind`) still compiles and still gets a fully-typed `ClueMark`, rather
+ * than a compile error or a missing field. The real per-trail kind is wired
+ * by the catalog (design unit 9, a later slice), which is expected to call
+ * this with its own trail's kind explicitly.
  */
 export function clueMarks(
   polyline: ReadonlyArray<{ x: number; y: number }>,
   length: number,
   count: number,
+  kind: ClueKind,
 ): readonly ClueMark[] {
   if (count <= 0 || polyline.length < 2 || length <= 0) return []
   const marks: ClueMark[] = []
@@ -80,7 +88,7 @@ export function clueMarks(
     const point = pointAtArcLength(polyline as Point[], arc)
     const index = indexAtDistance(polyline, arc)
     const angle = tangentAngleAt(polyline, index, TANGENT_SPAN_UNITS)
-    marks.push({ x: point.x, y: point.y, angle })
+    marks.push({ x: point.x, y: point.y, angle, kind })
   }
   return marks
 }

@@ -26,31 +26,31 @@ describe('emptyClueState', () => {
 
 describe('clueMarks', () => {
   it('places count marks uniformly in arc length, first at the start and last at the end', () => {
-    const marks = clueMarks(LINE, LENGTH, 5)
+    const marks = clueMarks(LINE, LENGTH, 5, 'droplet')
     expect(marks).toHaveLength(5)
     expect(marks.map((m) => m.x)).toEqual([0, 25, 50, 75, 100])
     for (const m of marks) expect(m.y).toBeCloseTo(0, 6)
   })
 
   it('faces along the local tangent (a straight rightward line points at angle 0)', () => {
-    const marks = clueMarks(LINE, LENGTH, 3)
+    const marks = clueMarks(LINE, LENGTH, 3, 'droplet')
     for (const m of marks) expect(m.angle).toBeCloseTo(0, 6)
   })
 
   it('returns no marks for a non-positive count', () => {
-    expect(clueMarks(LINE, LENGTH, 0)).toEqual([])
-    expect(clueMarks(LINE, LENGTH, -1)).toEqual([])
+    expect(clueMarks(LINE, LENGTH, 0, 'droplet')).toEqual([])
+    expect(clueMarks(LINE, LENGTH, -1, 'droplet')).toEqual([])
   })
 
   it('places a single mark at the start when count is 1', () => {
-    const marks = clueMarks(LINE, LENGTH, 1)
+    const marks = clueMarks(LINE, LENGTH, 1, 'droplet')
     expect(marks).toHaveLength(1)
     expect(marks[0].x).toBeCloseTo(0, 6)
   })
 })
 
 describe('clueTick', () => {
-  const marks: readonly ClueMark[] = clueMarks(LINE, LENGTH, 5) // x = 0, 25, 50, 75, 100
+  const marks: readonly ClueMark[] = clueMarks(LINE, LENGTH, 5, 'droplet') // x = 0, 25, 50, 75, 100
   const radius = 5
 
   it('flips a mark from drained to earned in exactly one dispatch, no intermediate state (spec: "Mark flips exactly once as the glass passes")', () => {
