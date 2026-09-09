@@ -237,7 +237,7 @@ it costs a maintainer decision and buys nothing.
 
 ## Phase 12: Roadmap Doc (design unit 11 — D1, Spanish, only `docs/` edit this change may make)
 
-- [ ] 12.1 Update `docs/05_ROADMAP_EVOLUTIVO_POR_ETAPAS.md` Módulo A: reward ladder no longer contradicts shipped behaviour — phase 1 now collects all four clues and runs the deduction screen (D1); record phases 2–5 losing their thematic reward as a follow-up, not a gap, in Spanish.
+- [x] 12.1 Update `docs/05_ROADMAP_EVOLUTIVO_POR_ETAPAS.md` Módulo A: reward ladder no longer contradicts shipped behaviour — phase 1 now collects all four clues and runs the deduction screen (D1); record phases 2–5 losing their thematic reward as a follow-up, not a gap, in Spanish.
 
 ## Phase 13: Cross-Cutting Verification (all slices merged)
 

@@ -10,7 +10,17 @@ El orden importa. Nada de esto arranca antes de que las mecánicas del MVP esté
 
 - Metáfora del **libro abierto vivo**: página izquierda un mundo que despierta, página derecha el taller de caligrafía.
 - Personaje guía (detective / explorador) que ilumina el camino y reacciona al trazo.
-- Recompensa temática por fase: la Fase 1 revela huellas, la Fase 2 la pista, la Fase 3 el animal, la Fase 5 el caso resuelto.
+- **Recompensa temática por fase.** La Fase 1 ya no adelanta una recompensa
+  parcial: cierra su propio caso. El chico recorre cuatro rastros con la lupa,
+  junta las cuatro pistas en el panel `PISTAS` y deduce el animal al final de
+  la fase (implementado en el cambio `detective-mode`, Fase 1 completa).
+  - El escalón original repartía la recompensa a lo largo del juego (huellas en
+    Fase 1, la pista en Fase 2, el animal en Fase 3, el caso resuelto en Fase
+    5). Se cambió a pedido: juntar cuatro pistas y que no pase nada con ellas
+    hasta mucho después no le cierra a un chico de cinco años.
+  - **Pendiente:** las Fases 2 a 5 quedan sin recompensa temática propia. Cada
+    una necesita su propio caso, no un tramo del de la Fase 1. Definirlo antes
+    de tematizarlas.
 - **Regla de oro:** ninguna animación temática ocurre *dentro* del renglón mientras el chico traza. La carga cognitiva del trazado es sagrada.
 
 ---
