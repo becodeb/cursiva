@@ -72,6 +72,44 @@ commits onto their own branches, which is what S1a/S1b did and what S6 will
 need. A slice going over 400 is not a failure, it is a signal to cut another
 branch.
 
+### Second forecast correction, measured across three slices
+
+The 1.30x factor recorded after S1 was still far too kind. Native ledger counts:
+
+| Slice | Forecast | Ledger actual | Factor |
+|---|---|---|---|
+| S1 | 360 | 581 | 1.6x |
+| S2 | 307 | 613 | 2.0x |
+| S3 | 305 | 1,138 | 3.7x |
+
+Slices 1-3 total **2,332**, more than the 1,794 this plan gave for the whole
+change.
+
+**The systematic error: the plan estimated production code and this repo's
+tests are about 40% of every change.** S3 broke down as 567 lines of code, 448
+of tests and 123 of SDD artifacts. The `renderToString` harness needs its own
+scaffolding per component, and behaviour that a browser test would assert in
+one line needs a pure exported function plus its own suite here. That is the
+repo's convention and it is a good one, but it has to be budgeted.
+
+Remaining slices re-forecast at **2.3x** the original estimate:
+
+| Slice | Original | Corrected |
+|---|---|---|
+| S4 deduction | 270 | ~620 |
+| S5 migration | 145 | ~335 |
+| S6 trails + retire | 385 | ~885 |
+| S7 roadmap doc | 22 | ~30 |
+
+Projected change total ≈ **4,200**, against 1,794 planned.
+
+**What this changes and what it does not.** The per-PR review guard still holds
+and is still enforced by splitting branches: S3's raw diff was 1,138 but it
+shipped as two PRs whose logic surfaces were 305 and 393. The native ledger's
+changed-line budget is attempt accounting, so from S4 on it is declared at
+2,500 rather than re-tripped every slice for a correct implementation. Tripping
+it costs a maintainer decision and buys nothing.
+
 ### Suggested Work Units
 
 | Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
