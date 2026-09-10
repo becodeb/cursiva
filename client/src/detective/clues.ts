@@ -16,6 +16,12 @@ import type { ClueKind } from './assets'
  */
 const TANGENT_SPAN_UNITS = 25
 
+/** How far, in sheet units, an alternating footprint mark sits off the
+ * centreline (see `clueMarks`'s footprint branch below). Small relative to
+ * every trail's corridor half-width (35-45 in the catalog), so a footprint
+ * never reads as off the route even on the narrowest trail. */
+const FOOTPRINT_OFFSET = 10
+
 /**
  * One clue mark's fixed placement along a trail: where it sits, which way it
  * faces, and which clue art it draws — so registry art (`detective/assets.ts`)
@@ -79,6 +85,28 @@ export function emptyClueState(count: number): ClueState {
  * by the catalog (design unit 9, a later slice), which is expected to call
  * this with its own trail's kind explicitly.
  */
+/**
+ * Marks-per-trail derived from arc length rather than an authored fixed
+ * count (defect fix: "far more clue marks; the trail must look walked-on" —
+ * a fixed count read sparse on a long trail and crowded on a short one; the
+ * user's reference is a trail densely covered in marks, "como si fuesen las
+ * huellas de un animal caminando", not five widely-spaced pickups).
+ *
+ * {@link clueMarks} places `count` marks at `(i + 1) / (count + 1)` of the
+ * arc, so consecutive marks — and the two virtual gaps out to each endpoint —
+ * sit exactly `length / (count + 1)` apart. Solving that for the count which
+ * makes THAT gap equal `spacing` gives `length / spacing - 1`, rounded to the
+ * nearest whole mark.
+ *
+ * Floored at 1: a trail shorter than one spacing unit still gets a single
+ * mark (the same floor `clueMarks` itself already applies via its own
+ * `count <= 0` guard), never zero for a level that authored a `clue` at all.
+ */
+export function clueCountFor(length: number, spacing: number): number {
+  if (length <= 0 || spacing <= 0) return 0
+  return Math.max(1, Math.round(length / spacing) - 1)
+}
+
 export function clueMarks(
   polyline: ReadonlyArray<{ x: number; y: number }>,
   length: number,
@@ -103,7 +131,26 @@ export function clueMarks(
     const point = pointAtArcLength(polyline as Point[], arc)
     const index = indexAtDistance(polyline, arc)
     const angle = tangentAngleAt(polyline, index, TANGENT_SPAN_UNITS)
-    marks.push({ x: point.x, y: point.y, angle, kind })
+    let x = point.x
+    let y = point.y
+    // Footprints alternate left/right off the centreline (defect fix: "the
+    // footprint kind should alternate left/right down the trail... that is
+    // what makes a track read as walking"). Cheap — it reuses the SAME
+    // tangent angle already computed for the mark's facing direction,
+    // rotated 90° for the normal, so no extra geometry lookup is needed.
+    // Every other clue kind stays exactly on the centreline, unchanged.
+    if (kind === 'footprint') {
+      const rad = (angle * Math.PI) / 180
+      // SVG convention (y grows down, `rotate(deg)` turns clockwise — same
+      // as `directionArrow.ts`'s `tangentAngleAt`): rotating the tangent
+      // `(cos, sin)` by +90° gives the LEFT-hand normal `(-sin, cos)`.
+      const nx = -Math.sin(rad)
+      const ny = Math.cos(rad)
+      const side = i % 2 === 0 ? 1 : -1
+      x += nx * FOOTPRINT_OFFSET * side
+      y += ny * FOOTPRINT_OFFSET * side
+    }
+    marks.push({ x, y, angle, kind })
   }
   return marks
 }

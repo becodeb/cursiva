@@ -119,18 +119,21 @@ export interface LevelConfig {
   demo?: boolean
   /**
    * Marks this level as a detective trail (`detective-mode`). A trail owns
-   * exactly one clue kind and places `count` clue marks along its route
-   * (design.md "Colour Asset Registry"; `detective/clues.ts`'s
-   * `clueMarks`). Optional and additive: every level config that predates
-   * this field simply omits it and stays an ordinary level, so all existing
-   * catalog entries remain valid untouched.
+   * exactly one clue kind and places clue marks along its route, spaced by
+   * ARC LENGTH rather than a fixed count (design.md "Colour Asset
+   * Registry"; `detective/clues.ts`'s `clueMarks`/`clueCountFor`) — density
+   * reads the same on a short trail and a long one, marks every `spacing`
+   * units rather than a level-length-agnostic five. Optional and additive:
+   * every level config that predates this field simply omits it and stays
+   * an ordinary level, so all existing catalog entries remain valid
+   * untouched.
    *
    * Absent here on purpose — the catalog wires this onto the four themed
    * trails (design unit 9, a later slice); `f1-libre` deliberately keeps it
    * absent too (design unit 9, task 10.5: "no clue mark, no PISTAS entry,
    * not tracked by the clue reducer").
    */
-  clue?: { kind: ClueKind; count: number }
+  clue?: { kind: ClueKind; spacing: number }
 }
 
 /** Runtime target derived from a LevelConfig at load time. */

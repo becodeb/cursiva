@@ -227,7 +227,16 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    clue: { kind: 'droplet', count: 5 },
+    // Arc-length spacing, not a fixed count (defect fix: "far more clue
+    // marks; the trail must look walked-on" — the user's reference is a
+    // trail densely covered in marks, like footprints, not five pickups).
+    // 60 units sits in the middle of the target 55-70 range; `clueCountFor`
+    // (`detective/clues.ts`) turns that into ~42 marks on this trail's real
+    // ~2607-unit length (spacing ≈ 60.6). Same 60 on every trail below, so
+    // density reads the same regardless of each trail's own length: trail2
+    // (~1719 units) → ~28 marks (≈59.3), trail3 (~2536) → ~41 (≈60.4),
+    // trail4 (~3240) → ~53 (≈60.0).
+    clue: { kind: 'droplet', spacing: 60 },
   },
   {
     id: 'trail2',
@@ -253,7 +262,7 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    clue: { kind: 'corn', count: 5 },
+    clue: { kind: 'corn', spacing: 60 },
   },
   {
     id: 'trail3',
@@ -275,7 +284,7 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    clue: { kind: 'footprint', count: 5 },
+    clue: { kind: 'footprint', spacing: 60 },
   },
   {
     id: 'trail4',
@@ -301,7 +310,7 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    clue: { kind: 'feather', count: 5 },
+    clue: { kind: 'feather', spacing: 60 },
   },
 ]
 

@@ -15,6 +15,7 @@ import { migratePhase1 } from '../game/migratePhase1'
 import { DETECTIVE_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
 import type { LevelRecord } from '../game/types'
 import { buildLevelTarget } from './buildLevel'
+import { clueCountFor } from '../detective/clues'
 import {
   DEGRADED_LEVEL_IDS,
   LEGACY_PHASE_1,
@@ -439,7 +440,7 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
     for (const removed of REMOVED_IDS) expect(phase1Ids).not.toContain(removed)
   })
 
-  it('carries exactly one clue kind per trail, five marks each, no clue on f1-libre', () => {
+  it('carries exactly one clue kind per trail, no clue on f1-libre', () => {
     const KINDS: Record<string, string> = {
       trail1: 'droplet',
       trail2: 'corn',
@@ -449,9 +450,29 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
     for (const id of DETECTIVE_TRAIL_IDS) {
       const level = getLevel(id)
       expect(level.clue?.kind).toBe(KINDS[id])
-      expect(level.clue?.count).toBe(5)
     }
     expect(getLevel('f1-libre').clue).toBeUndefined()
+  })
+
+  it('spaces clue marks by arc length, one every 55-70 units on every trail (defect fix: density must read the same on a short trail and a long one, not a level-length-agnostic fixed count)', () => {
+    for (const id of DETECTIVE_TRAIL_IDS) {
+      const level = getLevel(id)
+      const spacing = level.clue?.spacing
+      expect(spacing, `${id}: no clue.spacing authored`).toBeGreaterThanOrEqual(55)
+      expect(spacing, `${id}: no clue.spacing authored`).toBeLessThanOrEqual(70)
+
+      // The actual gap `clueMarks` produces on this trail's REAL geometry —
+      // `clueCountFor`'s count turns into marks at `length / (count + 1)`
+      // apart — must land close to the authored spacing, not just the
+      // authored number itself.
+      const target = buildLevelTarget(level)
+      const count = clueCountFor(target.length, spacing as number)
+      const actualGap = target.length / (count + 1)
+      expect(actualGap, `${id}: actual mark spacing drifted from the target`).toBeGreaterThanOrEqual(50)
+      expect(actualGap, `${id}: actual mark spacing drifted from the target`).toBeLessThanOrEqual(75)
+      // Dense enough to read as a walked track, not a handful of pickups.
+      expect(count).toBeGreaterThanOrEqual(20)
+    }
   })
 
   it('sets demo: true on every trail, so the animated route replaces the removed hint sentence (C1)', () => {

@@ -37,7 +37,7 @@ vi.mock('../canvas/TraceCanvas', async (importOriginal) => ({
   },
 }))
 
-import LevelPlay, { shouldFileClue } from './LevelPlay'
+import LevelPlay, { shouldFileClue, shouldTickClue } from './LevelPlay'
 import { GLASS_ART } from '../detective/assets'
 import { INK_COLOR } from '../canvas/TraceCanvas'
 
@@ -66,7 +66,11 @@ function makeLevel(over: Partial<LevelConfig> = {}): LevelConfig {
 }
 
 function makeDetectiveLevel(over: Partial<LevelConfig> = {}): LevelConfig {
-  return makeLevel({ clue: { kind: 'droplet', count: 3 }, ...over })
+  // spacing: 200 on this 800-unit straight test path derives to exactly 3
+  // marks via `clueCountFor` (`round(800/200) - 1 = 3`), at x = 300, 500, 700
+  // — matching every fixture below that was written against a fixed
+  // `count: 3` before the arc-length-spacing defect fix.
+  return makeLevel({ clue: { kind: 'droplet', spacing: 200 }, ...over })
 }
 
 const noop = (): void => undefined
@@ -322,7 +326,7 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
     ) => void
     expect(typeof onFrame).toBe('function')
 
-    // First sample past the 10 Hz throttle (`OFF_PATH_PERIOD_MS = 100`),
+    // First sample past the ~30 Hz throttle (`OFF_PATH_PERIOD_MS = 33`),
     // near the middle clue mark on the straight test path.
     expect(() => onFrame([{ x: 500, y: 300 }], true, 200)).not.toThrow()
     // Finger up: the frame handler's early-return branch.
@@ -353,5 +357,19 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
       />,
     )
     expect(traceCanvasProbe.current?.clues).toBeUndefined()
+  })
+})
+
+describe('shouldTickClue (defect fix: clue collection gated on inside/outside)', () => {
+  it('ticks when there are marks to collect and the fingertip is inside', () => {
+    expect(shouldTickClue(true, false)).toBe(true)
+  })
+
+  it('does NOT tick while the fingertip is outside the corridor — the exact bug a real screenshot caught (two marks lit on a trace far off the trail)', () => {
+    expect(shouldTickClue(true, true)).toBe(false)
+  })
+
+  it('never ticks on a level with no clue marks, even if somehow "inside" is true', () => {
+    expect(shouldTickClue(false, false)).toBe(false)
   })
 })

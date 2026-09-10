@@ -4,7 +4,7 @@
 // `screen/directionArrow.test.ts` pins `directionArrowOf` with a hand-built
 // `LevelTarget`.
 import { describe, expect, it } from 'vitest'
-import { clueMarks, clueTick, emptyClueState, type ClueMark, type ClueState } from './clues'
+import { clueCountFor, clueMarks, clueTick, emptyClueState, type ClueMark, type ClueState } from './clues'
 
 /** A 100-unit horizontal polyline, so arc length equals x and the tangent
  * angle is trivially 0 everywhere. */
@@ -21,6 +21,35 @@ describe('emptyClueState', () => {
 
   it('never goes negative for a bad count', () => {
     expect(emptyClueState(-3)).toEqual({ lit: [] })
+  })
+})
+
+describe('clueCountFor (defect fix: arc-length spacing, not a fixed count)', () => {
+  it('derives the count that makes the actual inter-mark gap equal the requested spacing', () => {
+    // clueMarks spaces count marks (and the two virtual end gaps) at
+    // length / (count + 1) apart, so this is the inverse: solve for count
+    // given a target gap.
+    const count = clueCountFor(2600, 60)
+    const actualGap = 2600 / (count + 1)
+    expect(actualGap).toBeGreaterThanOrEqual(55)
+    expect(actualGap).toBeLessThanOrEqual(65)
+  })
+
+  it('is denser on a longer trail and sparser on a shorter one, at the SAME spacing (regression: a fixed count reads sparse on a long trail, crowded on a short one)', () => {
+    const short = clueCountFor(600, 60)
+    const long = clueCountFor(3000, 60)
+    expect(long).toBeGreaterThan(short)
+  })
+
+  it('floors at 1 mark for a trail shorter than one spacing unit, never 0', () => {
+    expect(clueCountFor(10, 60)).toBe(1)
+  })
+
+  it('returns 0 for a non-positive length or spacing', () => {
+    expect(clueCountFor(0, 60)).toBe(0)
+    expect(clueCountFor(-5, 60)).toBe(0)
+    expect(clueCountFor(100, 0)).toBe(0)
+    expect(clueCountFor(100, -1)).toBe(0)
   })
 })
 
@@ -63,6 +92,30 @@ describe('clueMarks', () => {
     const marks = clueMarks(LINE, LENGTH, 1, 'droplet')
     expect(marks).toHaveLength(1)
     expect(marks[0].x).toBeCloseTo(LENGTH / 2, 6)
+  })
+
+  it('alternates footprint marks left/right off the centreline (defect fix: "the footprint kind should alternate left/right down the trail... that is what makes a track read as walking")', () => {
+    const marks = clueMarks(LINE, LENGTH, 6, 'footprint')
+    expect(marks).toHaveLength(6)
+    // On this horizontal line the tangent is along +x, so the normal is
+    // purely vertical: alternating marks sit off-centre in y, never x.
+    for (const m of marks) expect(m.y).not.toBeCloseTo(0, 3)
+    for (let i = 1; i < marks.length; i++) {
+      // Consecutive marks sit on OPPOSITE sides — the sign of y flips.
+      expect(Math.sign(marks[i].y)).toBe(-Math.sign(marks[i - 1].y))
+    }
+    // Every mark still sits on its own arc-length position along x (the
+    // alternation only ever moves the mark PERPENDICULAR to the route).
+    for (const [i, m] of marks.entries()) {
+      expect(m.x).toBeCloseTo(((i + 1) / 7) * LENGTH, 6)
+    }
+  })
+
+  it('does NOT alternate any other clue kind — only footprint gets a two-foot track', () => {
+    for (const kind of ['droplet', 'corn', 'feather'] as const) {
+      const marks = clueMarks(LINE, LENGTH, 4, kind)
+      for (const m of marks) expect(m.y).toBeCloseTo(0, 6)
+    }
   })
 })
 

@@ -22,7 +22,7 @@ const filedSlot: PistasSlot = { kind: 'droplet', filed: true }
 const drainedSlot: PistasSlot = { kind: 'corn', filed: false }
 
 describe('PistasRail placement (level-engine spec "PISTAS Rail Chrome")', () => {
-  it('rail renders beside the canvas, not inside the viewBox (spec scenario "Rail renders beside the canvas, not inside the viewBox")', () => {
+  it('bar renders as a sibling of the canvas, not inside the viewBox (spec scenario "Rail renders beside the canvas, not inside the viewBox")', () => {
     const html = renderToString(
       <div>
         <TraceCanvas />
@@ -33,10 +33,27 @@ describe('PistasRail placement (level-engine spec "PISTAS Rail Chrome")', () => 
     const railOpen = html.indexOf('<aside')
     expect(svgClose).toBeGreaterThan(-1)
     expect(railOpen).toBeGreaterThan(-1)
-    // The rail markup starts only AFTER the canvas's own `<svg>` has closed —
+    // The bar markup starts only AFTER the canvas's own `<svg>` has closed —
     // it is a sibling in the chrome, never nested inside the canvas's
-    // 1000-unit viewBox content.
+    // 1000-unit viewBox content. `LevelPlay` places the actual `<aside>`
+    // ABOVE `.cv-sheet` (the horizontal top-bar defect fix), which this
+    // component-level test cannot see — the DOM-nesting contract asserted
+    // here (never inside the SVG) is unaffected by which side it renders on.
     expect(railOpen).toBeGreaterThan(svgClose)
+  })
+
+  it('renders as a single horizontal bar, not the old lamp/word/slots column nesting', () => {
+    const html = renderToString(<PistasRail slots={[]} lampOn={false} />)
+    // The old layout wrapped word+slots in a shared `.pistas-body` row
+    // inside a `.pistas-rail` column; the bar is flat now — lamp, word and
+    // slots are three direct siblings inside `.pistas-bar`, and CSS alone
+    // (`LevelPlay.tsx`'s `LAYOUT_CSS`) lays them out in a row.
+    expect(html).toContain('class="pistas-bar"')
+    expect(html).not.toContain('pistas-rail')
+    expect(html).not.toContain('pistas-body')
+    expect(html).toContain('class="pistas-lamp-row"')
+    expect(html).toContain('class="pistas-word"')
+    expect(html).toContain('class="pistas-slots"')
   })
 })
 
@@ -57,6 +74,17 @@ describe('PistasRail drawn word (D6: no font, no typeset text)', () => {
     const html = renderToString(<PistasRail slots={[]} lampOn={false} />)
     expect(html).not.toMatch(/font-family|fontFamily|@font-face/i)
     expect(html).not.toContain('<text')
+  })
+
+  it('draws the word BIG (defect fix: it read too small to see at a glance)', () => {
+    const html = renderToString(<PistasRail slots={[]} lampOn={false} />)
+    // The old rail rendered each glyph at 22×36. The regression this guards
+    // against is someone shrinking the bar back down once it is no longer a
+    // cramped side column — a glyph under, say, 40px tall is the old "too
+    // small to read" bug again.
+    const glyphSizes = [...html.matchAll(/<svg viewBox="0 0 60 100" width="(\d+)" height="(\d+)"/g)]
+    expect(glyphSizes.length).toBe(6)
+    for (const [, , height] of glyphSizes) expect(Number(height)).toBeGreaterThanOrEqual(60)
   })
 
   it('every drawn glyph is stroke width 8, unfilled, round-capped M/L geometry', () => {
@@ -122,6 +150,14 @@ describe('PistasRail slots', () => {
     const html = renderToString(<PistasRail slots={[drainedSlot]} lampOn={false} />)
     expect(html).toContain('fill="none"')
     expect(html).toContain('stroke="#c8cdd2"')
+  })
+
+  it('draws a socket behind each mark, so a slot reads as a container that fills rather than a loose floating diamond', () => {
+    const html = renderToString(<PistasRail slots={[filedSlot]} lampOn={false} />)
+    // The socket is a rounded rect sharing the mark's own colour — new
+    // chrome around the SAME diamond geometry (`points="12,2 22,12 12,22
+    // 2,12"`, asserted unchanged just above).
+    expect(html).toMatch(/<rect[^>]*rx="5"[^>]*>/)
   })
 
   it('no url(#) reference anywhere in the whole rail', () => {
