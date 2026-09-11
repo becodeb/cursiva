@@ -203,6 +203,18 @@
     "h": 56,
     "w": 62
   },
+  "home-desk": {
+    "bytes": 74832,
+    "file": "art/home-desk.png",
+    "h": 242,
+    "w": 512
+  },
+  "home-octopus": {
+    "bytes": 140899,
+    "file": "art/home-octopus.png",
+    "h": 396,
+    "w": 448
+  },
   "lamp-off": {
     "bytes": 8529,
     "file": "art/lamp-off.png",

@@ -29,6 +29,8 @@ import {
   CLUE_ART,
   GROUND_GRASS,
   GROUND_MUD,
+  HOME_DESK_ART,
+  HOME_OCTOPUS_ART,
   LAMP_ART,
   OCTOPUS_ART,
   type ArtImage,
@@ -70,6 +72,8 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
   ...Object.entries(ANIMAL_ART).map(([id, a]) => [`ANIMAL_ART.${id}.art`, a.art] as const),
   ['CARRIER_LENS_ART', CARRIER_LENS_ART] as const,
   ['OCTOPUS_ART', OCTOPUS_ART] as const,
+  ['HOME_OCTOPUS_ART', HOME_OCTOPUS_ART] as const,
+  ['HOME_DESK_ART', HOME_DESK_ART] as const,
   ['LAMP_ART.on', LAMP_ART.on] as const,
   ['LAMP_ART.off', LAMP_ART.off] as const,
   ...GROUND_GRASS.map((art, i) => [`GROUND_GRASS[${i}]`, art] as const),
@@ -109,11 +113,12 @@ describe('art registry matches the shipped pipeline manifest', () => {
   )
 
   it('registers every clue kind in both states, and never the same file twice', () => {
-    // 8 clue + 4 animal + lens + octopus + 2 lamp + 12 grass + 8 mud.
+    // 8 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
+    // + 12 grass + 8 mud.
     // Grass carries MORE variants than mud on purpose: it covers the whole
     // field at full size, where a repeated silhouette is obvious, while mud
     // sits small inside the corridor and half-covered by the child's own line.
-    expect(REGISTERED.length).toBe(36)
+    expect(REGISTERED.length).toBe(38)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
