@@ -5,3 +5,9 @@ client/dist
 openspec
 docs
 *.log
+# Build inputs, not build outputs. `build_art.py` derives
+# `client/public/art/` from `art-source/` and that derived art IS committed,
+# so the image needs neither the 11 MB of authored PNGs nor the pipeline that
+# reads them -- only the `client/dist` the final stage copies out.
+art-source
+scripts
