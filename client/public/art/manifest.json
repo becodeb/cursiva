@@ -1,0 +1,218 @@
+{
+  "animal-gallina": {
+    "bytes": 120278,
+    "file": "art/animal-gallina.png",
+    "h": 448,
+    "w": 370
+  },
+  "animal-gato": {
+    "bytes": 158618,
+    "file": "art/animal-gato.png",
+    "h": 414,
+    "w": 448
+  },
+  "animal-pato": {
+    "bytes": 96576,
+    "file": "art/animal-pato.png",
+    "h": 448,
+    "w": 368
+  },
+  "animal-vaca": {
+    "bytes": 131264,
+    "file": "art/animal-vaca.png",
+    "h": 405,
+    "w": 448
+  },
+  "carrier-lens": {
+    "bytes": 83514,
+    "file": "art/carrier-lens.png",
+    "h": 384,
+    "w": 361
+  },
+  "carrier-octopus": {
+    "bytes": 116958,
+    "file": "art/carrier-octopus.png",
+    "h": 353,
+    "w": 384
+  },
+  "clue-corn-drained": {
+    "bytes": 8756,
+    "file": "art/clue-corn-drained.png",
+    "h": 256,
+    "w": 195
+  },
+  "clue-corn-earned": {
+    "bytes": 8622,
+    "file": "art/clue-corn-earned.png",
+    "h": 256,
+    "w": 195
+  },
+  "clue-droplet-drained": {
+    "bytes": 8943,
+    "file": "art/clue-droplet-drained.png",
+    "h": 256,
+    "w": 195
+  },
+  "clue-droplet-earned": {
+    "bytes": 8635,
+    "file": "art/clue-droplet-earned.png",
+    "h": 256,
+    "w": 195
+  },
+  "clue-feather-drained": {
+    "bytes": 7103,
+    "file": "art/clue-feather-drained.png",
+    "h": 256,
+    "w": 102
+  },
+  "clue-feather-earned": {
+    "bytes": 8244,
+    "file": "art/clue-feather-earned.png",
+    "h": 256,
+    "w": 103
+  },
+  "clue-footprint-drained": {
+    "bytes": 9997,
+    "file": "art/clue-footprint-drained.png",
+    "h": 256,
+    "w": 217
+  },
+  "clue-footprint-earned": {
+    "bytes": 6517,
+    "file": "art/clue-footprint-earned.png",
+    "h": 256,
+    "w": 220
+  },
+  "ground-grass-1": {
+    "bytes": 9975,
+    "file": "art/ground-grass-1.png",
+    "h": 125,
+    "w": 84
+  },
+  "ground-grass-10": {
+    "bytes": 11326,
+    "file": "art/ground-grass-10.png",
+    "h": 110,
+    "w": 121
+  },
+  "ground-grass-11": {
+    "bytes": 8889,
+    "file": "art/ground-grass-11.png",
+    "h": 127,
+    "w": 87
+  },
+  "ground-grass-12": {
+    "bytes": 10758,
+    "file": "art/ground-grass-12.png",
+    "h": 109,
+    "w": 126
+  },
+  "ground-grass-2": {
+    "bytes": 11563,
+    "file": "art/ground-grass-2.png",
+    "h": 105,
+    "w": 124
+  },
+  "ground-grass-3": {
+    "bytes": 8879,
+    "file": "art/ground-grass-3.png",
+    "h": 125,
+    "w": 77
+  },
+  "ground-grass-4": {
+    "bytes": 9703,
+    "file": "art/ground-grass-4.png",
+    "h": 87,
+    "w": 126
+  },
+  "ground-grass-5": {
+    "bytes": 11260,
+    "file": "art/ground-grass-5.png",
+    "h": 104,
+    "w": 126
+  },
+  "ground-grass-6": {
+    "bytes": 8876,
+    "file": "art/ground-grass-6.png",
+    "h": 79,
+    "w": 124
+  },
+  "ground-grass-7": {
+    "bytes": 9588,
+    "file": "art/ground-grass-7.png",
+    "h": 79,
+    "w": 126
+  },
+  "ground-grass-8": {
+    "bytes": 9134,
+    "file": "art/ground-grass-8.png",
+    "h": 126,
+    "w": 78
+  },
+  "ground-grass-9": {
+    "bytes": 8520,
+    "file": "art/ground-grass-9.png",
+    "h": 69,
+    "w": 126
+  },
+  "ground-mud-1": {
+    "bytes": 8895,
+    "file": "art/ground-mud-1.png",
+    "h": 98,
+    "w": 126
+  },
+  "ground-mud-2": {
+    "bytes": 9182,
+    "file": "art/ground-mud-2.png",
+    "h": 107,
+    "w": 127
+  },
+  "ground-mud-3": {
+    "bytes": 10060,
+    "file": "art/ground-mud-3.png",
+    "h": 112,
+    "w": 126
+  },
+  "ground-mud-4": {
+    "bytes": 8309,
+    "file": "art/ground-mud-4.png",
+    "h": 98,
+    "w": 117
+  },
+  "ground-mud-5": {
+    "bytes": 7411,
+    "file": "art/ground-mud-5.png",
+    "h": 78,
+    "w": 121
+  },
+  "ground-mud-6": {
+    "bytes": 3723,
+    "file": "art/ground-mud-6.png",
+    "h": 64,
+    "w": 68
+  },
+  "ground-mud-7": {
+    "bytes": 3198,
+    "file": "art/ground-mud-7.png",
+    "h": 59,
+    "w": 60
+  },
+  "ground-mud-8": {
+    "bytes": 3081,
+    "file": "art/ground-mud-8.png",
+    "h": 56,
+    "w": 62
+  },
+  "lamp-off": {
+    "bytes": 8529,
+    "file": "art/lamp-off.png",
+    "h": 192,
+    "w": 181
+  },
+  "lamp-on": {
+    "bytes": 8397,
+    "file": "art/lamp-on.png",
+    "h": 192,
+    "w": 181
+  }
+}
