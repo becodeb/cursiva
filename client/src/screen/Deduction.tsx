@@ -23,7 +23,14 @@
 // `border-radius`, no shadow (design.md "Layout": "no cards, no borders, no
 // border-radius, no shadow").
 import { useState, type CSSProperties } from 'react'
-import { ANIMAL_ART, CLUE_ART, CULPRIT, type AnimalId, type ClueKind } from '../detective/assets'
+import {
+  ANIMAL_ART,
+  CLUE_ART,
+  CULPRIT,
+  type AnimalId,
+  type ArtImage,
+  type ClueKind,
+} from '../detective/assets'
 import PistasRail, { type PistasSlot } from '../detective/PistasRail'
 import { BackIcon } from '../detective/icons'
 import { LAYOUT_CSS } from './LevelPlay'
@@ -33,6 +40,28 @@ import { LAYOUT_CSS } from './LevelPlay'
  * word and the icon controls. Re-declared here rather than imported, same
  * convention `palette.ts`/`PistasRail.tsx`/`icons.tsx` already use. */
 const INK = '#1e293b'
+
+/** One registry raster, centred on the origin of an origin-centred viewBox.
+ *
+ * Both callers below draw into a box centred on 0,0, so the art has to be
+ * placed by its own negative offset rather than by a transform. `size` is the
+ * HEIGHT; width follows from the source file's aspect ratio, which is what
+ * keeps a 448x405 cow and a 370x448 hen from being stretched to a shared
+ * square. An `<image>` is the only way raster art gets onto this screen
+ * without a `url(#)` reference (module comment above; `assets.ts` header). */
+function Art({ art, size }: { art: ArtImage; size: number }) {
+  const width = (size * art.w) / art.h
+  return (
+    <image
+      href={art.href}
+      x={-width / 2}
+      y={-size / 2}
+      width={width}
+      height={size}
+      preserveAspectRatio="xMidYMid meet"
+    />
+  )
+}
 
 /** Fixed lineup order — the same insertion order `assets.ts`'s `ANIMAL_ART`
  * uses, kept explicit here so the rendered order never depends on object-key
@@ -142,7 +171,7 @@ function Animal({
         onClick={() => onPick(id)}
       >
         <svg viewBox="-20 -20 40 40" width={64} height={64} aria-hidden="true" focusable="false">
-          <path d={ANIMAL_ART[id].d} fill={INK} stroke="none" />
+          <Art art={ANIMAL_ART[id].art} size={36} />
         </svg>
       </button>
       {dismissed && ruledOutBy && (
@@ -154,7 +183,7 @@ function Animal({
           aria-hidden="true"
           focusable="false"
         >
-          <path d={CLUE_ART[ruledOutBy].d} fill={CLUE_ART[ruledOutBy].earned} stroke="none" />
+          <Art art={CLUE_ART[ruledOutBy].art.earned} size={26} />
         </svg>
       )}
     </div>
@@ -188,13 +217,13 @@ export const DEDUCTION_CSS = `
 .pistas-rail { flex: 0 0 96px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .pistas-lamp-row { flex: 0 0 auto; }
 .pistas-body { display: flex; flex-direction: row; gap: 6px; align-items: flex-start; }
-.pistas-word { display: flex; flex-direction: column; gap: 2px; }
+/* The word is a single typeset run now, so it has nothing left to stack. */
 .pistas-slots { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
 @media (max-height: 520px) {
   .cv-sheet { flex-direction: column; gap: 4px; }
   .pistas-rail { flex: 0 0 auto; flex-direction: row; gap: 10px; }
   .pistas-body { flex-direction: row; align-items: center; }
-  .pistas-word { flex-direction: row; gap: 4px; }
+
   .pistas-slots { flex-direction: row; padding-top: 0; gap: 6px; }
 }
 `

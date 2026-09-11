@@ -17,49 +17,21 @@
 // literal text is the single hidden accessibility label below — the visible
 // word is geometry, never a text node.
 //
-// The lamp is the engraver's halo: three concentric stroked rings at
-// decreasing opacity. No `url(#...)` reference anywhere (`TraceCanvas.tsx:
-// 70-84` records why a referenced def hydrates blank on a real device) — no
-// `<radialGradient>`, `<filter>`, `<mask>` or `<clipPath>`.
-import { CLUE_ART, type ClueKind } from './assets'
-import { CLUE_DRAINED, LAMP } from './palette'
+// The lamp and the four clue marks are the shipped RASTER art, drawn as
+// `<image href="/art/...">` (see `assets.ts`'s header for why the art is
+// raster at all). No `url(#...)` reference anywhere (`TraceCanvas.tsx:70-84`
+// records why a referenced def hydrates blank on a real device) — no
+// `<radialGradient>`, `<filter>`, `<mask>` or `<clipPath>`. An `<image>`
+// needs none of them, which is precisely why it is the mechanism that
+// survives the ban.
+import { CLUE_ART, LAMP_ART, type ClueKind } from './assets'
+import { CLUE_DRAINED } from './palette'
 
-/** Matches the shipped ink `TraceCanvas.tsx:89` (`INK_COLOR '#1e293b'`, not
- * exported) — the drawn word reads as the same hand as the child's own
- * trace, re-declared here rather than imported (same convention `palette.ts`
- * already uses for the base ink-on-paper values). */
-const RAIL_INK = '#1e293b'
-
-/** Stroke width for the drawn `PISTAS` glyphs, in the 100-unit em box. */
-const GLYPH_STROKE_WIDTH = 8
-
-/** Rendered glyph size (defect fix: "hacé todo bien grande" — the word was
- * far too small to read at a glance). The 60×100 viewBox is unchanged, so
- * the stroke stays proportionally the same weight at any render size; only
- * the em box these six glyphs are DRAWN in is bigger now. */
-const GLYPH_WIDTH = 46
-const GLYPH_HEIGHT = 77
-
-/**
- * Six glyphs, each in a 60×100-unit em, built from `M`/`L` segments only
- * (D6). Blocky and legible at the rail's small rendered size rather than
- * calligraphic — the point is that no font subsystem exists here, not that
- * these are beautiful letterforms.
- */
-const GLYPH_PATHS: readonly string[] = [
-  // P — stem plus an open bowl on the upper half.
-  'M10,0 L10,100 M10,0 L50,0 L50,45 L10,45',
-  // I — stem with top and bottom serifs.
-  'M30,0 L30,100 M10,0 L50,0 M10,100 L50,100',
-  // S — a stepped zig-zag, the only shape `M`/`L` alone can give an S.
-  'M50,10 L10,10 L10,45 L50,45 L50,90 L10,90',
-  // T — top bar plus stem.
-  'M5,0 L55,0 M30,0 L30,100',
-  // A — two legs and a crossbar.
-  'M10,100 L30,0 L50,100 M17,60 L43,60',
-  // S — same shape as the first S.
-  'M50,10 L10,10 L10,45 L50,45 L50,90 L10,90',
-]
+/** Rendered height of the lamp art, and the square a clue slot renders in.
+ * Both kept at the sizes the enlarged bar already shipped (defect fix:
+ * "hacé todo bien grande"). */
+const LAMP_HEIGHT = 44
+const SLOT_SIZE = 38
 
 /** The bar always shows this many slot positions — one per detective trail
  * (design.md "Layout"), whatever the caller currently knows about. A caller
@@ -88,61 +60,64 @@ export interface PistasRailProps {
   lampOn: boolean
 }
 
-function Glyph({ d }: { d: string }) {
+/** The shipped lamp art, lit or drained (design.md "Light is drawn, never
+ * blurred" — the lit file's rays are DRAWN into the raster by the art
+ * pipeline, so there is still no blur and still no gradient anywhere). This
+ * replaces three concentric stroked rings that stood in for it.
+ *
+ * The two files differ in width (181x192 lit, 132x192 drained — the rays
+ * make the lit one wider), so the `<svg>` box is fixed at the lit aspect and
+ * `preserveAspectRatio` centres the narrower drained lamp inside it. Without
+ * that the whole bar would visibly reflow the moment the lamp turns on. */
+function Lamp({ on }: { on: boolean }) {
+  const art = on ? LAMP_ART.on : LAMP_ART.off
   return (
     <svg
-      viewBox="0 0 60 100"
-      width={GLYPH_WIDTH}
-      height={GLYPH_HEIGHT}
+      viewBox={`0 0 ${LAMP_ART.on.w} ${LAMP_ART.on.h}`}
+      width={LAMP_HEIGHT * (LAMP_ART.on.w / LAMP_ART.on.h)}
+      height={LAMP_HEIGHT}
       aria-hidden="true"
       focusable="false"
     >
-      <path
-        d={d}
-        fill="none"
-        stroke={RAIL_INK}
-        strokeWidth={GLYPH_STROKE_WIDTH}
-        strokeLinecap="round"
-        strokeLinejoin="round"
+      <image
+        href={art.href}
+        x={0}
+        y={0}
+        width={LAMP_ART.on.w}
+        height={LAMP_ART.on.h}
+        preserveAspectRatio="xMidYMid meet"
       />
     </svg>
   )
 }
 
-/** Three concentric rings, stepped opacity — the engraver's halo, never a
- * blurred glow (design.md "Light is drawn, never blurred"). Sized to match
- * the enlarged bar (defect fix: "hacé todo bien grande"). */
-function Lamp({ on }: { on: boolean }) {
-  const color = on ? LAMP : CLUE_DRAINED
-  return (
-    <svg viewBox="0 0 60 60" width={44} height={44} aria-hidden="true" focusable="false">
-      <circle cx={30} cy={30} r={8} fill="none" stroke={color} strokeWidth={4} />
-      <circle cx={30} cy={30} r={17} fill="none" stroke={color} strokeWidth={3} opacity={0.6} />
-      <circle cx={30} cy={30} r={26} fill="none" stroke={color} strokeWidth={2} opacity={0.3} />
-    </svg>
-  )
-}
-
 /**
- * One slot: a rounded SOCKET behind the trail's registry art, so a filed
- * mark reads as a container that filled in — not a loose diamond floating on
- * the bar (defect fix: at the new, denser rendered size a bare outline read
- * as decoration; the socket gives it a boundary). The socket and the
- * diamond's own outline share the SAME colour, so nothing new is introduced
- * to the palette: drained grey until filed, then the trail's registered
- * colour (design.md "Colour Asset Registry"). A padding placeholder (no
- * `slot`) renders an empty drained socket.
+ * One slot: a rounded SOCKET with the trail's real clue art inside it.
  *
- * The diamond's own `points` stay the EXACT geometry already shipped
- * (`12,2 22,12 12,22 2,12` in a 24×24 box) — only the socket around it and
- * the outer render size are new, so the shape a filed mark draws is
- * unchanged, just bigger and now sitting in a visible container.
+ * The socket is unchanged (`<rect rx={5}>` in a 24x24 box, drained grey until
+ * filed, then the trail's registered colour — design.md "Colour Asset
+ * Registry"). What changed is what sits IN it. This used to be an abstract
+ * diamond, and the change's own notes recorded the defect: the four slots
+ * "read as detached diamonds rather than slots that fill". A diamond is not
+ * what the child collected — a droplet, a kernel, a footprint and a feather
+ * are. Showing the actual picture the child saw on the trail is the fix, and
+ * it is also what makes the socket read as a container: something recognisable
+ * is now inside it.
+ *
+ * Earned and drained are two files derived from one silhouette, so filing a
+ * clue swaps the picture's colour without moving it. A padding placeholder
+ * (no `slot`) renders an empty drained socket with no art at all — there is
+ * nothing yet to show, and a grey clue would falsely claim the trail exists.
  */
 function Slot({ slot }: { slot: PistasSlot | undefined }) {
   const filed = !!slot?.filed
   const color = slot ? (filed ? CLUE_ART[slot.kind].earned : CLUE_DRAINED) : CLUE_DRAINED
+  const art = slot ? (filed ? CLUE_ART[slot.kind].art.earned : CLUE_ART[slot.kind].art.drained) : undefined
+  // Inset inside the 22-unit socket so the mark never touches its wall.
+  const markHeight = 16
+  const markWidth = art ? (markHeight * art.w) / art.h : 0
   return (
-    <svg viewBox="0 0 24 24" width={38} height={38} aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 24 24" width={SLOT_SIZE} height={SLOT_SIZE} aria-hidden="true" focusable="false">
       <rect
         x={1}
         y={1}
@@ -154,12 +129,16 @@ function Slot({ slot }: { slot: PistasSlot | undefined }) {
         strokeWidth={1.5}
         opacity={filed ? 0.9 : 0.45}
       />
-      <polygon
-        points="12,2 22,12 12,22 2,12"
-        fill={filed ? color : 'none'}
-        stroke={color}
-        strokeWidth={2}
-      />
+      {art && (
+        <image
+          href={art.href}
+          x={12 - markWidth / 2}
+          y={12 - markHeight / 2}
+          width={markWidth}
+          height={markHeight}
+          preserveAspectRatio="xMidYMid meet"
+        />
+      )}
     </svg>
   )
 }
@@ -168,18 +147,6 @@ function Slot({ slot }: { slot: PistasSlot | undefined }) {
  * rendered markup — the ONE place the literal word `PISTAS` exists as text
  * (spec scenario "Rail carries no copy beyond PISTAS"). The visible bar
  * itself is drawn geometry, never a text node. */
-const SR_ONLY_STYLE = {
-  position: 'absolute' as const,
-  width: 1,
-  height: 1,
-  padding: 0,
-  margin: -1,
-  overflow: 'hidden' as const,
-  clip: 'rect(0,0,0,0)',
-  whiteSpace: 'nowrap' as const,
-  border: 0,
-}
-
 export default function PistasRail({ slots, lampOn }: PistasRailProps) {
   const padded = Array.from({ length: RAIL_SLOT_COUNT }, (_, i) => slots[i])
   return (
@@ -187,17 +154,12 @@ export default function PistasRail({ slots, lampOn }: PistasRailProps) {
       <div className="pistas-lamp-row">
         <Lamp on={lampOn} />
       </div>
-      <div className="pistas-word">
-        {GLYPH_PATHS.map((d, idx) => (
-          <Glyph key={idx} d={d} />
-        ))}
-      </div>
+      <div className="pistas-word">PISTAS</div>
       <div className="pistas-slots">
         {padded.map((slot, idx) => (
           <Slot key={idx} slot={slot} />
         ))}
       </div>
-      <span style={SR_ONLY_STYLE}>PISTAS</span>
     </aside>
   )
 }

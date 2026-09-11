@@ -38,6 +38,25 @@ export interface ClueMark {
   y: number
   angle: number
   kind: ClueKind
+  /**
+   * Where this mark sits ALONG the route, in arc-length units from the start.
+   *
+   * This is the value {@link clueTick} lights on, and it is why the mark is a
+   * point on a ROUTE rather than a point on the sheet. `clueMarks` has always
+   * computed it — it is the `(i + 1) / (count + 1)` fraction of `length` that
+   * decides `x`/`y` — and used to throw it away, which forced collection to
+   * re-derive "am I here?" from Euclidean proximity to `x`/`y`. That is the
+   * wrong question: a child who cuts a corner INSIDE the corridor passes the
+   * mark's arc position without ever passing within a radius of its point, and
+   * the mark stays drained for a run that broke no rule (the user's rule is
+   * "as long as I never left the path, by the time I reach the end EVERY clue
+   * must have lit, no matter how off-centre my line was").
+   *
+   * For a `footprint`, `x`/`y` are nudged {@link FOOTPRINT_OFFSET} units off
+   * the centreline but `arc` is NOT — it stays the position along the route the
+   * footprint belongs to. The offset is decoration; the arc is the mechanic.
+   */
+  arc: number
 }
 
 /**
@@ -150,44 +169,106 @@ export function clueMarks(
       x += nx * FOOTPRINT_OFFSET * side
       y += ny * FOOTPRINT_OFFSET * side
     }
-    marks.push({ x, y, angle, kind })
+    // `arc` is the UNOFFSET position along the route (see `ClueMark.arc`): the
+    // footprint branch above moved the drawn point sideways, never the mark's
+    // place in the walk.
+    marks.push({ x, y, angle, kind, arc })
   }
   return marks
 }
 
 /**
- * Fold one position sample into a trail's clue state (rides the existing
- * 10 Hz `onFrame` sample in `LevelPlay`, design unit 6 — a later slice; this
- * module adds no second scan of its own).
+ * Fold one sample's ROUTE PROGRESS into a trail's clue state (rides the
+ * existing `onFrame` sample in `LevelPlay`; this module adds no scan of its
+ * own).
  *
- * A mark transitions `drained → earned` the moment `head` lands within
- * `radius` of it — a single, discrete flip, never re-evaluated once earned
- * (spec scenario "Mark flips exactly once as the glass passes"): the
- * MONOTONE guarantee is `lit[i]` can only go `false → true`, never back.
+ * `maxArc` is the furthest the child has got along the route this run — the
+ * monotone high-water mark carried by `screen/corridorTrack.ts`'s
+ * `CorridorTrack`, not the raw per-sample `arc`, which slides backwards when
+ * the finger wobbles. A mark is earned the moment the walk has REACHED its
+ * arc position: `lit[i] = maxArc >= marks[i].arc`.
  *
- * When nothing changes — every already-earned mark stays earned and no
- * `drained` mark is within radius — the exact SAME `state` reference is
- * returned, not merely an equal one: that is what makes "re-passing an
- * earned mark is inert" cheap to assert (spec scenario "Re-passing an
- * earned mark is inert") and cheap for a caller to skip re-rendering on.
+ * WHY THIS IS NOT PROXIMITY. It used to be `dist² <= radius²` against the
+ * mark's drawn point, with `radius = corridorWidth`. That made collection a
+ * test of how CENTRED the line was, and the corridor is not a centred-line
+ * exercise — it is a don't-leave-it exercise. On a wide trail a child could
+ * walk the whole route legally, hugging one wall or cutting the inside of
+ * every bend, and arrive with marks still dark; on a route that doubles back,
+ * proximity could even light a mark on a neighbouring arm the child was not
+ * walking. Arc progress answers the question the mechanic actually asks, and
+ * it makes the user's rule true BY CONSTRUCTION rather than by tolerance:
+ * reaching the end means `maxArc` passed every interior mark's arc on the way.
+ *
+ * Monotone by two independent facts, not by a rule this function remembers to
+ * follow: `maxArc` only ever grows, and an already-earned mark short-circuits
+ * to `true` before its arc is even read. `lit[i]` cannot go `true → false`.
+ *
+ * When nothing flips, the exact SAME `state` reference is returned, not merely
+ * an equal one: that is what makes "re-passing an earned mark is inert" cheap
+ * to assert (spec scenario "Re-passing an earned mark is inert") and what lets
+ * `LevelPlay`'s `setState` collapse an idle re-pass into a no-op.
  */
 export function clueTick(
   state: ClueState,
-  head: { x: number; y: number },
+  maxArc: number,
   marks: readonly ClueMark[],
-  radius: number,
 ): ClueState {
   let changed = false
-  const radiusSq = radius * radius
   const lit = state.lit.map((wasLit, i) => {
     if (wasLit) return true
     const mark = marks[i]
     if (!mark) return wasLit
-    const dx = head.x - mark.x
-    const dy = head.y - mark.y
-    if (dx * dx + dy * dy > radiusSq) return wasLit
+    if (maxArc < mark.arc) return wasLit
     changed = true
     return true
   })
   return changed ? { lit } : state
+}
+
+/**
+ * The arc position that counts as REACHING THE END of a trail: close enough to
+ * the finish that the last stretch is not a second exercise, `corridorWidth/2`
+ * being the corridor's own half-width — the same tolerance the wall check uses
+ * to decide inside from outside, so "arrived" is measured in the units the
+ * level is already built in rather than in a new invented constant.
+ *
+ * Its relationship with {@link clueMarks} is the whole invariant of this mode
+ * and is asserted against the REAL catalog in `clues.test.ts`. Marks sit
+ * `length / (count + 1)` apart and the last one sits exactly that far short of
+ * the end, so every mark is below this threshold precisely when that spacing
+ * exceeds `corridorWidth / 2`. The shipped trails space marks ~60 units apart
+ * against half-widths of 35 and 45, so the last mark is always passed before
+ * the end is — "reached the end ⇒ every clue lit" holds by construction.
+ *
+ * WHICH WIDTH TO PASS, and this one matters. `corridorWidth` must be the
+ * level's AUTHORED width (`LevelConfig.corridorWidth`), never the adaptive
+ * `LevelTarget.corridorWidth`, which `buildLevelTarget` has already multiplied
+ * by the child's `widthFactor`. That factor reaches `MAX_WIDTH_FACTOR = 2`
+ * (`game/adaptiveTolerance.ts`), and at double width trail1's threshold would
+ * move back to `length - 90` while its last mark still sits at `length - 60.6`
+ * — so the mark would fall PAST the finish and the trail would complete with a
+ * clue still dark. That is the invariant inverted, and inverted for exactly
+ * the child the widening exists to help, who would be the only one ever to
+ * see it. Where the route FINISHES is a property of the route; how much
+ * wobble is forgiven along it is the property `widthFactor` is for.
+ */
+export function trailEndArc(length: number, corridorWidth: number): number {
+  return length - corridorWidth / 2
+}
+
+/**
+ * Whether a run has REACHED THE END of the trail — the only thing a detective
+ * trail asks of the child.
+ *
+ * Deliberately not a completion test in the `evaluateLevel` sense. It says
+ * nothing about accuracy, stroke order or fluency, and it never consults the
+ * clue marks' `lit` state. The other half of the user's rule — "the finger did
+ * not leave the path" — is not checked here because it cannot fail here: a
+ * detective trail is `resetOnContact`, so leaving the corridor restarts the
+ * run and takes `maxArc` back to zero with it. A `maxArc` that reached this
+ * threshold is, by construction, a run that never left.
+ */
+export function reachedTrailEnd(maxArc: number, length: number, corridorWidth: number): boolean {
+  if (length <= 0) return false
+  return maxArc >= trailEndArc(length, corridorWidth)
 }

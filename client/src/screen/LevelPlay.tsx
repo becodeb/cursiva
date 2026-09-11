@@ -14,12 +14,15 @@
 // all functions of mastery, not one static boolean.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TraceCanvas, {
-  INK_COLOR,
+  GROUND_FIELD,
+  SHEET_PAPER,
   type DrawDemo,
   type TraceClueMark,
   type TraceCorridor,
+  type TraceGround,
   type TraceHazards,
 } from '../canvas/TraceCanvas'
+import { grassScatter, mudScatter } from '../canvas/groundScatter'
 import type { TracePoint } from '../canvas/useTraceInput'
 import { contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnContact'
 import { buildLevelTarget } from '../levels/buildLevel'
@@ -38,12 +41,24 @@ import type { LevelAttempt, LevelRecord } from '../game/types'
 // Detective mode (design unit 6, spec: detective-mode "Clue Collection State
 // Machine" / "Trail Completion Lamp and Rail Filing"). A level with no
 // `clue` field is an ordinary level and none of this wiring engages.
-import { clueCountFor, clueMarks, clueTick, emptyClueState, type ClueState } from '../detective/clues'
-import { CLUE_ART } from '../detective/assets'
-import { CLUE_DRAINED } from '../detective/palette'
+import {
+  clueCountFor,
+  clueMarks,
+  clueTick,
+  emptyClueState,
+  reachedTrailEnd,
+  type ClueState,
+} from '../detective/clues'
+import {
+  CARRIER_LENS_ART,
+  CLUE_ART,
+  GROUND_GRASS,
+  GROUND_MUD,
+  LAMP_ART,
+  OCTOPUS_ART,
+} from '../detective/assets'
 import PistasRail, { type PistasSlot } from '../detective/PistasRail'
 import { BackIcon, ContinueIcon, ReplayIcon, RetryIcon } from '../detective/icons'
-import { GLASS_ART } from '../detective/assets'
 
 /** Seconds one demonstration sub-path takes, and the gap before the next one. */
 const DEMO_DURATION_S = 1.6
@@ -63,12 +78,80 @@ const OFF_PATH_PERIOD_MS = 33
  * read as a pulse, long enough to see at 60 BPM on a slow panel. */
 const BEAT_FLASH_MS = 140
 
-/** Render scale of a clue mark (defect fix: "far more clue marks; the trail
- * must look walked-on" — at the resulting ~60-unit density, full-size marks
- * (`CLUE_ART`'s registry art is ~24-32 units across) run into their own
- * neighbours and merge into a smear instead of reading as individual
- * footprints/droplets/kernels/feathers). */
-const CLUE_MARK_SCALE = 0.55
+/** Rendered HEIGHT of a clue mark, in viewBox units on the 1000x600 sheet
+ * (docs/09 §3: clue marks are ~20-30 units tall).
+ *
+ * This used to be a unitless `scale` multiplier against art authored in a
+ * 100-unit em. The raster art has no em, and its files differ in aspect
+ * (a 103x256 feather against a 220x256 footprint), so a shared multiplier
+ * would render them at visibly different sizes. Fixing the HEIGHT and
+ * deriving each width from the source aspect ratio keeps the original
+ * intent — the defect this constant was introduced for was density: at the
+ * shipped ~60-unit spacing, marks any bigger run into their own neighbours
+ * and merge into a smear instead of reading as individual
+ * footprints/droplets/kernels/feathers. */
+const CLUE_MARK_SIZE = 28
+
+/** Rendered HEIGHT of the octopus standing at the start of a trail, in sheet
+ * units (`docs/09_GUIA_DE_ESTILO_VISUAL.md` §3). It stands on its FEET — the
+ * canvas's `TraceStandingArt` contract — so it waits AT the start of the route
+ * rather than being bisected by it. */
+const OCTOPUS_SIZE = 96
+
+/** Rendered HEIGHT of the lamp standing at the end, a little under the
+ * octopus. Both states are drawn from the LIT source (see `build_art.py`'s
+ * `SINGLES`), so the unlit bulb carries the same ink contour every other
+ * drained mark has and reads at this size without being oversized to
+ * compensate for having no contrast of its own. */
+const LAMP_SIZE = 84
+
+/**
+ * Where the magnifying glass RESTS, as an offset from the octopus's feet.
+ *
+ * The glass is the carrier, so at rest it sits on the carrier's home point.
+ * Left at the route's first point it renders dead-centre on the octopus's
+ * body and reads as swallowed rather than held. These two numbers move the
+ * home point to where the octopus's own raised tentacle holds the glass in
+ * the source art (`/art/carrier-octopus.png`: its lens sits at about 85% of
+ * the width and 27% of the height, which against `OCTOPUS_SIZE` and that
+ * file's 384x353 aspect is about 55% of `OCTOPUS_SIZE` across and 94% of it
+ * up from the feet). They scale WITH `OCTOPUS_SIZE`: raise one and the other
+ * two move, or the glass drifts off the tentacle holding it.
+ *
+ * It is applied to the carrier's HOME POINT here rather than as an offset
+ * inside the canvas, and that is the only place it can live: `TraceCanvas`'s
+ * rAF loop rewrites the carrier group's `transform` every single frame, so
+ * anything written on that group is gone in ~16ms, and an offset on the
+ * group's CHILD would follow the glass onto the fingertip while drawing —
+ * where the glass must sit exactly ON the finger, not beside it. Offsetting
+ * the home point moves the glass only where it rests.
+ */
+const GLASS_REST_DX = 53
+const GLASS_REST_DY = -90
+
+/**
+ * The child's own line on a detective trail: MUD, not ink.
+ *
+ * A trail is walked, not written, so the trace the glass leaves behind should
+ * read as trodden earth — the user's brief is "a brown slightly darker than
+ * the ground", so the child can see the route they have already covered. The
+ * corridor's earth is `#d9c3ae` (`TraceCanvas`'s `CORRIDOR_EARTH`); this is
+ * the same hue carried down in value.
+ *
+ * It is bounded on BOTH sides on purpose. Too light and it vanishes into the
+ * corridor it is drawn on, which is the one thing this line exists to show;
+ * too dark and it competes with the footprint clue's `PRINT` (`#000000`) and
+ * with every earned clue colour, in a mode whose first rule is that colour
+ * means a clue was earned. `#8a6a4a` sits clear of both: obviously darker
+ * than the ground, obviously lighter and warmer than the marks lying on it.
+ */
+const MUD_INK = '#8a6a4a'
+
+/** The mud with the light down — the off-corridor dim. The shipped `#94a3b8`
+ * is a cold grey, and against a warm earth corridor it reads as a DIFFERENT
+ * substance rather than as the same line fading; this is the same brown
+ * desaturated and lifted toward the ground it is drawn on. */
+const MUD_INK_DIM = '#b3a08c'
 
 /**
  * The restart cue (`LevelConfig.resetOnContact`, docs/01 principle 2).
@@ -107,11 +190,22 @@ const INK_REACH = 31
  * laptop) the same height buys a much wider — therefore much bigger — sheet.
  * On a width-constrained screen (a phone held upright) the scale still comes
  * from the width and the letters do NOT grow; only empty paper is removed.
+ *
+ * ON A BLANK SURFACE THERE IS NO PAUTA TO PROTECT. The clamp exists so the
+ * band always contains the ruled lines a child is writing between — but a
+ * `surface: 'blank'` level never draws one (see `TraceCanvas`'s `surface`
+ * prop), so on those the clamp was reserving room for four lines that are not
+ * there, and giving away 160 units of sheet for nothing. Every detective trail
+ * is blank, and on those the sheet is no longer paper at all: it is the world,
+ * so the "empty margin" the crop was removing is now grass (docs/09 §7, "la
+ * hoja … debería ocupar la pantalla"). Ruled levels keep the clamp exactly.
  */
-function drawingBand(
+export function drawingBand(
   ideal: ReadonlyArray<readonly [number, number]>,
   corridorWidth: number,
+  surface: LevelConfig['surface'] = 'ruled',
 ): { y: number; height: number } {
+  if (surface === 'blank') return { y: 0, height: SHEET_HEIGHT }
   // Content bounds start empty on purpose: the pauta gets BAND_MARGIN, the
   // content gets its own corridor/ink reach, and the band is the UNION. Seeding
   // these with the pauta values instead would add the reach to the pauta too
@@ -148,8 +242,18 @@ html, body, #root { margin: 0; padding: 0; }
   flex-direction: column;
   gap: 8px;
   padding: 12px 16px;
-  background: #faf8f5;
+  /* The page behind the sheet. It used to be #faf8f5 — a THIRD off-white,
+   * different from both the sheet paper and the maze wall, which is what made
+   * the letterbox bars the contain fit leaves read as "page", and the sheet
+   * therefore read as a CARD sitting on it (docs/09 section 7).
+   * The fix is not to remove the bars — a contain fit needs them — but to make
+   * them CONTINUOUS with whatever the sheet's own edge paints. */
+  background: ${SHEET_PAPER};
 }
+/* …and on a detective trail the sheet's edge is grass, so the page is grass.
+ * One token, imported from the canvas that paints the field, so the two can
+ * never drift into two nearly-identical greens. */
+.cv-play.cv-play-ground { background: ${GROUND_FIELD}; }
 /* display:contents makes these wrappers invisible to layout, so the tall layout
  * is exactly the flat column it always was. A short viewport turns each one into
  * a single row, which is the only way two sibling rows can be merged without
@@ -186,7 +290,16 @@ html, body, #root { margin: 0; padding: 0; }
   border-bottom: 1px solid #e2e8f0;
 }
 .pistas-lamp-row { flex: 0 0 auto; display: flex; }
-.pistas-word { flex: 0 0 auto; display: flex; flex-direction: row; align-items: flex-end; gap: 6px; }
+/* The word is TYPESET now, not six hand-drawn polylines. Decision D6 ("no
+   font-based text in the rail") was taken when this app declared no typeface
+   at all; it now loads Nunito at the document root, so the constraint that
+   justified drawing letters out of M/L segments is gone. The drawn word could
+   not make a round S — it came out a stepped zig-zag — and a uniform 8-unit
+   monoline is the opposite of §1's "formas gordas y generosas".
+   Weight 800 is the heaviest Nunito ships here, which is what puts it in the
+   same register as the thick-marker art instead of beside it. */
+.pistas-word { flex: 0 0 auto; font-weight: 800; font-size: 96px; line-height: 1;
+  letter-spacing: 0.03em; color: #1e293b; -webkit-font-smoothing: antialiased; }
 .pistas-slots { flex: 0 0 auto; display: flex; flex-direction: row; align-items: center; gap: 12px; }
 .cv-result { flex: 0 0 auto; min-height: 96px; display: flex; flex-direction: column; justify-content: center; color: #1e293b; }
 .cv-pillars { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; }
@@ -214,8 +327,7 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-btn { min-height: 52px; padding: 0 22px; font-size: 18px; }
   .cv-btn-back { min-height: 48px; }
   .pistas-bar { gap: 14px; padding: 4px 2px 8px; }
-  .pistas-word { gap: 4px; }
-  .pistas-word svg { width: 34px; height: 57px; }
+  .pistas-word { font-size: 70px; }
   .pistas-lamp-row svg { width: 34px; height: 34px; }
   .pistas-slots { gap: 8px; }
   .pistas-slots svg { width: 30px; height: 30px; }
@@ -256,8 +368,7 @@ html, body, #root { margin: 0; padding: 0; }
    * only needs it SMALLER, not restructured, so every row reclaimed here
    * still goes straight into canvas height. */
   .pistas-bar { gap: 8px; padding: 2px 2px 6px; }
-  .pistas-word { gap: 2px; }
-  .pistas-word svg { width: 20px; height: 33px; }
+  .pistas-word { font-size: 42px; }
   .pistas-lamp-row svg { width: 22px; height: 22px; }
   .pistas-slots { gap: 5px; }
   .pistas-slots svg { width: 18px; height: 18px; }
@@ -433,18 +544,33 @@ export function standingHintFor(
 
 /**
  * Whether a trail's clue should file into the `PISTAS` rail (spec:
- * detective-mode "Trail Completion Lamp and Rail Filing"). Rides the SAME
- * pass/goal signal every other completion effect uses — `onRelease`'s
- * `result.approved` — and NOTHING else. In particular it takes no argument
- * about the clue marks' own `lit` state: a route can have every mark earned
- * and still fail approval (wrong direction, insufficient fluency, an extra
- * pen lift, ...), and that MUST NOT file the clue (spec scenario "Filing is
- * refused mid-trace", D5, `docs/05:14`). Pure and exported — like
- * `guideLevelFor`/`standingHintFor` above — so the decision is testable
- * without simulating a pointer release.
+ * detective-mode "Trail Completion Lamp and Rail Filing").
+ *
+ * WHAT IT TAKES, AND WHAT IT STILL REFUSES TO TAKE. The second argument is
+ * `reachedEnd` — `detective/clues.ts`'s `reachedTrailEnd` against the run's
+ * monotone arc progress. It is NOT the clue marks' `lit` state, and the
+ * original argument for that has not weakened: filing must be a fact about the
+ * ROUTE the child walked, never a fact about the rewards that walk produced,
+ * or the two become circular and a trail could file itself from a lucky
+ * pattern of lit marks (spec scenario "Filing is refused mid-trace", D5,
+ * `docs/05:14`). The finger still down with every mark earned files nothing —
+ * `onRelease` is the only caller.
+ *
+ * WHY IT IS NO LONGER `evaluateLevel`'s `approved`. On a detective trail the
+ * user overrode the three-pillar rule outright: "the only thing that matters
+ * is that the finger does not leave the path; everything else is decoration".
+ * Accuracy, checkpoint order and fluency are all a letter's concerns; a trail
+ * asks one thing, and reaching the end of a `resetOnContact` corridor IS that
+ * thing proven — leaving would have restarted the run. `evaluateLevel` itself
+ * is untouched and still scores every letter level exactly as it did, and it
+ * still runs on a trail: the attempt, the stars and the stored progress are
+ * all unchanged. It is only the FILING decision that stopped consulting it.
+ *
+ * Pure and exported — like `guideLevelFor`/`standingHintFor` above — so the
+ * decision is testable without simulating a pointer release.
  */
-export function shouldFileClue(hasClueTrail: boolean, approved: boolean): boolean {
-  return hasClueTrail && approved
+export function shouldFileClue(hasClueTrail: boolean, reachedEnd: boolean): boolean {
+  return hasClueTrail && reachedEnd
 }
 
 /**
@@ -579,6 +705,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // route not completed must leave both of these exactly where they started.
   const [clueState, setClueState] = useState<ClueState>(() => emptyClueState(trailClueMarks.length))
   const [clueFiled, setClueFiled] = useState(false)
+  // Whether THIS run has reached the end of the trail — the one thing a
+  // detective trail asks (`reachedTrailEnd`). It drives the lamp standing at
+  // the end of the route, which lights the moment the child arrives rather
+  // than waiting for the finger to lift: "al llegar al final se prende la
+  // lámpara". The ref is what `onRelease` reads, because a `setState` from
+  // `onFrame` has not necessarily committed by the time the finger lifts in
+  // the same tick, and filing must not depend on that race.
+  const reachedEndRef = useRef(false)
+  const [trailLampOn, setTrailLampOn] = useState(false)
 
   const resetSurface = useCallback((): void => {
     setAttempt(null)
@@ -587,6 +722,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     offPathRef.current = false
     contactRef.current = NO_CONTACT
     corridorTrackRef.current = CORRIDOR_TRACK_START
+    // Progress and the lamp go back with the track they are derived from.
+    reachedEndRef.current = false
+    setTrailLampOn(false)
     setRestarted(false)
     setClearSignal((n) => n + 1)
   }, [])
@@ -703,7 +841,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
    */
   const restartRun = useCallback((): void => {
     contactRef.current = NO_CONTACT
+    // Back to the start of the route with NO progress banked. This is what
+    // makes "reached the end" mean "reached the end without leaving": the only
+    // way `maxArc` survives to the far end is a run that never triggered this.
     corridorTrackRef.current = CORRIDOR_TRACK_START
+    reachedEndRef.current = false
+    setTrailLampOn(false)
     offPathRef.current = false
     setOffPath(false)
     setAttempt(null)
@@ -790,7 +933,25 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       // `clueTick` is monotone and returns the exact same state reference
       // when nothing flips, so an idle re-pass costs a no-op setState.
       if (shouldTickClue(!!clueDef && trailClueMarks.length > 0, out)) {
-        setClueState((prev) => clueTick(prev, head, trailClueMarks, target.corridorWidth))
+        const maxArc = corridorSample.track.maxArc
+        setClueState((prev) => clueTick(prev, maxArc, trailClueMarks))
+      }
+      // Arriving at the end of the trail lights the lamp standing there. Same
+      // sample, same monotone progress, and latched: it is an arrival, not a
+      // zone the child can drift back out of. Only `restartRun` unlatches it,
+      // which is the point — see `shouldFileClue`.
+      //
+      // `level.corridorWidth` is the AUTHORED width, deliberately not
+      // `target.corridorWidth`: the adaptive one carries the child's
+      // `widthFactor` and would move the finish line for them — see
+      // `trailEndArc`.
+      if (
+        isDetectiveTrail &&
+        !reachedEndRef.current &&
+        reachedTrailEnd(corridorSample.track.maxArc, target.length, level.corridorWidth)
+      ) {
+        reachedEndRef.current = true
+        setTrailLampOn(true)
       }
       // Reset on contact rides THIS SAME sample. The wall answer is the `out`
       // already computed above and the hazard answer is one point-in-circle
@@ -805,7 +966,17 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         if (next.reset) restartRun()
       }
     },
-    [target, feedback.tone, feedback.haptics, resetOnContact, restartRun, clueDef, trailClueMarks],
+    [
+      target,
+      feedback.tone,
+      feedback.haptics,
+      resetOnContact,
+      restartRun,
+      clueDef,
+      trailClueMarks,
+      isDetectiveTrail,
+      level.corridorWidth,
+    ],
   )
 
   // Every release re-evaluates the WHOLE stroke set: on a continuous level the
@@ -827,7 +998,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       if (result.approved) playApprovalTone() // best-effort, approval only
       // Trail completion lamp and rail filing (spec: detective-mode "Trail
       // Completion Lamp and Rail Filing"). Filed only ever flips false → true.
-      if (shouldFileClue(!!clueDef, result.approved)) setClueFiled(true)
+      // Filing now rides ARC PROGRESS, not `result.approved` — see
+      // `shouldFileClue`. `result` is still computed, still shown and still
+      // reported to `onAttempt` exactly as before on every level.
+      if (shouldFileClue(!!clueDef, reachedEndRef.current)) setClueFiled(true)
       onAttempt(result)
     },
     [target, onAttempt, clueDef],
@@ -874,31 +1048,68 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   const fluencyEvaluated = level.rules.minFluency > 0
   // Same cost as the ideal grid and the same inputs, so it rides along.
   const band = useMemo(
-    () => drawingBand(target.ideal, target.corridorWidth),
-    [target.ideal, target.corridorWidth],
+    () => drawingBand(target.ideal, target.corridorWidth, level.surface),
+    [target.ideal, target.corridorWidth, level.surface],
   )
 
   // Canvas clue layer (design unit 4, already shipped in `TraceCanvas`):
-  // colour is resolved HERE, never inside the canvas component (design.md
-  // "colour already resolved by the caller"). Drained until `clueTick` says
-  // otherwise, then the trail's own registered colour.
+  // WHICH art a mark shows is resolved HERE, never inside the canvas
+  // component (design.md "colour already resolved by the caller"). Drained
+  // until `clueTick` says otherwise, then the trail's own earned art.
+  //
+  // The earned/drained swap is now an `href` swap rather than a `fill` swap.
+  // The two files are derived from one silhouette by
+  // `scripts/art/build_art.py`, so the mark does not move or change shape
+  // when it lights up — only its colour does, which is exactly what the old
+  // fill swap did.
   const traceClueMarks = useMemo<TraceClueMark[]>(() => {
     if (!clueDef) return []
     const art = CLUE_ART[clueDef.kind]
-    return trailClueMarks.map((mark, idx) => ({
-      x: mark.x,
-      y: mark.y,
-      angle: mark.angle,
-      d: art.d,
-      paint: art.paint,
-      color: clueState.lit[idx] ? art.earned : CLUE_DRAINED,
-      // Smaller than the old full-size mark (defect fix: at ~40-a-trail
-      // density — up from 5 — full-size marks (the registry art is ~24-32
-      // units across) overlap their own ~60-unit spacing and read as a
-      // smear rather than individual footprints/droplets/kernels/feathers.
-      scale: CLUE_MARK_SCALE,
-    }))
+    return trailClueMarks.map((mark, idx) => {
+      const img = clueState.lit[idx] ? art.art.earned : art.art.drained
+      return {
+        x: mark.x,
+        y: mark.y,
+        angle: mark.angle,
+        href: img.href,
+        w: img.w,
+        h: img.h,
+        size: CLUE_MARK_SIZE,
+      }
+    })
   }, [clueDef, trailClueMarks, clueState])
+
+  // The ground (docs/09 §7). Keyed off `level.clue`, the same sole
+  // discriminator every other detective branch uses — NOT off `level.maze`,
+  // which `catalog.ts`'s `LEGACY_PHASE_1` rollback array also sets. Memoized on
+  // the route and the corridor, NEVER recomputed per frame: a re-scatter
+  // mid-run would make the field crawl under the child's finger.
+  //
+  // `halfWidthAt` is where a taper is respected: the same
+  // `lerp(from, to, fraction)` `corridorTaper` uses to cut its pieces, so the
+  // grass keeps clear of the channel's real edge rather than a nominal one.
+  //
+  // The two layers are seeded differently so the mud does not inherit the
+  // grass's jitter pattern, and both are seeded from a CONSTANT rather than
+  // from the level id: the field should be the same field every time this
+  // trail is opened.
+  const ground = useMemo<TraceGround | undefined>(() => {
+    if (!isDetectiveTrail || !corridor) return undefined
+    const taper = level.taper
+    const halfWidthAt = (t: number): number =>
+      (corridor.width * (taper ? taper.from + (taper.to - taper.from) * t : 1)) / 2
+    const shared = { halfWidthAt, viewBox: { x: 0, y: 0, width: target.viewBoxWidth, height: SHEET_HEIGHT } }
+    return {
+      grass: {
+        marks: grassScatter({ ...shared, polyline: target.polyline, artCount: GROUND_GRASS.length, seed: 0x9e37 }),
+        art: GROUND_GRASS,
+      },
+      mud: {
+        marks: mudScatter({ ...shared, polyline: target.polyline, artCount: GROUND_MUD.length, seed: 0x7f4a }),
+        art: GROUND_MUD,
+      },
+    }
+  }, [isDetectiveTrail, corridor, level.taper, target.polyline, target.viewBoxWidth])
 
   // The rail's slot data. This slice only has visibility into the CURRENT
   // trail — the other three trails' persisted state is wired once the
@@ -911,7 +1122,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   )
 
   return (
-    <main className="cv-play">
+    <main className={ground ? 'cv-play cv-play-ground' : 'cv-play'}>
       <style>{LAYOUT_CSS}</style>
       <div className="cv-top">
       <header className="cv-head">
@@ -1003,11 +1214,33 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         viewBoxHeight={band.height}
         fit="contain"
         startMarker={showMarkers ? startMarker : undefined}
+        // The octopus stands where the route begins, in place of the green dot
+        // (see `TraceStandingArt`): with a character already standing there the
+        // dot says nothing the octopus does not. Every non-detective level
+        // passes nothing and keeps its dot.
+        startArt={
+          isDetectiveTrail ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE } : undefined
+        }
         // Shown wherever the start dot is shown (docs/03 §3): from phase 3 on,
         // "where the letter ends" is real information, not decoration. At the
         // 'none' band it goes too, or `f5-mama` would stop being a memory test.
         endMarker={showMarkers ? endMarker : undefined}
-        directionArrow={showMarkers ? directionArrow : undefined}
+        // The lamp stands where the route ends, in place of the two diamonds.
+        // It is OFF until this run reaches the end and ON after — and it means
+        // exactly that, "llegaste", which is a different sentence from the
+        // rail's own lamp above (`lampOn={clueFiled}`, "the clue is filed").
+        // The two coincide on a finished trail and are not the same statement.
+        endArt={
+          isDetectiveTrail
+            ? { ...(trailLampOn ? LAMP_ART.on : LAMP_ART.off), size: LAMP_SIZE }
+            : undefined
+        }
+        // No arrow on a detective trail. The octopus standing at one end and the
+        // lamp at the other already say "from here to there", and the arrow is
+        // drawn AT the route's first point, so it lands on the octopus's head —
+        // observed on a screenshot. On a letter level there is no character at
+        // the start, so the arrow stays the only thing carrying direction.
+        directionArrow={showMarkers && !isDetectiveTrail ? directionArrow : undefined}
         completedStrokes={shownStrokes}
         offPath={offPath}
         clearSignal={clearSignal}
@@ -1017,20 +1250,38 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // The carried character rides the fingertip, and waits on the start of
         // the ROUTE — `target.polyline[0]`, not the start marker, so it is
         // still there on a level that has withdrawn its markers.
-        carrier={level.carrier && startMarker ? startMarker : undefined}
-        // The magnifying glass. Drawn in INK rather than given a colour of its
-        // own: it belongs to the world, not to the reward, and colour in this
-        // mode only ever means a clue was earned. It is also what keeps
-        // CARRIER_COLOR from crowding the feather's PLUME — see the palette
-        // suite, which asserts the shipped sage never renders under an
-        // override.
-        carrierArt={isDetectiveTrail ? { ...GLASS_ART, color: INK_COLOR } : undefined}
+        // On a detective trail the resting point is shifted into the
+        // octopus's raised tentacle so the glass reads as HELD rather than
+        // swallowed (see `GLASS_REST_DX`). While drawing, the canvas puts it on
+        // the fingertip and this offset plays no part.
+        carrier={
+          level.carrier && startMarker
+            ? isDetectiveTrail
+              ? { x: startMarker.x + GLASS_REST_DX, y: startMarker.y + GLASS_REST_DY }
+              : startMarker
+            : undefined
+        }
+        // The magnifying glass. It belongs to the world, not to the reward:
+        // colour in this mode only ever means a clue was earned, so the art
+        // keeps its authored ink contour and takes no palette colour of its
+        // own. It is also what keeps CARRIER_COLOR from crowding the
+        // feather's PLUME — see the palette suite, which asserts the shipped
+        // sage never renders under an override.
+        carrierArt={isDetectiveTrail ? CARRIER_LENS_ART : undefined}
         inkOnly={isDetectiveTrail}
+        // The child's own line is MUD on a trail (see `MUD_INK`). Only the
+        // trace changes substance: the carrier, the hazards and the silhouetted
+        // markers above all stay ink, because they are the world.
+        inkColor={isDetectiveTrail ? MUD_INK : undefined}
+        inkDimColor={isDetectiveTrail ? MUD_INK_DIM : undefined}
         // Any bump restarts the run (docs/01 principle 2).
         resetSignal={resetOnContact ? resetSignal : undefined}
         // Clue marks (design unit 4/6). Absent on every level without a
         // `clue` config, so the surface pays nothing for the feature.
         clues={clueDef ? { marks: traceClueMarks } : undefined}
+        // Grass and trodden earth. Detective trails only — every other level,
+        // maze or not, renders exactly the surface it always did.
+        ground={ground}
         onStart={onStart}
         onFrame={onFrame}
         onRelease={onRelease}

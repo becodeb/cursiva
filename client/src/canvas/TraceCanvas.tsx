@@ -39,6 +39,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { motion } from 'framer-motion'
 import { inkPath, traceInk } from './ink'
 import { taperedCorridor, type CorridorSegment } from './corridorTaper'
+import type { ScatterMark } from './groundScatter'
 import { useTraceInput, type TracePoint } from './useTraceInput'
 import { isDevMode } from './devMode'
 import { devCheckpointState, type DevCheckpointState } from './devCheckpointState'
@@ -58,7 +59,7 @@ const BASELINE_Y = 420
 const ROOTS_GUIDE_Y = 540 // descender guide: bottom of the roots zone
 /** The paper itself. Also the colour the maze corridor is painted in — the
  * channel IS exposed sheet, so it must be exactly this value. */
-const SHEET_PAPER = '#fdfcf7'
+export const SHEET_PAPER = '#fdfcf7'
 
 /** Maze wall fill. A soft warm grey against the bone paper — docs/01 principle
  * 1 keeps the palette muted, so the walls read as SOLID without ever reading as
@@ -83,10 +84,38 @@ const SHEET_PAPER = '#fdfcf7'
  * is not a workaround for one engine — it removes the dependency on the feature,
  * which is why it is right whatever the child's browser turns out to be. */
 const MAZE_WALL = '#e2e8f0'
+
+/** The maze wall repainted as a PLACE (`docs/09_GUIA_DE_ESTILO_VISUAL.md` §7:
+ * "el 'afuera' del corredor no tiene identidad: es un relleno gris. Con esta
+ * dirección debería ser pasto, y el corredor tierra pisada").
+ *
+ * These two are the base tones the scattered ground art sits on, sampled from
+ * that art after `build_art.py`'s `mute()` pass so a tuft never shows a rim of
+ * a different green. They are deliberately LOW-chroma: section 4's rule is "el
+ * color es la recompensa", and a field is the largest thing on the sheet, so
+ * a saturated one would outshout the clue marks it surrounds.
+ *
+ * They do NOT replace `MAZE_WALL`, and the `ground` prop is the switch between
+ * them. Every maze in the SHIPPED catalog is a detective trail, so nothing
+ * currently renders the grey wall — but `catalog.ts`'s `LEGACY_PHASE_1` keeps
+ * six unthemed corridor mazes byte-for-byte as the retheme's documented
+ * rollback plan ("reverting is swapping this array back into LEVELS"). Those
+ * six have no ground art and no world to belong to; deleting the grey wall
+ * would silently turn that rollback into six FLAT GREEN sheets, which is worse
+ * than the grey it reverts to. One unused constant is a cheap price for a
+ * rollback that still works. */
+export const GROUND_FIELD = '#c9d7bd'
+const CORRIDOR_EARTH = '#d9c3ae'
+
 /** Corridor colour when it is a soft channel rather than a wall. */
 const CORRIDOR_FILL = '#cbd5e1'
 /** Settled and live ink. */
 export const INK_COLOR = '#1e293b'
+/** The live ink while the fingertip is outside the corridor: the same line
+ * with the light turned down (docs/01 principle 2 — never an error colour).
+ * Overridable per caller through `inkDimColor`, because a line that is not ink
+ * needs a dim of its own substance. */
+const OFF_PATH_INK = '#94a3b8'
 const INK_WIDTH = 18
 
 /** Animated draw demo: framer-motion `pathLength` 0→1, times in seconds. */
@@ -198,23 +227,31 @@ const CARRIER_OUTLINE = SHEET_PAPER
  * One clue mark placed on the sheet (`detective-mode` design unit 4, spec:
  * trace-canvas "Clue Layer Rendering"), following the `TraceHazards` prop
  * precedent above: index-aligned readonly data, values computed OUTSIDE this
- * component. Colour is already resolved by the caller — this component
- * imports nothing from `detective/` and holds no token of its own, so
- * `drained` vs. `earned` is entirely the caller's decision (design.md
- * "Interfaces / Contracts").
+ * component. WHICH art a mark shows is already resolved by the caller — this
+ * component imports nothing from `detective/` and holds no token of its own,
+ * so `drained` vs. `earned` is entirely the caller's decision (design.md
+ * "Interfaces / Contracts"). That contract is unchanged; only its currency
+ * is, from a colour to an `href`, because the shipped art is raster (see
+ * `detective/assets.ts`'s header for why).
  */
 export interface TraceClueMark {
-  /** Origin-centred registry art, positioned by `translate(x,y)
-   * rotate(angle) scale(scale)` — no offset arithmetic. */
+  /** Origin-centred art, positioned by `translate(x,y) rotate(angle)` — no
+   * offset arithmetic. The image is centred on that origin by its own
+   * `x`/`y`, not by the group, so the transform stays a pure placement. */
   x: number
   y: number
   angle: number
-  d: string
-  paint: 'fill' | 'stroke'
-  /** `CLUE_DRAINED` while unearned, the trail's registered earned colour once
-   * earned — resolved by the caller, never by this component. */
-  color: string
-  scale: number
+  /** Root-absolute path into `public/` (`/art/…`), never a Vite import and
+   * never a `url(#…)` reference. */
+  href: string
+  /** The source file's intrinsic pixel size, used only to hold aspect while
+   * scaling to `size`. */
+  w: number
+  h: number
+  /** The mark's rendered HEIGHT in viewBox units. Width follows from the
+   * aspect ratio, so a tall feather and a wide footprint agree on how big
+   * "one clue mark" is. */
+  size: number
 }
 
 /** All of one level's clue marks. Absent = no clue layer, and the surface
@@ -223,27 +260,84 @@ export interface TraceClues {
   marks: readonly TraceClueMark[]
 }
 
-/** Stroke width for a `paint: 'stroke'` clue mark. Clue art is small (the
- * 100-unit em `detective/assets.ts` authors it in), so this stays far under
- * `INK_WIDTH`. */
-const CLUE_STROKE_WIDTH = 4
+/** One scattered layer of ground: WHERE the marks go (`groundScatter`, pure and
+ * seeded) and WHICH art they may draw from. The split is the same contract the
+ * clue layer uses — this component resolves nothing and imports nothing from
+ * `detective/`; `ScatterMark.art` indexes straight into `art` below. */
+export interface TraceGroundLayer {
+  marks: readonly ScatterMark[]
+  /** Root-absolute `/art/…` paths with their intrinsic pixel size, so a mark's
+   * width follows from its requested height without squashing. */
+  art: readonly { href: string; w: number; h: number }[]
+}
+
+/**
+ * Turns the maze from a diagram into a PLACE: the "outside" becomes grass and
+ * the corridor becomes trodden earth (docs/09 §7).
+ *
+ * Presence of this prop is the whole switch. Absent, the maze is painted
+ * exactly as it always was — grey wall, paper channel — which is what keeps the
+ * six non-detective phase-1 mazes and the letter workbench untouched.
+ *
+ * Mud is listed first because it is painted first: it belongs to the corridor,
+ * grass belongs to everything else, and both sit UNDER the guides, the markers,
+ * the ink, the clue marks and the carrier.
+ */
+export interface TraceGround {
+  grass: TraceGroundLayer
+  mud: TraceGroundLayer
+}
 
 /**
  * Override the hardcoded carrier shape with registry art (design.md "Decision:
  * assets behind a typed registry..."; "carrierArt override stays"). Absent =
- * the shipped sage figure below, so every existing caller is untouched. The
- * magnifying glass is drawn IN INK, not in a colour of its own — that is
- * what keeps `CARRIER_COLOR` from crowding `PLUME` (design.md "The
- * magnifying glass is drawn in ink...").
+ * the shipped sage figure below, so every existing caller is untouched.
+ *
+ * It is an `ArtImage`-shaped raster now rather than a `d` + colour pair. The
+ * reason the glass used to be drawn IN INK was that a colour of its own would
+ * crowd `PLUME` while colour in this mode only ever means "a clue was earned"
+ * — the art pipeline honours the same rule by keeping the glass's authored
+ * ink contour instead of tinting it.
  */
 export interface TraceCarrierArt {
-  d: string
-  color: string
+  href: string
+  w: number
+  h: number
 }
 
-/** Stroke width for a `carrierArt` override, drawn as a line figure rather
- * than the shipped filled shapes. */
-const CARRIER_ART_STROKE_WIDTH = 4
+/** Rendered HEIGHT of a `carrierArt` override, in viewBox units — big enough
+ * to read as a held object on the 1000x600 sheet without covering the ink it
+ * travels over (docs/09 §3).
+ *
+ * This is the height of the FILE, and the glass file is padded: `build_art.py`
+ * centres it on its lens, which leaves roughly a quarter of the canvas as
+ * transparent margin balancing the handle. So the glass the child actually
+ * sees is about three quarters of this number, and this is sized accordingly
+ * rather than to the guide's bare figure. */
+const CARRIER_ART_SIZE = 104
+
+/**
+ * Registry art standing AT one end of the route, in place of the engine's own
+ * marker glyph.
+ *
+ * The convention is the one `docs/09_GUIA_DE_ESTILO_VISUAL.md` sets for every
+ * character in this world: the art's ORIGIN IS ITS FEET, so it stands on the
+ * point rather than being bisected by it. That is the whole reason this is a
+ * type of its own instead of another `TraceCarrierArt` — the carrier is centred
+ * on the fingertip because it is a held object, and a character is not.
+ *
+ * Like `TraceClueMark`, this component resolves nothing: WHICH picture stands
+ * there (a lit lamp or an unlit one) is entirely the caller's decision.
+ */
+export interface TraceStandingArt {
+  /** Root-absolute path into `public/` (`/art/…`), never a `url(#…)`. */
+  href: string
+  /** Intrinsic pixel size, used only to hold aspect while scaling to `size`. */
+  w: number
+  h: number
+  /** Rendered HEIGHT in viewBox units. Width follows from the aspect ratio. */
+  size: number
+}
 
 /** How long the abandoned ink takes to fade on a reset. Long enough to be seen
  * as a departure rather than a glitch, short enough that the child is not kept
@@ -316,17 +410,49 @@ export interface TraceCanvasProps {
   completedStrokes?: ReadonlyArray<ReadonlyArray<{ x: number; y: number }>>
   /** Green start dot — where the stroke must begin. */
   startMarker?: TraceMarker
+  /** Stand this art at `startMarker` INSTEAD of the green dot. Absent = the
+   * shipped dot, so every existing caller is untouched. With a character
+   * already standing on the spot the dot is not additional information, it is
+   * a second thing saying the same thing — and `docs/01` principle 1 spends
+   * the child's attention on one. Has no effect without `startMarker`. */
+  startArt?: TraceStandingArt
   /** Goal mark — where the route ends. Drawn UNDER the start dot and the arrow
    * and always HOLLOW, which is what makes a collision harmless by
    * construction: on a closed shape like `f3-o` the route ends about where it
    * began, and the goal simply nests around the green dot instead of hiding it.
    * No fixed offset could have guaranteed that. */
   endMarker?: TraceMarker
+  /** Stand this art at `endMarker` INSTEAD of the two hollow diamonds, same
+   * contract as `startArt`. The diamonds' nesting trick exists so a route that
+   * ends where it began does not occlude the start dot; a detective trail
+   * supplies both ends' art and places them at opposite ends of an open route,
+   * so there is nothing left for it to protect against. Has no effect without
+   * `endMarker`. */
+  endArt?: TraceStandingArt
   /** Small arrow head showing the direction of travel. */
   directionArrow?: TraceDirectionArrow
   /** True dims the LIVE ink instead of tinting it red: the light goes down,
    * the stroke is never marked wrong (docs/01 principle 2). */
   offPath?: boolean
+  /**
+   * What the CHILD'S OWN LINE is made of — settled ink, fading ink and live
+   * ink alike. Defaults to {@link INK_COLOR}, so every existing caller draws
+   * the same slate it always did.
+   *
+   * This is a prop and not a change to `INK_COLOR` itself on purpose.
+   * `INK_COLOR` is exported and does three other jobs — it paints the carrier,
+   * the hazards and every marker the `inkOnly` mode silhouettes — and on a
+   * detective trail those must all STAY ink: they are the world, drawn in the
+   * world's one colour. It is only the trace the child leaves that stops being
+   * ink there and becomes MUD, because a trail is walked, not written.
+   */
+  inkColor?: string
+  /** The LIVE ink's colour while `offPath` is true — the dimmed state, not an
+   * error colour (docs/01 principle 2). Defaults to the shipped cool grey. A
+   * caller that overrides `inkColor` should override this too, or the line
+   * jumps hue the moment the child drifts: the dim has to read as the SAME
+   * substance with the light down. */
+  inkDimColor?: string
   /** Width of the normalized viewBox. Defaults to 1000; a level whose path is
    * wider than that asks for more paper so nothing is clipped at the edge. The
    * HEIGHT never changes — see `VIEWBOX_HEIGHT`. Pointer input needs no change
@@ -376,6 +502,9 @@ export interface TraceCanvasProps {
   /** Clue marks (`detective-mode`), rendered as their own `<g>` layer UNDER
    * the ink — see `TraceClueMark`. Absent = no clue layer. */
   clues?: TraceClues
+  /** Grass and mud scatter (docs/09 §7). Absent = the shipped grey maze; see
+   * `TraceGround`. Has no effect without `maze` + `corridor`. */
+  ground?: TraceGround
   /** Any CHANGE of this value RESTARTS THE RUN (`LevelConfig.resetOnContact`):
    * the stroke in progress is abandoned, both buffers are emptied, and the ink
    * that was on the sheet FADES rather than vanishing.
@@ -410,9 +539,13 @@ export default function TraceCanvas({
   multiStroke = false,
   completedStrokes,
   startMarker,
+  startArt,
   endMarker,
+  endArt,
   directionArrow,
   offPath = false,
+  inkColor = INK_COLOR,
+  inkDimColor = OFF_PATH_INK,
   viewBoxWidth = DEFAULT_VIEWBOX_WIDTH,
   viewBoxY = 0,
   viewBoxHeight = VIEWBOX_HEIGHT,
@@ -423,6 +556,7 @@ export default function TraceCanvas({
   carrierArt,
   inkOnly = false,
   clues,
+  ground,
   resetSignal,
 }: TraceCanvasProps) {
   // `contain` letterboxes inside its box, so the CSS background would paint the
@@ -676,8 +810,18 @@ export default function TraceCanvas({
           y={viewBoxY}
           width={viewBoxWidth}
           height={viewBoxHeight}
-          rx={12}
-          fill={SHEET_PAPER}
+          // NO `rx`. A rounded corner is half of what made the sheet read as a
+          // CARD floating on a page instead of as the world (docs/09 §7: "la
+          // hoja … debería ocupar la pantalla"). The other half was the page
+          // background behind the letterbox bars — see `LevelPlay`'s
+          // `LAYOUT_CSS`.
+          // When the ground is on, this base rect takes the FIELD colour, not
+          // the paper. It is not a taste call: the ground rect painted over it
+          // antialiases against this one at the viewBox edge, and a paper-white
+          // base bleeds a 2px `#d4dfc9` hairline down both sides of the sheet —
+          // measured, not guessed. Matching the two kills the seam, and nothing
+          // renders the base anywhere else once the field covers it.
+          fill={ground ? GROUND_FIELD : SHEET_PAPER}
           pointerEvents="none"
         />
       )}
@@ -692,14 +836,19 @@ export default function TraceCanvas({
         // the same width, caps and joins the knockout used, so the picture is
         // unchanged; a tapered corridor is the same paint repeated once per
         // width-varying piece.
+        //
+        // `ground` swaps only the two COLOURS — grey wall becomes field, paper
+        // channel becomes trodden earth. The stroking MECHANISM is untouched on
+        // purpose: it is the whole substance of the `url(#…)` scar, and
+        // `TraceCanvas.test.tsx` proves the taper by parsing the emitted
+        // stroke/stroke-width pairs.
         <g pointerEvents="none">
           <rect
             x={0}
             y={viewBoxY}
             width={viewBoxWidth}
             height={viewBoxHeight}
-            rx={12}
-            fill={MAZE_WALL}
+            fill={ground ? GROUND_FIELD : MAZE_WALL}
           />
           {corridorPieces
             ? corridorPieces.map((piece, idx) => (
@@ -707,7 +856,7 @@ export default function TraceCanvas({
                   key={`channel-${idx}`}
                   d={piece.d}
                   fill="none"
-                  stroke={SHEET_PAPER}
+                  stroke={ground ? CORRIDOR_EARTH : SHEET_PAPER}
                   strokeWidth={piece.width}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -718,12 +867,46 @@ export default function TraceCanvas({
                   key={`channel-${idx}`}
                   d={cd}
                   fill="none"
-                  stroke={SHEET_PAPER}
+                  stroke={ground ? CORRIDOR_EARTH : SHEET_PAPER}
                   strokeWidth={corridor.width}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               ))}
+        </g>
+      )}
+      {ground && (
+        // The ground itself: individual `<image>` marks, because a texture FILL
+        // would need `<pattern>` + `url(#id)` and confining one to the corridor
+        // would need `<clipPath>` — both banned here (see `MAZE_WALL`), and the
+        // corridor has no fillable polygon to clip against anyway; it only ever
+        // exists as a stroked centreline. `groundScatter` places the marks
+        // against that centreline instead, deterministically, so the field does
+        // not crawl between renders.
+        //
+        // Mud first, then grass, and the whole layer BELOW the guides, markers,
+        // ink, clue marks and carrier. Nothing here may compete with the clue
+        // marks: they are the only thing on this sheet the child is hunting.
+        <g pointerEvents="none">
+          {[ground.mud, ground.grass].map((layer, layerIdx) =>
+            layer.marks.map((mark, idx) => {
+              const img = layer.art[mark.art]
+              if (!img) return null
+              const width = (mark.size * img.w) / img.h
+              return (
+                <image
+                  key={`ground-${layerIdx}-${idx}`}
+                  href={img.href}
+                  x={-width / 2}
+                  y={-mark.size / 2}
+                  width={width}
+                  height={mark.size}
+                  transform={`translate(${mark.x} ${mark.y}) rotate(${mark.angle})`}
+                  preserveAspectRatio="xMidYMid meet"
+                />
+              )
+            }),
+          )}
         </g>
       )}
       {corridor && !mazeOn && (
@@ -854,7 +1037,22 @@ export default function TraceCanvas({
           pointerEvents="none"
         />
       )}
-      {endMarker && (
+      {endMarker && endArt && (
+        // Registry art standing where the route ends (`TraceStandingArt`),
+        // in place of the diamonds below. Its origin is its FEET — `y` runs
+        // from `-size` to 0 — so it stands ON the end of the route instead of
+        // being cut in half by it.
+        <image
+          href={endArt.href}
+          x={endMarker.x - (endArt.size * endArt.w) / endArt.h / 2}
+          y={endMarker.y - endArt.size}
+          width={(endArt.size * endArt.w) / endArt.h}
+          height={endArt.size}
+          preserveAspectRatio="xMidYMid meet"
+          pointerEvents="none"
+        />
+      )}
+      {endMarker && !endArt && (
         // The goal (docs/03 §7). Two nested HOLLOW diamonds: a silhouette no
         // child can mistake for the solid green start dot, and hollow so that
         // when the route ends near where it starts the two nest instead of
@@ -881,7 +1079,21 @@ export default function TraceCanvas({
           />
         </g>
       )}
-      {startMarker && (
+      {startMarker && startArt && (
+        // Registry art standing where the route begins, feet on the point —
+        // same convention as `endArt` above, and it REPLACES the green dot
+        // rather than joining it (see `startArt`).
+        <image
+          href={startArt.href}
+          x={startMarker.x - (startArt.size * startArt.w) / startArt.h / 2}
+          y={startMarker.y - startArt.size}
+          width={(startArt.size * startArt.w) / startArt.h}
+          height={startArt.size}
+          preserveAspectRatio="xMidYMid meet"
+          pointerEvents="none"
+        />
+      )}
+      {startMarker && !startArt && (
         // "Empezá desde el punto verde" (docs/03 §7).
         <g pointerEvents="none">
           <circle
@@ -921,7 +1133,7 @@ export default function TraceCanvas({
               key={idx}
               d={d}
               fill="none"
-              stroke={INK_COLOR}
+              stroke={inkColor}
               strokeWidth={INK_WIDTH}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -944,7 +1156,7 @@ export default function TraceCanvas({
               key={`faded-${idx}`}
               d={d}
               fill="none"
-              stroke={INK_COLOR}
+              stroke={inkColor}
               strokeWidth={INK_WIDTH}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -954,7 +1166,7 @@ export default function TraceCanvas({
             <path
               d={fading.ink}
               fill="none"
-              stroke={INK_COLOR}
+              stroke={inkColor}
               strokeWidth={INK_WIDTH}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -969,25 +1181,37 @@ export default function TraceCanvas({
         // carrier — the opposite z-order `hazards` uses below, for the
         // opposite reason (a hazard must be seen coming; a clue mark must
         // never compete with the child's own trace). No animation: a
-        // mark's colour is a discrete attribute the caller already
+        // mark's art is a discrete attribute the caller already
         // resolved, not a value this loop mutates per frame.
+        //
+        // Each mark is an `<image>` CENTRED on the origin by its own negative
+        // `x`/`y`, so the group transform stays pure placement and the
+        // caller still does no offset arithmetic. Width comes from the
+        // source file's aspect ratio against the requested height, so a
+        // 103x256 feather and a 220x256 footprint read as the same "one
+        // mark" size instead of one being squashed.
         <g pointerEvents="none">
-          {clues.marks.map((mark, idx) => (
-            <path
-              key={idx}
-              d={mark.d}
-              transform={`translate(${mark.x} ${mark.y}) rotate(${mark.angle}) scale(${mark.scale})`}
-              fill={mark.paint === 'fill' ? mark.color : 'none'}
-              stroke={mark.paint === 'stroke' ? mark.color : 'none'}
-              strokeWidth={mark.paint === 'stroke' ? CLUE_STROKE_WIDTH : undefined}
-            />
-          ))}
+          {clues.marks.map((mark, idx) => {
+            const width = (mark.size * mark.w) / mark.h
+            return (
+              <image
+                key={idx}
+                href={mark.href}
+                x={-width / 2}
+                y={-mark.size / 2}
+                width={width}
+                height={mark.size}
+                transform={`translate(${mark.x} ${mark.y}) rotate(${mark.angle})`}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            )
+          })}
         </g>
       )}
       <path
         ref={inkRef}
         fill="none"
-        stroke={offPath ? '#94a3b8' : INK_COLOR}
+        stroke={offPath ? inkDimColor : inkColor}
         strokeWidth={INK_WIDTH}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -1023,16 +1247,20 @@ export default function TraceCanvas({
           transform={`translate(${carrier.x} ${carrier.y})`}
         >
           {carrierArt ? (
-            // Registry art (e.g. `detective/assets.ts`'s `GLASS_ART`), drawn
-            // IN INK — a colour, not a reward (design.md "The magnifying
-            // glass is drawn in ink...").
-            <path
-              d={carrierArt.d}
-              fill="none"
-              stroke={carrierArt.color}
-              strokeWidth={CARRIER_ART_STROKE_WIDTH}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            // Registry art (`detective/assets.ts`'s `CARRIER_LENS_ART`).
+            //
+            // The `<image>` carries its own centring offset and NO transform
+            // of its own: the rAF loop above rewrites `transform` on this
+            // GROUP every single frame, so anything written there is gone in
+            // ~16ms. Centring has to live on the child, which is why this is
+            // not simply `transform="translate(-w/2 -h/2)"`.
+            <image
+              href={carrierArt.href}
+              x={-(CARRIER_ART_SIZE * carrierArt.w) / carrierArt.h / 2}
+              y={-CARRIER_ART_SIZE / 2}
+              width={(CARRIER_ART_SIZE * carrierArt.w) / carrierArt.h}
+              height={CARRIER_ART_SIZE}
+              preserveAspectRatio="xMidYMid meet"
             />
           ) : (
             <>

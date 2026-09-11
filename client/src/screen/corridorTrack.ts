@@ -38,10 +38,35 @@ export const CORRIDOR_WINDOW_BACK = 150
 export interface CorridorTrack {
   /** Arc-length position along the polyline the local window is centred on. */
   readonly arc: number
+  /**
+   * The FURTHEST arc position reached this run — `arc`'s running maximum.
+   *
+   * `arc` alone cannot answer "how far have I got?", and deliberately so: the
+   * search window reaches {@link CORRIDOR_WINDOW_BACK} units BEHIND the tracked
+   * position precisely so a wobbling fingertip keeps being measured against the
+   * same local stretch, which means `arc` slides backwards by up to 150 units
+   * whenever it does. That is right for the wall check and useless for progress
+   * — a child who jitters in place would watch their progress oscillate.
+   *
+   * This lives in the track rather than in a sibling ref for one reason: a
+   * second ref is a second thing to reset, and the two places a run starts over
+   * (`LevelPlay`'s `resetSurface` and `restartRun`) already restore
+   * {@link CORRIDOR_TRACK_START}. Hanging progress off the same object makes
+   * "progress resets exactly when the run does" true by construction instead of
+   * by two call sites remembering to agree.
+   *
+   * It advances on EVERY sample, including one taken while the fingertip is
+   * outside the corridor. That is not a loophole: on a detective trail leaving
+   * the corridor restarts the run and wipes this value, and the clue channel is
+   * separately gated on being inside (`LevelPlay`'s `shouldTickClue`), so an
+   * excursion can neither bank progress nor light a mark.
+   */
+  readonly maxArc: number
 }
 
-/** The track a fresh run starts in: the very beginning of the route. */
-export const CORRIDOR_TRACK_START: CorridorTrack = { arc: 0 }
+/** The track a fresh run starts in: the very beginning of the route, with no
+ * progress banked. */
+export const CORRIDOR_TRACK_START: CorridorTrack = { arc: 0, maxArc: 0 }
 
 /** One sample's result: the local wall distance, and the advanced track. */
 export interface CorridorSample {
@@ -70,6 +95,10 @@ export function corridorTick(
   y: number,
 ): CorridorSample {
   if (polyline.length < 2 || length <= 0) return { distance: Infinity, track }
+  const advanced = (arc: number): CorridorTrack => ({
+    arc,
+    maxArc: Math.max(track.maxArc, arc),
+  })
 
   const centre = Math.max(0, Math.min(length, track.arc))
   const lo = Math.max(0, centre - CORRIDOR_WINDOW_BACK)
@@ -101,5 +130,5 @@ export function corridorTick(
   }
   // The window found nothing (a degenerate polyline, or a track past the
   // end): fall back to the un-advanced centre rather than losing the track.
-  return { distance: bestDistance, track: { arc: bestDistance === Infinity ? centre : bestArc } }
+  return { distance: bestDistance, track: advanced(bestDistance === Infinity ? centre : bestArc) }
 }

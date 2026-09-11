@@ -181,6 +181,10 @@ describe('TraceCanvas maze walls (docs/01 fase 1: senderos y laberintos)', () =>
         guide={['M 100 300 L 900 300']}
         guideD="M 100 300 L 900 300"
         carrier={{ x: 100, y: 300 }}
+        startArt={{ href: '/art/carrier-octopus.png', w: 384, h: 353, size: 60 }}
+        endArt={{ href: '/art/lamp-off.png', w: 132, h: 192, size: 52 }}
+        inkColor="#8a6a4a"
+        inkDimColor="#b3a08c"
       />,
     )
     expect(html).not.toContain('url(#')
@@ -403,35 +407,54 @@ describe('TraceCanvas carrier (LevelConfig.carrier: llevar a alguien, no trazar)
 })
 
 describe('TraceCanvas clues prop (design.md "Decision: clue layer is a new `clues` prop, not `children`")', () => {
+  // The canvas imports nothing from `detective/`, so its own suite names the
+  // art by literal path rather than importing the registry — the same
+  // convention the colour-token version of these fixtures used. The registry
+  // side of the contract is `detective/artManifest.test.ts`'s job.
+  const DRAINED_HREF = '/art/clue-droplet-drained.png'
+  const EARNED_HREF = '/art/clue-droplet-earned.png'
   const drainedMark = {
     x: 200,
     y: 300,
     angle: 0,
-    d: 'M0,-10 L10,10 L-10,10 Z',
-    paint: 'fill' as const,
-    color: '#c8cdd2',
-    scale: 1,
+    href: DRAINED_HREF,
+    w: 195,
+    h: 256,
+    size: 28,
   }
-  const earnedMark = { ...drainedMark, color: '#3f6f8f' }
-  const earnedFootprintMark = { ...drainedMark, color: '#000000' }
+  const earnedMark = { ...drainedMark, href: EARNED_HREF }
 
   it('renders nothing without the prop (trace-canvas spec, "Drained mark renders grey")', () => {
-    expect(renderToString(<TraceCanvas />)).not.toContain('#c8cdd2')
+    expect(renderToString(<TraceCanvas />)).not.toContain('/art/')
   })
 
-  it('renders a drained mark with the shared grey token (trace-canvas spec, "Drained mark renders grey")', () => {
+  it('renders a drained mark with the shared drained art (trace-canvas spec, "Drained mark renders grey")', () => {
     const html = renderToString(<TraceCanvas clues={{ marks: [drainedMark] }} />)
-    expect(html).toContain('fill="#c8cdd2"')
+    expect(html).toContain(`href="${DRAINED_HREF}"`)
   })
 
-  it("renders an earned mark with its trail's colour (trace-canvas spec, \"Earned mark renders its trail colour\")", () => {
+  it("renders an earned mark with its trail's own art (trace-canvas spec, \"Earned mark renders its trail colour\")", () => {
     const html = renderToString(<TraceCanvas clues={{ marks: [earnedMark] }} />)
-    expect(html).toContain('fill="#3f6f8f"')
+    expect(html).toContain(`href="${EARNED_HREF}"`)
   })
 
-  it('renders an earned footprint mark black, never chromatic (trace-canvas spec, "Earned footprint renders black, never chromatic")', () => {
-    const html = renderToString(<TraceCanvas clues={{ marks: [earnedFootprintMark] }} />)
-    expect(html).toContain('fill="#000000"')
+  it('keeps drained and earned visibly DISTINCT, never the same file twice', () => {
+    // The whole clue mechanic is "this mark lit up". Two marks in opposite
+    // states must not render identically, which is the property the old
+    // fill-colour assertions were really protecting.
+    const html = renderToString(<TraceCanvas clues={{ marks: [drainedMark, earnedMark] }} />)
+    expect(html).toContain(`href="${DRAINED_HREF}"`)
+    expect(html).toContain(`href="${EARNED_HREF}"`)
+    expect(DRAINED_HREF).not.toBe(EARNED_HREF)
+  })
+
+  it('renders a mark the caller resolved to any trail, without knowing the trail exists', () => {
+    // The canvas holds no clue token of its own: whatever href the caller
+    // resolved is what renders, including the achromatic footprint the
+    // palette suite pins to PRINT.
+    const footprint = { ...drainedMark, href: '/art/clue-footprint-earned.png', w: 220 }
+    const html = renderToString(<TraceCanvas clues={{ marks: [footprint] }} />)
+    expect(html).toContain('href="/art/clue-footprint-earned.png"')
   })
 
   it('introduces no url(#) reference with clues populated (trace-canvas spec, "No url() reference is introduced")', () => {
@@ -441,48 +464,86 @@ describe('TraceCanvas clues prop (design.md "Decision: clue layer is a new `clue
 
   it('renders UNDER the live ink, not above it', () => {
     const html = renderToString(<TraceCanvas clues={{ marks: [earnedMark] }} />)
-    // The only other `#1e293b` (INK_COLOR) occurrence on a bare canvas is the
-    // live ink path itself, so this is a clean z-order check.
-    expect(html.indexOf('#3f6f8f')).toBeLessThan(html.indexOf('#1e293b'))
+    // The only `#1e293b` (INK_COLOR) occurrence on a bare canvas is the live
+    // ink path itself, so this stays a clean z-order check — only the clue
+    // side of it is an href now instead of a colour.
+    expect(html.indexOf(EARNED_HREF)).toBeLessThan(html.indexOf('#1e293b'))
   })
 
-  it('paints a `paint: "stroke"` mark with stroke, not fill', () => {
-    const strokeMark = { ...earnedMark, paint: 'stroke' as const }
-    const html = renderToString(<TraceCanvas clues={{ marks: [strokeMark] }} />)
-    expect(html).toContain('stroke="#3f6f8f"')
-    expect(html).toContain('fill="none"')
-  })
-
-  it('positions a mark by translate/rotate/scale, with no offset arithmetic', () => {
+  it('positions a mark by translate/rotate, centring the image on the origin itself', () => {
+    // The group transform stays PURE PLACEMENT and the `<image>` carries its
+    // own centring offset, so the caller still does no offset arithmetic.
+    // 100x200 art at size 40 is 20 wide, so the centred box is (-10,-20).
     const html = renderToString(
-      <TraceCanvas clues={{ marks: [{ ...earnedMark, x: 150, y: 250, angle: 45, scale: 0.8 }] }} />,
+      <TraceCanvas
+        clues={{ marks: [{ ...earnedMark, x: 150, y: 250, angle: 45, w: 100, h: 200, size: 40 }] }}
+      />,
     )
-    expect(html).toContain('translate(150 250) rotate(45) scale(0.8)')
+    expect(html).toContain('transform="translate(150 250) rotate(45)"')
+    expect(html).toContain('x="-10"')
+    expect(html).toContain('y="-20"')
+    expect(html).toContain('width="20"')
+    expect(html).toContain('height="40"')
+  })
+
+  it('holds each source file\'s aspect ratio, so a slim feather is not stretched to a footprint\'s width', () => {
+    // `size` is a HEIGHT. Two differently-shaped files at the same size must
+    // share a height and differ in width — the regression this guards is
+    // someone reintroducing a single square box for every mark.
+    const feather = { ...earnedMark, href: '/art/clue-feather-earned.png', w: 103, h: 256, size: 64 }
+    const footprint = { ...earnedMark, href: '/art/clue-footprint-earned.png', w: 220, h: 256, size: 64 }
+    const html = renderToString(<TraceCanvas clues={{ marks: [feather, footprint] }} />)
+    const boxes = [...html.matchAll(/width="([\d.]+)" height="([\d.]+)"/g)].map(([, w, h]) => [
+      Number(w),
+      Number(h),
+    ])
+    const marks = boxes.filter(([, h]) => h === 64)
+    expect(marks.length).toBe(2)
+    expect(marks[0][0]).not.toBe(marks[1][0])
+    expect(marks[0][0]).toBeCloseTo((64 * 103) / 256, 4)
+    expect(marks[1][0]).toBeCloseTo((64 * 220) / 256, 4)
   })
 })
 
 describe('TraceCanvas carrierArt override (design.md "carrierArt override stays")', () => {
+  const LENS = { href: '/art/carrier-lens.png', w: 148, h: 160 }
+
   it('renders the shipped sage shape when the override is absent', () => {
     const html = renderToString(<TraceCanvas carrier={{ x: 140, y: 260 }} />)
     expect(html).toContain('#5f8a86')
     expect(html).toContain('<rect')
   })
 
-  it('renders the override art in ink instead of the shipped shape when present', () => {
-    const html = renderToString(
-      <TraceCanvas
-        carrier={{ x: 140, y: 260 }}
-        carrierArt={{ d: 'M-9,0 L9,0 M9,9 L18,18', color: '#1e293b' }}
-      />,
-    )
-    expect(html).toContain('stroke="#1e293b"')
+  it('renders the override art instead of the shipped shape when present', () => {
+    const html = renderToString(<TraceCanvas carrier={{ x: 140, y: 260 }} carrierArt={LENS} />)
+    expect(html).toContain(`href="${LENS.href}"`)
     expect(html).not.toContain('#5f8a86')
     expect(html).not.toContain('<rect')
   })
 
+  it('centres the override on the carrier group WITHOUT writing a transform of its own', () => {
+    // Load-bearing: the rAF loop rewrites `transform` on the carrier GROUP
+    // every frame (TraceCanvas.tsx's frame callback), so a transform written
+    // on the art is erased within ~16ms and the glass would sit off-centre
+    // the instant the child starts drawing. Centring must live on the
+    // `<image>`'s own x/y. 148x160 at height 104 is 96.2 wide.
+    const html = renderToString(<TraceCanvas carrier={{ x: 140, y: 260 }} carrierArt={LENS} />)
+    const image = html.slice(html.indexOf('<image'), html.indexOf('>', html.indexOf('<image')))
+    expect(image).not.toContain('transform')
+    expect(image).toContain('x="-48.1"')
+    expect(image).toContain('y="-52"')
+    expect(image).toContain('width="96.2"')
+    expect(image).toContain('height="104"')
+  })
+
+  it('introduces no url(#) reference under the override', () => {
+    const html = renderToString(<TraceCanvas carrier={{ x: 140, y: 260 }} carrierArt={LENS} />)
+    expect(html).not.toContain('url(#')
+  })
+
   it('has no effect without a carrier', () => {
-    const html = renderToString(<TraceCanvas carrierArt={{ d: 'M0,0 L1,1', color: '#123456' }} />)
-    expect(html).not.toContain('#123456')
+    const html = renderToString(<TraceCanvas carrierArt={LENS} />)
+    expect(html).not.toContain(LENS.href)
   })
 })
 
@@ -514,5 +575,222 @@ describe('TraceCanvas inkOnly (detective-mode: the world is ink, colour means ea
       />,
     )
     for (const hex of Object.values(shipped)) expect(html).toContain(hex)
+  })
+})
+
+describe('TraceCanvas ground — the maze as a PLACE (docs/09 section 7)', () => {
+  const corridor = { paths: ['M 100 300 L 900 300'], width: 110 }
+  const art = [{ href: '/art/ground-grass-1.png', w: 118, h: 81 }]
+  const mudArt = [{ href: '/art/ground-mud-1.png', w: 128, h: 99 }]
+  const ground = {
+    grass: { marks: [{ x: 120, y: 80, art: 0, size: 44, angle: -3 }], art },
+    mud: { marks: [{ x: 400, y: 302, art: 0, size: 20, angle: 200 }], art: mudArt },
+  }
+
+  it('WITHOUT the prop the maze is exactly the grey sheet it always was', () => {
+    const html = renderToString(<TraceCanvas corridor={corridor} maze />)
+    expect(html).toContain('#e2e8f0')
+    expect(html).toContain('stroke="#fdfcf7"')
+    expect(html).not.toContain('#c9d7bd')
+    expect(html).not.toContain('/art/ground-')
+  })
+
+  it('WITH it the field becomes grass and the channel becomes trodden earth', () => {
+    const html = renderToString(<TraceCanvas corridor={corridor} maze ground={ground} />)
+    expect(html).toContain('fill="#c9d7bd"') // the field
+    expect(html).toContain('stroke="#d9c3ae"') // the walked path
+    expect(html).not.toContain('#e2e8f0') // …and the grey wall is gone
+  })
+
+  it('keeps the stroking MECHANISM, so a taper still narrows', () => {
+    // Same parse the grey maze is proved by, against the earth colour: the
+    // `url(#)` scar is the reason this must stay a stroke and never a fill.
+    const html = renderToString(
+      <TraceCanvas
+        corridor={{ paths: ['M 100 300 L 500 120 L 900 300'], width: 110, taper: { from: 1, to: 0.4 } }}
+        maze
+        ground={ground}
+      />,
+    )
+    const widths = [...html.matchAll(/stroke="#d9c3ae" stroke-width="([\d.]+)"/g)].map((m) =>
+      Number(m[1]),
+    )
+    expect(widths.length).toBeGreaterThan(10)
+    expect(Math.max(...widths)).toBeLessThanOrEqual(110)
+    expect(Math.min(...widths)).toBeLessThan(55)
+  })
+
+  it('scatters each mark as an origin-centred <image>, width from the aspect', () => {
+    const html = renderToString(<TraceCanvas corridor={corridor} maze ground={ground} />)
+    expect(html).toContain('/art/ground-grass-1.png')
+    expect(html).toContain('/art/ground-mud-1.png')
+    expect(html).toContain('transform="translate(120 80) rotate(-3)"')
+    // 44 units tall at 118x81 => 64.098 wide, centred on the origin.
+    const w = (44 * 118) / 81
+    expect(html).toContain(`width="${w}"`)
+    expect(html).toContain(`x="${-w / 2}"`)
+  })
+
+  it('paints mud before grass, and the whole ground UNDER the ink', () => {
+    const html = renderToString(<TraceCanvas corridor={corridor} maze ground={ground} />)
+    expect(html.indexOf('/art/ground-mud-1.png')).toBeLessThan(
+      html.indexOf('/art/ground-grass-1.png'),
+    )
+    expect(html.indexOf('/art/ground-grass-1.png')).toBeLessThan(html.indexOf('#1e293b'))
+    // …and the field is painted before any of it.
+    expect(html.indexOf('fill="#c9d7bd"')).toBeLessThan(html.indexOf('/art/ground-mud-1.png'))
+  })
+
+  it('introduces no url(#) reference and no <defs> with the ground on', () => {
+    const html = renderToString(
+      <TraceCanvas corridor={corridor} maze ground={ground} fit="contain" />,
+    )
+    expect(html).not.toContain('url(#')
+    expect(html).not.toContain('<defs')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<mask')
+  })
+
+  it('drops a mark whose art index is out of range instead of emitting a broken href', () => {
+    const html = renderToString(
+      <TraceCanvas
+        corridor={corridor}
+        maze
+        ground={{ grass: { marks: [{ x: 1, y: 2, art: 9, size: 30, angle: 0 }], art }, mud: ground.mud }}
+      />,
+    )
+    expect(html).not.toContain('href="undefined"')
+    expect((html.match(/\/art\/ground-/g) ?? []).length).toBe(1)
+  })
+
+  it('the sheet has NO rounded corner — that was half the "floating card" tell', () => {
+    const html = renderToString(
+      <TraceCanvas corridor={corridor} maze ground={ground} fit="contain" />,
+    )
+    expect(html).not.toContain('rx=')
+    expect(html).not.toContain('rx="12"')
+  })
+})
+
+
+describe('TraceCanvas startArt / endArt (registry art standing at the ends of the route)', () => {
+  const OCTOPUS = { href: '/art/carrier-octopus.png', w: 384, h: 353, size: 60 }
+  const LAMP_OFF = { href: '/art/lamp-off.png', w: 132, h: 192, size: 52 }
+  const LAMP_ON = { href: '/art/lamp-on.png', w: 181, h: 192, size: 52 }
+  const start = { x: 100, y: 300 }
+  const end = { x: 900, y: 300 }
+
+  it('REPLACES the green start dot rather than joining it', () => {
+    const html = renderToString(<TraceCanvas startMarker={start} startArt={OCTOPUS} />)
+    expect(html).toContain(`href="${OCTOPUS.href}"`)
+    // With a character standing on the spot, a dot underneath it is a second
+    // thing saying the same thing.
+    expect(html).not.toContain('#22c55e')
+  })
+
+  it('REPLACES the two goal diamonds rather than joining them', () => {
+    const html = renderToString(<TraceCanvas endMarker={end} endArt={LAMP_OFF} />)
+    expect(html).toContain(`href="${LAMP_OFF.href}"`)
+    expect(html).not.toContain('#b45309')
+    expect(html).not.toContain('<polygon')
+  })
+
+  it('stands the art on its FEET at the point, not centred on it', () => {
+    // The convention every character in this world follows: a figure standing
+    // at the start of the route, not one bisected by it. `y` therefore runs
+    // from `point.y - size` to `point.y`.
+    const html = renderToString(<TraceCanvas startMarker={start} startArt={OCTOPUS} />)
+    const image = html.slice(html.indexOf('<image'), html.indexOf('>', html.indexOf('<image')))
+    const attr = (name: string): number =>
+      Number(image.match(new RegExp(`${name}="([-\\d.]+)"`))?.[1])
+    expect(attr('height')).toBe(60)
+    expect(attr('y')).toBe(start.y - 60) // the TOP of the art: its feet are at y
+    // Width follows the source aspect ratio, so the picture is never squashed.
+    const width = (60 * OCTOPUS.w) / OCTOPUS.h
+    expect(attr('width')).toBeCloseTo(width, 6)
+    // ...and it is horizontally CENTRED on the point.
+    expect(attr('x')).toBeCloseTo(start.x - width / 2, 6)
+  })
+
+  it('swaps which lamp stands there without moving it — the caller resolves on/off, the canvas resolves nothing', () => {
+    const off = renderToString(<TraceCanvas endMarker={end} endArt={LAMP_OFF} />)
+    const on = renderToString(<TraceCanvas endMarker={end} endArt={LAMP_ON} />)
+    expect(off).toContain('/art/lamp-off.png')
+    expect(off).not.toContain('/art/lamp-on.png')
+    expect(on).toContain('/art/lamp-on.png')
+    expect(on).not.toContain('/art/lamp-off.png')
+    // Both stand with their feet on the same y; only the WIDTH differs,
+    // because the lit lamp's art carries its rays.
+    for (const html of [off, on]) expect(html).toContain('y="248"') // 300 - 52
+  })
+
+  it('keeps the shipped dot and diamonds for every caller that passes no art', () => {
+    const html = renderToString(<TraceCanvas startMarker={start} endMarker={end} />)
+    expect(html).toContain('#22c55e')
+    expect(html).toContain('#b45309')
+    expect(html).toContain('<polygon')
+  })
+
+  it('has no effect without its marker — the art marks a point, it does not invent one', () => {
+    const html = renderToString(<TraceCanvas startArt={OCTOPUS} endArt={LAMP_OFF} />)
+    expect(html).not.toContain(OCTOPUS.href)
+    expect(html).not.toContain(LAMP_OFF.href)
+  })
+
+  it('emits no url(#) reference and no text node', () => {
+    const html = renderToString(
+      <TraceCanvas startMarker={start} startArt={OCTOPUS} endMarker={end} endArt={LAMP_ON} />,
+    )
+    expect(html).not.toContain('url(#')
+    expect(html).not.toContain('<title')
+    expect(html).not.toContain('<text')
+  })
+})
+
+describe('TraceCanvas inkColor / inkDimColor (the child\'s line is MUD on a trail)', () => {
+  const strokes = [
+    [
+      { x: 100, y: 300 },
+      { x: 200, y: 320 },
+    ],
+  ]
+
+  it('defaults to INK_COLOR everywhere, so every existing caller is untouched', () => {
+    const html = renderToString(<TraceCanvas completedStrokes={strokes} />)
+    expect(html).toContain('#1e293b')
+    expect(html).not.toContain('#8a6a4a')
+  })
+
+  it('repaints the settled ink AND the live ink path, in one prop', () => {
+    const html = renderToString(<TraceCanvas completedStrokes={strokes} inkColor="#8a6a4a" />)
+    // Two separate elements: the settled stroke above and the live `<path>`
+    // the rAF loop writes into. Both must be mud, or the line changes colour
+    // the instant the child lifts their finger.
+    expect((html.match(/#8a6a4a/g) ?? []).length).toBe(2)
+    expect(html).not.toContain('#1e293b')
+  })
+
+  it('leaves the CARRIER in ink while the trace becomes mud — the world is ink, only the line the child leaves is not', () => {
+    // The reason this is a prop and not a change to INK_COLOR itself.
+    const html = renderToString(
+      <TraceCanvas completedStrokes={strokes} inkColor="#8a6a4a" inkOnly startMarker={{ x: 10, y: 10 }} />,
+    )
+    expect(html).toContain('#8a6a4a') // the trace
+    expect(html).toContain('#1e293b') // the silhouetted marker, still ink
+  })
+
+  it('dims the LIVE ink to inkDimColor off-path, never to an error colour', () => {
+    const html = renderToString(<TraceCanvas offPath inkColor="#8a6a4a" inkDimColor="#b3a08c" />)
+    expect(html).toContain('#b3a08c')
+    expect(html).not.toContain('#8a6a4a') // the live path is the only ink here
+    // docs/01 principle 2: the light goes down, the stroke is never marked
+    // wrong. Nothing red, ever.
+    expect(html).not.toMatch(/#(e|f|d)[0-9a-f]{2}[0-3][0-9a-f]{3}/i)
+  })
+
+  it('falls back to the shipped cool grey dim when only inkColor is given', () => {
+    const html = renderToString(<TraceCanvas offPath inkColor="#8a6a4a" />)
+    expect(html).toContain('#94a3b8')
   })
 })

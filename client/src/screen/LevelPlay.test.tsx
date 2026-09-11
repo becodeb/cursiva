@@ -37,9 +37,10 @@ vi.mock('../canvas/TraceCanvas', async (importOriginal) => ({
   },
 }))
 
-import LevelPlay, { shouldFileClue, shouldTickClue } from './LevelPlay'
-import { GLASS_ART } from '../detective/assets'
+import LevelPlay, { drawingBand, shouldFileClue, shouldTickClue } from './LevelPlay'
+import { CARRIER_LENS_ART, CLUE_ART, LAMP_ART, OCTOPUS_ART } from '../detective/assets'
 import { INK_COLOR } from '../canvas/TraceCanvas'
+import { PRINT } from '../detective/palette'
 
 function makeLevel(over: Partial<LevelConfig> = {}): LevelConfig {
   return {
@@ -171,12 +172,15 @@ describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
         onBack={noop}
       />,
     )
-    const art = traceCanvasProbe.current?.carrierArt as { d: string; color: string } | undefined
+    const art = traceCanvasProbe.current?.carrierArt as
+      | { href: string; w: number; h: number }
+      | undefined
     expect(art, 'no carrierArt reached the canvas: the glass would not render').toBeTruthy()
-    expect(art?.d).toBe(GLASS_ART.d)
-    // Ink, not a colour of its own: the glass belongs to the world, and colour
-    // in this mode only ever means a clue was earned.
-    expect(art?.color).toBe(INK_COLOR)
+    expect(art?.href).toBe(CARRIER_LENS_ART.href)
+    // The glass belongs to the world, not to the reward: it takes no palette
+    // colour of its own, because colour in this mode only ever means a clue
+    // was earned. The art keeps its authored ink contour instead.
+    expect(art).toEqual(CARRIER_LENS_ART)
   })
 
   it('passes no glass art on an ordinary level', () => {
@@ -247,26 +251,42 @@ describe('LevelPlay PISTAS rail presence (design unit 5/6)', () => {
       <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
     expect(html).toContain('<aside')
-    // The lamp's "on" colour and the trail's earned droplet colour (POND)
-    // must not appear anywhere before the trail has been completed.
-    expect(html).not.toContain('#f2d377')
+    // Every clue the child can see is still in its DRAINED state, the lamp
+    // included. With raster art this is an href check rather than a colour
+    // check, but it pins the same thing: nothing on screen may claim a
+    // reward the child has not earned yet.
+    expect(html).toContain(CLUE_ART.droplet.art.drained.href)
+    expect(html).not.toContain(CLUE_ART.droplet.art.earned.href)
+    expect(html).toContain(LAMP_ART.off.href)
+    expect(html).not.toContain(LAMP_ART.on.href)
+    // The earned droplet colour (POND) must not reach the rail's socket
+    // either — the colour token half of the contract is unchanged.
     expect(html).not.toContain('#3f6f8f')
   })
 })
 
 describe('shouldFileClue (spec: detective-mode "Trail Completion Lamp and Rail Filing")', () => {
-  it('files when the level is a detective trail and the attempt is approved (scenario "Finishing a trail lights the lamp and files the clue")', () => {
+  it('files when the level is a detective trail and the run REACHED THE END (scenario "Finishing a trail lights the lamp and files the clue")', () => {
     expect(shouldFileClue(true, true)).toBe(true)
   })
 
-  it('refuses to file when the attempt is NOT approved, whatever the marks did (scenario "Filing is refused mid-trace")', () => {
-    // The signature deliberately carries no `lit`/marks argument at all —
-    // marks earned is not part of this decision, which is the point.
+  it('refuses to file when the run did not reach the end, whatever the marks did (scenario "Filing is refused mid-trace")', () => {
+    // The signature still deliberately carries no `lit`/marks argument at
+    // all: every mark earned is not, and never was, part of this decision.
+    // What changed is the OTHER input — it used to be `evaluateLevel`'s
+    // three-pillar `approved` and is now arc progress along the route.
     expect(shouldFileClue(true, false)).toBe(false)
   })
 
-  it('never files on a level with no clue trail, even if somehow approved is true', () => {
+  it('never files on a level with no clue trail, even having reached the end', () => {
     expect(shouldFileClue(false, true)).toBe(false)
+  })
+
+  it('takes exactly two arguments, neither of them a clue state — filing can never be decided by the rewards it hands out', () => {
+    // The arity IS the guarantee here (same reasoning as `reachedTrailEnd`'s
+    // own test in `detective/clues.test.ts`): there is no third parameter a
+    // future caller could quietly start passing `clueState` into.
+    expect(shouldFileClue.length).toBe(2)
   })
 })
 
@@ -358,6 +378,36 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
     )
     expect(traceCanvasProbe.current?.clues).toBeUndefined()
   })
+
+  it('passes `ground` only on a detective trail, and memoises one field per route', () => {
+    type Layer = { marks: unknown[]; art: unknown[] }
+    const render = (level: LevelConfig): unknown => {
+      renderToString(
+        <LevelPlay
+          level={level}
+          record={EMPTY_RECORD}
+          onAttempt={noop}
+          onNext={noop}
+          onBack={noop}
+        />,
+      )
+      return traceCanvasProbe.current?.ground
+    }
+
+    const ground = render(makeDetectiveLevel()) as { grass: Layer; mud: Layer } | undefined
+    expect(ground?.grass.marks.length).toBeGreaterThan(20)
+    expect(ground?.mud.marks.length).toBeGreaterThan(3)
+    expect(ground?.grass.art.length).toBe(12)
+    expect(ground?.mud.art.length).toBe(8)
+
+    // Deterministic: the same trail scatters the same field every time, so the
+    // ground never crawls between renders.
+    expect(render(makeDetectiveLevel())).toEqual(ground)
+
+    // An ordinary level -- and the six phase-1 mazes that are not trails --
+    // render exactly the surface they always did.
+    expect(render(makeLevel())).toBeUndefined()
+  })
 })
 
 describe('shouldTickClue (defect fix: clue collection gated on inside/outside)', () => {
@@ -371,5 +421,188 @@ describe('shouldTickClue (defect fix: clue collection gated on inside/outside)',
 
   it('never ticks on a level with no clue marks, even if somehow "inside" is true', () => {
     expect(shouldTickClue(false, false)).toBe(false)
+  })
+})
+
+describe('drawingBand — the pauta clamp only applies where a pauta exists', () => {
+  // A short route sitting entirely inside the ruled zone, so the clamp is the
+  // only thing deciding the band.
+  const ideal: Array<readonly [number, number]> = [
+    [100, 290],
+    [500, 300],
+    [900, 310],
+  ]
+
+  it('a RULED surface keeps the clamp: the band always contains the pauta', () => {
+    const band = drawingBand(ideal, 110, 'ruled')
+    expect(band.y).toBe(140) // PAUTA_TOP 180 - BAND_MARGIN 40
+    expect(band.y + band.height).toBe(580) // PAUTA_BOTTOM 540 + BAND_MARGIN 40
+  })
+
+  it('defaults to the ruled behaviour when no surface is given', () => {
+    expect(drawingBand(ideal, 110)).toEqual(drawingBand(ideal, 110, 'ruled'))
+  })
+
+  it('a ruled surface still WIDENS for a route that leaves the pauta', () => {
+    const band = drawingBand([[100, 60], [900, 560]], 110, 'ruled')
+    expect(band.y).toBeLessThan(140)
+    expect(band.y + band.height).toBeGreaterThanOrEqual(580)
+  })
+
+  it('a BLANK surface takes the whole sheet: there is no pauta to reserve for', () => {
+    // Detective trails and the phase-1/2 mazes are all blank. The clamp used
+    // to crop them to ~140..580 to protect four ruled lines that are never
+    // drawn, which is 160 units of sheet thrown away -- and on a detective
+    // trail that sheet is now the world, not empty margin (docs/09 section 7).
+    const band = drawingBand(ideal, 110, 'blank')
+    expect(band).toEqual({ y: 0, height: 600 })
+  })
+
+  it('a blank surface is the full sheet whatever the route does', () => {
+    expect(drawingBand([[10, 20]], 40, 'blank')).toEqual({ y: 0, height: 600 })
+    expect(drawingBand([], 40, 'blank')).toEqual({ y: 0, height: 600 })
+  })
+})
+
+
+describe('LevelPlay stands the octopus at the start and the lamp at the end', () => {
+  const render = (level: LevelConfig): void => {
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+  }
+  type Art = { href: string; w: number; h: number; size: number } | undefined
+
+  it('sends the octopus as startArt on a detective trail, sized and standing', () => {
+    render(makeDetectiveLevel())
+    const art = traceCanvasProbe.current?.startArt as Art
+    expect(art, 'no startArt reached the canvas: the octopus would not render').toBeTruthy()
+    expect(art?.href).toBe(OCTOPUS_ART.href)
+    // The canvas needs the intrinsic size to hold aspect, and a target height
+    // to render at. The guide's figure is ~60 units; the shipped size is 96,
+    // because at 60 a screenshot showed the character reading as a pin rather
+    // than as the child's own detective. `GLASS_REST_DX/DY` are derived from
+    // this number, so the three move together.
+    expect(art?.w).toBe(OCTOPUS_ART.w)
+    expect(art?.h).toBe(OCTOPUS_ART.h)
+    expect(art?.size).toBe(96)
+  })
+
+  it('sends the lamp as endArt, OFF before the trail is finished', () => {
+    render(makeDetectiveLevel())
+    const art = traceCanvasProbe.current?.endArt as Art
+    expect(art?.href).toBe(LAMP_ART.off.href)
+    expect(art?.href).not.toBe(LAMP_ART.on.href)
+  })
+
+  it('keeps the sheet lamp separate from the rail lamp: neither is lit on a fresh trail', () => {
+    // Two lamps, two sentences. The rail's means "the clue is filed"; this
+    // one means "you got here". They coincide on a finished trail and are
+    // still not the same statement — this asserts the starting state of both,
+    // which is the only one a server render can observe.
+    const html = renderToString(
+      <LevelPlay
+        level={makeDetectiveLevel()}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect((traceCanvasProbe.current?.endArt as Art)?.href).toBe(LAMP_ART.off.href)
+    expect(html).toContain(LAMP_ART.off.href) // the rail's, unlit too
+    expect(html).not.toContain(LAMP_ART.on.href)
+  })
+
+  it('sends neither on an ordinary level, which keeps its green dot and its diamonds', () => {
+    render(makeLevel())
+    expect(traceCanvasProbe.current?.startArt).toBeUndefined()
+    expect(traceCanvasProbe.current?.endArt).toBeUndefined()
+  })
+
+  it('rests the glass in the octopus\'s raised tentacle, not at the route\'s first point', () => {
+    // "Que se vea que la tiene el pulpo, no que la tiene adentro." The rest
+    // point is offset up and to the right of the octopus's feet; while
+    // drawing, the canvas puts the glass on the fingertip and this offset
+    // plays no part.
+    render(makeDetectiveLevel({ carrier: true }))
+    const carrier = traceCanvasProbe.current?.carrier as { x: number; y: number } | undefined
+    const startMarker = traceCanvasProbe.current?.startMarker as { x: number; y: number }
+    expect(carrier).toBeTruthy()
+    expect(carrier?.x).toBeGreaterThan(startMarker.x) // to the right
+    expect(carrier?.y).toBeLessThan(startMarker.y) // and up (y grows down)
+    // Bounded against the OCTOPUS'S OWN rendered height rather than a bare
+    // number, because that is what the offset actually has to agree with: far
+    // enough out of the body to read as held, close enough that it still reads
+    // as this character holding it. The art stands on its feet, so the glass
+    // belongs above them and within about one body height.
+    const size = (traceCanvasProbe.current?.startArt as Art)!.size
+    const dx = carrier!.x - startMarker.x
+    const dy = startMarker.y - carrier!.y // upward, positive
+    expect(dx).toBeLessThan(size) // not off beyond the octopus's own width
+    expect(dy).toBeGreaterThan(size * 0.4) // clear of the body's centre
+    expect(dy).toBeLessThan(size * 1.2) // not floating away above it
+  })
+
+  it('rests the carrier exactly on the start point on a non-detective carrier level', () => {
+    render(makeLevel({ carrier: true }))
+    const carrier = traceCanvasProbe.current?.carrier as { x: number; y: number } | undefined
+    const startMarker = traceCanvasProbe.current?.startMarker as { x: number; y: number }
+    expect(carrier).toEqual(startMarker)
+  })
+})
+
+describe('LevelPlay makes the trail line MUD, and only the line', () => {
+  it('sends a mud ink colour and a warm dim on a detective trail', () => {
+    renderToString(
+      <LevelPlay
+        level={makeDetectiveLevel()}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    const ink = traceCanvasProbe.current?.inkColor as string
+    const dim = traceCanvasProbe.current?.inkDimColor as string
+    expect(ink).toBeTruthy()
+    expect(ink).not.toBe(INK_COLOR) // it is not ink any more
+    expect(dim).toBeTruthy()
+    expect(dim).not.toBe('#94a3b8') // and its dim is not the cold grey either
+
+    // Darker than the ground it is drawn on, lighter than the darkest clue
+    // mark (`PRINT` is pure black), and warm on both counts — the three
+    // constraints the brief set, asserted rather than eyeballed.
+    const lum = (hex: string): number => {
+      const n = parseInt(hex.slice(1), 16)
+      return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255
+    }
+    const GROUND_EARTH = '#d9c3ae'
+    expect(lum(ink), 'mud must be darker than the corridor earth').toBeLessThan(lum(GROUND_EARTH))
+    expect(lum(ink), 'mud must be lighter than the footprint clue').toBeGreaterThan(lum(PRINT))
+    // Warm: red channel above blue, the same way the earth it came from is.
+    const warm = (hex: string): boolean => {
+      const n = parseInt(hex.slice(1), 16)
+      return ((n >> 16) & 255) > (n & 255)
+    }
+    expect(warm(ink), 'mud must be warm, not a cold grey').toBe(true)
+    expect(warm(dim), 'the dim must be the same substance with the light down').toBe(true)
+    // The dim is the line fading toward the ground, so it sits between them.
+    expect(lum(dim)).toBeGreaterThan(lum(ink))
+    expect(lum(dim)).toBeLessThan(lum(GROUND_EARTH))
+  })
+
+  it('sends no ink override on an ordinary level, which keeps writing in ink', () => {
+    renderToString(
+      <LevelPlay
+        level={makeLevel()}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect(traceCanvasProbe.current?.inkColor).toBeUndefined()
+    expect(traceCanvasProbe.current?.inkDimColor).toBeUndefined()
   })
 })

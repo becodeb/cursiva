@@ -5,6 +5,7 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import TraceCanvas from '../canvas/TraceCanvas'
+import { CLUE_ART, LAMP_ART } from './assets'
 import PistasRail, { type PistasSlot } from './PistasRail'
 
 /** Strips every tag (and therefore every attribute, so an `aria-hidden` or a
@@ -69,37 +70,41 @@ describe('PistasRail copy (level-engine spec "PISTAS Rail Chrome")', () => {
   })
 })
 
-describe('PistasRail drawn word (D6: no font, no typeset text)', () => {
-  it('draws the word as stroked paths, never a font-based text node', () => {
+describe('PistasRail typeset word (supersedes D6)', () => {
+  // D6 said the word must be drawn, never typeset, and the reason it gave was
+  // that no font subsystem existed here. One now does: `client/index.html`
+  // declares Nunito and sets it on the document root, so every screen inherits
+  // it. The drawn word cost real quality for that constraint -- `M`/`L`
+  // segments cannot describe a round S, so it came out a stepped zig-zag, and
+  // a uniform 8-unit monoline is the opposite of the style guide's "formas
+  // gordas y generosas". With the constraint gone, the cost has nothing left
+  // to buy. These tests pin the replacement rather than the removal.
+
+  it('renders the word as real text, not as six aria-hidden polylines', () => {
     const html = renderToString(<PistasRail slots={[]} lampOn={false} />)
+    expect(html).toContain('class="pistas-word">PISTAS<')
+    // The old drawn glyphs are gone: no 60x100 em boxes, no monoline paths.
+    expect(html).not.toContain('viewBox="0 0 60 100"')
+    expect(html).not.toContain('stroke-width="8"')
+  })
+
+  it('names the rail exactly once, so a screen reader does not say it twice', () => {
+    const html = renderToString(<PistasRail slots={[filedSlot]} lampOn />)
+    // While the word was six `aria-hidden` drawings it needed an sr-only span
+    // to carry the accessible name. Real text carries its own, and leaving the
+    // span in would read "PISTAS PISTAS".
+    expect((html.match(/PISTAS/g) ?? []).length).toBe(1)
+    expect(textOf(html)).toBe('PISTAS')
+  })
+
+  it('sets no font-family of its own, so the document root stays the one source', () => {
+    const html = renderToString(<PistasRail slots={[]} lampOn={false} />)
+    // The family is inherited, never re-declared per component. A local
+    // override here is how a rail silently drifts off the app's typeface.
     expect(html).not.toMatch(/font-family|fontFamily|@font-face/i)
+    // Still no SVG `<text>`: the word is HTML, which is what lets it inherit
+    // and what keeps it out of the canvas's viewBox scaling.
     expect(html).not.toContain('<text')
-  })
-
-  it('draws the word BIG (defect fix: it read too small to see at a glance)', () => {
-    const html = renderToString(<PistasRail slots={[]} lampOn={false} />)
-    // The old rail rendered each glyph at 22×36. The regression this guards
-    // against is someone shrinking the bar back down once it is no longer a
-    // cramped side column — a glyph under, say, 40px tall is the old "too
-    // small to read" bug again.
-    const glyphSizes = [...html.matchAll(/<svg viewBox="0 0 60 100" width="(\d+)" height="(\d+)"/g)]
-    expect(glyphSizes.length).toBe(6)
-    for (const [, , height] of glyphSizes) expect(Number(height)).toBeGreaterThanOrEqual(60)
-  })
-
-  it('every drawn glyph is stroke width 8, unfilled, round-capped M/L geometry', () => {
-    const html = renderToString(<PistasRail slots={[]} lampOn={false} />)
-    // Six glyphs, all sharing the same stroke contract.
-    expect((html.match(/stroke-width="8"/g) ?? []).length).toBe(6)
-    expect((html.match(/stroke-linecap="round"/g) ?? []).length).toBeGreaterThanOrEqual(6)
-    // Every glyph `d` string uses only M/L commands (D6: no curves in the
-    // drawn word itself — icons.tsx and the clue registry are not bound by
-    // this, but the word is).
-    const glyphDs = [...html.matchAll(/<path d="([^"]+)" fill="none" stroke="#1e293b"/g)].map(
-      (m) => m[1],
-    )
-    expect(glyphDs.length).toBe(6)
-    for (const d of glyphDs) expect(d).toMatch(/^[ML0-9,.\- ]+$/)
   })
 })
 
@@ -113,15 +118,30 @@ describe('PistasRail lamp (design.md "Light is drawn, never blurred")', () => {
     expect(html).not.toContain('<clipPath')
   })
 
-  it('lights the lamp gold when on', () => {
+  it('lights the lamp with the lit art when on', () => {
     const html = renderToString(<PistasRail slots={[]} lampOn />)
-    expect(html).toContain('#f2d377')
+    expect(html).toContain(`href="${LAMP_ART.on.href}"`)
+    expect(html).not.toContain(LAMP_ART.off.href)
   })
 
-  it('leaves the lamp drained grey when off', () => {
+  it('leaves the lamp drained when off', () => {
     const html = renderToString(<PistasRail slots={[]} lampOn={false} />)
-    expect(html).not.toContain('#f2d377')
+    expect(html).toContain(`href="${LAMP_ART.off.href}"`)
+    expect(html).not.toContain(LAMP_ART.on.href)
+    // The drained grey still reaches the bar through the four empty sockets,
+    // which is what makes an unlit rail read as waiting rather than broken.
     expect(html).toContain('#c8cdd2')
+  })
+
+  it('does not reflow the bar when the lamp lights up', () => {
+    // The lit file is wider than the drained one (its rays), so a box sized
+    // per-state would visibly shove the PISTAS word sideways the moment a
+    // trail is finished. Both states render in the SAME box.
+    const box = (html: string) => html.slice(html.indexOf('<svg'), html.indexOf('</svg>'))
+    const on = box(renderToString(<PistasRail slots={[]} lampOn />))
+    const off = box(renderToString(<PistasRail slots={[]} lampOn={false} />))
+    const size = (svg: string) => svg.match(/width="([\d.]+)" height="([\d.]+)"/)?.slice(1)
+    expect(size(on)).toEqual(size(off))
   })
 })
 
@@ -135,21 +155,51 @@ describe('PistasRail slots', () => {
         lampOn={false}
       />,
     )
-    const slotCount = (html: string) => (html.match(/points="12,2 22,12 12,22 2,12"/g) ?? []).length
+    // Sockets, not marks: an unfiled PADDING slot renders an empty socket
+    // with no art in it, so counting art would undercount the chrome.
+    const slotCount = (html: string) => (html.match(/<rect[^>]*rx="5"/g) ?? []).length
     expect(slotCount(zero)).toBe(4)
     expect(slotCount(one)).toBe(4)
     expect(slotCount(four)).toBe(4)
   })
 
-  it('a filed slot renders its trail\'s registered colour, filled', () => {
+  it('a filed slot shows the trail\'s EARNED clue art inside its registered-colour socket', () => {
     const html = renderToString(<PistasRail slots={[filedSlot]} lampOn={false} />)
-    expect(html).toContain('fill="#3f6f8f"')
+    // The socket still carries the colour token — that half of the contract
+    // is unchanged and `palette.test.ts` reasons about it.
+    expect(html).toContain('stroke="#3f6f8f"')
+    // What is new: the slot shows the real droplet the child collected,
+    // rather than an abstract diamond that "read as a detached diamond
+    // rather than a slot that fills".
+    expect(html).toContain(`href="${CLUE_ART.droplet.art.earned.href}"`)
+    expect(html).not.toContain(CLUE_ART.droplet.art.drained.href)
   })
 
-  it('a drained slot renders no fill and the shared drained token', () => {
+  it('a drained slot shows the SAME clue art in its drained state, in a grey socket', () => {
     const html = renderToString(<PistasRail slots={[drainedSlot]} lampOn={false} />)
     expect(html).toContain('fill="none"')
     expect(html).toContain('stroke="#c8cdd2"')
+    // `drainedSlot` is the CORN trail, so this also pins that a slot shows
+    // its own trail's art rather than a shared generic placeholder.
+    expect(html).toContain(`href="${CLUE_ART.corn.art.drained.href}"`)
+    expect(html).not.toContain(CLUE_ART.corn.art.earned.href)
+  })
+
+  it('renders a PADDING slot as an empty socket, never a phantom clue', () => {
+    // A slot the caller knows nothing about must not show a grey clue: that
+    // would claim a trail exists and is merely unfinished.
+    const html = renderToString(<PistasRail slots={[filedSlot]} lampOn={false} />)
+    const marks = (html.match(/<image/g) ?? []).length
+    // One lamp + exactly one clue mark for the one known slot.
+    expect(marks).toBe(2)
+  })
+
+  it('holds each clue file\'s aspect ratio inside the socket', () => {
+    const html = renderToString(
+      <PistasRail slots={[{ kind: 'feather', filed: true }]} lampOn={false} />,
+    )
+    const art = CLUE_ART.feather.art.earned
+    expect(html).toContain(`width="${(16 * art.w) / art.h}"`)
   })
 
   it('draws a socket behind each mark, so a slot reads as a container that fills rather than a loose floating diamond', () => {

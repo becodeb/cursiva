@@ -1,61 +1,99 @@
-// Typed placeholder-asset registry (`detective-mode` design unit 3, spec:
+// Typed raster-asset registry (`detective-mode` design unit 3, spec:
 // detective-mode "Colour Asset Registry"; design.md "Decision: assets behind
 // a typed registry with origin-centred art").
 //
-// Art is authored as `d` path data in a box CENTRED ON THE ORIGIN, so a
-// caller places it with `translate(x,y) rotate(deg) scale(s)` and no offset
-// arithmetic. Placeholders live here as `d` strings; replacing them with the
-// user's real art is a single-file edit that touches no logic elsewhere.
+// WHY THIS IS RASTER AND NOT SVG. `docs/09_GUIA_DE_ESTILO_VISUAL.md` section 3
+// asked for vector art, and the placeholders this file used to hold were `d`
+// path strings for exactly that reason. What the author actually delivered is
+// multi-colour PNGs with soft shading and specular highlights — the droplet's
+// and the lamp's glass both read as glass because of a gradient-ish highlight
+// that a two-tone silhouette destroys. This host has no potrace, no Pillow and
+// no ImageMagick (see `scripts/art/build_art.py`'s header), and no available
+// tool could vectorise those images without throwing away the thing that makes
+// them work. So the art ships as raster, and section 3 is amended rather than
+// faked.
 //
-// The `M`/`L`/`C` restriction `levels/paths.ts:172-175` enforces does NOT
-// apply to this file's art: registry art never passes through
-// `transformPath`, it is positioned by a group transform, so any path
-// command is legal here. Placeholder shapes below stick to `M`/`L`/`C` anyway
-// purely for consistency with the rest of the repo, not because it is
-// required.
+// `<image href="...">` is the one mechanism that survives this repo's `url(#)`
+// ban (scarred at `client/src/canvas/TraceCanvas.tsx:63-84`): it needs no
+// `<defs>`, no `<pattern>`, no `<clipPath>` and no id to resolve against the
+// document base URL. The precedent is `client/src/modes/StarFeedback.tsx:13-22`
+// — a root-absolute path into `public/`, never through Vite's asset pipeline.
+//
+// The files come from `scripts/art/build_art.py`, which derives everything in
+// `client/public/art/` from `art-source/` and emits `manifest.json` beside it.
+// The `w`/`h` below are COPIED from that manifest rather than read at runtime:
+// this module renders under `renderToString` in the node test env and in the
+// browser alike, and neither should have to fetch JSON to know how big a
+// footprint is. `artManifest.test.ts` is the guard that the copy has not
+// drifted from the pipeline.
 import { POND, KERNEL, PRINT, PLUME } from './palette'
 
 /** One art per trail theme. Each trail owns exactly one kind, and — per the
  * palette — exactly one earned colour. */
 export type ClueKind = 'droplet' | 'corn' | 'footprint' | 'feather'
 
-/** One art per deduction-screen animal choice (design unit 7, a later slice). */
+/** One art per deduction-screen animal choice (design unit 7). */
 export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
 
-export interface ClueArt {
-  d: string
-  paint: 'fill' | 'stroke'
-  /** The trail's registered earned colour (design.md "Colour Asset Registry").
-   * A drained mark never renders this; it renders the shared
-   * `palette.ts`'s `CLUE_DRAINED` token instead — that swap is the caller's
-   * job (`TraceCanvas.tsx`'s `clues` prop), not this registry's. */
-  earned: string
+/** A derived raster from `client/public/art/`, with its intrinsic pixel size
+ * so a caller can hold aspect while scaling to a target height.
+ *
+ * `href` is root-absolute (`/art/…`) because nothing in this repo goes through
+ * Vite's asset pipeline; `w`/`h` are the shipped file's real pixel dimensions,
+ * mirrored from `manifest.json`. A caller that wants a mark `size` units tall
+ * computes its width as `size * w / h` — the registry never guesses a render
+ * size, because the same picture is 28 units on the sheet and 64px in the
+ * lineup. */
+export interface ArtImage {
+  href: string
+  w: number
+  h: number
 }
 
-/** Placeholder water droplet: a simple teardrop, origin at its centre. */
-const DROPLET_D = 'M0,-14 C7,-11 7,4 0,14 C-7,4 -7,-11 0,-14 Z'
-
-/** Placeholder corn kernel: a rounded oval. */
-const CORN_D = 'M0,-14 C8,-14 8,14 0,14 C-8,14 -8,-14 0,-14 Z'
-
-/** Placeholder footprint: two overlapping ovals (heel + toes), origin between
- * them. */
-const FOOTPRINT_D =
-  'M0,-12 C5,-12 6,-4 3,0 C6,4 5,12 0,12 C-5,12 -6,4 -3,0 C-6,-4 -5,-12 0,-12 Z'
-
-/** Placeholder feather: a slim pointed leaf, origin at its centre. */
-const FEATHER_D = 'M0,-16 C6,-9 6,9 0,16 C-6,9 -6,-9 0,-16 Z'
+export interface ClueArt {
+  /** The trail's registered earned COLOUR. Still a token even though the mark
+   * now renders as raster: the rail's socket and every palette rule reason
+   * about the colour, not the picture. It is also what `build_art.py`
+   * recolours the earned raster TO, so the token and the pixels agree by
+   * construction rather than by eye. */
+  earned: string
+  /** The two states of the mark. `drained` is the shared `CLUE_DRAINED` grey
+   * silhouette, `earned` the same silhouette in the trail's own colour —
+   * derived from one source so the pair can never drift. */
+  art: { earned: ArtImage; drained: ArtImage }
+}
 
 export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
-  droplet: { d: DROPLET_D, paint: 'fill', earned: POND },
-  corn: { d: CORN_D, paint: 'fill', earned: KERNEL },
-  footprint: { d: FOOTPRINT_D, paint: 'fill', earned: PRINT },
-  feather: { d: FEATHER_D, paint: 'fill', earned: PLUME },
+  droplet: {
+    earned: POND,
+    art: {
+      earned: { href: '/art/clue-droplet-earned.png', w: 195, h: 256 },
+      drained: { href: '/art/clue-droplet-drained.png', w: 195, h: 256 },
+    },
+  },
+  corn: {
+    earned: KERNEL,
+    art: {
+      earned: { href: '/art/clue-corn-earned.png', w: 195, h: 256 },
+      drained: { href: '/art/clue-corn-drained.png', w: 195, h: 256 },
+    },
+  },
+  footprint: {
+    earned: PRINT,
+    art: {
+      earned: { href: '/art/clue-footprint-earned.png', w: 220, h: 256 },
+      drained: { href: '/art/clue-footprint-drained.png', w: 217, h: 256 },
+    },
+  },
+  feather: {
+    earned: PLUME,
+    art: {
+      earned: { href: '/art/clue-feather-earned.png', w: 103, h: 256 },
+      drained: { href: '/art/clue-feather-drained.png', w: 102, h: 256 },
+    },
+  },
 }
 
-/** Placeholder animal silhouettes for the deduction lineup (design unit 7).
- * `ruledOutBy` names the clue kind whose earned mark eliminates this animal —
- * consumed by the (later) deduction screen, not by anything in this slice. */
 /**
  * The lineup. `gallina` is the culprit: water, corn, three-toed prints and
  * feathers all point at her, so she carries no `ruledOutBy`.
@@ -72,26 +110,27 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
  * narrowing the field, otherwise "there was a clue" and "it was decisive"
  * collapse into the same idea.
  *
- * Art is placeholder and origin-centred, so a group transform places and
- * scales it. Real art replaces these `d` strings and nothing else.
+ * These four keep their AUTHORED colours — they are the one place the guide's
+ * "colour is the reward" rule is not in force, because the animals ARE the
+ * answer (`build_art.py`'s `SINGLES` table records the same reasoning).
  */
 export const ANIMAL_ART: Readonly<
-  Record<AnimalId, { d: string; ruledOutBy: ClueKind | null }>
+  Record<AnimalId, { art: ArtImage; ruledOutBy: ClueKind | null }>
 > = {
   gallina: {
-    d: 'M0,-18 C10,-18 12,-6 6,0 L10,10 L-10,10 L-6,0 C-12,-6 -10,-18 0,-18 Z',
+    art: { href: '/art/animal-gallina.png', w: 370, h: 448 },
     ruledOutBy: null,
   },
   pato: {
-    d: 'M0,-14 C9,-14 11,-2 5,4 L8,10 L-8,10 L-5,4 C-11,-2 -9,-14 0,-14 Z',
+    art: { href: '/art/animal-pato.png', w: 368, h: 448 },
     ruledOutBy: 'footprint',
   },
   vaca: {
-    d: 'M0,-16 C12,-16 14,-2 7,4 L10,10 L-10,10 L-7,4 C-14,-2 -12,-16 0,-16 Z',
+    art: { href: '/art/animal-vaca.png', w: 448, h: 405 },
     ruledOutBy: 'feather',
   },
   gato: {
-    d: 'M0,-12 C10,-12 12,0 8,6 L10,10 L-10,10 L-8,6 C-12,0 -10,-12 0,-12 Z',
+    art: { href: '/art/animal-gato.png', w: 448, h: 414 },
     ruledOutBy: 'corn',
   },
 }
@@ -99,11 +138,73 @@ export const ANIMAL_ART: Readonly<
 /** The animal the four clues actually identify. */
 export const CULPRIT: AnimalId = 'gallina'
 
-/** Placeholder magnifying glass: a lens (stroked circle, via cubic Bézier)
- * plus a handle, origin roughly at the lens edge nearest the handle so the
- * whole shape reads as centred once positioned. Drawn in ink by the caller
- * (`TraceCanvas.tsx`'s `carrierArt` override) — this registry holds only the
- * geometry, never a colour of its own. */
-export const GLASS_ART: { d: string } = {
-  d: 'M7,-2 C7,2.97 2.97,7 -2,7 C-6.97,7 -11,2.97 -11,-2 C-11,-6.97 -6.97,-11 -2,-11 C2.97,-11 7,-6.97 7,-2 Z M4,4 L14,14',
+/** The magnifying glass that rides the child's fingertip on a detective trail
+ * (`TraceCanvas`'s `carrierArt` override).
+ *
+ * Authored standalone, and padded by `build_art.py`'s `CENTRED` step so the
+ * image's centre is the LENS rather than the bounding box. That padding is why
+ * this is taller than it looks on screen: a caller scales by `h`, and roughly
+ * the outer quarter of the canvas is deliberate transparent margin balancing
+ * the handle. Size the carrier by what the lens should measure, not by what
+ * the file measures. */
+export const CARRIER_LENS_ART: ArtImage = {
+  href: '/art/carrier-lens.png',
+  w: 361,
+  h: 384,
 }
+
+/** The octopus holding the glass — the child's own presence in the world.
+ * Stands at the route's first point while the glass travels with the finger
+ * (`LevelPlay`'s `startArt`). */
+export const OCTOPUS_ART: ArtImage = {
+  href: '/art/carrier-octopus.png',
+  w: 384,
+  h: 353,
+}
+
+/** The single light source (design.md "Colour — the reward system"), used both
+ * in the rail and standing at the end of the route.
+ *
+ * BOTH states derive from the LIT drawing — `on` recoloured to `palette.ts`'s
+ * `LAMP`, `off` to `CLUE_DRAINED` — which is why they share a size. The unlit
+ * source was a bare silhouette with no contour, and a flat grey recolour of it
+ * measured as very nearly invisible against the corridor's earth. Same
+ * silhouette both ways also makes the swap read as this lamp LIGHTING UP
+ * rather than as one shape being replaced by another. */
+export const LAMP_ART: { on: ArtImage; off: ArtImage } = {
+  on: { href: '/art/lamp-on.png', w: 181, h: 192 },
+  off: { href: '/art/lamp-off.png', w: 181, h: 192 },
+}
+
+/** Ground scatter marks, biggest first. Cut out of one authored tile field by
+ * `build_art.py`'s `SCATTERS` step: the engine cannot TILE a texture, because
+ * tiling needs `<pattern>` + `fill="url(#id)"` and confining one to the
+ * corridor needs `<clipPath>` — both sit under this repo's `url(#)` ban. So
+ * the ground is scattered as individual `<image>` marks the same way clue
+ * marks already are. Consumed by a later slice; exported here so the registry
+ * stays the single place art enters the app. */
+export const GROUND_GRASS: readonly ArtImage[] = [
+  { href: '/art/ground-grass-1.png', w: 84, h: 125 },
+  { href: '/art/ground-grass-2.png', w: 124, h: 105 },
+  { href: '/art/ground-grass-3.png', w: 77, h: 125 },
+  { href: '/art/ground-grass-4.png', w: 126, h: 87 },
+  { href: '/art/ground-grass-5.png', w: 126, h: 104 },
+  { href: '/art/ground-grass-6.png', w: 124, h: 79 },
+  { href: '/art/ground-grass-7.png', w: 126, h: 79 },
+  { href: '/art/ground-grass-8.png', w: 78, h: 126 },
+  { href: '/art/ground-grass-9.png', w: 126, h: 69 },
+  { href: '/art/ground-grass-10.png', w: 121, h: 110 },
+  { href: '/art/ground-grass-11.png', w: 87, h: 127 },
+  { href: '/art/ground-grass-12.png', w: 126, h: 109 },
+]
+
+export const GROUND_MUD: readonly ArtImage[] = [
+  { href: '/art/ground-mud-1.png', w: 126, h: 98 },
+  { href: '/art/ground-mud-2.png', w: 127, h: 107 },
+  { href: '/art/ground-mud-3.png', w: 126, h: 112 },
+  { href: '/art/ground-mud-4.png', w: 117, h: 98 },
+  { href: '/art/ground-mud-5.png', w: 121, h: 78 },
+  { href: '/art/ground-mud-6.png', w: 68, h: 64 },
+  { href: '/art/ground-mud-7.png', w: 60, h: 59 },
+  { href: '/art/ground-mud-8.png', w: 62, h: 56 },
+]

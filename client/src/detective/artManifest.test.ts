@@ -1,0 +1,134 @@
+// The guard between the art PIPELINE and the art REGISTRY.
+//
+// `scripts/art/build_art.py` derives every file in `client/public/art/` and
+// emits `manifest.json` beside them. `assets.ts` hardcodes the same `w`/`h`
+// values, because it must answer them under `renderToString` in the node test
+// env without fetching JSON. Two copies of the same numbers drift silently:
+// re-crop one source, re-run the pipeline, and the registry keeps scaling
+// every mark by a stale aspect ratio — no error, just art that is subtly the
+// wrong shape. This test is what makes that drift loud.
+//
+// It checks three things per exported `ArtImage`: the manifest knows the key,
+// the manifest's `w`/`h` match the registry's, and the file is really on disk.
+// The last one catches the failure this slice actually hit — `carrier-lens`
+// was in the pipeline's `ISOLATES` table but had never been emitted, so the
+// registry would have pointed at a 404.
+//
+// Read through Vite's own `import.meta.glob` rather than `node:fs`. The
+// client tsconfig pins `types: ["vite/client"]` and `@types/node` is not a
+// dependency, so a `node:fs` import typechecks as an error under
+// `tsc --noEmit` even though it would run fine under vitest — and this repo's
+// build runs that typecheck. The glob is resolved by the same transform
+// pipeline vitest already uses, needs no new dependency, and gives BOTH
+// halves of the check: the manifest's contents and the real set of files
+// sitting in `public/art/`.
+import { describe, it, expect } from 'vitest'
+import {
+  ANIMAL_ART,
+  CARRIER_LENS_ART,
+  CLUE_ART,
+  GROUND_GRASS,
+  GROUND_MUD,
+  LAMP_ART,
+  OCTOPUS_ART,
+  type ArtImage,
+} from './assets'
+
+/** Every PNG actually present in `public/art/`, keyed by bare name. The glob
+ * is evaluated against the filesystem at transform time, so a file named in
+ * the manifest but never emitted simply will not appear here. */
+const ON_DISK = new Set(
+  Object.keys(import.meta.glob('../../public/art/*.png')).map(
+    (path) => path.split('/').pop()!.replace(/\.png$/, ''),
+  ),
+)
+
+interface ManifestEntry {
+  file: string
+  w: number
+  h: number
+  bytes: number
+}
+
+const manifest: Record<string, ManifestEntry> = JSON.parse(
+  Object.values(
+    import.meta.glob('../../public/art/manifest.json', {
+      eager: true,
+      query: '?raw',
+      import: 'default',
+    }),
+  )[0] as string,
+)
+
+/** Every `ArtImage` the registry exports, labelled by where it comes from so a
+ * failure names the export rather than a bare path. */
+const REGISTERED: readonly (readonly [string, ArtImage])[] = [
+  ...Object.entries(CLUE_ART).flatMap(([kind, art]) => [
+    [`CLUE_ART.${kind}.art.earned`, art.art.earned] as const,
+    [`CLUE_ART.${kind}.art.drained`, art.art.drained] as const,
+  ]),
+  ...Object.entries(ANIMAL_ART).map(([id, a]) => [`ANIMAL_ART.${id}.art`, a.art] as const),
+  ['CARRIER_LENS_ART', CARRIER_LENS_ART] as const,
+  ['OCTOPUS_ART', OCTOPUS_ART] as const,
+  ['LAMP_ART.on', LAMP_ART.on] as const,
+  ['LAMP_ART.off', LAMP_ART.off] as const,
+  ...GROUND_GRASS.map((art, i) => [`GROUND_GRASS[${i}]`, art] as const),
+  ...GROUND_MUD.map((art, i) => [`GROUND_MUD[${i}]`, art] as const),
+]
+
+/** `manifest.json` stores the pipeline-relative `art/x.png`; the registry
+ * stores the root-absolute `/art/x.png` the browser and `<image href>` need.
+ * The `/` is the only difference, and this is the one place that is asserted
+ * rather than assumed. */
+const keyOf = (href: string) => href.replace(/^\/art\//, '').replace(/\.png$/, '')
+
+describe('art registry matches the shipped pipeline manifest', () => {
+  it.each(REGISTERED.map(([label, art]) => [label, art] as const))(
+    '%s has a manifest entry with matching intrinsic size, and the file exists',
+    (label, art) => {
+      expect(art.href, `${label}: href must be a root-absolute /art/ path`).toMatch(
+        /^\/art\/[a-z0-9-]+\.png$/,
+      )
+
+      const entry = manifest[keyOf(art.href)]
+      expect(entry, `${label}: no manifest entry for ${art.href} — re-run scripts/art/build_art.py`)
+        .toBeDefined()
+
+      // The whole point of the guard: the hardcoded aspect ratio must be the
+      // shipped file's real one, or every caller scaling by `w/h` is wrong.
+      expect({ w: art.w, h: art.h }, `${label}: registry size drifted from the manifest`).toEqual({
+        w: entry.w,
+        h: entry.h,
+      })
+
+      expect(
+        ON_DISK.has(keyOf(art.href)),
+        `${label}: ${entry.file} is in the manifest but not on disk`,
+      ).toBe(true)
+    },
+  )
+
+  it('registers every clue kind in both states, and never the same file twice', () => {
+    // 8 clue + 4 animal + lens + octopus + 2 lamp + 12 grass + 8 mud.
+    // Grass carries MORE variants than mud on purpose: it covers the whole
+    // field at full size, where a repeated silhouette is obvious, while mud
+    // sits small inside the corridor and half-covered by the child's own line.
+    expect(REGISTERED.length).toBe(36)
+    const hrefs = REGISTERED.map(([, art]) => art.href)
+    expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
+  })
+
+  it('leaves no manifest entry unregistered, so shipped art is never dead weight', () => {
+    const registered = new Set(REGISTERED.map(([, art]) => keyOf(art.href)))
+    const orphans = Object.keys(manifest).filter((key) => !registered.has(key))
+    expect(orphans, 'the pipeline ships art nothing in the registry can reach').toEqual([])
+  })
+
+  it("pairs every clue's earned and drained art as two DIFFERENT files", () => {
+    for (const [kind, art] of Object.entries(CLUE_ART)) {
+      expect(art.art.earned.href, `${kind}: earned and drained must be distinguishable`).not.toBe(
+        art.art.drained.href,
+      )
+    }
+  })
+})

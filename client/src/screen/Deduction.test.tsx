@@ -7,7 +7,14 @@
 // the module comment in `Deduction.tsx` and `LevelPlay.test.tsx`'s own).
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { ANIMAL_ART, CULPRIT, type AnimalId, type ClueKind } from '../detective/assets'
+import {
+  ANIMAL_ART,
+  CLUE_ART,
+  CULPRIT,
+  LAMP_ART,
+  type AnimalId,
+  type ClueKind,
+} from '../detective/assets'
 import Deduction, {
   DEDUCTION_CSS,
   DeductionView,
@@ -191,9 +198,15 @@ describe('DeductionView rendering (spec scenario "All four clues collected reach
       <DeductionView state={initialDeductionState()} onPick={noop} onBack={noop} />,
     )
     expect(html).toContain('<aside')
-    // The lamp's "on" colour must be present — every clue is already filed
-    // by the time this screen is reachable.
-    expect(html).toContain('#f2d377')
+    // The lit lamp art must be present — every clue is already filed by the
+    // time this screen is reachable at all.
+    expect(html).toContain(LAMP_ART.on.href)
+    expect(html).not.toContain(LAMP_ART.off.href)
+    // ...and all four slots show their EARNED clue, never a drained one.
+    for (const kind of ['droplet', 'corn', 'footprint', 'feather'] as const) {
+      expect(html).toContain(CLUE_ART[kind].art.earned.href)
+      expect(html).not.toContain(CLUE_ART[kind].art.drained.href)
+    }
   })
 
   it('a dismissed distractor drains (reduced opacity) and drops (a transform), never a filter/mask/url()', () => {
@@ -209,10 +222,16 @@ describe('DeductionView rendering (spec scenario "All four clues collected reach
   it("emphasises the dismissed animal's discriminating clue in the trail's own earned colour", () => {
     const state: DeductionState = { dismissed: ['pato'], closed: false }
     const html = renderToString(<DeductionView state={state} onPick={noop} onBack={noop} />)
-    // pato is ruled out by the footprint clue, whose earned colour is
-    // PRINT ('#000000' — the greyscale-only clue, palette.ts).
+    // pato is ruled out by the footprint clue. The hint shows that clue's
+    // EARNED art — the same picture the child collected on trail 3, which is
+    // what makes the elimination legible without a word of text.
     expect(html).toContain('cv-clue-hint')
-    expect(html).toContain('#000000')
+    const hint = html.slice(html.indexOf('cv-clue-hint'))
+    expect(hint).toContain(CLUE_ART.footprint.art.earned.href)
+    // The earned COLOUR token is still PRINT ('#000000' — the greyscale-only
+    // clue, palette.ts), and `build_art.py` recolours the earned raster to
+    // exactly that value, so the picture and the token cannot disagree.
+    expect(CLUE_ART.footprint.earned).toBe('#000000')
   })
 
   it('a never-picked animal shows no dismissal styling and no clue hint', () => {
