@@ -1,0 +1,7 @@
+services:
+  cursiva:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cursiva
+    restart: unless-stopped

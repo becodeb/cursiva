@@ -21,6 +21,7 @@ import {
   polylineLength,
   reorderForWriting,
   resolveBaselineZone,
+  splitMainTail,
   transformPathD,
 } from './svgLetter'
 import type { LetterCheckpoint, Point } from './types'
@@ -85,10 +86,17 @@ const svgRawModules = import.meta.glob('./svg/*.svg', {
 }) as Record<string, string>
 
 function realAD(): string {
-  const raw = svgRawModules['./svg/a.svg']
-  if (!raw) throw new Error('a.svg no encontrado en la carpeta svg/')
+  return rawD('a.svg')
+}
+
+/** Extract the `d` of any real hand-drawn SVG in `svg/` (svg-glyph-fixes:
+ * arc/H-shorthand/multi-subpath fixtures read from the actual shipped files,
+ * not copy-pasted literals, so coverage tracks whatever the author ships). */
+function rawD(file: string): string {
+  const raw = svgRawModules[`./svg/${file}`]
+  if (!raw) throw new Error(`${file} no encontrado en la carpeta svg/`)
   const d = extractPathD(raw)
-  if (!d) throw new Error('a.svg no contiene un <path> utilizable')
+  if (!d) throw new Error(`${file} no contiene un <path> utilizable`)
   return d
 }
 
@@ -822,5 +830,226 @@ describe('isWordEligible (letter-model "Word Eligibility")', () => {
     const cfg = buildLetterConfig('a', 'M0 0 L0 100 L50 100')
     const broken = { ...cfg, pathDefinition: { ...cfg.pathDefinition, d: '' } }
     expect(isWordEligible(broken)).toBe(false)
+  })
+})
+
+describe('flattenPathD — elliptical arcs (letter-model "Elliptical Arc Ingestion")', () => {
+  it('a full circle traced via 4 quarter-arcs matches the analytic circle within tolerance', () => {
+    const cx = 100
+    const cy = 100
+    const r = 50
+    const d =
+      `M ${cx + r} ${cy} ` +
+      `A ${r} ${r} 0 0 1 ${cx} ${cy + r} ` +
+      `A ${r} ${r} 0 0 1 ${cx - r} ${cy} ` +
+      `A ${r} ${r} 0 0 1 ${cx} ${cy - r} ` +
+      `A ${r} ${r} 0 0 1 ${cx + r} ${cy} Z`
+    const flat = flattenPathD(d)
+    expect(flat.starts).toEqual([0])
+    expect(flat.points.length).toBeGreaterThan(48)
+    for (const p of flat.points) {
+      expect(Number.isFinite(p.x)).toBe(true)
+      expect(Number.isFinite(p.y)).toBe(true)
+      expect(Math.hypot(p.x - cx, p.y - cy)).toBeCloseTo(r, 0)
+    }
+  })
+
+  it("real i.svg's dot subpath (small relative `a`, closed by `z`) parses to finite points forming a closed loop", () => {
+    const flat = flattenPathD(rawD('i.svg'))
+    expect(flat.starts.length).toBe(2) // body (main) + dot (secondary)
+    for (const p of flat.points) {
+      expect(Number.isFinite(p.x)).toBe(true)
+      expect(Number.isFinite(p.y)).toBe(true)
+    }
+    const dotStart = flat.points[flat.starts[1]]
+    const dotEnd = flat.points[flat.points.length - 1]
+    expect(Math.hypot(dotEnd.x - dotStart.x, dotEnd.y - dotStart.y)).toBeLessThan(1)
+  })
+
+  it("real j.svg's dot subpath (small relative `a`, closed by `z`, drawn FIRST) parses to finite points", () => {
+    const flat = flattenPathD(rawD('j.svg'))
+    expect(flat.starts.length).toBe(2)
+    for (const p of flat.points) {
+      expect(Number.isFinite(p.x)).toBe(true)
+      expect(Number.isFinite(p.y)).toBe(true)
+    }
+  })
+
+  it('relative `a` converts to the SAME points as its absolute `A` equivalent', () => {
+    const abs = flattenPathD('M150 100 A50 30 20 1 0 100 150')
+    const rel = flattenPathD('M150 100 a50 30 20 1 0 -50 50')
+    expect(rel.points.length).toBe(abs.points.length)
+    for (let i = 0; i < abs.points.length; i++) {
+      expect(rel.points[i].x).toBeCloseTo(abs.points[i].x, 6)
+      expect(rel.points[i].y).toBeCloseTo(abs.points[i].y, 6)
+    }
+  })
+
+  it('rx===0 or ry===0 degrades to a straight line (no NaN, no crash)', () => {
+    // A degenerate ≤2-point flatten is discarded by flattenPathD's own
+    // contract guard, so this fixture adds a trailing L to keep 3+ points.
+    const flat = flattenPathD('M0 0 A0 20 0 0 1 40 0 L60 0')
+    expect(flat.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 40, y: 0 },
+      { x: 60, y: 0 },
+    ])
+  })
+
+  it('coincident endpoints are a no-op (SVG spec: draws nothing)', () => {
+    const flat = flattenPathD('M0 0 L10 0 A20 20 0 0 1 10 0 L20 0')
+    // The arc contributes no NEW point beyond its (already-present) endpoint.
+    expect(flat.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 20, y: 0 },
+    ])
+  })
+})
+
+describe("flattenPathD — H/V shorthand (real k.svg's `h 58.5`)", () => {
+  it("k.svg's `h 58.5` resolves to a horizontal line segment without throwing", () => {
+    const d = rawD('k.svg')
+    expect(() => flattenPathD(d)).not.toThrow()
+    const flat = flattenPathD(d)
+    const last = flat.points[flat.points.length - 1]
+    const prev = flat.points[flat.points.length - 2]
+    expect(last.x - prev.x).toBeCloseTo(58.5, 5)
+    expect(last.y - prev.y).toBeCloseTo(0, 5)
+  })
+
+  it('absolute H and V resolve to the expected axis-aligned endpoints', () => {
+    const flat = flattenPathD('M0 0 H50 V30')
+    expect(flat.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 50, y: 0 },
+      { x: 50, y: 30 },
+    ])
+  })
+})
+
+describe('flattenPathD — fail-loud unsupported commands and non-finite tokens (letter-model "Fail-Loud Unsupported Path Commands")', () => {
+  it('throws naming S when the path contains an unsupported S command', () => {
+    expect(() => flattenPathD('M0 0 S10 10 20 20')).toThrow(/unsupported path command "S"/)
+  })
+
+  it('throws naming T when the path contains an unsupported T command', () => {
+    expect(() => flattenPathD('M0 0 Q10 10 20 20 T30 30')).toThrow(/unsupported path command "T"/)
+  })
+
+  it('throws on a non-finite numeric token (covers a glued-flag-like malformed token)', () => {
+    expect(() => flattenPathD('M0 0 L1-2.75 5')).toThrow(/invalid numeric token "1-2\.75"/)
+  })
+
+  it('no point list is returned when a fail-loud throw fires', () => {
+    let result: unknown
+    try {
+      result = flattenPathD('M0 0 S10 10 20 20')
+    } catch {
+      result = undefined
+    }
+    expect(result).toBeUndefined()
+  })
+
+  it("transformPathD's default case also throws by name (no more silent no-op)", () => {
+    expect(() => transformPathD('M0 0 S10 10', 1, 1, 0, 0)).toThrow(/unsupported path command "S"/)
+  })
+})
+
+describe('splitMainTail (design.md Interfaces/Contracts — the one shared main/tail cut)', () => {
+  it('the cut equals a manual arc-walk boundary (cutAtArc semantics)', () => {
+    const points: Point[] = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 20, y: 0 },
+      { x: 30, y: 0 },
+      { x: 40, y: 0 },
+    ]
+    const { main, tail } = splitMainTail(points, 20)
+    expect(main).toEqual(points.slice(0, 3))
+    expect(tail).toEqual(points.slice(3))
+  })
+
+  it('falls back to the vertex nearest `fallbackExit` when mainEndArc is undefined', () => {
+    const points: Point[] = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 20, y: 0 },
+      { x: 30, y: 0 },
+    ]
+    const { main, tail } = splitMainTail(points, undefined, { x: 21, y: 0 })
+    expect(main).toEqual(points.slice(0, 3)) // nearest to (21,0) is (20,0) at index 2
+    expect(tail).toEqual(points.slice(3))
+  })
+
+  it('is entirely MAIN (empty tail) when neither mainEndArc nor fallbackExit is given', () => {
+    const points: Point[] = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+    ]
+    const { main, tail } = splitMainTail(points, undefined)
+    expect(main).toEqual(points)
+    expect(tail).toEqual([])
+  })
+})
+
+describe('pathDefinition.segments — multi-subpath letters only (letter-model "Segments present only for multi-subpath letters")', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('t, i, j, x (real hand-drawn SVGs) derive exactly two segments, MAIN first, together covering the full flattened `d`', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    for (const ch of ['t', 'i', 'j', 'x']) {
+      const cfg = buildLetterConfig(ch, rawD(`${ch}.svg`))
+      expect(cfg.pathDefinition.mainEndArc).toBeDefined()
+      expect(cfg.pathDefinition.segments).toBeDefined()
+      expect(cfg.pathDefinition.segments).toHaveLength(2)
+      const [mainSeg, tailSeg] = cfg.pathDefinition.segments!
+      expect(mainSeg.startsWith('M')).toBe(true)
+      expect(tailSeg.startsWith('M')).toBe(true)
+      const flatMain = flattenPathD(mainSeg)
+      const flatTail = flattenPathD(tailSeg)
+      const flatFull = flattenPathD(cfg.pathDefinition.d)
+      // segments together cover exactly the full flattened `d` (main ends
+      // exactly where the tail begins — the pen-lift boundary).
+      expect(flatMain.points.length + flatTail.points.length).toBe(flatFull.points.length)
+    }
+  })
+
+  it('a, c, f (single-subpath, incl. f per design.md Decision 4) have segments absent', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    for (const ch of ['a', 'c', 'f']) {
+      const cfg = buildLetterConfig(ch, rawD(`${ch}.svg`))
+      expect(cfg.pathDefinition.mainEndArc).toBeUndefined()
+      expect(cfg.pathDefinition.segments).toBeUndefined()
+    }
+  })
+})
+
+describe('solo animationTimeline mirrors segments (letter-model "Solo animationTimeline mirrors segments")', () => {
+  it("i config's animationTimeline has two draw_path steps (body, dot), each properties.d matching pathDefinition.segments", () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const cfg = buildLetterConfig('i', rawD('i.svg'))
+    vi.restoreAllMocks()
+    const draws = cfg.animationTimeline.filter((s) => s.type === 'draw_path')
+    expect(draws).toHaveLength(2)
+    expect((draws[0].properties as { d: string }).d).toBe(cfg.pathDefinition.segments![0])
+    expect((draws[1].properties as { d: string }).d).toBe(cfg.pathDefinition.segments![1])
+    expect(draws[0].duration).toBe(2600)
+    expect(draws[1].duration).toBe(600)
+    expect(draws[1].delay).toBe(1000 + 2600)
+    const fade = cfg.animationTimeline.find((s) => s.type === 'fade_out')!
+    expect(fade.delay).toBe(1000 + 2600 + 600 + 200)
+  })
+
+  it('a single-subpath letter keeps the original one-step draw_path (no properties.d)', () => {
+    const cfg = buildLetterConfig('a', realAD())
+    const draws = cfg.animationTimeline.filter((s) => s.type === 'draw_path')
+    expect(draws).toHaveLength(1)
+    expect(draws[0].properties).toBeUndefined()
+    expect(draws[0]).toMatchObject({ delay: 1000, duration: 2600 })
+    const fade = cfg.animationTimeline.find((s) => s.type === 'fade_out')!
+    expect(fade.delay).toBe(3800)
   })
 })

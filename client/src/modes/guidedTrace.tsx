@@ -124,7 +124,7 @@ export default function GuidedTrace({
     <TraceCanvas
       demo={demos}
       enabled={phase === 'ready'}
-      guide={letter.pathDefinition.d}
+      guide={letter.pathDefinition.segments ?? [letter.pathDefinition.d]}
       guideD={letter.pathDefinition.guideD}
       onFrame={onFrame}
       devCheckpoints={letter.pathDefinition.checkpoints}

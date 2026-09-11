@@ -15,10 +15,23 @@ function fakeStore(): ProgressStore {
   }
 }
 
-describe('App shell', () => {
-  it('renders the trace canvas surface without throwing', () => {
+describe('App shell (docs/04: the level game is the entry point)', () => {
+  it('opens on the level map, not on the letter workbench', () => {
     const html = renderToString(<App />)
     expect(html).toContain('cursiva')
+    expect(html).toContain('Elegí un camino')
+    expect(html).not.toContain('viewBox="0 0 1000 600"') // the map has no canvas
+  })
+
+  it('keeps the old letter workbench reachable behind a text toggle', () => {
+    const html = renderToString(<App />)
+    expect(html).toContain('modo letras (viejo)')
+  })
+})
+
+describe('MainScreen (U7 letter workbench, unchanged behind the toggle)', () => {
+  it('renders the trace canvas surface without throwing', () => {
+    const html = renderToString(<MainScreen store={fakeStore()} />)
     // trace-canvas "Guides sit on the viewBox grid" scenario (SSR markup):
     expect(html).toContain('viewBox="0 0 1000 600"')
     expect(html).toContain('y1="180"')
@@ -26,7 +39,7 @@ describe('App shell', () => {
   })
 
   it('renders the checkpoint overlay toggle and Borrar, with no combo picker (main-screen)', () => {
-    const html = renderToString(<App />)
+    const html = renderToString(<MainScreen store={fakeStore()} />)
     expect(html).not.toContain('aria-label="Combinaciones"')
     expect(html).not.toContain('Combinación ac')
     expect(html).toContain('Mostrar puntos del trazo')
@@ -44,12 +57,11 @@ describe('App shell', () => {
   })
 
   it('the word flow starts in guided mode: the demo replays from the first letter (T7.3)', () => {
-    const html = renderToString(<App />)
     // GuidedTrace renders the animated demo path on first render. The
     // event-driven reset to guided on EVERY append (picker or a–z, but not
     // Backspace/Borrar) is covered in wordBuilding.test.ts via the pure
     // flowWord reducer — the vitest env is node, so keydown dispatch cannot
     // run under SSR here.
-    expect(html).toContain('stroke="#0284c7"')
+    expect(renderToString(<MainScreen store={fakeStore()} />)).toContain('stroke="#0284c7"')
   })
 })

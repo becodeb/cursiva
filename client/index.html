@@ -8,6 +8,41 @@
       content="cursiva — cursive handwriting practice canvas (scaffold)"
     />
     <title>cursiva</title>
+    <!--
+      Typography lives HERE, at the document root, and not in `LAYOUT_CSS`.
+
+      `LevelMap.tsx` and `MainScreen.tsx` style themselves with inline styles
+      and never mount `LAYOUT_CSS`, so a family declared there reaches the play
+      screen and leaves the map and the home screen in the UA default. Setting
+      the family on `:root`/`body` is the only place that every screen
+      inherits from, whatever it does about its own CSS.
+
+      It must NOT be pushed down into components either: `PistasRail.tsx` is a
+      deliberate no-font surface (D6 — the word PISTAS is drawn geometry, and
+      its suite asserts no `font-family` appears in that component's own
+      markup). An INHERITED family satisfies both: the rail's hidden label
+      renders in Nunito like everything else, and the component still declares
+      nothing.
+
+      One variable file covers 400-900, so weight changes cost no extra
+      download. `swap` means the child reads the screen immediately in a
+      fallback rather than staring at invisible text on a slow classroom
+      connection.
+    -->
+    <style>
+      @font-face {
+        font-family: 'Nunito';
+        src: url('/fonts/nunito.woff2') format('woff2-variations');
+        font-weight: 400 900;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      :root,
+      body {
+        font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

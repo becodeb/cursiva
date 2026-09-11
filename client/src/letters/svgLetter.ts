@@ -101,27 +101,163 @@ export function extractPathD(svg: string): string | null {
 
 /**
  * Tokenize an SVG path `d` into command-letter / number tokens. Glues like
- * `M95 1.28` are split correctly because every command letter (M/L/C/Q/Z,
- * upper or lower case) is wrapped in spaces before splitting. Whitespace and
- * commas between numbers are separators.
+ * `M95 1.28` are split correctly because every command letter (the full
+ * `MLHVCSQTAZ` alphabet, upper or lower case) is wrapped in spaces before
+ * splitting. Whitespace and commas between numbers are separators. Widened to
+ * the full alphabet so every command reaches `setCmd` — including `S`/`T`,
+ * which `setCmd` rejects by name instead of being silently mis-tokenized as
+ * numeric data.
  */
 function tokenizePathD(d: string): string[] {
   return d
-    .replace(/([MLQCZmlqcz])/g, ' $1 ')
+    .replace(/([MmLlHhVvCcSsQqTtAaZz])/g, ' $1 ')
     .trim()
     .split(/[\s,]+/)
     .filter(Boolean)
 }
 
-/** True when `tok` is a path command letter (case-insensitive). */
+/** True when `tok` is a path command letter (case-insensitive, full alphabet). */
 function isCmd(tok: string): boolean {
-  return /^[MLQCZmlqcz]$/.test(tok)
+  return /^[MmLlHhVvCcSsQqTtAaZz]$/.test(tok)
 }
 
 /**
- * Flatten an SVG path `d` (M/L/C/Q/Z, absolute or relative) into a dense
- * polyline. Cubic Béziers are subdivided into 48 steps, quadratics into 24;
- * `L`/`M` contribute their endpoints; `Z` closes back to the subpath start.
+ * Sample the cubic Bézier P0→P3 (controls C1, C2) into 48 uniform steps and
+ * push them onto `points` (P0 itself is NOT pushed — it is implicit as the
+ * previous point already in the array, matching every other segment kind).
+ * Shared by the `C` command and by {@link emitArc}'s arc→cubic conversion.
+ */
+function emitCubic(points: Point[], p0: Point, c1: Point, c2: Point, p3: Point): void {
+  const STEPS = 48
+  for (let s = 1; s <= STEPS; s++) {
+    const t = s / STEPS
+    const mt = 1 - t
+    points.push({
+      x: mt ** 3 * p0.x + 3 * mt ** 2 * t * c1.x + 3 * mt * t ** 2 * c2.x + t ** 3 * p3.x,
+      y: mt ** 3 * p0.y + 3 * mt ** 2 * t * c1.y + 3 * mt * t ** 2 * c2.y + t ** 3 * p3.y,
+    })
+  }
+}
+
+/**
+ * Elliptical arc `A`/`a` → cubic Béziers, SVG 2 §B.2.4 endpoint-to-center
+ * parameterization: radii are corrected when `Λ > 1` (Step 2 of the spec
+ * algorithm); `rx === 0 || ry === 0` degrades to a straight line (a
+ * zero-radius arc has no ellipse to trace); coincident endpoints are a no-op
+ * (SVG spec: an arc whose endpoints are identical draws nothing). The swept
+ * angle `Δθ` is split into `ceil(|Δθ| / (π/2))` cubic segments, each with
+ * `k = (4/3)·tan(Δθᵢ/4)` control-arm length, fed to {@link emitCubic} — the
+ * SAME sampler the `C` command uses, so arcs and explicit cubics share one
+ * flattening density.
+ */
+function emitArc(
+  points: Point[],
+  p0: Point,
+  rxIn: number,
+  ryIn: number,
+  xAxisRotationDeg: number,
+  largeArc: boolean,
+  sweep: boolean,
+  p1: Point,
+): void {
+  if (p0.x === p1.x && p0.y === p1.y) return // coincident endpoints: no-op
+  if (rxIn === 0 || ryIn === 0) {
+    points.push({ x: p1.x, y: p1.y }) // zero-radius: degrade to a straight line
+    return
+  }
+  let rx = Math.abs(rxIn)
+  let ry = Math.abs(ryIn)
+  const phi = (xAxisRotationDeg * Math.PI) / 180
+  const cosPhi = Math.cos(phi)
+  const sinPhi = Math.sin(phi)
+
+  // Step 1 (B.2.4): (x1', y1') — start point in the rotated, midpoint-centered frame.
+  const dx2 = (p0.x - p1.x) / 2
+  const dy2 = (p0.y - p1.y) / 2
+  const x1p = cosPhi * dx2 + sinPhi * dy2
+  const y1p = -sinPhi * dx2 + cosPhi * dy2
+
+  // Step 2: radii correction (Λ > 1 ⇒ scale both radii up uniformly).
+  const lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry)
+  if (lambda > 1) {
+    const s = Math.sqrt(lambda)
+    rx *= s
+    ry *= s
+  }
+
+  // Step 3: (cx', cy') — center in the rotated, midpoint-centered frame.
+  const rx2 = rx * rx
+  const ry2 = ry * ry
+  const x1p2 = x1p * x1p
+  const y1p2 = y1p * y1p
+  const sign = largeArc !== sweep ? 1 : -1
+  const num = Math.max(0, rx2 * ry2 - rx2 * y1p2 - ry2 * x1p2)
+  const den = rx2 * y1p2 + ry2 * x1p2
+  const co = den === 0 ? 0 : sign * Math.sqrt(num / den)
+  const cxp = co * ((rx * y1p) / ry)
+  const cyp = co * (-(ry * x1p) / rx)
+
+  // Step 4: (cx, cy) — center in the original coordinate frame.
+  const cx = cosPhi * cxp - sinPhi * cyp + (p0.x + p1.x) / 2
+  const cy = sinPhi * cxp + cosPhi * cyp + (p0.y + p1.y) / 2
+
+  // Step 5: start angle θ1 and swept angle Δθ.
+  const angleBetween = (ux: number, uy: number, vx: number, vy: number): number => {
+    const dot = ux * vx + uy * vy
+    const len = Math.hypot(ux, uy) * Math.hypot(vx, vy)
+    const cosA = len === 0 ? 1 : Math.max(-1, Math.min(1, dot / len))
+    const sign2 = ux * vy - uy * vx < 0 ? -1 : 1
+    return sign2 * Math.acos(cosA)
+  }
+  const ux = (x1p - cxp) / rx
+  const uy = (y1p - cyp) / ry
+  const vx = (-x1p - cxp) / rx
+  const vy = (-y1p - cyp) / ry
+  const theta1 = angleBetween(1, 0, ux, uy)
+  let dtheta = angleBetween(ux, uy, vx, vy)
+  if (!sweep && dtheta > 0) dtheta -= 2 * Math.PI
+  if (sweep && dtheta < 0) dtheta += 2 * Math.PI
+
+  // Step 6: split into ≤90° cubic segments and emit each via emitCubic.
+  const segments = Math.max(1, Math.ceil(Math.abs(dtheta) / (Math.PI / 2)))
+  const dThetaI = dtheta / segments
+  const kFactor = (4 / 3) * Math.tan(dThetaI / 4)
+
+  const pointAt = (theta: number): Point => ({
+    x: cx + cosPhi * rx * Math.cos(theta) - sinPhi * ry * Math.sin(theta),
+    y: cy + sinPhi * rx * Math.cos(theta) + cosPhi * ry * Math.sin(theta),
+  })
+  const derivAt = (theta: number): Point => ({
+    x: -cosPhi * rx * Math.sin(theta) - sinPhi * ry * Math.cos(theta),
+    y: -sinPhi * rx * Math.sin(theta) + cosPhi * ry * Math.cos(theta),
+  })
+
+  let prev = p0
+  let thetaStart = theta1
+  for (let seg = 0; seg < segments; seg++) {
+    const thetaEnd = thetaStart + dThetaI
+    const segEnd = pointAt(thetaEnd)
+    const dStart = derivAt(thetaStart)
+    const dEnd = derivAt(thetaEnd)
+    const c1 = { x: prev.x + kFactor * dStart.x, y: prev.y + kFactor * dStart.y }
+    const c2 = { x: segEnd.x - kFactor * dEnd.x, y: segEnd.y - kFactor * dEnd.y }
+    emitCubic(points, prev, c1, c2, segEnd)
+    prev = segEnd
+    thetaStart = thetaEnd
+  }
+}
+
+/**
+ * Flatten an SVG path `d` (M/L/H/V/C/Q/A/Z, absolute or relative) into a
+ * dense polyline. Cubic Béziers are subdivided into 48 steps (arcs too, via
+ * {@link emitArc}), quadratics into 24; `L`/`M`/`H`/`V` contribute their
+ * endpoints; `Z` closes back to the subpath start.
+ *
+ * Fail-loud contract (letter-model "Fail-Loud Unsupported Path Commands"):
+ * any command outside `{M,L,H,V,Q,C,Z,A}` (incl. lowercase) throws an `Error`
+ * naming the offending letter; any numeric token that parses to a non-finite
+ * value (`NaN`/`Infinity`) throws an `Error` naming the offending token.
+ * Neither is silently coerced into a coordinate.
  *
  * Returns:
  *  - `points`: the full polyline IN PATH ORDER (the order the SVG was drawn).
@@ -152,13 +288,20 @@ export function flattenPathD(d: string): { points: Point[]; starts: number[] } {
   let remaining = 0
 
   // Coordinate buffers for the in-progress segment (raw token values; relativity
-  // vs. the cursor is applied at execution time).
+  // vs. the cursor is applied at execution time). bRx/bRy/bRot/bLarge/bSweep
+  // are arc-only (`A`); bRx/bRy/bRot are NEVER relative even under `a` — only
+  // the trailing x,y (bx/by) are.
   let bx = 0
   let by = 0
   let bx1 = 0
   let by1 = 0
   let bx2 = 0
   let by2 = 0
+  let bRx = 0
+  let bRy = 0
+  let bRot = 0
+  let bLarge = 0
+  let bSweep = 0
 
   const setCmd = (letter: string): void => {
     cmd = letter.toUpperCase()
@@ -168,16 +311,26 @@ export function flattenPathD(d: string): { points: Point[]; starts: number[] } {
       case 'L':
         needs = 2
         break
+      case 'H':
+      case 'V':
+        needs = 1
+        break
       case 'C':
         needs = 6
         break
       case 'Q':
         needs = 4
         break
+      case 'A':
+        needs = 7
+        break
       case 'Z':
         needs = 0
         break
       default:
+        // Covers S/T (fail-loud contract: the tokenizer now routes every
+        // command letter here, so an unsupported one is caught by NAME
+        // instead of silently mis-parsed as numeric data).
         throw new Error(`flattenPathD: unsupported path command "${letter}"`)
     }
     remaining = needs
@@ -201,6 +354,14 @@ export function flattenPathD(d: string): { points: Point[]; starts: number[] } {
       points.push({ x, y })
       cx = x
       cy = y
+    } else if (c === 'H') {
+      const x = bx + (rel ? cx : 0)
+      points.push({ x, y: cy })
+      cx = x
+    } else if (c === 'V') {
+      const y = by + (rel ? cy : 0)
+      points.push({ x: cx, y })
+      cy = y
     } else if (c === 'C') {
       const x1 = bx1 + (rel ? cx : 0)
       const y1 = by1 + (rel ? cy : 0)
@@ -208,16 +369,7 @@ export function flattenPathD(d: string): { points: Point[]; starts: number[] } {
       const y2 = by2 + (rel ? cy : 0)
       const x = bx + (rel ? cx : 0)
       const y = by + (rel ? cy : 0)
-      const p0 = { x: cx, y: cy }
-      const STEPS = 48
-      for (let s = 1; s <= STEPS; s++) {
-        const t = s / STEPS
-        const mt = 1 - t
-        points.push({
-          x: mt ** 3 * p0.x + 3 * mt ** 2 * t * x1 + 3 * mt * t ** 2 * x2 + t ** 3 * x,
-          y: mt ** 3 * p0.y + 3 * mt ** 2 * t * y1 + 3 * mt * t ** 2 * y2 + t ** 3 * y,
-        })
-      }
+      emitCubic(points, { x: cx, y: cy }, { x: x1, y: y1 }, { x: x2, y: y2 }, { x, y })
       cx = x
       cy = y
     } else if (c === 'Q') {
@@ -237,6 +389,12 @@ export function flattenPathD(d: string): { points: Point[]; starts: number[] } {
       }
       cx = x
       cy = y
+    } else if (c === 'A') {
+      const x = bx + (rel ? cx : 0)
+      const y = by + (rel ? cy : 0)
+      emitArc(points, { x: cx, y: cy }, bRx, bRy, bRot, bLarge !== 0, bSweep !== 0, { x, y })
+      cx = x
+      cy = y
     } else if (c === 'Z') {
       points.push({ x: subStartX, y: subStartY })
       cx = subStartX
@@ -253,11 +411,17 @@ export function flattenPathD(d: string): { points: Point[]; starts: number[] } {
       i += 1
       continue
     }
-    // Numeric coordinate token.
+    // Numeric coordinate token. Fail loud on NaN/Infinity (a malformed or
+    // glued token, e.g. a flag-glued arc parameter like "1-2.75") instead of
+    // propagating it into the flattened point sequence.
     const num = Number(tok)
+    if (!Number.isFinite(num)) {
+      throw new Error(`flattenPathD: invalid numeric token "${tok}"`)
+    }
     if (remaining === 0) {
       // Either a stray leading number (no M yet), or an implicit continuation
-      // of the previous command. M implicit-continues to L; C/Q/L repeat.
+      // of the previous command. M implicit-continues to L; every other
+      // command (L/H/V/C/Q/A) repeats itself.
       if (cmd === null || cmd === 'Z') {
         i += 1
         continue
@@ -270,6 +434,10 @@ export function flattenPathD(d: string): { points: Point[]; starts: number[] } {
     if (c === 'M' || c === 'L') {
       if (slot === 0) bx = num
       else by = num
+    } else if (c === 'H') {
+      bx = num
+    } else if (c === 'V') {
+      by = num
     } else if (c === 'C') {
       if (slot === 0) bx1 = num
       else if (slot === 1) by1 = num
@@ -281,6 +449,14 @@ export function flattenPathD(d: string): { points: Point[]; starts: number[] } {
       if (slot === 0) bx1 = num
       else if (slot === 1) by1 = num
       else if (slot === 2) bx = num
+      else by = num
+    } else if (c === 'A') {
+      if (slot === 0) bRx = num
+      else if (slot === 1) bRy = num
+      else if (slot === 2) bRot = num
+      else if (slot === 3) bLarge = num
+      else if (slot === 4) bSweep = num
+      else if (slot === 5) bx = num
       else by = num
     }
     remaining -= 1
@@ -458,6 +634,57 @@ export function pathFromPoints(points: Point[]): string {
   return out
 }
 
+/** Index of the first polyline vertex whose cumulative arc from the start
+ * reaches `arc` (walk chords). Returns the last index when `arc` exceeds the
+ * polyline's total length. */
+function cutAtArc(points: Point[], arc: number): number {
+  let acc = 0
+  for (let i = 1; i < points.length; i++) {
+    acc += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
+    if (acc >= arc - 1e-9) return i
+  }
+  return points.length - 1
+}
+
+/** Index of the polyline vertex nearest `target`. */
+function nearestVertexTo(points: Point[], target: Point): number {
+  let best = 0
+  let bestD = Infinity
+  for (let i = 0; i < points.length; i++) {
+    const d = Math.hypot(points[i].x - target.x, points[i].y - target.y)
+    if (d < bestD) {
+      bestD = d
+      best = i
+    }
+  }
+  return best
+}
+
+/**
+ * Split a polyline into its MAIN span and the pen-lift TAIL after it — the
+ * ONE shared cut consumed by both the solo per-letter `segments` render
+ * ({@link buildLetterConfig}) and the word-assembly main/tail split
+ * (`combinations.ts`'s `buildWord`).
+ *
+ * The cut is `mainEndArc` (arc-length walk, letter-model "LetterConfig
+ * Shape") when present; otherwise the vertex nearest `fallbackExit` (the
+ * exit anchor sits exactly on `d` end for single-subpath letters); otherwise
+ * the whole polyline is MAIN and `tail` is empty.
+ */
+export function splitMainTail(
+  points: Point[],
+  mainEndArc: number | undefined,
+  fallbackExit?: Point,
+): { main: Point[]; tail: Point[] } {
+  const cut =
+    mainEndArc !== undefined
+      ? cutAtArc(points, mainEndArc)
+      : fallbackExit !== undefined
+        ? nearestVertexTo(points, fallbackExit)
+        : points.length - 1
+  return { main: points.slice(0, cut + 1), tail: points.slice(cut + 1) }
+}
+
 /**
  * Generate checkpoints UNIFORM IN ARC LENGTH (not in time, not point-density):
  * N points at fractions i/(N-1) of the path's total arc length.
@@ -573,7 +800,11 @@ export function transformPathD(
   tx: number,
   ty: number,
 ): string {
-  const tokenRe = /([MLQCZmlqcz])|(-?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?)/g
+  // Widened to the full command alphabet so an unexpected command (the
+  // stored `d` should only ever contain M/L, but this stays defensive) is
+  // actually ROUTED to `setCmd` and fails loud by name, instead of being
+  // silently skipped by a tokenizer that never recognized the letter.
+  const tokenRe = /([MmLlHhVvCcSsQqTtAaZz])|(-?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?)/g
   const round = (n: number): number => Math.round(n * 100) / 100
   let out = ''
   let cmd: string | null = null
@@ -597,8 +828,14 @@ export function transformPathD(
         needs = 4
         break
       case 'Z':
-      default:
         needs = 0
+        break
+      default:
+        // transformPathD only ever receives the stored M/L polyline (never
+        // arcs/H/V/S/T — those are converted away before storage), so a
+        // command outside {M,L,C,Q,Z} is unexpected: fail loud by name
+        // instead of silently treating it as a no-op like `Z`.
+        throw new Error(`transformPathD: unsupported path command "${letter}"`)
     }
     remaining = needs
     expectingX = true
@@ -757,6 +994,21 @@ export function buildLetterConfig(character: string, d: string): LetterConfig {
   // writing order, not the SVG composition order.
   const dNorm = pathFromPoints(fitted.points)
 
+  // 6b) Derived render `segments` for multi-subpath letters (letter-model
+  // "LetterConfig Shape"): split the FITTED polyline at the same arc length
+  // stored as `mainEndArc` (arc length is preserved by resample and scales
+  // uniformly with the fit, so `reordered.mainEndArc * fitted.scaleX` is the
+  // exact cut in `fitted.points` space — the same value `exit` uses above).
+  // `segments` stays undefined for a single subpath; storage `d` is untouched
+  // either way (never split by `M`).
+  const isMultiSubpath = flat.starts.length > 1
+  const segments: string[] | undefined = isMultiSubpath
+    ? (() => {
+        const { main, tail } = splitMainTail(fitted.points, reordered.mainEndArc * fitted.scaleX)
+        return [pathFromPoints(main), pathFromPoints(tail)]
+      })()
+    : undefined
+
   // 7) Checkpoints, uniform in arc length over the fitted centerline.
   const sampled = resample(fitted.points, 400)
   const totalLength = polylineLength(sampled)
@@ -802,13 +1054,23 @@ export function buildLetterConfig(character: string, d: string): LetterConfig {
       ideal,
       strokeWidth: 14,
       checkpoints,
-      // Main-end arc recorded ONLY for multi-subpath letters (the reordered
-      // main span's arc length, mapped through the uniform fit). Absent for
-      // a single subpath ⇒ consumers treat the cut as `d` end.
-      ...(flat.starts.length > 1
-        ? { mainEndArc: Math.round(reordered.mainEndArc * fitted.scaleX * 100) / 100 }
+      // Main-end arc + derived segments recorded ONLY for multi-subpath
+      // letters (the reordered main span's arc length, mapped through the
+      // uniform fit). Absent for a single subpath ⇒ consumers treat the cut
+      // as `d` end and render `d` verbatim.
+      ...(isMultiSubpath
+        ? {
+            mainEndArc: Math.round(reordered.mainEndArc * fitted.scaleX * 100) / 100,
+            segments,
+          }
         : {}),
     },
+    // Solo animationTimeline: a single-subpath letter keeps the original
+    // one-step draw_path (no properties.d — the demo falls back to the
+    // letter's `d`). A multi-subpath letter emits ONE draw_path per segment
+    // (MAIN 2600ms, then each SECONDARY 600ms), each carrying `properties.d`
+    // so the demo/guide never draw a line across the pen lift (letter-model
+    // "Solo animationTimeline mirrors segments").
     animationTimeline: [
       {
         id: `slide_in_${character}`,
@@ -817,18 +1079,29 @@ export function buildLetterConfig(character: string, d: string): LetterConfig {
         duration: 600,
         properties: { y: [100, 0], opacity: [0, 0.8] },
       },
-      {
-        id: `draw_path_${character}`,
-        type: 'draw_path',
-        target: 'ink_demonstration',
-        delay: 1000,
-        duration: 2600,
-      },
+      ...(segments
+        ? segments.map((segD, idx) => ({
+            id: `draw_path_${character}_${idx + 1}`,
+            type: 'draw_path' as const,
+            target: 'ink_demonstration' as const,
+            delay: 1000 + (idx === 0 ? 0 : 2600),
+            duration: idx === 0 ? 2600 : 600,
+            properties: { d: segD },
+          }))
+        : [
+            {
+              id: `draw_path_${character}`,
+              type: 'draw_path' as const,
+              target: 'ink_demonstration' as const,
+              delay: 1000,
+              duration: 2600,
+            },
+          ]),
       {
         id: `fade_out_${character}`,
         type: 'fade_out',
         target: 'thematic_asset',
-        delay: 3800,
+        delay: segments ? 1000 + 2600 + 600 + 200 : 3800,
         duration: 600,
         properties: { opacity: 0.08 },
       },

@@ -1,49 +1,66 @@
-# Roadmap Evolutivo por Etapas (Post-MVP)
+# Roadmap Evolutivo (Post-MVP)
 
-Las etapas están desacopladas y pueden priorizarse según las necesidades de testeo en el aula:
-
----
-
-### Módulo A: Expansión del Abecedario y Ligaduras Críticas
-- **Objetivo:** Completar todas las familias de movimiento.
-- **Entregables:**
-  - Incorporar Familia del Rulo (`e, l, b, h, k, f`).
-  - Incorporar Familia de las Cimas (`i, u, t, j, y`).
-  - Incorporar Familia de las Colinas (`m, n, v, w`).
-  - Incorporar Familia de las Enlazadas complejas (`r, s, p, z, x`).
-  - Algoritmo de unión automática de curvas Bézier para cualquier combinación de 2 letras arbitrarias.
+El orden importa. Nada de esto arranca antes de que las mecánicas del MVP estén validadas en aula.
 
 ---
 
-### Módulo B: El Museo de Tinta e Historial de Evolución
-- **Objetivo:** Reforzar la autoevaluación y la metacognición del alumno.
-- **Entregables:**
-  - Guardado en formato SVG comprimido del primer intento histórico de cada letra vs. el último intento.
-  - Pantalla "Antes y Después" interactiva estilo libro de recuerdos.
-  - Galería de palabras dibujadas que cobran vida animada al ser tocadas en el libro.
+### Módulo A — Temática, narrativa y personajes
+**Depende de:** mecánicas validadas.
+**Objetivo:** poner motivación encima de una mecánica que ya funciona.
+
+- Metáfora del **libro abierto vivo**: página izquierda un mundo que despierta, página derecha el taller de caligrafía.
+- Personaje guía (detective / explorador) que ilumina el camino y reacciona al trazo.
+- **Recompensa temática por fase.** La Fase 1 ya no adelanta una recompensa
+  parcial: cierra su propio caso. El chico recorre cuatro rastros con la lupa,
+  junta las cuatro pistas en el panel `PISTAS` y deduce el animal al final de
+  la fase (implementado en el cambio `detective-mode`, Fase 1 completa).
+  - El escalón original repartía la recompensa a lo largo del juego (huellas en
+    Fase 1, la pista en Fase 2, el animal en Fase 3, el caso resuelto en Fase
+    5). Se cambió a pedido: juntar cuatro pistas y que no pase nada con ellas
+    hasta mucho después no le cierra a un chico de cinco años.
+  - **Pendiente:** las Fases 2 a 5 quedan sin recompensa temática propia. Cada
+    una necesita su propio caso, no un tramo del de la Fase 1. Definirlo antes
+    de tematizarlas.
+- **Regla de oro:** ninguna animación temática ocurre *dentro* del renglón mientras el chico traza. La carga cognitiva del trazado es sagrada.
 
 ---
 
-### Módulo C: Personalización y Tienda Gamificada
-- **Objetivo:** Aumentar la motivación intrínseca a largo plazo.
-- **Entregables:**
-  - Tinteros especiales: Tinta de arcoíris, estela de estrellas, tiza de colores, pincel oriental.
-  - Efectos sonoros de trazado: Sonido de lápiz sobre papel rugoso, sonido de pincel de agua, campanas armónicas en enlaces perfectos.
-  - Desbloqueo de nuevos biomas para el libro (Bosque Encantado, Galaxia de Tinta, Fondo Marino).
+### Módulo B — Abecedario completo y ligaduras
+- Las 26 letras cargadas desde SVG, agrupadas por las cinco familias de movimiento.
+- Enlaces difíciles: los que salen de la zona alta (`o`, `v`, `w`, `b`) y los que cortan (`s`, `x`).
+- Generador automático de circuitos para cualquier palabra arbitraria.
 
 ---
 
-### Módulo D: Panel Docente y Modo Aula
-- **Objetivo:** Facilitar el seguimiento grupal por parte de los maestros.
-- **Entregables:**
-  - Dashboard de visualización por curso/grado: Mapa de calor de letras con mayor porcentaje de error de giro en la clase.
-  - Creador de Desafíos Personalizados: El docente puede tipear una lista de palabras semanales (ej. palabras de ciencias naturales) para que la app genere automáticamente los circuitos en cursiva.
-  - Modo Pizarrón Proyector: Vista simplificada para proyectar en el aula y mostrar el trazo correcto a gran escala.
+### Módulo C — Museo de tinta e historial
+- Guardado del primer intento vs. el último de cada letra, en SVG comprimido.
+- Pantalla "antes y después" — la evidencia de progreso más potente para un chico de 7 años es su propia letra de hace un mes.
+- Galería de palabras trazadas.
 
 ---
 
-### Módulo E: Soporte Multi-dispositivo y Exportación a PDF
-- **Objetivo:** Puente directo al mundo físico y soporte offline.
-- **Entregables:**
-  - Generador de fichas caligráficas en PDF listas para imprimir con los mismos renglones y palabras que el alumno practicó en la app.
-  - Soporte PWA (Progressive Web App) completo para funcionar sin conexión a internet en tablets de la escuela.
+### Módulo D — Panel docente y modo aula
+- **Backend real** (Node + Express + Postgres) y cuentas por curso.
+- Mapa de calor por letra: qué está fallando la clase, y en qué pilar (precisión / sentido / fluidez).
+- Creador de desafíos: el docente tipea las palabras de la semana y la app arma los circuitos.
+- Modo proyector para mostrar el trazo correcto a escala en el pizarrón.
+
+---
+
+### Módulo E — Personalización
+- Tinteros y estelas desbloqueables. Sonidos de trazo (lápiz, pincel, tiza).
+- Biomas alternativos del libro.
+
+---
+
+### Módulo F — Puente al papel y offline
+- Generador de fichas caligráficas en PDF con los mismos renglones y palabras que se practicaron.
+- PWA completa para tablets de escuela sin conexión.
+
+---
+
+## Deuda técnica conocida
+
+- `perfect-freehand` figura como dependencia y no se usa: `ink.ts` renderiza una polilínea centerline a propósito (un polígono grueso se autointersecta y deja huecos en trazos que vuelven sobre sí mismos).
+- `family` se fija en `'ola'` para toda letra generada desde SVG; hay que derivarla del char.
+- `buildWord()` se recomputa en cada render donde se use sin memo.

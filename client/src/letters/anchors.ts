@@ -37,11 +37,20 @@ export const SECONDARY_STROKE_CHARS: ReadonlySet<string> = new Set([
 ])
 
 /** Letters whose secondary stroke is DEFERRED to the end of an assembled word
- * (the `i`/`j` dot, the `t` cross — drawn AFTER every word letter and
+ * (the `i`/`j` dot, the `t`/`f` cross — drawn AFTER every word letter and
  * connector). `x`'s second diagonal is NOT deferred (drawn immediately after
- * its main segment), and `f` is NOT deferred (single-path; a future `f` cross
- * draws immediately — flagged, out of scope). */
-export const DEFERRED_SECONDARY_CHARS: ReadonlySet<string> = new Set(['t', 'i', 'j'])
+ * its main segment).
+ *
+ * Governing rule (design.md Decision 4): defer when the secondary stroke is
+ * NOT the writing exit. `x`'s second diagonal IS the exit, so it stays
+ * immediate. `t`/`i`/`j`/`f` secondaries (cross / dot / crossbar) are never
+ * the exit, so they defer. `f` is included as FORWARD-LOOKING: today's
+ * `f.svg` is a single subpath (no crossbar authored yet), so `f` has no pen
+ * lift and this entry is inert — pinned by a golden assertion on `f`'s
+ * `effectiveExit` in combinations.test.ts. The day a crossbar IS authored,
+ * leaving `f` out of this set would make the crossbar's right end the seam
+ * origin — geometrically wrong — so it is declared here ahead of that change. */
+export const DEFERRED_SECONDARY_CHARS: ReadonlySet<string> = new Set(['t', 'i', 'j', 'f'])
 
 /** Resolve the exit kind for a character (unknowns/uppercase → baseline). */
 export function exitKindFor(char: string): ExitKind {

@@ -5,27 +5,19 @@
 // approval (inside the release gesture) and is best-effort: any failure is
 // swallowed, never breaking the trace loop. Tests inject a fake AudioContext
 // through the optional `ctx` parameter.
-let sharedCtx: AudioContext | null = null
-
-function ensureCtx(): AudioContext | null {
-  if (sharedCtx) return sharedCtx
-  if (typeof window === 'undefined') return null // headless tests / SSR
-  const ctor = (window as { AudioContext?: typeof AudioContext }).AudioContext
-  if (typeof ctor !== 'function') return null
-  try {
-    sharedCtx = new ctor()
-  } catch {
-    sharedCtx = null
-  }
-  return sharedCtx
-}
+//
+// The context itself now lives in `canvas/audio.ts` and is SHARED with the live
+// corridor tone and the metronome (`canvas/traceTone.ts`) — browsers cap how
+// many contexts one page may open, and three feedback channels must not each
+// claim one.
+import { resumeAudio, sharedAudioContext } from '../canvas/audio'
 
 /** Play the soft approval tone; no-op outside a browser or on audio failure. */
 export function playApprovalTone(ctx?: AudioContext | null): void {
-  const audio = ctx ?? ensureCtx()
+  const audio = ctx ?? sharedAudioContext()
   if (!audio) return
   try {
-    if (typeof audio.resume === 'function') audio.resume().catch(() => {}) // autoplay policy
+    resumeAudio(audio) // autoplay policy
     const osc = audio.createOscillator()
     const gain = audio.createGain()
     const t = audio.currentTime

@@ -2,6 +2,7 @@
 // letters/pathEndpoints.ts): an INDEPENDENT cubic-Bézier flattening and arc
 // walk, so resample/samplePath tests assert against a reference
 // implementation rather than the module under test.
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { Point } from '../letters/types'
 
 /**
@@ -129,4 +130,59 @@ export function arcLength(points: Point[]): number {
     total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
   }
   return total
+}
+// --- Pointer-input stubs (level engine, multi-stroke suites) ---------------
+// The vitest environment is `node` (no jsdom), so the pointer suites drive the
+// capture hook against these minimal stand-ins instead of a real DOM. Only the
+// members useTraceInput actually touches are implemented, and the CTM is a
+// plain affine so viewBox coordinates are hand-checkable.
+
+/** Captured pointer-capture calls, so tests can assert the release contract. */
+export interface FakeSvgSurface {
+  element: SVGSVGElement
+  captured: Set<number>
+}
+
+/**
+ * SVG surface stub whose screen CTM is `scale` + `(offsetX, offsetY)`. The
+ * inverse it hands back is the exact inverse of that map, which is what
+ * useTraceInput applies to every client point.
+ */
+export function fakeSvgSurface(scale = 1, offsetX = 0, offsetY = 0): FakeSvgSurface {
+  const captured = new Set<number>()
+  const inverse = { a: 1 / scale, b: 0, c: 0, d: 1 / scale, e: -offsetX / scale, f: -offsetY / scale }
+  const element = {
+    getScreenCTM: () => ({ inverse: () => inverse }),
+    setPointerCapture: (id: number) => {
+      captured.add(id)
+    },
+    hasPointerCapture: (id: number) => captured.has(id),
+    releasePointerCapture: (id: number) => {
+      captured.delete(id)
+    },
+  } as unknown as SVGSVGElement
+  return { element, captured }
+}
+
+/** Shape of the React pointer event fields useTraceInput reads. */
+export interface FakePointer {
+  pointerId?: number
+  isPrimary?: boolean
+  pointerType?: string
+  button?: number
+  clientX?: number
+  clientY?: number
+}
+
+/** Pointer event stub: primary pointer, main button, by default. */
+export function fakePointerEvent(over: FakePointer = {}): ReactPointerEvent<SVGSVGElement> {
+  return {
+    pointerId: 1,
+    isPrimary: true,
+    pointerType: 'touch',
+    button: 0,
+    clientX: 0,
+    clientY: 0,
+    ...over,
+  } as unknown as ReactPointerEvent<SVGSVGElement>
 }

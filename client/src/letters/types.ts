@@ -74,6 +74,13 @@ export interface LetterConfig {
      * when absent the path SHALL be treated as single-subpath with the cut
      * at `d` end (letter-model "LetterConfig Shape"). */
     mainEndArc?: number
+    /** Derived render form for multi-subpath letters: one path-`d` string per
+     * subpath, MAIN first, then each SECONDARY in classification order.
+     * Present ONLY when `mainEndArc` is present. Consumers (guide + demo)
+     * MUST render `segments` — never the concatenated `d` verbatim — so no
+     * visible line crosses the MAIN→SECONDARY pen lift. Stored `d` stays a
+     * single-`M` polyline regardless (letter-model "LetterConfig Shape"). */
+    segments?: string[]
   }
   animationTimeline: AnimationStep[]
 }
