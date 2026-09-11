@@ -1,6 +1,7 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import App from './App'
+import { initialView } from './screen/GameScreen'
 import MainScreen from './screen/MainScreen'
 import type { ProgressStore } from './progress/ProgressStore'
 
@@ -15,17 +16,28 @@ function fakeStore(): ProgressStore {
   }
 }
 
-describe('App shell (docs/04: the level game is the entry point)', () => {
-  it('opens on the level map, not on the letter workbench', () => {
+describe('App shell (docs/10: the home is the entry point)', () => {
+  it('opens on the office, not on the level map and not on the letter workbench', () => {
     const html = renderToString(<App />)
-    expect(html).toContain('cursiva')
-    expect(html).toContain('Elegí un camino')
-    expect(html).not.toContain('viewBox="0 0 1000 600"') // the map has no canvas
+    expect(html).toContain('/art/home-octopus.png')
+    expect(html).not.toContain('Elegí un camino')
   })
 
-  it('keeps the old letter workbench reachable behind a text toggle', () => {
+  it('puts NO text on the first screen — not even the word cursiva (docs/10 §3)', () => {
     const html = renderToString(<App />)
-    expect(html).toContain('modo letras (viejo)')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/g, '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    expect(html).toBe('')
+  })
+
+  it('a ?nivel= deep link still skips straight into the game', () => {
+    // The shell reads `window.location.search`, which is absent under SSR, so
+    // the routing decision itself is asserted through the same pure function
+    // the shell calls — `initialView` — rather than through a rendered string.
+    expect(initialView('?nivel=trail1')).toEqual({ view: 'play', levelId: 'trail1' })
+    expect(initialView('')).toEqual({ view: 'map', finished: false })
   })
 })
 

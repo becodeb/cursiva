@@ -8,11 +8,10 @@ import LevelMap from './LevelMap'
 import LevelPlay from './LevelPlay'
 import Deduction from './Deduction'
 import { LEVELS, getLevel, nextLevelId } from '../levels/catalog'
-import { LevelProgressStore } from '../game/LevelProgressStore'
 import { applyAttempt } from '../game/adaptiveTolerance'
 import { DETECTIVE_TRAIL_IDS } from '../game/types'
 import type { LevelAttempt, LevelRecord } from '../game/types'
-import { migratePhase1 } from '../game/migratePhase1'
+import { openProgressStore } from '../game/openProgressStore'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
@@ -142,26 +141,22 @@ export interface GameScreenProps {
    * whole viewport and must not grow a page scroller (docs/04 §3.3), so the
    * shell hands its footer down instead of rendering it around this screen. */
   footer?: ReactNode
+  /** Where to open. The home (docs/10) resolves "por donde lo dejé" itself and
+   * hands the answer down, so the child lands on the trail rather than on the
+   * map. Omitted, this falls back to the `?nivel=` deep link and then the map,
+   * which is exactly what every existing caller and test gets. */
+  initial?: GameView
 }
 
-export default function GameScreen({ footer }: GameScreenProps = {}) {
-  // One store per app: reads localStorage once (App.tsx pattern). The
-  // one-time copy-forward migration (game/migratePhase1.ts, design.md
-  // "Migration / Rollout") runs right here, inside the lazy initialiser, so
-  // it fires exactly once per store construction — including under
-  // StrictMode's double-invoke, which is harmless because the migration is
-  // idempotent by construction (a destination id already carrying a record,
-  // migrated or genuinely played, is never touched again).
-  const [store] = useState(() => {
-    const progressStore = new LevelProgressStore()
-    const migrated = migratePhase1(progressStore.all())
-    for (const [levelId, record] of Object.entries(migrated)) {
-      progressStore.save(levelId, record)
-    }
-    return progressStore
-  })
-  const [state, setState] = useState<GameView>(() =>
-    initialView(typeof window === 'undefined' ? '' : window.location.search),
+export default function GameScreen({ footer, initial }: GameScreenProps = {}) {
+  // One store per game session, loaded and migrated by `openProgressStore`
+  // (which is also what the app shell reads the home's records through — see
+  // its header for why constructing this twice by hand is a trap). Inside a
+  // lazy initialiser, so it runs exactly once per mount, including under
+  // StrictMode's double-invoke.
+  const [store] = useState(openProgressStore)
+  const [state, setState] = useState<GameView>(
+    () => initial ?? initialView(typeof window === 'undefined' ? '' : window.location.search),
   )
   // Records live in storage, not in React state: bumping the version is what
   // re-renders this shell so both children re-read them after a write.

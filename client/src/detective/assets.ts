@@ -176,6 +176,33 @@ export const LAMP_ART: { on: ArtImage; off: ArtImage } = {
   off: { href: '/art/lamp-off.png', w: 181, h: 192 },
 }
 
+/** The home screen's octopus: whole body, eight arms open, holding NOTHING
+ * (`docs/10_HOME_LA_OFICINA_DEL_PULPO.md` §6.1).
+ *
+ * Deliberately a different file from {@link OCTOPUS_ART}, which is the same
+ * character already gripping the glass and is what stands at a trail's start.
+ * The home needs the empty-handed version for one architectural reason, §5's:
+ * every future mode is an OBJECT placed on a free arm, so there is exactly one
+ * drawing of the octopus and the objects are composed onto it. The alternative
+ * — one octopus drawing per mode combination — does not survive the second
+ * mode. */
+export const HOME_OCTOPUS_ART: ArtImage = {
+  href: '/art/home-octopus.png',
+  w: 448,
+  h: 396,
+}
+
+/** The detective's desk, in front of the octopus (`docs/10` §3). Scenery: it
+ * gives the screen a PLACE without competing with the character, which is why
+ * it is drawn empty — anything on the desktop would read as a second thing to
+ * touch. Wide and low (512x242), so a caller sizes it by WIDTH and lets the
+ * legs run off the bottom of the canvas rather than squashing it. */
+export const HOME_DESK_ART: ArtImage = {
+  href: '/art/home-desk.png',
+  w: 512,
+  h: 242,
+}
+
 /** Ground scatter marks, biggest first. Cut out of one authored tile field by
  * `build_art.py`'s `SCATTERS` step: the engine cannot TILE a texture, because
  * tiling needs `<pattern>` + `fill="url(#id)"` and confining one to the

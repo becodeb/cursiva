@@ -205,6 +205,20 @@ SINGLES = [
     ('vaca.png',              'animal-vaca.png',           448, None,         True),
     ('gato.png',              'animal-gato.png',           448, None,         True),
     ('pulpo con lupa.png',    'carrier-octopus.png',       384, None,         True),
+    # The home screen (docs/10). The octopus sits in its office with eight free
+    # arms; the desk is the "place" it sits at. Both keep their authored colour
+    # for the same reason the carrier octopus does -- section 4's "colour is the
+    # reward" protects the CLUE marks, and neither of these is one. The desk is
+    # a single flat brown that the guide's own section 3 asked for, so there is
+    # nothing here for the palette table to correct.
+    #
+    # Only these two land in this cut. The pencil and the map (`lapiz.png`,
+    # `mapa.png`) are the OBJECTS of modes that do not exist yet, and
+    # `artManifest.test.ts` refuses art the registry cannot reach -- shipping
+    # them now would be dead weight by that test's own definition. They enter
+    # with their mode.
+    ('pulpo oficina.png',     'home-octopus.png',          448, None,         True),
+    ('escritorio.png',        'home-desk.png',             512, None,         True),
 ]
 
 # The two ground sources are SCATTER TILES, not single subjects: a field of

@@ -1,6 +1,9 @@
 # Home: la oficina del pulpo
 
-Ideada el 2026-09-11. Estado: **propuesta, sin implementar**. Es la pantalla
+Ideada el 2026-09-11. Estado: **corte 1 implementado el 2026-09-11** — el
+pulpo, la lupa como continuar, la lámpara y el riel con estado real, y un solo
+modo (`detective`) en el registro. El lápiz y el mapa siguen sin entrar: sus
+modos no existen. Es la pantalla
 a la que llega el chico al abrir la app (y, cuando exista el login, después
 de iniciar sesión). Reemplaza como pantalla de entrada al banco de letras
 actual (`client/src/screen/MainScreen.tsx`), que pasa a ser un modo más.
@@ -114,6 +117,31 @@ export interface HomeMode {
 Primer corte razonable: home con el pulpo, la lupa como continuar, la
 lámpara y el riel con estado real, y un solo modo (`detective`). Los
 otros objetos entran cuando exista su modo.
+
+**Lo que el corte 1 cambió respecto de este documento, y por qué.**
+
+- `artLocked` es `ArtImage | null`, no `ArtImage`. Un modo que no puede
+  bloquearse nunca —hoy, `detective`— obligaría a derivar un gris que nada
+  dibuja, y `artManifest.test.ts` rechaza por nombre el arte que el registro
+  no puede alcanzar. `null` significa "brazo vacío".
+- La entrada lleva además un `grip`: dónde agarra el brazo ese objeto, en
+  fracciones de su propia caja. Hizo falta porque `carrier-lens.png` **no**
+  está centrado en la lente: `build_art.py` la centra con padding en el paso
+  `CENTRED` y después `emit()` recorta cada salida a su bounding box de alfa,
+  que le saca justo ese padding. Medido sobre el archivo embarcado, la lente
+  cae en (0.603, 0.391). Es un dato del registro, no un offset escondido en el
+  renderer. **`TraceCanvas` no lo compensa**: centra la lupa por su caja
+  (`CARRIER_ART_SIZE`, con un comentario que afirma que el archivo viene
+  padeado), así que en un rastro la lente va unas 11 unidades arriba y a la
+  derecha de la yema. Es un defecto preexistente, fuera del alcance de este
+  corte.
+- El riel de la home no usa `PistasRail`: ese componente no trae estilos
+  propios y depende del `LAYOUT_CSS` de `LevelPlay`, que esta pantalla
+  deliberadamente no monta (§5). El riel se dibuja adentro del lienzo con
+  `LAMP_ART` y `CLUE_ART` directo, y sin la palabra PISTAS — acá no hay texto.
+- La vuelta desde un modo todavía cae en el mapa de niveles, no en la home.
+  El enlace "la oficina" vive en el pie del mapa, que es chrome de desarrollo
+  y nunca aparece en la home.
 
 ## 6. Arte necesario
 
