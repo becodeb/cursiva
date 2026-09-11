@@ -4,6 +4,4 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: cursiva
-    ports:
-      - "5190:80"
     restart: unless-stopped

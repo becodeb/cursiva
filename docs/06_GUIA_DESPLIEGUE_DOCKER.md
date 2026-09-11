@@ -10,7 +10,7 @@ El MVP **no tiene backend**. Toda la persistencia vive en `localStorage` del nav
 │  build multi-stage:                  │
 │    node:22-alpine → vite build       │
 │    nginx → sirve client/dist         │
-│  host 5190 → contenedor 80           │
+│  puerto 80 (sin publicar en host)    │
 └──────────────────────────────────────┘
 ```
 
@@ -20,7 +20,8 @@ El backend (Node + Express + Postgres) entra recién con el panel docente (Módu
 
 - `Dockerfile` — build multi-stage. Las imágenes base son multi-arch porque el host de despliegue es ARM64.
 - `docker/nginx.conf` — fallback SPA (`try_files … /index.html`), assets con hash cacheados un año, `index.html` sin caché.
-- `docker-compose.yml` — un servicio, puerto `5190`.
+- `docker-compose.yml` — un servicio, sin puertos publicados en el host: el despliegue real corre
+  en Coolify, que enruta a través de su propia red/proxy (Traefik) sin necesidad de mapear puertos.
 - `.dockerignore` — deja afuera `node_modules`, `dist`, `.git`, `docs` y `openspec`.
 
 ## 3. Uso
@@ -36,7 +37,11 @@ docker compose logs -f cursiva
 docker compose down
 ```
 
-Queda accesible en `http://<ip-de-la-lan>:5190`.
+Para probar localmente antes de subir a Coolify, publicá el puerto a mano sin tocar el compose:
+
+```bash
+docker compose run --rm --service-ports -p 5190:80 cursiva
+```
 
 > **Trampa conocida:** al cambiar de rama, `--build` no es opcional. Sin él, compose reusa la imagen vieja y vas a estar probando código que ya no existe.
 
