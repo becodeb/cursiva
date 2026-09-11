@@ -65,3 +65,19 @@ export const APPROVALS_TO_UNLOCK = 2
  * testable today, and need no edit once the catalog lands the real levels.
  */
 export const DETECTIVE_TRAIL_IDS: readonly string[] = ['trail1', 'trail2', 'trail3', 'trail4']
+
+/**
+ * The duck case's four trail ids, in play order (design.md §3 "The duck
+ * case's four levels"). Lives here rather than in `detective/cases.ts`
+ * because `game/migrateDuckCase.ts` needs this exact list before the
+ * catalog gains the four `LevelConfig`s (Phase 1 ships before Phase 2 —
+ * design.md §6 "D4's accepted cost"), and `game/` cannot import
+ * `detective/cases.ts` without dragging the whole catalog-backed case
+ * registry in.
+ */
+export const DUCK_TRAIL_IDS: readonly string[] = [
+  'duck-trail1',
+  'duck-trail2',
+  'duck-trail3',
+  'duck-trail4',
+]

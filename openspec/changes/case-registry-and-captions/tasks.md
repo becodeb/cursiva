@@ -1,0 +1,171 @@
+# Tasks: Case Registry and Captioned Art
+
+## Review Workload Forecast
+
+| Field | Value |
+|-------|-------|
+| Estimated changed lines | ~2,160 authored ± across 9 slices (design §Slice Plan; S2 alone ≈430) |
+| 400-line budget risk | High (informational only — see below) |
+| Chained PRs recommended | No |
+| Suggested split | Single PR, 9 internally green commits (S1..S9) |
+| Delivery strategy | auto-chain (session preflight) |
+| Chain strategy | size-exception |
+
+Decision needed before apply: No
+Chained PRs recommended: No
+Chain strategy: size-exception
+400-line budget risk: High
+
+**Note**: `review_budget_lines` is unlimited by explicit user acceptance of
+`size:exception` for this session. The guard does not fire. This is reported as
+information, not a gate: one branch, one PR, sliced internally into 9
+independently-green commits (S1..S9 below), matching design's Slice Plan.
+`npm test` and `npm run build` MUST be green at the end of every slice
+(baseline: 972 tests / 52 files).
+
+### Suggested Work Units (commits within the one PR)
+
+| Unit | Goal | Commit | Focused test command | Runtime harness | Rollback boundary |
+|------|------|--------|----------------------|-----------------|-------------------|
+| S1 | Seed duck trails before they exist | `fix(progress)` | `npm test -- migrateDuckCase` | N/A — pure store logic, no visual surface yet | Delete `migrateDuckCase.ts`; orphan seeded records tolerated by store |
+| S2 | Duck art, tokens, clue kinds, four levels, case registry | `feat(detective)` (size-exception) | `npm test -- cases catalog palette artManifest` | `scripts/shot.sh` — duck trails + drained webfoot | Delete duck `SINGLES`/catalog block; `cases.ts` unused until S5/S6 |
+| S3 | Captioned art + caption audit | `feat(detective)` | `npm test -- CaptionedArt captionAudit` | N/A — no screen wired yet | Delete `CaptionedArt.tsx`/`captionAudit.ts`, both new and unreferenced |
+| S4 | Rewrite text-absence suites | `refactor(detective)` | `npm test -- HomeScreen App PistasRail LevelPlay Deduction` | N/A — test-only slice | Revert five test files; production code unchanged |
+| S5 | Deduction becomes case-driven and captioned | `feat(detective)` | `npm test -- Deduction` | `scripts/shot.sh` — duck deduction, 3 captioned animals | Revert `Deduction.tsx`/`assets.ts`; `CULPRIT` restorable from git history |
+| S6 | Per-case routing | `feat(detective)` | `npm test -- caseState GameScreen HomeScreen App` | N/A — routing logic only, screenshot deferred to S8 | Revert `caseState.ts`/`GameScreen.tsx` case plumbing |
+| S7 | Exit to office; map becomes dev surface | `feat(main-screen)` | `npm test -- levelFlow GameScreen App` | N/A — nav-only; visually confirmed at S8 alongside lens shot | One prop (`onExit`) + one `isDevMode()` guard; both independently revertible |
+| S8 | Lens centres on the fingertip | `fix(canvas)` | `npm test -- placeArt TraceCanvas` | `scripts/shot.sh` — trail mid-trace, lens on pointer | `placeArt` is pure/additive; reverting restores (0.5, 0.5) at both call sites |
+| S9 | Docs: Nivel reterm + directive transcription + D6 fixes | `docs` | N/A — docs-only, no test command | N/A — prose review, no render | Docs-only; no code path depends on wording |
+
+## Ordering Summary
+
+Hard dependencies (violating these breaks a green slice):
+
+1. **S1 before S2.** `migrateDuckCase` must seed before `catalog.ts` gains the
+   four duck ids, or any returning child with `f1-libre.approvals >= 2` loses
+   `trail1`'s positional unlock for however long the gap lasts (D4).
+2. **S2 is one inseparable slice** (the recorded `size:exception`, ≈430
+   lines). The moment `webfoot: PRINT` enters `CLUE_ART`,
+   `palette.test.ts:125-126`'s global distinctness goes red; the only honest
+   repair is the per-case re-scope, which needs `DETECTIVE_CASES`, which needs
+   `clueKindsOf`, which needs the duck `LevelConfig`s in the catalog. Do not
+   attempt to split art/tokens from the registry from the catalog rows.
+3. **S3 before S4.** The rewritten text-absence suites call `auditCaptions`;
+   it must exist first.
+4. **S2 before S5 and S6.** Both need `DETECTIVE_CASES` to drive them.
+5. Screenshot checks are pinned to S2, S5, S8 (design §Slice Plan) — do not
+   defer them to a later "screenshots at the end" pass; each one verifies a
+   defect this change exists to fix or a risk this change accepted.
+
+---
+
+## Phase 1: Seed duck trails before they exist (S1)
+
+- [x] 1.1 Add `DUCK_TRAIL_IDS` (four ids, in trail order) to `client/src/game/types.ts`, beside `DETECTIVE_TRAIL_IDS`. `game/` cannot import `detective/cases.ts` without dragging the catalog in.
+- [x] 1.2 Create `client/src/game/migrateDuckCase.ts`: `DUCK_PREDECESSOR_ID = 'f1-libre'`, `seedFrom()` copied from `migratePhase1.ts`'s policy, `migrateDuckCase(records)` guarded on `f1-libre.approvals >= APPROVALS_TO_UNLOCK`, returns `{}` if any duck id already has a record, never mutates or deletes.
+- [x] 1.3 Create `client/src/game/migrateDuckCase.test.ts`: idempotent re-run is a no-op; no write below the approval threshold; no write when any duck id has a record; never deletes; a mid-hen-campaign payload keeps every unlock.
+- [x] 1.4 Wire `migrateDuckCase` into `client/src/game/openProgressStore.ts`'s migration loop (`[migratePhase1(...), migrateDuckCase(...)]`), order irrelevant — the two share no id.
+- [x] 1.5 Run `npm test` and `npm run build`; confirm green (baseline 972/52 plus this slice's new tests).
+
+## Phase 2: Duck art, tokens, clue kinds, four levels, case registry (S2 — size-exception)
+
+- [ ] 2.1 In `scripts/art/build_art.py`, add `BREADCRUMB = (0x99, 0x41, 0x38)` and `BUBBLE = (0x4F, 0xB3, 0xD9)` beside the existing palette tuples (`:52-58`).
+- [ ] 2.2 Add six `SINGLES` rows for `webfoot`/`breadcrumb`/`bubble` (earned + drained, `keep_ink=False` for webfoot, `True` for breadcrumb/bubble — design §4 rationale). Alpha risk is resolved: `burbuja.png` (1197×1314, 57% transparent, bbox 134,204–1061,1130), `huella palmeada.png` (1299×1211, 65% transparent, bbox 58,76–1245,1145) and `miga de pan.png` (1299×1211, bbox 155,138–1148,1059) all have real alpha and tight bboxes — no opaque-background fallback needed.
+- [ ] 2.3 **Run `python3 scripts/art/build_art.py` and commit its outputs**, including the regenerated `client/public/art/*.png` and `client/public/art/manifest.json`, in this same commit. Art never enters by hand.
+- [ ] 2.4 Read the fresh `manifest.json` and confirm the emitted `w`/`h` for the three new clue kinds is a tight silhouette box (tall-narrow webfoot, near-square bubble, wide crumb), not a full-canvas crop — this is the manifest check design §4 requires before copying numbers into `assets.ts`.
+- [ ] 2.5 Update `client/src/detective/palette.ts` with `BREADCRUMB '#994138'` and `BUBBLE '#4fb3d9'`.
+- [ ] 2.6 Update `client/src/detective/palette.test.ts`: widen `EARNED` to six tokens (`POND, KERNEL, PRINT, PLUME, BREADCRUMB, BUBBLE`); re-scope the pairwise-distinctness assertion (`:121-127`) to iterate `DETECTIVE_CASES` and check distinctness within each case's `clueKindsOf(...)`, per design §4's exact test body.
+- [ ] 2.7 Update `client/src/detective/assets.ts`: extend `ClueKind` with `webfoot | breadcrumb | bubble`; add three `CLUE_ART` entries (`earned: PRINT | BREADCRUMB | BUBBLE`, both states, `w`/`h` from step 2.4).
+- [ ] 2.8 Update `client/src/detective/artManifest.test.ts`: `:121` count 38 → 44 (three new kinds × two states); `:116-117` comment arithmetic updated to `14 clue + 4 animal + …`.
+- [ ] 2.9 In `client/src/levels/catalog.ts`, insert four `LevelConfig`s (`duck-trail1..4`) into the private `PHASE_1` array, between `f1-libre` and `trail1`, using the exact generators/widths/clues from design §3's table (corridor widths 100/90/80/70 strictly decreasing; no `obstacles` on any — D1).
+- [ ] 2.10 Update `client/src/levels/catalog.test.ts`: `EXPECTED_IDS` gains the four ids in order between `'f1-libre'` and `'trail1'`; add a `duck-trail4` clearance case (`cornerClearance`/`armClearance`, arithmetic in design §3); confirm `:284`'s "hazards on exactly trail 1" guard stays green unchanged (proves no duck trail grew an obstacle).
+- [ ] 2.11 Create `client/src/detective/cases.ts`: `DetectiveCase` interface, `DETECTIVE_CASES` (duck first: culprit `pato`, options `[pato, vaca, gato]`, `ruledOutBy: {vaca: 'feather', gato: 'bubble'}`; hen second, unchanged), `clueKindsOf`, `caseOf`, `caseSolvedId`.
+- [ ] 2.12 Create `client/src/detective/cases.test.ts` — the five structural assertions from design §9: culprit is the only unruled option; every non-culprit ruled out by a pairwise-distinct kind; no kind double-rules within a case; every ruled-out kind is one the case's own trails carry (`⊆ clueKindsOf(kase)`); `webfoot`/`breadcrumb` rule out nobody.
+- [ ] 2.13 **Screenshot check (human-reviewed).** Start the dev server, then run `scripts/shot.sh http://localhost:5173/?nivel=duck-trail1 /tmp/duck-trail1.png`, and repeat for `duck-trail2`, `duck-trail3`, `duck-trail4`. PASS: corridor width visibly narrows 100→70 across the four, reading as a progression; `duck-trail4`'s elbows read as corners, not merged into a blob. FAIL: any trail reads flat/no progression, or `duck-trail4`'s corners visually merge.
+- [ ] 2.14 **Screenshot check (human-reviewed), open question.** From the `duck-trail4` shot in 2.13, judge whether ending the *first* case as tight as the second case's hardest trail (`corridorWidth: 70`, same as `trail4`) is the right call. PASS: a child-plausible corridor. FAIL: visibly too narrow to trace — if so, widen to 80 in `catalog.ts` and re-run 2.10/2.13.
+- [ ] 2.15 **Screenshot check (human-reviewed), the flagged risk.** After a `duck-trail1` clue is earned then drained (or by directly inspecting `clue-webfoot-drained.png` composited on `CORRIDOR_EARTH '#d9c3ae'`), check whether it is legible. PASS: the flat `#c8cdd2` silhouette is visible against the earth tone. FAIL: it is "very nearly invisible", the exact failure `build_art.py:194-201` records for the unlit lamp — if so, author `huella palmeada gris.png` and drive `drained` off it (design §4).
+- [ ] 2.16 Run `npm test` and `npm run build`; confirm green.
+
+## Phase 3: Captioned art and the caption audit (S3)
+
+- [ ] 3.1 Create `client/src/detective/CaptionedArt.tsx`: `label: string` required prop (no `?`, no default, no destructuring default — a destructuring default makes the type optional). Renders `<span class="cv-captioned">` containing the `<svg><image href></svg>` and a sibling `<span class="cv-caption">{label}</span>`.
+- [ ] 3.2 Create `client/src/detective/CaptionedArt.test.tsx`: a normal render assertion, plus the `@ts-expect-error` proof line (design §2) that a call site omitting `label` fails `tsc`. Confirm this line is exercised by `npm run build` (`tsconfig.json:20` includes `src`, so the build typechecks tests too) — vitest alone cannot prove this.
+- [ ] 3.3 Create `client/src/detective/captionAudit.ts`: `CAPTION_CONTAINERS = ['cv-captioned', 'pistas-bar']`, `auditCaptions(html)` returning `{captioned, uncaptioned, imagelessContainers}`.
+- [ ] 3.4 Create `client/src/detective/captionAudit.test.ts` with the four hand-built falsifiability rows from design §2's table (bare `<h1>`, captionless `cv-captioned`, imageless `pistas-bar`, a real `CaptionedArt` render). Rows 2 and 3 are load-bearing: they prove the licence is checked, not granted.
+- [ ] 3.5 Run `npm test` and `npm run build`; confirm green. No screen wired to `CaptionedArt`/`auditCaptions` yet — that is Phases 4 and 5.
+
+## Phase 4: Rewrite every text-absence suite (S4)
+
+- [ ] 4.1 Rewrite `client/src/screen/HomeScreen.test.tsx:27,32` to call `auditCaptions` and assert `uncaptioned` and `imagelessContainers` are both empty; keep `expect(text).toBe('')` at `:27` exactly as-is (the office still carries no words).
+- [ ] 4.2 Rewrite `client/src/App.test.tsx:26` the same way.
+- [ ] 4.3 Rewrite `client/src/detective/PistasRail.test.tsx:62,67,83` the same way; correct the module header's stale D6 "never typeset" claim in `PistasRail.tsx`.
+- [ ] 4.4 Rewrite `client/src/screen/LevelPlay.test.tsx:113,143` the same way.
+- [ ] 4.5 Rewrite `client/src/screen/Deduction.test.tsx:124,137,266,276` per design §9: `:137`/`:276` become the audit; `:124` inverts (animal names are now visible *and* captioned); `:266` (back control) stays as written.
+- [ ] 4.6 **Falsifiability check (mandatory, has an acceptance criterion).** Pick one rewritten suite (`HomeScreen.test.tsx`), temporarily introduce an uncaptioned text node into the rendered output (e.g. a stray `<span>test</span>` in the component under test), run that one suite, and confirm it goes RED. Revert the temporary change. This directly answers `openspec/changes/detective-mode/verify-report.md`'s finding that five assertions shipped unable to fail — record the RED output (or a copy of it) before reverting.
+- [ ] 4.7 Run `npm test` and `npm run build`; confirm green.
+
+## Phase 5: Deduction becomes case-driven and captioned (S5)
+
+- [ ] 5.1 In `client/src/detective/assets.ts`, delete the module-level `CULPRIT` constant and `ruledOutBy` from `ANIMAL_ART` (now `Readonly<Record<AnimalId, ArtImage>>`).
+- [ ] 5.2 Rewrite `client/src/screen/Deduction.tsx`: props become `kase: DetectiveCase`, `solved: boolean`, `onSolved: () => void`, `onExit: () => void`; render `kase.options.length` `CaptionedArt` choices (animal image + `label` = the animal's Spanish name); `pickAnimal(state, animal, culprit)` takes `culprit` as a parameter and no longer imports the deleted `CULPRIT`; add exported `solvesCase(state, animal, culprit)`; wire `onPick` to call `onSolved()` when `solvesCase` is true, then `setState(s => pickAnimal(s, animal, kase.culprit))`.
+- [ ] 5.3 Interim wiring (superseded by Phase 6): in `client/src/screen/GameScreen.tsx`'s existing `{ view: 'deduce' }` branch, pass `kase={DETECTIVE_CASES[0]}` (hardcoded duck case), `solved={store.get(caseSolvedId(DETECTIVE_CASES[0].id)).approvals >= 1}`, `onSolved` writing that record, `onExit={() => dispatch({type:'back'})}` (unchanged for now) — the minimum needed so `GameScreen` still compiles against `Deduction`'s new required props. Full per-case routing lands in Phase 6.
+- [ ] 5.4 Rewrite `client/src/screen/Deduction.test.tsx` per design §9: `'presents exactly four animal choices'` (`:116`) becomes "presents exactly `kase.options.length` choices", driven per case (duck = 3, hen = 4).
+- [ ] 5.5 **Screenshot check (human-reviewed).** Start the dev server, run `scripts/shot.sh http://localhost:5173/?nivel=deduccion /tmp/duck-deduction.png`. PASS: exactly three animals render (`pato`, `vaca`, `gato` — no `gallina`), each with its Spanish word in Nunito directly beneath its picture, legible at this viewport. FAIL: fewer/more than three animals, a missing caption, or a caption beside rather than under the picture.
+- [ ] 5.6 Run `npm test` and `npm run build`; confirm green.
+
+## Phase 6: Per-case routing (S6)
+
+- [ ] 6.1 Update `client/src/home/caseState.ts`: `CaseStep.deduce` gains `caseId`; add `activeCase(records)` (falls back to the last case when all are solved); rewrite `nextCaseStep`, `railSlots`, `lampOn` to take the active `DetectiveCase`.
+- [ ] 6.2 Update `client/src/home/caseState.test.ts` (or equivalent) for the case-aware behavior: an open duck deduction is not skipped; a resolved duck case advances to the hen's first trail.
+- [ ] 6.3 Update `client/src/screen/GameScreen.tsx`: `GameView`/`GameAction` carry `caseId`; replace Phase 5's interim hardcoded `kase` with `DETECTIVE_CASES.find(k => k.id === state.caseId) ?? DETECTIVE_CASES[0]`; `resolveNextAction` becomes per-case; drop the `DETECTIVE_TRAIL_IDS` re-export (`:95`).
+- [ ] 6.4 Update `client/src/screen/GameScreen.test.tsx`: the `deduce` action test (`:44`) becomes `{type:'deduce', caseId:'duck'}` → `{view:'deduce', caseId:'duck'}`; every `<GameScreen/>` mount case gains `onExit={() => {}}` in preparation for Phase 7 (harmless no-op until then).
+- [ ] 6.5 Update `client/src/screen/HomeScreen.tsx`'s rail rendering to read the active case; update `client/src/App.tsx` if it reads `nextCaseStep`/`activeCase` directly.
+- [ ] 6.6 Run `npm test` and `npm run build`; confirm green.
+
+## Phase 7: Exit to the home office; map becomes a dev surface (S7)
+
+- [ ] 7.1 Add required `onExit: () => void` to `GameScreenProps` (`GameScreen.tsx:139-149`); replace `dispatch({type:'back'})` at the two wiring sites (`:179` `LevelPlay.onBack`, `:185` `Deduction.onBack`) with `onExit()`. Leave `nextView`'s `back` branch intact — it is still reached by `{type:'reset'}`.
+- [ ] 7.2 In `client/src/App.tsx`, pass `onExit={goHome}` at the `GameScreen` mount site (`:108`).
+- [ ] 7.3 Rewrite `initialView` in `GameScreen.tsx` per design §8: takes a `dev` parameter; `?nivel=deduccion` → `{view:'deduce', caseId: DETECTIVE_CASES[0].id}`; `?nivel=deduccion-<caseId>` → that case if it exists; `?nivel=mapa` only resolves `{view:'map', finished:false}` when `dev` is true; anything else falls through to `null` (never the map by default).
+- [ ] 7.4 Update `App.tsx`'s `initialShell`: `const v = initialView(search, isDevMode()); return v ? {at:'game', initial:v} : {at:'home'}`.
+- [ ] 7.5 Update `client/src/game/levelFlow.test.ts:26`: retitle to `'reset returns to a plain map, never the finished banner'`, driving `{type:'reset'}` explicitly; assert the exit-to-office path via the `onExit` prop instead.
+- [ ] 7.6 Update `GameScreen.test.tsx:49,57`: split the back/reset test (reset still returns to map; a new case asserts `Deduction.onExit`/`LevelPlay.onBack` wire to the `onExit` prop, never to `dispatch`); add `initialView` cases for `?nivel=deduccion-hen` and `?nivel=mapa` under `dev` true and false.
+- [ ] 7.7 Update `App.test.tsx:40` (`initialView('')` → `null`, not the map); confirm `:39` (`?nivel=trail1`, `dev` defaults false) and `:20` ("opens on the office") stay green unchanged — `:20` is now load-bearing proof the dev gate did not turn the dev server into a map.
+- [ ] 7.8 Run `npm test` and `npm run build`; confirm green. No new screenshot here — visually confirmed together with Phase 8's lens shot, since both touch the same trail/exit surface.
+
+## Phase 8: The lens centres on the fingertip (S8)
+
+- [ ] 8.1 Create `client/src/canvas/placeArt.ts`: `DEFAULT_GRIP = [0.5, 0.5]`; `placeArt(art: {w,h,grip?}, height, center)` returns `{x,y,width,height}` placing the grip point at `center`, defaulting to box centre when no grip is declared.
+- [ ] 8.2 Create `client/src/canvas/placeArt.test.ts`: default grip centres the box; grip `[0.603, 0.391]` lands off the bbox centre (this assertion fails if the fix is ever reverted); aspect ratio held for non-square `w`/`h`; zero height does not produce `NaN`.
+- [ ] 8.3 In `client/src/detective/assets.ts`, add `grip?: readonly [number, number]` to `ArtImage`; set `CARRIER_LENS_ART.grip = [0.603, 0.391]`, moving the measurement narrative from `modes.ts` onto it.
+- [ ] 8.4 Update `client/src/canvas/TraceCanvas.tsx:1257-1264` to compute the carrier `<image>`'s `x/y/width/height` via `placeArt(carrierArt, CARRIER_ART_SIZE, {x:0, y:0})`; `TraceCarrierArt` gains `grip?`.
+- [ ] 8.5 In `client/src/home/modes.ts`, delete `HomeMode.grip` and the `DEFAULT_GRIP` import/duplicate literal (`:44-56`, `:113`) — the grip is now solely on `CARRIER_LENS_ART`.
+- [ ] 8.6 Update `client/src/screen/HomeScreen.tsx`'s `Hung` (`:162-186`) to `<image href={art.href} {...placeArt(art, height, {x:cx, y:cy})} preserveAspectRatio="xMidYMid meet" />`; drop the `at` prop and the `DEFAULT_GRIP` import (`:32`) and `at={mode.grip}` (`:296`).
+- [ ] 8.7 **Screenshot check (human-reviewed) — the defect this change exists to fix.** Start the dev server, run `scripts/shot.sh http://localhost:5173/?nivel=duck-trail1 /tmp/lens-check.png` and drag/trace partway through (or capture mid-render if the harness supports a pointer event replay; otherwise capture the carrier at rest and confirm its `<image>` offset visually against the pointer/path). PASS: the lens sits ON the traced point, not up-and-right of it. FAIL: any visible offset — the same ~11-unit drift `TraceCanvas.tsx:1257-1264` shipped with. This is the one screenshot the suite cannot substitute for: it can only prove the arithmetic, not the placement.
+- [ ] 8.8 Run `npm test` and `npm run build`; confirm green.
+
+## Phase 9: Docs — Nivel reterm, directive transcription, D6 corrections (S9)
+
+- [ ] 9.1 Create `docs/11_PULPITO_DETECTIVE_DIRECTIVA.md`: faithful Spanish transcription of the PDF's structure, using `/tmp/directiva_pulpito.txt` as source.
+- [ ] 9.2 Update `docs/01`: five `### Fase N` headings gain their Nivel label without losing pedagogy; `:25`'s phase diagram and `:98` follow the both-numbers rule.
+- [ ] 9.3 Update `docs/02:116,118`: corridor-width contrast and narrow-channel floor retermed, content preserved.
+- [ ] 9.4 Update `docs/03:48,50,53`: relabel the two code-enforced boundaries as `Nivel N (Fase M en el código)` without renumbering `WITHDRAWAL_FROM_PHASE` or the `blank`/`ruled` split.
+- [ ] 9.5 Update `docs/04:30-34,60`: rewrite the stale inventory against the live catalog (duck trails included); keep the `"Fase 2 · Las hamacas"` code quote marked as a quote.
+- [ ] 9.6 Update `docs/05:13-22`: reterm the per-phase reward ladder, reconciled with what shipped.
+- [ ] 9.7 Correct the stale D6 "never typeset" claim in `docs/09_GUIA_DE_ESTILO_VISUAL.md:228-230`.
+- [ ] 9.8 Run `npm test` and `npm run build`; confirm green (docs-only slice, no code path should differ — this run is a regression check, not a proof of the docs themselves).
+
+---
+
+## Falsifiability and Screenshot Index (cross-reference)
+
+| Concern | Task |
+|---|---|
+| Rewritten text-absence tests can actually FAIL | 4.6 |
+| `auditCaptions` itself is falsifiable (hand-built rows) | 3.4 |
+| `label` omission is a compile error, proven by `npm run build` | 3.2 |
+| Lens on pointer, not up-and-right | 8.7 |
+| Duck deduction: 3 captioned animals | 5.5 |
+| Drained webfoot legible on corridor earth | 2.15 |
+| `duck-trail4` at `corridorWidth: 70` — first case as tight as hardest hen trail | 2.14 |
+| Duck trail width progression 100→70 reads correctly | 2.13 |
