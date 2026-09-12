@@ -107,10 +107,10 @@ Hard dependencies (violating these breaks a green slice or D7):
 
 ## Phase 6: `goalArt`/`hazardArt` on the config and the screen (S6)
 
-- [ ] 6.1 Add `goalArt?: ArtImage` and `hazardArt?: ArtImage` to `LevelConfig` in `client/src/levels/types.ts`.
-- [ ] 6.2 In `client/src/screen/LevelPlay.tsx`, compute `endArt`: `goalArt` wins over the case lamp (design §5's exact branch); add `GOAL_ART_SIZE = 96`; pass `level.hazardArt` through to `TraceHazards.art` when present.
-- [ ] 6.3 Update `client/src/screen/LevelPlay.test.tsx`: `endArt.href` is the goal art on a level with `goalArt` set; the lamp on a case trail with no `goalArt`; `goalArt` wins when both are present; absent on an ordinary level (`:526` stays green).
-- [ ] 6.4 Run `npm test` and `npm run build`; confirm green.
+- [x] 6.1 Add `goalArt?: ArtImage` and `hazardArt?: ArtImage` to `LevelConfig` in `client/src/levels/types.ts`.
+- [x] 6.2 In `client/src/screen/LevelPlay.tsx`, compute `endArt`: `goalArt` wins over the case lamp (design §5's exact branch); add `GOAL_ART_SIZE = 96`; pass `level.hazardArt` through to `TraceHazards.art` when present.
+- [x] 6.3 Update `client/src/screen/LevelPlay.test.tsx`: `endArt.href` is the goal art on a level with `goalArt` set; the lamp on a case trail with no `goalArt`; `goalArt` wins when both are present; absent on an ordinary level (`:526` stays green).
+- [x] 6.4 Run `npm test` and `npm run build`; confirm green.
 
 ## Phase 7: The four Nivel 3 levels (S7)
 

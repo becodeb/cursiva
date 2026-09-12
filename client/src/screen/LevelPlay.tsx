@@ -106,6 +106,11 @@ const OCTOPUS_SIZE = 96
  * compensate for having no contrast of its own. */
 const LAMP_SIZE = 84
 
+/** Rendered HEIGHT of a level's own `goalArt` (design.md §5) — a creature,
+ * peer of {@link OCTOPUS_SIZE}, not of `LAMP_SIZE`: the medusa is Nivel 3's
+ * content, not a case default. */
+const GOAL_ART_SIZE = 96
+
 /**
  * Where the magnifying glass RESTS, as an offset from the octopus's feet.
  *
@@ -831,9 +836,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         ? {
             radii: obstacles.map((o) => o.radius),
             at: (index: number, timeMs: number) => obstacleAt(obstacles[index], target, timeMs),
+            art: level.hazardArt,
           }
         : undefined,
-    [obstacles, target],
+    [obstacles, target, level.hazardArt],
   )
 
   // ---- Restart the run on contact (docs/01 principle 2) --------------------
@@ -1036,6 +1042,17 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     () => (level.kind === 'path' ? goalMarkerOf(target) : undefined),
     [level.kind, target],
   )
+  // Registry art standing where the route ends, in place of the two hollow
+  // diamonds AND the case lamp (design.md §5). `goalArt` WINS over the lamp:
+  // a level's own content beats a default it did not ask for. Orthogonal to
+  // `home/caseState.ts`'s lamp — no Nivel 3 id is in any case's `trailIds`,
+  // so it cannot move the office lamp by construction, and `trailLampOn`
+  // stays gated on `isCase` above, so a `goalArt` level never latches it.
+  const endArt = level.goalArt
+    ? { ...level.goalArt, size: GOAL_ART_SIZE }
+    : isCase
+      ? { ...(trailLampOn ? LAMP_ART.on : LAMP_ART.off), size: LAMP_SIZE }
+      : undefined
 
   // The corridor object is memoized so `TraceCanvas` can derive the tapered
   // geometry once per level instead of once per render.
@@ -1234,18 +1251,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // "where the letter ends" is real information, not decoration. At the
         // 'none' band it goes too, or `f5-mama` would stop being a memory test.
         endMarker={showMarkers ? endMarker : undefined}
-        // The lamp stands where the route ends, in place of the two diamonds.
-        // It is OFF until this run reaches the end and ON after — and it means
-        // exactly that, "llegaste", which is a different sentence from the
-        // rail's own lamp above (`lampOn={clueFiled}`, "the clue is filed").
-        // The two coincide on a finished trail and are not the same statement.
-        // Gated on `isCase`, not `inWorld` — a world-only level has no case
-        // to arrive at, so §5's `goalArt` branch handles it instead.
-        endArt={
-          isCase
-            ? { ...(trailLampOn ? LAMP_ART.on : LAMP_ART.off), size: LAMP_SIZE }
-            : undefined
-        }
+        // The lamp stands where the route ends, in place of the two diamonds,
+        // UNLESS the level supplies its own `goalArt` (design.md §5) — see
+        // the `endArt` derivation above. The lamp means "llegaste" and is OFF
+        // until this run reaches the end and ON after, a different sentence
+        // from the rail's own lamp (`lampOn={clueFiled}`, "the clue is
+        // filed"); the two coincide on a finished trail but are not the same
+        // statement.
+        endArt={endArt}
         // No arrow in the detective world. The octopus standing at one end and
         // the lamp/goal art at the other already say "from here to there", and
         // the arrow is drawn AT the route's first point, so it lands on the

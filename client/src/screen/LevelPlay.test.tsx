@@ -622,6 +622,26 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     expect(traceCanvasProbe.current?.endArt).toBeUndefined()
   })
 
+  it("sends the level's own goalArt as endArt on a world-only level with no case (design.md §5)", () => {
+    const goalArt = { href: '/art/test-goal.png', w: 200, h: 240 }
+    render(makeWorldOnlyLevel({ goalArt }))
+    const art = traceCanvasProbe.current?.endArt as Art
+    expect(art?.href).toBe(goalArt.href)
+    expect(art?.w).toBe(goalArt.w)
+    expect(art?.h).toBe(goalArt.h)
+    // A creature, peer of the octopus's 96 — never the lamp's 84.
+    expect(art?.size).toBe(96)
+  })
+
+  it('goalArt WINS over the case lamp when both are present: a level\'s own content beats a default it did not ask for', () => {
+    const goalArt = { href: '/art/test-goal.png', w: 200, h: 240 }
+    render(makeDetectiveLevel({ goalArt }))
+    const art = traceCanvasProbe.current?.endArt as Art
+    expect(art?.href).toBe(goalArt.href)
+    expect(art?.href).not.toBe(LAMP_ART.off.href)
+    expect(art?.href).not.toBe(LAMP_ART.on.href)
+  })
+
   it('sends the octopus on a world-only level (inDetectiveWorld), but no lamp (endArt stays gated on isCaseTrail alone in S1)', () => {
     render(makeWorldOnlyLevel())
     const art = traceCanvasProbe.current?.startArt as Art
