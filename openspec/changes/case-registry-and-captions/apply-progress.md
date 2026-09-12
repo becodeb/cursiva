@@ -1,7 +1,7 @@
 # Apply Progress: Case Registry and Captioned Art
 
-Scope of this apply run: **Phase 1 (S1) and Phase 2 (S2) only.** Phases 3-9
-are untouched and remain `[ ]` in `tasks.md`.
+Cumulative scope across apply runs: **Phase 1 (S1) through Phase 4 (S4).**
+Phases 5-9 are untouched and remain `[ ]` in `tasks.md`.
 
 Mode: Standard (strict TDD disabled — `openspec/config.yaml testing.strict_tdd: false`).
 
@@ -121,10 +121,116 @@ Full suite at the end of S2: **999 tests / 54 files, `npm run build` green.**
 - `/tmp/shots/duck-trail4.png` — PASS (narrowest, crisp square corners, no merged blobs)
 - `/tmp/shots/webfoot-drained-on-earth.png` — PASS (direct art composite, drained webfoot legible on corridor earth)
 
+## Phase 3: Captioned art and the caption audit (S3) — COMPLETE (5/5)
+
+| Task | Status | Evidence |
+|---|---|---|
+| 3.1 `detective/CaptionedArt.tsx` | done | Required `label: string`, no `?`, no destructuring default. Renders `<span class="cv-captioned">` wrapping `<svg><image href></svg>` and a sibling `<span class="cv-caption">{label}</span>`. |
+| 3.2 `detective/CaptionedArt.test.tsx` | done | Normal-render assertion, aspect-ratio sizing assertion, `className` modifier assertion, and the `@ts-expect-error` proof line. |
+| 3.3 `detective/captionAudit.ts` | done | `CAPTION_CONTAINERS = ['cv-captioned', 'pistas-bar']`; `auditCaptions(html)` — hand-written stack-based HTML tokenizer (no DOM), returns `{captioned, uncaptioned, imagelessContainers}`. |
+| 3.4 `detective/captionAudit.test.tsx` | done, with deviation | **Deviation**: file created as `.tsx` not `.ts` — row 4 of design §2's table requires `renderToString(<CaptionedArt .../>)`, real JSX, which a `.ts` file's parser rejects (confirmed: first run threw a PARSE_ERROR on the JSX). Contains all four design rows plus two extra: a repaired row-2 shape that DOES carry an image (proves the verdict flips on the image, not the class name) and an unregistered class name (proves a container not in `CAPTION_CONTAINERS` is never falsely flagged). |
+| 3.5 `npm test` / `npm run build` | done | 1011 tests / 56 files (up from 999/54: +12 tests, +2 files). Build green. |
+
+### Falsifiability proof for the compile-error claim (task 3.2)
+
+Verified for real rather than assumed, per the non-negotiable to check the
+build/vitest split before relying on it:
+
+1. Temporarily removed the `@ts-expect-error` suppression from
+   `CaptionedArt.test.tsx`.
+2. Ran bare `tsc --noEmit` (diagnostic only, never the reported final
+   result) — FAILED: `TS2741: Property 'label' is missing in type '{ art:
+   ArtImage; size: number; }' but required in type 'CaptionedArtProps'`.
+3. Ran `npx vitest run` on the SAME unsuppressed file — 4/4 PASSED, proving
+   vitest cannot see the type error at all.
+4. Restored the suppression; `tsc --noEmit` clean again.
+
+This confirms the design's central claim: only `npm run build` (which runs
+`tsc --noEmit`) can prove `label` is required; `npm test` alone cannot.
+
+### Work Unit Evidence — S3
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npx vitest run src/detective/captionAudit.test.tsx src/detective/CaptionedArt.test.tsx` → 12/12 passed |
+| Runtime harness | N/A — no screen wired to `CaptionedArt`/`auditCaptions` yet (per tasks.md's own forecast; wiring lands in Phases 4-5) |
+| Rollback boundary | Delete `CaptionedArt.tsx`/`.test.tsx`/`captionAudit.ts`/`.test.tsx` — all four are new and unreferenced by any other module at this point |
+
+Committed as `feat(detective): captioned art and the caption audit` (a79ce3a).
+
+## Phase 4: Rewrite every text-absence suite (S4) — COMPLETE (7/7)
+
+| Task | Status | Evidence |
+|---|---|---|
+| 4.1 `HomeScreen.test.tsx` | done | First test (`toBe('')`) kept verbatim; second test replaced with `auditCaptions`-based assertions. |
+| 4.2 `App.test.tsx` | done | Kept the strict `visible === ''` check AND added the audit assertions (belt-and-suspenders — this screen genuinely has zero words today). |
+| 4.3 `PistasRail.tsx` + `.test.tsx` | done, with deviation | **Deviation**: the module header's stale claim ("`PISTAS` is DRAWN, not typeset") corrected to describe the real typeset-text implementation and its licensed-container status. Task's cited line numbers (62/67/83) had drifted from the file's current state; the three actual `toBe('PISTAS')`-style assertions (at 64/69/97 as shipped) were all found and rewritten, keeping the original exact-text check alongside the new `auditCaptions` call in each (this screen's real invariant is strictly stronger than "if present, captioned"). |
+| 4.4 `LevelPlay.test.tsx` | done | Same keep-and-augment pattern as 4.3, at both cited test blocks. |
+| 4.5 `Deduction.tsx` + `.test.tsx` | done, with a recorded design/tasks conflict — resolved | See "Deviation and conflict resolution" below. |
+| 4.6 Falsifiability check | done | See "Falsifiability proof" below — done for real, not simulated. |
+| 4.7 `npm test` / `npm run build` | done | 1011 tests / 56 files (unchanged count from Phase 3 — pure rewrite, no new test files). Build green. |
+
+### Deviation and conflict resolution (task 4.5)
+
+`tasks.md`'s own Suggested Work Units table describes S4 as "test-only
+slice... production code unchanged", but `design.md` §9 explicitly requires
+`Deduction.test.tsx:124` to INVERT — "the name is now visible *and*
+captioned" — which is only true if `Deduction.tsx` itself changes. These two
+documents conflict.
+
+Resolved in favour of `design.md` (the parent orchestrator named it
+authoritative for HOW) and the parent's own scope fence, which reads "do not
+touch ... Deduction.tsx's *case wiring* this slice" — a qualified
+restriction, not a blanket one. Reasoned that "case wiring" names Phase 5's
+actual payload (`kase`/`solved`/`onSolved`/`onExit` props, `solvesCase`,
+`CULPRIT` and `ANIMAL_ART.ruledOutBy` removal) and that a caption-only visual
+change to the existing four-animal, `CULPRIT`-driven `Deduction.tsx` touches
+none of that.
+
+**What changed in `Deduction.tsx`**: the `Animal` component now wraps each
+choice in `CaptionedArt` (picture + visible Spanish name underneath) instead
+of an SVG-only `<Art>` with an aria-only label. Removed the now-redundant
+`aria-label` (the visible caption already supplies the button's accessible
+name via content — confirmed no other test in the suite referenced it).
+Added `.cv-captioned`/`.cv-caption` stacking CSS to `DEDUCTION_CSS`. Fixed a
+CSS template-literal bug of my own (a `` ` `` character inside a CSS comment
+prematurely closed the JS template string — caught immediately by a PARSE_ERROR
+on the first test run, fixed before it ever reached a commit).
+
+**What did NOT change**: `CULPRIT`, `ANIMAL_ART.ruledOutBy`, `pickAnimal`'s
+signature, the four-animal lineup, and every other data-model piece Phase 5
+owns are untouched.
+
+### Falsifiability proof (task 4.6) — done for real
+
+1. Added `<span>test</span>` as a direct child of `<main className="cv-home">`
+   in `HomeScreen.tsx`.
+2. Ran `npx vitest run src/screen/HomeScreen.test.tsx` — RED, 2 of 13 tests
+   failed:
+   - `shows no text whatsoever...`: `AssertionError: expected 'test' to be ''`
+   - `every word (if any) carries its own image...`: `AssertionError:
+     expected [ 'test' ] to deeply equal []` — `audit.uncaptioned` correctly
+     caught the stray word.
+3. Reverted the span. Ran the same suite again — GREEN, 13/13 passed.
+4. Confirmed `git diff --stat client/src/screen/HomeScreen.tsx` was empty
+   before committing — the temporary defect left no trace.
+
+This directly answers `openspec/changes/detective-mode/verify-report.md`'s
+finding that five assertions shipped unable to fail: the rewritten
+assertions in this phase can, and were shown to, go red on a real defect.
+
+### Work Unit Evidence — S4
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npx vitest run src/detective/PistasRail.test.tsx src/screen/HomeScreen.test.tsx src/App.test.tsx src/screen/LevelPlay.test.tsx src/screen/Deduction.test.tsx` → 97/97 passed |
+| Runtime harness | N/A — test-only + one production visual change (Deduction's captions), no screenshot required this phase (Deduction's screenshot is pinned to Phase 5, task 5.5, once the case-driven lineup lands) |
+| Rollback boundary | Revert the 7 modified files listed above; each is an independent diff (test-file rewrites and the two small production comment/caption edits do not depend on each other) |
+
+Committed as `refactor(detective): every text-absence suite asserts the captioned-art invariant` (eed2788).
+
 ## Remaining Tasks (out of scope for this apply run)
 
-- [ ] Phase 3: Captioned art and the caption audit (S3)
-- [ ] Phase 4: Rewrite every text-absence suite (S4)
 - [ ] Phase 5: Deduction becomes case-driven and captioned (S5)
 - [ ] Phase 6: Per-case routing (S6)
 - [ ] Phase 7: Exit to the home office; map becomes a dev surface (S7)
@@ -133,9 +239,9 @@ Full suite at the end of S2: **999 tests / 54 files, `npm run build` green.**
 
 ## Status
 
-21/69 tasks complete (Phase 1: 5/5, Phase 2: 16/16). Both slices committed
-separately. Ready for the next apply batch (Phase 3, S3) or for verify on
-this slice's scope.
+35/69 tasks complete (Phase 1: 5/5, Phase 2: 16/16, Phase 3: 5/5, Phase 4:
+7/7). All four slices committed separately. Ready for the next apply batch
+(Phase 5, S5) or for verify on this slice's scope.
 
 ## Orchestrator correction after the S2 screenshot review (2026-09-12)
 
