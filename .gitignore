@@ -5,3 +5,4 @@ dist/
 .atl/
 __pycache__/
 *.pyc
+capturas/
