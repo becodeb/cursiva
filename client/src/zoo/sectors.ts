@@ -1,0 +1,421 @@
+// The zoo's sector registry (`docs/12_MAPA_DEL_ZOOLOGICO.md` §3, design.md
+// §1-§5). One object per sector: where it sits on the map, what covers it
+// while it is closed, which adventures it opens, and the pure decisions a
+// `renderToString`-only harness can actually observe. Nothing here is a
+// component — `screen/ZooMap.tsx` is the only consumer that draws anything.
+//
+// Every coordinate below follows from ONE measured fact (design.md §1): the
+// map image is 1536×1024 laid on a 1000×600 viewBox at `xMidYMid slice`, so
+// `vbX = imgX × 0.651042` and `vbY = imgY × 0.651042 − 33.333`. The rects are
+// the result of pushing region-sampled points through those two lines, not
+// numbers picked by eye. `docs/12` §4 governs what happens when one misses: a
+// misplaced `hit` is corrected HERE, never in `zoo-map.png` itself.
+import { LEVELS } from '../levels/catalog'
+import { ANIMAL_ART, ZOO_FOG_ART, type AnimalId, type ArtImage } from '../detective/assets'
+import { placeArt, STANDING_GRIP, type ArtBox } from '../canvas/placeArt'
+import type { LevelRecord } from '../game/types'
+
+/** The persisted records, straight from `cursiva.levels.v1`. Re-homed here
+ *  because `home/caseState.ts:29` owned this alias and `home/` is deleted by
+ *  this same change; nothing outside `home/` ever imported it (verified,
+ *  design.md §8). */
+export type Records = Readonly<Record<string, LevelRecord>>
+
+/** "Filed" = at least one approval — the exact rule `home/caseState.ts`'s
+ *  `isFiled` used, re-homed rather than re-decided. */
+export function isFiled(records: Records, levelId: string): boolean {
+  return (records[levelId]?.approvals ?? 0) >= 1
+}
+
+/** An axis-aligned rect in viewBox units. `ArtBox` (`canvas/placeArt.ts`) is
+ *  the same shape with `w`/`h` spelled out as `width`/`height`; this one
+ *  keeps `docs/12` §3's own field names so the registry reads like the
+ *  directive it implements. */
+export interface Rect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/** The centre of a `Rect` — the point a footprint trail walks toward and a
+ *  sector's own hit-test aims at. */
+export function hitCentre(hit: Rect): { x: number; y: number } {
+  return { x: hit.x + hit.w / 2, y: hit.y + hit.h / 2 }
+}
+
+export interface FogPatch {
+  /** Index into `ZOO_FOG_ART`: 0 wide (495×155), 1 tall (343×479), 2 round
+   *  (474×424). */
+  art: 0 | 1 | 2
+  /** Centre of the patch, viewBox units. */
+  x: number
+  y: number
+  /** Rendered HEIGHT; width follows the file's own aspect ratio. */
+  size: number
+  /** ALWAYS 0, and the literal type is the guard (design.md §4, "an
+   *  unprovable invariant is worse than a plainer picture"): a rotated
+   *  blob's footprint is not its axis-aligned rect, so `coversRect` could
+   *  only stay sound at `rot: 0`. `sectors.test.ts`'s `@ts-expect-error` on
+   *  a `rot: 15` literal is the same mechanism `CaptionedArt`'s required
+   *  `label` uses — a compile error `npm run build` catches and `vitest`
+   *  cannot. */
+  rot: 0
+  /** Mirror about the patch's own vertical centreline. Footprint-preserving
+   *  (the axis-aligned box is bit-identical either way), which is why
+   *  variety is spent here and not on `rot`. */
+  flip?: boolean
+}
+
+export interface ZooAnimal {
+  /** Drawn from `ANIMAL_ART[id]`, by its FEET (`STANDING_GRIP`). */
+  id: AnimalId
+  /** Offset from the sector's single `animalSpot`, so one spot carries a
+   *  group later without a schema change. */
+  dx: number
+  dy: number
+  /** Rendered height, viewBox units. */
+  size: number
+  /** Every one of these filed ⇒ the animal stands in the zoo. Declarative
+   *  ids, not a closure: the structural test below needs to prove each id
+   *  is a real catalog level, and a closure cannot be inspected. */
+  appearsWhen: readonly string[]
+}
+
+export type SectorId =
+  | 'entrada'
+  | 'bosque'
+  | 'estanque'
+  | 'montanas'
+  | 'arena'
+  | 'nocturna'
+  | 'sendero'
+
+export interface ZooSector {
+  id: SectorId
+  /** ABSENT = scenery: never tappable, never fogged, skipped by both
+   *  geometry tests (OD3, the sendero — it IS the paths, and any 120×120
+   *  rect on them would collide with the plaza or a neighbour). */
+  hit?: Rect
+  fog: readonly FogPatch[]
+  animalSpot: { x: number; y: number }
+  animals: readonly ZooAnimal[]
+  /** In play order (`docs/13` §3). */
+  adventureIds: readonly string[]
+  /** Pure. Today every implementation is `alwaysOpen` (the estanque, D4's
+   *  seed) or `alwaysClosed` (the five fogged sectors) — paso D's intro
+   *  plugs in here, one line per sector. */
+  unlockedWhen: (records: Records) => boolean
+}
+
+export const PLAZA: Rect = { x: 408, y: 225, w: 180, h: 115 }
+export const PLAZA_CENTRE = { x: 498, y: 282 } as const
+
+/** D4: no entrance/intro exists yet, so a fully fogged map would be a dead
+ *  first run. Deleted in paso D, not a rule (proposal, "Decisions"). */
+const alwaysOpen = (): boolean => true
+/** Entrada, bosque, montañas, arena and nocturna: content is pasos B-H. */
+const alwaysClosed = (): boolean => false
+
+const ENTRADA_HIT: Rect = { x: 398, y: 424, w: 228, h: 170 }
+const BOSQUE_HIT: Rect = { x: 25, y: 230, w: 300, h: 300 }
+const ESTANQUE_HIT: Rect = { x: 660, y: 68, w: 280, h: 200 }
+const MONTANAS_HIT: Rect = { x: 360, y: 22, w: 270, h: 140 }
+const ARENA_HIT: Rect = { x: 675, y: 290, w: 280, h: 228 }
+const NOCTURNA_HIT: Rect = { x: 95, y: 22, w: 250, h: 190 }
+
+/** design.md §4's closed-form fog construction, restated as code rather than
+ * hand-authored numbers: `size = 1.06h`, two patches centred on each half of
+ * `hit`'s width at `hit`'s own vertical midline. The proof (§4) is that each
+ * box spans `[y − 0.03h, y + 1.03h] ⊇ [y, y + h]` vertically and covers its
+ * half horizontally, so the union always contains the whole `hit`. `art` is
+ * chosen per sector by the aspect test `aspect ≥ hit.w / (2.12 × hit.h)`
+ * (design.md §4's worked values); it is a per-call argument here rather than
+ * computed, because the choice is a one-time authored fact about a fixed
+ * `hit`, not something that needs re-deriving on every render.
+ */
+const FOG_OVERLAP = 1.06
+function closedFog(hit: Rect, art: 0 | 1 | 2): readonly FogPatch[] {
+  const size = FOG_OVERLAP * hit.h
+  const y = hit.y + hit.h / 2
+  return [
+    { art, x: hit.x + hit.w / 4, y, size, rot: 0, flip: false },
+    { art, x: hit.x + (3 * hit.w) / 4, y, size, rot: 0, flip: true },
+  ]
+}
+
+export const SECTORS: readonly ZooSector[] = [
+  {
+    id: 'entrada',
+    hit: ENTRADA_HIT,
+    // aspect ≥ 228/(2.12×170) = 0.63 → art 1 (343×479 → 0.716) clears it.
+    fog: closedFog(ENTRADA_HIT, 1),
+    animalSpot: hitCentre(ENTRADA_HIT),
+    animals: [],
+    adventureIds: [],
+    unlockedWhen: alwaysClosed,
+  },
+  {
+    id: 'bosque',
+    hit: BOSQUE_HIT,
+    // aspect ≥ 300/(2.12×300) = 0.47 → art 1 clears it.
+    fog: closedFog(BOSQUE_HIT, 1),
+    animalSpot: hitCentre(BOSQUE_HIT),
+    animals: [],
+    adventureIds: [],
+    unlockedWhen: alwaysClosed,
+  },
+  {
+    id: 'estanque',
+    hit: ESTANQUE_HIT,
+    // D4: starts discovered, so it never carries fog.
+    fog: [],
+    // Inside the water, clear of the reed island (x ∈ [768,833], y ∈
+    // [130,182]) — design.md §1's measured spot.
+    animalSpot: { x: 735, y: 200 },
+    animals: [
+      // The duck appears once ITS OWN trail is filed, not when the whole
+      // sector is (design.md §3) — `appearsWhen` is per-animal on purpose.
+      { id: 'pato', dx: 0, dy: 0, size: 96, appearsWhen: ['duck-trail4'] },
+    ],
+    // The exact eight-id order docs/13 §3 assigns to the estanque: the
+    // duck's four trails, then the medusa's four (design.md §3).
+    adventureIds: [
+      'duck-trail1',
+      'duck-trail2',
+      'duck-trail3',
+      'duck-trail4',
+      'f2-guirnalda',
+      'f2-agua2',
+      'f2-agua3',
+      'f2-agua4',
+    ],
+    unlockedWhen: alwaysOpen,
+  },
+  {
+    id: 'montanas',
+    hit: MONTANAS_HIT,
+    // aspect ≥ 270/(2.12×140) = 0.91 → only art 2 (474×424 → 1.118) clears it.
+    fog: closedFog(MONTANAS_HIT, 2),
+    animalSpot: hitCentre(MONTANAS_HIT),
+    animals: [],
+    adventureIds: [],
+    unlockedWhen: alwaysClosed,
+  },
+  {
+    id: 'arena',
+    hit: ARENA_HIT,
+    // aspect ≥ 280/(2.12×228) = 0.58 → art 1 clears it.
+    fog: closedFog(ARENA_HIT, 1),
+    animalSpot: hitCentre(ARENA_HIT),
+    animals: [],
+    adventureIds: [],
+    unlockedWhen: alwaysClosed,
+  },
+  {
+    id: 'nocturna',
+    hit: NOCTURNA_HIT,
+    // aspect ≥ 250/(2.12×190) = 0.62 → art 2 clears it.
+    fog: closedFog(NOCTURNA_HIT, 2),
+    animalSpot: hitCentre(NOCTURNA_HIT),
+    animals: [],
+    adventureIds: [],
+    unlockedWhen: alwaysClosed,
+  },
+  {
+    id: 'sendero',
+    // OD3: no hit at all. It IS the drawn paths; a 120×120 rect on them
+    // would necessarily collide with the plaza or a neighbour, which is
+    // exactly the test §4 exists to enforce. Scenery only.
+    fog: [],
+    animalSpot: PLAZA_CENTRE,
+    animals: [],
+    adventureIds: [],
+    unlockedWhen: alwaysClosed,
+  },
+]
+
+/** `!!sector.hit && sector.unlockedWhen(records)` — a sector with no `hit`
+ *  can never be open, whatever its `unlockedWhen` says (design.md §5). */
+export function isOpen(sector: ZooSector, records: Records): boolean {
+  return !!sector.hit && sector.unlockedWhen(records)
+}
+
+/**
+ * OD2: tapping a finished sector re-enters its LAST adventure, so the one
+ * finished sector does not read as inert to a child who just watched its
+ * animal appear. `null` only for a sector with no adventures at all — today
+ * every fogged sector, and those are never tappable anyway.
+ */
+export function nextAdventure(sector: ZooSector, records: Records): string | null {
+  if (sector.adventureIds.length === 0) return null
+  const firstUnfiled = sector.adventureIds.find((id) => !isFiled(records, id))
+  return firstUnfiled ?? sector.adventureIds[sector.adventureIds.length - 1]
+}
+
+/** Which sector a level id belongs to, if any. `undefined` for a level no
+ *  sector has adopted yet — today the hen's `trail1..4` and everything past
+ *  the estanque's own eight ids. */
+export function sectorOf(levelId: string): ZooSector | undefined {
+  return SECTORS.find((sector) => sector.adventureIds.includes(levelId))
+}
+
+/**
+ * Paso A's one temporary rule (design.md §5): the first open sector that
+ * still has an unfinished adventure, else `null`. Today that is the estanque
+ * until `f2-agua4` is filed. A real "recently" needs persisted knowledge of
+ * what the child has already been shown (paso D's `<sector>-seen` state,
+ * out of scope here) — one function, one call site, one line to replace.
+ */
+export function recentlyDiscovered(records: Records): ZooSector | null {
+  return (
+    SECTORS.find(
+      (sector) => isOpen(sector, records) && sector.adventureIds.some((id) => !isFiled(records, id)),
+    ) ?? null
+  )
+}
+
+/**
+ * Which animals stand where, right now. `STANDING_GRIP` is applied by
+ * OVERRIDING the art's own grip for this one placement — `ANIMAL_ART`
+ * entries declare no grip of their own (they default to box-centre when
+ * held, e.g. in the deduction lineup), and the zoo is the one place an
+ * animal is planted by its feet rather than centred (`docs/09` §3, "los
+ * animales llevan el origen en las patas"). No second placer is written:
+ * this still goes through `canvas/placeArt.ts`'s one function.
+ */
+export function animalPlacements(
+  sector: ZooSector,
+  records: Records,
+): readonly { art: ArtImage; box: ArtBox }[] {
+  const placed: { art: ArtImage; box: ArtBox }[] = []
+  for (const animal of sector.animals) {
+    if (!animal.appearsWhen.every((id) => isFiled(records, id))) continue
+    const art = ANIMAL_ART[animal.id]
+    const box = placeArt({ ...art, grip: STANDING_GRIP }, animal.size, {
+      x: sector.animalSpot.x + animal.dx,
+      y: sector.animalSpot.y + animal.dy,
+    })
+    placed.push({ art, box })
+  }
+  return placed
+}
+
+/** How far, viewBox units, a footprint sits off the trail's own centreline —
+ *  smaller than `detective/clues.ts`'s `FOOTPRINT_OFFSET` (10, sized against
+ *  a 35-45-unit trail corridor) because the map has no corridor and its
+ *  prints render at ~26 units tall rather than a clue mark's size. Its OWN
+ *  constant, not an import: exporting the trail's number would tie a map
+ *  coordinate to a corridor width, and widening a corridor would then
+ *  silently move the map's footprints too (design.md §5). */
+const PRINT_OFFSET = 12
+
+/** The print art (134×256) is authored pointing along −y, so facing the
+ *  walked direction needs this offset added to `atan2(dy, dx)` — measured
+ *  from the file's aspect, not from looking at it (design.md §5). */
+const PRINT_FACING = -90
+
+export interface FootprintMark {
+  x: number
+  y: number
+  /** Degrees, SVG `rotate(...)` convention. */
+  angle: number
+}
+
+/**
+ * A print every `step` units along the straight segment from `from` to `to`,
+ * alternating sides of the line — the same alternation `detective/clues.ts`'s
+ * `clueMarks` uses for its own footprint kind (`clues.ts:161-171`, "that is
+ * what makes a track read as walking"), restated here at zoo scale because
+ * the map has no polyline to walk, only two points.
+ *
+ * Interior arcs only (`step, 2×step, … ≤ dist − step`): a print under the
+ * octopus or under the sector itself would be invisible either way, the
+ * same reasoning `clueMarks`' `(i+1)/(count+1)` placement encodes for a
+ * curved trail.
+ */
+export function footprintTrail(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  step = 40,
+): readonly FootprintMark[] {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const dist = Math.hypot(dx, dy)
+  if (dist <= 0 || step <= 0) return []
+  const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI
+  const rad = (angleDeg * Math.PI) / 180
+  const ux = dx / dist
+  const uy = dy / dist
+  // SVG convention (y grows down, `rotate(deg)` turns clockwise): rotating
+  // the tangent `(cos, sin)` by +90° gives the LEFT-hand normal `(-sin, cos)`
+  // — `clues.ts:161-171`'s own derivation, reused verbatim.
+  const nx = -Math.sin(rad)
+  const ny = Math.cos(rad)
+  const marks: FootprintMark[] = []
+  let i = 0
+  for (let arc = step; arc <= dist - step; arc += step) {
+    const cx = from.x + ux * arc
+    const cy = from.y + uy * arc
+    const side = i % 2 === 0 ? 1 : -1
+    marks.push({
+      x: cx + nx * PRINT_OFFSET * side,
+      y: cy + ny * PRINT_OFFSET * side,
+      angle: angleDeg + PRINT_FACING,
+    })
+    i++
+  }
+  return marks
+}
+
+/** Each fog patch's rect, as the box `<image>` actually draws — the shipped
+ *  placer (`canvas/placeArt.ts`), default (box-centre) grip, matching how a
+ *  full-size scenery blob is meant to sit on its point. `flip` is a render
+ *  detail (mirrors the picture, not the axis-aligned box) and does not
+ *  change the returned rect — the containment proof in `sectors.test.ts`
+ *  does not need to know about it. */
+export function fogBoxes(sector: ZooSector): readonly ArtBox[] {
+  return sector.fog.map((patch) => placeArt(ZOO_FOG_ART[patch.art], patch.size, { x: patch.x, y: patch.y }))
+}
+
+/**
+ * Exact containment of `target` by the union of `boxes`, via coordinate
+ * compression: collect every box edge that falls strictly inside `target`
+ * plus `target`'s own edges, sort each axis, and check that some box
+ * contains the CENTRE of every resulting cell. Exact for axis-aligned
+ * rects — unlike grid sampling, it cannot step over a hole narrower than a
+ * sampling stride, and unlike area comparison it stays correct when boxes
+ * overlap (design.md §4's construction guarantees they do).
+ */
+export function coversRect(boxes: readonly ArtBox[], target: Rect): boolean {
+  const xs = new Set<number>([target.x, target.x + target.w])
+  const ys = new Set<number>([target.y, target.y + target.h])
+  for (const box of boxes) {
+    const x0 = box.x
+    const x1 = box.x + box.width
+    const y0 = box.y
+    const y1 = box.y + box.height
+    if (x0 > target.x && x0 < target.x + target.w) xs.add(x0)
+    if (x1 > target.x && x1 < target.x + target.w) xs.add(x1)
+    if (y0 > target.y && y0 < target.y + target.h) ys.add(y0)
+    if (y1 > target.y && y1 < target.y + target.h) ys.add(y1)
+  }
+  const xsSorted = [...xs].sort((a, b) => a - b)
+  const ysSorted = [...ys].sort((a, b) => a - b)
+  for (let i = 0; i < xsSorted.length - 1; i++) {
+    const cx = (xsSorted[i] + xsSorted[i + 1]) / 2
+    for (let j = 0; j < ysSorted.length - 1; j++) {
+      const cy = (ysSorted[j] + ysSorted[j + 1]) / 2
+      const covered = boxes.some(
+        (box) => cx >= box.x && cx <= box.x + box.width && cy >= box.y && cy <= box.y + box.height,
+      )
+      if (!covered) return false
+    }
+  }
+  return true
+}
+
+/** Every real catalog level id — `zoo/stars.ts`'s `totalStars` and the
+ *  registry↔catalog structural test both need this same set, so it is
+ *  computed once here rather than twice. */
+export const REAL_LEVEL_IDS: ReadonlySet<string> = new Set(LEVELS.map((level) => level.id))

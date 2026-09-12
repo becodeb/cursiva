@@ -1,0 +1,273 @@
+// Sector registry tests (zoo-map spec: "Sector Registry Data Shape",
+// "Sector Geometry Invariants", "Fog Containment Invariant",
+// "Sector-to-Adventure Mapping", "Estanque Starts Discovered", "nextAdventure
+// Resolution", "Recovered Animal Placement"). Node environment, no DOM —
+// every function under test is pure over plain data (design.md §5's table).
+import { describe, expect, it } from 'vitest'
+import { LEVELS } from '../levels/catalog'
+import { EMPTY_RECORD, type LevelRecord } from '../game/types'
+import {
+  PLAZA,
+  PLAZA_CENTRE,
+  SECTORS,
+  animalPlacements,
+  coversRect,
+  fogBoxes,
+  footprintTrail,
+  hitCentre,
+  isFiled,
+  isOpen,
+  nextAdventure,
+  recentlyDiscovered,
+  sectorOf,
+  type FogPatch,
+  type Records,
+} from './sectors'
+
+function filed(...ids: readonly string[]): Records {
+  const out: Record<string, LevelRecord> = {}
+  for (const id of ids) out[id] = { ...EMPTY_RECORD, approvals: 1 }
+  return out
+}
+
+const estanque = SECTORS.find((s) => s.id === 'estanque')!
+const sendero = SECTORS.find((s) => s.id === 'sendero')!
+const withHit = SECTORS.filter((s) => s.hit)
+// "Closed" per the spec means `unlockedWhen` is not unconditionally true AND
+// the sector carries a `hit` — the sendero has neither an unlock rule worth
+// asking nor a `hit` to cover, so it is excluded here the same way the
+// requirement excludes it (zoo-map spec "Fog Containment Invariant").
+const fogged = SECTORS.filter((s) => s.hit && !s.unlockedWhen({}))
+
+describe('Registry Data Shape', () => {
+  it('exports all seven sectors, sendero included', () => {
+    const ids = SECTORS.map((s) => s.id).sort()
+    expect(ids).toEqual(
+      ['arena', 'bosque', 'entrada', 'estanque', 'montanas', 'nocturna', 'sendero'].sort(),
+    )
+  })
+
+  it('hit is absent ONLY for the sendero', () => {
+    const withoutHit = SECTORS.filter((s) => !s.hit).map((s) => s.id)
+    expect(withoutHit).toEqual(['sendero'])
+  })
+})
+
+describe('Sector Geometry Invariants', () => {
+  it('every hit is at least 120×120', () => {
+    for (const sector of withHit) {
+      expect(sector.hit!.w, sector.id).toBeGreaterThanOrEqual(120)
+      expect(sector.hit!.h, sector.id).toBeGreaterThanOrEqual(120)
+    }
+  })
+
+  function overlaps(a: { x: number; y: number; w: number; h: number }, b: typeof a): boolean {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+  }
+
+  it('no two hits overlap each other', () => {
+    for (let i = 0; i < withHit.length; i++) {
+      for (let j = i + 1; j < withHit.length; j++) {
+        expect(overlaps(withHit[i].hit!, withHit[j].hit!), `${withHit[i].id}/${withHit[j].id}`).toBe(
+          false,
+        )
+      }
+    }
+  })
+
+  it('no hit overlaps the plaza', () => {
+    for (const sector of withHit) {
+      expect(overlaps(sector.hit!, PLAZA), sector.id).toBe(false)
+    }
+  })
+
+  it('the sendero is excluded from both checks (no hit to measure)', () => {
+    expect(sendero.hit).toBeUndefined()
+  })
+})
+
+describe('Fog Containment Invariant', () => {
+  it('the union of fog rects contains the whole hit, for every closed sector', () => {
+    for (const sector of fogged) {
+      expect(coversRect(fogBoxes(sector), sector.hit!), sector.id).toBe(true)
+    }
+  })
+
+  it('shrinking one patch breaks coverage (falsifiability)', () => {
+    for (const sector of fogged) {
+      const shrunk = fogBoxes(sector).map((box, i) =>
+        i === 0 ? { ...box, width: box.width * 0.5, height: box.height * 0.5 } : box,
+      )
+      expect(coversRect(shrunk, sector.hit!), sector.id).toBe(false)
+    }
+  })
+
+  it('the estanque and the sendero carry no fog obligation', () => {
+    expect(estanque.fog).toEqual([])
+    expect(sendero.fog).toEqual([])
+  })
+})
+
+describe('Registry↔Catalog Structural Consistency', () => {
+  const catalogIds = new Set(LEVELS.map((l) => l.id))
+
+  it("estanque's eight adventures are in the exact documented order", () => {
+    expect(estanque.adventureIds).toEqual([
+      'duck-trail1',
+      'duck-trail2',
+      'duck-trail3',
+      'duck-trail4',
+      'f2-guirnalda',
+      'f2-agua2',
+      'f2-agua3',
+      'f2-agua4',
+    ])
+  })
+
+  it('every adventureIds and appearsWhen entry is a real catalog level id', () => {
+    for (const sector of SECTORS) {
+      for (const id of sector.adventureIds) expect(catalogIds.has(id), id).toBe(true)
+      for (const animal of sector.animals) {
+        for (const id of animal.appearsWhen) expect(catalogIds.has(id), id).toBe(true)
+      }
+    }
+  })
+
+  it('no level id appears in two sectors', () => {
+    const seen = new Set<string>()
+    for (const sector of SECTORS) {
+      for (const id of sector.adventureIds) {
+        expect(seen.has(id), id).toBe(false)
+        seen.add(id)
+      }
+    }
+  })
+
+  it('the five undeveloped sectors carry no adventures and stay fogged for any input', () => {
+    for (const sector of SECTORS.filter((s) => s.id !== 'estanque' && s.id !== 'sendero')) {
+      expect(sector.adventureIds, sector.id).toEqual([])
+      expect(sector.unlockedWhen(filed('duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4')), sector.id).toBe(
+        false,
+      )
+    }
+  })
+})
+
+describe('Estanque Starts Discovered (D4)', () => {
+  it('is open before any record exists', () => {
+    expect(estanque.unlockedWhen({})).toBe(true)
+    expect(isOpen(estanque, {})).toBe(true)
+  })
+
+  it('footprints originate at the plaza and end near the estanque, never on either endpoint', () => {
+    const marks = footprintTrail(PLAZA_CENTRE, hitCentre(estanque.hit!))
+    expect(marks.length).toBeGreaterThan(0)
+    const dist = Math.hypot(
+      hitCentre(estanque.hit!).x - PLAZA_CENTRE.x,
+      hitCentre(estanque.hit!).y - PLAZA_CENTRE.y,
+    )
+    for (const mark of marks) {
+      const arc = Math.hypot(mark.x - PLAZA_CENTRE.x, mark.y - PLAZA_CENTRE.y)
+      expect(arc).toBeGreaterThan(0)
+      expect(arc).toBeLessThan(dist)
+    }
+  })
+})
+
+describe('footprintTrail (pitch and alternation)', () => {
+  it('places marks at exactly 40-unit arcs, none on an endpoint', () => {
+    const marks = footprintTrail({ x: 0, y: 0 }, { x: 200, y: 0 })
+    // dist=200, step=40: arcs at 40,80,120,160 (≤ 200-40=160) — 4 marks.
+    expect(marks).toHaveLength(4)
+  })
+
+  it('consecutive marks alternate sides of the line', () => {
+    const marks = footprintTrail({ x: 0, y: 0 }, { x: 200, y: 0 })
+    // A horizontal segment's normal is vertical, so alternation shows in y.
+    expect(marks[0].y).toBeGreaterThan(0)
+    expect(marks[1].y).toBeLessThan(0)
+    expect(marks[2].y).toBeGreaterThan(0)
+  })
+
+  it('a segment shorter than two steps places nothing', () => {
+    expect(footprintTrail({ x: 0, y: 0 }, { x: 30, y: 0 })).toEqual([])
+  })
+})
+
+describe('nextAdventure Resolution (OD2)', () => {
+  it('returns the first unfinished adventure', () => {
+    const records = filed('duck-trail1', 'duck-trail2')
+    expect(nextAdventure(estanque, records)).toBe('duck-trail3')
+  })
+
+  it('returns the LAST adventure once every one is filed', () => {
+    const records = filed(...estanque.adventureIds)
+    expect(nextAdventure(estanque, records)).toBe('f2-agua4')
+  })
+
+  it('returns null for a sector with no adventures', () => {
+    expect(nextAdventure(sendero, {})).toBeNull()
+    const fogged1 = SECTORS.find((s) => s.id === 'bosque')!
+    expect(nextAdventure(fogged1, {})).toBeNull()
+  })
+})
+
+describe('sectorOf', () => {
+  it('resolves a wired id to its sector', () => {
+    expect(sectorOf('duck-trail4')?.id).toBe('estanque')
+    expect(sectorOf('f2-agua4')?.id).toBe('estanque')
+  })
+
+  it('returns undefined for a level no sector has adopted', () => {
+    expect(sectorOf('trail4')).toBeUndefined()
+    expect(sectorOf('f1-libre')).toBeUndefined()
+  })
+})
+
+describe('recentlyDiscovered', () => {
+  it('resolves to the estanque while it still has an unfinished adventure', () => {
+    expect(recentlyDiscovered({})?.id).toBe('estanque')
+    expect(recentlyDiscovered(filed('duck-trail1'))?.id).toBe('estanque')
+  })
+
+  it('resolves to null once every open sector is fully filed', () => {
+    expect(recentlyDiscovered(filed(...estanque.adventureIds))).toBeNull()
+  })
+})
+
+describe('Recovered Animal Placement', () => {
+  it('the duck is absent before duck-trail4 is filed', () => {
+    expect(animalPlacements(estanque, filed('duck-trail1', 'duck-trail2', 'duck-trail3'))).toEqual([])
+  })
+
+  it('the duck appears once duck-trail4 is filed, even before the sector finishes', () => {
+    const placed = animalPlacements(estanque, filed('duck-trail4'))
+    expect(placed).toHaveLength(1)
+  })
+
+  it('placement uses the standing grip: the box bottom edge sits on animalSpot.y', () => {
+    const [placed] = animalPlacements(estanque, filed('duck-trail4'))
+    expect(placed.box.y + placed.box.height).toBeCloseTo(estanque.animalSpot.y, 6)
+  })
+})
+
+describe('isFiled', () => {
+  it('true once a level has at least one approval', () => {
+    expect(isFiled(filed('duck-trail1'), 'duck-trail1')).toBe(true)
+  })
+
+  it('false for zero approvals or an absent record', () => {
+    expect(isFiled({}, 'duck-trail1')).toBe(false)
+  })
+})
+
+describe('rot is pinned to the literal 0 (design.md §4)', () => {
+  it('a non-zero rot is a type error, proven only by npm run build', () => {
+    // @ts-expect-error — `rot` is typed as the literal `0`; a rotated fog
+    // patch cannot be proven sound by `coversRect` (design.md §4). If this
+    // line ever stops erroring, the guard is gone, and only `npm run build`
+    // — never this vitest run — would notice.
+    const bad: FogPatch = { art: 0, x: 0, y: 0, size: 10, rot: 15 }
+    expect(bad).toBeTruthy()
+  })
+})
