@@ -74,11 +74,11 @@ Hard dependencies (violating these breaks a green slice or D7):
 
 ## Phase 2: Seed the water levels before they exist (S2)
 
-- [ ] 2.1 Add `NIVEL3_TRAIL_IDS` (exactly the three new ids, in order) to `client/src/game/types.ts`, beside `DUCK_TRAIL_IDS`. **MUST NOT include `'f2-guirnalda'`** — it is the migration's source id; including it makes the second guard below true on the first run and the migration writes nothing.
-- [ ] 2.2 Create `client/src/game/migrateNivel3.ts`: `NIVEL3_PREDECESSOR_ID = 'f2-guirnalda'`, `seedFrom()` copied verbatim from `migrateDuckCase.ts`, `migrateNivel3(records)` guarded on `f2-guirnalda.approvals >= APPROVALS_TO_UNLOCK`, returns `{}` if any of the three new ids already has a record, never mutates or deletes `f2-guirnalda`'s own entry.
-- [ ] 2.3 Create `client/src/game/migrateNivel3.test.ts`: idempotent re-run is a no-op; no write below the approval threshold; no write when any destination exists; never deletes; **named guard**: `NIVEL3_TRAIL_IDS.length === 3` and does not include `'f2-guirnalda'`; a captured `cursiva.levels.v1` payload with `f2-guirnalda` approved keeps `f2-colinas` unlocked and demotes nothing.
-- [ ] 2.4 Wire `migrateNivel3` into `client/src/game/openProgressStore.ts`'s migration array as a third entry (order irrelevant — the three migrations share no id).
-- [ ] 2.5 Run `npm test` and `npm run build`; confirm green.
+- [x] 2.1 Add `NIVEL3_TRAIL_IDS` (exactly the three new ids, in order) to `client/src/game/types.ts`, beside `DUCK_TRAIL_IDS`. **MUST NOT include `'f2-guirnalda'`** — it is the migration's source id; including it makes the second guard below true on the first run and the migration writes nothing.
+- [x] 2.2 Create `client/src/game/migrateNivel3.ts`: `NIVEL3_PREDECESSOR_ID = 'f2-guirnalda'`, `seedFrom()` copied verbatim from `migrateDuckCase.ts`, `migrateNivel3(records)` guarded on `f2-guirnalda.approvals >= APPROVALS_TO_UNLOCK`, returns `{}` if any of the three new ids already has a record, never mutates or deletes `f2-guirnalda`'s own entry.
+- [x] 2.3 Create `client/src/game/migrateNivel3.test.ts`: idempotent re-run is a no-op; no write below the approval threshold; no write when any destination exists; never deletes; **named guard**: `NIVEL3_TRAIL_IDS.length === 3` and does not include `'f2-guirnalda'`; a captured `cursiva.levels.v1` payload with `f2-guirnalda` approved keeps `f2-colinas` unlocked and demotes nothing.
+- [x] 2.4 Wire `migrateNivel3` into `client/src/game/openProgressStore.ts`'s migration array as a third entry (order irrelevant — the three migrations share no id).
+- [x] 2.5 Run `npm test` and `npm run build`; confirm green.
 
 ## Phase 3: Per-cycle garland and the U-radius arithmetic (S3)
 
