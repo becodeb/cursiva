@@ -39,7 +39,7 @@ describe('auditCaptions (spec: detective-mode "Captioned Art Invariant")', () =>
   })
 
   it('a real CaptionedArt render is fully captioned', () => {
-    const html = renderToString(<CaptionedArt art={ANIMAL_ART.pato.art} label="pato" size={36} />)
+    const html = renderToString(<CaptionedArt art={ANIMAL_ART.pato} label="pato" size={36} />)
     const audit = auditCaptions(html)
     expect(audit).toEqual({ captioned: ['pato'], uncaptioned: [], imagelessContainers: [] })
   })

@@ -129,48 +129,26 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
 }
 
 /**
- * The lineup. `gallina` is the culprit: water, corn, three-toed prints and
- * feathers all point at her, so she carries no `ruledOutBy`.
- *
- * Each distractor is ruled out by exactly ONE clue, so every clue the child
- * collected does real work in the deduction:
- *
- * - `pato` by the FOOTPRINT — webbed, not three splayed toes.
- * - `vaca` by the FEATHER — no feathers.
- * - `gato` by the CORN — a cat does not eat it.
- *
- * The droplet rules out nobody, on purpose: every animal drinks. A child
- * learning to reason should meet a clue that establishes presence without
- * narrowing the field, otherwise "there was a clue" and "it was decisive"
- * collapse into the same idea.
+ * The lineup art. Each animal's own picture only — WHO is ruled out by WHAT
+ * is no longer a fact about the animal, it is a fact about the CASE
+ * (`case-registry-and-captions` design.md §1, spec: detective-mode "Case
+ * Registry Data Shape"). The hen is a cleared distractor in the duck's case
+ * and the culprit in her own; a global `ruledOutBy` on this record could not
+ * represent both, so it moved to `DetectiveCase.ruledOutBy`
+ * (`detective/cases.ts`), and the module-level `CULPRIT` constant that used
+ * to name a single animal for the whole app is gone with it — every consumer
+ * now reads `DetectiveCase.culprit` for its own case.
  *
  * These four keep their AUTHORED colours — they are the one place the guide's
  * "colour is the reward" rule is not in force, because the animals ARE the
  * answer (`build_art.py`'s `SINGLES` table records the same reasoning).
  */
-export const ANIMAL_ART: Readonly<
-  Record<AnimalId, { art: ArtImage; ruledOutBy: ClueKind | null }>
-> = {
-  gallina: {
-    art: { href: '/art/animal-gallina.png', w: 370, h: 448 },
-    ruledOutBy: null,
-  },
-  pato: {
-    art: { href: '/art/animal-pato.png', w: 368, h: 448 },
-    ruledOutBy: 'footprint',
-  },
-  vaca: {
-    art: { href: '/art/animal-vaca.png', w: 448, h: 405 },
-    ruledOutBy: 'feather',
-  },
-  gato: {
-    art: { href: '/art/animal-gato.png', w: 448, h: 414 },
-    ruledOutBy: 'corn',
-  },
+export const ANIMAL_ART: Readonly<Record<AnimalId, ArtImage>> = {
+  gallina: { href: '/art/animal-gallina.png', w: 370, h: 448 },
+  pato: { href: '/art/animal-pato.png', w: 368, h: 448 },
+  vaca: { href: '/art/animal-vaca.png', w: 448, h: 405 },
+  gato: { href: '/art/animal-gato.png', w: 448, h: 414 },
 }
-
-/** The animal the four clues actually identify. */
-export const CULPRIT: AnimalId = 'gallina'
 
 /** The magnifying glass that rides the child's fingertip on a detective trail
  * (`TraceCanvas`'s `carrierArt` override).

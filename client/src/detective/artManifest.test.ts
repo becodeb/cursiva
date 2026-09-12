@@ -69,7 +69,7 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
     [`CLUE_ART.${kind}.art.earned`, art.art.earned] as const,
     [`CLUE_ART.${kind}.art.drained`, art.art.drained] as const,
   ]),
-  ...Object.entries(ANIMAL_ART).map(([id, a]) => [`ANIMAL_ART.${id}.art`, a.art] as const),
+  ...Object.entries(ANIMAL_ART).map(([id, a]) => [`ANIMAL_ART.${id}`, a] as const),
   ['CARRIER_LENS_ART', CARRIER_LENS_ART] as const,
   ['OCTOPUS_ART', OCTOPUS_ART] as const,
   ['HOME_OCTOPUS_ART', HOME_OCTOPUS_ART] as const,

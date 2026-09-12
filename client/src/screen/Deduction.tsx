@@ -24,15 +24,16 @@
 // referenced by id (`TraceCanvas.tsx:70-84`), no card, no border, no
 // `border-radius`, no shadow (design.md "Layout": "no cards, no borders, no
 // border-radius, no shadow").
+//
+// [case-registry-and-captions, Phase 5] `CULPRIT` and `ANIMAL_ART.ruledOutBy`
+// are gone (spec: detective-mode "Case Registry Data Shape") — this screen
+// now reads a `DetectiveCase` (`kase`) for its options, its culprit and its
+// ruled-out map, so the SAME component renders the duck's three-option
+// lineup and the hen's four-option one without a special case anywhere in
+// this file.
 import { useState, type CSSProperties } from 'react'
-import {
-  ANIMAL_ART,
-  CLUE_ART,
-  CULPRIT,
-  type AnimalId,
-  type ArtImage,
-  type ClueKind,
-} from '../detective/assets'
+import { ANIMAL_ART, CLUE_ART, type AnimalId, type ArtImage } from '../detective/assets'
+import { clueKindsOf, type DetectiveCase } from '../detective/cases'
 import CaptionedArt from '../detective/CaptionedArt'
 import PistasRail, { type PistasSlot } from '../detective/PistasRail'
 import { BackIcon } from '../detective/icons'
@@ -43,6 +44,23 @@ import { LAYOUT_CSS } from './LevelPlay'
  * word and the icon controls. Re-declared here rather than imported, same
  * convention `palette.ts`/`PistasRail.tsx`/`icons.tsx` already use. */
 const INK = '#1e293b'
+
+/**
+ * Rendered HEIGHT of an animal choice, in CSS px. The animal IS the answer on
+ * this screen — with the case registry now capping the lineup at three or
+ * four options (never more), the picture is the single thing the child is
+ * asked to choose between, not decoration beside something else.
+ *
+ * [orchestrator ruling, 2026-09-12] `docs/09_GUIA_DE_ESTILO_VISUAL.md` §3
+ * sizes animals at ~140 units on a trail; this screen has strictly MORE room
+ * per animal than a trail does (three or four choices, laid out once, no
+ * canvas competing for space), so 36 — the size that shipped in this
+ * change's own Phase 4, a regression from the 64px the pre-existing `Art`
+ * helper used on `main` — is too small for a five-year-old to tell the
+ * animals apart and tap one with confidence. Sized up past the docs'
+ * trail-scale baseline rather than merely restored to it.
+ */
+const ANIMAL_SIZE = 180
 
 /** One registry raster, centred on the origin of an origin-centred viewBox.
  *
@@ -66,28 +84,17 @@ function Art({ art, size }: { art: ArtImage; size: number }) {
   )
 }
 
-/** Fixed lineup order — the same insertion order `assets.ts`'s `ANIMAL_ART`
- * uses, kept explicit here so the rendered order never depends on object-key
- * iteration order. */
-const ANIMAL_ORDER: readonly AnimalId[] = ['gallina', 'pato', 'vaca', 'gato']
-
-/** Accessible names only — never rendered as visible text (see module
- * comment). Spanish, matching the app's existing `aria-label` copy
- * (`LevelPlay.tsx`'s `aria-label="Acciones"`, its icon-control labels). */
+/** Accessible names AND now the visible caption text (D6 amendment). Kept in
+ * normal Spanish case ("Pato", not "PATO") on purpose — see `.cv-caption`'s
+ * `text-transform: uppercase` below for why the directive's ALL-CAPS
+ * vocabulary (`PECES`/`TORTUGAS`/`PATO`) is applied as a paint rule instead
+ * of stored as a literal uppercase string. */
 const ANIMAL_LABEL: Readonly<Record<AnimalId, string>> = {
   gallina: 'Gallina',
   pato: 'Pato',
   vaca: 'Vaca',
   gato: 'Gato',
 }
-
-/** All four clue kinds, always rendered `filed: true` — reaching this screen
- * at all already requires every trail's clue to be filed (spec: "All four
- * clues collected reaches the deduction screen"), so there is no partial
- * state to represent, unlike `LevelPlay`'s single-trail slot (which only
- * ever knows its OWN trail while a run is in progress). */
-const ALL_CLUE_KINDS: readonly ClueKind[] = ['droplet', 'corn', 'footprint', 'feather']
-const FILED_SLOTS: readonly PistasSlot[] = ALL_CLUE_KINDS.map((kind) => ({ kind, filed: true }))
 
 /**
  * The screen's own state: which distractors have been ruled out so far, and
@@ -100,28 +107,51 @@ export interface DeductionState {
   /** Distractors the child has already picked, in pick order. Permanent —
    * ruling an animal out is a deduction, not a mistake to take back. */
   dismissed: readonly AnimalId[]
-  /** The hen has been picked (spec scenario "Correct pick closes the case"). */
+  /** The culprit has been picked (spec scenario "Correct pick closes the case"). */
   closed: boolean
 }
 
-export function initialDeductionState(): DeductionState {
-  return { dismissed: [], closed: false }
+/**
+ * `solved` lets a returning child land on the ALREADY-CLOSED lineup instead
+ * of being asked to solve a case again (design.md §5). Defaults to an open,
+ * empty case for a first visit.
+ */
+export function initialDeductionState(solved = false): DeductionState {
+  return { dismissed: [], closed: solved }
 }
 
 /**
- * D4 in full: picking the hen closes the case. Picking any other animal
+ * D4 in full: picking the culprit closes the case. Picking any other animal
  * costs nothing — no score, no lockout, no scolding — and dismisses that
  * animal so the case file reads as a real deduction narrowing down. Picking
  * an already-dismissed animal again, or picking anything once the case is
  * already closed, is an inert no-op (returns the SAME reference), which is
  * what makes "the child MUST be able to pick again immediately" trivially
  * true: there is no intermediate blocked state to wait out.
+ *
+ * `culprit` is now a parameter (design.md §5) rather than the deleted global
+ * `CULPRIT` — the same pick handler serves every case in the registry.
  */
-export function pickAnimal(state: DeductionState, animal: AnimalId): DeductionState {
+export function pickAnimal(
+  state: DeductionState,
+  animal: AnimalId,
+  culprit: AnimalId,
+): DeductionState {
   if (state.closed) return state
-  if (animal === CULPRIT) return { ...state, closed: true }
+  if (animal === culprit) return { ...state, closed: true }
   if (state.dismissed.includes(animal)) return state
   return { ...state, dismissed: [...state.dismissed, animal] }
+}
+
+/**
+ * Does this pick transition an open case to closed? The exported form of the
+ * `animal === culprit` branch inside `pickAnimal` (design.md §5), so the
+ * write that follows it — persisting `caseSolvedId(kase.id)` — is observable
+ * by a node test: the harness cannot see inside a `setState` updater, so the
+ * decision that gates `onSolved()` has to live out here.
+ */
+export function solvesCase(state: DeductionState, animal: AnimalId, culprit: AnimalId): boolean {
+  return !state.closed && animal === culprit
 }
 
 /** The lineup stands on one drawn ink line (design.md "Layout") — never a
@@ -150,18 +180,23 @@ function GroundLine() {
  * deduction made so far. The discriminating clue MAY be emphasised next to a
  * dismissed animal (D4); shown here in the trail's own earned colour, the
  * only place in the mode colour is allowed to mean something
- * (design.md principle 1/2). */
+ * (design.md principle 1/2).
+ *
+ * `ruledOutBy` comes from `kase.ruledOutBy[id]` now (design.md §1) — a fact
+ * about THIS case, never about the animal globally. */
 function Animal({
   id,
+  kase,
   state,
   onPick,
 }: {
   id: AnimalId
+  kase: DetectiveCase
   state: DeductionState
   onPick: (animal: AnimalId) => void
 }) {
   const dismissed = state.dismissed.includes(id)
-  const ruledOutBy = ANIMAL_ART[id].ruledOutBy
+  const ruledOutBy = kase.ruledOutBy[id]
   const style: CSSProperties = dismissed ? { opacity: 0.25, transform: 'translateY(24px)' } : {}
   return (
     <div className="cv-lineup-slot">
@@ -172,7 +207,7 @@ function Animal({
         disabled={state.closed}
         onClick={() => onPick(id)}
       >
-        <CaptionedArt art={ANIMAL_ART[id].art} label={ANIMAL_LABEL[id]} size={36} />
+        <CaptionedArt art={ANIMAL_ART[id]} label={ANIMAL_LABEL[id]} size={ANIMAL_SIZE} />
       </button>
       {dismissed && ruledOutBy && (
         <svg
@@ -198,11 +233,12 @@ function Animal({
  * (design.md "Layout"), and no font declaration anywhere. */
 export const DEDUCTION_CSS = `
 .cv-lineup { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.cv-lineup-figures { display: flex; flex-direction: row; align-items: flex-end; justify-content: center; gap: 40px; flex-wrap: wrap; }
-.cv-lineup-slot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.cv-lineup-figures { display: flex; flex-direction: row; align-items: flex-end; justify-content: center; gap: 56px; flex-wrap: wrap; }
+.cv-lineup-slot { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 /* The shipped 64px tap floor (LevelPlay.tsx:140), reused by name and by
  * value — every animal choice is a real button, never smaller than a
- * child's tap target. */
+ * child's tap target. The button grows past this floor once the much
+ * bigger ANIMAL_SIZE picture is inside it; the floor is a MINIMUM. */
 .animal-btn {
   min-height: 64px;
   min-width: 64px;
@@ -218,27 +254,53 @@ export const DEDUCTION_CSS = `
  * span, reused by every future caller), so each screen that mounts it owns
  * the stacking. No font-family here: .cv-caption inherits Nunito from the
  * document root, same as .pistas-word (LevelPlay.tsx's LAYOUT_CSS). */
-.cv-captioned { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
-.cv-caption { font-size: 20px; font-weight: 700; color: #1e293b; }
+.cv-captioned { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
+/* [orchestrator ruling, 2026-09-12] The directive's own vocabulary is
+ * UPPERCASE throughout — the enclosure signs read PECES/TORTUGAS/PATOS and
+ * the directive's own deduction example is "PATO". The DOM text above
+ * (ANIMAL_LABEL) stays normal Spanish case ("Pato") on purpose: an
+ * accessible name is computed from an element's TEXT CONTENT, and several
+ * screen readers treat a genuinely all-caps short word as an acronym and
+ * spell it letter by letter ("P... A... T... O...") instead of speaking it —
+ * a real cost for a five-year-old's audio feedback. text-transform:
+ * uppercase gets the same visible glyphs with none of that: only the paint
+ * changes, the underlying word — and its pronunciation — stays "Pato". */
+.cv-caption { font-size: 26px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.02em; }
 .cv-lineup-ground { flex: 0 0 auto; max-width: 640px; margin-top: 8px; }
-.pistas-rail { flex: 0 0 96px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+/* [defect fix, orchestrator ruling 2026-09-12] PistasRail.tsx renders
+ * className="pistas-bar" (PistasRail.tsx:157) — this block used to say
+ * .pistas-rail, a class that has never existed on this screen's markup, so
+ * every one of these overrides was dead: the rail fell through to
+ * LAYOUT_CSS's .pistas-bar rule instead, the full LevelPlay-sized
+ * horizontal top-bar treatment (96px PISTAS text, a wide flex row) meant
+ * for a screen with a canvas beside it. On THIS screen the rail is a
+ * secondary readout beside the lineup, so it is corrected to the real class
+ * name and re-scoped as a narrow vertical column: present, but not
+ * dominating the page the way the unconstrained bar did. */
+.pistas-bar {
+  flex: 0 0 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  border-bottom: none;
+}
 .pistas-lamp-row { flex: 0 0 auto; }
-.pistas-body { display: flex; flex-direction: row; gap: 6px; align-items: flex-start; }
-/* The word is a single typeset run now, so it has nothing left to stack. */
-.pistas-slots { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.pistas-word { font-size: 18px; }
+.pistas-slots { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
 @media (max-height: 520px) {
   .cv-sheet { flex-direction: column; gap: 4px; }
-  .pistas-rail { flex: 0 0 auto; flex-direction: row; gap: 10px; }
-  .pistas-body { flex-direction: row; align-items: center; }
-
+  .pistas-bar { flex: 0 0 auto; flex-direction: row; gap: 10px; padding: 4px; }
   .pistas-slots { flex-direction: row; padding-top: 0; gap: 6px; }
 }
 `
 
 export interface DeductionViewProps {
+  kase: DetectiveCase
   state: DeductionState
   onPick: (animal: AnimalId) => void
-  onBack: () => void
+  onExit: () => void
 }
 
 /**
@@ -250,41 +312,54 @@ export interface DeductionViewProps {
  * and the closed state are asserted by rendering THIS component directly at
  * a hand-built state, never by simulating a click.
  */
-export function DeductionView({ state, onPick, onBack }: DeductionViewProps) {
+export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProps) {
+  const filedSlots: readonly PistasSlot[] = clueKindsOf(kase).map((kind) => ({ kind, filed: true }))
   return (
     <main className="cv-play">
       <style>{LAYOUT_CSS + DEDUCTION_CSS}</style>
       <header className="cv-head">
-        <button type="button" onClick={onBack} className="cv-btn-back" aria-label="Volver">
+        <button type="button" onClick={onExit} className="cv-btn-back" aria-label="Volver">
           <BackIcon />
         </button>
       </header>
       <div className="cv-sheet">
         <div className="cv-lineup">
           <div className="cv-lineup-figures">
-            {ANIMAL_ORDER.map((id) => (
-              <Animal key={id} id={id} state={state} onPick={onPick} />
+            {kase.options.map((id) => (
+              <Animal key={id} id={id} kase={kase} state={state} onPick={onPick} />
             ))}
           </div>
           <GroundLine />
         </div>
-        <PistasRail slots={FILED_SLOTS} lampOn />
+        <PistasRail slots={filedSlots} lampOn />
       </div>
     </main>
   )
 }
 
 export interface DeductionProps {
-  onBack: () => void
+  kase: DetectiveCase
+  /** The case's `<caseId>-deduce` pseudo-record already exists (design.md
+   * §5): the lineup mounts already closed instead of asking again. */
+  solved: boolean
+  /** Fired the moment the pick closes the case (`solvesCase`), so the caller
+   * can persist `caseSolvedId(kase.id)` through the level-progress store —
+   * this component never touches storage itself. */
+  onSolved: () => void
+  onExit: () => void
 }
 
-export default function Deduction({ onBack }: DeductionProps) {
-  const [state, setState] = useState<DeductionState>(initialDeductionState)
+export default function Deduction({ kase, solved, onSolved, onExit }: DeductionProps) {
+  const [state, setState] = useState<DeductionState>(() => initialDeductionState(solved))
   return (
     <DeductionView
+      kase={kase}
       state={state}
-      onPick={(animal) => setState((s) => pickAnimal(s, animal))}
-      onBack={onBack}
+      onPick={(animal) => {
+        if (solvesCase(state, animal, kase.culprit)) onSolved()
+        setState((s) => pickAnimal(s, animal, kase.culprit))
+      }}
+      onExit={onExit}
     />
   )
 }

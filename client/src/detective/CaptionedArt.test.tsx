@@ -8,16 +8,16 @@ import CaptionedArt from './CaptionedArt'
 
 describe('CaptionedArt (spec: detective-mode "Captioned Art Invariant")', () => {
   it('renders the picture and the word as a sibling HTML caption, never an SVG <text>', () => {
-    const html = renderToString(<CaptionedArt art={ANIMAL_ART.pato.art} label="Pato" size={36} />)
+    const html = renderToString(<CaptionedArt art={ANIMAL_ART.pato} label="Pato" size={36} />)
     expect(html).toContain('class="cv-captioned"')
-    expect(html).toContain(`href="${ANIMAL_ART.pato.art.href}"`)
+    expect(html).toContain(`href="${ANIMAL_ART.pato.href}"`)
     expect(html).toContain('class="cv-caption">Pato<')
     expect(html).not.toContain('<text')
     expect(html).not.toContain('url(#')
   })
 
   it('sizes the picture by height, deriving width from the source aspect ratio', () => {
-    const art = ANIMAL_ART.vaca.art // 448x405 — not square, so a shared multiplier would distort it
+    const art = ANIMAL_ART.vaca // 448x405 — not square, so a shared multiplier would distort it
     const html = renderToString(<CaptionedArt art={art} label="Vaca" size={40} />)
     const expectedWidth = (40 * art.w) / art.h
     expect(html).toContain(`width="${expectedWidth}"`)
@@ -25,10 +25,10 @@ describe('CaptionedArt (spec: detective-mode "Captioned Art Invariant")', () => 
   })
 
   it('omits the className modifier by default, and appends it when given', () => {
-    const bare = renderToString(<CaptionedArt art={ANIMAL_ART.pato.art} label="Pato" size={36} />)
+    const bare = renderToString(<CaptionedArt art={ANIMAL_ART.pato} label="Pato" size={36} />)
     expect(bare).toContain('class="cv-captioned"')
     const withClass = renderToString(
-      <CaptionedArt art={ANIMAL_ART.pato.art} label="Pato" size={36} className="cv-lineup-figure" />,
+      <CaptionedArt art={ANIMAL_ART.pato} label="Pato" size={36} className="cv-lineup-figure" />,
     )
     expect(withClass).toContain('class="cv-captioned cv-lineup-figure"')
   })
@@ -47,7 +47,7 @@ describe('CaptionedArt (spec: detective-mode "Captioned Art Invariant")', () => 
     // picture-less caption is not. If this line ever stops erroring, the
     // invariant is gone, and only `npm run build` — never `npm test` —
     // notices.
-    const proof = <CaptionedArt art={ANIMAL_ART.pato.art} size={36} />
+    const proof = <CaptionedArt art={ANIMAL_ART.pato} size={36} />
     expect(proof).toBeTruthy()
   })
 })

@@ -9,9 +9,10 @@ import LevelPlay from './LevelPlay'
 import Deduction from './Deduction'
 import { LEVELS, getLevel, nextLevelId } from '../levels/catalog'
 import { applyAttempt } from '../game/adaptiveTolerance'
-import { DETECTIVE_TRAIL_IDS } from '../game/types'
+import { DETECTIVE_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
 import type { LevelAttempt, LevelRecord } from '../game/types'
 import { openProgressStore } from '../game/openProgressStore'
+import { DETECTIVE_CASES, caseSolvedId } from '../detective/cases'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
@@ -182,7 +183,25 @@ export default function GameScreen({ footer, initial }: GameScreenProps = {}) {
   }
 
   if (state.view === 'deduce') {
-    return <Deduction onBack={() => dispatch({ type: 'back' })} />
+    // [case-registry-and-captions, Phase 5 interim wiring — superseded by
+    // Phase 6] Hardcoded to the duck case (design.md §5's own worked
+    // example): `GameView`/`GameAction` do not carry a `caseId` yet, so this
+    // is the minimum needed for `GameScreen` to compile against `Deduction`'s
+    // new required props. Full per-case routing (`DETECTIVE_CASES.find`
+    // against `state.caseId`) lands in Phase 6.
+    const kase = DETECTIVE_CASES[0]
+    const solvedId = caseSolvedId(kase.id)
+    return (
+      <Deduction
+        kase={kase}
+        solved={store.get(solvedId).approvals >= 1}
+        onSolved={() => {
+          store.save(solvedId, { ...EMPTY_RECORD, approvals: 1 })
+          setVersion((n) => n + 1)
+        }}
+        onExit={() => dispatch({ type: 'back' })}
+      />
+    )
   }
 
   return (
