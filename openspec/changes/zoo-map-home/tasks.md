@@ -67,10 +67,10 @@ Recorded as one `size:exception` PR per the user's ruling, not split.
 
 ## Phase 4: Retire the Home Office (S4, deletion only, last)
 
-- [ ] 4.1 Delete `client/src/screen/HomeScreen.tsx` and `client/src/screen/HomeScreen.test.tsx`.
-- [ ] 4.2 Delete `client/src/home/` in full: `modes.ts`+`modes.test.ts`, `officeGround.ts`+`officeGround.test.ts`, `caseState.ts`+`caseState.test.ts` (6 files).
-- [ ] 4.3 Confirm zero remaining imports of `home/*` or `HomeScreen` anywhere in `client/src` (the verified importer list is closed: `App.tsx`, `HomeScreen.tsx`, `HomeScreen.test.tsx`, the three `home/*.test.ts` — all deleted in this slice). Confirm `home-octopus.png`/`home-desk.png` stay registered, untouched, in `client/src/detective/assets.ts`.
-- [ ] 4.4 Run `npm test` (full suite) and `npm run build`: file/test counts drop ONLY in this slice from the 60-file/1145-test branch baseline; any drop found elsewhere in the diff is a regression, not this deletion.
+- [x] 4.1 Delete `client/src/screen/HomeScreen.tsx` and `client/src/screen/HomeScreen.test.tsx`.
+- [x] 4.2 Delete `client/src/home/` in full: `modes.ts`+`modes.test.ts`, `officeGround.ts`+`officeGround.test.ts`, `caseState.ts`+`caseState.test.ts` (6 files).
+- [x] 4.3 Confirm zero remaining imports of `home/*` or `HomeScreen` anywhere in `client/src` (the verified importer list is closed: `App.tsx`, `HomeScreen.tsx`, `HomeScreen.test.tsx`, the three `home/*.test.ts` — all deleted in this slice; `rg` confirms zero remaining import statements, only historical comment mentions). Confirmed `home-octopus.png`/`home-desk.png` stay registered, untouched, in `client/src/detective/assets.ts` — `artManifest.test.ts`/`artHierarchy.test.ts` still green (82 tests).
+- [x] 4.4 Run `npm test` (full suite) and `npm run build`: both green. File count returns to 60 (the 4 files added S1/S2 minus the 4 deleted here); test count is 1154 (net +9 over the 1145 baseline, from S1-S3's additions minus this slice's 4 removed test files) — no drop outside this slice.
 
 ## Phase 5: Screenshot Verification (deliverable, not optional)
 
