@@ -4,8 +4,8 @@
 // still animate and would still be the wrong level.
 import { describe, expect, it } from 'vitest'
 import { buildLevelTarget } from './buildLevel'
-import { LEGACY_PHASE_1 } from './catalog'
-import { OBSTACLE_INK_ALLOWANCE, hitObstacle, obstacleAt } from './obstacles'
+import { LEGACY_PHASE_1, getLevel } from './catalog'
+import { OBSTACLE_INK_ALLOWANCE, hazardGapFraction, hitObstacle, obstacleAt } from './obstacles'
 import { straight, sweep } from './paths'
 import type { LevelConfig, LevelTarget, Obstacle } from './types'
 
@@ -263,6 +263,38 @@ describe('the retired f1-pelotas hazards (LEGACY_PHASE_1, detective-mode Phase 1
     // They overlap sometimes — that is the level — but never for long enough to
     // wall the route off: the longest joint block is well under one cycle.
     expect(bothBlocked / (29000 / 20)).toBeLessThan(0.3)
+  })
+})
+
+describe('hazardGapFraction — the closed form each hazard is authored against (design.md §4)', () => {
+  it('reproduces the retired f1-pelotas gap the catalog comment already states (54%)', () => {
+    const level = LEGACY_PHASE_1.find((l) => l.id === 'f1-pelotas')
+    if (!level) throw new Error('LEGACY_PHASE_1 lost f1-pelotas')
+    const o = (level.obstacles ?? [])[0]
+    expect(hazardGapFraction(o, level.corridorWidth)).toBeCloseTo(0.54, 2)
+  })
+
+  it("reproduces the live trail1 gap", () => {
+    const level = getLevel('trail1')
+    const o = (level.obstacles ?? [])[0]
+    expect(hazardGapFraction(o, level.corridorWidth)).toBeCloseTo(0.42, 2)
+  })
+
+  it('opens a MAJORITY gap on f2-agua4 — a real window to stop and go', () => {
+    const level = getLevel('f2-agua4')
+    const o = (level.obstacles ?? [])[0]
+    expect(hazardGapFraction(o, level.corridorWidth)).toBeGreaterThan(0.5)
+  })
+
+  it("gives f2-agua4 its own hazard numbers, not trail1's borrowed literally (D3)", () => {
+    const trail1 = (getLevel('trail1').obstacles ?? [])[0]
+    const agua4 = (getLevel('f2-agua4').obstacles ?? [])[0]
+    expect([agua4.travel, agua4.periodMs, agua4.radius]).not.toEqual([
+      trail1.travel,
+      trail1.periodMs,
+      trail1.radius,
+    ])
+    expect(getLevel('f2-agua4').obstacles).toHaveLength(1)
   })
 })
 

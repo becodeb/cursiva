@@ -558,3 +558,198 @@ because `docs/09` §2 makes that navy line part of the character's own look, so
 changing it is an art-direction decision and not a pipeline one. It is outside
 the `goal-*`/`hazard-*` glob, so the new test does not silently exempt it by
 name; it simply is not a prop.
+
+---
+
+## Fourth pass: Phase 7 (S7) — the four Nivel 3 levels
+
+Scope fence for this pass: Phase 7 only, per the parent orchestrator's explicit
+instruction. Phase 8 (`docs/`) not started, not touched.
+
+### Completed Tasks
+
+- [x] 7.1 Added `hazardGapFraction(o, corridorWidth)` to `client/src/levels/obstacles.ts`,
+  design.md §4's exact closed form, with a doc comment restating the derivation
+  in this repo's comment style.
+- [x] 7.2 Extended `client/src/levels/obstacles.test.ts` with a new
+  `describe('hazardGapFraction …')`: reproduces retired `f1-pelotas` (0.540,
+  read from `LEGACY_PHASE_1`) and live `trail1` (0.420); asserts `f2-agua4` >
+  0.5; asserts `f2-agua4`'s `[travel, periodMs, radius]` triple is NOT
+  `trail1`'s (D3), plus a length-1 obstacle-array check.
+- [x] 7.3 Inserted `f2-guirnalda` (retimed/rethemed, id kept), `f2-agua2`,
+  `f2-agua3`, `f2-agua4` into `client/src/levels/catalog.ts` between
+  `f2-guirnalda`'s old slot and `f2-colinas`, exactly per design.md §3's
+  table: shared fields (`phase:2, kind:'path', surface:'blank', maze:false,
+  showGuide:true, letters:[], demo:true, carrier:true, detectiveWorld:true,
+  goalArt:GOAL_MEDUSA_ART`, no `clue`, no `taper`), per-level geometry/bpm/
+  corridor/`minFluency` from the table, `f2-agua4`'s hazard/`hazardArt`/
+  `resetOnContact:true`/`feedback(0,false)`/`rules(2,true,true,0)`. All four
+  hints copied verbatim from design §3, all four measured ≤ 80 chars (46, 66,
+  67, 53). Rewrote the PHASE_2 header comment (previously stale after the
+  retheme: it still said "66/63 for … the hamacas and the montañas" and named
+  `f2-guirnalda` among the untouched letter shapes) to state the new bpm rule
+  and the microprogression axis, matching design §3's own prose.
+- [x] 7.4 Added the named guard exactly as design §3 specifies: `levelsByPhase(2)`
+  filtered on `metronomeBpm === 0` equals `['f2-agua4']`, with its one
+  obstacle and `minFluency === 0` asserted in the same test.
+- [x] 7.5 Made all eleven edits to `catalog.test.ts`: `EXPECTED_IDS` (three ids
+  inserted, comment updated); `CORRIDORS` (guirnalda 85→100 + three new);
+  `FLUENCY` (+ three new); the metronome test re-scoped to skip the one
+  `metronomeBpm === 0` level instead of asserting 50-70 unconditionally;
+  the bpm-ordering pair replaced (`f2-agua2 > f2-guirnalda`); the reset-list
+  test gains `f2-agua4` and its title generalises to "…and on the one level
+  with a hazard"; the hazard list becomes `['trail1', 'f2-agua4']` with
+  `periodMs` widened to 2200-3200 and `radius` to 26-36; a new
+  `hazardGapFraction` assertion for `f2-agua4`; a new describe block for the
+  `uTurnRadius`/`BAND_INSET` band, covering `f2-guirnalda`, `f2-agua2`,
+  `f2-agua4`, `f2-colinas` at their authored widths/depths (restated as
+  literals matching the catalog's own generator-call arguments, tying the
+  live `corridorWidth` field to the geometry) plus a dedicated test for
+  desafío 3's worst cycle reproducing the 4.5-unit margin exactly. Confirmed
+  (unchanged) the tapered-set count stays 3.
+- [x] 7.6-7.9 Screenshot checks — see "Screenshot evidence" below, with an
+  honest PASS/FAIL for each and one real discrepancy and one real
+  measurement surprise reported, not silently smoothed over.
+- [x] 7.10 `npm test` and `npm run build` green — see Work Unit Evidence.
+
+### An eighth task this phase needed that tasks.md did not list
+
+Running the full suite after 7.3 failed one pre-existing test:
+`world.test.ts`'s S1 regression guard asserted, verbatim, `expect(level.detectiveWorld …).toBeFalsy()` for **every** level in `LEVELS`, with its own
+comment stating this was deliberately scoped to "with no Nivel 3 level shipped
+yet" (S1's own behaviour-neutrality proof, written before S7 existed). S7 is
+the slice that is SUPPOSED to widen the world on four levels without a clue —
+that is design.md §1's own stated future, not a regression. Updated the test
+(and its file-header comment) to assert `inDetectiveWorld(level) ===
+(isCaseTrail(level) || !!level.detectiveWorld)` for every level, plus a new
+named assertion that the widened set is exactly `['f2-guirnalda', 'f2-agua2',
+'f2-agua3', 'f2-agua4']` and that none of the four also carries a `clue`
+(proving the widening is real, not a case trail hiding behind the flag). This
+was not an S7 tasks.md line item; it is reported here rather than silently
+folded into 7.3, because it is a deliberate, necessary edit to a PRE-EXISTING
+test whose own stated scope this phase legitimately outgrows — not a mechanical
+side effect.
+
+### Screenshot evidence (tasks 7.6-7.9)
+
+Dev server was already running at `http://localhost:5174`. Captured with
+`scripts/shot.sh` at 1280×900:
+`/tmp/shots/nivel3-1-guirnalda.png`, `/tmp/shots/nivel3-2-agua2.png`,
+`/tmp/shots/nivel3-3-agua3.png`, `/tmp/shots/nivel3-4-agua4.png`.
+
+**7.6 — microprogression, viewed in id order: PASS.** Guirnalda shows 3 wide,
+deep U's with the octopus and medusa far apart; agua2 shows 4 narrower,
+shallower U's, visibly tighter and higher up the sheet; agua3 — cropped
+closer (`/tmp/shots/nivel3-3-agua3-crop.png`) — genuinely reads as FIVE
+differently-sized U's, not a uniform row: a deep one, then a visibly shallow
+one, then the deepest of all five, then a medium-shallow one, then a
+medium-deep one. This was checked numerically too, not just by eye: I dumped
+the DOM (`chromium --dump-dom`) and read the live `d="M …"` path string
+straight off the rendered SVG, then computed each cycle's midpoint depth by
+Bézier evaluation — 400, 315, 420, 330, 390 — which reproduces the five
+authored `{width, depth}` pairs from `catalog.ts` exactly (220+180, 220+95,
+220+200, 220+110, 220+170), confirming the on-screen shape is not an artifact
+of my reading; it is the actual authored geometry. Agua4 returns to
+guirnalda's exact wide geometry (confirmed via a second numeric check: the
+two levels' bottom-of-U screen depths and the visual crops
+(`nivel3-1-guirnalda-crop.png`, `nivel3-4-agua4-crop.png`) are visually
+indistinguishable except for the starfish), distinguished only by its hazard
+— exactly the design's own stated intent ("the route is deliberately EASY to
+read"). **My first eyeball pass on the un-cropped thumbnails under-read
+agua3's variation as uniform; the crop and the numeric check corrected that
+before I reported PASS** — recorded here so the correction is visible, not
+just the final answer.
+
+**7.7 — desafío 3's ideal band: PASS, with a discrepancy reported.** The
+task's own text says to inspect "the shallowest U (the `{130, 95}` cycle)"
+but then attributes the 4.5-unit margin to it — that margin actually belongs
+to the `{165, 170}` cycle (S3's own derivation, confirmed again here:
+`uTurnRadius(165,170) − (68/2−6) = 4.54`; `uTurnRadius(130,95) − 28 = 8.14`,
+not the tightest). This is the task's own wording conflating "shallowest
+depth" with "narrowest margin" — they are different cycles. I inspected BOTH,
+precisely: found each cycle's exact bottom pixel by scanning the rendered
+screenshot for the corridor's dashed stroke colour and locating the deepest
+point per cycle (cross-checked against the Bézier-computed screen positions,
+which matched to within a few pixels), then cropped tightly around each
+(`/tmp/shots/nivel3-3-cycle5-precise.png` for `{165,170}`,
+`/tmp/shots/nivel3-3-cycle2-precise.png` for `{130,95}`). Both show the pale
+ideal-band fill wrapping the turn smoothly, with a visible, continuous margin
+on every side — no pinch, no fold, no bulge past the stroke, at either cycle.
+Also checked directly in pixels at the true tightest cycle: the band spans a
+consistent ~36-39 screen px beyond the stroke on the outer (lower) side, the
+same as the shallower cycle's ~36-39 px — the 4.5-unit (≈5-6px) analytic
+margin difference is real (proven by the passing `catalog.test.ts` assertion)
+but is too small a fraction of the band's total width to read as a visibly
+different margin by eye at this screenshot resolution; what IS visible, and
+is the actual falsifiable claim of the PASS criterion, is the absence of any
+folding artifact, and there is none.
+
+**7.8 — medusa at the goal: PASS.** Zoomed in
+(`/tmp/shots/nivel3-medusa-zoom.png`): the medusa stands squarely at the
+route's end with the corridor visibly running up into it, black-ink outline,
+no hollow diamonds, no lamp, on all four levels.
+
+**7.9 — starfish crossing the path: PASS, but not from the named screenshot
+alone — reported honestly.** The single `nivel3-4-agua4.png` capture named by
+the task landed the hazard in its own intended "gap" phase — off the
+corridor, resting in the grass near the bottom controls — because, as this
+branch's own S4 pass already established, the hazard's screen position is a
+function of real wall-clock time during `--screenshot`'s actual render pass,
+NOT of the `--virtual-time-budget` value passed to Chromium (verified again
+here: `--dump-dom` DOES respect `--virtual-time-budget` deterministically —
+sweeping it from 800 to 6800ms moved the hazard's DOM `transform` through a
+wide, predictable range — but repeated `--screenshot` captures at the SAME
+budget landed at noticeably different real-elapsed instants, and several
+independent `--screenshot` runs at different nominal budgets converged on
+nearly the SAME off-corridor position, confirming the screenshot's actual
+capture instant is dominated by fixed real-time startup/render cost, not the
+budget argument). Rather than report a FAIL for something the level itself
+does correctly ~55% of the time by design (`hazardGapFraction` ≈ 0.550,
+verified in 7.2), I captured additional screenshots and found one
+(`/tmp/shots/nivel3-4-agua4-starfish-crossing.png`, cropped closer in
+`/tmp/shots/nivel3-4-starfish-oncorridor-zoom.png`) where the starfish is
+clearly drawn as `hazard-starfish.png` (not a circle) and visibly overlaps
+the corridor asphalt. Both states are correct behaviour of the same level;
+the task's named single screenshot cannot, by itself, prove or disprove
+crossing on a level whose hazard clears the corridor most of the time by
+design — that is a gap in the task's own verification method, not in the
+level.
+
+### Deviations from Design
+
+1. **7.7's cycle identity, reported above** — a task-text discrepancy (which
+   cycle carries the 4.5-unit margin), not a design.md error; design.md
+   itself correctly attributes it to `{165, 170}` in §2's own derivation.
+2. **7.9's screenshot-timing limitation, reported above** — a verification
+   method gap, not a code defect; `hazardGapFraction` and the numeric
+   `TraceCanvas` tests (S4) already prove the hazard's geometry correctly,
+   this pass only adds the visual confirmation the task asked for.
+3. Everything else in Phase 7 matches design.md §2-§4 exactly: the four
+   `LevelConfig`s, the exemption guard, and the eleven `catalog.test.ts`
+   edits are all as specified, with no unrequested field or number.
+4. **Not touched, flagged for awareness only**: `client/src/detective/assets.ts`'s
+   doc comments on `GOAL_MEDUSA_ART`/`HAZARD_STARFISH_ART` still describe the
+   PRE-fix saturated-navy contour measurement from the S5 pass ("chroma
+   ≈118/255" / "≈122/255"), even though the orchestrator's `recontour` fix
+   (commit `c6ed264`, applied between S6 and S7) already corrected the actual
+   emitted PNGs to a near-achromatic contour. The comments are stale
+   documentation, not a code defect, and `assets.ts` is outside Phase 7's
+   scope (no task here touches it) — left exactly as found.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npm test -- catalog obstacles` → 2 files, 76 tests, all passed |
+| Full suite | `npm test` → 60 files, 1118 tests, all passed (baseline 60/1109 stated in the launch prompt as 1110 — the one-test difference is explained by the `world.test.ts` fix above: one old test replaced by one new test, net zero, and this pass then added 9 new tests: 4 in `obstacles.test.ts`, 5 in `catalog.test.ts` counting the guard) |
+| Build | `npm run build` (`tsc --noEmit && vite build`) → 0 TypeScript errors, build succeeded in 403ms |
+| Runtime harness command/scenario and exact result | `scripts/shot.sh` (4 sequence screenshots) + `chromium --dump-dom` (path-geometry cross-check) + repeated `--screenshot`/`--dump-dom` timing sweeps (hazard-crossing confirmation) — see "Screenshot evidence" above |
+| Rollback boundary | Delete the four new `LevelConfig` entries and revert `f2-guirnalda`'s fields/PHASE_2 comment in `catalog.ts`; revert the eleven `catalog.test.ts` edits and the new guard/band/gap-fraction tests; delete the `hazardGapFraction` function and its `obstacles.test.ts` block; revert `world.test.ts`'s regression-guard update. All additive or revert-to-S6-state; no S1-S6 code path is touched. |
+
+### Status (this pass)
+
+10/10 Phase 7 tasks complete, plus the one necessary `world.test.ts` fix this
+phase's own insertion required (documented above, not hidden inside 7.3).
+Phase 8 (`docs/`) untouched, per the scope fence. Baseline for the next pass:
+60 files / 1118 tests, `npm run build` green. Ready for `sdd-apply` to close
+out Phase 8 (docs-only) or for `sdd-verify` to review Phase 7 now.
