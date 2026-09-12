@@ -30,7 +30,7 @@
     "w": 361
   },
   "carrier-octopus": {
-    "bytes": 116958,
+    "bytes": 18993,
     "file": "art/carrier-octopus.png",
     "h": 353,
     "w": 384
@@ -258,9 +258,9 @@
     "w": 512
   },
   "home-octopus": {
-    "bytes": 140899,
+    "bytes": 39452,
     "file": "art/home-octopus.png",
-    "h": 396,
+    "h": 399,
     "w": 448
   },
   "lamp-off": {
@@ -274,5 +274,59 @@
     "file": "art/lamp-on.png",
     "h": 192,
     "w": 181
+  },
+  "zoo-backpack": {
+    "bytes": 7232,
+    "file": "art/zoo-backpack.png",
+    "h": 256,
+    "w": 238
+  },
+  "zoo-fog-1": {
+    "bytes": 10357,
+    "file": "art/zoo-fog-1.png",
+    "h": 155,
+    "w": 495
+  },
+  "zoo-fog-2": {
+    "bytes": 16060,
+    "file": "art/zoo-fog-2.png",
+    "h": 479,
+    "w": 343
+  },
+  "zoo-fog-3": {
+    "bytes": 17748,
+    "file": "art/zoo-fog-3.png",
+    "h": 424,
+    "w": 474
+  },
+  "zoo-map": {
+    "bytes": 128010,
+    "file": "art/zoo-map.png",
+    "h": 1024,
+    "w": 1536
+  },
+  "zoo-octopus-backpack": {
+    "bytes": 21497,
+    "file": "art/zoo-octopus-backpack.png",
+    "h": 448,
+    "w": 442
+  },
+  "zoo-octopus-print": {
+    "bytes": 9305,
+    "file": "art/zoo-octopus-print.png",
+    "h": 256,
+    "w": 134
+  },
+  "zoo-speech-bubble": {
+    "bytes": 15199,
+    "file": "art/zoo-speech-bubble.png",
+    "h": 372,
+    "w": 488
+  },
+  "zoo-star": {
+    "bytes": 10146,
+    "file": "art/zoo-star.png",
+    "h": 244,
+    "w": 255
   }
 }

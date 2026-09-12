@@ -195,11 +195,10 @@ def recontour(img: png.Image):
     The four deduction animals are deliberately NOT run through this: they are
     the one place `docs/09` section 4's "colour is the reward" is off, they
     appear alone on the lineup and never beside a clue mark, and they already
-    measure chroma 0-2 anyway. The octopus does measure chroma 63, which is the
-    same defect one notch milder; it is left alone here because `docs/09`
-    section 2 makes the navy contour part of the character's own look and
-    changing it is an art-direction decision, not a pipeline one. It is
-    recorded rather than silently fixed.
+    measure chroma 0-2 anyway. The octopus used to retain the same defect one
+    notch milder. Character fills remain authored, but octopus contours now use
+    this function too so every dark drawn-world pixel obeys the same
+    achromatic-outline contract.
     """
     px = img.px
     cache: dict[bytes, bytes] = {}
@@ -228,6 +227,32 @@ def emit(name: str, img: png.Image) -> dict:
     }
 
 
+def emit_opaque_canvas(name: str, img: png.Image, expected_w: int, expected_h: int) -> dict:
+    """Emit a full-canvas scene without the cutout alpha-crop used by `emit`.
+
+    A map is layout, not a sprite: transparent border pixels would be a source
+    defect, and trimming them would silently change both its dimensions and
+    coordinate system. Reject that input instead of making the defect look OK.
+    """
+    if (img.w, img.h) != (expected_w, expected_h):
+        raise SystemExit(
+            f'{name}: expected {expected_w}x{expected_h}, got {img.w}x{img.h}'
+        )
+    for i in range(3, len(img.px), 4):
+        if img.px[i] != 255:
+            pixel = i // 4
+            y, x = divmod(pixel, img.w)
+            raise SystemExit(f'{name}: map must be opaque; alpha={img.px[i]} at ({x}, {y})')
+    path = os.path.join(OUT, name)
+    size = png.write_png(path, img)
+    return {
+        'file': f'art/{name}',
+        'w': img.w,
+        'h': img.h,
+        'bytes': size,
+    }
+
+
 def prepare(src_name: str, target_h: int) -> png.Image:
     """Crop to content and downscale so the taller side lands on `2*target_h`."""
     img = png.read_png(os.path.join(SRC, src_name))
@@ -240,10 +265,10 @@ def prepare(src_name: str, target_h: int) -> png.Image:
 
 # (source, output, target height, fill or None, keep_ink)
 #
-# `fill=None` means the art keeps its authored colours. Only the four animals
-# and the octopus do: they are the one place the guide's "colour is the reward"
-# rule is not in force, because the animals ARE the answer and the octopus is
-# the child's own hand on the screen.
+# `fill=None` keeps authored colours without contour processing;
+# `fill='contour'` keeps the fills but normalizes every dark contour to INK.
+# The animals, octopuses, and world characters keep authored fills because
+# they ARE the answer/presence in the scene, not reward-coloured clue marks.
 SINGLES = [
     ('gota de agua.png',      'clue-droplet-earned.png',   256, POND,         True),
     ('gota de agua.png',      'clue-droplet-drained.png',  256, CLUE_DRAINED, True),
@@ -288,7 +313,7 @@ SINGLES = [
     ('pato.png',              'animal-pato.png',           448, None,         True),
     ('vaca.png',              'animal-vaca.png',           448, None,         True),
     ('gato.png',              'animal-gato.png',           448, None,         True),
-    ('pulpo con lupa.png',    'carrier-octopus.png',       384, None,         True),
+    ('pulpo con lupa.png',    'carrier-octopus.png',       384, 'contour',    True),
     # The home screen (docs/10). The octopus sits in its office with eight free
     # arms; the desk is the "place" it sits at. Both keep their authored colour
     # for the same reason the carrier octopus does -- section 4's "colour is the
@@ -301,19 +326,62 @@ SINGLES = [
     # `artManifest.test.ts` refuses art the registry cannot reach -- shipping
     # them now would be dead weight by that test's own definition. They enter
     # with their mode.
-    ('pulpo oficina.png',     'home-octopus.png',          448, None,         True),
+    ('pulpo oficina.png',     'home-octopus.png',          448, 'contour',    True),
     ('escritorio.png',        'home-desk.png',             512, None,         True),
     # Nivel 3 (design.md §6): the jellyfish stands at the route's end and the
-    # starfish crosses it as a hazard. Both keep their authored colour for the
-    # same reason the animals do -- they are living things in the world, not
-    # clue marks, so section 4's "colour is the reward" rule protects them from
-    # nothing here. `fill=None` means `recolour` never runs, so neither row
-    # names a contour colour at all -- `ART_OUTLINE` is never referenced by
-    # this pipeline for these two files, only measured against afterward.
-    # Drawn-world creatures: authored fills, but the world's own contour.
+    # starfish crosses it as a hazard. Both keep their authored fills because
+    # they are living things, not reward-coloured clues; the `contour` mode
+    # still normalizes their dark line to the world's ART_OUTLINE token.
     ('medusa.png',            'goal-medusa.png',           384, 'contour',    True),
     ('estrella de mar.png',   'hazard-starfish.png',       320, 'contour',    True),
+    # Zoo journey UI. These sources are normalized to exact square canvases
+    # with safe flat fills; this step only enforces the shared contour token
+    # while deriving the compact shipped dimensions.
+    ('niebla 1.png',          'zoo-fog-1.png',             512, 'contour',    True),
+    ('niebla 2.png',          'zoo-fog-2.png',             512, 'contour',    True),
+    ('niebla 3.png',          'zoo-fog-3.png',             512, 'contour',    True),
+    ('pulpo mochila.png',     'zoo-octopus-backpack.png',  448, 'contour',    True),
+    ('mochila.png',           'zoo-backpack.png',          256, 'contour',    True),
+    ('estrella.png',          'zoo-star.png',              256, 'contour',    True),
+    ('huella pulpo.png',      'zoo-octopus-print.png',     256, 'contour',    True),
+    ('bocadillo.png',         'zoo-speech-bubble.png',     512, 'contour',    True),
 ]
+
+# Full-canvas scenes are already authored at final dimensions. They bypass the
+# 2x work pass: scaling a 1536x1024 map up and back down can only soften its
+# deliberately flat palette.
+PASSTHROUGHS = [
+    ('mapa zoologico.png', 'zoo-map.png', 1536, 1024),
+]
+
+# Authoring-canvas contract for the zoo slice. These dimensions are deliberate:
+# cutouts keep a shared square canvas (including their transparent margin), while
+# the map is a final-size opaque scene. Failing here prevents a newly exported
+# source from silently changing crop/downscale behavior later in the pipeline.
+ZOO_SOURCE_SIZES = {
+    'mapa zoologico.png': (1536, 1024),
+    'niebla 1.png': (1024, 1024),
+    'niebla 2.png': (1024, 1024),
+    'niebla 3.png': (1024, 1024),
+    'pulpo mochila.png': (1024, 1024),
+    'mochila.png': (1024, 1024),
+    'estrella.png': (1024, 1024),
+    'huella pulpo.png': (1024, 1024),
+    'bocadillo.png': (1024, 1024),
+    'pulpo con lupa.png': (1024, 1024),
+    'pulpo oficina.png': (1024, 1024),
+}
+
+
+def validate_zoo_source_sizes() -> None:
+    for name, expected in ZOO_SOURCE_SIZES.items():
+        img = png.read_png(os.path.join(SRC, name))
+        actual = (img.w, img.h)
+        if actual != expected:
+            raise ValueError(
+                f'{name}: expected source canvas {expected[0]}x{expected[1]}, '
+                f'got {actual[0]}x{actual[1]}'
+            )
 
 # The two ground sources are SCATTER TILES, not single subjects: a field of
 # separate tufts/clumps on transparency. They get cut into individual marks
@@ -429,7 +497,15 @@ CENTRED = [
 
 def main() -> None:
     os.makedirs(OUT, exist_ok=True)
+    validate_zoo_source_sizes()
     manifest: dict[str, dict] = {}
+
+    for src, name, expected_w, expected_h in PASSTHROUGHS:
+        img = png.read_png(os.path.join(SRC, src))
+        key = name[:-4]
+        manifest[key] = emit_opaque_canvas(name, img, expected_w, expected_h)
+        print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
+              f'{manifest[key]["bytes"] / 1024:6.1f} KB')
 
     for src, name, target_h, fill, keep_ink in SINGLES:
         img = prepare(src, target_h)
@@ -438,6 +514,13 @@ def main() -> None:
         elif fill is not None:
             recolour(img, fill, keep_ink)
         final = png.box_resize(img, max(1, img.w // 2), max(1, img.h // 2))
+        # Halving blends contour and fill RGB at their shared boundary. Keep
+        # alpha antialiasing at the outer silhouette, but snap any resulting
+        # dark chromatic blend back to the neutral world contour.
+        if fill == 'contour' and (
+            name.startswith('zoo-') or name in ('carrier-octopus.png', 'home-octopus.png')
+        ):
+            recontour(final)
         key = name[:-4]
         manifest[key] = emit(name, final)
         print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '

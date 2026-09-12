@@ -35,6 +35,13 @@ import {
   HOME_OCTOPUS_ART,
   LAMP_ART,
   OCTOPUS_ART,
+  ZOO_BACKPACK_ART,
+  ZOO_FOG_ART,
+  ZOO_MAP_ART,
+  ZOO_OCTOPUS_BACKPACK_ART,
+  ZOO_OCTOPUS_PRINT_ART,
+  ZOO_SPEECH_BUBBLE_ART,
+  ZOO_STAR_ART,
   type ArtImage,
 } from './assets'
 import { ART_OUTLINE } from './palette'
@@ -81,6 +88,13 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
   ['LAMP_ART.off', LAMP_ART.off] as const,
   ['GOAL_MEDUSA_ART', GOAL_MEDUSA_ART] as const,
   ['HAZARD_STARFISH_ART', HAZARD_STARFISH_ART] as const,
+  ['ZOO_MAP_ART', ZOO_MAP_ART] as const,
+  ...ZOO_FOG_ART.map((art, i) => [`ZOO_FOG_ART[${i}]`, art] as const),
+  ['ZOO_OCTOPUS_BACKPACK_ART', ZOO_OCTOPUS_BACKPACK_ART] as const,
+  ['ZOO_BACKPACK_ART', ZOO_BACKPACK_ART] as const,
+  ['ZOO_STAR_ART', ZOO_STAR_ART] as const,
+  ['ZOO_OCTOPUS_PRINT_ART', ZOO_OCTOPUS_PRINT_ART] as const,
+  ['ZOO_SPEECH_BUBBLE_ART', ZOO_SPEECH_BUBBLE_ART] as const,
   ...GROUND_GRASS.map((art, i) => [`GROUND_GRASS[${i}]`, art] as const),
   ...GROUND_MUD.map((art, i) => [`GROUND_MUD[${i}]`, art] as const),
 ]
@@ -119,11 +133,12 @@ describe('art registry matches the shipped pipeline manifest', () => {
 
   it('registers every clue kind in both states, and never the same file twice', () => {
     // 14 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
-    // + 1 goal (medusa) + 1 hazard (estrella de mar) + 12 grass + 8 mud.
+    // + 1 goal (medusa) + 1 hazard (estrella de mar) + 9 zoo journey
+    // + 12 grass + 8 mud.
     // Grass carries MORE variants than mud on purpose: it covers the whole
     // field at full size, where a repeated silhouette is obvious, while mud
     // sits small inside the corridor and half-covered by the child's own line.
-    expect(REGISTERED.length).toBe(46)
+    expect(REGISTERED.length).toBe(55)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })

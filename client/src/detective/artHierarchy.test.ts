@@ -40,6 +40,18 @@
 import { describe, expect, it } from 'vitest'
 import { grassScatter, mudScatter, type ScatterMark } from '../canvas/groundScatter'
 import { CLUE_MARK_SIZE } from '../screen/LevelPlay'
+import {
+  HOME_OCTOPUS_ART,
+  OCTOPUS_ART,
+  ZOO_BACKPACK_ART,
+  ZOO_FOG_ART,
+  ZOO_MAP_ART,
+  ZOO_OCTOPUS_BACKPACK_ART,
+  ZOO_OCTOPUS_PRINT_ART,
+  ZOO_SPEECH_BUBBLE_ART,
+  ZOO_STAR_ART,
+  type ArtImage,
+} from './assets'
 
 /** The two ground tones, mirrored from `TraceCanvas.tsx:108-109` the same way
  * `palette.test.ts` and `build_art.py` mirror them — importing the component
@@ -51,15 +63,15 @@ const INK_LUMA = 90
 /** A contour pixel carrying more colour than this is not the contour, it is the
  * resample blending the contour into a saturated fill beside it. */
 const CONTOUR_CHROMA_TOLERANCE = 20
+const ZOO_DARK_CHROMA_TOLERANCE = 4
 
 /** What share of a contour may be that fringe.
  *
  * Measured, not guessed, and the spread is what makes the rule safe: after the
- * fix `goal-medusa` sits at 3% and `hazard-starfish` at 4%, the shipped
- * `animal-pato` at 7% -- while `carrier-octopus`, whose contour really IS navy,
- * sits at 97%, and `goal-medusa` before the fix was effectively 100%. Anything
- * between 7 and 97 would do; 25 is far from both edges rather than tuned to
- * admit what happens to ship. */
+ * fix `goal-medusa` sits at 3% and `hazard-starfish` at 4%, while the old navy
+ * `carrier-octopus` sat at 97% and `goal-medusa` before the fix was effectively
+ * 100%. Anything between the current prop fringe and those failures would do;
+ * 25 is far from both edges rather than tuned to admit what happens to ship. */
 const MAX_COLOURED_CONTOUR_SHARE = 0.25
 
 const CORRIDOR_EARTH = '#d9c3ae'
@@ -241,6 +253,32 @@ const PROP_FILES = import.meta.glob('../../public/art/{goal,hazard}-*.png', {
   import: 'default',
 }) as Inlined
 
+/** Zoo-journey outputs plus the two octopuses whose legacy navy contours were
+ * corrected in the same pipeline change. Exact names make adding or removing
+ * a shipped asset an explicit contract update rather than a wildcard surprise. */
+const ZOO_GUARD_FILES = import.meta.glob(
+  '../../public/art/{zoo-*,carrier-octopus,home-octopus}.png',
+  {
+    eager: true,
+    query: '?inline',
+    import: 'default',
+  },
+) as Inlined
+
+const ZOO_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
+  'zoo-map.png': ZOO_MAP_ART,
+  'zoo-fog-1.png': ZOO_FOG_ART[0],
+  'zoo-fog-2.png': ZOO_FOG_ART[1],
+  'zoo-fog-3.png': ZOO_FOG_ART[2],
+  'zoo-octopus-backpack.png': ZOO_OCTOPUS_BACKPACK_ART,
+  'zoo-backpack.png': ZOO_BACKPACK_ART,
+  'zoo-star.png': ZOO_STAR_ART,
+  'zoo-octopus-print.png': ZOO_OCTOPUS_PRINT_ART,
+  'zoo-speech-bubble.png': ZOO_SPEECH_BUBBLE_ART,
+  'carrier-octopus.png': OCTOPUS_ART,
+  'home-octopus.png': HOME_OCTOPUS_ART,
+}
+
 function named(files: Inlined): readonly (readonly [string, string])[] {
   return Object.entries(files).map(([path, url]) => [path.split('/').pop()!, url] as const)
 }
@@ -352,9 +390,9 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
    * records this drifting twice already: the clue marks' outlines shipped in the
    * child's own pencil blue `#1e293b` (hue 217), and the grass tufts came from
    * the author in `#19241c` (hue 136, chroma 11). It drifted a third time in
-   * this very change: `medusa.png` and `estrella de mar.png` measured chroma 119
-   * and 122 -- ten times the grass incident -- because the pipeline's `fill=None`
-   * path skips the recolour entirely, and nothing forced their outline anywhere.
+   * this very change: before their rows switched to `contour`, `medusa.png` and
+   * `estrella de mar.png` measured chroma 119 and 122 -- ten times the grass
+   * incident -- because their earlier `fill=None` path forced no outline token.
    *
    * The fix was a third pipeline mode, `recontour`, which sends only the contour
    * to `ART_OUTLINE` and leaves every fill exactly as drawn. This test is what
@@ -362,11 +400,9 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
    *
    * The four deduction animals are deliberately out of scope: they stand alone
    * on the lineup, never beside a clue mark, and `docs/09` section 4 makes them
-   * the one place authored colour rules. `carrier-octopus.png` measures chroma
-   * 63 and IS in the drawn world -- the same defect one notch milder -- but
-   * `docs/09` section 2 makes that navy line part of the character's own look,
-   * so changing it is an art-direction call and not a pipeline one. Recorded
-   * here rather than silently swept in. */
+   * the one place authored colour rules. The octopus variants are now normalized
+   * too; the stricter zoo regression below checks every dark pixel in them rather
+   * than allowing a percentage of coloured resampling fringe. */
   it('gives every prop that stands on the sheet the drawn world\'s achromatic contour', async () => {
     const props = named(PROP_FILES)
     expect(props.length, 'no goal/hazard prop art found -- the glob has gone stale').toBeGreaterThan(0)
@@ -388,6 +424,51 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
         `${(share * 100).toFixed(0)}% of ${name}'s contour carries colour -- the drawn world's ` +
           'outline is achromatic, and a coloured one is the most repeated wrong colour on the sheet',
       ).toBeLessThanOrEqual(MAX_COLOURED_CONTOUR_SHARE)
+    }
+  })
+
+  it('keeps every zoo asset on its intrinsic canvas with safe alpha and dark pixels', async () => {
+    const files = named(ZOO_GUARD_FILES)
+    expect(files.map(([name]) => name).sort()).toEqual(Object.keys(ZOO_GUARDED_ART).sort())
+
+    for (const [name, url] of files) {
+      const expected = ZOO_GUARDED_ART[name]
+      const art = await decodePng(base64ToBytes(url.split(',')[1]))
+      expect({ w: art.w, h: art.h }, `${name}: intrinsic dimensions drifted`).toEqual({
+        w: expected.w,
+        h: expected.h,
+      })
+
+      let transparent = 0
+      let partial = 0
+      let visible = 0
+      let darkChromatic = 0
+      for (let i = 0; i < art.px.length; i += 4) {
+        const [r, g, b, a] = [art.px[i], art.px[i + 1], art.px[i + 2], art.px[i + 3]]
+        if (a === 0) transparent += 1
+        else visible += 1
+        if (a > 0 && a < 255) partial += 1
+        if (
+          a > 0 &&
+          luma(r, g, b) < INK_LUMA &&
+          Math.max(r, g, b) - Math.min(r, g, b) > ZOO_DARK_CHROMA_TOLERANCE
+        ) {
+          darkChromatic += 1
+        }
+      }
+
+      expect(visible, `${name}: asset is empty`).toBeGreaterThan(0)
+      if (name === 'zoo-map.png') {
+        expect(transparent, `${name}: full-canvas map must be opaque`).toBe(0)
+        expect(partial, `${name}: full-canvas map must be opaque`).toBe(0)
+      } else {
+        expect(transparent, `${name}: cutout has no transparent background`).toBeGreaterThan(0)
+        expect(partial, `${name}: cutout lost its antialiased alpha edge`).toBeGreaterThan(0)
+      }
+      expect(
+        darkChromatic,
+        `${name}: dark pixels must be achromatic within ${ZOO_DARK_CHROMA_TOLERANCE} channels`,
+      ).toBe(0)
     }
   })
 })

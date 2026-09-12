@@ -190,6 +190,53 @@ export const OCTOPUS_ART: ArtImage = {
   h: 353,
 }
 
+/** Full-canvas zoo journey map. Unlike the cutout art, this stays opaque and
+ * ships at its authored 1536x1024 resolution so it can fill the scene without
+ * a second raster transform. */
+export const ZOO_MAP_ART: ArtImage = {
+  href: '/art/zoo-map.png',
+  w: 1536,
+  h: 1024,
+}
+
+/** The three fog silhouettes cleared during the zoo journey. */
+export const ZOO_FOG_ART: readonly [ArtImage, ArtImage, ArtImage] = [
+  { href: '/art/zoo-fog-1.png', w: 495, h: 155 },
+  { href: '/art/zoo-fog-2.png', w: 343, h: 479 },
+  { href: '/art/zoo-fog-3.png', w: 474, h: 424 },
+]
+
+/** Zoo journey character and reward/cue cutouts. */
+export const ZOO_OCTOPUS_BACKPACK_ART: ArtImage = {
+  href: '/art/zoo-octopus-backpack.png',
+  w: 442,
+  h: 448,
+}
+
+export const ZOO_BACKPACK_ART: ArtImage = {
+  href: '/art/zoo-backpack.png',
+  w: 238,
+  h: 256,
+}
+
+export const ZOO_STAR_ART: ArtImage = {
+  href: '/art/zoo-star.png',
+  w: 255,
+  h: 244,
+}
+
+export const ZOO_OCTOPUS_PRINT_ART: ArtImage = {
+  href: '/art/zoo-octopus-print.png',
+  w: 134,
+  h: 256,
+}
+
+export const ZOO_SPEECH_BUBBLE_ART: ArtImage = {
+  href: '/art/zoo-speech-bubble.png',
+  w: 488,
+  h: 372,
+}
+
 /** The single light source (design.md "Colour — the reward system"), used both
  * in the rail and standing at the end of the route.
  *
@@ -217,7 +264,7 @@ export const LAMP_ART: { on: ArtImage; off: ArtImage } = {
 export const HOME_OCTOPUS_ART: ArtImage = {
   href: '/art/home-octopus.png',
   w: 448,
-  h: 396,
+  h: 399,
 }
 
 /** The detective's desk, in front of the octopus (`docs/10` §3). Scenery: it
