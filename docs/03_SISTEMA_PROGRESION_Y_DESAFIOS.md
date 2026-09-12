@@ -124,7 +124,13 @@ Tres estrellas, no una nota:
    ★ Fluidez        fue un solo movimiento parejo
 ```
 
-**Las tres estrellas no se muestran en el Nivel 1.** Es una excepción decidida, no un olvido. El Nivel 1 es exploración: el chico limpia un recinto con el brazo entero y descubre que el animal no está. Ahí no se exige precisión fina —la directiva lo dice con todas las letras—, así que puntuar la precisión sería medir algo que el nivel no está pidiendo, y la única lectura posible de una estrella apagada es "te salió mal" en la primera pantalla del juego. La recompensa del Nivel 1 es el recinto que se destapa. A partir del Nivel 2 las tres estrellas vuelven, porque ahí el camino sí tiene bordes y quedarse adentro sí es la tarea.
+**Las tres estrellas no se muestran en el Nivel 1.** Es una excepción decidida, no un olvido. El Nivel 1 es exploración: el chico limpia un recinto con el brazo entero y descubre que el animal no está. Ahí no se exige precisión fina —la directiva lo dice con todas las letras—, así que puntuar la precisión sería medir algo que el nivel no está pidiendo, y la única lectura posible de una estrella apagada es "te salió mal" en la primera pantalla del juego. La recompensa del Nivel 1 es el recinto que se destapa.
+
+**Y en el Nivel 2 tampoco se muestran, aunque por otro motivo.** Esta frase decía antes "a partir del Nivel 2 las tres estrellas vuelven", y era falsa contra el código. Conviene saber por qué, porque el motivo no es una decisión sobre las estrellas sino una consecuencia de otra.
+
+El interruptor real no es el número de nivel: es `isDetectiveTrail`, que en `LevelPlay.tsx` vale `!!level.clue`. Un nivel que lleva una pista es un rastro de detective, y un rastro de detective monta la cáscara sin palabras: sin título, sin consigna, sin línea de coach —y sin el bloque de resultado, que es donde viven las tres estrellas. Los ocho senderos del Nivel 2, los cuatro del pato y los cuatro de la gallina, llevan pista todos, así que ninguno las muestra.
+
+No es un descuido ni un defecto: la cáscara sin palabras es una decisión tomada y con tests que la fijan. Pero el efecto es que **las estrellas aparecen recién cuando el chico sale del mundo del caso**, y eso es información pedagógica, no un detalle de implementación. El Nivel 1 no las muestra porque no exige precisión; el Nivel 2 no las muestra porque su pantalla no tiene palabras. Son dos razones distintas que dan el mismo resultado, y sólo coinciden por ahora.
 
 Y un solo mensaje corto en imperativo positivo. Nunca "mal", nunca rojo, nunca un sonido de error. Cuando falta un pilar, el mensaje nombra **el gesto**, no el fracaso: *"probá sin levantar el dedo"*, *"empezá desde el punto verde"*, *"un poquito más despacio y parejo"*.
 
