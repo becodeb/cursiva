@@ -1,6 +1,6 @@
 ```yaml
 schema: gentle-ai.verify-result/v1
-evidence_revision: sha256:467fa170571be2ed14c33f8a9a1487100c2d19e42f1b07d48a8cc03937b3176f
+evidence_revision: sha256:e8101dcac6b7d664841a14ec0d6604bf6d728959761eb38c78fc51394bd7d0ef
 verdict: pass_with_warnings
 blockers: 0
 critical_findings: 0
@@ -8,10 +8,10 @@ requirements: 12/12
 scenarios: 29/29
 test_command: npm test
 test_exit_code: 0
-test_output_hash: sha256:987f98786527ef0258ad43715bae02a8779e8784bfd65e206475f1faea2998f9
+test_output_hash: sha256:5ea9580a77df64872e4ff946ce5d56db7a914071cfb572decfaf54847981cadd
 build_command: npm run build
 build_exit_code: 0
-build_output_hash: sha256:e96d7a56ae43c3a1419d472c3280e2d810e18c528a3618a26147610bc36cf870
+build_output_hash: sha256:dcc47fb8f15aa1cdd6481283e1eb5bf73b5bcc47f89c8a1d93d1e97204c6d496
 ```
 
 ## Verification Report
@@ -143,3 +143,35 @@ Counted directly from the four delta spec files under `openspec/changes/case-reg
 ### Verdict
 **PASS WITH WARNINGS**
 All 69/69 tasks complete, both 12/12 requirements and 29/29 scenarios compliant with real passing tests (measured independently: 1042/1042 tests, 57/57 files, build green), and all seven adversarial checks requested by the orchestrator held up under direct inspection and one live break/restore. The two WARNINGs are documentation-drift items (a spec/design table describing a generator the shipped code deliberately no longer uses, and unchecked-but-satisfied proposal checkboxes) that do not affect scenario compliance, runtime behavior, or the caption/lens/migration/routing invariants this change exists to ship — recommended to fix before archive but not blocking.
+---
+
+## Evidence Refresh — 2026-09-12 (post-drift re-verification)
+
+The tree moved substantially after the report above was written and admitted (`evidence_revision: sha256:467fa17...`). This section re-runs the evidence at the current HEAD (`c5abfd0`, 20 commits ahead of `main`) and records what changed. The original prose above is left untouched; nothing in it was found to be wrong, only stale in evidence hashes and in the two items below.
+
+### What drifted, all already committed on this branch
+
+1. **This change's own orchestrator fixes**: `1f378e4` (BREADCRUMB `#994138`→`#a9682c`, `palette.test.ts`'s GOAL_COLOR-hue rule replaced with a ground-luma-separation rule), `aa6e4c2` (`Deduction.tsx` lineup CSS grows into the sheet, +89/-11 lines), `8ee8957` (withdrew the false "clipped start carrier" claim from `apply-progress.md`).
+2. **`627cc0e`** archived `detective-mode` and promoted its three delta specs into `openspec/specs/` (8→10 specs). This change's four delta specs now sit against a real baseline for `detective-mode`, `level-engine`, `main-screen`, and `trace-canvas` for the first time.
+3. **A concurrent, out-of-scope session** landed art-direction work on the same branch: `6e6fee2`, `23dd58b`, `c5abfd0` — introduced `ART_OUTLINE`, reworked `groundScatter.ts`, added `artHierarchy.test.ts`, and, in `c5abfd0`, inverted `palette.test.ts`'s drained-clue rule (`CLUE_DRAINED` `#c8cdd2`→`#838383`; the file used to assert the drained grey stays BELOW the ground-contrast floor, now asserts it must clear a HIGHER floor than the earned colours).
+
+**Correction to the launch brief**: the "~100 lines added to `Deduction.tsx`" attributed to the concurrent session actually belongs to `aa6e4c2` (item 1, this change's own fix) — `git show --stat` on all three concurrent-session commits confirms none of them touch `client/src/screen/Deduction.tsx`. Re-attributing this before it gets copied forward as fact.
+
+### Re-checked against the drift
+
+- **Five files this change's core invariants depend on — `cases.ts`, `CaptionedArt.tsx`, `captionAudit.ts`, `catalog.ts`, `migrateDuckCase.ts` — are untouched across the entire `1f378e4^..c5abfd0` range** (`git diff --stat` on all five returns empty). The case registry, caption audit, duck-trail catalog entries, and migration are exactly as verified in the report above; the drift did not reach them.
+- **`placeArt()` single-implementation invariant still holds.** `6e6fee2` added `clampArtBox` alongside it, but `clampArtBox` clamps an already-placed box against sheet bounds — it does not compute a placement — so the spec's "the single pure exported function computing where carrier/lens art is drawn" is not violated. All four call sites (`TraceCanvas.tsx:1066,1107,1284`, `HomeScreen.tsx:180`) still route through `placeArt` alone.
+- **The `CLUE_DRAINED` rule inversion is internally coherent as shipped, not two live contradictory rule sets.** Read `palette.test.ts` and `palette.ts` in full at HEAD: the pre-`c5abfd0` assertion ("drained sits below the ground-contrast floor") is gone from the file, not merely outvoted — `c5abfd0` replaced it with a single active rule ("drained must clear a *higher* floor than earned, because earning is a change of CHROMA, not contrast") and left an explicit block comment narrating the correction and why the old reasoning was wrong. `npm test` confirms both the new floor and the case-scoped distinctness test (`"keeps a CASE's earned clue colours pairwise distinct"`) pass together. This is a sequential correction on the same branch, not a merge conflict between two still-active rules — but `1f378e4`'s own justification for `BREADCRUMB` ("the drained grey asserted to sit BELOW that floor") is now stale prose referring to a rule that no longer exists in code; this is a documentation-drift WARNING below, not a CRITICAL, because no code or test currently asserts the superseded claim.
+- **Baseline promotion (`627cc0e`) checked for contradiction/duplication against this change's four delta specs**: none of the four delta specs' ADDED requirements restate a baseline requirement verbatim, and the one MODIFIED requirement (`detective-mode`'s "Deduction Screen") is standard OpenSpec supersession of the baseline's global-hen/four-choices version — expected, not a defect. One coexistence worth flagging as a SUGGESTION below: baseline `detective-mode`'s "Colour Asset Registry" requirement (trail-scoped colour uniqueness) is not modified or deprecated by this change's ADDED "Per-Case Clue Colour Distinctness" (case-scoped); both will exist side by side in `openspec/specs/detective-mode/spec.md` after archive. They do not conflict in practice (case-scoping is a strictly narrower, additional constraint), but neither delta text says so explicitly.
+- **Test/build re-run independently**: `npm test` → 1073 passed / 0 failed (58 files, up from 1042/57 — the concurrent session's `artHierarchy.test.ts` plus additions to `placeArt.test.ts`, `TraceCanvas.test.tsx`, `artManifest.test.ts`, and `Deduction.test.tsx` account for the delta). `npm run build` → exit 0, 509 modules, no new TypeScript errors. Both commands and hashes recorded in the refreshed YAML envelope above.
+- **`gentle-ai sdd-status case-registry-and-captions --cwd . --json`** re-confirmed at this HEAD: `"nextRecommended": "archive"`, `"dependencies.archive": "ready"`, `taskProgress` still 69/69, `remediationState.required: false`.
+
+### New issue found in this pass
+
+**WARNING (new)**: `design.md`'s art-pipeline code sample and prose (lines ~376, 378, 380, 394) still show `clue-webfoot-drained.png`, `clue-breadcrumb-drained.png`, and `clue-bubble-drained.png` built against the literal `#c8cdd2` `CLUE_DRAINED` value and describe it as "a flat `#c8cdd2` silhouette." That value was superseded by `c5abfd0` (`CLUE_DRAINED` is now `#838383`, for a documented, deliberate reason — the old value made an unfound clue the least visible thing on the sheet). This is the same category of drift already flagged above for `level-engine/spec.md`'s stale generator table: a design doc describing a fact about the implementation that the shipped code no longer matches. Recommend correcting `design.md`'s three build-script sample lines and the drained-silhouette prose before archive, alongside the existing §3 table fix.
+
+No new CRITICAL or blocking findings. The three sources of drift landed in files this change's own scope depends on (`palette.ts`, `Deduction.tsx`, `TraceCanvas.tsx`, `placeArt.ts`) but not in the five files its falsifiable invariants are anchored to, and the one rule-set change (`CLUE_DRAINED`) replaced itself cleanly rather than leaving two contradictory assertions green by accident.
+
+### Updated Verdict
+
+**PASS WITH WARNINGS** (unchanged). 0 CRITICAL, 3 WARNING (2 carried forward + 1 new documentation-drift item above), 2 SUGGESTION (1 carried forward + 1 new coexistence note above). 12/12 requirements and 29/29 scenarios remain compliant; 1073/1073 tests and build both green, independently re-measured at HEAD `c5abfd0`. Routing confirmed `archive`.
