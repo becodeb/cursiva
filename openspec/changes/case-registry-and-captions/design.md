@@ -368,7 +368,7 @@ the eight assertions as written; none of the thresholds moves.
 ### `build_art.py`
 
 Mirror the two tokens beside the existing block at `:52-58`
-(`BREADCRUMB = (0x99, 0x41, 0x38)`, `BUBBLE = (0x4F, 0xB3, 0xD9)`), then six `SINGLES` rows
+(`BREADCRUMB`, `BUBBLE`), then six `SINGLES` rows
 (`:184-222`):
 
 ```python
@@ -391,11 +391,21 @@ like every other clue.
 **Two things must be checked by eye before this slice closes**, because the pipeline fails
 silently on both:
 
-- `clue-webfoot-drained.png` is a flat `#c8cdd2` silhouette with no contour, on
+- `clue-webfoot-drained.png` is a flat `CLUE_DRAINED` silhouette with no contour, on
   `CORRIDOR_EARTH '#d9c3ae'`. That is the *exact* configuration `build_art.py:194-201`
   records as "measured on a screenshot as very nearly invisible" for the unlit lamp. If it
   measures invisible here too, the recorded fallback is the same one the lamp took: author a
   grey companion source (`huella palmeada gris.png`) and drive `drained` off it.
+
+  **Resolved, and by a different route than either option above.** The screenshot check
+  (task 2.15) passed at the time on hue contrast alone: the then-current `CLUE_DRAINED`
+  `#c8cdd2` is a cool grey on warm tan, legible despite a luma gap of only 5. That was a
+  thin argument and a later pass overturned the premise behind it — an unfound clue is what
+  the child is hunting for, so it should be the most findable thing on the path, not the
+  least. `CLUE_DRAINED` is now `#838383` and `palette.test.ts` requires the drained grey to
+  clear the ground by luma rather than merely differ in hue. No grey companion source was
+  needed. This paragraph is kept rather than rewritten because the risk it names is real and
+  the next piece of contourless art will meet it again.
 - `prepare()` (`:168-175`) crops to `png.alpha_bbox`. A source with an **opaque** background
   produces a full-canvas crop and `recolour` repaints the background. Detection needs no new
   tool: the emitted `w`/`h` in `manifest.json` must be a tight silhouette box (tall-narrow for
