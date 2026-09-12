@@ -73,12 +73,19 @@ describe('ZooMap (layer order)', () => {
     )
     expect(sectorsWithFog.size).toBe(5)
     expect(sectorsWithFog.has('estanque')).toBe(false)
-    // Two patches per closed sector (design.md §4) — ten images from five
-    // sectors, not one each. Recorded explicitly: `tasks.md` phrases this
-    // scenario as "exactly 5 fog images", which undercounts the two-patch
+    // One patch per GRID CELL (design.md §4) — `cols × rows` per sector at
+    // a 130-unit target cell, so entrada/montañas/nocturna tile 2×1 and
+    // bosque/arena tile 2×2: 2 + 4 + 2 + 4 + 2 = 14 images from five
+    // sectors, not one each and no longer the flat two each the quadrant
+    // construction drew. Recorded explicitly: `tasks.md` phrases this
+    // scenario as "exactly 5 fog images", which undercounts the
     // construction design.md §4 requires; this asserts the actual, correct
-    // rendered behaviour rather than the miscounted phrasing.
-    expect([...html.matchAll(/data-fog-sector="/g)]).toHaveLength(10)
+    // rendered behaviour rather than the miscounted phrasing. The per-cell
+    // count itself is proven in `sectors.test.ts`; this only pins that the
+    // screen draws every patch the registry declares.
+    const declared = SECTORS.reduce((n, sector) => n + sector.fog.length, 0)
+    expect(declared).toBe(14)
+    expect([...html.matchAll(/data-fog-sector="/g)]).toHaveLength(declared)
   })
 
   it('the duck appears only once duck-trail4 is filed', () => {

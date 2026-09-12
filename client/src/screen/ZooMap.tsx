@@ -51,9 +51,49 @@ html, body, #root { margin: 0; height: 100%; }
 .cv-zoo-stage { position: relative; width: 100%; max-height: 100%; aspect-ratio: 5 / 3; margin: 0 auto; }
 .cv-zoo-hud { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 2% 3%; box-sizing: border-box; pointer-events: none; }
 .cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
-.cv-zoo-bubble { position: absolute; left: 49.8%; top: 47%; transform: translate(-50%, -100%); display: flex; align-items: center; justify-content: center; pointer-events: none; }
-.cv-zoo-bubble img { display: block; }
-.cv-zoo-bubble .cv-captioned { position: absolute; inset: 0; margin: auto; display: flex; align-items: center; justify-content: center; }
+/* The bocadillo is sized as a FRACTION OF THE STAGE, never in px: the
+   488x372 PNG's intrinsic size is 488 CSS px, which is 49% of the 1000-unit
+   stage at a 1000px-wide viewport and a different fraction at every other
+   one. At 27% it is ~270 x 206 units and lands over the montanas hit
+   (x 360-630, y 22-162) - which is fine and deliberate: montanas is fogged,
+   so there is no drawn content under it to obscure, and the bubble only
+   renders while a sector is newly discovered. container-type: inline-size
+   makes the bubble its own query container, so everything inside it can be
+   sized in cqw (percent of the BUBBLE's width, which is itself a percent of
+   the stage) and nothing inside needs a px length.
+   The tail is NOT at the file's centre: it hangs at ~10% of the width, so a
+   bubble centred on the plaza points at bare grass to the Pulpito's left,
+   which is what the 488px original did too. scaleX(-1) on the IMAGE ONLY
+   mirrors the drawn oval (it is symmetric apart from the tail) and moves the
+   tail to ~90% of the width; the caption inside is a sibling and is NOT
+   transformed, so no text is reversed. left: 39.2% then lands that tail on
+   PLAZA_CENTRE's x, and top: 36% with translate(..., -100%) rests it on the
+   Pulpito's head at y ~ 216 rather than covering his face at y ~ 250.
+   The bubble therefore covers the right of nocturna and the left of
+   montanas (both fogged, no drawn content to obscure) and leaves the
+   estanque - the one OPEN sector, with the pond the huellas point at -
+   entirely clear. It only renders while a sector is newly discovered.
+   NOTE: no backticks anywhere in this block - ZOO_CSS is a template
+   literal, and one backtick in a CSS comment ends the string. */
+.cv-zoo-bubble { position: absolute; left: 39.2%; top: 36%; width: 27%; aspect-ratio: 488 / 372; transform: translate(-50%, -100%); container-type: inline-size; pointer-events: none; }
+.cv-zoo-bubble > img { display: block; width: 100%; height: 100%; transform: scaleX(-1); }
+/* The oval's readable interior, inset from the drawn outline on all four
+   sides. The tail occupies the bottom ~18% of the file, which is why the box
+   spans 14%-74% rather than filling the bubble - that centres the print and
+   the phrase on the OVAL, which is not the same thing as centring them on
+   the image box. */
+.cv-zoo-bubble .cv-captioned { position: absolute; left: 8%; right: 8%; top: 14%; height: 60%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4cqw; }
+/* width: auto lets the viewBox carry the aspect ratio, the same override
+   Deduction.tsx's own .cv-captioned > svg rule already uses. flex: none
+   keeps the print from being squeezed to a sliver by the phrase beside it -
+   which is exactly what it rendered as before, 19 units wide next to a
+   40-character phrase. */
+.cv-zoo-bubble .cv-captioned > svg { width: auto; height: 62%; flex: none; }
+/* No font-family: .cv-caption inherits Nunito from the document root
+   (docs/09 section 8), the same way PistasRail's words do. The size is cqw
+   so the phrase tracks the bubble, which tracks the stage - a px value would
+   be right at exactly one viewport and wrong at every other. */
+.cv-zoo-bubble .cv-caption { font-size: 6.4cqw; line-height: 1.16; font-weight: 700; color: #1e293b; text-align: left; }
 /* The ONE thing this screen moves by itself (docs/12 §3, §4): the
    newly-discovered sector's fog fades once, opacity only. Mirrors
    HomeScreen.tsx:88-104's HOME_CSS shape exactly, including the
@@ -83,9 +123,15 @@ export function fogClassFor(sectorId: SectorId, discovered: ZooSector | null): s
 /** One footprint, centred on its own point and rotated to face the walked
  *  direction (`zoo/sectors.ts`'s `PRINT_FACING`) — origin-centred exactly
  *  like every other repeated mark in this repo (`docs/09` §3). Rendered at
- *  ~26 units tall, per design.md §5's own footnote. */
+ *  36 units tall: design.md §5's original ~26 put the print at 13.6 units
+ *  WIDE (the art is 134×256), and a 13-unit mark on a 1000-unit stage does
+ *  not register as a track to a five-year-old. At 36 the print is ~19 wide
+ *  against `PRINT_OFFSET`'s ±12 stagger, so consecutive prints still read
+ *  as alternating left/right rather than as one dotted line — `docs/09` §5
+ *  is explicit that the alternation is what makes a track read as walking,
+ *  and that is a screenshot check, not a test one. */
 function Footprint({ x, y, angle }: FootprintMark) {
-  const height = 26
+  const height = 36
   const width = (height * ZOO_OCTOPUS_PRINT_ART.w) / ZOO_OCTOPUS_PRINT_ART.h
   return (
     <image
@@ -295,10 +341,20 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
         {discovered && (
           <div className="cv-zoo-bubble">
             <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+            {/* `size` is the UNSTYLED height; `ZOO_CSS`'s
+                `.cv-zoo-bubble .cv-captioned > svg` overrides it with a
+                percentage of the bubble so the print tracks the stage. 76
+                is what that percentage resolves to at a 1000-unit stage, so
+                the server-rendered markup already carries the right shape
+                instead of a number the stylesheet silently contradicts. The
+                `CaptionedArt` wrapper itself is NOT optional: it is the only
+                component allowed to pair a picture with a word outside the
+                rail, and `captionAudit`'s `auditCaptions` is what enforces
+                that — only the styling changed here. */}
             <CaptionedArt
               art={ZOO_OCTOPUS_PRINT_ART}
               label="¡Mirá! Las huellas van hacia allá. ¿Vamos?"
-              size={36}
+              size={76}
             />
           </div>
         )}

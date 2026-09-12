@@ -125,23 +125,72 @@ const ARENA_HIT: Rect = { x: 675, y: 290, w: 280, h: 228 }
 const NOCTURNA_HIT: Rect = { x: 95, y: 22, w: 250, h: 190 }
 
 /** design.md §4's closed-form fog construction, restated as code rather than
- * hand-authored numbers: `size = 1.06h`, two patches centred on each half of
- * `hit`'s width at `hit`'s own vertical midline. The proof (§4) is that each
- * box spans `[y − 0.03h, y + 1.03h] ⊇ [y, y + h]` vertically and covers its
- * half horizontally, so the union always contains the whole `hit`. `art` is
- * chosen per sector by the aspect test `aspect ≥ hit.w / (2.12 × hit.h)`
- * (design.md §4's worked values); it is a per-call argument here rather than
- * computed, because the choice is a one-time authored fact about a fixed
- * `hit`, not something that needs re-deriving on every render.
+ * hand-authored numbers. The `hit` is TILED by `cols × rows` cells and one
+ * patch sits on each cell's centre, sized so that the patch's own box
+ * contains its own cell:
+ *
+ *     cols = max(1, round(w / 130))      cellW = w / cols
+ *     rows = max(1, round(h / 130))      cellH = h / rows
+ *     size = max(cellH, cellW / aspect) × 1.06        (aspect = art.w / art.h)
+ *
+ * Proof, in two lines. The box is `size ≥ 1.06 × cellH` tall centred on its
+ * cell's own midline, so it spans `[cy − 0.53 cellH, cy + 0.53 cellH] ⊇` the
+ * cell. It is `size × aspect ≥ 1.06 × cellW` wide, centred on the cell's own
+ * vertical midline, so it covers the cell horizontally. The union of the
+ * cells is EXACTLY the `hit`, so the union of the boxes contains it. ∎
+ *
+ * This replaces the shipped two-patches-at-the-width-quadrants construction,
+ * whose `size = 1.06 × h` made a near-square sector's patches far wider than
+ * the sector itself (`aspect × 1.06h`): bosque (300 × 300) drew two patches
+ * ≈355 wide for a 300-unit sector, so its fog spanned ≈670 units and spilled
+ * over the plaza, the paths and the neighbouring sectors. The grid keeps the
+ * containment proof (it is strictly tighter — every cell is covered by its
+ * OWN patch rather than by a half-width one) and reads as a bank of fog
+ * rather than as two grey balloons. `FOG_BBOX_SLACK` in `sectors.test.ts` is
+ * what keeps the spill from coming back.
+ *
+ * `art` stays a per-call authored argument rather than a computed one — the
+ * choice is a one-time fact about a fixed `hit`, not something to re-derive
+ * on every render — but its RULE changed with the construction: pick the
+ * silhouette whose aspect is CLOSEST to the cell's own `cellW / cellH`, which
+ * is what minimises the `max(…)` above and therefore the overshoot. Under the
+ * quadrant construction the rule was a one-sided `aspect ≥ w / (2.12 h)`
+ * floor. Re-derived per sector against its own cell: entrada (114 × 170 cell)
+ * and nocturna (125 × 190) take the tall art 1; bosque (150 × 150), montañas
+ * (135 × 140) and arena (140 × 114) take the round art 2. Bosque and arena
+ * moved off art 1, and nocturna off art 2, because the rule changed — under
+ * the old one-sided floor those were all admissible.
  */
 const FOG_OVERLAP = 1.06
+/** Target cell edge, viewBox units. Chosen so the smallest `hit` (entrada,
+ *  228 × 170) still tiles into more than one patch and the largest (bosque,
+ *  300 × 300) into four — few enough to stay cheap, many enough that no
+ *  single patch reads as a balloon. */
+const FOG_CELL = 130
 function closedFog(hit: Rect, art: 0 | 1 | 2): readonly FogPatch[] {
-  const size = FOG_OVERLAP * hit.h
-  const y = hit.y + hit.h / 2
-  return [
-    { art, x: hit.x + hit.w / 4, y, size, rot: 0, flip: false },
-    { art, x: hit.x + (3 * hit.w) / 4, y, size, rot: 0, flip: true },
-  ]
+  const aspect = ZOO_FOG_ART[art].w / ZOO_FOG_ART[art].h
+  const cols = Math.max(1, Math.round(hit.w / FOG_CELL))
+  const rows = Math.max(1, Math.round(hit.h / FOG_CELL))
+  const cellW = hit.w / cols
+  const cellH = hit.h / rows
+  const size = FOG_OVERLAP * Math.max(cellH, cellW / aspect)
+  const patches: FogPatch[] = []
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      patches.push({
+        art,
+        x: hit.x + (col + 0.5) * cellW,
+        y: hit.y + (row + 0.5) * cellH,
+        size,
+        rot: 0,
+        // Checkerboard rather than alternating-by-index, so two patches
+        // sharing an edge are never the same mirror image in either axis.
+        // Footprint-preserving (§4), which is why variety is spent here.
+        flip: (row + col) % 2 === 1,
+      })
+    }
+  }
+  return patches
 }
 
 export const SECTORS: readonly ZooSector[] = [
@@ -159,7 +208,7 @@ export const SECTORS: readonly ZooSector[] = [
     id: 'bosque',
     hit: BOSQUE_HIT,
     // aspect ≥ 300/(2.12×300) = 0.47 → art 1 clears it.
-    fog: closedFog(BOSQUE_HIT, 1),
+    fog: closedFog(BOSQUE_HIT, 2),
     animalSpot: hitCentre(BOSQUE_HIT),
     animals: [],
     adventureIds: [],
@@ -206,7 +255,7 @@ export const SECTORS: readonly ZooSector[] = [
     id: 'arena',
     hit: ARENA_HIT,
     // aspect ≥ 280/(2.12×228) = 0.58 → art 1 clears it.
-    fog: closedFog(ARENA_HIT, 1),
+    fog: closedFog(ARENA_HIT, 2),
     animalSpot: hitCentre(ARENA_HIT),
     animals: [],
     adventureIds: [],
@@ -216,7 +265,7 @@ export const SECTORS: readonly ZooSector[] = [
     id: 'nocturna',
     hit: NOCTURNA_HIT,
     // aspect ≥ 250/(2.12×190) = 0.62 → art 2 clears it.
-    fog: closedFog(NOCTURNA_HIT, 2),
+    fog: closedFog(NOCTURNA_HIT, 1),
     animalSpot: hitCentre(NOCTURNA_HIT),
     animals: [],
     adventureIds: [],

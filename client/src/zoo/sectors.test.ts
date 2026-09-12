@@ -106,6 +106,57 @@ describe('Fog Containment Invariant', () => {
     expect(estanque.fog).toEqual([])
     expect(sendero.fog).toEqual([])
   })
+
+  // The shipped regression this replaces, stated as the number it was:
+  // `closedFog` used to size TWO patches at `1.06 × hit.h` and place them at
+  // the width quadrants, but `size` is the HEIGHT and the width follows the
+  // art's aspect — so a near-square sector got patches far WIDER than
+  // itself. Bosque (300 × 300) drew two boxes ≈355 wide each, a union
+  // ≈670 units across for a 300-unit sector: on screen the map read as a
+  // field of giant grey balloons spilling over the plaza, the paths and
+  // each other. Containment alone could never catch that — a patch the size
+  // of the whole map contains every hit perfectly. This is the other half
+  // of the invariant: the fog must cover its sector AND stay near it.
+  const FOG_BBOX_SLACK = 1.25
+  it('fog does not extend absurdly past the sector it covers', () => {
+    for (const sector of fogged) {
+      const boxes = fogBoxes(sector)
+      const hit = sector.hit!
+      const union = {
+        x0: Math.min(...boxes.map((b) => b.x)),
+        x1: Math.max(...boxes.map((b) => b.x + b.width)),
+        y0: Math.min(...boxes.map((b) => b.y)),
+        y1: Math.max(...boxes.map((b) => b.y + b.height)),
+      }
+      expect(union.x1 - union.x0, `${sector.id} fog width`).toBeLessThanOrEqual(
+        hit.w * FOG_BBOX_SLACK,
+      )
+      expect(union.y1 - union.y0, `${sector.id} fog height`).toBeLessThanOrEqual(
+        hit.h * FOG_BBOX_SLACK,
+      )
+    }
+  })
+
+  it('every patch is centred inside its own sector, on a grid of its cells', () => {
+    // The grid construction's own structural claim: no patch CENTRE ever
+    // leaves the `hit` (the centres are cell centres, and the cells tile the
+    // hit exactly), and a sector tiles into `cols × rows` patches rather
+    // than an arbitrary hand-placed number. Together with containment and
+    // the bbox bound above, this pins the construction rather than just its
+    // outcome.
+    for (const sector of fogged) {
+      const hit = sector.hit!
+      const cols = Math.max(1, Math.round(hit.w / 130))
+      const rows = Math.max(1, Math.round(hit.h / 130))
+      expect(sector.fog.length, `${sector.id} patch count`).toBe(cols * rows)
+      for (const patch of sector.fog) {
+        expect(patch.x, `${sector.id} patch x`).toBeGreaterThan(hit.x)
+        expect(patch.x, `${sector.id} patch x`).toBeLessThan(hit.x + hit.w)
+        expect(patch.y, `${sector.id} patch y`).toBeGreaterThan(hit.y)
+        expect(patch.y, `${sector.id} patch y`).toBeLessThan(hit.y + hit.h)
+      }
+    }
+  })
 })
 
 describe('Registry↔Catalog Structural Consistency', () => {

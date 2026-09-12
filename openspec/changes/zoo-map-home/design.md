@@ -357,31 +357,59 @@ checks it.
 
 ### Decision: fog is authored by a closed-form construction, not by eye
 
-**Choice**: for a closed sector with `hit = {x, y, w, h}`, two patches:
+**REVISED after the S2 screenshot pass. The superseded construction, and why it shipped
+wrong, is kept below rather than deleted — it is the evidence for the new one.**
+
+**Choice**: for a closed sector with `hit = {x, y, w, h}`, tile the hit with `cols × rows`
+cells and put one patch on each cell's centre:
 
 ```
-size    = 1.06 × h                                 (FOG_OVERLAP = 1.06)
-centres = (x + w/4, y + h/2)  and  (x + 3w/4, y + h/2)
-art     = any index whose aspect w/h satisfies  aspect ≥ hit.w / (2.12 × hit.h)
-flip    = false, then true
+cols  = max(1, round(w / 130))     cellW = w / cols        (FOG_CELL = 130)
+rows  = max(1, round(h / 130))     cellH = h / rows
+size  = 1.06 × max(cellH, cellW / aspect)                  (FOG_OVERLAP = 1.06)
+centre of cell (col, row) = (x + (col + ½)·cellW, y + (row + ½)·cellH)
+art   = the index whose aspect is CLOSEST to cellW / cellH
+flip  = (row + col) is odd
 ```
 
-**Proof, in two lines.** Vertically each box is `1.06h` tall centred on the hit's own
-midline, so it spans `[y − 0.03h, y + 1.03h] ⊇ [y, y + h]`. Horizontally each box is
-`size × aspect ≥ 1.06h × w/(2.12h) = w/2` wide, centred on the midpoint of its half, so it
-covers that half. Two halves ⇒ the union contains the hit. ∎
+**Proof, in two lines.** Each box is `size ≥ 1.06·cellH` tall centred on its own cell's
+midline, so it spans `[cy − 0.53·cellH, cy + 0.53·cellH] ⊇` that cell vertically. It is
+`size × aspect ≥ 1.06·cellW` wide, centred on the cell's own vertical midline, so it covers
+that cell horizontally. The cells tile the hit exactly, so the union of the boxes contains
+the hit. ∎ This is **strictly tighter** than the superseded proof: there, a box had to be
+wide enough to cover a whole half of the sector; here it only has to cover its own cell.
+
+**What the superseded construction was, and the defect it shipped.** Two patches at the
+width quadrants, `size = 1.06 × h`, `art` = any index clearing a one-sided floor
+`aspect ≥ w / (2.12 h)`. `size` is the **height** and the width follows the file's aspect,
+so a near-square sector got patches far wider than itself: bosque (300 × 300) on art 1 drew
+two boxes ≈355 wide each, a union ≈670 units across for a 300-unit sector. On screen the map
+read as a field of giant grey balloons spilling over the plaza, the paths and each other —
+and the containment test could not see it, because a patch the size of the whole map
+contains every hit perfectly. The floor was one-sided, so it admitted arbitrarily oversized
+art; the new rule is two-sided (closest aspect), which is what minimises the `max(…)`.
 
 **Alternatives considered**: hand-placing patches per sector and letting the test find the
-holes.
+holes; keeping the quadrant construction and only swapping the art indices.
 
 **Rationale**: the test is exact (below), so hand-placing would eventually converge — but by
 a loop of red runs, and whoever tunes a patch later has no rule to tune against. A
 closed-form construction means the data is *derived* from the `hit` that was already
-measured, which is the same derive-don't-restate move `clueKindsOf` made for clue kinds. The
-five closed sectors resolve as: `nocturna` → art 2 (needs ≥ 0.62), `montanas` → art 2
-(needs ≥ 0.91, and only the round blob at 1.118 clears it), `bosque` → art 1 (needs ≥ 0.47),
-`arena` → art 1 (needs ≥ 0.58), `entrada` → art 1 (needs ≥ 0.63). Apply may hand-tune a
-centre afterwards for looks; the test is what keeps the tuning honest.
+measured, which is the same derive-don't-restate move `clueKindsOf` made for clue kinds.
+Swapping art indices alone was rejected: it narrows the overshoot without removing its
+cause, since the width would still be driven by the sector's full height. Smaller patches
+also read as a **bank of fog** rather than as two balloons, which is what the S2 open
+question below was actually asking. The five closed sectors now resolve, per cell aspect, as:
+`entrada` (114 × 170 cell) → art 1, `nocturna` (125 × 190) → art 1, `bosque` (150 × 150) →
+art 2, `montanas` (135 × 140) → art 2, `arena` (140 × 114) → art 2. Bosque and arena moved
+off art 1, and nocturna off art 2, purely because the rule changed.
+
+**The containment test is now paired with a bound in the other direction.**
+`sectors.test.ts`'s `FOG_BBOX_SLACK = 1.25` asserts the union's bounding box exceeds the
+`hit` by no more than 25% on either axis. Containment alone is satisfied by *any* large
+enough patch, so it could never have caught the shipped defect; this is the half of the
+invariant that keeps the fog near the thing it covers. Measured under the new construction
+the worst case is montañas at 1.22 × on x, with every other sector under 1.20 ×.
 
 ### Decision: containment is verified exactly, by coordinate compression
 
@@ -441,9 +469,14 @@ formula is reused verbatim — SVG convention, y grows down, `rotate(deg)` turns
 so rotating the tangent `(cos, sin)` by +90° gives the left-hand normal `(−sin, cos)`. What
 is **not** reused is the magnitude: `FOOTPRINT_OFFSET = 10` (`clues.ts:23`) is sized against
 a trail's 35–45-unit corridor half-width and is not exported. The map has no corridor, and
-its prints are rendered at ~26 units tall rather than a clue mark's size, so it declares its
-own `PRINT_OFFSET = 12` beside a comment naming `clues.ts:161-171` as the source of the
-*rule*. Exporting the trail constant instead would tie a map coordinate to a corridor
+its prints are rendered at **36 units tall** rather than a clue mark's size, so it declares
+its own `PRINT_OFFSET = 12` beside a comment naming `clues.ts:161-171` as the source of the
+*rule*. **[revised after the S2 screenshot pass]** That height was ~26 as shipped, which put
+the print at 13.6 units **wide** — the art is 134 × 256, so the height is the long axis — and
+a 13-unit mark on a 1000-unit stage did not register as a track at all. At 36 the print is
+~19 wide against the ±12 stagger, which the capture confirms still reads as alternating
+left/right rather than as one dotted line. `PRINT_OFFSET` itself is unchanged: the
+alternation was never the thing that was wrong, only the scale. Exporting the trail constant instead would tie a map coordinate to a corridor
 number, and the next person to widen a corridor would silently move the map's footprints.
 The interior-arc rule (nothing on an endpoint) is `clueMarks`'s own
 `(i + 1) / (count + 1)` reasoning (`clues.ts:137-146`) restated for a fixed pitch: a print
@@ -607,9 +640,9 @@ dev-gated `?nivel=mapa` all keep working exactly as they do today. `viewFor(step
       <div className="cv-zoo-hud-right">  <CaptionedArt art={ZOO_STAR_ART} label={`${n}`} />
     </div>
     {recentlyDiscovered && (
-      <div className="cv-zoo-bubble" style={{ left: '49.8%', top: '47%' }}>
+      <div className="cv-zoo-bubble">        ← left/top/width live in ZOO_CSS, see below
         <img src="/art/zoo-speech-bubble.png" alt="" />          the backdrop
-        <CaptionedArt art={ZOO_OCTOPUS_PRINT_ART} label="¡Mirá! Las huellas van hacia allá. ¿Vamos?" />
+        <CaptionedArt art={ZOO_OCTOPUS_PRINT_ART} label="¡Mirá! Las huellas van hacia allá. ¿Vamos?" size={76} />
       </div>
     )}
   </div>
@@ -643,6 +676,69 @@ image node" is this repo's convention and is what keeps a picture greppable and
 manifest-checkable; a CSS background would be a second, unprecedented mechanism introduced
 for one node. §1's fixed 5:3 stage is what lets the bubble be positioned in percent and
 still land on the plaza.
+
+### Decision: the bubble is sized in percent of the stage, mirrored, and is its own query container
+
+**[Added after the S2 screenshot pass — this records what shipped wrong and what replaced
+it.]**
+
+**What shipped**: `.cv-zoo-bubble img { display: block; }` with **no width**, so the 488 × 372
+PNG rendered at its intrinsic **488 CSS px** — 49% of the 1000-unit stage at a 1000px-wide
+viewport, and a different fraction at every other one. It swallowed the whole night sector
+and the mountains. Inside it, `CaptionedArt` at `size={36}` put the 134 × 256 print at **19
+units wide** next to a 40-character phrase in a flex row, so the footprint read as a smudge
+while the phrase (at the browser default 16px, since `DEDUCTION_CSS`'s `.cv-caption` rule is
+not loaded on this screen) was too large for a correctly-sized bubble.
+
+**Choice**: four rules, all in `ZOO_CSS`.
+
+```
+.cv-zoo-bubble       width: 27%; aspect-ratio: 488/372; left: 39.2%; top: 36%;
+                     transform: translate(-50%, -100%); container-type: inline-size;
+.cv-zoo-bubble > img width: 100%; height: 100%; transform: scaleX(-1);
+     .cv-captioned   position: absolute; left/right 8%; top 14%; height 60%; gap: 4cqw;
+     > svg           width: auto; height: 62%; flex: none;
+     .cv-caption     font-size: 6.4cqw; line-height: 1.16;
+```
+
+**Rationale, one per rule.**
+
+- **`width: 27%`, not px.** ~270 × 206 units, which is the size `docs/12` §3's sketch implies
+  and, crucially, the *same* size at every viewport — the defect was entirely that an
+  intrinsic px size is a fraction of the stage that varies. Verified at 1000 × 600 and at
+  768 × 1024. It lands over the montañas `hit` (x 360-630, y 22-162), which is fine and
+  deliberate: montañas is fogged, so there is no drawn content under it, and the bubble only
+  renders while a sector is newly discovered.
+- **`scaleX(-1)` on the image only.** The tail is **not** at the file's centre — it hangs at
+  ~10% of the width, so a bubble centred on the plaza points at bare grass to the Pulpito's
+  left, which is exactly what the 488px original did. Mirroring the drawn oval (symmetric
+  apart from the tail) moves the tail to ~90% of the width; `left: 39.2%` then lands it on
+  `PLAZA_CENTRE.x` and `top: 36%` rests it on his head at y ≈ 216 instead of covering his
+  face at y ≈ 250. The `CaptionedArt` is a **sibling** of the `<img>`, not a child, so no
+  text is reversed. The consequence, stated rather than hidden: the bubble now covers the
+  right of nocturna and the left of montañas — both fogged — and leaves the **estanque**, the
+  one open sector and the thing the huellas point at, entirely clear. Shifting right instead
+  of mirroring would have put the bubble over the pond.
+- **`container-type: inline-size`.** A caption's `font-size` cannot be a percentage of its
+  parent, so it needs a *length* that tracks the stage. `cqw` against the bubble's own
+  inline size is that length: the bubble is a percent of the stage, so `6.4cqw` is a percent
+  of a percent and needs no px anywhere. `vw` was rejected — the stage is `max-height: 100%`
+  and stops tracking the viewport width once the viewport is wider than 5:3. The precedent
+  for overriding `CaptionedArt`'s px `size` from CSS is `Deduction.tsx`'s own
+  `.cv-captioned > svg { width: auto; height: var(--cv-animal) }`.
+- **`flex: none` on the svg.** This is the rule that stops the print being squeezed to a
+  sliver by the phrase beside it.
+
+The `CaptionedArt` wrapper is **not** optional and was not touched: it is the only component
+allowed to pair a picture with a word outside the rail, its `label` is required at type
+level, and `captionAudit`'s `auditCaptions` (asserted in `App.test.tsx`, falsifiability
+check included) is what enforces it. Only the styling changed. The `size={76}` prop is the
+value the CSS percentage resolves to at a 1000-unit stage, so the server-rendered markup
+already carries the right shape instead of a number the stylesheet silently contradicts.
+
+**One trap, recorded because it cost a red build.** `ZOO_CSS` is a **template literal**. A
+backtick inside a CSS comment in that block ends the string and the file stops parsing. The
+comments in `.cv-zoo-bubble`'s block therefore use no backticks at all, and say so.
 
 ### Decision: the one self-motion is a scoped `<style>` with `@keyframes`
 
@@ -818,12 +914,22 @@ be provably the entry screen before its predecessor disappears.
 
 ## Open Questions
 
-- [ ] Does `PRINT_FACING = −90°` point the toe at the sector? Derived from the file's
-      134 × 256 aspect, not from looking at the art. One constant; settled by S2's screenshot.
-- [ ] Do two fog patches per sector read as fog, or as two ellipses? The construction in §4
-      guarantees coverage, not beauty. If it reads badly the repair is a third patch or a
-      different art index — the containment test stays green either way, which is the whole
-      point of having it.
+- [x] Does `PRINT_FACING = −90°` point the toe at the sector? **Settled by the S2 screenshot:
+      yes.** The prints walk from the plaza to the estanque toe-first, and at the corrected
+      36-unit height the alternation is legible as a track rather than as a dotted line.
+- [x] Do two fog patches per sector read as fog, or as two ellipses? **Settled by the S2
+      screenshot: as two ellipses, and worse — as balloons twice the width of their own
+      sector.** The repair was neither a third patch nor a different art index but a
+      different construction (§4, revised) plus the `FOG_BBOX_SLACK` bound, because the
+      containment test staying green *was* the problem: it was green throughout.
+- [ ] **New, and NOT fixed here.** The fog art's corners are transparent, so a tight grid
+      leaves the drawn sector visible between adjacent blobs — the night sky and two stars
+      show through at nocturna. This is §4's own stated soft-alpha approximation ("its rect
+      over-claims coverage at the corners"), and it is **pre-existing**: the baseline capture
+      shows sky and a star through the old two-balloon fog too. The tight grid exposes
+      somewhat more of it. Raising `FOG_OVERLAP` only trades it back against the spill that
+      was just fixed; closing it properly means offsetting alternate rows (a brick tiling) or
+      a fog silhouette with filled corners. Deferred rather than half-done.
 - [ ] Does `#76B56A` in the letterbox read as continuous with the map's edge at a portrait
       ratio, or as a seam? Measured on all four borders of the PNG; the risk is the crop, not
       the value.
