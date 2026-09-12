@@ -21,10 +21,20 @@ import type { Adventure } from '../zoo/adventures'
    octopus stands at the bottom, the bubble floats above his head, the same
    composition docs/13 section 5 item 1 asks for. flex: none on the
    captioned SVG keeps the animal from being squeezed to a sliver by the
-   phrase beside it, the same override the zoo map's own bubble needed. */
+   phrase beside it, the same override the zoo map's own bubble needed.
+
+   The stage side is clamped by the VIEWPORT HEIGHT as well as its width.
+   A square sized on width alone overflows a landscape viewport: at
+   1000x600 the padding leaves 520 of height, the stage took its full 620,
+   and the octopus — anchored to the stage's bottom — was pushed past the
+   edge with its lower tentacles cut off. Landscape is this app's primary
+   orientation (LevelPlay ships a rotate-your-device hint), so the
+   narrow side has to be the one that decides. 84dvh leaves room for the
+   4 percent padding on both sides; portrait tablets stay width-bound at
+   620 and are unchanged. Verified by capture at 1000x600 and 768x1024. */
 const INTRO_CSS = `
 .cv-intro { height: 100dvh; display: flex; align-items: center; justify-content: center; background-color: ${SHEET_PAPER}; box-sizing: border-box; padding: 4%; }
-.cv-intro-stage { position: relative; width: 100%; max-width: 620px; aspect-ratio: 1 / 1; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; }
+.cv-intro-stage { position: relative; width: min(100%, 620px, 84dvh); aspect-ratio: 1 / 1; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; }
 .cv-intro-octopus { position: absolute; left: 50%; bottom: 2%; width: 44%; height: auto; transform: translateX(-50%); }
 .cv-intro-bubble { position: absolute; left: 50%; top: 4%; width: 82%; transform: translateX(-50%); }
 .cv-intro-bubble > img { display: block; width: 100%; height: auto; }
