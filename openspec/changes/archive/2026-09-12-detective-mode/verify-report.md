@@ -1,3 +1,60 @@
+```yaml
+schema: gentle-ai.verify-result/v1
+evidence_revision: sha256:69f37290c36f5bcf92735f1d759def50dcf81bf032e6008afa5c5c59dfee0f50
+verdict: pass_with_warnings
+blockers: 0
+critical_findings: 0
+requirements: 12/12
+scenarios: 34/34
+test_command: npm test
+test_exit_code: 0
+test_output_hash: sha256:fa4a64d22976f7461dfd65559e35ff220d67b17246f5bd93457d6dd6a8bad4f5
+build_command: npm run build
+build_exit_code: 0
+build_output_hash: sha256:e866af2f8ebc982fda2c5558d259e13b7b715c97001cdc5f5878902969e1f864
+```
+
+> **Envelope provenance — read this before trusting the numbers above.**
+>
+> This envelope was added on 2026-09-12, after the fact, to unblock verify
+> routing. The original verification of `detective-mode` (the prose report
+> below) predates it and was never rewritten; not one word of it was changed.
+>
+> The envelope's command evidence therefore does **not** describe the tree that
+> `detective-mode` originally shipped. `test_command`, `test_exit_code`,
+> `test_output_hash`, `build_command`, `build_exit_code` and
+> `build_output_hash` were produced by running `npm test` and `npm run build`
+> at the repository root on branch `feat/case-registry-and-captions` at commit
+> `fab58e2`, which is many commits ahead of the state the prose report
+> verified. Those runs observed **57 test files / 1042 tests passing** and a
+> clean `tsc --noEmit && vite build`. The prose report below observed **45 test
+> files / 791 tests passing** on `feat/detective-s7-roadmap-doc`. The two sets
+> of numbers are different measurements of different trees, and the envelope
+> claims only the recent one. Nothing here asserts that the historical hashes
+> were recovered — they were not, and they are not recoverable from this
+> report.
+>
+> `evidence_revision` is the SHA-256 of the concatenation, in this order, of
+> `specs/detective-mode/spec.md`, `specs/level-engine/spec.md`,
+> `specs/trace-canvas/spec.md`, `tasks.md`, the captured `npm test` output and
+> the captured `npm run build` output.
+>
+> `requirements: 12/12` counts `### Requirement:` headings across the change's
+> three delta specs (4 in `detective-mode`, 7 in `level-engine`, 1 in
+> `trace-canvas`); all twelve are traced to code and tests in the report below.
+> `scenarios: 34/34` counts `#### Scenario:` headings (10 + 20 + 4). The
+> completed count restates the prose report's own claim that every requirement
+> and scenario traces to real, falsifiable tests; it is not an independent
+> re-derivation. One caveat travels with it: SUGGESTION 2 below records that
+> the covering tests for "Finishing a trail lights the lamp and files the clue"
+> exercise the wiring rather than a full trace → filed-clue path. That is
+> depth of coverage, not an absent test, and the report filed it as a
+> suggestion rather than a compliance gap — but a reader auditing scenario
+> coverage should start there.
+>
+> `verdict: pass_with_warnings` mirrors the report's own tally: 0 CRITICAL,
+> 3 WARNING, 2 SUGGESTION.
+
 # Verify Report: detective-mode
 
 Verified against `feat/detective-s7-roadmap-doc` (chain tip), worktree clean.
