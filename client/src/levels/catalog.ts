@@ -159,13 +159,14 @@ function wordPaths(id: string, chars: string[]): string[] {
 //   trail4    feather / square wave — sharp corners, both clearance rules
 //
 // `demo: true` on every trail (design C1): the shell renders no title, hint
-// or coach text for a detective trail (`LevelPlay.tsx`'s `isDetectiveTrail`
-// branch, already shipped in S3), so the engine's existing pre-attempt route
-// animation is what replaces the written instruction — shown, not written.
+// or coach text in the detective world (`LevelPlay.tsx`'s `inDetectiveWorld`
+// branch, `levels/world.ts`, already shipped in S3), so the engine's existing
+// pre-attempt route animation is what replaces the written instruction —
+// shown, not written.
 //
 // Every trail sets `carrier: true`: that carrier IS the magnifying glass.
-// `LevelPlay.tsx` passes `carrierArt` with the ink glass override for a
-// detective trail, so the shipped sage shape never renders here.
+// `LevelPlay.tsx` passes `carrierArt` with the ink glass override in the
+// detective world, so the shipped sage shape never renders here.
 //
 // These shipped `carrier: false` for one slice, because the override existed
 // on `TraceCanvas` and nothing passed it — the mode's central mechanic was

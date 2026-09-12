@@ -134,6 +134,15 @@ export interface LevelConfig {
    * not tracked by the clue reducer").
    */
   clue?: { kind: ClueKind; spacing: number }
+  /**
+   * Marks this level as DRAWN IN the detective world (grass, mud ink, the
+   * standing octopus, the wordless shell) without making it a case trail
+   * (`levels/world.ts`'s `inDetectiveWorld`). A case trail (`clue` set) is
+   * always in the world regardless of this field — the field can only WIDEN
+   * world membership, never narrow it. Absent/false on every level authored
+   * before this field, so every existing level keeps today's behaviour.
+   */
+  detectiveWorld?: boolean
 }
 
 /** Runtime target derived from a LevelConfig at load time. */

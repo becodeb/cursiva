@@ -257,8 +257,9 @@ describe('detective palette (design.md "Art Direction (revised plan)")', () => {
    * ~26 deg hue.
    *
    * Both guarded a pairing that cannot occur. `LevelPlay.tsx` passes
-   * `inkOnly={isDetectiveTrail}` and `isDetectiveTrail` is `!!level.clue`, so
-   * the only levels that draw a clue mark at all are exactly the levels where
+   * `inkOnly={inDetectiveWorld(level)}` (`levels/world.ts`), and every case
+   * trail is always in the world (`isCaseTrail` implies `inDetectiveWorld`),
+   * so the only levels that draw a clue mark at all are exactly the levels where
    * `TraceCanvas` silhouettes the goal marker and the hazard in ink
    * (`TraceCanvas.tsx:1077,1084,1239`). An earned clue colour and those two
    * accents never share a screen.

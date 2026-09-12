@@ -37,6 +37,7 @@ import { corridorTick, CORRIDOR_TRACK_START, type CorridorTrack } from './corrid
 import { directionArrowOf } from './directionArrow'
 import { goalMarkerOf } from './goalMarker'
 import type { LevelConfig } from '../levels/types'
+import { isCaseTrail, inDetectiveWorld } from '../levels/world'
 import type { LevelAttempt, LevelRecord } from '../game/types'
 // Detective mode (design unit 6, spec: detective-mode "Clue Collection State
 // Machine" / "Trail Completion Lamp and Rail Filing"). A level with no
@@ -630,7 +631,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // (`levels/types.ts`) — its absence means an ordinary level, and every
   // branch below stays a no-op. `f1-libre` omits it on purpose (task 10.5),
   // same as every level authored before this change.
-  const isDetectiveTrail = !!level.clue
+  //
+  // Two predicates from `levels/world.ts` (design.md §1), not one flag: a
+  // case trail (`isCaseTrail`) files clues into the PISTAS rail and routes
+  // to a deduction; being drawn IN the detective world (`inDetectiveWorld`)
+  // is the wider idea — grass, mud ink, the standing octopus, the wordless
+  // shell — that a case trail always implies but that Nivel 3 needs without
+  // implying a case (D1).
+  const isCase = isCaseTrail(level)
+  const inWorld = inDetectiveWorld(level)
   const clueDef = level.clue
   const trailClueMarks = useMemo(
     () =>
@@ -946,7 +955,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       // `widthFactor` and would move the finish line for them — see
       // `trailEndArc`.
       if (
-        isDetectiveTrail &&
+        isCase &&
         !reachedEndRef.current &&
         reachedTrailEnd(corridorSample.track.maxArc, target.length, level.corridorWidth)
       ) {
@@ -974,7 +983,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       restartRun,
       clueDef,
       trailClueMarks,
-      isDetectiveTrail,
+      isCase,
       level.corridorWidth,
     ],
   )
@@ -1094,7 +1103,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // from the level id: the field should be the same field every time this
   // trail is opened.
   const ground = useMemo<TraceGround | undefined>(() => {
-    if (!isDetectiveTrail || !corridor) return undefined
+    if (!inWorld || !corridor) return undefined
     const taper = level.taper
     const halfWidthAt = (t: number): number =>
       (corridor.width * (taper ? taper.from + (taper.to - taper.from) * t : 1)) / 2
@@ -1109,7 +1118,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         art: GROUND_MUD,
       },
     }
-  }, [isDetectiveTrail, corridor, level.taper, target.polyline, target.viewBoxWidth])
+  }, [inWorld, corridor, level.taper, target.polyline, target.viewBoxWidth])
 
   // The rail's slot data. This slice only has visibility into the CURRENT
   // trail — the other three trails' persisted state is wired once the
@@ -1130,36 +1139,36 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           type="button"
           onClick={onBack}
           className="cv-btn cv-btn-back"
-          aria-label={isDetectiveTrail ? 'Volver' : undefined}
+          aria-label={inWorld ? 'Volver' : undefined}
         >
-          {isDetectiveTrail ? <BackIcon /> : '‹ Volver'}
+          {inWorld ? <BackIcon /> : '‹ Volver'}
         </button>
-        {/* No level title on a detective trail (Orchestrator Correction C1:
+        {/* No level title in the detective world (Orchestrator Correction C1:
          * "Hace todo bien grande, bien simple la pantalla, sin texto"). Every
          * other phase keeps this heading exactly as shipped — this is a
          * branch, not a removal. */}
-        {!isDetectiveTrail && (
+        {!inWorld && (
           <h1 className="cv-title">
             Fase {level.phase} · {level.title}
           </h1>
         )}
       </header>
-      {/* The standing hint sentence is also suppressed (C1) — a detective
-       * trail's instruction is SHOWN via `demo` (`TraceCanvas.tsx:747`),
-       * never written. */}
-      {!isDetectiveTrail && <p className="cv-hint">{level.hint}</p>}
+      {/* The standing hint sentence is also suppressed (C1) — a world level's
+       * instruction is SHOWN via `demo` (`TraceCanvas.tsx:747`), never
+       * written. */}
+      {!inWorld && <p className="cv-hint">{level.hint}</p>}
       </div>
       {/* Upright phones are width-limited and rotating really is the fix, so
        * the screen says it plainly and keeps playing (docs/04 §3.3). Also
-       * suppressed on a detective trail — the brief's "sin texto" is literal. */}
-      {!isDetectiveTrail && (
+       * suppressed in the detective world — the brief's "sin texto" is literal. */}
+      {!inWorld && (
         <p className="cv-rotate">Girá el dispositivo para dibujar más grande.</p>
       )}
       {/* PISTAS bar (design unit 5, level-engine spec "PISTAS Rail Chrome"):
        * a horizontal bar across the TOP of the screen, a flex sibling of
        * `.cv-sheet` — never inside the canvas's viewBox. Present only on a
-       * detective trail. */}
-      {isDetectiveTrail && <PistasRail slots={railSlots} lampOn={clueFiled} />}
+       * case trail, never for a world-only level with no clue (D1). */}
+      {isCase && <PistasRail slots={railSlots} lampOn={clueFiled} />}
       <div className="cv-sheet">
       <TraceCanvas
         key={`${level.id}-${demoRun}`}
@@ -1219,7 +1228,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // dot says nothing the octopus does not. Every non-detective level
         // passes nothing and keeps its dot.
         startArt={
-          isDetectiveTrail ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE } : undefined
+          inWorld ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE } : undefined
         }
         // Shown wherever the start dot is shown (docs/03 §3): from phase 3 on,
         // "where the letter ends" is real information, not decoration. At the
@@ -1230,17 +1239,20 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // exactly that, "llegaste", which is a different sentence from the
         // rail's own lamp above (`lampOn={clueFiled}`, "the clue is filed").
         // The two coincide on a finished trail and are not the same statement.
+        // Gated on `isCase`, not `inWorld` — a world-only level has no case
+        // to arrive at, so §5's `goalArt` branch handles it instead.
         endArt={
-          isDetectiveTrail
+          isCase
             ? { ...(trailLampOn ? LAMP_ART.on : LAMP_ART.off), size: LAMP_SIZE }
             : undefined
         }
-        // No arrow on a detective trail. The octopus standing at one end and the
-        // lamp at the other already say "from here to there", and the arrow is
-        // drawn AT the route's first point, so it lands on the octopus's head —
-        // observed on a screenshot. On a letter level there is no character at
-        // the start, so the arrow stays the only thing carrying direction.
-        directionArrow={showMarkers && !isDetectiveTrail ? directionArrow : undefined}
+        // No arrow in the detective world. The octopus standing at one end and
+        // the lamp/goal art at the other already say "from here to there", and
+        // the arrow is drawn AT the route's first point, so it lands on the
+        // octopus's head — observed on a screenshot. On a letter level there
+        // is no character at the start, so the arrow stays the only thing
+        // carrying direction.
+        directionArrow={showMarkers && !inWorld ? directionArrow : undefined}
         completedStrokes={shownStrokes}
         offPath={offPath}
         clearSignal={clearSignal}
@@ -1256,7 +1268,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // the fingertip and this offset plays no part.
         carrier={
           level.carrier && startMarker
-            ? isDetectiveTrail
+            ? inWorld
               ? { x: startMarker.x + GLASS_REST_DX, y: startMarker.y + GLASS_REST_DY }
               : startMarker
             : undefined
@@ -1267,13 +1279,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // own. It is also what keeps CARRIER_COLOR from crowding the
         // feather's PLUME — see the palette suite, which asserts the shipped
         // sage never renders under an override.
-        carrierArt={isDetectiveTrail ? CARRIER_LENS_ART : undefined}
-        inkOnly={isDetectiveTrail}
-        // The child's own line is MUD on a trail (see `MUD_INK`). Only the
+        carrierArt={inWorld ? CARRIER_LENS_ART : undefined}
+        inkOnly={inWorld}
+        // The child's own line is MUD in the world (see `MUD_INK`). Only the
         // trace changes substance: the carrier, the hazards and the silhouetted
         // markers above all stay ink, because they are the world.
-        inkColor={isDetectiveTrail ? MUD_INK : undefined}
-        inkDimColor={isDetectiveTrail ? MUD_INK_DIM : undefined}
+        inkColor={inWorld ? MUD_INK : undefined}
+        inkDimColor={inWorld ? MUD_INK_DIM : undefined}
         // Any bump restarts the run (docs/01 principle 2).
         resetSignal={resetOnContact ? resetSignal : undefined}
         // Clue marks (design unit 4/6). Absent on every level without a
@@ -1289,10 +1301,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       </div>
       <div className="cv-foot">
       {/* Pillars and coach copy (accuracy/direction/fluency readouts, the
-       * restart cue, the standing hint) are all suppressed on a detective
-       * trail (C1: no coach or pillar copy). Every other phase's result
-       * section is untouched. */}
-      {!isDetectiveTrail && (
+       * restart cue, the standing hint) are all suppressed in the detective
+       * world (C1: no coach or pillar copy — and therefore no three stars,
+       * D6). Every other phase's result section is untouched. */}
+      {!inWorld && (
         <section aria-label="Resultado del intento" className="cv-result">
           {attempt ? (
             <>
@@ -1335,25 +1347,25 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           type="button"
           onClick={clearAttempt}
           className="cv-btn"
-          aria-label={isDetectiveTrail ? 'Borrar' : undefined}
+          aria-label={inWorld ? 'Borrar' : undefined}
         >
-          {isDetectiveTrail ? <RetryIcon /> : 'Borrar'}
+          {inWorld ? <RetryIcon /> : 'Borrar'}
         </button>
         {playDemo && (
           <button
             type="button"
             onClick={replayDemo}
             className="cv-btn"
-            aria-label={isDetectiveTrail ? 'Ver de nuevo' : undefined}
+            aria-label={inWorld ? 'Ver de nuevo' : undefined}
           >
-            {isDetectiveTrail ? <ReplayIcon /> : 'Ver de nuevo'}
+            {inWorld ? <ReplayIcon /> : 'Ver de nuevo'}
           </button>
         )}
-        {/* Structurally unreachable on a detective trail anyway — phase 1
+        {/* Structurally unreachable in the detective world anyway — phase 1
          * always resolves `earnedGuideLevel` to 'full' (`guideLevelFor`), so
-         * this never renders for it. Gated on `isDetectiveTrail` too as
-         * belt-and-braces against a future change to that rule. */}
-        {!isDetectiveTrail && level.showGuide && earnedGuideLevel !== 'full' && !guideRequested && (
+         * this never renders for it. Gated on `inWorld` too as belt-and-
+         * braces against a future change to that rule. */}
+        {!inWorld && level.showGuide && earnedGuideLevel !== 'full' && !guideRequested && (
           <button type="button" onClick={() => setGuideRequested(true)} className="cv-btn">
             Ver la guía
           </button>
@@ -1363,9 +1375,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           onClick={onNext}
           disabled={!attempt?.approved}
           className={`cv-btn ${attempt?.approved ? 'cv-btn-ok' : 'cv-btn-off'}`}
-          aria-label={isDetectiveTrail ? 'Siguiente' : undefined}
+          aria-label={inWorld ? 'Siguiente' : undefined}
         >
-          {isDetectiveTrail ? <ContinueIcon /> : 'Siguiente'}
+          {inWorld ? <ContinueIcon /> : 'Siguiente'}
         </button>
       </nav>
       </div>
