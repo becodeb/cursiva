@@ -124,6 +124,8 @@ Tres estrellas, no una nota:
    ★ Fluidez        fue un solo movimiento parejo
 ```
 
+**Las tres estrellas no se muestran en el Nivel 1.** Es una excepción decidida, no un olvido. El Nivel 1 es exploración: el chico limpia un recinto con el brazo entero y descubre que el animal no está. Ahí no se exige precisión fina —la directiva lo dice con todas las letras—, así que puntuar la precisión sería medir algo que el nivel no está pidiendo, y la única lectura posible de una estrella apagada es "te salió mal" en la primera pantalla del juego. La recompensa del Nivel 1 es el recinto que se destapa. A partir del Nivel 2 las tres estrellas vuelven, porque ahí el camino sí tiene bordes y quedarse adentro sí es la tarea.
+
 Y un solo mensaje corto en imperativo positivo. Nunca "mal", nunca rojo, nunca un sonido de error. Cuando falta un pilar, el mensaje nombra **el gesto**, no el fracaso: *"probá sin levantar el dedo"*, *"empezá desde el punto verde"*, *"un poquito más despacio y parejo"*.
 
 ## 8. Qué ve el docente (post-MVP)

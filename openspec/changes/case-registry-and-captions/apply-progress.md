@@ -558,3 +558,21 @@ Both square-wave trails start at `(x0, mid - amplitude)`, and the octopus art is
 drawn from that point outward with no edge inset. Recorded here rather than
 fixed: it is a `TraceCanvas` start-marker concern, outside this change's scope,
 and fixing it silently inside an unrelated slice would hide it.
+
+## Orchestrator correction after the S9 review (2026-09-12)
+
+Two decisions the user took explicitly were not recorded by the docs pass, and
+both are product decisions that later steps depend on. Added here rather than
+deferred, because a decision that lives only in a chat message is a decision
+that gets re-litigated.
+
+- **`docs/01`** — the third enclosure of Nivel 1 is the ducks' pond, with the
+  reason it is not decoration (the Nivel 2 case opens on the duck, so standing
+  in the empty pond first is what makes the first trail a consequence), plus the
+  requirement that its motor action differ from the other two. The paragraph on
+  the `PECES`/`TORTUGAS`/`PATOS` signs and the word-never-alone rule went in
+  beside it, pointing at the audit that enforces it.
+- **`docs/03` §7** — the three Precisión/Sentido/Fluidez stars are not shown in
+  Nivel 1, with the reason: the directive does not ask for fine precision there,
+  so scoring it would measure something the level is not requesting, and an unlit
+  star on the first screen of the game reads as "you did it wrong".
