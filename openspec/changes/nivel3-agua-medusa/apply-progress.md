@@ -1,8 +1,9 @@
 # Apply Progress: nivel3-agua-medusa
 
-Scope of this pass: **Phase 1 only (S1 — world/case predicate split)**, per an
-explicit parent-orchestrator scope fence. Phases 2-8 are untouched and remain
-`[ ]` in `tasks.md`.
+Scope of the first pass: **Phase 1 only (S1 — world/case predicate split)**.
+Scope of this second pass: **Phases 2 and 3 only (S2 — the migration; S3 —
+per-cycle garland geometry)**, per an explicit parent-orchestrator scope
+fence. Phases 4-8 remain untouched and `[ ]` in `tasks.md`.
 
 ## Completed Tasks
 
@@ -131,9 +132,133 @@ Conclusion: **S1 is confirmed behaviour-neutral** for both a case trail and
 an ordinary level, matching the design's stated invariant that
 `inDetectiveWorld ≡ isCaseTrail` while no level sets `detectiveWorld`.
 
-## Status
+## Status (S1 pass)
 
 8/8 Phase 1 tasks complete (1 partial: 1.6's `docs/03:131` line deferred per
-scope fence — see Deviations). Phases 2-8 remain untouched. Ready for the
-next apply batch (Phase 2, S2) or for `sdd-verify` to review S1 alone if the
-orchestrator wants it audited before continuing.
+scope fence — see Deviations). Phases 2-8 remain untouched at the end of this
+pass. Ready for the next apply batch (Phase 2, S2) or for `sdd-verify` to
+review S1 alone if the orchestrator wants it audited before continuing.
+
+---
+
+## Second pass: Phase 2 (S2) and Phase 3 (S3)
+
+Scope fence for this pass: Phases 2 and 3 only. Phase 4 not started; no
+Nivel 3 level added to the catalog; no art; no new `LevelConfig` field; `docs/`
+untouched.
+
+### Completed Tasks — Phase 2 (S2)
+
+- [x] 2.1 Added `NIVEL3_TRAIL_IDS = ['f2-agua2', 'f2-agua3', 'f2-agua4']` to
+  `client/src/game/types.ts`, beside `DUCK_TRAIL_IDS`. Does **not** include
+  `'f2-guirnalda'` — verified by a named test (see 2.3).
+- [x] 2.2 Created `client/src/game/migrateNivel3.ts`: `NIVEL3_PREDECESSOR_ID
+  = 'f2-guirnalda'`, `seedFrom()` copied verbatim from `migrateDuckCase.ts`'s
+  policy, `migrateNivel3(records)` guarded on `f2-guirnalda.approvals >=
+  APPROVALS_TO_UNLOCK`, returns `{}` if any of the three new ids already has
+  a record, never mutates or deletes `f2-guirnalda`'s own entry. Unlike
+  `migrateDuckCase`, there is no pseudo-id to seed (Nivel 3 is not a case),
+  matching design.md §7 exactly.
+- [x] 2.3 Created `client/src/game/migrateNivel3.test.ts` — 8 tests: the
+  named guard (`NIVEL3_TRAIL_IDS.length === 3`, excludes both the literal
+  `'f2-guirnalda'` and the exported `NIVEL3_PREDECESSOR_ID`); idempotent
+  re-run; no write below threshold; no write with no source record; no write
+  when a single destination id already has a record; never mutates the
+  source; never writes outside the three new ids; and the captured-payload
+  scenario (`f2-guirnalda` approved plus an existing `f2-colinas` record)
+  proving every new id inherits `approvals === APPROVALS_TO_UNLOCK` and
+  `f2-colinas`'s own record is untouched.
+- [x] 2.4 Wired `migrateNivel3` into `client/src/game/openProgressStore.ts`'s
+  migration array as a third entry.
+- [x] 2.5 `npm test` and `npm run build` green — see Work Unit Evidence.
+
+### Completed Tasks — Phase 3 (S3)
+
+- [x] 3.1 Added `GarlandCycle` interface and `garlandVaried(o)` to
+  `client/src/levels/paths.ts`, directly beside `garland`. Verified the cubic
+  is IDENTICAL to `garland`'s (same 15%/85% control placement, same `move`
+  start, same `cy` formula restated in per-cycle terms) by a test asserting
+  string equality between a uniform-cycles `garlandVaried` call and
+  `garland()`'s own output — not merely visual similarity.
+- [x] 3.2 Added `uTurnRadius(width, depth)` to `client/src/levels/paths.ts`.
+  **Independently re-derived the closed form before trusting it** (see
+  "uTurnRadius derivation, checked" below) — confirms
+  `(1.275·w)² / (8·depth)` exactly, matching design.md §2 with no
+  correction needed.
+- [x] 3.3 Exported `BAND_INSET` from `client/src/levels/buildLevel.ts:38`
+  (added the `export` keyword only — no other line in `buildLevel.ts`
+  touched, per design's own ruling that checkpoints and the ideal band hold
+  unconditionally for non-uniform paths).
+- [x] 3.4 Updated `client/src/levels/paths.test.ts`: added `garlandVaried` to
+  the shared-contract `GENERATORS` registry (not only a bespoke suite); a
+  dedicated `describe('garlandVaried', …)` with the string-equality
+  reproduction test, an M/C-only emission test, a per-cycle `t = ½` point
+  test (uses the curve's own `t → 1−t` / `x → w−x` symmetry to locate the
+  point by X rather than root-finding), and a single-cycle-default sanity
+  check; a dedicated `describe('uTurnRadius', …)` reproducing the shipped
+  `f2-guirnalda` value (43.9) and asserting the band predicate for every
+  garland/hills level (shipped + all four Nivel 3 desafíos) using widths/
+  depths derived from each level's own generator call (not the design
+  table's rounded literals) plus the design's own `corridorWidth` numbers —
+  since the catalog does not carry these levels yet. Also asserts the
+  worst-case margin equals 4.5 (desafío 3's `{165, 170}` cycle) to the
+  precision the design records.
+- [x] 3.5 `npm test` and `npm run build` green — see Work Unit Evidence.
+
+### `uTurnRadius` derivation, checked independently
+
+Re-derived from the generator's own cubic rather than trusting design.md's
+closed form on faith, as the launch prompt required.
+
+Setting up one cycle in local coordinates (`yTop = 0`, cycle width `w`,
+depth `depth`): `P0 = (0,0)`, `P1 = (0.15w, cy)`, `P2 = (0.85w, cy)`,
+`P3 = (w, 0)`, with `cy = 4·depth/3` (from `(4·yBottom − yTop)/3` with
+`yTop=0`, `yBottom=depth`).
+
+- `y(t) = 3·cy·t·(1−t)` (both control points share the same `y`), so
+  `y(0.5) = 0.75·cy = depth` — confirms the midpoint claim.
+- Standard cubic Bézier first derivative at `t=0.5`:
+  `B'(0.5) = 0.75·(P1−P0) + 1.5·(P2−P1) + 0.75·(P3−P2)`. Substituting gives
+  `x' = 1.275w`, `y' = 0` exactly — matches design.md's stated values.
+- Second derivative at `t=0.5`: `B''(0.5) = 3·(P0 + P3 − P1 − P2)`.
+  Substituting gives `x'' = 0`, `y'' = −6·cy = −8·depth` exactly — matches
+  design.md's stated values.
+- Curvature with `y'=0, x''=0`: `κ = |x'·y''| / |x'|³ = 8·depth / (1.275w)²`,
+  so the radius of curvature `1/κ = (1.275w)² / (8·depth)` — **exactly**
+  design.md's `uTurnRadius` formula. No correction was needed.
+- Cross-checked two numeric table entries by hand: `uTurnRadius(180, 150) =
+  (229.5)² / 1200 = 43.89…` ≈ 43.9 (matches design's `f2-guirnalda` row
+  exactly); of desafío 3's five cycles `{180,180}, {130,95}, {195,200},
+  {140,110}, {165,170}`, computing `uTurnRadius` for each gives
+  `36.58, 36.15, 38.63, 36.21, 32.54` — the `{165, 170}` cycle is indeed the
+  worst, at `32.54`, and `32.54 − (68/2 − 6) = 4.54 ≈ 4.5`, matching
+  design.md's stated worst-case margin exactly.
+
+### Deviations from Design
+
+None in Phases 2-3. `migrateNivel3.ts` matches design.md §7 verbatim (module
+doc comment restructured slightly for this repo's comment style, no
+behavioural difference). `garlandVaried`/`uTurnRadius` match design.md §2's
+signatures and formulas exactly; `BAND_INSET` export is the only change to
+`buildLevel.ts`.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result (S2) | `npm test -- migrateNivel3` → 1 file, 8 tests, all passed |
+| Focused test command and exact result (S3) | `npm test -- paths` → 1 file, 108 tests, all passed |
+| Full suite after S2 | `npm test` → 60 files, 1093 tests, all passed (baseline 59/1085 + 8 new `migrateNivel3.test.ts` tests) |
+| Full suite after S3 | `npm test` → 60 files, 1103 tests, all passed (1093 + 10 new `paths.test.ts` tests: 4 `garlandVaried` + 2 `uTurnRadius` + the `garlandVaried` shared-contract block's 4 generic checks) |
+| Build (both slices) | `npm run build` (`tsc --noEmit && vite build`) → 0 TypeScript errors, build succeeded both times |
+| Runtime harness command/scenario and exact result | N/A for both slices — pure store logic (S2) and pure geometry unused by any level until S7 (S3); no new render surface exists yet, as tasks.md itself states for both slices |
+| Rollback boundary (S2) | Delete `client/src/game/migrateNivel3.ts` + `.test.ts`; revert the third array entry in `openProgressStore.ts` and the `NIVEL3_TRAIL_IDS` export in `types.ts`. Seeded records (if any ever exist from this code path) are tolerated by the store either way — nothing reads them until S7. |
+| Rollback boundary (S3) | Delete the `GarlandCycle`/`garlandVaried`/`uTurnRadius` block in `paths.ts`, the `export` keyword on `BAND_INSET`, and the corresponding `paths.test.ts` additions. Fully additive: unused by any shipped level until S7. |
+
+### Status (this pass)
+
+13/13 assigned tasks complete (2.1-2.5, 3.1-3.5, plus this progress record).
+Phases 4-8 remain untouched. Baseline for the next pass: 60 files / 1103
+tests, `npm run build` green. Ready for the next apply batch (Phase 4, S4)
+or for `sdd-verify` to review S2-S3 if the orchestrator wants them audited
+before continuing.
