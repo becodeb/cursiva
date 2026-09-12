@@ -335,6 +335,70 @@ export function wave(
   return alternatingArches(x0, x1, y, amplitude, cycles, true)
 }
 
+/** One cycle of a varied wave ({@link waveVaried}). */
+export interface WaveCycle {
+  /** Horizontal span of this FULL cycle — crest AND trough — in viewBox units. */
+  width: number
+  /** How far this cycle's extrema sit from the centreline, in viewBox units. */
+  amplitude: number
+}
+
+/**
+ * `detective-mode` duck trail 3 — a wave whose AMPLITUDE varies per cycle
+ * ("variación de amplitud", `docs/13` §2), the per-cycle sibling of
+ * {@link garlandVaried}: same accumulate-`x` loop, same `M`/`C`-only
+ * alphabet, same crest-then-trough construction as {@link alternatingArches},
+ * restated per cycle instead of once for the whole route.
+ *
+ * A uniform `cycles` list — every entry sharing `wave`'s own half-width and
+ * amplitude — MUST reproduce `wave`'s `d` string byte for byte (the same
+ * proof `garlandVaried` already carries): the two constructions agree
+ * exactly on those literals, and `r2`'s 2-decimal rounding is what absorbs
+ * the difference in general.
+ *
+ * With per-cycle widths, `wave`'s `x1` and single `amplitude` stop meaning
+ * anything — the span is the SUM of the widths — so this is a separate
+ * generator rather than a widened `wave` (design.md §1). Consecutive cycles
+ * of DIFFERING amplitude meet at a real kink (C1 continuity holds only
+ * within a cycle, where `off' = −off`); that kink is accepted and named at
+ * the call site, not hidden here.
+ */
+export function waveVaried(
+  o: { x0?: number; y?: number; cycles?: readonly WaveCycle[] } = {},
+): string {
+  const x0 = o.x0 ?? 120
+  const y = o.y ?? 300
+  const cycles = o.cycles?.length ? o.cycles : [{ width: 380, amplitude: 170 }]
+  let x = x0
+  let d = move(x, y)
+  for (const c of cycles) {
+    const w = Math.max(1, c.width) / 2 // one HALF-arch
+    const arm = (c.amplitude * 4) / 3 // `alternatingArches`'s own offset
+    // Crest first, then trough — `wave`'s `firstHalfUp`, restated per cycle so
+    // the hand always leaves a cycle going UP and the family never inverts
+    // mid-route.
+    for (const off of [-arm, arm]) {
+      d += cubic(x + w / 3, y + off, x + (2 * w) / 3, y + off, x + w, y)
+      x += w
+    }
+  }
+  return d
+}
+
+/**
+ * Radius of curvature at a {@link waveVaried}/`wave` crest, in viewBox units:
+ * `alternatingArches`'s cubic has `x(t) = sx + w·t` exactly and
+ * `y(t) = mid + 3·off·t·(1−t)` with `off = 4A/3`, so at the crest (`t = ½`)
+ * `x' = w`, `x'' = 0`, `y' = 0`, `|y''| = 6|off| = 8A`, giving
+ * `κ = 8A/w²` and `R = w²/(8A)` (design.md §2). This is NOT
+ * {@link uTurnRadius}'s formula — `garland`'s control points sit at 15%/85%
+ * of the cycle (`x'(½) = 1.275w`), while the wave's sit at 1/3 and 2/3
+ * (`x'(½) = w` exactly) — two generators, two closed forms.
+ */
+export function waveCrestRadius(halfWidth: number, amplitude: number): number {
+  return halfWidth ** 2 / (8 * amplitude)
+}
+
 /**
  * Corner-clearance closed form (`detective-mode` design, "corner clearance is
  * one pure closed-form helper"): a ROUNDED join (`strokeLinejoin="round"`)

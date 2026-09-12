@@ -29,6 +29,7 @@ import {
   transformPath,
   triangularWave,
   wave,
+  waveVaried,
 } from './paths'
 import type { LevelConfig, LevelFeedback, LevelRules, Phase } from './types'
 
@@ -209,12 +210,16 @@ const PHASE_1: LevelConfig[] = [
   // child's positional unlock of `trail1..4` across this insertion — it
   // must ship before these four levels do (Ordering Summary, S1 before S2).
   //
-  //   duck-trail1  webfoot / broad wave, one cycle — the pond's edge
-  //   duck-trail2  breadcrumb / wave, two cycles
-  //   duck-trail3  bubble / garland — the one duck trail whose whole point
-  //                is one unbroken stroke, like trail2's spiral
-  //   duck-trail4  feather / square wave, sharp corners — both clearance
-  //                rules (cornerClearance, armClearance) hold at w=70
+  // The four are one undulation family (`docs/13` §2, duck-undulations design
+  // §1): amplitude, then repetition, then per-cycle variation, then a
+  // narrowing corridor — never a shape that belongs to another animal
+  // (`docs/13` §4: the spiral is the snail's, the square/triangular shapes
+  // are the sheep's).
+  //
+  //   duck-trail1  webfoot / one broad cycle — the pond's edge
+  //   duck-trail2  breadcrumb / two cycles
+  //   duck-trail3  bubble / two cycles with per-cycle amplitude variation
+  //   duck-trail4  feather / three cycles, tapered narrower
   // ───────────────────────────────────────────────────────────────────────
   {
     id: 'duck-trail1',
@@ -267,41 +272,35 @@ const PHASE_1: LevelConfig[] = [
   {
     id: 'duck-trail3',
     phase: 1,
-    title: 'La vuelta de las burbujas',
-    hint: 'Seguí hasta el fondo, dá la vuelta y volvé.',
+    title: 'Las burbujas suben y bajan',
+    hint: 'Seguí las burbujas: unas ondas son más grandes.',
     kind: 'path',
     surface: 'blank',
     maze: true,
     resetOnContact: true,
     carrier: true,
     feedback: feedback(0, false),
-    // [deviation from design.md §3's literal `garland({ cycles: 3 })`, and
-    // from the first implementation of this level]
-    //
-    // Three reasons, and the first is the one that matters.
-    //
-    // 1. A garland IS the row of U's, and the row of U's is the SIGNATURE of
-    //    the directive's Nivel 3 — the jellyfish that swims away. Spending it
-    //    here flattens that level before it ships. This is the same ruling
-    //    that kept a timed obstacle off every duck trail (proposal D1): a
-    //    later level's mechanic is not free decoration for an earlier one.
-    // 2. `garland`'s cusps put two consecutive clue marks within ~20 units of
-    //    each other where the arcs nearly meet, and a bubble is a fat round
-    //    28-unit mark. Measured on a render: they overlapped into one blob.
-    //    A switchback has no cusp, so consecutive marks stay apart.
-    // 3. Clearing the "phase 1 uses the whole blank sheet" guard by pushing
-    //    `yTop` to 110 put the route's FIRST POINT so high that the octopus
-    //    and its glass — which stand at that point — were clipped by the top
-    //    of the sheet. `yTop: 140` is where `trail4` already starts safely.
-    //
-    // A switchback is also the shape the directive actually asks Nivel 2 for:
-    // "laberintos". One long run, one reversal, one long run back.
-    paths: [switchback({ x0: 120, x1: 880, yTop: 140, yBottom: 480 })],
+    // Step 3 of the undulation family (`docs/13` §2, "variación de
+    // amplitud"): two cycles of differing amplitude via `waveVaried`, the
+    // one thing a plain `wave` cannot express (one global amplitude only).
+    // The two cycles meet at a real 8.71° kink (C1 holds within a cycle, not
+    // across one of differing amplitude) — accepted, not hidden: making it
+    // zero would force the amplitude constant, which is exactly the
+    // variation this step exists to introduce (design.md §1).
+    paths: [
+      waveVaried({
+        x0: 90,
+        y: 300,
+        cycles: [
+          { width: 470, amplitude: 155 },
+          { width: 350, amplitude: 205 },
+        ],
+      }),
+    ],
     corridorWidth: 80,
-    // The reversal's whole point is one unbroken stroke — same reason
-    // `trail2`'s spiral does — so it is the one duck trail requiring
-    // continuity.
-    rules: rules(1, true, true, 0),
+    // The switchback's reversal was the only thing that justified continuity
+    // here; with no reversal it aligns with its three undulation siblings.
+    rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -311,22 +310,22 @@ const PHASE_1: LevelConfig[] = [
     id: 'duck-trail4',
     phase: 1,
     title: 'El rastro de plumas',
-    hint: 'Seguí el rastro, esquina por esquina.',
+    hint: 'Seguí el rastro de plumas, el camino se angosta.',
     kind: 'path',
     surface: 'blank',
     maze: true,
-    taper: { from: 1.15, to: 0.9 },
+    // `{from: 1, to: 0.85}` against `corridorWidth: 70` keeps this step
+    // narrower than step 3's fixed 80 along its ENTIRE length: `1.15` would
+    // have started it at 80.5, wider than step 3 at one end.
+    taper: { from: 1, to: 0.85 },
     resetOnContact: true,
     carrier: true,
     feedback: feedback(0, false),
-    // [deviation from design.md §3's literal `amplitude: 140`] 140 draws a
-    // vertical span of exactly 280 — the same pre-existing "phase 1 uses the
-    // whole blank sheet" shortfall `duck-trail1` and `duck-trail3` also hit.
-    // Widened to 170 (span 340, clears the guard); `cornerClearance` depends
-    // only on `run`/`corridorWidth` and `armClearance` only gets MORE true as
-    // amplitude grows, so design.md §3's arithmetic conclusion (both guards
-    // hold) is unaffected — only its literal worked numbers go stale.
-    paths: [squareWave({ x0: 100, mid: 300, amplitude: 170, run: 200, cycles: 3 })],
+    // Step 4 of the undulation family: the most cycles (three) AND the
+    // tightest, narrowing corridor — the directive's progression
+    // accumulates, so the last step keeps everything before it and adds the
+    // final demand.
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 3 })],
     corridorWidth: 70,
     rules: rules(1, false, true, 0),
     showGuide: true,

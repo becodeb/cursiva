@@ -4,7 +4,7 @@ import type { Point } from '../letters/types'
 import { MAX_CORRIDOR, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget } from './buildLevel'
 import { LEGACY_PHASE_1, LEVELS, getLevel } from './catalog'
 import { flattenPathD } from '../letters/svgLetter'
-import { straight, wave } from './paths'
+import { straight, wave, waveCrestRadius } from './paths'
 import type { LevelConfig } from './types'
 
 /**
@@ -397,5 +397,59 @@ describe('buildLevelTarget — el sendero se estrecha', () => {
     const secondary = target.ideal.slice(600 * 3)
     const centre = flattenPathD(target.paths[1]).points
     expect(maxBandOffset(secondary, centre)).toBeCloseTo(44, 0)
+  })
+})
+
+describe('buildLevelTarget — pushBand containment on wave crests (design.md §2)', () => {
+  // `band = max(MIN_BAND, corridorWidth/2 − BAND_INSET)` is `pushBand`'s own
+  // containment bound (buildLevel.ts:160): every point it pushes sits at
+  // distance exactly `half ≤ band` from a point ON the centreline, so the
+  // ideal cloud can never leave the drawn channel, folded or not, at any
+  // curvature, on any generator (design.md §2's proof, not measured per-case).
+  function nominalBand(level: LevelConfig): number {
+    const band = Math.max(4, level.corridorWidth / 2 - 6)
+    // `pushBand` scales `band` by `taper.from ↔ taper.to` along the route
+    // (buildLevel.ts:74-76), so the widest point the ideal cloud ever reaches
+    // is `band × max(from, to)`, not the untapered nominal value.
+    const factor = level.taper ? Math.max(level.taper.from, level.taper.to) : 1
+    return band * factor
+  }
+
+  it('keeps every catalog level with a corridor inside its own band, folded or not', () => {
+    for (const level of LEVELS) {
+      if (level.kind !== 'path' || level.paths.length === 0) continue
+      const target = buildLevelTarget(level)
+      if (target.ideal.length === 0) continue
+      const band = nominalBand(level)
+      // `target.ideal` is pushed off a RESAMPLED centreline while
+      // `target.polyline` is the raw flattened one, so a hair of
+      // discretization error (< 0.1 unit, measured) separates the two
+      // representations of the same curve — the mathematical bound itself is
+      // exact against the continuous centreline (design.md §2).
+      expect(maxBandOffset(target.ideal, target.polyline), level.id).toBeLessThanOrEqual(band + 0.1)
+    }
+  })
+
+  it('is TIGHT, not vacuous: the same predicate at band − 1 fails for duck-trail2', () => {
+    const level = getLevel('duck-trail2')
+    const target = buildLevelTarget(level)
+    const band = nominalBand(level)
+    expect(maxBandOffset(target.ideal, target.polyline)).toBeGreaterThan(band - 1)
+  })
+
+  it('records which duck crests fold and which do not (design.md §2 table)', () => {
+    // A crest folds when its radius of curvature R = w²/(8A) is UNDER the
+    // band — `pushBand`'s fixed ±half offset then folds through itself on
+    // the crest's concave side.
+    const cases: ReadonlyArray<{ label: string; R: number; band: number; folds: boolean }> = [
+      { label: 'step 1 (duck-trail1)', R: waveCrestRadius(410, 170), band: 100 / 2 - 6, folds: false },
+      { label: 'step 2 (duck-trail2)', R: waveCrestRadius(205, 170), band: 90 / 2 - 6, folds: true },
+      { label: 'step 3 cycle 1', R: waveCrestRadius(235, 155), band: 80 / 2 - 6, folds: false },
+      { label: 'step 3 cycle 2', R: waveCrestRadius(175, 205), band: 80 / 2 - 6, folds: true },
+      { label: 'step 4 (duck-trail4)', R: waveCrestRadius(410 / 3, 170), band: 70 / 2 - 6, folds: true },
+    ]
+    for (const c of cases) {
+      expect(c.R < c.band, c.label).toBe(c.folds)
+    }
   })
 })

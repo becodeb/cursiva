@@ -23,6 +23,8 @@ import {
   triangularWave,
   uTurnRadius,
   wave,
+  waveCrestRadius,
+  waveVaried,
 } from './paths'
 
 /** Flatten a generated `d` and fail loudly if it degenerates to nothing. */
@@ -562,6 +564,66 @@ describe('crests', () => {
     const points = poly(crests())
     expect(points[0].y).toBeCloseTo(310, 6)
     expect(points[3].y).toBeLessThan(points[0].y)
+  })
+})
+
+describe('waveVaried', () => {
+  it('emits only M and C (level-engine spec: Non-uniform cycles still emit only M/C)', () => {
+    const commands = new Set(
+      waveVaried({
+        cycles: [
+          { width: 470, amplitude: 155 },
+          { width: 350, amplitude: 205 },
+        ],
+      }).match(/[A-Za-z]/g),
+    )
+    expect(commands).toEqual(new Set(['M', 'C']))
+  })
+
+  it('is rejected by transformPath when a non-M/L/C command is injected', () => {
+    expect(() =>
+      transformPath(`${waveVaried({ cycles: [{ width: 380, amplitude: 170 }] })} A 1 1 0 0 1 10 10`),
+    ).toThrow('comando no soportado')
+  })
+
+  it("reproduces wave's exact d string for a uniform cycles list (proof nothing was re-derived)", () => {
+    const uniform = waveVaried({
+      x0: 120,
+      cycles: [
+        { width: 380, amplitude: 170 },
+        { width: 380, amplitude: 170 },
+      ],
+    })
+    expect(uniform).toBe(wave({ x0: 120, x1: 880, cycles: 2 }))
+  })
+
+  it('lands each cycle\'s extrema exactly at y ∓ amplitude, even with differing widths/amplitudes', () => {
+    const cycles = [
+      { width: 470, amplitude: 155 },
+      { width: 350, amplitude: 205 },
+    ]
+    const points = poly(waveVaried({ x0: 90, y: 300, cycles }))
+    const cycle1 = points.filter((p) => p.x <= 90 + 470 + 1e-6)
+    const cycle2 = points.filter((p) => p.x >= 90 + 470 - 1e-6)
+    expect(Math.min(...cycle1.map((p) => p.y))).toBeCloseTo(300 - 155, 1)
+    expect(Math.max(...cycle1.map((p) => p.y))).toBeCloseTo(300 + 155, 1)
+    expect(Math.min(...cycle2.map((p) => p.y))).toBeCloseTo(300 - 205, 1)
+    expect(Math.max(...cycle2.map((p) => p.y))).toBeCloseTo(300 + 205, 1)
+  })
+
+  it('starts its first extremum ABOVE y (writing direction, matching wave)', () => {
+    const points = poly(waveVaried({ x0: 90, y: 300, cycles: [{ width: 470, amplitude: 155 }] }))
+    expect(points[3].y).toBeLessThan(points[0].y)
+  })
+})
+
+describe('waveCrestRadius', () => {
+  it('reproduces w²/8A on the four duck literals (design.md §2 table)', () => {
+    expect(waveCrestRadius(410, 170)).toBeCloseTo(123.6, 1) // duck-trail1
+    expect(waveCrestRadius(205, 170)).toBeCloseTo(30.9, 1) // duck-trail2
+    expect(waveCrestRadius(235, 155)).toBeCloseTo(44.54, 1) // duck-trail3 cycle 1
+    expect(waveCrestRadius(175, 205)).toBeCloseTo(18.67, 1) // duck-trail3 cycle 2
+    expect(waveCrestRadius(410 / 3, 170)).toBeCloseTo(13.73, 1) // duck-trail4
   })
 })
 

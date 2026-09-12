@@ -444,6 +444,71 @@ describe('LEVELS — phase 1 uses the whole blank sheet', () => {
   })
 })
 
+describe('LEVELS — the duck adventure is one undulation family', () => {
+  // Restated from each duck level's own catalog literals (design.md §1's
+  // table), not re-derived from geometry — this pins the AUTHORED progression,
+  // not just an emergent property of whatever shape happens to be there.
+  const PEAK_SLOPE_INPUTS: ReadonlyArray<{ id: string; halfWidth: number; amplitude: number }> = [
+    { id: 'duck-trail1', halfWidth: (910 - 90) / 2, amplitude: 170 },
+    { id: 'duck-trail2', halfWidth: (910 - 90) / (2 * 2), amplitude: 170 },
+    // duck-trail3's tighter, higher second cycle is the one that sets its
+    // peak slope (waveVaried's cycles differ; the family compares its worst).
+    { id: 'duck-trail3', halfWidth: 350 / 2, amplitude: 205 },
+    { id: 'duck-trail4', halfWidth: (910 - 90) / (2 * 3), amplitude: 170 },
+  ]
+
+  it('gives every duck level exactly one M/C-only path (no switchback, no square wave)', () => {
+    for (const id of DUCK_TRAIL_IDS) {
+      const level = getLevel(id)
+      expect(level.paths, id).toHaveLength(1)
+      const commands = new Set(level.paths[0].match(/[A-Za-z]/g))
+      for (const c of commands) expect(['M', 'C'], id).toContain(c)
+    }
+  })
+
+  it('increases peak slope (4A/halfWidth) strictly across the four steps', () => {
+    const slopes = PEAK_SLOPE_INPUTS.map(({ halfWidth, amplitude }) =>
+      (4 * amplitude) / halfWidth,
+    )
+    expect(slopes[0]).toBeCloseTo(1.66, 2)
+    expect(slopes[1]).toBeCloseTo(3.32, 2)
+    expect(slopes[2]).toBeCloseTo(4.69, 2)
+    expect(slopes[3]).toBeCloseTo(4.98, 2)
+    for (let i = 1; i < slopes.length; i++) expect(slopes[i]).toBeGreaterThan(slopes[i - 1])
+  })
+
+  it('decreases corridorWidth strictly across the four steps: 100 → 90 → 80 → 70', () => {
+    const widths = DUCK_TRAIL_IDS.map((id) => getLevel(id).corridorWidth)
+    expect(widths).toEqual([100, 90, 80, 70])
+    for (let i = 1; i < widths.length; i++) expect(widths[i]).toBeLessThan(widths[i - 1])
+  })
+
+  it('keeps duck-trail4 narrower than duck-trail3 along its whole tapered length', () => {
+    const trail3 = getLevel('duck-trail3').corridorWidth // 80, fixed (no taper)
+    const trail4 = getLevel('duck-trail4')
+    const { from, to } = trail4.taper ?? { from: 1, to: 1 }
+    expect(trail4.corridorWidth * from).toBeLessThanOrEqual(trail3)
+    expect(trail4.corridorWidth * to).toBeLessThan(trail3)
+  })
+
+  it("keeps duck-trail3's two crest depths at least 40 units apart (the variation is real)", () => {
+    const target = buildLevelTarget(getLevel('duck-trail3'))
+    // Cycle 1 (width 470, amplitude 155) starts at x0=90 and spans to x=560;
+    // cycle 2 (width 350, amplitude 205) covers the rest — the two crest
+    // depths are the furthest-from-centreline points of each half.
+    const boundaryX = 90 + 470
+    const firstHalf = target.polyline.filter((p) => p.x < boundaryX)
+    const secondHalf = target.polyline.filter((p) => p.x >= boundaryX)
+    const depth1 = Math.max(...firstHalf.map((p) => Math.abs(p.y - 300)))
+    const depth2 = Math.max(...secondHalf.map((p) => Math.abs(p.y - 300)))
+    expect(Math.abs(depth2 - depth1)).toBeGreaterThanOrEqual(40)
+  })
+
+  it('drops mustBeContinuous on all four duck levels', () => {
+    for (const id of DUCK_TRAIL_IDS) expect(getLevel(id).rules.mustBeContinuous, id).toBe(false)
+  })
+})
+
 describe('LEVELS — every path is engine-ready', () => {
   it('has non-empty paths that flatten into a real polyline', () => {
     for (const level of LEVELS) {
@@ -684,20 +749,6 @@ describe('detective-mode — square-wave corner constraint on the real trail 4 c
     // first flat run and the first vertical transition directly from the
     // real polyline — rather than re-typing `run`/`amplitude` — means a
     // future edit to trail 4's geometry is what this test actually checks.
-    const [p0, p1, p2] = target.polyline
-    expect(p0.y).toBeCloseTo(p1.y) // p0→p1 is the flat top run
-    expect(p1.x).toBeCloseTo(p2.x) // p1→p2 is the vertical transition
-    const run = Math.abs(p1.x - p0.x)
-    const amplitude = Math.abs(p2.y - p1.y) / 2
-    expect(cornerClearance(run, 90, level.corridorWidth)).toBe(true)
-    expect(armClearance(amplitude, level.corridorWidth)).toBe(true)
-  })
-})
-
-describe('detective-mode — duck-trail4 clears the corner and arm guards at its narrower width', () => {
-  it('satisfies both cornerClearance and armClearance measured from the shipped path (design.md §3)', () => {
-    const level = getLevel('duck-trail4')
-    const target = buildLevelTarget(level)
     const [p0, p1, p2] = target.polyline
     expect(p0.y).toBeCloseTo(p1.y) // p0→p1 is the flat top run
     expect(p1.x).toBeCloseTo(p2.x) // p1→p2 is the vertical transition
