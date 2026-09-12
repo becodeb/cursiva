@@ -33,12 +33,12 @@ MVP validó la mecánica con 19 niveles repartidos en corredores sin tema
 Los seis originales siguen en el repo, sin cablear, en `LEGACY_PHASE_1`
 (`levels/catalog.ts`) — es el plan de reversión completo, no basura.
 
-21 niveles activos:
+24 niveles activos:
 
 - **Nivel 1** — Exploración (Fase 1 en el código, 1): `f1-libre`, el garabato libre re-temado como la página de apertura del caso — sin pista propia.
 - **Nivel 2** — Laberintos, rastros y casos (Fase 1 en el código, 8): dos casos de cuatro rastros cada uno. Caso del **pato** (`duck-trail1`..`duck-trail4`, tres opciones al cerrar: pato/vaca/gato) y caso de la **gallina** (`trail1`..`trail4`, cuatro opciones: gallina/pato/vaca/gato).
-- **Nivel 3** — Agua, medusa y U (Fase 2 en el código, 1 de 4): `f2-guirnalda`.
-- **Nivel 4** — Montañas y ovejas (Fase 2 en el código, 3 de 4): `f2-colinas` · `f2-bucles` (transición explícitamente flagueada — ya es una letra, la `l`, no una U ni una montaña) · `f2-crestas`.
+- **Nivel 3** — Agua, medusa y U (Fase 2 en el código, 4 de 7): `f2-guirnalda` · `f2-agua2` · `f2-agua3` · `f2-agua4`. Cuatro desafíos de la misma familia de movimiento —bajar y subir sin levantar el dedo—, con el canal angostándose y la medusa esperando siempre en la meta; `f2-agua3` varía tamaño y distancia de U en un mismo camino y `f2-agua4` vuelve a la geometría ancha del primero y agrega una estrella de mar que cruza el corredor. Nivel 3 vive en el mundo del detective (pasto, tierra pisada, el pulpo con la lupa) pero no es un caso: sin pista, sin riel, sin deducción (`docs/03` §7).
+- **Nivel 4** — Montañas y ovejas (Fase 2 en el código, 3 de 7): `f2-colinas` · `f2-bucles` (transición explícitamente flagueada — ya es una letra, la `l`, no una U ni una montaña) · `f2-crestas`.
 - **Nivel 5** — Grafema aislado (Fase 3 en el código, 4): `f3-l` · `f3-a` · `f3-m` · `f3-o` — una por familia de movimiento.
 - **Nivel 6** — Enlace y ligadura (Fase 4 en el código, 2): `f4-la` · `f4-ma`.
 - **Nivel 7** — Palabra y automatización (Fase 5 en el código, 2): `f5-ala` · `f5-mama` (esta última **sin guía**).

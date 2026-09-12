@@ -178,13 +178,50 @@ redondeo: `palette.test.ts` afirma bandas de matiz y croma contra
 recoloreo vive en una tabla auditable de `build_art.py`, no en un editor
 de imágenes.
 
-**Tres excepciones, y sus razones.**
+**Cuatro excepciones, y sus razones.**
 
 1. **Los cuatro animales** conservan su color dibujado. En la pantalla de
    deducción el animal ES la respuesta; ahí el color no decora, informa.
 2. **El pulpo y la lupa** conservan el suyo. Son la presencia del chico
    en el mundo, lo único vivo en pantalla, y están siempre visibles.
 3. **El suelo tiene color, pero apagado.** Ver sección 7.
+4. **Las criaturas del Nivel 3 (la medusa y la estrella de mar) conservan
+   su relleno**, con la misma razón que el punto 1: son seres vivos en el
+   mundo, no una pista, y ninguna de las dos aparece nunca al lado de una
+   marca de pista.
+
+   Acá la regla necesitó una tercera vía, y se descubrió por las malas la
+   tercera vez en este mismo cambio: `medusa.png` y `estrella de mar.png`
+   traían un contorno azul marino (croma ≈118 y ≈122 sobre 255) contra el
+   `ART_OUTLINE` acromático de todo el resto del mundo dibujado — diez
+   veces más saturado que el defecto del pasto (`#19241c`, croma 11) que
+   ya está documentado más abajo. `build_art.py` distingue ahora tres
+   clases de arte, no dos:
+   - **Recoloreado a un token de la paleta** (las pistas, la lamparita):
+     pasa por `recolour()`, un color plano por marca.
+   - **Relleno dibujado, contorno del mundo** (las props del mundo
+     dibujado paradas sobre la hoja, como la medusa y la estrella de
+     mar): pasa por el tercer modo del pipeline, `recontour`, que manda
+     sólo los píxeles del CONTORNO a `INK` y no toca ningún relleno. No
+     inventa un color nuevo: `ART_OUTLINE` ya existía.
+   - **Todo tal como se dibujó** (los cuatro animales de deducción):
+     nunca pasa ni por `recolour` ni por `recontour`, porque nunca están
+     parados al lado de una pista — están solos en la fila de deducción.
+
+   Los dos archivos miden hoy `#1a1a1a` en el 95% de su contorno; el 3-4%
+   restante es el fleco del recorte donde el contorno se funde con un
+   relleno saturado. `client/src/detective/artHierarchy.test.ts` lo
+   guarda con un test que junta por prefijo (`goal-*`, `hazard-*` — así
+   una prop futura entra sola, sin que nadie tenga que acordarse) y exige
+   que como máximo el 25% del contorno de una prop cargue color.
+
+   **Dicho con toda honestidad, no escondido:** `carrier-octopus.png`
+   mide 97% de su contorno con color, el peor caso de todos, y se dejó
+   así a propósito. La sección 2 de esta guía hace de esa línea azul
+   parte de la cara del personaje, así que tocarla es una decisión de
+   dirección de arte y no del pipeline. El pulpo queda fuera del glob
+   `goal-*`/`hazard-*` porque no es una prop, así que el test nuevo no lo
+   está exceptuando por nombre: simplemente no lo alcanza.
 
 ## 5. La regla que decide todo: la marca repetida
 
@@ -283,6 +320,24 @@ que cargan todo el contraste— eran justo los que la palanca no tocaba.
 Medido: subir `toward` de 0,42 a 0,78 movía el barro más ruidoso de 85 a
 71, casi nada. Ahora los rellenos mezclan con un `toward` plano y el
 mismo barro cae a 19-39.
+
+**Y esto no es sólo de los casos.** El split `isCaseTrail`/`inDetectiveWorld`
+(`docs/03` §7, `client/src/levels/world.ts`) hizo que el suelo, la tinta de
+barro y el pulpo pasaran a depender de estar EN el mundo, no de llevar una
+pista — así que Nivel 3 (`docs/11`) pisa el mismo campo y el mismo corredor
+de tierra sin ser un caso: sin pista, sin riel, sin deducción, la medusa es
+sencillamente la meta.
+
+Ahí salió un problema nuevo, porque los cuatro desafíos del agua son los
+primeros niveles con suelo y sin laberinto a la vez — hasta entonces las dos
+cosas siempre habían venido juntas. El corredor de tierra sólo se pintaba
+adentro de `{corridor && mazeOn}`, así que el canal les salía en
+`CORRIDOR_FILL`, el gris azulado pensado para una hoja sin suelo, y lo único
+que marcaba el camino era la ausencia de pasto encima — en un nivel cuya
+regla entera es quedarse adentro del canal. El arreglo corre ese bloque a
+`mazeOn || ground` y deja el rectángulo sólido sólo para el laberinto: un
+nivel con suelo y sin laberinto también recibe `CORRIDOR_EARTH`, la misma
+tierra pisada de los rastros, y conserva su línea de forma.
 
 ## 8. Tipografía: Nunito
 

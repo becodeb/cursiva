@@ -787,3 +787,121 @@ true and irrelevant — the trails' corridors do not separate by luma either. Th
 separate by HUE, warm tan against green, which is exactly what a low-chroma
 palette buys. The render is the evidence here, and the measurement was only good
 for proving the old channel was not being drawn in the intended colour.
+
+---
+
+## Fifth pass: Phase 8 (S8) — docs
+
+Scope fence for this pass: docs only, per the parent orchestrator's explicit
+instruction. No code path changes except one doc-comment edit in `assets.ts`
+(prose, not logic). Baseline entering this pass: 60 files / 1118 tests,
+`npm run build` green (S7's own closing baseline).
+
+### Completed Tasks
+
+- [x] 8.1 Updated `docs/04_ESPECIFICACION_MVP.md`'s catalog section: the
+  "21 niveles activos" header became "24" (verified against
+  `catalog.test.ts`'s 24-entry `EXPECTED_IDS`, not assumed); the Nivel 3 row
+  now lists all four ids (`f2-guirnalda` · `f2-agua2` · `f2-agua3` ·
+  `f2-agua4`) with its count corrected from "1 de 4" to "4 de 7" (Fase 2's
+  real total, since Nivel 4 keeps its 3); the Nivel 4 row's own "3 de 4"
+  became "3 de 7" for the same reason. Added one sentence naming the
+  microprogression axis and one sentence stating plainly that Nivel 3 lives
+  in the detective world without being a case (cross-referencing `docs/03`
+  §7, which this same pass rewrites).
+- [x] 8.2 Updated `docs/09_GUIA_DE_ESTILO_VISUAL.md` §4. **Read the actual
+  code before writing this, and it disagreed with the task's own wording.**
+  Task 8.2 (and design.md §6) describe the shipped state as "medusa/estrella
+  de mar keep authored colour, `fill=None`" — but that description is the
+  PRE-fix state from the S5 pass. The orchestrator's `recontour` fix
+  (`c6ed264`, applied between S6 and S7, already recorded above in this same
+  file) replaced `fill=None` with a third pipeline mode, `'contour'`, before
+  Phase 7 even ran. Confirmed directly in `scripts/art/build_art.py:314-315`
+  — the two `SINGLES` rows read `'contour'`, not `None` — before writing a
+  single word of the doc, so the doc would describe what ships, not what the
+  task's own text assumed. Wrote §4 as a fourth numbered exception (list
+  header "Tres excepciones" → "Cuatro excepciones") naming the three classes
+  the pipeline now distinguishes (`recolour` to a token, `recontour` for
+  authored-fill/world-contour props, untouched for the four deduction
+  animals), the measured 95%/3-4% split on the two new PNGs, the
+  `artHierarchy.test.ts` `goal-*`/`hazard-*` glob and its 25% threshold, and
+  the honest `carrier-octopus.png` 97%-and-left-alone note exactly as the
+  launch prompt required — attributed to §2 of the same guide, not silently
+  omitted.
+- [x] 8.3 Updated `docs/09` §7 with two paragraphs, not one, because the
+  "sheet reaches Nivel 3" story has two parts and splitting them would have
+  buried the causal link. First paragraph: the `isCaseTrail`/`inDetectiveWorld`
+  split (`docs/03` §7, `world.ts`) is what let ground/mud/octopus stop being
+  case-only, and Nivel 3 is the level that actually exercises that — no
+  pista, no riel, no deducción. Second paragraph: the orchestrator's
+  `mazeOn || ground` corridor-fill fix (already recorded above in this file
+  under "Orchestrator fix after the S7 screenshot review"), because it is
+  the concrete cost of that same widening — Nivel 3 is the first ground-and-
+  no-maze pairing this repo has ever shipped, and the earth channel was
+  falling back to the wrong fill precisely because of it.
+- [x] Closed out task 1.6's deferred item: **`docs/03:131` rewritten**, not
+  just renamed. The old sentence stated `isDetectiveTrail` as the single
+  switch controlling the missing three stars. Read the current `LevelPlay.tsx`
+  and `world.ts` before writing, confirmed the switch is now
+  `inDetectiveWorld` (not `isCaseTrail` — the result-block suppression was
+  moved to the WORLD predicate in S1, `design.md` §1's table, `:1295`row),
+  and rewrote the paragraph to state honestly that a level can be in the
+  detective world without being a case trail, with Nivel 3 as the concrete
+  example, and that Niveles 2 and 3 both hide the three stars for the same
+  proximate reason (no result block) reached by two different routes (carries
+  a clue vs. lives in the world). Marked task 1.6 as fully complete in
+  `tasks.md` (was "Partial" since the S1 pass).
+- [x] Updated `client/src/detective/assets.ts`'s doc comments on
+  `GOAL_MEDUSA_ART`/`HAZARD_STARFISH_ART` (the fourth item the launch prompt
+  named beyond `tasks.md`, code comment, kept in English). Both comments
+  described the PRE-`recontour`-fix saturated-navy measurement (chroma
+  ≈118/122) as the shipped state, stale since commit `c6ed264`. Rewrote both
+  to state the fill/contour split correctly: authored FILL kept, CONTOUR
+  fixed by `recontour` to `#1a1a1a` across 95% of the outline, with a
+  pointer to `docs/09` §4 and the `artHierarchy.test.ts` guard rather than a
+  bare measurement that would go stale again the next time the pipeline
+  changes.
+- [x] 8.4 `npm test` and `npm run build` green — see Work Unit Evidence. Test
+  count and file count are IDENTICAL to the S7 baseline (60 files / 1118
+  tests), confirming the docs-only slice moved nothing, exactly as the
+  non-negotiable required. The one `assets.ts` comment edit is prose inside
+  a `/** */` block with no executable change, so it could not move a count
+  either — confirmed by running the full suite after that edit specifically,
+  not just after the doc files.
+
+### Deviations from tasks.md's literal wording
+
+1. **Task 8.2's own text ("medusa/estrella de mar keep authored colour,
+   `fill=None`") does not match what ships.** This is not a deviation from
+   design.md — design.md's §6 correctly recorded the ORIGINAL plan, and the
+   orchestrator's own mid-change fix (already logged in this file) is what
+   moved the code past it. Task 8.2 was written before that fix landed and
+   was never updated. Rather than document the plan that shipped for one
+   build and was then corrected, §4 documents the mechanism that is actually
+   in the tree today, which is what a style guide is for. Flagged here so
+   the choice is visible, not silently substituted.
+2. **`docs/04`'s total count** ("21 niveles activos") is not named in any
+   task text, but leaving it unedited beside a corrected per-Nivel count
+   would have made the document self-contradictory (4+8+4+3+4+2+2 = 24 ≠ the
+   old header's 21). Corrected as part of 8.1's own scope, not a separate
+   item.
+3. Everything else matches the launch prompt's four extra items and
+   tasks.md's three literal tasks exactly — no other liberty taken.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result | `npm test -- catalog world assets artManifest artHierarchy` → 4 files, 115 tests, all passed |
+| Full suite | `npm test` → 60 files, 1118 tests, all passed — identical to the S7 baseline, as required |
+| Build | `npm run build` (`tsc --noEmit && vite build`) → 0 TypeScript errors, built in 458ms |
+| Runtime harness command/scenario and exact result | N/A — docs-only slice plus one code comment; no render surface changed (tasks.md's own S8 row states this) |
+| Rollback boundary | Revert the four touched docs (`docs/03`, `docs/04`, `docs/09`) and the one `assets.ts` comment hunk. No type, test, or runtime behaviour depends on any of these five edits. |
+
+### Status (this pass)
+
+4/4 assigned Phase 8 tasks complete, plus the two items the launch prompt
+added beyond `tasks.md` (`docs/03:131`'s full rewrite, closing out the S1
+deviation; the `assets.ts` comment fix). All eight phases of this change are
+now `[x]` in `tasks.md`. Baseline unchanged from S7: 60 files / 1118 tests,
+`npm run build` green. Ready for `sdd-verify`.

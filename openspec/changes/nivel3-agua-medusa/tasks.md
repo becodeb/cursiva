@@ -68,7 +68,7 @@ Hard dependencies (violating these breaks a green slice or D7):
 - [x] 1.3 Create `client/src/levels/world.test.ts`: four fixtures (clue-only, world-only, both, neither); the widening invariant (`detectiveWorld: false` + a clue still reports world `true`); a regression guard over every level in `LEVELS` — `isCaseTrail(l)` implies `inDetectiveWorld(l)`, and today's shipped set is unchanged (S1's own behaviour-neutrality proof).
 - [x] 1.4 **Audit task (mandatory, closes the slice).** Run `rg -n "isDetectiveTrail" client/src` and `rg -n "clueDef" client/src/screen/LevelPlay.tsx`; reconcile every hit against design.md §1's table — the 24 renamed sites (3 → `isCaseTrail` at the lamp latch/`PistasRail`/`endArt`; 17 → `inDetectiveWorld`) and the 6 already-correct `clueDef` consumers (`:635`, `:862`, `:1004`, `:1065`, `:1119`, `:1281`). Do not close this phase until zero `isDetectiveTrail` code references remain and every design row has a matching converted call site. **Discrepancy found and reconciled — see apply-progress.md.**
 - [x] 1.5 Convert all 24 sites in `client/src/screen/LevelPlay.tsx` per the reconciled audit: delete the `isDetectiveTrail` definition (`:633`); route the lamp latch, `PistasRail` mount, and `endArt` lamp branch through `isCaseTrail`; route ground scatter, back control, `<h1>`, hint, rotate prompt, `startArt`, arrow suppression, `GLASS_REST_DX/DY`, `carrierArt`, `inkOnly`, `MUD_INK`/`MUD_INK_DIM`, the result block, and the three action-control labels through `inDetectiveWorld`.
-- [x] 1.6 Update stale prose only, no logic: `client/src/levels/catalog.ts:162`, `client/src/detective/palette.test.ts:260`, `docs/03:131` — rename `isDetectiveTrail` to the split predicates in comments/prose. **Partial — `docs/03:131` deliberately NOT touched, see deviation in apply-progress.md.**
+- [x] 1.6 Update stale prose only, no logic: `client/src/levels/catalog.ts:162`, `client/src/detective/palette.test.ts:260`, `docs/03:131` — rename `isDetectiveTrail` to the split predicates in comments/prose. **`docs/03:131` was deferred past S1's scope fence (see the original deviation note in apply-progress.md) and closed out in the S8 docs pass**: the sentence now names `isCaseTrail`/`inDetectiveWorld` and states the real thing — a level can be in the detective world without being a case trail, which is exactly Nivel 3.
 - [x] 1.7 Add a `detectiveWorld: true, clue: undefined` fixture to `client/src/screen/LevelPlay.test.tsx`'s eight suites (`:95`, `:173`, `:209`, `:249`, `:365`, `:391`, `:477`, `:564`): asserts ground, mud ink, octopus, glass, no chrome text, no rail, no `clues` prop, no result block/star glyph.
 - [x] 1.8 Run `npm test` and `npm run build`; confirm green against the 1073/58 baseline plus this slice's new tests.
 
@@ -127,10 +127,10 @@ Hard dependencies (violating these breaks a green slice or D7):
 
 ## Phase 8: Docs — Nivel 3 inventory and the two style-guide notes (S8)
 
-- [ ] 8.1 Update `docs/04`'s Nivel 3 inventory with the four ids (`f2-guirnalda` retheme + `f2-agua2/3/4`).
-- [ ] 8.2 Update `docs/09` §4 with the fourth exception: medusa/estrella de mar keep authored colour, `fill=None`.
-- [ ] 8.3 Update `docs/09` §7 with a short note that the sheet-as-a-place rule reaches Nivel 3 without a case.
-- [ ] 8.4 Run `npm test` and `npm run build`; confirm green (docs-only slice; this run is a regression check, not a proof of the docs themselves).
+- [x] 8.1 Update `docs/04`'s Nivel 3 inventory with the four ids (`f2-guirnalda` retheme + `f2-agua2/3/4`). **Also updated the `21 niveles activos` → `24` total, matching `catalog.test.ts`'s `EXPECTED_IDS`.**
+- [x] 8.2 Update `docs/09` §4 with the fourth exception. **Updated beyond the task's literal wording — `fill=None` is stale**: the orchestrator's `recontour` fix (commit `c6ed264`, applied between S6 and S7) replaced it with a third pipeline mode before this phase started. Wrote the rule as it actually ships: three classes (`recolour` to a palette token, `recontour` for authored-fill/world-contour props, untouched for the deduction animals), plus the honest `carrier-octopus.png` 97% note. See apply-progress.md for the full reasoning.
+- [x] 8.3 Update `docs/09` §7 with a short note that the sheet-as-a-place rule reaches Nivel 3 without a case. **Also recorded the `mazeOn || ground` corridor-fill fix** (the orchestrator's post-S7 fix) since it is part of the same "sheet reaches Nivel 3" story and §7 is where the corridor's two ground tones already live.
+- [x] 8.4 Run `npm test` and `npm run build`; confirm green (docs-only slice; this run is a regression check, not a proof of the docs themselves).
 
 ---
 

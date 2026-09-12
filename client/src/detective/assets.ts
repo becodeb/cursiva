@@ -255,13 +255,16 @@ export const GROUND_GRASS: readonly ArtImage[] = [
 
 /** Stands where a Nivel 3 route ends, in place of the engine's two hollow
  * diamonds and the case lamp (`LevelConfig.goalArt`, design.md §5). Keeps its
- * authored colour — a living thing in the world, not a clue mark — the same
+ * authored FILL — a living thing in the world, not a clue mark — the same
  * reasoning `ANIMAL_ART` and `OCTOPUS_ART` above record.
  *
- * **Measured, not assumed**: the authored contour is a saturated navy
- * (~`rgb(0,18,120)`, chroma ≈118/255), not the near-achromatic `ART_OUTLINE`
- * every other drawn-world contour uses. `docs/09` §4's fourth exception
- * accepts this as authored-colour cost, same as the animals' own outlines. */
+ * Its CONTOUR is a different story: the first build shipped a saturated navy
+ * outline (chroma ≈118/255) instead of the world's achromatic `ART_OUTLINE`.
+ * `scripts/art/build_art.py`'s third pipeline mode, `recontour`, now fixes
+ * only the contour pixels and leaves this fill untouched — the emitted PNG
+ * measures `#1a1a1a` across 95% of its contour today. `docs/09` §4's fourth
+ * exception records the rule and the class of art it applies to; guarded by
+ * `client/src/detective/artHierarchy.test.ts`'s `goal-*`/`hazard-*` glob. */
 export const GOAL_MEDUSA_ART: ArtImage = {
   href: '/art/goal-medusa.png',
   w: 357,
@@ -270,8 +273,8 @@ export const GOAL_MEDUSA_ART: ArtImage = {
 
 /** Nivel 3's `f2-agua4` hazard, drawn in place of the plain circle
  * (`LevelConfig.hazardArt` → `TraceHazards.art`, design.md §4). Same
- * authored-contour note as {@link GOAL_MEDUSA_ART} — measured navy
- * (~`rgb(0,20,122)`, chroma ≈122/255). */
+ * authored-fill-kept/contour-fixed treatment as {@link GOAL_MEDUSA_ART} —
+ * `recontour` corrected its contour from chroma ≈122/255 to `#1a1a1a`. */
 export const HAZARD_STARFISH_ART: ArtImage = {
   href: '/art/hazard-starfish.png',
   w: 320,
