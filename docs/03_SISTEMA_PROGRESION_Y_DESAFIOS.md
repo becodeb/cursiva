@@ -45,12 +45,13 @@ Los bordes están escritos con guiones y 40/70/90 aparecen en dos filas cada uno
 
 **Dónde se planta la flecha.** A una distancia fija del punto de inicio (70 unidades de hoja), nunca a un porcentaje del camino. Un porcentaje viaja con el largo del nivel: el 8% de `f3-m` cae todavía en el trazo de entrada, pero el 8% de `f5-mama` cae ~290 unidades adentro, pasada la primera arcada de la m y sobre una cúspide de la línea base donde la mano vuelve sobre sí misma. El chico tiene que recibir la misma pista en el mismo lugar, sea una letra o una palabra entera.
 
-### 3.1 El retiro se aplica desde la Fase 3, nunca antes
+### 3.1 El retiro se aplica desde el Nivel 5 (Fase 3 en el código), nunca antes
 
-En las Fases 3 a 5 la guía es **andamiaje**: la silueta de la letra está dibujada
-para poder sacarla cuando el movimiento ya se recuerda. Sacarla es la lección.
+En los Niveles 5 a 7 (Fases 3 a 5 en el código) la guía es **andamiaje**: la silueta de la
+letra está dibujada para poder sacarla cuando el movimiento ya se recuerda. Sacarla es la
+lección.
 
-En las Fases 1 y 2 el canal **es el nivel**. La consigna entera es "quedate
+En los Niveles 1 a 4 (Fases 1 y 2 en el código) el canal **es el nivel**. La consigna entera es "quedate
 adentro del camino", y las bolas y la regla de volver al inicio están definidas
 contra ese canal. Sacarlo no sube la dificultad: borra el ejercicio y deja una
 hoja en blanco con dos marcas. No hay nada que memorizar en un laberinto, así

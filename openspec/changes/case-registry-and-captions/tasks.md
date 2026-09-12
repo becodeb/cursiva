@@ -146,14 +146,14 @@ Hard dependencies (violating these breaks a green slice):
 
 ## Phase 9: Docs — Nivel reterm, directive transcription, D6 corrections (S9)
 
-- [ ] 9.1 Create `docs/11_PULPITO_DETECTIVE_DIRECTIVA.md`: faithful Spanish transcription of the PDF's structure, using `/tmp/directiva_pulpito.txt` as source.
-- [ ] 9.2 Update `docs/01`: five `### Fase N` headings gain their Nivel label without losing pedagogy; `:25`'s phase diagram and `:98` follow the both-numbers rule.
-- [ ] 9.3 Update `docs/02:116,118`: corridor-width contrast and narrow-channel floor retermed, content preserved.
-- [ ] 9.4 Update `docs/03:48,50,53`: relabel the two code-enforced boundaries as `Nivel N (Fase M en el código)` without renumbering `WITHDRAWAL_FROM_PHASE` or the `blank`/`ruled` split.
-- [ ] 9.5 Update `docs/04:30-34,60`: rewrite the stale inventory against the live catalog (duck trails included); keep the `"Fase 2 · Las hamacas"` code quote marked as a quote.
-- [ ] 9.6 Update `docs/05:13-22`: reterm the per-phase reward ladder, reconciled with what shipped.
-- [ ] 9.7 Correct the stale D6 "never typeset" claim in `docs/09_GUIA_DE_ESTILO_VISUAL.md:228-230`.
-- [ ] 9.8 Run `npm test` and `npm run build`; confirm green (docs-only slice, no code path should differ — this run is a regression check, not a proof of the docs themselves).
+- [x] 9.1 Create `docs/11_PULPITO_DETECTIVE_DIRECTIVA.md`: faithful Spanish transcription of the PDF's structure, using `/tmp/directiva_pulpito.txt` as source.
+- [x] 9.2 Update `docs/01`: five `### Fase N` headings gain their Nivel label without losing pedagogy; `:25`'s phase diagram and `:98` follow the both-numbers rule.
+- [x] 9.3 Update `docs/02:116,118`: corridor-width contrast and narrow-channel floor retermed, content preserved.
+- [x] 9.4 Update `docs/03:48,50,53`: relabel the two code-enforced boundaries as `Nivel N (Fase M en el código)` without renumbering `WITHDRAWAL_FROM_PHASE` or the `blank`/`ruled` split.
+- [x] 9.5 Update `docs/04:30-34,60`: rewrite the stale inventory against the live catalog (duck trails included); keep the `"Fase 2 · Las hamacas"` code quote marked as a quote.
+- [x] 9.6 Update `docs/05:13-22`: reterm the per-phase reward ladder, reconciled with what shipped.
+- [x] 9.7 Correct the stale D6 "never typeset" claim in `docs/09_GUIA_DE_ESTILO_VISUAL.md:228-230`.
+- [x] 9.8 Run `npm test` and `npm run build`; confirm green (docs-only slice, no code path should differ — this run is a regression check, not a proof of the docs themselves).
 
 ---
 

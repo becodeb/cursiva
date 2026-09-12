@@ -30,7 +30,18 @@ inhibición        ritmo              grafo-memoria   anticipación   automatiza
 precisión         direccionalidad    forma+sentido   empalme        velocidad
 ```
 
-### Fase 1 — Control visomotor e inhibición
+**Nomenclatura narrativa (`docs/11`).** La directiva de El Pulpito Detective nombra esta
+misma progresión con siete **Niveles**, y el calce con las cinco fases de arriba no es
+uno a uno: la Fase 1 se abre en Nivel 1 (exploración) y Nivel 2 (laberintos, rastros y
+casos); la Fase 2 se abre en Nivel 3 (agua y medusa) y Nivel 4 (montañas y ovejas); las
+Fases 3, 4 y 5 son, cada una, Nivel 5, Nivel 6 y Nivel 7. Nada de esto renumera el código:
+`Phase` sigue siendo `1 | 2 | 3 | 4 | 5` (`levels/types.ts:8`), y toda regla que hoy lee un
+número de fase — el retiro de la guía (§3.1 de `docs/03`), la superficie `blank`/`ruled` —
+sigue leyendo exactamente el mismo número. **Nivel** es el nombre con el que la historia
+agrupa ese contenido; **Fase** es lo que el motor todavía distingue en el código. Los
+encabezados de abajo llevan los dos.
+
+### Fase 1 — Control visomotor e inhibición (Nivel 1 · Exploración y descubrimiento / Nivel 2 · Laberintos, rastros y casos)
 **Qué entrena:** coordinación ojo-mano, control tónico, inhibición motriz, percepción figura-fondo.
 **Mecánica:** un garabato libre de calentamiento, y después senderos y laberintos. El dedo recorre un canal desde el inicio hasta la meta sin tocar los bordes. Rectos, con ángulos, con curvas amplias, con bucles.
 **Sin letras.** La forma no significa nada todavía; lo único que importa es que el dedo obedezca al ojo.
@@ -49,21 +60,21 @@ Volver al inicio **no es un castigo**: no hay puntaje en contra, ni marca roja, 
 
 **El orden de la fase sube una exigencia por vez:** garabato libre → movimiento grueso → esperar el hueco → escolta ancha → escolta angosta y larga → curvas amplias de muñeca → el caracol. La inhibición va antes que la precisión a propósito: pedir puntería y quietud en la misma pantalla serían dos lecciones a la vez, que es exactamente lo que el principio de carga cognitiva controlada evita.
 
-### Fase 2 — Patrón motor continuo (pre-cursiva)
+### Fase 2 — Patrón motor continuo, pre-cursiva (Nivel 3 · Agua, medusa y movimientos en U / Nivel 4 · Montañas y ovejas)
 **Qué entrena:** planificación motora, ritmo, direccionalidad izquierda→derecha, inhibición del levantamiento del dedo.
 **Mecánica:** patrones repetidos de corrido —guirnaldas (`uuuu`), bucles altos (`llll`), colinas (`mmmm`), crestas, espirales— trazados **sin levantar el dedo**.
 Acá aparece por primera vez la regla que define la cursiva: *no se levanta el dedo*.
 
-### Fase 3 — Grafema aislado
+### Fase 3 — Grafema aislado (Nivel 5 · Grafema aislado)
 **Qué entrena:** memoria motora de largo plazo, integración forma-sentido, uso de las tres zonas del renglón.
 **Mecánica:** trazado de la letra respetando punto de inicio, dirección del giro y altura en la pauta.
 **Agrupamiento por familia de movimiento, no alfabético:** la `a` se enseña con la `c`, `d`, `g`, `o`, `q` porque comparten el mismo giro antihorario.
 
-### Fase 4 — Enlace y ligadura
+### Fase 4 — Enlace y ligadura (Nivel 6 · Enlace y ligadura)
 **Qué entrena:** anticipación espacial, empalme, memoria de trabajo secuencial. **Es el núcleo de la cursiva.**
 **Mecánica:** dos o tres letras en un solo movimiento continuo. El enlace no es un adorno: es lo que convierte letras dibujadas en escritura.
 
-### Fase 5 — Palabra y automatización
+### Fase 5 — Palabra y automatización (Nivel 7 · Palabra y automatización)
 **Qué entrena:** automatización motora, velocidad, ortografía motora.
 **Mecánica:** palabra completa de corrido, con retiro progresivo de la guía visual para forzar la recuperación de la representación motora interna.
 
@@ -95,7 +106,7 @@ El lienzo replica la pauta caligráfica real, en un espacio virtual fijo de `100
 - **Zona media** (y 300–420): cuerpo de la letra — `a c e i m n o r s u v w x z`
 - **Zona baja** (y 420–540): colas descendentes — `g j p q y`
 
-## 8. Familias de movimiento (Fase 3 en adelante)
+## 8. Familias de movimiento (Nivel 5 en adelante, Fase 3 en el código)
 
 | Familia | Movimiento | Letras |
 | :--- | :--- | :--- |

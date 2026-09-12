@@ -225,6 +225,18 @@ redondeadas. Es la misma regla aplicada a la letra.
 - Se declara en `client/index.html`, no en `LAYOUT_CSS`. `LevelMap` y
   `MainScreen` usan estilos inline y nunca ven `LAYOUT_CSS`; la raíz del
   documento es el único lugar que las alcanza a todas.
-- **La palabra "PISTAS" del riel no es tipografía y no debe serlo.** Son
-  polilíneas dibujadas a mano, es una decisión tomada (D6), y hay cuatro
-  tests que fijan su geometría.
+- **La palabra "PISTAS" del riel es texto tipografiado real, no una imagen**
+  (D6 enmendada por `case-registry-and-captions`; la decisión original — seis
+  polilíneas dibujadas a mano, cuatro tests fijando su geometría — quedó
+  obsoleta en cuanto la app declaró Nunito en la raíz del documento, §8 más
+  arriba). Lo que D6 protege ahora no es "nunca texto": es que **ningún texto
+  aparezca solo**. `PISTAS` puede ser un `<div className="pistas-word">`
+  porque el propio riel (`pistas-bar`) siempre trae también las imágenes del
+  farol y de cada pista rasterizada al lado — la palabra nunca es la única
+  portadora de sentido en ese contenedor. Esa regla es código, no
+  convención: `client/src/detective/captionAudit.ts` la audita
+  (`CAPTION_CONTAINERS`, `auditCaptions`) y `client/src/detective/
+  CaptionedArt.tsx` es el único componente que puede crear un par
+  imagen+palabra fuera del riel, con `label: string` obligatorio a nivel de
+  tipo. Ver `client/src/detective/PistasRail.tsx`'s propio comentario de
+  módulo para el detalle de la transición.

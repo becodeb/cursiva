@@ -1,7 +1,7 @@
 # Apply Progress: Case Registry and Captioned Art
 
-Cumulative scope across apply runs: **Phase 1 (S1) through Phase 8 (S8).**
-Phase 9 is untouched and remains `[ ]` in `tasks.md`.
+Cumulative scope across apply runs: **Phase 1 (S1) through Phase 9 (S9). All
+nine slices complete.**
 
 Mode: Standard (strict TDD disabled — `openspec/config.yaml testing.strict_tdd: false`).
 
@@ -487,16 +487,41 @@ the rendered page.
 | Runtime harness | `scripts/shot.sh` (before/after pair) + `chromium --dump-dom` numeric extraction — both documented above, PASS |
 | Rollback boundary | `placeArt.ts`/`.test.ts` are new and additive; reverting `TraceCanvas.tsx`'s carrier `<image>` and `HomeScreen.tsx`'s `Hung` restores their two old hand-computed formulas; restoring `HomeMode.grip`/`DEFAULT_GRIP` in `modes.ts` and `at={mode.grip}` in `HomeScreen.tsx` restores the pre-fix duplicate-source-of-truth shape exactly. All four files are independently revertible. |
 
-## Remaining Tasks (out of scope for this apply run)
+## Phase 9: Docs — Nivel reterm, directive transcription, D6 corrections (S9) — COMPLETE (8/8)
 
-- [ ] Phase 9: Docs — Nivel reterm, directive transcription, D6 fixes (S9)
+| Task | Status | Evidence |
+|---|---|---|
+| 9.1 `docs/11_PULPITO_DETECTIVE_DIRECTIVA.md` | done | Faithful transcription of `/tmp/directiva_pulpito.txt`, structure and wording preserved verbatim (headings, escenas, desafíos). Opens with a note explaining why it exists beside the PDF: no `poppler`/`pdftotext`, no `pypdf`/`PyPDF2`, no `Pillow` on this host, so the PDF is otherwise unreadable by any tool in the repo. The PDF remains the document of record. |
+| 9.2 `docs/01` Fase→Nivel headings | done | Added a paragraph after the phase diagram (§4) stating the non-1:1 mapping (Fase 1 → Nivel 1+2, Fase 2 → Nivel 3+4, Fase 3/4/5 → Nivel 5/6/7) and that `Phase` stays `1\|2\|3\|4\|5` in code. All five `### Fase N` headings gained their Nivel label(s) in parentheses. `## 8. Familias de movimiento` heading updated to `(Nivel 5 en adelante, Fase 3 en el código)`. |
+| 9.3 `docs/02:116,118` | done | Line 116 ("`escala` normaliza...") retermed to `Nivel 2 (Fase 1 en el código)`; line 118 ("El piso...") retermed to `Niveles 5-7 (Fases 3-5 en el código)`. Content and numbers (40-42, 0.7-2.5, the arithmetic) untouched. |
+| 9.4 `docs/03:48,50,53` | done | `### 3.1` heading → `El retiro se aplica desde el Nivel 5 (Fase 3 en el código), nunca antes`. Line 50 → `Niveles 5 a 7 (Fases 3 a 5 en el código)`. Line 53 → `Niveles 1 a 4 (Fases 1 y 2 en el código)`. `WITHDRAWAL_FROM_PHASE = 3` and the `blank`/`ruled` split are untouched — verified `LevelPlay.tsx:503` still reads `phase < WITHDRAWAL_FROM_PHASE` and `LevelConfig.surface` is unchanged. |
+| 9.5 `docs/04:30-34,60` | done | Full inventory rewrite against the live catalog (verified against `catalog.ts` directly, not against design.md's table, since the catalog is ground truth): Nivel 1 = `f1-libre` alone (no clue); Nivel 2 = both cases' eight trails (duck 3-option, hen 4-option); Nivel 3 = `f2-guirnalda`; Nivel 4 = `f2-colinas`/`f2-bucles`(flagged transition)/`f2-crestas`; Nivel 5-7 unchanged from the old Fase 3-5 rows. Noted explicitly that the six original `f1-*` MVP levels (`travesía`, `pelotas`, `paseo`, `pasillo`, `ondas`, `espiral`) are retired into `LEGACY_PHASE_1`, not deleted — that IS the rollback plan, not dead weight. `:60`'s `"Fase 2 · Las hamacas"` ASCII mockup line was left untouched and a preceding sentence added marking it explicitly as a verbatim quote of what `LevelMap.tsx`/`LevelPlay` still render today (the code's own label is intentionally NOT retermed by this change — proposal's stated Out-of-Scope). |
+| 9.6 `docs/05:13-22` | done | Rewrote the reward-ladder paragraph: it now states the Nivel 2 case closes TWO cases in sequence (duck then hen), names both animal lineups and their option counts, and credits both `detective-mode` (hen case) and this change (duck case + the registry that makes "case" data instead of a repeated constant). The "Pendiente" line retermed to `Niveles 3 a 7 (Fases 2 a 5 en el código)`. |
+| 9.7 `docs/09:228-230` D6 correction | done | Rewrote the stale "PISTAS is hand-drawn polylines, never typeset" claim into the actual current rule: PISTAS is real typeset text (Nunito), and what D6 protects now is "no text stands alone" — pointed at `captionAudit.ts`'s `CAPTION_CONTAINERS`/`auditCaptions` and `CaptionedArt.tsx`'s required `label` as where the invariant is enforced in code. **Found during this task**: `client/src/detective/PistasRail.tsx`'s own module header was ALREADY corrected in Phase 4 (task 4.3, S4) — re-read it and confirmed by `rg` that no "never typeset" string remains anywhere in the codebase. No code file needed touching in this slice; `docs/09` was the only stale claim left. |
+| 9.8 `npm test` / `npm run build` | done | **1042 tests / 57 files** — identical to the S8 baseline, as expected for a docs-only slice. `npm run build` green (`tsc --noEmit && vite build`, 509 modules, no errors). |
+
+### Deviation note (task 9.3's line numbers)
+
+Task text says `docs/02:116,118`; the file's real lines at read time were 116
+(`escala` normaliza...) and 118 (`El piso`...) — matching exactly, no drift
+this time (unlike several earlier slices where cited line numbers had
+drifted). Verified with `rg -n` before editing rather than trusting the task
+text blindly, per this change's own established practice.
+
+### Work Unit Evidence — S9
+
+| Evidence | Value |
+|---|---|
+| Focused test command | N/A per tasks.md's own forecast (docs-only, no test command) — ran the full `npm test` instead as the regression check task 9.8 asks for: 1042/1042 passed, count unchanged from S8 |
+| Runtime harness | N/A — prose review, no render (per tasks.md's own forecast) |
+| Rollback boundary | Docs-only; `docs/01`-`docs/05`, `docs/09` are independently revertible edits and `docs/11_PULPITO_DETECTIVE_DIRECTIVA.md` is new and unreferenced by any code path — no code path depends on wording |
 
 ## Status
 
-61/69 tasks complete (Phase 1: 5/5, Phase 2: 16/16, Phase 3: 5/5, Phase 4:
-7/7, Phase 5: 6/6, Phase 6: 6/6, Phase 7: 8/8, Phase 8: 8/8). All eight
-slices committed separately. Ready for the next apply batch (Phase 9, S9,
-docs-only) or for verify on this scope.
+69/69 tasks complete (Phase 1: 5/5, Phase 2: 16/16, Phase 3: 5/5, Phase 4:
+7/7, Phase 5: 6/6, Phase 6: 6/6, Phase 7: 8/8, Phase 8: 8/8, Phase 9: 8/8).
+All nine slices complete. `npm test` 1042/1042 (57 files), `npm run build`
+green. Ready for `sdd-verify` on the full change.
 
 ## Orchestrator correction after the S2 screenshot review (2026-09-12)
 
