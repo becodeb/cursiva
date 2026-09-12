@@ -11,6 +11,32 @@ const GOAL_COLOR = '#b45309'
 const HAZARD_COLOR = '#7e6a9e'
 const CARRIER_COLOR = '#5f8a86'
 
+/** The two grounds a clue mark is drawn on (`TraceCanvas.tsx:108-109`).
+ * Mirrored as literals rather than imported, the same way the three accents
+ * above are and the same way `scripts/art/build_art.py` mirrors them: pulling
+ * the component in would drag React into a pure data test. */
+const CORRIDOR_EARTH = '#d9c3ae'
+const GROUND_FIELD = '#c9d7bd'
+
+/** Rec. 601 luma, the same weights `build_art.py`'s `luma()` uses to decide
+ * what is contour and what is fill. Lightness, not hue, is what separates a
+ * mark from warm-clay earth. */
+function luma(hex: string): number {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return Math.round((r * 299 + g * 587 + b * 114) / 1000)
+}
+
+/** How far an EARNED mark must sit from the ground beneath it.
+ *
+ * Anchored on the drained grey, not on the current palette: `CLUE_DRAINED` is
+ * 5 luma from the earth and 3 from the field, so 40 is an order of magnitude
+ * above the state an earned mark has to escape. The tightest shipped value is
+ * `BUBBLE` at 46, which clears it by 6 -- a thin margin on purpose, because a
+ * mark lighter than that on this ground is a mark the child has to hunt for. */
+const MIN_GROUND_CONTRAST = 40
+
 interface Hsl {
   h: number
   s: number
@@ -38,32 +64,6 @@ function hexToHsl(hex: string): Hsl {
   return { h, s, l }
 }
 
-/** Circular hue distance in degrees, 0..180. */
-function hueDistance(a: number, b: number): number {
-  const diff = Math.abs(a - b) % 360
-  return diff > 180 ? 360 - diff : diff
-}
-
-/** Warm-clay hue band the art direction exists to avoid (design.md "Art
- * Direction (revised plan)" — the first pass's dropped "warm-clay accent").
- * `GOAL_COLOR` itself sits at hue ~26°, deep inside this band. */
-const WARM_CLAY_HUE_MIN = 10
-const WARM_CLAY_HUE_MAX = 35
-const WARM_CLAY_SATURATION_MIN = 0.3
-
-/** The tightest genuine pair in the palette is `KERNEL` (hue 42.9 deg) against
- * `GOAL_COLOR` (hue 26.0 deg), 16.9 deg apart, so 15 leaves margin without
- * being tuned to admit any single value. `CARRIER_COLOR` is deliberately NOT
- * compared by hue: `PLUME` sits 9.4 deg from it, and the design accepts that
- * because the carrier is drawn in ink via the `carrierArt` override, so
- * `CARRIER_COLOR` never renders in this mode at all. That is a structural
- * guarantee, not a colour-distance one, and it is asserted where it can
- * actually be observed -- see the `carrierArt` suite in `TraceCanvas.test.tsx`,
- * which renders the canvas and requires `#5f8a86` to be absent. Widening this
- * threshold to swallow the 9.4 deg pair would leave an assertion that cannot
- * fail. */
-const HUE_COLLISION_DEG = 15
-
 const EARNED = { POND, KERNEL, PRINT, PLUME, BREADCRUMB, BUBBLE } as const
 
 describe('detective palette (design.md "Art Direction (revised plan)")', () => {
@@ -77,11 +77,27 @@ describe('detective palette (design.md "Art Direction (revised plan)")', () => {
     expect(s).toBe(0)
   })
 
-  it('places no earned value in the warm-clay band', () => {
+  it('separates every earned clue colour from the ground it lies on', () => {
     for (const [name, hex] of Object.entries(EARNED)) {
-      const { h, s } = hexToHsl(hex)
-      const inBand = h >= WARM_CLAY_HUE_MIN && h <= WARM_CLAY_HUE_MAX && s >= WARM_CLAY_SATURATION_MIN
-      expect(inBand, `${name} (${hex}) falls in the warm-clay band`).toBe(false)
+      for (const [groundName, groundHex] of Object.entries({ CORRIDOR_EARTH, GROUND_FIELD })) {
+        const gap = Math.abs(luma(hex) - luma(groundHex))
+        expect(
+          gap,
+          `${name} (${hex}) is only ${gap} luma from ${groundName} (${groundHex}) -- a mark the child has to hunt for`,
+        ).toBeGreaterThanOrEqual(MIN_GROUND_CONTRAST)
+      }
+    }
+  })
+
+  it('leaves the DRAINED grey below that floor, which is what makes earning it the reward', () => {
+    // The half that keeps the assertion above honest. A rule every colour in
+    // the file passes proves nothing; this one names a shipped value that must
+    // FAIL it. `CLUE_DRAINED` sits 5 luma from the earth and 3 from the field:
+    // an unlit mark is legible only by its ink contour, and lighting it up is
+    // precisely the moment it separates from the ground. Raise the floor high
+    // enough to swallow the drained grey and the reward stops being a reward.
+    for (const groundHex of [CORRIDOR_EARTH, GROUND_FIELD]) {
+      expect(Math.abs(luma(CLUE_DRAINED) - luma(groundHex))).toBeLessThan(MIN_GROUND_CONTRAST)
     }
   })
 
@@ -93,25 +109,38 @@ describe('detective palette (design.md "Art Direction (revised plan)")', () => {
     }
   })
 
-  it('keeps every earned hue clear of GOAL_COLOR and HAZARD_COLOR', () => {
-    for (const [earnedName, earnedHex] of Object.entries(EARNED)) {
-      const earnedHsl = hexToHsl(earnedHex)
-      if (earnedHsl.s === 0) continue // achromatic (PRINT): no hue to compare
-      for (const [refName, refHex] of Object.entries({ GOAL_COLOR, HAZARD_COLOR })) {
-        const dist = hueDistance(earnedHsl.h, hexToHsl(refHex).h)
-        expect(
-          dist,
-          `${earnedName} (${earnedHex}) approaches ${refName} (${refHex}): ${dist.toFixed(1)}deg apart`,
-        ).toBeGreaterThan(HUE_COLLISION_DEG)
-      }
-    }
-  })
-
-  it('holds KERNEL below GOAL_COLOR chroma, which is what keeps the two apart', () => {
-    // 16.9deg of hue alone would not separate brass from the shipped ochre.
-    // design.md's actual claim is hue AND lower chroma; assert both halves.
-    expect(hexToHsl(KERNEL).s).toBeLessThan(hexToHsl(GOAL_COLOR).s)
-  })
+  /*
+   * GONE, and worth the paragraph rather than a silent deletion: a hue-distance
+   * assertion holding every earned value more than 15 deg clear of GOAL_COLOR
+   * and HAZARD_COLOR, plus a "warm-clay band" ban anchored on GOAL_COLOR's own
+   * ~26 deg hue.
+   *
+   * Both guarded a pairing that cannot occur. `LevelPlay.tsx` passes
+   * `inkOnly={isDetectiveTrail}` and `isDetectiveTrail` is `!!level.clue`, so
+   * the only levels that draw a clue mark at all are exactly the levels where
+   * `TraceCanvas` silhouettes the goal marker and the hazard in ink
+   * (`TraceCanvas.tsx:1077,1084,1239`). An earned clue colour and those two
+   * accents never share a screen.
+   *
+   * That is the SAME structural argument this file already made, five lines up,
+   * for excluding CARRIER_COLOR from the hue rule -- applied to the other two
+   * for consistency rather than invented here. And like that one, it is proved
+   * where it can actually be observed: `TraceCanvas.test.tsx`'s `inkOnly` suite
+   * renders the canvas, requires all three shipped marker colours absent, and
+   * carries a companion test that renders WITHOUT `inkOnly` so the assertion
+   * can fail.
+   *
+   * What replaced them is not a weaker rule but a different one, aimed at the
+   * failure this art can really have. The ground under a clue mark is
+   * `CORRIDOR_EARTH`, which is itself warm clay at low chroma, so hue distance
+   * was never the instrument that separated a mark from it -- lightness is.
+   * `build_art.py:194-201` records the repo already shipping a mark that was
+   * "very nearly invisible" against that earth for exactly this reason.
+   *
+   * The cost, paid knowingly: BREADCRUMB is now inside the old warm-clay band
+   * (hue 28.8 deg). Bread is warm and there is no honest way around that. It
+   * clears the ground by 83 luma, which is what the mark actually owes.
+   */
 
   it('gives GOAL_COLOR no new use', () => {
     expect(Object.values(EARNED)).not.toContain(GOAL_COLOR)

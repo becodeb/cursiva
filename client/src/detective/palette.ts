@@ -5,11 +5,19 @@
 // `TraceCanvas.tsx` wherever a consumer needs it. Adding no new neutral is
 // itself the anti-cliché move.
 //
-// Rules `palette.test.ts` asserts: the four earned values (`POND`, `KERNEL`,
-// `PRINT`, `PLUME`) are pairwise distinct; none equals or approaches
-// `GOAL_COLOR '#b45309'`, `HAZARD_COLOR '#7e6a9e'` or `CARRIER_COLOR
-// '#5f8a86'` (`TraceCanvas.tsx:149,177,194`); `PRINT` has zero chroma; no
-// value falls in the warm-clay band; `GOAL_COLOR` gains no new use.
+// Rules `palette.test.ts` asserts: the earned values are pairwise distinct and
+// distinct again within each case; none literally equals `GOAL_COLOR
+// '#b45309'`, `HAZARD_COLOR '#7e6a9e'` or `CARRIER_COLOR '#5f8a86'`
+// (`TraceCanvas.tsx:149,177,194`); `PRINT` has zero chroma; every earned value
+// separates by luma from the two ground tones it lies on, while the drained
+// grey deliberately does not; `GOAL_COLOR` gains no new use.
+//
+// It used to assert a hue distance from `GOAL_COLOR` and `HAZARD_COLOR`, and a
+// warm-clay hue band anchored on the same two. Both are gone: `inkOnly`
+// silhouettes those two colours on every screen a clue mark can appear on, so
+// the pairing they guarded cannot occur. That is the same structural argument
+// the test already made for `CARRIER_COLOR`, and it is proved where it can be
+// observed, in `TraceCanvas.test.tsx`'s `inkOnly` suite.
 
 /** Every unearned clue mark, whatever its trail. One step darker than the
  * shipped wall grey `#e2e8f0` so it reads on paper and on wall alike. */
@@ -35,10 +43,19 @@ export const PLUME = '#2f6b5c'
  * nowhere else. */
 export const LAMP = '#f2d377'
 
-/** Duck case only — the breadcrumb trail. Hue derived, not picked: it sits
- * inside the interval `palette.test.ts` leaves open between the warm-clay
- * band floor and the `GOAL_COLOR` hue-collision threshold (design.md §4). */
-export const BREADCRUMB = '#994138'
+/** Duck case only — the breadcrumb trail. The authored crust in
+ * `art-source/miga de pan.png` is `#c46720`; this is that crust taken down in
+ * lightness until it separates from the corridor earth it lies on.
+ *
+ * It was `#994138` for one slice, a dark brick chosen to escape a hue rule
+ * anchored on `GOAL_COLOR`. Rendered at mark scale it read as a slab of meat,
+ * which is a real defect: the deduction asks the child to recognise the clue,
+ * so a clue that does not look like what it is has failed at its only job.
+ * The rule it was escaping turned out to guard a collision that cannot happen
+ * — see `palette.test.ts`. Bread is warm and there is no honest way around
+ * that; what a warm mark on warm earth actually owes is CONTRAST, which is
+ * what the test asserts now. */
+export const BREADCRUMB = '#a9682c'
 
 /** Duck case only — the bubble trail. Sampled from `art-source/burbuja.png`'s
  * cyan body, lifted out of `POND`'s slate (design.md §4). */
