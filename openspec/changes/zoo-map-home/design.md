@@ -366,10 +366,14 @@ cells and put one patch on each cell's centre:
 ```
 cols  = max(1, round(w / 130))     cellW = w / cols        (FOG_CELL = 130)
 rows  = max(1, round(h / 130))     cellH = h / rows
-size  = 1.06 × max(cellH, cellW / aspect)                  (FOG_OVERLAP = 1.06)
+size  = 1.30 × max(cellH, cellW / aspect)                  (FOG_OVERLAP = 1.30)
 centre of cell (col, row) = (x + (col + ½)·cellW, y + (row + ½)·cellH)
 art   = the index whose aspect is CLOSEST to cellW / cellH
 flip  = (row + col) is odd
+
+PLUS one patch on each INTERIOR junction, same size and art:
+centre of junction (col, row) = (x + col·cellW, y + row·cellH)
+      for col ∈ 1…cols−1, row ∈ 1…rows−1                  (FOG_JUNCTIONS)
 ```
 
 **Proof, in two lines.** Each box is `size ≥ 1.06·cellH` tall centred on its own cell's
@@ -922,14 +926,27 @@ be provably the entry screen before its predecessor disappears.
       sector.** The repair was neither a third patch nor a different art index but a
       different construction (§4, revised) plus the `FOG_BBOX_SLACK` bound, because the
       containment test staying green *was* the problem: it was green throughout.
-- [ ] **New, and NOT fixed here.** The fog art's corners are transparent, so a tight grid
-      leaves the drawn sector visible between adjacent blobs — the night sky and two stars
-      show through at nocturna. This is §4's own stated soft-alpha approximation ("its rect
-      over-claims coverage at the corners"), and it is **pre-existing**: the baseline capture
-      shows sky and a star through the old two-balloon fog too. The tight grid exposes
-      somewhat more of it. Raising `FOG_OVERLAP` only trades it back against the spill that
-      was just fixed; closing it properly means offsetting alternate rows (a brick tiling) or
-      a fog silhouette with filled corners. Deferred rather than half-done.
+- [x] The fog art's corners are transparent, so a tight grid left the drawn sector visible
+      between adjacent blobs — the night sky and **two stars** showed through at nocturna.
+      That is not cosmetic: `docs/12` §1 rules that a closed sector tells the child *"hay
+      algo ahí"* and **not what**, and a hole showing the stars answers the exact question
+      the fog exists to keep open. **Closed** by two changes together, because the proof is
+      about boxes and the defect is about pixels: `FOG_OVERLAP` 1.06 → **1.30**, so
+      neighbouring bodies overlap by about a third of a cell (more than the blob's corner
+      radius) instead of merely touching; plus a patch on each **interior junction**, where
+      four transparent corners meet. The junction patches add nothing to the containment
+      proof — the grid already covers the hit — and are interior by construction, so they
+      cost the union's bounding box nothing. `FOG_BBOX_SLACK` moved 1.25 → 1.35 to admit the
+      higher overlap: a single-row sector's union is exactly one patch tall, so its height
+      ratio *is* the overlap (measured worst case 1.300, across all five). What the bound
+      still forbids is the regression it was written for — bosque at 2.23× under the
+      superseded quadrant construction.
+- [ ] **Residual, and deliberately not chased.** A thin sliver of the nocturna sector's own
+      dark edge still shows at the map's far left, where the outermost blob's rounded corner
+      curves in. The interior junctions cannot reach an OUTER corner, and the only remaining
+      fixes are art with filled corners or more spill — an art-direction call, not a
+      pipeline one. The stars are gone; the sliver stays. Revisit if paso D's fog-lift
+      animation makes it read worse in motion.
 - [ ] Does `#76B56A` in the letterbox read as continuous with the map's edge at a portrait
       ratio, or as a seam? Measured on all four borders of the PNG; the risk is the crop, not
       the value.

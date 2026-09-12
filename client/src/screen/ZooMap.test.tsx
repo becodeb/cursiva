@@ -73,18 +73,22 @@ describe('ZooMap (layer order)', () => {
     )
     expect(sectorsWithFog.size).toBe(5)
     expect(sectorsWithFog.has('estanque')).toBe(false)
-    // One patch per GRID CELL (design.md §4) — `cols × rows` per sector at
-    // a 130-unit target cell, so entrada/montañas/nocturna tile 2×1 and
-    // bosque/arena tile 2×2: 2 + 4 + 2 + 4 + 2 = 14 images from five
-    // sectors, not one each and no longer the flat two each the quadrant
-    // construction drew. Recorded explicitly: `tasks.md` phrases this
-    // scenario as "exactly 5 fog images", which undercounts the
+    // One patch per GRID CELL (design.md §4) — `cols × rows` per sector at a
+    // 130-unit target cell, so entrada/montañas/nocturna tile 2×1 and
+    // bosque/arena tile 2×2 — PLUS one on each interior junction where four
+    // cells meet, which only the 2×2 sectors have: (2 + 4 + 2 + 4 + 2) +
+    // (0 + 1 + 0 + 1 + 0) = 16 images from five sectors. The junction
+    // patches close the hole the four transparent blob corners leave at a
+    // junction; the first capture leaked night sky and two stars through it,
+    // which `docs/12` §1 forbids outright — a closed sector says "hay algo
+    // ahí" and must not say what. Recorded explicitly: `tasks.md` phrases
+    // this scenario as "exactly 5 fog images", which undercounts the
     // construction design.md §4 requires; this asserts the actual, correct
-    // rendered behaviour rather than the miscounted phrasing. The per-cell
+    // rendered behaviour rather than the miscounted phrasing. The per-sector
     // count itself is proven in `sectors.test.ts`; this only pins that the
     // screen draws every patch the registry declares.
     const declared = SECTORS.reduce((n, sector) => n + sector.fog.length, 0)
-    expect(declared).toBe(14)
+    expect(declared).toBe(16)
     expect([...html.matchAll(/data-fog-sector="/g)]).toHaveLength(declared)
   })
 

@@ -161,12 +161,33 @@ const NOCTURNA_HIT: Rect = { x: 95, y: 22, w: 250, h: 190 }
  * moved off art 1, and nocturna off art 2, because the rule changed — under
  * the old one-sided floor those were all admissible.
  */
-const FOG_OVERLAP = 1.06
+/** How far each patch's box overruns its own cell. The containment proof only
+ *  needs `> 1`, and 1.06 was enough to satisfy it — but the PROOF is about
+ *  boxes and the fog is about PIXELS, and those came apart on the first
+ *  capture. The three fog silhouettes are rounded blobs, so each box's four
+ *  corners are transparent; at 1.06 the four transparent corners meeting at a
+ *  grid junction left a real hole, and the drawing showed through it. In
+ *  `nocturna` that hole leaked night sky and two stars, which is not a
+ *  cosmetic miss: `docs/12` §1 rules that a closed sector tells the child
+ *  "hay algo ahí" and NOT what. A hole that shows the stars answers the
+ *  question the fog exists to keep open.
+ *
+ *  1.3 makes neighbouring bodies overlap by about a third of a cell, which is
+ *  more than the corner radius, so the blobs close on each other instead of
+ *  merely touching. `FOG_JUNCTIONS` below plugs the interior junctions
+ *  directly, which is what lets this stay at 1.3 rather than climbing until
+ *  the spill this whole construction exists to remove comes back. */
+const FOG_OVERLAP = 1.3
 /** Target cell edge, viewBox units. Chosen so the smallest `hit` (entrada,
  *  228 × 170) still tiles into more than one patch and the largest (bosque,
  *  300 × 300) into four — few enough to stay cheap, many enough that no
  *  single patch reads as a balloon. */
 const FOG_CELL = 130
+/** Whether to add the interior junction patches below. A named constant and
+ *  not an inline `true` so the reason survives next to the switch: it is the
+ *  pixel-level half of the fog, and the geometry tests cannot observe it —
+ *  they read boxes, and a box has no transparent corner. */
+const FOG_JUNCTIONS = true
 function closedFog(hit: Rect, art: 0 | 1 | 2): readonly FogPatch[] {
   const aspect = ZOO_FOG_ART[art].w / ZOO_FOG_ART[art].h
   const cols = Math.max(1, Math.round(hit.w / FOG_CELL))
@@ -188,6 +209,26 @@ function closedFog(hit: Rect, art: 0 | 1 | 2): readonly FogPatch[] {
         // Footprint-preserving (§4), which is why variety is spent here.
         flip: (row + col) % 2 === 1,
       })
+    }
+  }
+  // The interior junctions, where four cells — and therefore four transparent
+  // blob corners — meet. These add nothing to the containment proof above
+  // (the grid already covers the `hit` on its own); they exist only to close
+  // the holes the proof cannot see, and they are INTERIOR by construction, so
+  // they cost the union's bounding box nothing. A sector that tiles to a
+  // single row or column has no interior junction and gets none.
+  if (FOG_JUNCTIONS) {
+    for (let row = 1; row < rows; row++) {
+      for (let col = 1; col < cols; col++) {
+        patches.push({
+          art,
+          x: hit.x + col * cellW,
+          y: hit.y + row * cellH,
+          size,
+          rot: 0,
+          flip: (row + col) % 2 === 0,
+        })
+      }
     }
   }
   return patches

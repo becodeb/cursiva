@@ -117,7 +117,13 @@ describe('Fog Containment Invariant', () => {
   // each other. Containment alone could never catch that — a patch the size
   // of the whole map contains every hit perfectly. This is the other half
   // of the invariant: the fog must cover its sector AND stay near it.
-  const FOG_BBOX_SLACK = 1.25
+  // 1.35, not 1.25: closing the corner holes raised `FOG_OVERLAP` from 1.06
+  // to 1.3, and a single-row sector's union is exactly one patch tall, so its
+  // height ratio IS the overlap — 1.300 for entrada, montañas and nocturna.
+  // The measured worst case across all five is 1.300, so this leaves a real
+  // but small margin. What it still forbids is the regression it was written
+  // for: the shipped quadrant construction put bosque at 2.23×.
+  const FOG_BBOX_SLACK = 1.35
   it('fog does not extend absurdly past the sector it covers', () => {
     for (const sector of fogged) {
       const boxes = fogBoxes(sector)
@@ -148,7 +154,15 @@ describe('Fog Containment Invariant', () => {
       const hit = sector.hit!
       const cols = Math.max(1, Math.round(hit.w / 130))
       const rows = Math.max(1, Math.round(hit.h / 130))
-      expect(sector.fog.length, `${sector.id} patch count`).toBe(cols * rows)
+      // `cols × rows` grid patches, plus one on each INTERIOR junction where
+      // four cells meet. The junction patches are not part of the containment
+      // proof — the grid covers the hit on its own — they close the hole the
+      // four transparent blob corners leave at a junction, which the box
+      // geometry these tests read cannot see. A sector tiling to a single row
+      // or column has no interior junction and gets none.
+      expect(sector.fog.length, `${sector.id} patch count`).toBe(
+        cols * rows + Math.max(0, cols - 1) * Math.max(0, rows - 1),
+      )
       for (const patch of sector.fog) {
         expect(patch.x, `${sector.id} patch x`).toBeGreaterThan(hit.x)
         expect(patch.x, `${sector.id} patch x`).toBeLessThan(hit.x + hit.w)
