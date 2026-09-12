@@ -38,28 +38,9 @@ export interface HomeMode {
    * `artManifest.test.ts` rejects by name. `docs/10` §5 types this field as a
    * plain `ArtImage`; it is widened here for that reason and no other. */
   artLocked: ArtImage | null
-  /**
-   * Where the ARM holds this object, as a fraction of the art's own box.
-   *
-   * Defaults to the centre, and the glass is why it has to be declarable.
-   * `carrier-lens.png` is not centred on its lens: `build_art.py`'s `CENTRED`
-   * step pads the image so the lens lands in the middle, and then `emit()`
-   * crops every output back to its alpha bounding box, which removes exactly
-   * that padding again. Measured on the shipped file, the glass sits at
-   * (0.603, 0.391) of the box — a long way from (0.5, 0.5).
-   *
-   * A per-object grip point is the right shape regardless of that bug: a
-   * pencil is held at its barrel and a map at a corner, and neither is its
-   * bounding-box centre either. It is data in the registry, not an offset
-   * hidden in the renderer — the distinction `docs/09` §2 draws.
-   */
-  grip?: readonly [number, number]
   unlocked: (records: Readonly<Record<string, LevelRecord>>) => boolean
   enter: HomeDestination
 }
-
-/** A grip that was never declared: the middle of the picture. */
-export const DEFAULT_GRIP: readonly [number, number] = [0.5, 0.5]
 
 /**
  * The eight arm tips, as FRACTIONS of the octopus art's own box.
@@ -107,10 +88,11 @@ export const HOME_MODES: readonly HomeMode[] = [
     arm: 4,
     art: CARRIER_LENS_ART,
     artLocked: null,
-    // The LENS, measured on the shipped file — see `grip` above for why this
-    // is not (0.5, 0.5). The octopus grips the glass by its lens, the way the
-    // child's finger carries it on a trail.
-    grip: [0.603, 0.391],
+    // [case-registry-and-captions, Phase 8] The grip that used to be
+    // declared HERE (a duplicate of the same measurement) now lives solely
+    // on `CARRIER_LENS_ART.grip` (`detective/assets.ts`) — one source of
+    // truth for where the octopus grips the glass, read by
+    // `canvas/placeArt.ts` from both this screen and a trail's own carrier.
     unlocked: () => true,
     enter: 'trail',
   },

@@ -19,6 +19,7 @@
 // picture is an `<image href="/art/…">`, the one mechanism that survives this
 // repo's ban (`TraceCanvas.tsx:63-84`).
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
+import { placeArt } from '../canvas/placeArt'
 import {
   CLUE_ART,
   GROUND_GRASS,
@@ -29,7 +30,7 @@ import {
   type ArtImage,
 } from '../detective/assets'
 import { CLUE_DRAINED } from '../detective/palette'
-import { ARM_ANCHORS, DEFAULT_GRIP, HOME_MODES, modeArt, type HomeMode } from '../home/modes'
+import { ARM_ANCHORS, HOME_MODES, modeArt, type HomeMode } from '../home/modes'
 import {
   activeCase,
   lampOn as caseLampOn,
@@ -156,31 +157,27 @@ function Scatter({ marks, art }: { marks: readonly GroundMark[]; art: readonly A
 
 /** An `ArtImage` drawn at a given height, hung off one point of its own box.
  *
- * `at` is that point, as a fraction — the default is the middle, which is what
- * every piece of chrome wants. A mode's object overrides it with its declared
- * grip, because the point the arm holds is not the middle of the picture
- * (`modes.ts`'s `grip`). */
+ * [case-registry-and-captions, Phase 8] The point is `art.grip` now — the
+ * SAME field `canvas/placeArt.ts` reads for a trail's own carrier
+ * (`detective/assets.ts`'s `ArtImage.grip`) — rather than a separate `at`
+ * prop threaded in from `HomeMode.grip`. One source of truth for where a
+ * picture is held, read by both screens through the one pure function
+ * (design.md §7). Absent `grip` centres on the bounding box, same as before. */
 function Hung({
   art,
   cx,
   cy,
   height,
-  at = DEFAULT_GRIP,
 }: {
   art: ArtImage
   cx: number
   cy: number
   height: number
-  at?: readonly [number, number]
 }) {
-  const w = (height * art.w) / art.h
   return (
     <image
       href={art.href}
-      x={cx - at[0] * w}
-      y={cy - at[1] * height}
-      width={w}
-      height={height}
+      {...placeArt(art, height, { x: cx, y: cy })}
       preserveAspectRatio="xMidYMid meet"
     />
   )
@@ -299,7 +296,7 @@ export default function HomeScreen({ records, onEnter }: HomeScreenProps) {
           return (
             <g key={mode.id}>
               <g className={shown.enabled ? 'cv-home-pulse' : undefined}>
-                <Hung art={shown.art} cx={cx} cy={cy} height={OBJECT_H} at={mode.grip} />
+                <Hung art={shown.art} cx={cx} cy={cy} height={OBJECT_H} />
               </g>
               {/* The hit area is a plain square over the object. Bigger than
                   the drawn glass on purpose, and invisible rather than absent:

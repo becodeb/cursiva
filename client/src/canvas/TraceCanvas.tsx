@@ -42,6 +42,7 @@ import { taperedCorridor, type CorridorSegment } from './corridorTaper'
 import type { ScatterMark } from './groundScatter'
 import { useTraceInput, type TracePoint } from './useTraceInput'
 import { isDevMode } from './devMode'
+import { placeArt } from './placeArt'
 import { devCheckpointState, type DevCheckpointState } from './devCheckpointState'
 import { DevCheckpointOverlay } from './devCheckpointOverlay'
 import type { LetterCheckpoint } from '../letters/types'
@@ -303,6 +304,13 @@ export interface TraceCarrierArt {
   href: string
   w: number
   h: number
+  /** [case-registry-and-captions, Phase 8] Where the carrier is HELD, as a
+   * fraction of its own box — read by `canvas/placeArt.ts` (design.md §7).
+   * Absent centres on the bounding box, same as `placeArt`'s own default.
+   * `detective/assets.ts`'s `CARRIER_LENS_ART` is the one caller that
+   * declares this today; this type stays structural (no import from
+   * `detective/`) so `ArtImage` satisfies it by shape alone. */
+  grip?: readonly [number, number]
 }
 
 /** Rendered HEIGHT of a `carrierArt` override, in viewBox units — big enough
@@ -1249,17 +1257,21 @@ export default function TraceCanvas({
           {carrierArt ? (
             // Registry art (`detective/assets.ts`'s `CARRIER_LENS_ART`).
             //
-            // The `<image>` carries its own centring offset and NO transform
-            // of its own: the rAF loop above rewrites `transform` on this
-            // GROUP every single frame, so anything written there is gone in
-            // ~16ms. Centring has to live on the child, which is why this is
-            // not simply `transform="translate(-w/2 -h/2)"`.
+            // The `<image>` carries its own placement and NO transform of its
+            // own: the rAF loop above rewrites `transform` on this GROUP every
+            // single frame, so anything written there is gone in ~16ms.
+            // Placement has to live on the child, which is why this is not
+            // simply `transform="translate(-w/2 -h/2)"`.
+            //
+            // [case-registry-and-captions, Phase 8] `placeArt` puts
+            // `carrierArt.grip` — the LENS, not the bounding box — exactly on
+            // the group's own origin (`{x:0, y:0}`, since the group is already
+            // translated to the carried point every frame above). This is the
+            // fix for the ~11-unit drift the old bbox-centred `x`/`y` shipped
+            // with (design.md §7).
             <image
               href={carrierArt.href}
-              x={-(CARRIER_ART_SIZE * carrierArt.w) / carrierArt.h / 2}
-              y={-CARRIER_ART_SIZE / 2}
-              width={(CARRIER_ART_SIZE * carrierArt.w) / carrierArt.h}
-              height={CARRIER_ART_SIZE}
+              {...placeArt(carrierArt, CARRIER_ART_SIZE, { x: 0, y: 0 })}
               preserveAspectRatio="xMidYMid meet"
             />
           ) : (

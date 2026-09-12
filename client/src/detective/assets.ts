@@ -58,6 +58,15 @@ export interface ArtImage {
   href: string
   w: number
   h: number
+  /**
+   * Where this picture is HELD, as a fraction of its own box — the same shape
+   * `canvas/placeArt.ts` (design.md §7) reads and `home/modes.ts` used to
+   * duplicate as its own `HomeMode.grip`. Absent means the box's own centre,
+   * which is right for a caption or a clue mark but wrong for anything held
+   * by one specific point rather than drawn whole. Optional on purpose: only
+   * `CARRIER_LENS_ART` declares one today.
+   */
+  grip?: readonly [number, number]
 }
 
 export interface ClueArt {
@@ -153,16 +162,23 @@ export const ANIMAL_ART: Readonly<Record<AnimalId, ArtImage>> = {
 /** The magnifying glass that rides the child's fingertip on a detective trail
  * (`TraceCanvas`'s `carrierArt` override).
  *
- * Authored standalone, and padded by `build_art.py`'s `CENTRED` step so the
- * image's centre is the LENS rather than the bounding box. That padding is why
- * this is taller than it looks on screen: a caller scales by `h`, and roughly
- * the outer quarter of the canvas is deliberate transparent margin balancing
- * the handle. Size the carrier by what the lens should measure, not by what
- * the file measures. */
+ * [Corrected, case-registry-and-captions Phase 8] Authored standalone, and
+ * `build_art.py`'s `centre_on()` step DOES pad it so the image's centre is
+ * the lens rather than the bounding box — but `emit()` then crops every
+ * output back to its alpha bounding box, which removes exactly that padding
+ * again. The correction is applied and unconditionally undone: the shipped
+ * file's lens sits at `grip` below, not at (0.5, 0.5). `canvas/placeArt.ts`
+ * is what reads this fact now — the same source of truth `home/modes.ts`'s
+ * lamp-lit arm uses, so a trail and the home office can never place the lens
+ * differently. */
 export const CARRIER_LENS_ART: ArtImage = {
   href: '/art/carrier-lens.png',
   w: 361,
   h: 384,
+  // Measured on the shipped file (design.md §7's own worked measurement) —
+  // this is a fact about the PICTURE, never about the arm that holds it or
+  // the finger that carries it.
+  grip: [0.603, 0.391],
 }
 
 /** The octopus holding the glass — the child's own presence in the world.

@@ -1,7 +1,7 @@
 # Apply Progress: Case Registry and Captioned Art
 
-Cumulative scope across apply runs: **Phase 1 (S1) through Phase 7 (S7).**
-Phases 8-9 are untouched and remain `[ ]` in `tasks.md`.
+Cumulative scope across apply runs: **Phase 1 (S1) through Phase 8 (S8).**
+Phase 9 is untouched and remains `[ ]` in `tasks.md`.
 
 Mode: Standard (strict TDD disabled — `openspec/config.yaml testing.strict_tdd: false`).
 
@@ -404,17 +404,99 @@ in that wiring for a unit test to be wrong about.
 | Runtime harness | N/A for a new render this phase — visually confirmed together with Phase 8's task 8.7 lens screenshot, since exiting a trail and the lens defect share the same rendered surface |
 | Rollback boundary | One prop (`onExit` on `GameScreenProps`, threaded from `App.tsx`'s `goHome`) and one `isDevMode()` gate inside `initialView`; both are independently revertible — reverting `onExit` restores `dispatch({type:'back'})` at the two call sites, reverting the dev gate restores the old three-branch `initialView` returning `GameView` (never `null`) |
 
+## Phase 8: The lens centres on the fingertip (S8) — COMPLETE (8/8)
+
+| Task | Status | Evidence |
+|---|---|---|
+| 8.1 `canvas/placeArt.ts` | done | `DEFAULT_GRIP=[0.5,0.5]`; `placeArt(art,height,center)` — structural `{w,h,grip?}` param, no import from `detective/`, matching design §7's exact signature. |
+| 8.2 `canvas/placeArt.test.ts` | done | Default grip centres the box; a declared grip lands exactly on `center` (generic case); the SHIPPED `CARRIER_LENS_ART` grip case (fails if the fix is reverted, asserts both that it differs from the bbox-centred placement AND that the grip point itself lands on `center` via the inverse arithmetic); aspect ratio held for non-square `w`/`h` (real `carrier-lens.png` 361×384); zero height → no `NaN`; `DEFAULT_GRIP` value. |
+| 8.3 `assets.ts` `ArtImage.grip` + `CARRIER_LENS_ART.grip` | done, with a correction | Added `grip?: readonly [number, number]` to `ArtImage`; set `CARRIER_LENS_ART.grip = [0.603, 0.391]`. **Correction, not just a move**: the pre-existing module comment above `CARRIER_LENS_ART` claimed the file "arrives padded" so its centre IS the lens — that was the pre-fix mental model, and it is exactly backwards from what actually ships: `build_art.py`'s `centre_on()` pads it, but `emit()` crops every output back to its alpha bounding box, undoing that padding. Rewrote the comment to state the real pipeline behaviour (padded, then un-padded) rather than silently changing the `grip` value while leaving a comment that would keep describing the wrong mechanism to the next reader. |
+| 8.4 `TraceCanvas.tsx` carrier `<image>` via `placeArt` | done | `{...placeArt(carrierArt, CARRIER_ART_SIZE, {x:0,y:0})}` replaces the four hand-computed bbox-centred attributes. `TraceCarrierArt` gains `grip?: readonly [number, number]`, kept structural (no `detective/` import) per design §7's stated reason `TraceCanvas` holds no token/registry. |
+| 8.5 `home/modes.ts` grip deletion | done | Deleted `HomeMode.grip` (the field, its doc comment, and its one declared value on the `detective` entry) and the exported `DEFAULT_GRIP` — confirmed by search that no test in the suite referenced either. |
+| 8.6 `HomeScreen.tsx`'s `Hung` rewrite | done | `Hung` now reads `art.grip` via `placeArt(art, height, {x:cx,y:cy})` instead of taking its own `at` prop; the `DEFAULT_GRIP` import and the one `at={mode.grip}` call site are both gone. The other two `Hung` call sites (lamp, rail slots) were already un-parametrized on `at` and are byte-for-byte unaffected — `LAMP_ART`/`CLUE_ART` entries carry no `grip`, so they fall through to `placeArt`'s own `DEFAULT_GRIP`, identical to their old default. |
+| 8.7 Screenshot check — the defect this change exists to fix | PASS | See below — full detail, both visual and numeric. |
+| 8.8 `npm test` / `npm run build` | done | 1042 tests / 57 files (up from S7's 1036/56 — `placeArt.test.ts` is new, 6 tests). Build green. |
+
+### Task 8.7 — screenshot AND numeric proof (the defect this change exists to fix)
+
+**Why `?nivel=trail1`, not `?nivel=duck-trail1`, for the before/after pair.**
+`duck-trail1` does not exist on `main` (this whole change added the duck
+case) — a first attempt at `?nivel=duck-trail1` on port 5199 (the read-only
+`main` worktree) fell through to the HOME OFFICE instead of a trail, because
+an unrecognised level id resolves there on `main`'s own pre-existing
+`initialView`. Re-shot both ports against `?nivel=trail1` (a hen trail that
+exists on both branches) instead, which is what the two screenshots below
+actually compare.
+
+**Screenshots** (`/tmp/shots/lens-before-5199.png`, `/tmp/shots/lens-after-5174.png`,
+cropped to the octopus/lens region as `/tmp/shots/lens-before-crop.png` /
+`/tmp/shots/lens-after-crop.png` for a closer look): both shot at rest (no
+drag), 1280×900, `scripts/shot.sh`. Visually, the lens is up-and-right of the
+octopus in the BEFORE crop and has moved down-and-left, closer in against the
+octopus, in the AFTER crop — the correct direction for undoing an "up and to
+the right" drift.
+
+**A raw pixel diff** (`pngjs` in a `/tmp` scratch install, since neither
+Pillow nor ImageMagick is on this host) found the real changed region
+tightly bounded at `(210,360)-(322,478)` — exactly the octopus/lens area —
+plus one unrelated, much smaller diff blob around `(662-780, 455-529)` that
+turned out to be an animated ink-stroke ring (`stroke="#1e293b"`, `r=30`,
+`opacity=0.9`) whose position differs by only ~3 viewBox units between the
+two independent captures (animation-timing noise between two separate
+`virtual-time-budget` runs, present and centred at the SAME spot on both
+branches — confirmed by dumping both DOMs and comparing that circle's own
+`cx`/`cy`: `411.2,315.5` before vs `414.0,315.0` after). Not a regression;
+recorded here rather than silently ignored, per this repo's own convention of
+saying what still looks off rather than absorbing it.
+
+**The numeric proof — the one that actually settles it.** `chromium
+--dump-dom` on both dev servers at the identical `?nivel=trail1` URL, reading
+the REAL rendered SVG attributes rather than pixels:
+
+| | `main` (before, port 5199) | this branch (after, port 5174) |
+|---|---|---|
+| Carrier group `transform` | `translate(143 210)` | `translate(143 210)` — same route, same point |
+| `carrier-lens.png` `<image>` | `x="-48.885416666666664" y="-52"` | `x="-58.95581249999999" y="-40.664"` |
+| `carrier-octopus.png` `<image>` (unrelated `startArt`, unchanged by this fix) | `x="37.785" y="204"` | `x="37.785" y="204"` (identical — confirms only the lens placement changed) |
+
+Plugging the shipped grip `(0.603, 0.391)` and `width=97.771, height=104`
+into each box's own `x`/`y`, relative to the carrier group's own translated
+origin `(0,0)`:
+
+- **Before** (box centred on the origin, the pre-fix formula): grip point at
+  `x + 0.603×97.771 = -48.885 + 58.956 = 10.07`, `y + 0.391×104 = -52 +
+  40.664 = -11.336`. The visible lens sat **10.07 units right and 11.34
+  units up** of the carrier's actual point — reproducing the reported "~11
+  units up and to the right" defect to within a fraction of a unit, measured
+  directly from the shipped `main` markup rather than assumed.
+- **After**: grip point at `x + 0.603×97.771 = -58.956 + 58.956 = 0.000`,
+  `y + 0.391×104 = -40.664 + 40.664 = 0.000`. The lens lands EXACTLY on the
+  carrier's point — zero offset, on both axes, computed from this branch's
+  own shipped markup.
+
+**PASS**, with both a visual (screenshot) and a load-bearing numeric
+(DOM-attribute) confirmation — the arithmetic `placeArt.test.ts` already
+proves in isolation is shown here to be the SAME arithmetic actually reaching
+the rendered page.
+
+### Work Unit Evidence — S8
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npm test -- placeArt TraceCanvas HomeScreen modes` → 125/125 passed |
+| Runtime harness | `scripts/shot.sh` (before/after pair) + `chromium --dump-dom` numeric extraction — both documented above, PASS |
+| Rollback boundary | `placeArt.ts`/`.test.ts` are new and additive; reverting `TraceCanvas.tsx`'s carrier `<image>` and `HomeScreen.tsx`'s `Hung` restores their two old hand-computed formulas; restoring `HomeMode.grip`/`DEFAULT_GRIP` in `modes.ts` and `at={mode.grip}` in `HomeScreen.tsx` restores the pre-fix duplicate-source-of-truth shape exactly. All four files are independently revertible. |
+
 ## Remaining Tasks (out of scope for this apply run)
 
-- [ ] Phase 8: The lens centres on the fingertip (S8)
 - [ ] Phase 9: Docs — Nivel reterm, directive transcription, D6 fixes (S9)
 
 ## Status
 
-53/69 tasks complete (Phase 1: 5/5, Phase 2: 16/16, Phase 3: 5/5, Phase 4:
-7/7, Phase 5: 6/6, Phase 6: 6/6, Phase 7: 8/8). All seven slices committed
-separately. Ready for the next apply batch (Phase 8, S8) or for verify on
-this slice's scope.
+61/69 tasks complete (Phase 1: 5/5, Phase 2: 16/16, Phase 3: 5/5, Phase 4:
+7/7, Phase 5: 6/6, Phase 6: 6/6, Phase 7: 8/8, Phase 8: 8/8). All eight
+slices committed separately. Ready for the next apply batch (Phase 9, S9,
+docs-only) or for verify on this scope.
 
 ## Orchestrator correction after the S2 screenshot review (2026-09-12)
 
