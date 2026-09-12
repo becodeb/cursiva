@@ -751,7 +751,28 @@ const PHASE_2: LevelConfig[] = [
     // own ratio; `hazardGapFraction` (obstacles.ts) confirms a real, majority
     // gap (≈0.550) — longer than `f1-pelotas`'s, because stopping mid-garland
     // without lifting the finger is harder than stopping on a phase-1 maze.
-    obstacles: [{ at: 0.5, travel: 280, periodMs: 3000, phase: 0, radius: 34 }],
+    //
+    // `at` is a FLANK, and which of the three numbers had to move was decided by
+    // measurement rather than by taste. A hazard swings ±travel/2 along the
+    // route's LOCAL PERPENDICULAR, so where it sits decides how much of that
+    // swing is vertical. Authored at the trough (`at: 0.5`), the perpendicular
+    // is straight up and down and the starfish's centre reached y 569 on a
+    // 600-unit sheet — read off the live DOM, not estimated — with ~34 units of
+    // art below it. It hung off the bottom of the world.
+    //
+    // Two fixes were tried and rejected before this one. Shrinking travel to 240
+    // keeps it on the paper and turns the stop-and-go window into a MINORITY of
+    // the cycle, which `catalog.test.ts` and `obstacles.test.ts` both caught —
+    // the child would be waiting more than moving. Moving to a crest fixes the
+    // edge too, but a garland's tangent at a crest is steep, so the
+    // perpendicular is nearly horizontal and the starfish slides along the path
+    // instead of across it: measured at 226 units sideways against 29 down.
+    //
+    // A flank is where the route runs diagonally, so the same full swing crosses
+    // the channel at an angle and spends most of itself sideways: measured at
+    // 221 across and 84 down, bottom edge y 411. Full travel, full window, and
+    // the whole starfish stays on the sheet.
+    obstacles: [{ at: 0.25, travel: 280, periodMs: 3000, phase: 0, radius: 34 }],
     rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
