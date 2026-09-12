@@ -1,3 +1,19 @@
+```yaml
+schema: gentle-ai.verify-result/v1
+evidence_revision: sha256:5579fe076c94bfda272885d23eedf9ce07d52f2d6c7934ad74fd01e45e6d7b41
+verdict: pass
+blockers: 0
+critical_findings: 0
+requirements: 13/13
+scenarios: 42/42
+test_command: npm test
+test_exit_code: 0
+test_output_hash: sha256:6624d62c2b0dbd615305dae33aca8439f6456c422939f9c5cc499f8194fdc8bf
+build_command: npm run build
+build_exit_code: 0
+build_output_hash: sha256:f26b273c8d58de9331eb6e5f888f18ef6204a2a57b80720ebb1a94eeb1f1d791
+```
+
 # Verification Report: duck-undulations-and-sector-backdrop
 
 **Change**: `duck-undulations-and-sector-backdrop`
