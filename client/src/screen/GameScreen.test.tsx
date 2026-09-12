@@ -135,6 +135,25 @@ describe('initialView: ?nivel=mapa is a dev-only surface (design.md §8, proposa
   })
 })
 
+describe('initialView: ?nivel=intro-<levelId> is a dev-only capture surface (duck-undulations-and-sector-backdrop)', () => {
+  it('resolves the narrative entry only when dev is true', () => {
+    expect(initialView('?nivel=intro-duck-trail1', true)).toEqual({
+      view: 'intro',
+      levelId: 'duck-trail1',
+    })
+  })
+
+  it('falls through to null when dev is false, including the default', () => {
+    expect(initialView('?nivel=intro-duck-trail1', false)).toBeNull()
+    expect(initialView('?nivel=intro-duck-trail1')).toBeNull()
+  })
+
+  it('falls through to null for a level with no narrative entry, even in dev mode', () => {
+    expect(initialView('?nivel=intro-duck-trail2', true)).toBeNull()
+    expect(initialView('?nivel=intro-trail1', true)).toBeNull()
+  })
+})
+
 describe('allEarned (design.md "Decision: earned clues are derived from progress, not stored")', () => {
   it('true once every trail id has at least one approval', () => {
     expect(allEarned(DETECTIVE_TRAIL_IDS, recordsWith(DETECTIVE_TRAIL_IDS, 1))).toBe(true)

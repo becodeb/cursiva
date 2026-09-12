@@ -26,3 +26,23 @@ export function isSectorDebug(search: string): boolean {
     return false
   }
 }
+
+/**
+ * `?debug=pato-recuperado` (duck-undulations-and-sector-backdrop, screenshot
+ * verification): a DEV-GATED capture aid — unlike `isSectorDebug` above,
+ * this one seeds a real persisted record (`duck-trail4` filed) rather than
+ * only painting an overlay, so it needs the same gate `?nivel=mapa` uses,
+ * never the reviewed-build guarantee `isSectorDebug` protects.
+ *
+ * Exists because `scripts/shot.sh`'s single-URL model cannot click through
+ * four levels or seed `localStorage` before capturing the zoo map with the
+ * duck already standing at the pond — this flag does in one page load what
+ * would otherwise need a live interactive session or manual devtools.
+ */
+export function shouldSeedRecoveredDuck(search: string): boolean {
+  try {
+    return new URLSearchParams(search).get('debug') === 'pato-recuperado'
+  } catch {
+    return false
+  }
+}

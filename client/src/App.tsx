@@ -17,7 +17,8 @@ import MainScreen from './screen/MainScreen'
 import ZooMap from './screen/ZooMap'
 import { LocalProgressStore } from './progress/LocalProgressStore'
 import { openProgressStore } from './game/openProgressStore'
-import { isDevMode } from './canvas/devMode'
+import { isDevMode, shouldSeedRecoveredDuck } from './canvas/devMode'
+import { EMPTY_RECORD } from './game/types'
 import type { LevelRecord } from './game/types'
 
 /** Which shell is on screen. `game` carries where to open it, which is how
@@ -34,6 +35,22 @@ function readRecords(): Readonly<Record<string, LevelRecord>> {
   return openProgressStore().all()
 }
 
+/**
+ * `?debug=pato-recuperado`, dev-gated (`canvas/devMode.ts`): files
+ * `duck-trail4` before the map's own records are read, so the zoo map can
+ * be captured with the duck already standing at the pond without a live
+ * interactive session or manual devtools edit
+ * (duck-undulations-and-sector-backdrop, screenshot verification).
+ * Idempotent — filing an already-filed level is a no-op.
+ */
+function maybeSeedRecoveredDuck(search: string, dev: boolean): void {
+  if (!dev || !shouldSeedRecoveredDuck(search)) return
+  const store = openProgressStore()
+  if (store.get('duck-trail4').approvals < 1) {
+    store.save('duck-trail4', { ...EMPTY_RECORD, approvals: 1 })
+  }
+}
+
 /** A `?nivel=` deep link skips the map. The link exists so a level can be
  * opened directly while the mechanics are being reviewed, and routing it
  * through the map would defeat that. `initialView` returns `null` for
@@ -42,7 +59,9 @@ function readRecords(): Readonly<Record<string, LevelRecord>> {
  * internal `LevelMap`, is the fallback whenever nothing was asked for. */
 function initialShell(): Shell {
   const search = typeof window === 'undefined' ? '' : window.location.search
-  const view = initialView(search, isDevMode())
+  const dev = isDevMode()
+  maybeSeedRecoveredDuck(search, dev)
+  const view = initialView(search, dev)
   return view ? { at: 'game', initial: view } : { at: 'map' }
 }
 

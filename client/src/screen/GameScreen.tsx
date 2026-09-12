@@ -91,6 +91,13 @@ export function nextView(state: GameView, action: GameAction): GameView {
  * the office. `dev` is `isDevMode()` at the call sites (`App.initialShell`,
  * `GameScreen`'s own bare-mount fallback below), never hardcoded here, so
  * this function stays a pure decision over its two explicit parameters.
+ *
+ * [duck-undulations-and-sector-backdrop] `?nivel=intro-<levelId>` is the
+ * same kind of DEV SURFACE as `?nivel=mapa`: `?nivel=<levelId>` deliberately
+ * bypasses the narrative entry BY DESIGN (the deep link exists to review
+ * mechanics), so a screenshot of the entry screen itself needs its own
+ * gated route rather than reusing the ordinary one. Dev-gated because it is
+ * a navigable surface, the same reasoning `?nivel=mapa` already carries.
  */
 export function initialView(search: string, dev = false): GameView | null {
   try {
@@ -101,6 +108,10 @@ export function initialView(search: string, dev = false): GameView | null {
       if (DETECTIVE_CASES.some((k) => k.id === caseId)) return { view: 'deduce', caseId }
     }
     if (id === 'mapa' && dev) return { view: 'map', finished: false }
+    if (id?.startsWith('intro-') && dev) {
+      const levelId = id.slice('intro-'.length)
+      if (introLevel(levelId)) return { view: 'intro', levelId }
+    }
     if (id && LEVELS.some((l) => l.id === id)) return { view: 'play', levelId: id }
   } catch {
     // malformed query string: fall through to the office
