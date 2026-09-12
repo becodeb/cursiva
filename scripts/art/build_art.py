@@ -57,7 +57,7 @@ OUT = os.path.join(ROOT, 'client', 'public', 'art')
 # `client/src/detective/artManifest.test.ts`, which mirrors this literal
 # against the real TypeScript token so the two cannot drift apart.
 INK = (0x1A, 0x1A, 0x1A)
-CLUE_DRAINED = (0xC8, 0xCD, 0xD2)
+CLUE_DRAINED = (0x83, 0x83, 0x83)
 POND = (0x3F, 0x6F, 0x8F)
 KERNEL = (0xB8, 0x91, 0x2F)
 PRINT = (0x00, 0x00, 0x00)
@@ -111,8 +111,8 @@ def recolour(img: png.Image, fill, keep_ink: bool):
 
 
 def mute(img: png.Image, target, sat: float = 0.30,
-         toward: float = 0.42, contour_lift: float = 0.62):
-    """Desaturate ground art and wash its FILLS toward the paper colour.
+         toward: float = 0.62, contour_lift: float = 0.78):
+    """Desaturate ground art and wash it toward the ground it sits on.
 
     The ground is the only art that covers the whole sheet, and section 4 of
     `docs/09_GUIA_DE_ESTILO_VISUAL.md` is "el color es la recompensa": the only
@@ -125,8 +125,8 @@ def mute(img: png.Image, target, sat: float = 0.30,
       1. pull each channel toward its own luma by `sat`, so the hue survives at
          a third of its strength instead of being greyed out entirely;
       2. blend toward `target` -- the colour of the GROUND this art sits on, not
-         the paper. Fills blend by `toward * (luma/255)`; CONTOURS (luma < 90)
-         blend by the flat, much stronger `contour_lift`.
+         the paper. FILLS blend by a flat `toward`; CONTOURS (luma < 90) blend
+         by the flat, harsher `contour_lift`.
 
     Why contours need their own, harsher lever, measured rather than assumed.
     The first pass weighted the blend by luma alone, which by construction left
@@ -136,6 +136,18 @@ def mute(img: png.Image, target, sat: float = 0.30,
     the path: the texture was out-shouting its own subject. Lifting the contours
     into the ground fixes it, and it is the smaller lever -- dropping tuft
     density instead would have thinned the field into bald patches.
+
+    WHY THE FILL WEIGHT IS FLAT NOW, and it is the same lesson one step further
+    in. It used to be `toward * (luma / 255)`, which blends BRIGHT fills hardest
+    and dark ones barely at all. On a light ground that is backwards: a bright
+    fill is already close to the ground and has almost no contrast to give up,
+    while the dark fills carrying all the contrast were the ones the lever
+    refused to touch. Measured over the shipped mud tiles, raising `toward` from
+    0.42 to 0.78 under the old weighting moved the loudest clump's body contrast
+    from 85 to 71 -- the parameter was nearly inert. Flat, the same tiles land in
+    the 19-39 band where the ground belongs, and `artHierarchy.test.ts` is what
+    now holds them there relative to the clue marks rather than in absolute
+    terms.
 
     Cached on the RGB triple like `recolour`, because a scatter tile is mostly
     a handful of repeated flat fills.
@@ -150,7 +162,7 @@ def mute(img: png.Image, target, sat: float = 0.30,
         if got is None:
             r, g, b = key
             lum = luma(r, g, b)
-            t = contour_lift if lum < INK_LUMA else toward * (lum / 255.0)
+            t = contour_lift if lum < INK_LUMA else toward
             out = bytearray(3)
             for c_i, c in enumerate((r, g, b)):
                 v = lum + (c - lum) * sat
@@ -221,6 +233,14 @@ SINGLES = [
     # the same drawing gives OFF the ink contour every other drained mark has,
     # and makes the swap read as the SAME lamp lighting up rather than one
     # shape being replaced by a different one.
+    #
+    # The invisibility half of that argument expired on 2026-09-12, when
+    # `CLUE_DRAINED` moved to `#838383` and stopped vanishing into the earth --
+    # and it is worth noticing that this comment had ALREADY recorded the
+    # symptom, one asset at a time, without anyone reading it as a statement
+    # about the token. The second half is why the pairing stays anyway: two
+    # states of one drawing read as a lamp lighting up, two drawings read as a
+    # substitution.
     ('lamparita prendida.png', 'lamp-off.png',             192, CLUE_DRAINED, True),
     ('gallina.png',           'animal-gallina.png',        448, None,         True),
     ('pato.png',              'animal-pato.png',           448, None,         True),

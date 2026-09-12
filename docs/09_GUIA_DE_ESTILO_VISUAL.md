@@ -110,7 +110,7 @@ arte generado tiene que usar estos, no aproximaciones.
 | Papel / fondo | `#fdfcf7` |
 | Contorno del arte | `#1a1a1a` |
 | Trazo del chico (`INK_COLOR`) | `#1e293b` |
-| Pista apagada | `#c8cdd2` |
+| Pista apagada | `#838383` |
 | Gotita de agua | `#3f6f8f` |
 | Grano de maíz | `#b8912f` |
 | Huella | `#000000` |
@@ -135,6 +135,40 @@ en las pistas y verde (`#19241c`, tono 136°) en las matas de pasto.
 **El color es la recompensa.** Una marca sólo toma color cuando el chico
 la recoge. La huella es la excepción y va a negro, no a un color, porque
 una huella en la tierra no tiene color propio.
+
+**La recompensa es el TONO, no el contraste. Confundirlos costó el defecto
+del 2026-09-12 y esta guía tiene parte de la culpa por no decirlo.** "Pista
+apagada" quería decir *sin color*, y se implementó como *casi invisible*:
+`CLUE_DRAINED` era `#c8cdd2`, elegido cuando el corredor era papel casi
+blanco (`#fdfcf7`, luma 252), contra el que separaba 48. Cuando la hoja
+ganó suelo (sección 7) el corredor pasó a `CORRIDOR_EARTH #d9c3ae`, luma
+199, y ese mismo gris quedó a 5 de su fondo. Nadie lo revisó porque nada
+estaba mal escrito: un valor correcto en su contexto se volvió incorrecto
+cuando el contexto se movió abajo suyo. Medido sobre el arte embarcado,
+una mata de pasto separaba 79 de SU fondo y se dibujaba hasta 1,9 veces
+más grande que una pista. Al chico se le pedía buscar lo menos visible de
+la pantalla.
+
+Entonces la regla, dicha entera:
+
+- Una pista apagada es **acromática** —saturación cero, sin excepción— y
+  **legible**: separa al menos 55 de luma del suelo que tiene abajo.
+  `#838383` separa 68 de la tierra y 76 del campo.
+- Ganar una pista es **ganar tono**. `PRINT #000000` es la única que no
+  tiene tono para ganar, y paga en luma: 131 de salto contra el gris
+  apagado.
+- Consecuencia aceptada a sabiendas: una pista apagada ahora tiene MÁS
+  contraste de luma contra la tierra que `BUBBLE` o `KERNEL` ganadas. No
+  es un problema de lectura —esas dos son saturadas contra arcilla de
+  croma bajo, y las lleva el tono—, pero significa que en esta paleta la
+  luma ya no se puede leer como señal de recompensa.
+
+**Y la jerarquía es una regla, no una cuestión de gusto.** Una pista
+apagada tiene que separarse de su suelo **más** que cualquier marca
+decorativa del suelo se separa del suyo, y no puede dibujarse **más
+chica** que ella. Lo afirma `client/src/detective/artHierarchy.test.ts`
+sobre los PNG embarcados —no sobre el arte fuente, porque el `mute()` del
+pipeline es el que decide la mitad decorativa de la comparación.
 
 **El arte se recolorea a estos valores, no se aproxima.** Lo dibujado
 venía cerca pero no igual —la gota en `#3090c0` contra `POND #3f6f8f`, el
@@ -225,6 +259,14 @@ todo el campo a tamaño completo, donde una silueta repetida canta; el
 barro va chico, adentro del corredor y medio tapado por el propio rastro
 del chico.
 
+**El suelo se dibuja más chico que una pista, y eso también es regla.** El
+pasto iba a 30-52 unidades contra pistas de 28 —la decoración era hasta
+1,9 veces el tamaño de lo que hay que juntar—, y el 2026-09-12 bajó a
+18-26. El paso de la grilla bajó con él, de 76 a 58: la cobertura va como
+`tamaño² / paso²`, así que achicar las matas sin cerrar la grilla deja el
+campo pelado, que es justamente lo que el `contour_lift` se había
+inventado para evitar. Los dos se mueven juntos o ninguno.
+
 **Y una trampa que costó una iteración:** apagar sólo los rellenos no
 alcanza. El contorno dibujado del pasto viene en `#19241c`, a un pelo de
 la tinta `#1e293b`. Con ~130 matas contra ~35 pistas, el ojo se iba al
@@ -232,6 +274,15 @@ pasto y no al camino. Los contornos del suelo necesitan su propia
 palanca, más dura que la de los rellenos — es el parámetro
 `contour_lift` de `build_art.py`. Bajar la densidad en cambio deja
 peladas.
+
+**Y la misma lección una vuelta más, el 2026-09-12.** La palanca de los
+rellenos pesaba por luma (`toward * luma/255`), o sea que mezclaba más
+fuerte los rellenos CLAROS. Sobre un suelo claro eso está al revés: un
+relleno claro ya casi no tiene contraste que entregar, y los oscuros —los
+que cargan todo el contraste— eran justo los que la palanca no tocaba.
+Medido: subir `toward` de 0,42 a 0,78 movía el barro más ruidoso de 85 a
+71, casi nada. Ahora los rellenos mezclan con un `toward` plano y el
+mismo barro cae a 19-39.
 
 ## 8. Tipografía: Nunito
 
@@ -314,7 +365,7 @@ A single feather, seen from the side, pointing UP. Fill #2f6b5c.
   alternancia es lo que hace que un rastro se lea como "alguien caminó
   por acá"; la forma sola no alcanza (sección 5).
 - **Cada pista se pide dos veces**, una con su color ganado y otra en
-  `#c8cdd2`. El pipeline recolorea igual, pero la forma tiene que
+  `#838383`. El pipeline recolorea igual, pero la forma tiene que
   funcionar en los dos estados.
 - Los animales llevan **el origen en las patas** y todos la misma
   altura, así se paran sobre la misma línea de suelo.

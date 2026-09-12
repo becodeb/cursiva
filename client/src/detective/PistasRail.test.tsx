@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import TraceCanvas from '../canvas/TraceCanvas'
 import { CLUE_ART, LAMP_ART } from './assets'
 import { auditCaptions } from './captionAudit'
+import { CLUE_DRAINED } from './palette'
 import PistasRail, { type PistasSlot } from './PistasRail'
 
 /** Strips every tag (and therefore every attribute, so an `aria-hidden` or a
@@ -145,7 +146,7 @@ describe('PistasRail lamp (design.md "Light is drawn, never blurred")', () => {
     expect(html).not.toContain(LAMP_ART.on.href)
     // The drained grey still reaches the bar through the four empty sockets,
     // which is what makes an unlit rail read as waiting rather than broken.
-    expect(html).toContain('#c8cdd2')
+    expect(html).toContain(CLUE_DRAINED)
   })
 
   it('does not reflow the bar when the lamp lights up', () => {
@@ -193,7 +194,7 @@ describe('PistasRail slots', () => {
   it('a drained slot shows the SAME clue art in its drained state, in a grey socket', () => {
     const html = renderToString(<PistasRail slots={[drainedSlot]} lampOn={false} />)
     expect(html).toContain('fill="none"')
-    expect(html).toContain('stroke="#c8cdd2"')
+    expect(html).toContain(`stroke="${CLUE_DRAINED}"`)
     // `drainedSlot` is the CORN trail, so this also pins that a slot shows
     // its own trail's art rather than a shared generic placeholder.
     expect(html).toContain(`href="${CLUE_ART.corn.art.drained.href}"`)

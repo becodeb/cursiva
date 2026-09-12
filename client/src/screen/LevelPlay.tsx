@@ -90,7 +90,7 @@ const BEAT_FLASH_MS = 140
  * shipped ~60-unit spacing, marks any bigger run into their own neighbours
  * and merge into a smear instead of reading as individual
  * footprints/droplets/kernels/feathers. */
-const CLUE_MARK_SIZE = 28
+export const CLUE_MARK_SIZE = 28
 
 /** Rendered HEIGHT of the octopus standing at the start of a trail, in sheet
  * units (`docs/09_GUIA_DE_ESTILO_VISUAL.md` §3). It stands on its FEET — the
