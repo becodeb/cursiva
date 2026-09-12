@@ -272,7 +272,9 @@ Inserted contiguously **before** `trail1` in `catalog.ts`'s private `PHASE_1` ar
 |---|---|---|---|---|---|---|---|
 | `duck-trail1` | El charco del pato | `wave({ x0: 90, x1: 910, y: 300, amplitude: 140, cycles: 1 })` | 100 | — | `rules(1, false, true, 0)` | `feedback(0, true)` | `webfoot` |
 | `duck-trail2` | El sendero de migas | `wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 2 })` | 90 | — | `rules(1, false, true, 0)` | `feedback(0, false)` | `breadcrumb` |
-| `duck-trail3` | Las burbujas | `garland({ cycles: 3 })` | 80 | — | `rules(1, true, true, 0)` | `feedback(0, false)` | `bubble` |
+| `duck-trail3` | La vuelta de las burbujas | `switchback({ x0: 120, x1: 880, yTop: 140, yBottom: 480 })` | 80 | — | `rules(1, true, true, 0)` | `feedback(0, false)` | `bubble` |
+
+**Corrected after apply (orchestrator, post-S2 screenshot review).** This row first read `garland({ cycles: 3 })`. A garland IS the row of U's, and the row of U's is the signature of the directive's Nivel 3 — spending it on a Nivel 2 case trail flattens that level before it ships. That is proposal D1's ruling applied to the shape instead of to the obstacle. Two render defects fell out with it: the garland's cusps merged consecutive bubble marks into one blob, and the `yTop` the blank-sheet guard forced clipped the octopus and its glass at the top of the sheet. See `apply-progress.md`.
 | `duck-trail4` | El rastro de plumas | `squareWave({ x0: 100, mid: 300, amplitude: 140, run: 200, cycles: 3 })` | 70 | `{ from: 1.15, to: 0.9 }` | `rules(1, false, true, 0)` | `feedback(0, false)` | `feather` |
 
 `hint` (spoken-style, suppressed on screen by C1 but read by the adult and asserted absent by
@@ -282,7 +284,7 @@ Inserted contiguously **before** `trail1` in `catalog.ts`'s private `PHASE_1` ar
 
 `feedback(0, true)` on `duck-trail1` only — first contact with a routed trail turns the rail
 on, the same convention `trail1` carries (`catalog.ts:219-222`). `rules(1, true, …)` on
-`duck-trail3` only: the garland is the one duck trail whose whole point is one unbroken
+`duck-trail3` only: the reversal is the one duck trail whose whole point is one unbroken
 stroke, exactly as `trail2`'s spiral is.
 
 ### `duck-trail4` clearance arithmetic

@@ -36,7 +36,9 @@ with two.
    `GameScreen.tsx` and `Deduction.tsx` stop being global and take the active case.
 3. **Duck case**, inserted before `trail1`: four trails whose microprogression is
    **corridor width plus path complexity only** — `wave(140,1)/100/webfoot`,
-   `wave(170,2)/90/breadcrumb`, `garland(3)/80/bubble`, `squareWave(140,200,3)/70/feather`
+   `wave(170,2)/90/breadcrumb`, `switchback(140,480)/80/bubble`, `squareWave(170,200,3)/70/feather`
+   (`duck-trail3` was a `garland` until a post-apply screenshot review: a garland IS
+   the directive's Nivel 3 signature, so D1's ruling applies to the shape too)
    — and a three-option deduction (`pato`, `vaca`, `gato`) with the word under each animal.
    `vaca` is ruled out by `feather`, `gato` by `bubble`; `webfoot` and `breadcrumb` narrow
    nobody, the structural role `droplet` plays today.
@@ -168,28 +170,28 @@ and is registered in `assets.ts` in the same step its level ships, because
 
 ## Success Criteria
 
-- [ ] `DETECTIVE_CASES` holds two cases; no module imports a global `CULPRIT` or reads
+- [x] `DETECTIVE_CASES` holds two cases; no module imports a global `CULPRIT` or reads
       `ruledOutBy` off `ANIMAL_ART`.
-- [ ] The three structural deduction tests iterate `DETECTIVE_CASES` instead of asserting
+- [x] The three structural deduction tests iterate `DETECTIVE_CASES` instead of asserting
       one case — strictly stronger, since they also catch a clue kind meaning one thing in
       one case and another elsewhere.
-- [ ] A caption cannot be rendered without its image: removing `label` from a call site is
+- [x] A caption cannot be rendered without its image: removing `label` from a call site is
       a **type error**, asserted by a test that also proves the rewritten text-absence
       suites can still fail.
-- [ ] Four duck trails precede `trail1`; corridor width decreases monotonically 100 → 70;
+- [x] Four duck trails precede `trail1`; corridor width decreases monotonically 100 → 70;
       `duck-trail4` satisfies `cornerClearance` and `armClearance`.
-- [ ] Solving the duck deduction survives a reload: `isFiled('duck-deduce')` is true.
-- [ ] A `cursiva.levels.v1` payload captured mid-hen-campaign loads with no locked dead
+- [x] Solving the duck deduction survives a reload: `isFiled('duck-deduce')` is true.
+- [x] A `cursiva.levels.v1` payload captured mid-hen-campaign loads with no locked dead
       end and no level demotion.
-- [ ] `placeArt()` is unit-tested and both call sites use it; the lens centres on the
+- [x] `placeArt()` is unit-tested and both call sites use it; the lens centres on the
       pointer, not on the bounding box.
-- [ ] Exiting every mode lands on the home office; the level map is unreachable without
+- [x] Exiting every mode lands on the home office; the level map is unreachable without
       `isDevMode()`.
-- [ ] `docs/11_PULPITO_DETECTIVE_DIRECTIVA.md` exists and matches the PDF's structure;
+- [x] `docs/11_PULPITO_DETECTIVE_DIRECTIVA.md` exists and matches the PDF's structure;
       no D6 "never typeset" claim survives in `PistasRail.tsx` or `docs/09`.
-- [ ] `npm test` and `npm run build` green (baseline 972 tests / 52 files); no new
+- [x] `npm test` and `npm run build` green (baseline 972 tests / 52 files); no new
       `url(#…)` reference.
-- [ ] **Screenshot check, human-reviewed** (`scripts/shot.sh`): a duck trail mid-trace
+- [x] **Screenshot check, human-reviewed** (`scripts/shot.sh`): a duck trail mid-trace
       showing the lens on the fingertip, and the duck deduction showing three captioned
       animals. This repo's three big defects were all found by screenshots and none by the
       suite; a green suite is necessary and not sufficient.
