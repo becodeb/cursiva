@@ -46,10 +46,16 @@ import { LAYOUT_CSS } from './LevelPlay'
 const INK = '#1e293b'
 
 /**
- * Rendered HEIGHT of an animal choice, in CSS px. The animal IS the answer on
- * this screen — with the case registry now capping the lineup at three or
- * four options (never more), the picture is the single thing the child is
- * asked to choose between, not decoration beside something else.
+ * INTRINSIC height of an animal choice, in CSS px: the `width`/`height`
+ * attributes `CaptionedArt` puts on its `<svg>`, and therefore the aspect
+ * ratio the browser scales by. The RENDERED height is `.cv-captioned > svg`
+ * below, which grows and shrinks with the viewport — this number is what it
+ * falls back to if that rule never applies, and the ratio it grows along.
+ *
+ * The animal IS the answer on this screen — with the case registry capping
+ * the lineup at three or four options (never more), the picture is the single
+ * thing the child is asked to choose between, not decoration beside something
+ * else.
  *
  * [orchestrator ruling, 2026-09-12] `docs/09_GUIA_DE_ESTILO_VISUAL.md` §3
  * sizes animals at ~140 units on a trail; this screen has strictly MORE room
@@ -61,6 +67,24 @@ const INK = '#1e293b'
  * trail-scale baseline rather than merely restored to it.
  */
 const ANIMAL_SIZE = 180
+
+/**
+ * The lineup's own width class, e.g. `cv-lineup-figures-3`.
+ *
+ * A three-animal lineup may be drawn MUCH bigger than a four-animal one
+ * before the row runs out of sheet, and CSS cannot count children without
+ * `:has()` — a selector this repo has no reason to bet a classroom tablet on
+ * (`docs/09` §3's `url(#…)` scar is what betting on a feature looks like
+ * here). React already knows the count, so it says so in the markup, and the
+ * node harness can read it back off the rendered string.
+ *
+ * The UNSUFFIXED `.cv-lineup-figures` rule carries the four-up cap, so an
+ * option count nobody has written a rule for is laid out too small rather
+ * than overflowing the sheet.
+ */
+export function lineupWidthClass(optionCount: number): string {
+  return `cv-lineup-figures cv-lineup-figures-${optionCount}`
+}
 
 /** One registry raster, centred on the origin of an origin-centred viewBox.
  *
@@ -232,9 +256,9 @@ function Animal({
  * child just left. No `border-radius`, no `box-shadow`, no `border`
  * (design.md "Layout"), and no font declaration anywhere. */
 export const DEDUCTION_CSS = `
-.cv-lineup { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.cv-lineup-figures { display: flex; flex-direction: row; align-items: flex-end; justify-content: center; gap: 56px; flex-wrap: wrap; }
-.cv-lineup-slot { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.cv-lineup { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.cv-lineup-figures { display: flex; flex-direction: row; align-items: flex-end; justify-content: center; gap: 28px; flex-wrap: wrap; }
+.cv-lineup-slot { display: flex; flex-direction: column; align-items: center; }
 /* The shipped 64px tap floor (LevelPlay.tsx:140), reused by name and by
  * value — every animal choice is a real button, never smaller than a
  * child's tap target. The button grows past this floor once the much
@@ -254,7 +278,7 @@ export const DEDUCTION_CSS = `
  * span, reused by every future caller), so each screen that mounts it owns
  * the stacking. No font-family here: .cv-caption inherits Nunito from the
  * document root, same as .pistas-word (LevelPlay.tsx's LAYOUT_CSS). */
-.cv-captioned { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
+.cv-captioned { display: inline-flex; flex-direction: column; align-items: center; }
 /* [orchestrator ruling, 2026-09-12] The directive's own vocabulary is
  * UPPERCASE throughout — the enclosure signs read PECES/TORTUGAS/PATOS and
  * the directive's own deduction example is "PATO". The DOM text above
@@ -265,8 +289,62 @@ export const DEDUCTION_CSS = `
  * a real cost for a five-year-old's audio feedback. text-transform:
  * uppercase gets the same visible glyphs with none of that: only the paint
  * changes, the underlying word — and its pronunciation — stays "Pato". */
-.cv-caption { font-size: 26px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.02em; }
-.cv-lineup-ground { flex: 0 0 auto; max-width: 640px; margin-top: 8px; }
+.cv-caption { font-size: max(16px, calc(var(--cv-animal) * 0.12)); font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.02em; }
+/* [defect fix, orchestrator ruling 2026-09-12] THE LINEUP GROWS INTO THE
+ * SHEET. It used to be three 180px animals in a band across the middle of a
+ * 1280x900 page, about a fifth of the screen, with ~350px of empty paper above
+ * and ~300px below — and the animals are the single thing the child is asked
+ * to choose between.
+ *
+ * Sized the way this app already sizes its chrome: viewport-HEIGHT breakpoints
+ * ('LevelPlay.tsx''s LAYOUT_CSS drives '.pistas-word' and the rail marks
+ * through exactly the 820 and 520 boundaries reused below). ONE custom
+ * property carries the answer, and the picture, the word and the gaps are all
+ * derived from it — a caption sized on its own drifts out of proportion with
+ * the animal it belongs to, and on a narrow sheet the WORD becomes the widest
+ * thing in the slot and wraps the row that the picture still fits in.
+ *
+ * The px term is the vertical budget. The 'min()' against a width term is the
+ * second half of the same question, because a lineup is a ROW: three animals
+ * at 320px tall are ~960px wide, so on any sheet narrower than that the width
+ * runs out first and the row would wrap into a 2+1 stack that reads as two
+ * lineups.
+ *
+ * That width term, worked: the row gets '100vw' less the page padding, the
+ * ~132px PISTAS rail and the gaps/tap-padding between the figures — the
+ * subtracted px. The divisor is the sum of the animals' aspect ratios (vaca
+ * 448/405 = 1.11, gato 1.08, gallina 0.83, pato 0.82), which is what turns an
+ * available WIDTH back into a shared HEIGHT they can all stand at. Four
+ * options need a much smaller cap than three, which is what
+ * 'lineupWidthClass' exists to say. */
+.cv-lineup-figures { --cv-animal: min(420px, calc((100vw - 340px) / 3.9)); }
+.cv-lineup-figures-3 { --cv-animal: min(420px, calc((100vw - 270px) / 3.05)); }
+.cv-captioned > svg { width: auto; height: var(--cv-animal); }
+.cv-captioned { gap: calc(var(--cv-animal) * 0.03); }
+.cv-lineup-slot { gap: calc(var(--cv-animal) * 0.03); }
+@media (max-height: 820px) {
+  .cv-lineup-figures { --cv-animal: min(300px, calc((100vw - 340px) / 3.9)); gap: 22px; }
+  .cv-lineup-figures-3 { --cv-animal: min(300px, calc((100vw - 270px) / 3.05)); }
+}
+/* Short viewport. The rail stops standing BESIDE the lineup and becomes a row
+ * UNDER it (the max-height: 520 block further down), so the row gets the whole
+ * width back and the px term is what binds from here on. */
+@media (max-height: 520px) {
+  .cv-lineup-figures { --cv-animal: min(220px, calc((100vw - 300px) / 3.9)); gap: 14px; }
+  .cv-lineup-figures-3 { --cv-animal: min(240px, calc((100vw - 260px) / 3.05)); }
+  .animal-btn { padding: 4px; }
+}
+/* A landscape PHONE, where the whole page is shorter than one tall-viewport
+ * animal. Nothing restructures here — the row just stops asking for height it
+ * would have to steal from the rail below it. */
+@media (max-height: 420px) {
+  .cv-lineup-figures { --cv-animal: min(150px, calc((100vw - 300px) / 3.9)); }
+  .cv-lineup-figures-3 { --cv-animal: min(150px, calc((100vw - 260px) / 3.05)); }
+}
+/* The ground runs the width of the lineup standing on it. The old 640px cap
+ * was narrower than the figures once they grew, which drew a rug under them
+ * instead of a floor. */
+.cv-lineup-ground { flex: 0 0 auto; align-self: stretch; width: 100%; margin-top: 8px; }
 /* [defect fix, orchestrator ruling 2026-09-12] PistasRail.tsx renders
  * className="pistas-bar" (PistasRail.tsx:157) — this block used to say
  * .pistas-rail, a class that has never existed on this screen's markup, so
@@ -324,7 +402,7 @@ export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProp
       </header>
       <div className="cv-sheet">
         <div className="cv-lineup">
-          <div className="cv-lineup-figures">
+          <div className={lineupWidthClass(kase.options.length)}>
             {kase.options.map((id) => (
               <Animal key={id} id={id} kase={kase} state={state} onPick={onPick} />
             ))}

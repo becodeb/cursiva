@@ -26,6 +26,7 @@ import Deduction, {
   DEDUCTION_CSS,
   DeductionView,
   initialDeductionState,
+  lineupWidthClass,
   pickAnimal,
   solvesCase,
   type DeductionState,
@@ -180,6 +181,100 @@ describe.each(CASES)('DeductionView rendering — %s case', (_label, kase) => {
       <DeductionView kase={kase} state={initialDeductionState()} onPick={noop} onExit={noop} />,
     )
     expect(html).not.toContain('disabled=""')
+  })
+})
+
+describe('the lineup grows into the sheet (defect fix: three small animals in a large empty page)', () => {
+  /** The declaration body of a rule, e.g. the text between the braces of
+   * `.cv-captioned > svg { … }`. Returns every match, because the responsive
+   * rules are deliberately restated inside media queries. */
+  const bodies = (selector: string): string[] => {
+    const escaped = selector.replace(/[.*+?^$()|[\]\\]/g, '\\$&')
+    return [...DEDUCTION_CSS.matchAll(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`, 'g'))].map(
+      (m) => m[1],
+    )
+  }
+
+  it('names the option count in the markup, because CSS cannot count children', () => {
+    expect(lineupWidthClass(3)).toBe('cv-lineup-figures cv-lineup-figures-3')
+    expect(lineupWidthClass(4)).toBe('cv-lineup-figures cv-lineup-figures-4')
+    // The shared class is always present, so the unsuffixed rule keeps
+    // carrying the conservative cap for a count nobody wrote a rule for.
+    expect(lineupWidthClass(7)).toContain('cv-lineup-figures ')
+  })
+
+  for (const [name, kase] of CASES) {
+    it(`the ${name} lineup renders its own width class, so the cap matches the count`, () => {
+      const html = renderToString(
+        <DeductionView kase={kase} state={initialDeductionState()} onPick={noop} onExit={noop} />,
+      )
+      expect(html).toContain(lineupWidthClass(kase.options.length))
+    })
+  }
+
+  it('sizes the picture from the viewport, never from one hardcoded px value', () => {
+    // The defect: a fixed 180px animal in a 1280x900 page left ~350px of
+    // empty paper above the lineup and ~300px below it.
+    const svg = bodies('.cv-captioned > svg')
+    expect(svg.length).toBe(1)
+    expect(svg[0]).toContain('var(--cv-animal)')
+    expect(svg[0], 'the aspect ratio must follow the height, not be pinned').toContain(
+      'width: auto',
+    )
+    expect(svg[0]).not.toMatch(/height:\s*\d+px/)
+  })
+
+  it('drives that size through the SAME viewport-height breakpoints LevelPlay already uses', () => {
+    // `.pistas-word` in LevelPlay's LAYOUT_CSS steps at exactly these two.
+    expect(DEDUCTION_CSS).toContain('@media (max-height: 820px)')
+    expect(DEDUCTION_CSS).toContain('@media (max-height: 520px)')
+    // Every declaration of the property answers BOTH axes: a px vertical
+    // budget, and a 100vw term so a row of animals cannot outgrow its sheet.
+    const declarations = [...DEDUCTION_CSS.matchAll(/--cv-animal:\s*([^;]+);/g)].map((m) => m[1])
+    expect(declarations.length).toBeGreaterThanOrEqual(4)
+    for (const value of declarations) {
+      expect(value, `"${value}" must cap on height`).toMatch(/min\(\s*\d+px/)
+      expect(value, `"${value}" must cap on width`).toContain('100vw')
+    }
+  })
+
+  it('gives a three-option lineup a wider cap than the conservative default', () => {
+    // Four animals in a row run out of sheet much sooner than three, and the
+    // divisor is the sum of their aspect ratios — so the two caps cannot be
+    // the same expression. Compared declaration by declaration, in source
+    // order, which is breakpoint order.
+    const declared = (selector: string): string[] =>
+      bodies(selector)
+        .map((body) => /--cv-animal:\s*([^;]+);/.exec(body)?.[1])
+        .filter((v): v is string => v !== undefined)
+    const three = declared('.cv-lineup-figures-3')
+    const fallback = declared('.cv-lineup-figures')
+    expect(three.length).toBe(fallback.length)
+    expect(three.length).toBeGreaterThanOrEqual(4)
+    for (const [i, value] of three.entries()) {
+      expect(value, `breakpoint ${i} must not reuse the four-up cap`).not.toBe(fallback[i])
+      // The three-up row subtracts less chrome and divides by a smaller sum
+      // of aspect ratios, which is the whole reason the class exists.
+      const divisor = (expr: string): number => Number(/\/\s*([\d.]+)\)/.exec(expr)?.[1])
+      expect(divisor(value)).toBeLessThan(divisor(fallback[i]!))
+    }
+  })
+
+  it('derives the caption from the same property, so a word can never outgrow its picture', () => {
+    // Sized independently, the caption became the widest thing in the slot on
+    // a narrow sheet ("GALLINA" under a 110px hen) and wrapped a row that the
+    // pictures still fitted in.
+    const caption = bodies('.cv-caption')
+    expect(caption.length).toBe(1)
+    expect(caption[0]).toContain('var(--cv-animal)')
+    // ...and it is still the uppercase-by-paint rule, not literal capitals.
+    expect(caption[0]).toContain('text-transform: uppercase')
+  })
+
+  it('keeps the short-viewport rail collapse intact (it is what gives the row its width back)', () => {
+    expect(DEDUCTION_CSS).toMatch(
+      /@media \(max-height: 520px\)[\s\S]*\.pistas-bar\s*\{[^}]*flex-direction:\s*row/,
+    )
   })
 })
 
