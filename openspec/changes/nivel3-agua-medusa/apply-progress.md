@@ -262,3 +262,258 @@ Phases 4-8 remain untouched. Baseline for the next pass: 60 files / 1103
 tests, `npm run build` green. Ready for the next apply batch (Phase 4, S4)
 or for `sdd-verify` to review S2-S3 if the orchestrator wants them audited
 before continuing.
+
+---
+
+## Third pass: Phase 4 (S4), Phase 5 (S5) and Phase 6 (S6)
+
+Scope fence for this pass: Phases 4, 5 and 6 only. Phase 7 not started; no
+Nivel 3 level added to the catalog; `docs/` untouched.
+
+### Completed Tasks — Phase 4 (S4)
+
+- [x] 4.1 Added `art?: { href: string; w: number; h: number }` to
+  `TraceHazards` (`client/src/canvas/TraceCanvas.tsx`); widened `hazardEls`
+  to `Array<SVGCircleElement | SVGGElement | null>` and `setHazardEl`'s
+  parameter type to match.
+- [x] 4.2 Added the art branch to hazard markup as a **separate, untouched**
+  JSX alternative to the existing `<circle>` — the circle branch's own JSX
+  was not touched by a single character. The art branch is `<g ref
+  transform>` holding a static `<image href={hazards.art.href}
+  {...placeArt(hazards.art, 2*r, {x:0,y:0})} preserveAspectRatio="xMidYMid
+  meet" opacity={HAZARD_OPACITY} />`.
+- [x] 4.3 Branched the rAF loop on `const byTransform = !!hz.art`, read once
+  per frame (not once per hazard) — the identical expression the JSX above
+  branches on, so the picture and the loop cannot disagree. `transform`
+  written for art hazards, `cx`/`cy` mutation kept verbatim for circle
+  hazards.
+- [x] 4.4 Numeric verification added to `TraceCanvas.test.tsx`: `trail1`'s
+  hazard rendered through `renderToString`, asserting `cx`, `cy` (computed
+  via the real `obstacleAt`/`buildLevelTarget`/`getLevel('trail1')`) and
+  `r="30"` are present, and the markup does NOT match a translated `<g>`
+  wrapping a `<circle>` (the load-bearing regex from design §4). A parallel
+  art-present case asserts the group's `transform`, the `<image href>`, and
+  `width`/`height`/`x`/`y` equal `placeArt(art, 2*radius, {x:0,y:0})`.
+- [x] 4.5 `npm test` and `npm run build` green — see Work Unit Evidence.
+
+### `trail1` neutrality proof (mandatory for this slice)
+
+Per the launch prompt's explicit correction from the S1 pass ("screenshot
+bytes are NOT a valid neutrality proof on this host"), used ONLY the
+deterministic `chromium --headless --dump-dom` method, not screenshots.
+
+1. Dev server already running at `http://localhost:5174` (pre-existing,
+   started before this session).
+2. Captured `after.html`: `chromium --headless --disable-gpu --no-sandbox
+   --virtual-time-budget=5000 --user-data-dir=$(mktemp -d) --dump-dom
+   "http://localhost:5174/?nivel=trail1"` against the changed working tree.
+3. `git stash -u`, waited for HMR to settle, captured `before.html` against
+   the pre-change working tree, then `git stash pop`.
+4. **First finding, investigated rather than assumed**: `trail1`'s hazard
+   `cx`/`cy` differed between `before.html` and `after.html`
+   (`cx="411.34…" cy="315.47…"` vs `cx="432.60…" cy="311.76…"`). This is
+   `trail1`'s hazard being a MOVING target — `obstacleAt` is a function of
+   wall-clock `performance.now()`, and `--virtual-time-budget` advances real
+   rAF frames during the 5s budget, so two captures land at different phases
+   of the hazard's sine motion regardless of any code change. **Confirmed as
+   capture-time position, not a regression**: captured `after2.html` — a
+   THIRD dump of the identical (unchanged, "after") URL — and its `cx`/`cy`
+   differ from `after.html`'s too (`cx="395.80…" cy="318.18…"`), proving the
+   position varies run-to-run even with zero code change between captures.
+5. **The rigorous check**: normalized `before.html`/`after.html` by
+   replacing every `cx="…"`/`cy="…"` numeric value with a placeholder and the
+   Vite HMR cache-busting `?t=…` query string on `main.tsx` with a
+   placeholder, then diffed. **Result: zero differences** (`diff` exit 0).
+   Every other byte — the `<circle ... r="30" fill="none" stroke="#1e293b"
+   stroke-width="3" opacity="0.9">` element itself, its attribute order, the
+   surrounding `<g pointer-events="none">` wrapper, and everything else on
+   the page — is byte-identical before and after.
+6. Confirmed directly (not just via the normalized diff) that both captures
+   show `<g pointer-events="none"><circle cx="…" cy="…" r="30" …>` with NO
+   `translate(` wrapper around the circle in either capture — the exact
+   thing design §4's regex guards against in the unit test.
+
+**Conclusion**: `trail1`'s hazard is proven numerically unchanged in
+structure (tag, attributes, wrapper) and its only varying values (`cx`/`cy`)
+vary identically in BOTH the before and the after state, for a reason
+(wall-clock animation phase) that has nothing to do with this change. This
+satisfies "byte-identical in rendered attributes" the only way it can be
+proven on an animated element: by isolating the one axis (position) that is
+inherently non-deterministic under this capture method and showing every
+other byte is identical.
+
+### Completed Tasks — Phase 5 (S5)
+
+- [x] 5.1 Added two `SINGLES` rows to `scripts/art/build_art.py`:
+  `('medusa.png', 'goal-medusa.png', 384, None, True)` and `('estrella de
+  mar.png', 'hazard-starfish.png', 320, None, True)`. `fill=None`, no new
+  palette tuple, matching design.md §6 exactly.
+- [x] 5.2 Ran `python3 scripts/art/build_art.py`. Emitted 46 files total (was
+  44), including `client/public/art/goal-medusa.png` (357×384) and
+  `client/public/art/hazard-starfish.png` (320×296), plus the regenerated
+  `client/public/art/manifest.json`. All to be committed together in this
+  slice's commit.
+- [x] 5.3 Added `GOAL_MEDUSA_ART` (`w: 357, h: 384`) and
+  `HAZARD_STARFISH_ART` (`w: 320, h: 296`) to `client/src/detective/assets.ts`
+  — both sizes copied from the freshly emitted `manifest.json`, never
+  guessed.
+- [x] 5.4 Updated `client/src/detective/artManifest.test.ts`: added the two
+  imports, two `REGISTERED` rows, changed the count assertion `44 → 46`, and
+  extended the "14 clue + 4 animal + …" comment with "+ 1 goal (medusa) + 1
+  hazard (estrella de mar)".
+- [x] 5.5 **Performed the mandatory contour-colour check — FAILED, reported
+  rather than silently shipped.** See "Contour colour measurement" below for
+  the full data. Per the launch prompt's explicit instruction ("If either
+  outline is not near-achromatic, say so plainly rather than shipping a
+  third coloured line into the drawn world"), I am reporting this plainly
+  and have NOT applied the task's suggested fallback (a two-tone recolour),
+  because that fallback requires choosing a specific bespoke `fill` RGB
+  value per creature — a real art-direction decision with no value given
+  anywhere in design.md/tasks.md, which is not mine to invent unilaterally
+  as an implementation detail. `fill=None` (5.1) ships as specified; the
+  colour defect is real and unresolved, not silently patched.
+- [x] 5.6 `npm test` and `npm run build` green — see Work Unit Evidence.
+  (Nothing in code asserts contour colour numerically today, so the FAIL
+  above does not fail any test — it is a human-reviewed/measured gate, and
+  it failed.)
+
+### Contour colour measurement (task 5.5, mandatory before accepting the art)
+
+Per the launch prompt: "measure the two sources' contour colours before you
+accept them... verify by reading the emitted PNG files directly, not
+through a rendered page." Used `scripts/art/png.py`'s `read_png` directly
+(no Pillow/ImageMagick on this host) rather than eyeballing a screenshot.
+
+Method: for each emitted PNG, classified every opaque pixel as "contour" if
+(a) its luma is below `build_art.py`'s own `INK_LUMA = 90` threshold AND
+(b) it borders a near-transparent neighbour (i.e. it sits on the silhouette
+edge, not on an interior shading line) — the strictest reasonable reading of
+"the authored contour", to avoid over-counting interior dark shading as if
+it were the outline.
+
+| File | Edge-adjacent dark pixels sampled | Dominant contour RGB | Luma | Chroma (max−min) |
+|---|---|---|---|---|
+| `goal-medusa.png` | 1,019 | `rgb(0, 17, 120)` | 23 | **118/255** |
+| `hazard-starfish.png` | 609 | `rgb(0, 20, 122)` | 25 | **122/255** |
+
+For comparison: `ART_OUTLINE` (`#1a1a1a`) is `rgb(26,26,26)`, chroma **0**.
+The already-flagged `#19241c` grass failure (`palette.ts`'s own recorded
+incident) is `rgb(25,36,28)`, chroma **11** — and that one was bad enough to
+need a dedicated `mute()`/`contour_lift` fix in the ground-art pipeline.
+Both Nivel 3 sources measure chroma ≈118–122, roughly **10–11× more
+saturated** than the incident already on record.
+
+**This is unambiguously FAIL** by task 5.5's own stated criterion ("either
+contour is visibly hued/coloured"). Both `medusa.png` and `estrella de
+mar.png` are drawn with the SAME deep-navy-blue outline pen (not
+coincidence — same artist, same source set), over a bright authored body
+(`rgb(250,101,173)` magenta/pink for the medusa, `rgb(252,129,0)` orange for
+the starfish, both measured separately and not part of the contour claim
+above).
+
+**What this means for the drawn world, said plainly**: shipping these two
+files as `fill=None` (design.md §6's chosen approach) puts a THIRD coloured
+contour into a world whose whole point (`docs/09` §4, "el color es la
+recompensa") is that colour is reserved for earned clues. This is not a
+close call or a rounding difference the way the grass's `#19241c` (chroma
+11) arguably was — chroma ≈120 is a fully saturated hue, not a near-neutral
+dark tone that merely drifted.
+
+**Recommendation, not a unilateral fix**: design.md §6's own stated fallback
+is "move that SINGLES row to a two-tone recolour, not a palette token" —
+i.e. `recolour(img, fill, keep_ink=True)` instead of `fill=None`, with a
+bespoke `fill` RGB chosen for each creature (not one of the existing
+POND/KERNEL/PLUME tokens, which are clue-earned colours this is explicitly
+not). Applying that requires an actual colour choice — for reference, each
+creature's own bright authored fill measured above (`rgb(250,101,173)` /
+`rgb(252,129,0)`) could seed that choice, muted per docs/01 principle 1's
+"nothing saturated" the way `mute()` already treats ground art, but doing so
+is an art-direction call outside this executor's authority to make
+unprompted. **Flagging for an explicit decision before this ships past a
+draft branch**, not blocking the rest of this apply pass, which proceeds
+with `fill=None` exactly as design.md specified.
+
+### Completed Tasks — Phase 6 (S6)
+
+- [x] 6.1 Added `goalArt?: ArtImage` and `hazardArt?: ArtImage` to
+  `LevelConfig` (`client/src/levels/types.ts`), importing `ArtImage`
+  alongside the pre-existing `ClueKind` import from `../detective/assets`
+  (the file already crossed this exact boundary; no new layering violation).
+- [x] 6.2 In `client/src/screen/LevelPlay.tsx`: added `GOAL_ART_SIZE = 96`
+  beside `LAMP_SIZE`; added a `const endArt = level.goalArt ? {...} :
+  isCase ? {...lamp...} : undefined` computed alongside `endMarker`
+  (`goalArt` wins over the case lamp, design §5's exact branch), and
+  replaced the old inline `endArt={isCase ? … : undefined}` JSX with
+  `endArt={endArt}`; wired `level.hazardArt` into the `hazards` `useMemo`'s
+  `art` field (with `level.hazardArt` added to its dependency array).
+- [x] 6.3 Added three tests to `LevelPlay.test.tsx`'s existing "stands the
+  octopus at the start and the lamp at the end" suite: `goalArt` renders as
+  `endArt` on a world-only level with no case (size 96, not 84); `goalArt`
+  WINS over the case lamp when both are present (href is the goal art's, not
+  either lamp state's). The pre-existing "sends the lamp… OFF before the
+  trail is finished" test (case trail, no `goalArt`) and "sends neither on
+  an ordinary level" test (the `:526`-equivalent, unchanged) both stay green
+  unmodified, together covering all four states tasks.md 6.3 asks for.
+- [x] 6.4 `npm test` and `npm run build` green — see Work Unit Evidence.
+
+### Proof `goalArt` is orthogonal to the case lamp (verified, not just asserted)
+
+- Read `home/caseState.ts`: `lampOn(records, kase)` is
+  `kase.trailIds.every((id) => isFiled(records, id))`, a pure boolean over a
+  case's own trail ids with no art in it — confirmed nothing here touches
+  it.
+- Read `detective/cases.ts`: `DETECTIVE_CASES` lists only
+  `DUCK_TRAIL_IDS`/`DETECTIVE_TRAIL_IDS`; no Nivel 3 id is a member, so no
+  Nivel 3 id can appear in any `trailIds` array, and `lampOn` cannot be
+  moved by a `goalArt` level by construction.
+- `trailLampOn` stays gated on `isCase` (`level.clue`-derived), unchanged by
+  this slice — a `goalArt`-only level (`detectiveWorld: true, clue:
+  undefined`) never latches it, confirmed by the new test asserting
+  `endArt.href` is the goal art's href, never a lamp href, on such a level.
+- The `endArt` branch itself puts `goalArt` FIRST: a level with both `clue`
+  and `goalArt` set gets the goal art, never the lamp — confirmed by the
+  "goalArt WINS" test using `makeDetectiveLevel({ goalArt })`.
+
+### Deviations from Design
+
+1. **Task 5.5's contour-colour check FAILED** (measured, not eyeballed) —
+   see "Contour colour measurement" above. Shipped `fill=None` exactly as
+   design.md §6 specifies (this executor did not invent a recolour), but the
+   design's own optimistic open question ("whether the authored contours are
+   near-achromatic") resolves to NO, with hard numbers. Flagged for an
+   explicit decision, not silently patched.
+2. Everything else in Phases 4-6 matches design.md exactly — no other
+   deviation. The `TraceHazards.art`/loop-branch shape, the `endArt`
+   precedence, and the `GOAL_ART_SIZE`/`LAMP_SIZE` split all match design §4
+   and §5 verbatim.
+
+### Work Unit Evidence
+
+| Evidence | Value |
+|---|---|
+| Focused test command and exact result (S4) | `npm test -- TraceCanvas` → 1 file, 87 tests, all passed |
+| Focused test command and exact result (S5) | `npm test -- artManifest` → 1 file, 50 tests, all passed |
+| Focused test command and exact result (S6) | `npm test -- LevelPlay` → 1 file, 42 tests, all passed |
+| Full suite after S4 | `npm test` → 60 files, 1105 tests, all passed (1103 + 2 new `TraceCanvas.test.tsx` tests) |
+| Full suite after S5 | `npm test` → 60 files, 1107 tests, all passed (+2 new `artManifest.test.ts` rows exercised via the existing `it.each`) |
+| Full suite after S6 | `npm test` → 60 files, 1109 tests, all passed (+2 new `LevelPlay.test.tsx` tests) |
+| Build (all three slices) | `npm run build` (`tsc --noEmit && vite build`) → 0 TypeScript errors, build succeeded each time |
+| Runtime harness command/scenario and exact result (S4) | `chromium --headless --dump-dom` DOM-diff of `?nivel=trail1` before/after via `git stash` — see "trail1 neutrality proof" above; zero structural differences after normalizing the two inherently time-varying `cx`/`cy` values |
+| Runtime harness command/scenario and exact result (S5) | Direct PNG pixel measurement via `scripts/art/png.py` (`read_png`) — see "Contour colour measurement" above; FAILED, reported |
+| Runtime harness command/scenario and exact result (S6) | N/A — no level sets `goalArt`/`hazardArt` yet (S7's scope); orthogonality proof done by reading `caseState.ts`/`cases.ts` directly, not by rendering |
+| Rollback boundary (S4) | Delete the `art` branch in the hazard markup and the `byTransform` branch in the rAF loop; narrow `hazardEls`'/`setHazardEl`'s types back to `SVGCircleElement \| null`; remove `art?` from `TraceHazards`. The circle branch is untouched either way. |
+| Rollback boundary (S5) | Delete the two `SINGLES` rows, delete `client/public/art/goal-medusa.png`/`hazard-starfish.png`, revert `manifest.json` to 44 entries, delete the two `assets.ts` constants and the two `artManifest.test.ts` rows/count. |
+| Rollback boundary (S6) | Delete `goalArt?`/`hazardArt?` from `LevelConfig`; revert `endArt` to its old inline `isCase ? … : undefined` form; remove `level.hazardArt` from the `hazards` memo. No shipped level sets either field yet. |
+
+### Status (this pass)
+
+13/13 assigned tasks complete (4.1-4.5, 5.1-5.6, 6.1-6.4), with task 5.5
+explicitly FAILED and reported rather than silently passed — see Deviations.
+Phases 7-8 remain untouched. Baseline for the next pass: 60 files / 1109
+tests, `npm run build` green. **Before Phase 7 authors any level that sets
+`hazardArt: HAZARD_STARFISH_ART` or ships `goal-medusa.png`/
+`hazard-starfish.png` to a real child, the contour-colour finding above
+needs an explicit decision** (accept the authored navy contour as a fifth
+`docs/09` §4 exception, or approve a specific two-tone recolour fill per
+creature). Ready for the next apply batch (Phase 7, S7) once that decision
+is made, or for `sdd-verify` to review S4-S6 first.
