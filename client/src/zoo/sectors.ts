@@ -155,6 +155,21 @@ export function imageToViewBox(
   }
 }
 
+/**
+ * The exact inverse of {@link imageToViewBox}: a viewBox point back to its
+ * source pixel on `zoo-map.png`. Pasos B-H need this to check that a
+ * corridor's viewBox extent falls inside a sector backdrop's own sampled
+ * `corridorRows` — pushed through the SAME factor `imageToViewBox`'s numbers
+ * came from, not re-derived (this function's own header).
+ */
+export function viewBoxToImage(vbX: number, vbY: number): { x: number; y: number } {
+  const scale = Math.max(STAGE_W / MAP_IMG_W, STAGE_H / MAP_IMG_H)
+  return {
+    x: vbX / scale,
+    y: (vbY + (MAP_IMG_H * scale - STAGE_H) / 2) / scale,
+  }
+}
+
 const ENTRADA_HIT: Rect = { x: 398, y: 424, w: 228, h: 170 }
 const BOSQUE_HIT: Rect = { x: 25, y: 230, w: 300, h: 300 }
 const ESTANQUE_HIT: Rect = { x: 660, y: 68, w: 280, h: 200 }

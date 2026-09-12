@@ -715,6 +715,80 @@ describe('TraceCanvas ground — the maze as a PLACE (docs/09 section 7)', () =>
 })
 
 
+describe('TraceCanvas backdrop (duck-undulations-and-sector-backdrop design.md §3.4)', () => {
+  const corridor = { paths: ['M 100 300 L 900 300'], width: 110 }
+  const backdrop = { href: '/art/sector-lagoon-background.png', quiet: '#b4c5d0' }
+  const art = [{ href: '/art/ground-grass-1.png', w: 118, h: 81 }]
+  const mudArt = [{ href: '/art/ground-mud-1.png', w: 128, h: 99 }]
+  const ground = {
+    grass: { marks: [{ x: 120, y: 80, art: 0, size: 44, angle: -3 }], art },
+    mud: { marks: [{ x: 400, y: 302, art: 0, size: 20, angle: 200 }], art: mudArt },
+  }
+
+  it('renders the image with slice on the image, never on the root svg', () => {
+    const html = renderToString(<TraceCanvas corridor={corridor} maze backdrop={backdrop} />)
+    expect(html).toContain(`href="${backdrop.href}"`)
+    expect(html).toContain('preserveAspectRatio="xMidYMid slice"')
+    const svgOpenTag = html.slice(0, html.indexOf('>') + 1)
+    expect(svgOpenTag).not.toContain('preserveAspectRatio="xMidYMid slice"')
+  })
+
+  it('paints the quiet rect under the image', () => {
+    const html = renderToString(<TraceCanvas corridor={corridor} maze backdrop={backdrop} />)
+    expect(html).toContain(`fill="${backdrop.quiet}"`)
+  })
+
+  it('drops the full-sheet wall rect — the backdrop IS the wall', () => {
+    const html = renderToString(<TraceCanvas corridor={corridor} maze backdrop={backdrop} />)
+    expect(html).not.toContain('#e2e8f0') // MAZE_WALL
+    expect(html).not.toContain('#c9d7bd') // GROUND_FIELD
+  })
+
+  it('strokes the channel in SHEET_PAPER, whatever ground says', () => {
+    const withGround = renderToString(
+      <TraceCanvas corridor={corridor} maze backdrop={backdrop} ground={ground} />,
+    )
+    expect(withGround).toContain('stroke="#fdfcf7"')
+    expect(withGround).not.toContain('stroke="#d9c3ae"') // CORRIDOR_EARTH
+    const withoutGround = renderToString(<TraceCanvas corridor={corridor} maze backdrop={backdrop} />)
+    expect(withoutGround).toContain('stroke="#fdfcf7"')
+  })
+
+  it('introduces no url(#) reference and no <mask>/<pattern>/<clipPath>/<defs>', () => {
+    const html = renderToString(
+      <TraceCanvas corridor={corridor} maze backdrop={backdrop} ground={ground} />,
+    )
+    expect(html).not.toContain('url(#')
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<defs')
+  })
+
+  it('renders the channel path AFTER (below) the backdrop image, in document order', () => {
+    const html = renderToString(<TraceCanvas corridor={corridor} maze backdrop={backdrop} />)
+    expect(html.indexOf(`href="${backdrop.href}"`)).toBeLessThan(html.indexOf('stroke="#fdfcf7"'))
+  })
+
+  it('renders no backdrop layer at all without the prop', () => {
+    const html = renderToString(<TraceCanvas corridor={corridor} maze />)
+    expect(html).not.toContain('sector-lagoon-background')
+  })
+
+  it('leaves a plain maze byte-identical to before this prop existed', () => {
+    const withoutBackdrop = renderToString(<TraceCanvas corridor={corridor} maze />)
+    expect(withoutBackdrop).toContain('#e2e8f0')
+    expect(withoutBackdrop).toContain('stroke="#fdfcf7"')
+  })
+
+  it('leaves a ground maze byte-identical to before this prop existed', () => {
+    const withoutBackdrop = renderToString(<TraceCanvas corridor={corridor} maze ground={ground} />)
+    expect(withoutBackdrop).toContain('fill="#c9d7bd"')
+    expect(withoutBackdrop).toContain('stroke="#d9c3ae"')
+    expect(withoutBackdrop).not.toContain('sector-lagoon-background')
+  })
+})
+
 describe('TraceCanvas startArt / endArt (registry art standing at the ends of the route)', () => {
   const OCTOPUS = { href: '/art/carrier-octopus.png', w: 384, h: 353, size: 60 }
   const LAMP_OFF = { href: '/art/lamp-off.png', w: 132, h: 192, size: 52 }

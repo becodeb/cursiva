@@ -26,6 +26,23 @@
 // the test already made for `CARRIER_COLOR`, and it is proved where it can be
 // observed, in `TraceCanvas.test.tsx`'s `inkOnly` suite.
 
+/** Rec. 601 luma, the same weights `build_art.py`'s `luma()` uses to decide
+ * what is contour and what is fill. Lightness, not hue, is what separates a
+ * mark from warm-clay earth.
+ *
+ * It ROUNDS where the pipeline floors, so the two can disagree by one --
+ * `BREADCRUMB` is 117 here and 116 there. That is harmless for the ground-
+ * contrast thresholds it guards, but it is not harmless for the
+ * drained-grey search that picks an exact optimum: run that search against
+ * the pipeline's floor and it ties at two values instead of naming one. The
+ * search is defined by THIS function, the one every consumer imports. */
+export function luma(hex: string): number {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return Math.round((r * 299 + g * 587 + b * 114) / 1000)
+}
+
 /** The marker line of every drawn-world art asset -- clue marks and ground
  * contours alike, via `scripts/art/build_art.py`'s `INK`. This is deliberately
  * NOT `TraceCanvas.tsx`'s `INK_COLOR` (`#1e293b`, hue 217° -- a slate blue),

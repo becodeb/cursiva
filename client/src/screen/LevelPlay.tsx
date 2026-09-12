@@ -17,11 +17,13 @@ import TraceCanvas, {
   GROUND_FIELD,
   SHEET_PAPER,
   type DrawDemo,
+  type TraceBackdrop,
   type TraceClueMark,
   type TraceCorridor,
   type TraceGround,
   type TraceHazards,
 } from '../canvas/TraceCanvas'
+import { backdropFor } from '../zoo/backdrops'
 import { grassScatter, mudScatter } from '../canvas/groundScatter'
 import type { TracePoint } from '../canvas/useTraceInput'
 import { contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnContact'
@@ -1122,8 +1124,20 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // grass's jitter pattern, and both are seeded from a CONSTANT rather than
   // from the level id: the field should be the same field every time this
   // trail is opened.
+  // The sector's drawn backdrop (duck-undulations-and-sector-backdrop
+  // design.md §3.4). `backdropFor` resolves through the level's ADVENTURE,
+  // not through its sector directly — see that function's own header — so
+  // this stays correct once the medusa's four levels get a row of their own.
+  const backdrop = useMemo<TraceBackdrop | undefined>(() => {
+    const b = backdropFor(level.id)
+    return b ? { href: b.art.href, quiet: b.quiet } : undefined
+  }, [level.id])
+
   const ground = useMemo<TraceGround | undefined>(() => {
-    if (!inWorld || !corridor) return undefined
+    // A backdrop retires the scattered ground (docs/13 §4 decision 3): the
+    // sector's own drawn place replaces the field/earth scatter, per
+    // adventure, as each backdrop lands.
+    if (!inWorld || !corridor || backdrop) return undefined
     const taper = level.taper
     const halfWidthAt = (t: number): number =>
       (corridor.width * (taper ? taper.from + (taper.to - taper.from) * t : 1)) / 2
@@ -1138,7 +1152,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         art: GROUND_MUD,
       },
     }
-  }, [inWorld, corridor, level.taper, target.polyline, target.viewBoxWidth])
+  }, [inWorld, corridor, backdrop, level.taper, target.polyline, target.viewBoxWidth])
 
   // The rail's slot data. This slice only has visibility into the CURRENT
   // trail — the other three trails' persisted state is wired once the
@@ -1151,7 +1165,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   )
 
   return (
-    <main className={ground ? 'cv-play cv-play-ground' : 'cv-play'}>
+    <main
+      className={ground ? 'cv-play cv-play-ground' : 'cv-play'}
+      style={backdrop ? { background: backdrop.quiet } : undefined}
+    >
       <style>{LAYOUT_CSS}</style>
       <div className="cv-top">
       <header className="cv-head">
@@ -1310,6 +1327,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // Grass and trodden earth. Detective trails only — every other level,
         // maze or not, renders exactly the surface it always did.
         ground={ground}
+        // The sector's drawn place — an adventure's backdrop, once its
+        // sector has one. Absent for every level whose adventure has none.
+        backdrop={backdrop}
         onStart={onStart}
         onFrame={onFrame}
         onRelease={onRelease}

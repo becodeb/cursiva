@@ -21,6 +21,7 @@ import {
   nextAdventure,
   recentlyDiscovered,
   sectorOf,
+  viewBoxToImage,
   type FogPatch,
   type Records,
 } from './sectors'
@@ -378,5 +379,23 @@ describe('Image-to-ViewBox Transform', () => {
     expect(tl.y).toBeGreaterThanOrEqual(hit.y)
     expect(br.x).toBeLessThanOrEqual(hit.x + hit.w)
     expect(br.y).toBeLessThanOrEqual(hit.y + hit.h)
+  })
+})
+
+describe('viewBoxToImage (the exact inverse of imageToViewBox)', () => {
+  it('round-trips imageToViewBox → viewBoxToImage back to the source pixel', () => {
+    for (const [x, y] of [[0, 0], [1536, 1024], [768, 512], [136, 90], [527, 360]] as const) {
+      const back = viewBoxToImage(imageToViewBox(x, y).x, imageToViewBox(x, y).y)
+      expect(back.x).toBeCloseTo(x, 6)
+      expect(back.y).toBeCloseTo(y, 6)
+    }
+  })
+
+  it('round-trips the other way too: viewBoxToImage → imageToViewBox', () => {
+    for (const [vbX, vbY] of [[0, 0], [1000, 600], [500, 300], [90, 135], [910, 505]] as const) {
+      const back = imageToViewBox(viewBoxToImage(vbX, vbY).x, viewBoxToImage(vbX, vbY).y)
+      expect(back.x).toBeCloseTo(vbX, 6)
+      expect(back.y).toBeCloseTo(vbY, 6)
+    }
   })
 })

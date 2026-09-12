@@ -49,6 +49,7 @@ import {
   type ArtImage,
 } from './assets'
 import { ART_OUTLINE } from './palette'
+import { SECTOR_BACKDROP } from '../zoo/backdrops'
 
 /** Every PNG actually present in `public/art/`, keyed by bare name. The glob
  * is evaluated against the filesystem at transform time, so a file named in
@@ -64,6 +65,9 @@ interface ManifestEntry {
   w: number
   h: number
   bytes: number
+  quiet?: string
+  brightest?: string
+  corridorRows?: { top: number; bottom: number }
 }
 
 const manifest: Record<string, ManifestEntry> = JSON.parse(
@@ -168,6 +172,21 @@ describe('art registry matches the shipped pipeline manifest', () => {
         art.art.drained.href,
       )
     }
+  })
+
+  it("matches SECTOR_BACKDROP.estanque's quiet/brightest/corridorRows against the pipeline's own sampled values", () => {
+    // `client/src/zoo/backdrops.ts` hand-copies `quiet`/`brightest` from
+    // `manifest.json` (`build_art.py`'s `sample_corridor_band`), the same
+    // drift risk `w`/`h` already guard against above — a re-muted lagoon
+    // changes the manifest, and this is what makes that drift loud.
+    const entry = manifest['sector-lagoon-background']
+    const backdrop = SECTOR_BACKDROP.estanque!
+    expect(entry.quiet).toBe(backdrop.quiet)
+    expect(entry.brightest).toBe(backdrop.brightest)
+    expect(entry.corridorRows).toEqual(backdrop.corridorRows)
+    expect(backdrop.quiet).toBe('#b4c5d0')
+    expect(backdrop.brightest).toBe('#b4c5d0')
+    expect(backdrop.corridorRows).toEqual({ top: 135, bottom: 889 })
   })
 
   it("mirrors scripts/art/build_art.py's INK constant against the real TypeScript token", () => {

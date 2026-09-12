@@ -369,15 +369,60 @@ SINGLES = [
 # Full-canvas scenes are already authored at final dimensions. They bypass the
 # 2x work pass: scaling a 1536x1024 map up and back down can only soften its
 # deliberately flat palette.
+#
+# The optional fifth element is a `(top, bottom)` source-row range: the rows
+# a sector's corridor can reach, inclusive. When present, `main` samples that
+# entry's `quiet` (the modal colour of the middle 40% of the range) and
+# `brightest` (the maximum-luma pixel colour across the whole range) into its
+# manifest entry -- the two fields `client/src/zoo/backdrops.ts`'s
+# `SECTOR_BACKDROP` hand-copies and `artManifest.test.ts` guards against
+# drift. `None` for every entry with no drawn corridor yet.
 PASSTHROUGHS = [
-    ('mapa zoologico.png', 'zoo-map.png', 1536, 1024),
-    ('fondo laguna.png', 'sector-lagoon-background.png', 1536, 1024),
-    ('fondo arena.png', 'sector-sand-background.png', 1536, 1024),
-    ('fondo ladera.png', 'sector-slope-background.png', 1536, 1024),
-    ('fondo cordillera.png', 'sector-range-background.png', 1536, 1024),
-    ('fondo bosque.png', 'sector-forest-background.png', 1536, 1024),
-    ('fondo pecera.png', 'sector-aquarium-background.png', 1536, 1024),
+    ('mapa zoologico.png', 'zoo-map.png', 1536, 1024, None),
+    ('fondo laguna.png', 'sector-lagoon-background.png', 1536, 1024, (135, 889)),
+    ('fondo arena.png', 'sector-sand-background.png', 1536, 1024, None),
+    ('fondo ladera.png', 'sector-slope-background.png', 1536, 1024, None),
+    ('fondo cordillera.png', 'sector-range-background.png', 1536, 1024, None),
+    ('fondo bosque.png', 'sector-forest-background.png', 1536, 1024, None),
+    ('fondo pecera.png', 'sector-aquarium-background.png', 1536, 1024, None),
 ]
+
+
+def sample_corridor_band(img: png.Image, top: int, bottom: int) -> tuple[str, str]:
+    """`quiet`/`brightest` for a `PASSTHROUGHS` row range (design.md §3.5
+    point 1): `quiet` is the MODAL colour of the middle 40% of `[top,
+    bottom]` (inclusive), `brightest` the MAXIMUM-luma pixel colour anywhere
+    in the whole range -- what `docs/09:158`'s luma law is asserted against,
+    never against `quiet` alone, so a backdrop whose art is not this flat
+    keeps the two fields honest.
+    """
+    height = bottom - top + 1
+    mid_top = top + round(height * 0.3)
+    mid_bottom = top + round(height * 0.7)
+    counts: dict[tuple[int, int, int], int] = {}
+    brightest = None
+    brightest_luma = -1
+    for y in range(top, bottom + 1):
+        row = y * img.w * 4
+        for x in range(img.w):
+            i = row + x * 4
+            r, g, b, a = img.px[i], img.px[i + 1], img.px[i + 2], img.px[i + 3]
+            if a == 0:
+                continue
+            key = (r, g, b)
+            level = luma(r, g, b)
+            if level > brightest_luma:
+                brightest_luma = level
+                brightest = key
+            if mid_top <= y <= mid_bottom:
+                counts[key] = counts.get(key, 0) + 1
+
+    def to_hex(rgb: tuple[int, int, int]) -> str:
+        return '#%02x%02x%02x' % rgb
+
+    quiet = max(counts.items(), key=lambda kv: kv[1])[0]
+    assert brightest is not None
+    return to_hex(quiet), to_hex(brightest)
 
 # Authoring-canvas contract for the zoo slice. These dimensions are deliberate:
 # cutouts keep a shared square canvas (including their transparent margin), while
@@ -544,10 +589,15 @@ def main() -> None:
     validate_authored_source_sizes()
     manifest: dict[str, dict] = {}
 
-    for src, name, expected_w, expected_h in PASSTHROUGHS:
+    for src, name, expected_w, expected_h, corridor_rows in PASSTHROUGHS:
         img = png.read_png(os.path.join(SRC, src))
         key = name[:-4]
         manifest[key] = emit_opaque_canvas(name, img, expected_w, expected_h)
+        if corridor_rows is not None:
+            quiet, brightest = sample_corridor_band(img, *corridor_rows)
+            manifest[key]['quiet'] = quiet
+            manifest[key]['brightest'] = brightest
+            manifest[key]['corridorRows'] = {'top': corridor_rows[0], 'bottom': corridor_rows[1]}
         print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
               f'{manifest[key]["bytes"] / 1024:6.1f} KB')
 

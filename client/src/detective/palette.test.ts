@@ -2,7 +2,18 @@
 // detective-mode "Colour Asset Registry" — "Footprints earn in greyscale
 // only", "Trail colour absent before earning"). Pure data assertions, no DOM.
 import { describe, expect, it } from 'vitest'
-import { ART_OUTLINE, BREADCRUMB, BUBBLE, CLUE_DRAINED, KERNEL, LAMP, PLUME, POND, PRINT } from './palette'
+import {
+  ART_OUTLINE,
+  BREADCRUMB,
+  BUBBLE,
+  CLUE_DRAINED,
+  KERNEL,
+  LAMP,
+  luma,
+  PLUME,
+  POND,
+  PRINT,
+} from './palette'
 import { CLUE_ART } from './assets'
 import { DETECTIVE_CASES, clueKindsOf } from './cases'
 
@@ -17,23 +28,9 @@ const CARRIER_COLOR = '#5f8a86'
  * the component in would drag React into a pure data test. */
 const CORRIDOR_EARTH = '#d9c3ae'
 const GROUND_FIELD = '#c9d7bd'
-
-/** Rec. 601 luma, the same weights `build_art.py`'s `luma()` uses to decide
- * what is contour and what is fill. Lightness, not hue, is what separates a
- * mark from warm-clay earth.
- *
- * It ROUNDS where the pipeline floors, so the two can disagree by one --
- * `BREADCRUMB` is 117 here and 116 there. That is harmless for the thresholds
- * below, but it is not harmless for the drained-grey search further down,
- * which picks an exact optimum: run that search against the pipeline's floor
- * and it ties at two values instead of naming one. The search is defined by
- * THIS function, the one the assertion uses. */
-function luma(hex: string): number {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return Math.round((r * 299 + g * 587 + b * 114) / 1000)
-}
+/** The lagoon backdrop's channel paint (`TraceCanvas.tsx:63`) — mirrored as a
+ * literal for the same reason the two grounds above are. */
+const SHEET_PAPER = '#fdfcf7'
 
 /** How far ANY clue mark must sit from the ground beneath it, earned or not.
  *
@@ -126,8 +123,13 @@ describe('detective palette (design.md "Art Direction (revised plan)")', () => {
   })
 
   it('separates every earned clue colour from the ground it lies on', () => {
+    // `SHEET_PAPER` joins the ground set here because the lagoon backdrop
+    // repaints the duck trails' channel to paper (duck-undulations design.md
+    // §3.1): the clue marks that already ship on those trails now sit on this
+    // ground too, and this is the law for the new ground rather than the one
+    // it replaced.
     for (const [name, hex] of Object.entries(EARNED)) {
-      for (const [groundName, groundHex] of Object.entries({ CORRIDOR_EARTH, GROUND_FIELD })) {
+      for (const [groundName, groundHex] of Object.entries({ CORRIDOR_EARTH, GROUND_FIELD, SHEET_PAPER })) {
         const gap = Math.abs(luma(hex) - luma(groundHex))
         expect(
           gap,
@@ -152,7 +154,11 @@ describe('detective palette (design.md "Art Direction (revised plan)")', () => {
     // file. `CLUE_DRAINED` was `#c8cdd2` (luma 204) against `CORRIDOR_EARTH`
     // (199): a gap of 5. Point the token back at that value, or at anything
     // else chosen for a near-white background, and this goes red immediately.
-    for (const [groundName, groundHex] of Object.entries({ CORRIDOR_EARTH, GROUND_FIELD })) {
+    for (const [groundName, groundHex] of Object.entries({
+      CORRIDOR_EARTH,
+      GROUND_FIELD,
+      SHEET_PAPER,
+    })) {
       const gap = Math.abs(luma(CLUE_DRAINED) - luma(groundHex))
       expect(
         gap,

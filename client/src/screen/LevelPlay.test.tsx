@@ -38,10 +38,11 @@ vi.mock('../canvas/TraceCanvas', async (importOriginal) => ({
 }))
 
 import LevelPlay, { drawingBand, shouldFileClue, shouldTickClue } from './LevelPlay'
-import { CARRIER_LENS_ART, CLUE_ART, LAMP_ART, OCTOPUS_ART } from '../detective/assets'
+import { CARRIER_LENS_ART, CLUE_ART, LAMP_ART, OCTOPUS_ART, SECTOR_BACKGROUND_ART } from '../detective/assets'
 import { auditCaptions } from '../detective/captionAudit'
 import { INK_COLOR } from '../canvas/TraceCanvas'
 import { PRINT } from '../detective/palette'
+import { getLevel } from '../levels/catalog'
 
 function makeLevel(over: Partial<LevelConfig> = {}): LevelConfig {
   return {
@@ -245,6 +246,44 @@ describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
       />,
     )
     expect(traceCanvasProbe.current?.carrierArt).toBeUndefined()
+  })
+})
+
+describe('LevelPlay backdrop (duck-undulations-and-sector-backdrop design.md §3.4)', () => {
+  it('duck-trail2 gets the lagoon backdrop, zero scattered ground, and the quiet colour as the page background', () => {
+    const html = renderToString(
+      <LevelPlay
+        level={getLevel('duck-trail2')}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect(traceCanvasProbe.current?.ground, 'duck-trail2 must retire its scattered ground').toBeUndefined()
+    const backdrop = traceCanvasProbe.current?.backdrop as { href: string; quiet: string } | undefined
+    expect(backdrop?.href).toBe(SECTOR_BACKGROUND_ART.lagoon.href)
+    expect(backdrop?.quiet).toBe('#b4c5d0')
+    expect(html).toContain('#b4c5d0')
+  })
+
+  it("f2-agua2 keeps its scattered ground unchanged — the medusa regression guard (shares the estanque sector but belongs to no backed adventure)", () => {
+    renderToString(
+      <LevelPlay
+        level={getLevel('f2-agua2')}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect(traceCanvasProbe.current?.backdrop, 'f2-agua2 must not get the lagoon backdrop').toBeUndefined()
+    const ground = traceCanvasProbe.current?.ground as
+      | { grass: { marks: unknown[] }; mud: { marks: unknown[] } }
+      | undefined
+    expect(ground, 'f2-agua2 must keep its grass/mud scatter').toBeDefined()
+    expect(ground!.grass.marks.length).toBeGreaterThan(0)
+    expect(ground!.mud.marks.length).toBeGreaterThan(0)
   })
 })
 

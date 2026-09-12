@@ -298,6 +298,25 @@ export interface TraceGround {
 }
 
 /**
+ * The sector's drawn place, laid UNDER the maze block (duck-undulations-and-
+ * sector-backdrop design.md §3.4). Presence of this prop is the whole
+ * switch: the full-sheet wall rect is skipped (the backdrop IS the wall)
+ * and the channel is stroked in `SHEET_PAPER` whatever `ground` says,
+ * because `CORRIDOR_EARTH` fails `docs/09_GUIA_DE_ESTILO_VISUAL.md`
+ * section 4's `>= 55` luma law against water by 49.
+ *
+ * No import from `zoo/` or `detective/` — the same structural convention
+ * {@link TraceCarrierArt} follows, so this file never depends on the
+ * registries that resolve `href`/`quiet`.
+ */
+export interface TraceBackdrop {
+  href: string
+  /** Painted flat under the art so a slow image never flashes a bare
+   * sheet. */
+  quiet: string
+}
+
+/**
  * Override the hardcoded carrier shape with registry art (design.md "Decision:
  * assets behind a typed registry..."; "carrierArt override stays"). Absent =
  * the shipped sage figure below, so every existing caller is untouched.
@@ -521,6 +540,10 @@ export interface TraceCanvasProps {
   /** Grass and mud scatter (docs/09 §7). Absent = the shipped grey maze; see
    * `TraceGround`. Has no effect without `maze` + `corridor`. */
   ground?: TraceGround
+  /** The sector's drawn backdrop, laid under the maze block. Absent = the
+   * shipped grey wall / paper or field / earth channel, byte-identical to
+   * before this prop existed. See {@link TraceBackdrop}. */
+  backdrop?: TraceBackdrop
   /** Any CHANGE of this value RESTARTS THE RUN (`LevelConfig.resetOnContact`):
    * the stroke in progress is abandoned, both buffers are emptied, and the ink
    * that was on the sheet FADES rather than vanishing.
@@ -573,6 +596,7 @@ export default function TraceCanvas({
   inkOnly = false,
   clues,
   ground,
+  backdrop,
   resetSignal,
 }: TraceCanvasProps) {
   // `contain` letterboxes inside its box, so the CSS background would paint the
@@ -862,7 +886,27 @@ export default function TraceCanvas({
           pointerEvents="none"
         />
       )}
-      {corridor && (mazeOn || ground) && (
+      {backdrop && (
+        // The sector's drawn place (design.md §3.4). Between the base rect
+        // above and the maze block below — the only position that is not
+        // hidden by either: after the maze block the wall rect would already
+        // cover it, before the base rect the base rect would cover it. Plain
+        // `<image href>` with `slice` ON THE IMAGE, never the root `<svg>` —
+        // no `<mask>`, `<pattern>`, `<clipPath>`, `<defs>`, `useId`, no
+        // `url(#…)` (this file's own scar, above).
+        <g pointerEvents="none">
+          <rect x={0} y={viewBoxY} width={viewBoxWidth} height={viewBoxHeight} fill={backdrop.quiet} />
+          <image
+            href={backdrop.href}
+            x={0}
+            y={viewBoxY}
+            width={viewBoxWidth}
+            height={viewBoxHeight}
+            preserveAspectRatio="xMidYMid slice"
+          />
+        </g>
+      )}
+      {corridor && (mazeOn || ground || !!backdrop) && (
         // MAZE (docs/01 fase 1: "senderos y laberintos … sin tocar los
         // bordes"). The sheet is filled solid and the corridor is painted BACK
         // OVER it in the paper colour, so the child sees a channel through a
@@ -898,7 +942,7 @@ export default function TraceCanvas({
         // `TraceCanvas.test.tsx` proves the taper by parsing the emitted
         // stroke/stroke-width pairs.
         <g pointerEvents="none">
-          {mazeOn && (
+          {mazeOn && !backdrop && (
             <rect
               x={0}
               y={viewBoxY}
@@ -913,7 +957,7 @@ export default function TraceCanvas({
                   key={`channel-${idx}`}
                   d={piece.d}
                   fill="none"
-                  stroke={ground ? CORRIDOR_EARTH : SHEET_PAPER}
+                  stroke={ground && !backdrop ? CORRIDOR_EARTH : SHEET_PAPER}
                   strokeWidth={piece.width}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -924,7 +968,7 @@ export default function TraceCanvas({
                   key={`channel-${idx}`}
                   d={cd}
                   fill="none"
-                  stroke={ground ? CORRIDOR_EARTH : SHEET_PAPER}
+                  stroke={ground && !backdrop ? CORRIDOR_EARTH : SHEET_PAPER}
                   strokeWidth={corridor.width}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -966,7 +1010,7 @@ export default function TraceCanvas({
           )}
         </g>
       )}
-      {corridor && !mazeOn && (
+      {corridor && !mazeOn && !backdrop && (
         // Walkable channel (docs/08 §2), UNDER everything else so the ruled
         // pauta and the ink both read on top of it. A tapered corridor is the
         // same channel cut into width-varying pieces (`corridorTaper`).

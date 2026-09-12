@@ -336,9 +336,15 @@
     "w": 181
   },
   "sector-lagoon-background": {
+    "brightest": "#b4c5d0",
     "bytes": 103852,
+    "corridorRows": {
+      "bottom": 889,
+      "top": 135
+    },
     "file": "art/sector-lagoon-background.png",
     "h": 1024,
+    "quiet": "#b4c5d0",
     "w": 1536
   },
   "sector-llama": {
