@@ -22,10 +22,33 @@
 // The `nextView` reducer's OWN `deduce` branch is untouched below — it is
 // still reachable directly (the deep-link path, `initialView`), just no
 // longer through `resolveNextAction`.
-import { describe, expect, it } from 'vitest'
-import GameScreen, { allEarned, initialView, nextView, resolveNextAction, type GameView } from './GameScreen'
+import { describe, expect, it, vi } from 'vitest'
+import { renderToString } from 'react-dom/server'
+
+// `AdventureIntro` is replaced with a prop-capturing stub (the same SSR-probe
+// convention `LevelPlay.test.tsx` uses for `TraceCanvas`): this file tests
+// GameScreen's OWN routing, and capturing the real `onStart` closure lets the
+// wiring test below invoke it directly, with no DOM. `vi.mock` calls are
+// hoisted above every import by vitest's transform.
+const adventureIntroProbe: { current: Record<string, unknown> | null } = { current: null }
+vi.mock('./AdventureIntro', () => ({
+  default: (props: Record<string, unknown>) => {
+    adventureIntroProbe.current = props
+    return null
+  },
+}))
+
+import GameScreen, {
+  allEarned,
+  initialView,
+  nextView,
+  resolveEnterAction,
+  resolveNextAction,
+  type GameView,
+} from './GameScreen'
 import { nextLevelId } from '../levels/catalog'
 import { EMPTY_RECORD, DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, type LevelRecord } from '../game/types'
+import { ADVENTURES } from '../zoo/adventures'
 
 const playing = (levelId: string): GameView => ({ view: 'play', levelId })
 const deduceDuck: GameView = { view: 'deduce', caseId: 'duck' }
@@ -174,5 +197,39 @@ describe('resolveNextAction (zoo-map design.md §6: "finishing ANY sector advent
   it('an ordinary non-sector, non-detective level keeps today\'s next behaviour unchanged', () => {
     const action = resolveNextAction('f1-libre', {})
     expect(action).toEqual({ type: 'next', levelId: nextLevelId('f1-libre') })
+  })
+})
+
+describe('resolveEnterAction (main-screen spec "resolveEnterAction Chooses Between Play and the Narrative Entry")', () => {
+  it('always resolves duck-trail1 to the narrative entry, whatever records says', () => {
+    for (const records of [{}, recordsWith(DUCK_TRAIL_IDS, 1)]) {
+      expect(resolveEnterAction('duck-trail1', records)).toEqual({
+        view: 'intro',
+        levelId: 'duck-trail1',
+      })
+    }
+  })
+
+  it('resolves every other duck level, the hen trails and an unknown id straight to play, unchanged', () => {
+    for (const id of ['duck-trail2', 'duck-trail3', 'duck-trail4', 'trail1', 'f3-a', 'not-a-real-id']) {
+      expect(resolveEnterAction(id, {})).toEqual({ view: 'play', levelId: id })
+    }
+  })
+})
+
+describe('GameScreen intro view (duck-undulations-and-sector-backdrop design.md §4)', () => {
+  it("mounts AdventureIntro for the 'intro' view, and its onStart dispatches into play", () => {
+    renderToString(
+      <GameScreen initial={{ view: 'intro', levelId: 'duck-trail1' }} onExit={() => {}} />,
+    )
+    expect(adventureIntroProbe.current, 'AdventureIntro never mounted').toBeTruthy()
+    expect(adventureIntroProbe.current?.adventure).toBe(ADVENTURES[0])
+    const onStart = adventureIntroProbe.current?.onStart as (() => void) | undefined
+    expect(typeof onStart).toBe('function')
+    // Invoking the real closure proves it is wired to a `dispatch` call that
+    // does not throw — the same limit `LevelPlay.test.tsx`'s own header
+    // documents: a state update after a completed `renderToString` call is a
+    // no-op on the server, so a re-render cannot be observed here.
+    expect(onStart).not.toThrow()
   })
 })

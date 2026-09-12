@@ -7,6 +7,7 @@ import { useState, type ReactNode } from 'react'
 import LevelMap from './LevelMap'
 import LevelPlay from './LevelPlay'
 import Deduction from './Deduction'
+import AdventureIntro from './AdventureIntro'
 import { LEVELS, getLevel, nextLevelId } from '../levels/catalog'
 import { applyAttempt } from '../game/adaptiveTolerance'
 import { EMPTY_RECORD } from '../game/types'
@@ -15,6 +16,7 @@ import { openProgressStore } from '../game/openProgressStore'
 import { DETECTIVE_CASES, caseSolvedId } from '../detective/cases'
 import { isDevMode } from '../canvas/devMode'
 import { sectorOf } from '../zoo/sectors'
+import { introLevel } from '../zoo/adventures'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
@@ -26,6 +28,7 @@ import { sectorOf } from '../zoo/sectors'
 export type GameView =
   | { view: 'map'; finished: boolean }
   | { view: 'play'; levelId: string }
+  | { view: 'intro'; levelId: string }
   | { view: 'deduce'; caseId: string }
 
 /**
@@ -167,6 +170,22 @@ export function resolveNextAction(
   return { type: 'next', levelId: nextLevelId(finishedLevelId) }
 }
 
+/**
+ * Where a tap on the map LANDS (duck-undulations-and-sector-backdrop
+ * design.md §4). The mirror of `resolveNextAction`: `nextView` must stay
+ * catalog- and sector-independent (its own header, above), so this is where
+ * the adventure registry and routing meet. `records` is unused today —
+ * hence the leading `_`, `noUnusedParameters` — and is kept for the same
+ * two reasons `resolveNextAction` keeps it: the call site already has it,
+ * and a later change's unlock rules will need it.
+ */
+export function resolveEnterAction(
+  levelId: string,
+  _records: Readonly<Record<string, LevelRecord>>,
+): GameView {
+  return introLevel(levelId) ? { view: 'intro', levelId } : { view: 'play', levelId }
+}
+
 export interface GameScreenProps {
   /** Extra chrome the app shell wants under the MAP only. A level fills the
    * whole viewport and must not grow a page scroller (docs/04 §3.3), so the
@@ -209,7 +228,27 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
 
   const dispatch = (action: GameAction): void => setState((s) => nextView(s, action))
 
-  if (state.view === 'play') {
+  if (state.view === 'intro') {
+    // The narrative entry (docs/13 §5 item 1, design.md §4): shown once per
+    // adventure, before its first level, reached only through `App.tsx`'s
+    // `onEnter` calling `resolveEnterAction` — never through a `GameAction`.
+    // Its exit is an ordinary `play` dispatch, so `nextView` keeps doing the
+    // routing and stays byte-unchanged.
+    const adventure = introLevel(state.levelId)
+    if (adventure) {
+      return (
+        <AdventureIntro
+          adventure={adventure}
+          onStart={() => dispatch({ type: 'play', levelId: state.levelId })}
+        />
+      )
+    }
+    // Unknown/stale id: fall through to the ordinary play render below,
+    // the same never-crash convention `getLevel` already uses elsewhere in
+    // this file.
+  }
+
+  if (state.view === 'play' || state.view === 'intro') {
     const level = getLevel(state.levelId)
     return (
       <LevelPlay

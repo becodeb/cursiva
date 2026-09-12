@@ -39,6 +39,7 @@ import {
   type SectorId,
   type ZooSector,
 } from '../zoo/sectors'
+import { mapBubble } from '../zoo/adventures'
 
 /** The measured edge colour of `zoo-map.png` (design.md §1) — the letterbox
  *  `xMidYMid meet` leaves on the outer `<svg>` is filled with this, never a
@@ -350,12 +351,13 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
                 `CaptionedArt` wrapper itself is NOT optional: it is the only
                 component allowed to pair a picture with a word outside the
                 rail, and `captionAudit`'s `auditCaptions` is what enforces
-                that — only the styling changed here. */}
-            <CaptionedArt
-              art={ZOO_OCTOPUS_PRINT_ART}
-              label="¡Mirá! Las huellas van hacia allá. ¿Vamos?"
-              size={76}
-            />
+                that — only the styling changed here.
+                The picture AND the word both come from `mapBubble` now
+                (duck-undulations-and-sector-backdrop design.md §5): before
+                the sector's own adventure is done it is the onward print and
+                phrase, unchanged; once the animal is recovered it becomes
+                that animal's own picture and closing line. */}
+            <CaptionedArt {...mapBubble(discovered, records)} size={76} />
           </div>
         )}
       </div>

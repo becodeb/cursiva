@@ -12,7 +12,7 @@
  * concern riding along.
  */
 import { useState } from 'react'
-import GameScreen, { initialView, type GameView } from './screen/GameScreen'
+import GameScreen, { initialView, resolveEnterAction, type GameView } from './screen/GameScreen'
 import MainScreen from './screen/MainScreen'
 import ZooMap from './screen/ZooMap'
 import { LocalProgressStore } from './progress/LocalProgressStore'
@@ -70,7 +70,11 @@ export default function App() {
         records={records}
         onEnter={(levelId: string) => {
           setTrip((n) => n + 1)
-          setShell({ at: 'game', initial: { view: 'play', levelId } })
+          // `resolveEnterAction` is the mirror of `resolveNextAction`
+          // (duck-undulations-and-sector-backdrop design.md §4): routes
+          // through the narrative entry for an adventure's first level,
+          // straight to play for every other one.
+          setShell({ at: 'game', initial: resolveEnterAction(levelId, records) })
         }}
       />
     )

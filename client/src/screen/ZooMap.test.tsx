@@ -175,3 +175,23 @@ describe('ZooMap (D6: no url(#…) anywhere)', () => {
     expect(html).not.toContain('<pattern')
   })
 })
+
+describe('ZooMap bubble (zoo-map spec "Octopus Phrase Reads as a Closing")', () => {
+  it('reads the onward phrase and the print art before duck-trail4 is filed', () => {
+    const html = render()
+    expect(html).toContain('¡Mirá! Las huellas van hacia allá. ¿Vamos?')
+    expect(html).toContain('/art/zoo-octopus-print.png')
+    expect(html).not.toContain('¡Encontramos al pato!')
+  })
+
+  it('closes with the duck art and line once duck-trail4 is filed', () => {
+    const html = render(filed('duck-trail4'))
+    expect(html).toContain('¡Encontramos al pato! Ya está en su laguna.')
+    expect(html).not.toContain('¡Mirá! Las huellas van hacia allá. ¿Vamos?')
+  })
+
+  it('keeps auditCaptions green before and after the duck is recovered', () => {
+    expect(auditCaptions(render()).uncaptioned).toEqual([])
+    expect(auditCaptions(render(filed('duck-trail4'))).uncaptioned).toEqual([])
+  })
+})

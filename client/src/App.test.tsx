@@ -1,5 +1,5 @@
 import { renderToString } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { auditCaptions } from './detective/captionAudit'
 import { initialView } from './screen/GameScreen'
@@ -53,6 +53,49 @@ describe('App shell (docs/12: the zoo map is the entry point)', () => {
     // Nothing asked for resolves to `null` (design.md §8) — the zoo map is
     // the fallback, not the internal `LevelMap`.
     expect(initialView('')).toBeNull()
+  })
+})
+
+describe('App onEnter (duck-undulations-and-sector-backdrop design.md §4: onEnter routes through resolveEnterAction)', () => {
+  // Scoped mocks (`vi.doMock` + `vi.resetModules` + a dynamic `import`)
+  // rather than a file-wide `vi.mock`: every OTHER test in this file renders
+  // the real `ZooMap`, and a hoisted mock would silently blank it out for
+  // them too. This is the same prop-capturing probe idea
+  // `LevelPlay.test.tsx`/`GameScreen.test.tsx` use for `TraceCanvas`/
+  // `AdventureIntro`, just scoped to one test.
+  it('entering duck-trail1 routes through resolveEnterAction to the narrative entry, and duck-trail2 straight to play', async () => {
+    vi.resetModules()
+    const zooMapProbe: { current: Record<string, unknown> | null } = { current: null }
+    const resolveEnterActionSpy = vi.fn()
+    vi.doMock('./screen/ZooMap', () => ({
+      default: (props: Record<string, unknown>) => {
+        zooMapProbe.current = props
+        return null
+      },
+    }))
+    vi.doMock('./screen/GameScreen', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('./screen/GameScreen')>()
+      resolveEnterActionSpy.mockImplementation(actual.resolveEnterAction)
+      return { ...actual, resolveEnterAction: resolveEnterActionSpy }
+    })
+    try {
+      const { default: FreshApp } = await import('./App')
+      renderToString(<FreshApp />)
+      const onEnter = zooMapProbe.current?.onEnter as ((levelId: string) => void) | undefined
+      expect(typeof onEnter, 'App never handed ZooMap an onEnter prop').toBe('function')
+
+      onEnter!('duck-trail1')
+      expect(resolveEnterActionSpy).toHaveBeenLastCalledWith('duck-trail1', expect.anything())
+      expect(resolveEnterActionSpy).toHaveReturnedWith({ view: 'intro', levelId: 'duck-trail1' })
+
+      onEnter!('duck-trail2')
+      expect(resolveEnterActionSpy).toHaveBeenLastCalledWith('duck-trail2', expect.anything())
+      expect(resolveEnterActionSpy).toHaveReturnedWith({ view: 'play', levelId: 'duck-trail2' })
+    } finally {
+      vi.doUnmock('./screen/ZooMap')
+      vi.doUnmock('./screen/GameScreen')
+      vi.resetModules()
+    }
   })
 })
 
