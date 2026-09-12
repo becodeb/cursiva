@@ -11,12 +11,14 @@
 // `buildWord` throw. That must NEVER blank the app, so the failure degrades to
 // the first letter's own path and warns. A level always exists; at worst it is
 // easier than authored.
+import { GOAL_MEDUSA_ART, HAZARD_STARFISH_ART } from '../detective/assets'
 import { buildWord } from '../letters/combinations'
 import { LETTER_REGISTRY } from '../letters/registry'
 import type { LetterConfig } from '../letters/types'
 import {
   crests,
   garland,
+  garlandVaried,
   hills,
   loops,
   spiral,
@@ -159,13 +161,14 @@ function wordPaths(id: string, chars: string[]): string[] {
 //   trail4    feather / square wave — sharp corners, both clearance rules
 //
 // `demo: true` on every trail (design C1): the shell renders no title, hint
-// or coach text for a detective trail (`LevelPlay.tsx`'s `isDetectiveTrail`
-// branch, already shipped in S3), so the engine's existing pre-attempt route
-// animation is what replaces the written instruction — shown, not written.
+// or coach text in the detective world (`LevelPlay.tsx`'s `inDetectiveWorld`
+// branch, `levels/world.ts`, already shipped in S3), so the engine's existing
+// pre-attempt route animation is what replaces the written instruction —
+// shown, not written.
 //
 // Every trail sets `carrier: true`: that carrier IS the magnifying glass.
-// `LevelPlay.tsx` passes `carrierArt` with the ink glass override for a
-// detective trail, so the shipped sage shape never renders here.
+// `LevelPlay.tsx` passes `carrierArt` with the ink glass override in the
+// detective world, so the shipped sage shape never renders here.
 //
 // These shipped `carrier: false` for one slice, because the override existed
 // on `TraceCanvas` and nothing passed it — the mode's central mechanic was
@@ -621,36 +624,141 @@ export const LEGACY_PHASE_1: readonly LevelConfig[] = [
 // Fase 2 — Patrón continuo (pre-cursiva). Todos con mustBeContinuous: acá se
 // instala la regla de la cursiva.
 //
-// The geometry STAYS in the writing band, scaled 1.25× (paths.ts): guirnalda,
-// colinas, bucles and crestas are letter shapes, and their proportions against
-// the pauta are the whole point of the phase. What they lose is the DRAWN
-// pauta (`surface: 'blank'`) — the rules still mean nothing to the child until
+// The geometry STAYS in the writing band, scaled 1.25× (paths.ts): colinas,
+// bucles and crestas are letter shapes, and their proportions against the
+// pauta are the whole point of the phase. What they lose is the DRAWN pauta
+// (`surface: 'blank'`) — the rules still mean nothing to the child until
 // phase 3 — and what they gain is the metronome: this is the rhythm phase
 // (docs/01 phase 2, "planificación motora, ritmo").
 //
 // One beat = one cycle of the pattern, so the bpm falls as the cycle gets
-// longer: 66/63 for the four short arcs of the hamacas and the montañas, 56/52
-// for the three tall ones of the crestas and the rulos. Everything stays inside
-// 50-70 bpm, which is a pace a six-to-eight-year-old can actually follow — fast
-// enough to be a rhythm, slow enough to be a movement and not a scribble.
+// longer: 63 for the four short arcs of the montañas, 56/52 for the three
+// tall ones of the crestas and the rulos. Everything stays inside 50-70 bpm,
+// which is a pace a six-to-eight-year-old can actually follow — fast enough
+// to be a rhythm, slow enough to be a movement and not a scribble.
+//
+// `f2-guirnalda` is the SAME garland shape, retimed and rethemed as Nivel 3's
+// entry point (docs/11): its id STAYS — it is a persisted unlock key — but its
+// cycle widens (180×150 → 253×240) and its beat therefore falls with the same
+// rule (66 → 54); the ordering pair this rule proves moves from
+// `f2-guirnalda > f2-crestas` to `f2-agua2 > f2-guirnalda`. Nivel 3's own
+// microprogression axis (`f2-guirnalda` → `f2-agua2` → `f2-agua3` →
+// `f2-agua4`) is amplitude and proximity moving together and in opposite
+// directions — cycle width 253→190→130…195(varied)→253, dip depth
+// 240→140→95…200(varied)→240 — while the corridor narrows to match
+// (100→80→68→90) and the beat climbs with it (54→64→68→silent). Desafío 4
+// deliberately RETURNS to desafío 1's wide, easy-to-read geometry and drops
+// both the metronome and the fluency bar: fluency is `1 − CV(speed)`, so it
+// punishes the exact deceleration the level asks for, and a metronome would
+// tell the child to keep going while the starfish says wait (design.md §3).
 // ─────────────────────────────────────────────────────────────────────────────
 const PHASE_2: LevelConfig[] = [
   {
     id: 'f2-guirnalda',
     phase: 2,
-    title: 'Las hamacas',
-    hint: 'Hacé las hamacas de corrido, al ritmo: bajá y subí.',
+    title: 'Las olas de la medusa',
+    hint: 'Seguí a la medusa: bajá y subí, bien despacio.',
     kind: 'path',
     surface: 'blank',
     maze: false,
     resetOnContact: false,
-    carrier: false,
-    feedback: feedback(66, false),
-    paths: [garland({ cycles: 4 })],
-    corridorWidth: 85,
+    carrier: true,
+    feedback: feedback(54, false),
+    paths: [garland({ x0: 120, x1: 880, yTop: 190, yBottom: 430, cycles: 3 })],
+    corridorWidth: 100,
     rules: rules(2, true, true, 35),
     showGuide: true,
     letters: [],
+    demo: true,
+    detectiveWorld: true,
+    goalArt: GOAL_MEDUSA_ART,
+  },
+  {
+    id: 'f2-agua2',
+    phase: 2,
+    title: 'La medusa se apura',
+    hint: 'Ahora las olas son más chiquitas y más juntas. Seguila sin frenar.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: true,
+    feedback: feedback(64, false),
+    paths: [garland({ x0: 120, x1: 880, yTop: 290, yBottom: 430, cycles: 4 })],
+    corridorWidth: 80,
+    rules: rules(2, true, true, 38),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    detectiveWorld: true,
+    goalArt: GOAL_MEDUSA_ART,
+  },
+  {
+    id: 'f2-agua3',
+    phase: 2,
+    title: 'Las olas cambian',
+    // The microprogression's third step: SIZE and SPACING both vary within
+    // one path (docs/11 Nivel 3), not just from level to level — the reason
+    // `garlandVaried` exists rather than a wider `garland` call.
+    hint: 'Algunas olas son grandes y otras chicas: seguilas todas de corrido.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: true,
+    feedback: feedback(68, false),
+    paths: [
+      garlandVaried({
+        x0: 95,
+        yTop: 220,
+        cycles: [
+          { width: 180, depth: 180 },
+          { width: 130, depth: 95 },
+          { width: 195, depth: 200 },
+          { width: 140, depth: 110 },
+          { width: 165, depth: 170 },
+        ],
+      }),
+    ],
+    corridorWidth: 68,
+    rules: rules(2, true, true, 40),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    detectiveWorld: true,
+    goalArt: GOAL_MEDUSA_ART,
+  },
+  {
+    id: 'f2-agua4',
+    phase: 2,
+    title: 'La estrella de mar',
+    // The fourth step of the microprogression: same wide geometry as desafío
+    // 1 (the new demand is TIMING, not precision), but with a hazard that
+    // means no beat and no fluency bar (design.md §3) — a real child's stop is
+    // a deceleration, and fluency (`1 − CV(speed)`) would fail them for it.
+    hint: 'Esperá a que la estrella se vaya y seguí a la medusa.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    // The one Nivel 3 level with a hazard: touching the border (or the
+    // starfish) restarts the run, same rule trail1 carries (D3).
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    paths: [garland({ x0: 120, x1: 880, yTop: 190, yBottom: 430, cycles: 3 })],
+    corridorWidth: 90,
+    // travel 280 against a 90-unit corridor is 3.1× the channel, `f1-pelotas`'s
+    // own ratio; `hazardGapFraction` (obstacles.ts) confirms a real, majority
+    // gap (≈0.550) — longer than `f1-pelotas`'s, because stopping mid-garland
+    // without lifting the finger is harder than stopping on a phase-1 maze.
+    obstacles: [{ at: 0.5, travel: 280, periodMs: 3000, phase: 0, radius: 34 }],
+    rules: rules(2, true, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    detectiveWorld: true,
+    goalArt: GOAL_MEDUSA_ART,
+    hazardArt: HAZARD_STARFISH_ART,
   },
   {
     id: 'f2-colinas',

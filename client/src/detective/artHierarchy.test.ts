@@ -44,6 +44,24 @@ import { CLUE_MARK_SIZE } from '../screen/LevelPlay'
 /** The two ground tones, mirrored from `TraceCanvas.tsx:108-109` the same way
  * `palette.test.ts` and `build_art.py` mirror them — importing the component
  * would drag React into a test that is arithmetic on pixels. */
+/** A pixel darker than this is contour, not fill -- `build_art.py`'s own
+ * `INK_LUMA`, mirrored here the same way the ground tones are. */
+const INK_LUMA = 90
+
+/** A contour pixel carrying more colour than this is not the contour, it is the
+ * resample blending the contour into a saturated fill beside it. */
+const CONTOUR_CHROMA_TOLERANCE = 20
+
+/** What share of a contour may be that fringe.
+ *
+ * Measured, not guessed, and the spread is what makes the rule safe: after the
+ * fix `goal-medusa` sits at 3% and `hazard-starfish` at 4%, the shipped
+ * `animal-pato` at 7% -- while `carrier-octopus`, whose contour really IS navy,
+ * sits at 97%, and `goal-medusa` before the fix was effectively 100%. Anything
+ * between 7 and 97 would do; 25 is far from both edges rather than tuned to
+ * admit what happens to ship. */
+const MAX_COLOURED_CONTOUR_SHARE = 0.25
+
 const CORRIDOR_EARTH = '#d9c3ae'
 const GROUND_FIELD = '#c9d7bd'
 
@@ -214,6 +232,15 @@ const DRAINED_FILES = import.meta.glob('../../public/art/clue-*-drained.png', {
   import: 'default',
 }) as Inlined
 
+/** The props that stand ON the sheet beside a clue mark -- a goal at the end of
+ * the route, a hazard crossing it. Globbed by prefix rather than listed, so a
+ * prop added later is covered without anyone remembering to add it here. */
+const PROP_FILES = import.meta.glob('../../public/art/{goal,hazard}-*.png', {
+  eager: true,
+  query: '?inline',
+  import: 'default',
+}) as Inlined
+
 function named(files: Inlined): readonly (readonly [string, string])[] {
   return Object.entries(files).map(([path, url]) => [path.split('/').pop()!, url] as const)
 }
@@ -317,5 +344,50 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
       `ground decoration renders at ${biggest.toFixed(1)} units against a ${CLUE_MARK_SIZE}-unit ` +
         'clue mark -- the decoration is bigger than the subject',
     ).toBeLessThanOrEqual(CLUE_MARK_SIZE)
+  })
+
+  /** The drawn world has exactly one contour colour, and it is achromatic.
+   *
+   * Not a style preference -- a scar. `client/src/detective/palette.ts`'s header
+   * records this drifting twice already: the clue marks' outlines shipped in the
+   * child's own pencil blue `#1e293b` (hue 217), and the grass tufts came from
+   * the author in `#19241c` (hue 136, chroma 11). It drifted a third time in
+   * this very change: `medusa.png` and `estrella de mar.png` measured chroma 119
+   * and 122 -- ten times the grass incident -- because the pipeline's `fill=None`
+   * path skips the recolour entirely, and nothing forced their outline anywhere.
+   *
+   * The fix was a third pipeline mode, `recontour`, which sends only the contour
+   * to `ART_OUTLINE` and leaves every fill exactly as drawn. This test is what
+   * stops a fourth time.
+   *
+   * The four deduction animals are deliberately out of scope: they stand alone
+   * on the lineup, never beside a clue mark, and `docs/09` section 4 makes them
+   * the one place authored colour rules. `carrier-octopus.png` measures chroma
+   * 63 and IS in the drawn world -- the same defect one notch milder -- but
+   * `docs/09` section 2 makes that navy line part of the character's own look,
+   * so changing it is an art-direction call and not a pipeline one. Recorded
+   * here rather than silently swept in. */
+  it('gives every prop that stands on the sheet the drawn world\'s achromatic contour', async () => {
+    const props = named(PROP_FILES)
+    expect(props.length, 'no goal/hazard prop art found -- the glob has gone stale').toBeGreaterThan(0)
+    for (const [name, url] of props) {
+      const art = await decodePng(base64ToBytes(url.split(',')[1]))
+      let contour = 0
+      let coloured = 0
+      for (let i = 0; i < art.px.length; i += 4) {
+        if (art.px[i + 3] < 250) continue
+        const [r, g, b] = [art.px[i], art.px[i + 1], art.px[i + 2]]
+        if (luma(r, g, b) >= INK_LUMA) continue
+        contour += 1
+        if (Math.max(r, g, b) - Math.min(r, g, b) > CONTOUR_CHROMA_TOLERANCE) coloured += 1
+      }
+      expect(contour, `${name} has no contour to measure`).toBeGreaterThan(0)
+      const share = coloured / contour
+      expect(
+        share,
+        `${(share * 100).toFixed(0)}% of ${name}'s contour carries colour -- the drawn world's ` +
+          'outline is achromatic, and a coloured one is the most repeated wrong colour on the sheet',
+      ).toBeLessThanOrEqual(MAX_COLOURED_CONTOUR_SHARE)
+    }
   })
 })

@@ -173,6 +173,48 @@ def mute(img: png.Image, target, sat: float = 0.30,
         px[i:i + 3] = got
 
 
+def recontour(img: png.Image):
+    """Send only the CONTOUR to INK, leaving every fill exactly as authored.
+
+    The third mode, and it exists because the other two could not express what
+    drawn-world art actually needs. `recolour` flattens a drawing to one flat
+    fill, which is right for a clue mark and destroys a creature. `fill=None`
+    skips the recolour entirely, which is right for the deduction animals --
+    they stand alone on a white sheet -- and wrong for anything that stands ON
+    the sheet beside a clue mark.
+
+    Measured on the first build of this slice, `medusa.png` and
+    `estrella de mar.png` ship a contour of `rgb(0,17,120)` and `rgb(0,20,122)`:
+    chroma 119 and 122 against `INK`'s 0. That is the same defect
+    `client/src/detective/palette.ts`'s header records having already happened
+    twice -- the clue marks' slate-blue outlines and the grass tufts' authored
+    green `#19241c`, which measured chroma 11. These are ten times that, and
+    they sit on the same sheet as marks whose contour IS `INK`, repeated across
+    the whole route.
+
+    The four deduction animals are deliberately NOT run through this: they are
+    the one place `docs/09` section 4's "colour is the reward" is off, they
+    appear alone on the lineup and never beside a clue mark, and they already
+    measure chroma 0-2 anyway. The octopus does measure chroma 63, which is the
+    same defect one notch milder; it is left alone here because `docs/09`
+    section 2 makes the navy contour part of the character's own look and
+    changing it is an art-direction decision, not a pipeline one. It is
+    recorded rather than silently fixed.
+    """
+    px = img.px
+    cache: dict[bytes, bytes] = {}
+    for i in range(0, len(px), 4):
+        if px[i + 3] == 0:
+            continue
+        key = bytes(px[i:i + 3])
+        got = cache.get(key)
+        if got is None:
+            r, g, b = key
+            got = bytes(INK) if luma(r, g, b) < INK_LUMA else key
+            cache[key] = got
+        px[i:i + 3] = got
+
+
 def emit(name: str, img: png.Image) -> dict:
     x0, y0, x1, y1 = png.alpha_bbox(img)
     tight = png.crop(img, x0, y0, x1, y1)
@@ -261,6 +303,16 @@ SINGLES = [
     # with their mode.
     ('pulpo oficina.png',     'home-octopus.png',          448, None,         True),
     ('escritorio.png',        'home-desk.png',             512, None,         True),
+    # Nivel 3 (design.md §6): the jellyfish stands at the route's end and the
+    # starfish crosses it as a hazard. Both keep their authored colour for the
+    # same reason the animals do -- they are living things in the world, not
+    # clue marks, so section 4's "colour is the reward" rule protects them from
+    # nothing here. `fill=None` means `recolour` never runs, so neither row
+    # names a contour colour at all -- `ART_OUTLINE` is never referenced by
+    # this pipeline for these two files, only measured against afterward.
+    # Drawn-world creatures: authored fills, but the world's own contour.
+    ('medusa.png',            'goal-medusa.png',           384, 'contour',    True),
+    ('estrella de mar.png',   'hazard-starfish.png',       320, 'contour',    True),
 ]
 
 # The two ground sources are SCATTER TILES, not single subjects: a field of
@@ -381,7 +433,9 @@ def main() -> None:
 
     for src, name, target_h, fill, keep_ink in SINGLES:
         img = prepare(src, target_h)
-        if fill is not None:
+        if fill == 'contour':
+            recontour(img)
+        elif fill is not None:
             recolour(img, fill, keep_ink)
         final = png.box_resize(img, max(1, img.w // 2), max(1, img.h // 2))
         key = name[:-4]

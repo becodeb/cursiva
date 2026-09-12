@@ -6,6 +6,10 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import TraceCanvas, { type DrawDemo } from './TraceCanvas'
+import { placeArt } from './placeArt'
+import { getLevel } from '../levels/catalog'
+import { buildLevelTarget } from '../levels/buildLevel'
+import { obstacleAt } from '../levels/obstacles'
 
 function demo(over: Partial<DrawDemo> = {}): DrawDemo {
   return { d: 'M 1 2 L 3 4 L 5 4', delay: 1, duration: 1, strokeWidth: 14, ...over }
@@ -369,6 +373,43 @@ describe('TraceCanvas hazards (docs/08: obstáculos con tiempo)', () => {
       <TraceCanvas hazards={hazards} completedStrokes={[[{ x: 10, y: 10 }, { x: 20, y: 20 }]]} />,
     )
     expect(html.indexOf('#1e293b')).toBeLessThan(html.indexOf('#7e6a9e'))
+  })
+
+  it('trail1 renders its circle hazard numerically unchanged, not a translated wrapper', () => {
+    // Numeric verification (design.md §4), not a screenshot: proves the added
+    // art branch left the plain-circle branch byte-identical for the one
+    // level that ships it today.
+    const level = getLevel('trail1')
+    const target = buildLevelTarget(level)
+    const o = level.obstacles![0]
+    const home = obstacleAt(o, target, 0)
+    const html = renderToString(
+      <TraceCanvas hazards={{ radii: [o.radius], at: (_, t) => obstacleAt(o, target, t) }} />,
+    )
+    expect(html).toContain(`cx="${home.x}"`)
+    expect(html).toContain(`cy="${home.y}"`)
+    expect(html).toContain('r="30"')
+    // The load-bearing assertion: fails if the circle ever acquires a
+    // translated `<g>` wrapper.
+    expect(html).not.toMatch(/<g[^>]*transform="translate[^"]*"[^>]*>\s*<circle/)
+  })
+
+  it('an art-bearing hazard renders as a transformed group with an image, not a circle', () => {
+    const art = { href: '/art/hazard-starfish.png', w: 320, h: 320 }
+    const at = (_i: number, t: number) => ({ x: 500 + t, y: 300 })
+    const home = at(0, 0)
+    const html = renderToString(
+      <TraceCanvas hazards={{ radii: [34], at, art }} />,
+    )
+    expect(html).toMatch(new RegExp(`<g[^>]*transform="translate\\(${home.x} ${home.y}\\)"`))
+    expect(html).not.toMatch(/<circle/)
+    expect(html).toContain('<image')
+    expect(html).toMatch(/href="\/art\/hazard-starfish\.png"/)
+    const box = placeArt(art, 2 * 34, { x: 0, y: 0 })
+    expect(html).toContain(`width="${box.width}"`)
+    expect(html).toContain(`height="${box.height}"`)
+    expect(html).toContain(`x="${box.x}"`)
+    expect(html).toContain(`y="${box.y}"`)
   })
 })
 

@@ -75,6 +75,15 @@ function makeDetectiveLevel(over: Partial<LevelConfig> = {}): LevelConfig {
   return makeLevel({ clue: { kind: 'droplet', spacing: 200 }, ...over })
 }
 
+/** A Nivel-3-shaped level: drawn IN the detective world (grass, mud ink, the
+ * octopus, the wordless shell) but NOT a case trail — no clue mark, no
+ * PISTAS rail entry, no lamp latch. `world.ts`'s `inDetectiveWorld` true,
+ * `isCaseTrail` false. This is the split S1 exists to make representable;
+ * no shipped level uses it yet (design.md §1, tasks.md 1.7). */
+function makeWorldOnlyLevel(over: Partial<LevelConfig> = {}): LevelConfig {
+  return makeLevel({ detectiveWorld: true, clue: undefined, ...over })
+}
+
 const noop = (): void => undefined
 
 /** Strips the `<style>` block (LAYOUT_CSS — never rendered as page text or
@@ -157,6 +166,23 @@ describe('LevelPlay chrome branch (design.md Orchestrator Correction C1)', () =>
     expect(audit.imagelessContainers).toEqual([])
   })
 
+  it('a world-only level (Nivel 3 shape: inDetectiveWorld true, isCaseTrail false) suppresses the same chrome as a case trail, but mounts no PISTAS rail (design.md §1, S1 split)', () => {
+    const level = makeWorldOnlyLevel()
+    const html = renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    // No title, hint, or rotate prompt — same suppression as a case trail,
+    // driven by `inDetectiveWorld`, not `isCaseTrail`.
+    expect(html).not.toContain('Fase 1 ·')
+    expect(html).not.toContain(level.hint)
+    expect(html).not.toContain('Girá el dispositivo')
+    // No coach/pillar copy — the result block is gone too.
+    expect(html).not.toContain('Precisión')
+    // But no case chrome: no PISTAS rail, because this level carries no clue.
+    expect(html).not.toContain('<aside')
+    expect(textOf(html)).not.toContain('PISTAS')
+  })
+
   it('a phase-2+ (non-detective) level is unaffected even when it CAN show its guide-request button', () => {
     // Regression guard from the opposite direction: this branch must not
     // accidentally suppress chrome on an ordinary level whose config simply
@@ -189,6 +215,22 @@ describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
     // The glass belongs to the world, not to the reward: it takes no palette
     // colour of its own, because colour in this mode only ever means a clue
     // was earned. The art keeps its authored ink contour instead.
+    expect(art).toEqual(CARRIER_LENS_ART)
+  })
+
+  it('passes the glass art on a world-only level too (gated on inDetectiveWorld, not isCaseTrail)', () => {
+    renderToString(
+      <LevelPlay
+        level={makeWorldOnlyLevel()}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    const art = traceCanvasProbe.current?.carrierArt as
+      | { href: string; w: number; h: number }
+      | undefined
     expect(art).toEqual(CARRIER_LENS_ART)
   })
 
@@ -230,6 +272,25 @@ describe('LevelPlay icon controls keep an accessible name (C1 removes visible te
     expect(textOf(html)).not.toContain('Siguiente')
   })
 
+  it('names every icon-only control on a world-only level too, with no PISTAS-related label leaking in', () => {
+    const html = renderToString(
+      <LevelPlay
+        level={makeWorldOnlyLevel({ demo: true })}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    for (const name of ['Volver', 'Borrar', 'Ver de nuevo', 'Siguiente']) {
+      expect(html, `icon control missing its accessible name: ${name}`).toContain(
+        `aria-label="${name}"`,
+      )
+    }
+    expect(textOf(html)).not.toContain('Borrar')
+    expect(textOf(html)).not.toContain('Siguiente')
+  })
+
   it('leaves a non-detective level naming its controls by their visible text', () => {
     const html = renderToString(
       <LevelPlay
@@ -250,6 +311,19 @@ describe('LevelPlay PISTAS rail presence (design unit 5/6)', () => {
   it('renders no rail for an ordinary level (no `clue` config), matching f1-libre (task 10.5)', () => {
     const html = renderToString(
       <LevelPlay level={makeLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(html).not.toContain('<aside')
+  })
+
+  it('renders no rail for a world-only level, even though it is drawn in the detective world (level-engine spec "A Nivel 3 world-only level renders no rail")', () => {
+    const html = renderToString(
+      <LevelPlay
+        level={makeWorldOnlyLevel()}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
     )
     expect(html).not.toContain('<aside')
   })
@@ -386,6 +460,19 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
       />,
     )
     expect(traceCanvasProbe.current?.clues).toBeUndefined()
+
+    // A world-only level (no clue) also gets no `clues` prop — the field
+    // reads `clueDef` directly and is untouched by the world/case split.
+    renderToString(
+      <LevelPlay
+        level={makeWorldOnlyLevel()}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect(traceCanvasProbe.current?.clues).toBeUndefined()
   })
 
   it('passes `ground` only on a detective trail, and memoises one field per route', () => {
@@ -416,6 +503,12 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
     // An ordinary level -- and the six phase-1 mazes that are not trails --
     // render exactly the surface they always did.
     expect(render(makeLevel())).toBeUndefined()
+
+    // A world-only level also gets the ground — `inDetectiveWorld`, not
+    // `isCaseTrail`, is the ground's real gate (design.md §1).
+    const worldGround = render(makeWorldOnlyLevel()) as { grass: Layer; mud: Layer } | undefined
+    expect(worldGround?.grass.marks.length).toBeGreaterThan(20)
+    expect(worldGround?.mud.marks.length).toBeGreaterThan(3)
   })
 })
 
@@ -529,6 +622,35 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     expect(traceCanvasProbe.current?.endArt).toBeUndefined()
   })
 
+  it("sends the level's own goalArt as endArt on a world-only level with no case (design.md §5)", () => {
+    const goalArt = { href: '/art/test-goal.png', w: 200, h: 240 }
+    render(makeWorldOnlyLevel({ goalArt }))
+    const art = traceCanvasProbe.current?.endArt as Art
+    expect(art?.href).toBe(goalArt.href)
+    expect(art?.w).toBe(goalArt.w)
+    expect(art?.h).toBe(goalArt.h)
+    // A creature, peer of the octopus's 96 — never the lamp's 84.
+    expect(art?.size).toBe(96)
+  })
+
+  it('goalArt WINS over the case lamp when both are present: a level\'s own content beats a default it did not ask for', () => {
+    const goalArt = { href: '/art/test-goal.png', w: 200, h: 240 }
+    render(makeDetectiveLevel({ goalArt }))
+    const art = traceCanvasProbe.current?.endArt as Art
+    expect(art?.href).toBe(goalArt.href)
+    expect(art?.href).not.toBe(LAMP_ART.off.href)
+    expect(art?.href).not.toBe(LAMP_ART.on.href)
+  })
+
+  it('sends the octopus on a world-only level (inDetectiveWorld), but no lamp (endArt stays gated on isCaseTrail alone in S1)', () => {
+    render(makeWorldOnlyLevel())
+    const art = traceCanvasProbe.current?.startArt as Art
+    expect(art?.href).toBe(OCTOPUS_ART.href)
+    // No case to arrive at yet — S6's `goalArt` branch is out of this
+    // slice's scope, so a world-only level renders no end art at all here.
+    expect(traceCanvasProbe.current?.endArt).toBeUndefined()
+  })
+
   it('rests the glass in the octopus\'s raised tentacle, not at the route\'s first point', () => {
     // "Que se vea que la tiene el pulpo, no que la tiene adentro." The rest
     // point is offset up and to the right of the octopus's feet; while
@@ -599,6 +721,23 @@ describe('LevelPlay makes the trail line MUD, and only the line', () => {
     // The dim is the line fading toward the ground, so it sits between them.
     expect(lum(dim)).toBeGreaterThan(lum(ink))
     expect(lum(dim)).toBeLessThan(lum(GROUND_EARTH))
+  })
+
+  it('sends the same mud ink colour on a world-only level (gated on inDetectiveWorld)', () => {
+    renderToString(
+      <LevelPlay
+        level={makeWorldOnlyLevel()}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    const ink = traceCanvasProbe.current?.inkColor as string
+    const dim = traceCanvasProbe.current?.inkDimColor as string
+    expect(ink).toBeTruthy()
+    expect(ink).not.toBe(INK_COLOR)
+    expect(dim).toBeTruthy()
   })
 
   it('sends no ink override on an ordinary level, which keeps writing in ink', () => {

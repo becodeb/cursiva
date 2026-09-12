@@ -132,3 +132,21 @@ export function hitObstacle(
   }
   return -1
 }
+
+/**
+ * Fraction of each cycle during which the hazard is FULLY clear of the
+ * corridor — `|offset| > corridorWidth/2 + radius + OBSTACLE_INK_ALLOWANCE`.
+ *
+ * The closed form of the reasoning `catalog.ts` records in prose for
+ * `f1-pelotas`, made assertable: `obstacleAt`'s perpendicular offset is
+ * `(travel/2)·sin(θ)`, so the offset clears `clearance` whenever
+ * `|sin(θ)| > clearance/amplitude`, and that inequality holds for exactly
+ * `1 - (2/π)·asin(clearance/amplitude)` of the cycle (two symmetric windows
+ * around each ±amplitude peak). An `amplitude` too small to ever clear the
+ * corridor returns 0 rather than a NaN from `asin` of a value above 1.
+ */
+export function hazardGapFraction(o: Obstacle, corridorWidth: number): number {
+  const amplitude = o.travel / 2
+  const clearance = corridorWidth / 2 + o.radius + OBSTACLE_INK_ALLOWANCE
+  return amplitude <= clearance ? 0 : 1 - (2 / Math.PI) * Math.asin(clearance / amplitude)
+}

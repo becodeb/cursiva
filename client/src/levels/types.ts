@@ -3,7 +3,7 @@
 // a whole word are the same thing to the engine — a target path, a corridor
 // width and a set of rules.
 import type { LetterCheckpoint } from '../letters/types'
-import type { ClueKind } from '../detective/assets'
+import type { ArtImage, ClueKind } from '../detective/assets'
 
 export type Phase = 1 | 2 | 3 | 4 | 5
 
@@ -134,6 +134,24 @@ export interface LevelConfig {
    * not tracked by the clue reducer").
    */
   clue?: { kind: ClueKind; spacing: number }
+  /**
+   * Marks this level as DRAWN IN the detective world (grass, mud ink, the
+   * standing octopus, the wordless shell) without making it a case trail
+   * (`levels/world.ts`'s `inDetectiveWorld`). A case trail (`clue` set) is
+   * always in the world regardless of this field — the field can only WIDEN
+   * world membership, never narrow it. Absent/false on every level authored
+   * before this field, so every existing level keeps today's behaviour.
+   */
+  detectiveWorld?: boolean
+  /** Stand THIS picture where the route ends, instead of the engine's two
+   * hollow diamonds and instead of the case lamp. The medusa is Nivel 3's
+   * content, not a side effect of case membership — a level's own art beats
+   * a default it did not ask for (design.md §5). Absent = today's behaviour:
+   * the lamp on a case trail, the diamonds otherwise. */
+  goalArt?: ArtImage
+  /** Draw this level's hazards as this picture instead of the plain circle
+   * (`TraceHazards.art`). Absent = the shipped circle. */
+  hazardArt?: ArtImage
 }
 
 /** Runtime target derived from a LevelConfig at load time. */

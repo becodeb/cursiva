@@ -83,6 +83,22 @@ export const DUCK_TRAIL_IDS: readonly string[] = [
 ]
 
 /**
+ * Nivel 3's three new water-trail ids (desafíos 2-4), in play order
+ * (design.md §3 "The four levels" / §7 "migrateNivel3.ts"). Lives here rather
+ * than in `levels/catalog.ts` for the same reason `DUCK_TRAIL_IDS` does:
+ * `game/migrateNivel3.ts` needs this exact list BEFORE the catalog gains the
+ * three `LevelConfig`s (S2 ships before S7 — design.md §7, D7).
+ *
+ * MUST NOT include `'f2-guirnalda'`: that id is the migration's SOURCE
+ * (`NIVEL3_PREDECESSOR_ID`), already present in `records` by the migration's
+ * own first guard. Putting it in this destination set too would make the
+ * migration's second guard ("none of the destinations has a record yet")
+ * true on the very first run, and the migration would silently write
+ * nothing.
+ */
+export const NIVEL3_TRAIL_IDS: readonly string[] = ['f2-agua2', 'f2-agua3', 'f2-agua4']
+
+/**
  * The duck case's own `<caseId>-deduce` pseudo-id (level-engine spec "Duck
  * Case Positional-Unlock Migration"; `detective/cases.ts`'s `caseSolvedId`
  * computes the exact same string as `caseSolvedId('duck')`, quoted here

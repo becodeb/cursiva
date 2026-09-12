@@ -119,6 +119,12 @@
     "h": 230,
     "w": 256
   },
+  "goal-medusa": {
+    "bytes": 86905,
+    "file": "art/goal-medusa.png",
+    "h": 384,
+    "w": 357
+  },
   "ground-grass-1": {
     "bytes": 8548,
     "file": "art/ground-grass-1.png",
@@ -238,6 +244,12 @@
     "file": "art/ground-mud-8.png",
     "h": 56,
     "w": 62
+  },
+  "hazard-starfish": {
+    "bytes": 47678,
+    "file": "art/hazard-starfish.png",
+    "h": 296,
+    "w": 320
   },
   "home-desk": {
     "bytes": 74832,

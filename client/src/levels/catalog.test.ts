@@ -15,7 +15,7 @@ import { migratePhase1 } from '../game/migratePhase1'
 import { DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
 import type { LevelRecord } from '../game/types'
 import { migrateDuckCase } from '../game/migrateDuckCase'
-import { buildLevelTarget } from './buildLevel'
+import { BAND_INSET, buildLevelTarget } from './buildLevel'
 import { clueCountFor } from '../detective/clues'
 import {
   DEGRADED_LEVEL_IDS,
@@ -26,12 +26,13 @@ import {
   levelsByPhase,
   nextLevelId,
 } from './catalog'
-import { armClearance, cornerClearance, spiral } from './paths'
+import { hazardGapFraction } from './obstacles'
+import { armClearance, cornerClearance, spiral, uTurnRadius } from './paths'
 import type { Phase } from './types'
 
 // docs/08 section 5 tables, after the detective-mode retheme: 1 libre + 4
-// rastros del pato + 4 detective trails + 4 patrones + 4 grafemas + 2 enlaces
-// + 2 palabras.
+// rastros del pato + 4 detective trails + 4 patrones + 3 desafíos del agua +
+// 4 grafemas + 2 enlaces + 2 palabras.
 const EXPECTED_IDS = [
   'f1-libre',
   'duck-trail1',
@@ -43,6 +44,9 @@ const EXPECTED_IDS = [
   'trail3',
   'trail4',
   'f2-guirnalda',
+  'f2-agua2',
+  'f2-agua3',
+  'f2-agua4',
   'f2-colinas',
   'f2-bucles',
   'f2-crestas',
@@ -104,7 +108,10 @@ describe('LEVELS — authored values match the doc tables', () => {
     trail2: 70,
     trail3: 90,
     trail4: 70,
-    'f2-guirnalda': 85,
+    'f2-guirnalda': 100,
+    'f2-agua2': 80,
+    'f2-agua3': 68,
+    'f2-agua4': 90,
     'f2-colinas': 85,
     'f2-bucles': 80,
     'f2-crestas': 80,
@@ -128,6 +135,9 @@ describe('LEVELS — authored values match the doc tables', () => {
     trail3: 0,
     trail4: 0,
     'f2-guirnalda': 35,
+    'f2-agua2': 38,
+    'f2-agua3': 40,
+    'f2-agua4': 0,
     'f2-colinas': 40,
     'f2-bucles': 45,
     'f2-crestas': 45,
@@ -226,22 +236,34 @@ describe('LEVELS — surface, kind and feedback', () => {
     }
   })
 
-  it('metronomes phase 2 and only phase 2, between 50 and 70 bpm', () => {
+  it('metronomes phase 2 and only phase 2, between 50 and 70 bpm where it beats at all', () => {
     for (const level of LEVELS) {
       if (level.phase !== 2) {
         expect(level.feedback.metronomeBpm).toBe(0)
         continue
       }
+      // `f2-agua4` is the one named exemption (see the guard below): its beat
+      // is silenced on purpose, not a hole in the 50-70 rule.
+      if (level.feedback.metronomeBpm === 0) continue
       expect(level.feedback.metronomeBpm).toBeGreaterThanOrEqual(50)
       expect(level.feedback.metronomeBpm).toBeLessThanOrEqual(70)
     }
+  })
+
+  it('silences the beat and the fluency bar on exactly the level that asks the child to STOP', () => {
+    // design.md §3's exact exemption guard: a named guard so the one silent
+    // level cannot become an unguarded hole for a future level to hide in.
+    const silent = levelsByPhase(2).filter((l) => l.feedback.metronomeBpm === 0)
+    expect(silent.map((l) => l.id)).toEqual(['f2-agua4'])
+    expect(silent[0].obstacles).toHaveLength(1)
+    expect(silent[0].rules.minFluency).toBe(0)
   })
 
   it('slows the beat down as the pattern cycle gets longer', () => {
     // One beat = one cycle: the three-cycle patterns cover more ground per
     // beat than the four-cycle ones, so they must be slower.
     const bpm = (id: string): number => getLevel(id).feedback.metronomeBpm
-    expect(bpm('f2-guirnalda')).toBeGreaterThan(bpm('f2-crestas'))
+    expect(bpm('f2-agua2')).toBeGreaterThan(bpm('f2-guirnalda'))
     expect(bpm('f2-colinas')).toBeGreaterThan(bpm('f2-crestas'))
     expect(bpm('f2-crestas')).toBeGreaterThan(bpm('f2-bucles'))
   })
@@ -275,10 +297,11 @@ describe('LEVELS — surface, kind and feedback', () => {
 })
 
 describe('LEVELS — hazards and reset', () => {
-  it('resets the run on every detective trail, and nowhere else', () => {
+  it('resets the run on every case trail and on the one level with a hazard', () => {
     // `resetOnContact` is a RULE, not a punishment (types.ts). Every trail in
     // both cases sets it — touching the border sends the glass back to the
-    // start, exactly the case-file mechanic the brief specifies.
+    // start, exactly the case-file mechanic the brief specifies — and so does
+    // `f2-agua4`, the one Nivel 3 level with a hazard on it.
     const resetting = LEVELS.filter((l) => l.resetOnContact).map((l) => l.id)
     expect(resetting).toEqual([
       'duck-trail1',
@@ -289,6 +312,7 @@ describe('LEVELS — hazards and reset', () => {
       'trail2',
       'trail3',
       'trail4',
+      'f2-agua4',
     ])
   })
 
@@ -304,30 +328,73 @@ describe('LEVELS — hazards and reset', () => {
     }
   })
 
-  it('puts hazards on exactly trail 1, and exactly one of them (design C3)', () => {
+  it('puts hazards on trail 1 and f2-agua4, and exactly one each (design C3, §4)', () => {
     const hazardous = LEVELS.filter((l) => (l.obstacles?.length ?? 0) > 0)
-    expect(hazardous.map((l) => l.id)).toEqual(['trail1'])
-    expect(hazardous[0].obstacles).toHaveLength(1)
+    expect(hazardous.map((l) => l.id)).toEqual(['trail1', 'f2-agua4'])
+    for (const level of hazardous) expect(level.obstacles).toHaveLength(1)
     // A hazard without the reset rule is an animation, not an obstacle.
     for (const level of LEVELS) {
       if ((level.obstacles?.length ?? 0) > 0) expect(level.resetOnContact).toBe(true)
     }
   })
 
-  it('sits the hazard well inside the route, with room to approach and stop', () => {
-    const obstacles = getLevel('trail1').obstacles ?? []
-    expect(obstacles).toHaveLength(1)
-    expect(obstacles[0].at).toBeGreaterThan(0.15)
-    expect(obstacles[0].at).toBeLessThan(0.85)
+  it('sits every hazard well inside its route, with room to approach and stop', () => {
+    for (const id of ['trail1', 'f2-agua4']) {
+      const obstacles = getLevel(id).obstacles ?? []
+      expect(obstacles, id).toHaveLength(1)
+      expect(obstacles[0].at, id).toBeGreaterThan(0.15)
+      expect(obstacles[0].at, id).toBeLessThan(0.85)
+    }
   })
 
-  it('runs the hazard slowly enough for a six-year-old to read and plan', () => {
-    for (const o of getLevel('trail1').obstacles ?? []) {
-      expect(o.periodMs).toBeGreaterThanOrEqual(2200)
-      expect(o.periodMs).toBeLessThanOrEqual(2800)
-      expect(o.radius).toBeGreaterThanOrEqual(26)
-      expect(o.radius).toBeLessThanOrEqual(34)
+  it('runs every hazard slowly enough for a six-year-old to read and plan', () => {
+    // Band widened from trail1's own 2200-2800/26-34 to admit f2-agua4's
+    // slower, wider starfish (periodMs 3000, radius 34) — design.md §4's
+    // numbers, deliberately not trail1's own literals (D3).
+    for (const id of ['trail1', 'f2-agua4']) {
+      for (const o of getLevel(id).obstacles ?? []) {
+        expect(o.periodMs, id).toBeGreaterThanOrEqual(2200)
+        expect(o.periodMs, id).toBeLessThanOrEqual(3200)
+        expect(o.radius, id).toBeGreaterThanOrEqual(26)
+        expect(o.radius, id).toBeLessThanOrEqual(36)
+      }
     }
+  })
+
+  it("gives f2-agua4 a real, majority gap to stop and go in (design.md §4)", () => {
+    const level = getLevel('f2-agua4')
+    const o = (level.obstacles ?? [])[0]
+    expect(hazardGapFraction(o, level.corridorWidth)).toBeGreaterThan(0.5)
+  })
+})
+
+describe('LEVELS — Nivel 3 and every garland/hills level clears the ideal band (design.md §2)', () => {
+  // Below this radius of curvature, `pushBand`'s fixed ±half offset
+  // (`buildLevel.ts`) folds through itself on the concave side of a U turn.
+  // Widths/depths restate each level's own generator-call literals above, so
+  // this ties the live `corridorWidth` field to the geometry: the two cannot
+  // silently drift apart without this failing.
+  const CASES: Array<{ id: string; width: number; depth: number }> = [
+    { id: 'f2-guirnalda', width: (880 - 120) / 3, depth: 430 - 190 },
+    { id: 'f2-agua2', width: (880 - 120) / 4, depth: 430 - 290 },
+    { id: 'f2-agua4', width: (880 - 120) / 3, depth: 430 - 190 },
+    { id: 'f2-colinas', width: (860 - 140) / 4, depth: 435 - 285 },
+  ]
+
+  it('keeps the authored width safely wider than the U turning radius', () => {
+    for (const { id, width, depth } of CASES) {
+      const level = getLevel(id)
+      expect(uTurnRadius(width, depth), id).toBeGreaterThan(level.corridorWidth / 2 - BAND_INSET)
+    }
+  })
+
+  it("holds even at desafío 3's tightest cycle, at the design's own 4.5-unit margin", () => {
+    // The {165, 170} cycle is the worst of f2-agua3's five varied U's.
+    const level = getLevel('f2-agua3')
+    const floor = level.corridorWidth / 2 - BAND_INSET
+    const radius = uTurnRadius(165, 170)
+    expect(radius).toBeGreaterThan(floor)
+    expect(radius - floor).toBeCloseTo(4.5, 1)
   })
 })
 

@@ -35,7 +35,7 @@ const CHECKPOINT_SAMPLES = 400
  * still reads as inside; never below 4px, or a hair-thin corridor would score
  * like a centreline.
  */
-const BAND_INSET = 6
+export const BAND_INSET = 6
 const MIN_BAND = 4
 
 function clamp(v: number, min: number, max: number): number {
