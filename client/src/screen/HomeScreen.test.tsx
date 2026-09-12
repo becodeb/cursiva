@@ -1,6 +1,7 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import HomeScreen from './HomeScreen'
+import { auditCaptions } from '../detective/captionAudit'
 import { DETECTIVE_TRAIL_IDS, EMPTY_RECORD, type LevelRecord } from '../game/types'
 import type { Records } from '../home/caseState'
 
@@ -29,10 +30,11 @@ describe('HomeScreen (docs/10 §3, §7: what this screen is NOT)', () => {
     expect(text).toBe('')
   })
 
-  it('carries no heading and no <text> element either', () => {
+  it('every word (if any) carries its own image — captioned-art invariant, checked not granted', () => {
     const html = render()
-    expect(html).not.toMatch(/<h[1-6][\s>]/)
-    expect(html).not.toContain('<text')
+    const audit = auditCaptions(html)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 
   it('renders no `url(#…)` reference — the ban that hydrates blank on real devices', () => {

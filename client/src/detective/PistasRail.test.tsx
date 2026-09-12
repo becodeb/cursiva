@@ -6,6 +6,7 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import TraceCanvas from '../canvas/TraceCanvas'
 import { CLUE_ART, LAMP_ART } from './assets'
+import { auditCaptions } from './captionAudit'
 import PistasRail, { type PistasSlot } from './PistasRail'
 
 /** Strips every tag (and therefore every attribute, so an `aria-hidden` or a
@@ -58,15 +59,26 @@ describe('PistasRail placement (level-engine spec "PISTAS Rail Chrome")', () => 
   })
 })
 
-describe('PistasRail copy (level-engine spec "PISTAS Rail Chrome")', () => {
-  it('carries no copy beyond the literal word PISTAS (spec scenario "Rail carries no copy beyond PISTAS")', () => {
+describe('PistasRail copy (level-engine spec "PISTAS Rail Chrome"; captioned-art invariant)', () => {
+  it('carries no copy beyond the literal word PISTAS (spec scenario "Rail carries no copy beyond PISTAS"), captioned by its own image', () => {
     const html = renderToString(<PistasRail slots={[filedSlot, drainedSlot]} lampOn />)
     expect(textOf(html)).toBe('PISTAS')
+    // The licence is CHECKED, not granted by the `pistas-bar` class name
+    // alone (`captionAudit.ts`) — this only passes because the bar always
+    // also renders the lamp's `<image href>`.
+    const audit = auditCaptions(html)
+    expect(audit.captioned).toContain('PISTAS')
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 
-  it('carries no copy beyond PISTAS even with no slots and the lamp off', () => {
+  it('carries no copy beyond PISTAS even with no slots and the lamp off, still captioned', () => {
     const html = renderToString(<PistasRail slots={[]} lampOn={false} />)
     expect(textOf(html)).toBe('PISTAS')
+    const audit = auditCaptions(html)
+    expect(audit.captioned).toContain('PISTAS')
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 })
 
@@ -94,7 +106,10 @@ describe('PistasRail typeset word (supersedes D6)', () => {
     // to carry the accessible name. Real text carries its own, and leaving the
     // span in would read "PISTAS PISTAS".
     expect((html.match(/PISTAS/g) ?? []).length).toBe(1)
-    expect(textOf(html)).toBe('PISTAS')
+    const audit = auditCaptions(html)
+    expect(audit.captioned).toContain('PISTAS')
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 
   it('sets no font-family of its own, so the document root stays the one source', () => {

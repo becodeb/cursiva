@@ -14,10 +14,12 @@
 // reusing the names keeps the two screens reading as one shell rather than
 // two unrelated layouts.
 //
-// No text anywhere in this screen but the rail's own hidden `PISTAS` label
-// (Orchestrator Correction C1: "sin texto"). Animal names live ONLY in each
-// button's `aria-label` — an accessible name, not visible text (the S3
-// lesson recorded in `LevelPlay.tsx`'s icon controls applies here too).
+// [D6 amended by `case-registry-and-captions`] Each animal's name is now
+// VISIBLE, drawn beneath its picture by `CaptionedArt`
+// (`detective/captionAudit.ts`'s licensed `cv-captioned` container) — never
+// a bare word, always beside the image that gives it meaning. Only the
+// rail's own `PISTAS` label and the animal captions carry text; the back
+// control stays icon-only, because an icon is still not a caption.
 // No `url(#...)` reference, no `<mask>`/`<filter>`/`<clipPath>`/gradient
 // referenced by id (`TraceCanvas.tsx:70-84`), no card, no border, no
 // `border-radius`, no shadow (design.md "Layout": "no cards, no borders, no
@@ -31,6 +33,7 @@ import {
   type ArtImage,
   type ClueKind,
 } from '../detective/assets'
+import CaptionedArt from '../detective/CaptionedArt'
 import PistasRail, { type PistasSlot } from '../detective/PistasRail'
 import { BackIcon } from '../detective/icons'
 import { LAYOUT_CSS } from './LevelPlay'
@@ -166,13 +169,10 @@ function Animal({
         type="button"
         className="animal-btn"
         style={style}
-        aria-label={ANIMAL_LABEL[id]}
         disabled={state.closed}
         onClick={() => onPick(id)}
       >
-        <svg viewBox="-20 -20 40 40" width={64} height={64} aria-hidden="true" focusable="false">
-          <Art art={ANIMAL_ART[id].art} size={36} />
-        </svg>
+        <CaptionedArt art={ANIMAL_ART[id].art} label={ANIMAL_LABEL[id]} size={36} />
       </button>
       {dismissed && ruledOutBy && (
         <svg
@@ -213,6 +213,13 @@ export const DEDUCTION_CSS = `
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 .animal-btn[disabled] { cursor: default; }
+/* The word sits UNDER the picture (D6 amendment), never beside it — the
+ * cv-captioned span itself declares no layout (CaptionedArt.tsx is a bare
+ * span, reused by every future caller), so each screen that mounts it owns
+ * the stacking. No font-family here: .cv-caption inherits Nunito from the
+ * document root, same as .pistas-word (LevelPlay.tsx's LAYOUT_CSS). */
+.cv-captioned { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
+.cv-caption { font-size: 20px; font-weight: 700; color: #1e293b; }
 .cv-lineup-ground { flex: 0 0 auto; max-width: 640px; margin-top: 8px; }
 .pistas-rail { flex: 0 0 96px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .pistas-lamp-row { flex: 0 0 auto; }

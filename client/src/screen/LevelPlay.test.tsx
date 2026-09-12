@@ -39,6 +39,7 @@ vi.mock('../canvas/TraceCanvas', async (importOriginal) => ({
 
 import LevelPlay, { drawingBand, shouldFileClue, shouldTickClue } from './LevelPlay'
 import { CARRIER_LENS_ART, CLUE_ART, LAMP_ART, OCTOPUS_ART } from '../detective/assets'
+import { auditCaptions } from '../detective/captionAudit'
 import { INK_COLOR } from '../canvas/TraceCanvas'
 import { PRINT } from '../detective/palette'
 
@@ -136,16 +137,24 @@ describe('LevelPlay chrome branch (design.md Orchestrator Correction C1)', () =>
     expect(visible).not.toContain('‹ Volver')
     expect(visible).not.toContain('Borrar')
     expect(visible).not.toContain('Siguiente')
-    // PISTAS itself is the one allowed word, and it is present.
-    expect(html).toContain('PISTAS')
+    // PISTAS is the one allowed word; the licensed `pistas-bar` container
+    // that holds it must itself carry an image — checked, not granted
+    // (`detective/captionAudit.ts`).
+    const audit = auditCaptions(html)
+    expect(audit.captioned).toContain('PISTAS')
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 
-  it("a detective-trail level's only text node is the literal word PISTAS", () => {
+  it("a detective-trail level's only visible word is PISTAS, and it carries its own image (captionAudit)", () => {
     const level = makeDetectiveLevel()
     const html = renderToString(
       <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
     expect(textOf(html)).toBe('PISTAS')
+    const audit = auditCaptions(html)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 
   it('a phase-2+ (non-detective) level is unaffected even when it CAN show its guide-request button', () => {

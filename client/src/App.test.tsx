@@ -1,6 +1,7 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import App from './App'
+import { auditCaptions } from './detective/captionAudit'
 import { initialView } from './screen/GameScreen'
 import MainScreen from './screen/MainScreen'
 import type { ProgressStore } from './progress/ProgressStore'
@@ -23,13 +24,17 @@ describe('App shell (docs/10: the home is the entry point)', () => {
     expect(html).not.toContain('Elegí un camino')
   })
 
-  it('puts NO text on the first screen — not even the word cursiva (docs/10 §3)', () => {
-    const html = renderToString(<App />)
+  it('puts no uncaptioned word on the first screen, and none at all today (docs/10 §3)', () => {
+    const rendered = renderToString(<App />)
+    const audit = auditCaptions(rendered)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
+    const visible = rendered
       .replace(/<style[^>]*>[\s\S]*?<\/style>/g, '')
       .replace(/<[^>]*>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-    expect(html).toBe('')
+    expect(visible).toBe('')
   })
 
   it('a ?nivel= deep link still skips straight into the game', () => {

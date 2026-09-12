@@ -15,6 +15,7 @@ import {
   type AnimalId,
   type ClueKind,
 } from '../detective/assets'
+import { auditCaptions } from '../detective/captionAudit'
 import Deduction, {
   DEDUCTION_CSS,
   DeductionView,
@@ -121,24 +122,29 @@ describe('DeductionView rendering (spec scenario "All four clues collected reach
     expect(matches.length).toBe(4)
   })
 
-  it('every animal button carries an accessible name, none of which is visible text', () => {
+  it('every animal choice is visible AND captioned (D6 amendment: a word never ships without its picture)', () => {
     const html = renderToString(
       <DeductionView state={initialDeductionState()} onPick={noop} onBack={noop} />,
     )
-    for (const name of ['Gallina', 'Pato', 'Vaca', 'Gato']) {
-      expect(html, `missing accessible name: ${name}`).toContain(`aria-label="${name}"`)
-    }
     const visible = textOf(html)
     for (const name of ['Gallina', 'Pato', 'Vaca', 'Gato']) {
-      expect(visible).not.toContain(name)
+      expect(visible, `missing visible caption: ${name}`).toContain(name)
     }
+    const audit = auditCaptions(html)
+    for (const name of ['Gallina', 'Pato', 'Vaca', 'Gato']) {
+      expect(audit.captioned, `not captioned: ${name}`).toContain(name)
+    }
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 
-  it("the only visible text node anywhere is the literal word PISTAS (C1: 'sin texto')", () => {
+  it('every visible word on the deduction screen carries its own image (captionAudit invariant)', () => {
     const html = renderToString(
       <DeductionView state={initialDeductionState()} onPick={noop} onBack={noop} />,
     )
-    expect(textOf(html)).toBe('PISTAS')
+    const audit = auditCaptions(html)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 
   it('carries no `url(#` reference anywhere (TraceCanvas.tsx:70-84)', () => {
@@ -273,10 +279,12 @@ describe('DeductionView rendering (spec scenario "All four clues collected reach
 })
 
 describe('Deduction (stateful default export)', () => {
-  it('mounts at the initial state and renders the four choices', () => {
+  it('mounts at the initial state and renders the four captioned choices', () => {
     const html = renderToString(<Deduction onBack={noop} />)
     const matches = html.match(/className="animal-btn"|class="animal-btn"/g) ?? []
     expect(matches.length).toBe(4)
-    expect(textOf(html)).toBe('PISTAS')
+    const audit = auditCaptions(html)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 })

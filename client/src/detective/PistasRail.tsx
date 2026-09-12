@@ -10,12 +10,19 @@
 // four clue slots sit in a row beside it, and the whole thing is drawn BIG —
 // legible at a glance, never squinted at.
 //
-// `PISTAS` is DRAWN, not typeset (D6): six glyphs as stroked `M`/`L`
-// polylines in a 100-unit em, stroke width 8, `strokeLinecap="round"` to
-// match the child's own ink cap (`TraceCanvas.tsx:890`), no fill. No font, no
-// `font-family`, no `@font-face` anywhere in this file. The bar's only
-// literal text is the single hidden accessibility label below — the visible
-// word is geometry, never a text node.
+// `PISTAS` is TYPESET real text now (D6 amended by `case-registry-and-
+// captions`: on-screen text is allowed again, but only alongside an image,
+// never as the sole carrier of meaning). `client/index.html` loads Nunito at
+// the document root, so the constraint that once forced six hand-drawn
+// `M`/`L` polylines is gone; the word renders as a plain `<div
+// className="pistas-word">`, inheriting the root typeface rather than
+// declaring its own (see `LevelPlay.tsx`'s `LAYOUT_CSS` `.pistas-word` rule
+// for weight/size). It is still never the sole carrier of meaning: the
+// bar's own class, `pistas-bar`, is a licensed caption container
+// (`detective/captionAudit.ts`'s `CAPTION_CONTAINERS`) precisely because it
+// always also carries the lamp's and every slot's `<image href>` marks
+// below — the licence is checked against that image, never granted by the
+// class name alone.
 //
 // The lamp and the four clue marks are the shipped RASTER art, drawn as
 // `<image href="/art/...">` (see `assets.ts`'s header for why the art is
