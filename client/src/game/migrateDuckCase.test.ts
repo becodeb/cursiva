@@ -1,7 +1,7 @@
 // migrateDuckCase — level-engine spec "Duck Case Positional-Unlock
 // Migration". Node-only, no DOM. Same shape as `migratePhase1.test.ts`.
 import { describe, expect, it } from 'vitest'
-import { EMPTY_RECORD, APPROVALS_TO_UNLOCK, DUCK_TRAIL_IDS } from './types'
+import { EMPTY_RECORD, APPROVALS_TO_UNLOCK, DUCK_TRAIL_IDS, DUCK_CASE_SOLVED_ID } from './types'
 import type { LevelRecord } from './types'
 import { migrateDuckCase, DUCK_PREDECESSOR_ID } from './migrateDuckCase'
 
@@ -16,12 +16,35 @@ describe('migrateDuckCase — idempotent re-run', () => {
     }
 
     const firstRun = migrateDuckCase(before)
-    expect(Object.keys(firstRun)).toEqual(DUCK_TRAIL_IDS.slice())
+    expect(Object.keys(firstRun).sort()).toEqual(
+      [...DUCK_TRAIL_IDS, DUCK_CASE_SOLVED_ID].sort(),
+    )
 
     const afterFirstRun: Record<string, LevelRecord> = { ...before, ...firstRun }
     const secondRun = migrateDuckCase(afterFirstRun)
 
     expect(secondRun).toEqual({})
+  })
+})
+
+describe('migrateDuckCase — seeds the duck deduction pseudo-id too (orchestrator ruling 4, 2026-09-12)', () => {
+  it('seeds DUCK_CASE_SOLVED_ID as a solved LevelRecord alongside the four trails', () => {
+    const before: Record<string, LevelRecord> = {
+      [DUCK_PREDECESSOR_ID]: makeRecord({ approvals: APPROVALS_TO_UNLOCK, attempts: 4 }),
+    }
+    const changed = migrateDuckCase(before)
+    // The exact literal shape the real writer uses (design.md §5) — never
+    // seedFrom(source): a deduction record carries no accuracy/fluency of
+    // its own to copy forward.
+    expect(changed[DUCK_CASE_SOLVED_ID]).toEqual({ ...EMPTY_RECORD, approvals: 1 })
+  })
+
+  it('a lone existing DUCK_CASE_SOLVED_ID record blocks the whole seed, same as a lone trail record', () => {
+    const before: Record<string, LevelRecord> = {
+      [DUCK_PREDECESSOR_ID]: makeRecord({ approvals: APPROVALS_TO_UNLOCK, attempts: 5 }),
+      [DUCK_CASE_SOLVED_ID]: makeRecord({ approvals: 1 }),
+    }
+    expect(migrateDuckCase(before)).toEqual({})
   })
 })
 
@@ -69,7 +92,7 @@ describe('migrateDuckCase — never deletes, never mutates', () => {
     expect(before).toEqual(beforeSnapshot)
   })
 
-  it('produces no instruction that removes a record — only additive writes to the four duck ids', () => {
+  it('produces no instruction that removes a record — only additive writes to the four duck ids and the pseudo-id', () => {
     const before: Record<string, LevelRecord> = {
       [DUCK_PREDECESSOR_ID]: makeRecord({ approvals: APPROVALS_TO_UNLOCK, attempts: 2 }),
       'trail1': makeRecord({ approvals: 1, attempts: 1 }),
@@ -77,7 +100,9 @@ describe('migrateDuckCase — never deletes, never mutates', () => {
 
     const changed = migrateDuckCase(before)
 
-    expect(Object.keys(changed).sort()).toEqual(DUCK_TRAIL_IDS.slice().sort())
+    expect(Object.keys(changed).sort()).toEqual(
+      [...DUCK_TRAIL_IDS, DUCK_CASE_SOLVED_ID].sort(),
+    )
     expect(changed.trail1).toBeUndefined()
   })
 })
@@ -114,8 +139,13 @@ describe('migrateDuckCase — a mid-hen-campaign payload keeps every unlock', ()
       expect(changed[id]?.streakFail).toBe(0)
     }
 
+    // The pseudo-id is seeded too (orchestrator ruling 4), as a solved
+    // record — a migrated child resumes in the HEN case, never asked to
+    // solve a duck case they never played.
+    expect(changed[DUCK_CASE_SOLVED_ID]).toEqual({ ...EMPTY_RECORD, approvals: 1 })
+
     // The hen's own trail records are untouched — this migration never
-    // mutates anything outside the four duck ids.
+    // mutates anything outside the four duck ids and the duck pseudo-id.
     expect(changed.trail1).toBeUndefined()
     expect(changed.trail2).toBeUndefined()
     expect(changed.trail3).toBeUndefined()

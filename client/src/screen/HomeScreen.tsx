@@ -31,6 +31,7 @@ import {
 import { CLUE_DRAINED } from '../detective/palette'
 import { ARM_ANCHORS, DEFAULT_GRIP, HOME_MODES, modeArt, type HomeMode } from '../home/modes'
 import {
+  activeCase,
   lampOn as caseLampOn,
   nextCaseStep,
   railSlots,
@@ -196,8 +197,13 @@ export interface HomeScreenProps {
 }
 
 export default function HomeScreen({ records, onEnter }: HomeScreenProps) {
-  const slots = railSlots(records)
-  const lit = caseLampOn(records)
+  // [case-registry-and-captions, Phase 6] The rail and lamp now read the
+  // ACTIVE case (design.md §1) — duck first, hen second — instead of the
+  // hen's four trails hardcoded. `nextCaseStep` derives the same active case
+  // internally, so the two can never disagree about which case is showing.
+  const kase = activeCase(records)
+  const slots = railSlots(records, kase)
+  const lit = caseLampOn(records, kase)
   const step = nextCaseStep(records)
 
   return (

@@ -1,7 +1,7 @@
 # Apply Progress: Case Registry and Captioned Art
 
-Cumulative scope across apply runs: **Phase 1 (S1) through Phase 4 (S4).**
-Phases 5-9 are untouched and remain `[ ]` in `tasks.md`.
+Cumulative scope across apply runs: **Phase 1 (S1) through Phase 6 (S6).**
+Phases 7-9 are untouched and remain `[ ]` in `tasks.md`.
 
 Mode: Standard (strict TDD disabled — `openspec/config.yaml testing.strict_tdd: false`).
 
@@ -229,19 +229,141 @@ assertions in this phase can, and were shown to, go red on a real defect.
 
 Committed as `refactor(detective): every text-absence suite asserts the captioned-art invariant` (eed2788).
 
+## Phase 5: Deduction becomes case-driven and captioned (S5) — COMPLETE (6/6)
+
+Driven by four orchestrator rulings issued 2026-09-12 before this batch, on
+top of the tasks.md/design.md text (see each ruling's own note below).
+
+| Task | Status | Evidence |
+|---|---|---|
+| 5.1 Delete `CULPRIT`/`ANIMAL_ART.ruledOutBy` | done | `ANIMAL_ART` collapsed to `Readonly<Record<AnimalId, ArtImage>>`. Fixed three consequential breakages the task list did not name: `artManifest.test.ts:72` (`.art` accessor), `CaptionedArt.test.tsx` (5 call sites), `captionAudit.test.tsx` (1 call site) — all still read `ANIMAL_ART.pato.art` from the old wrapper shape. |
+| 5.2 Rewrite `Deduction.tsx` | done, with three orchestrator-ruling deviations from the shipped S4 render | See "Four orchestrator rulings" below. |
+| 5.3 Interim wiring in `GameScreen.tsx` | done | Hardcoded `DETECTIVE_CASES[0]` exactly as specified; superseded three tasks later by 6.3. |
+| 5.4 Rewrite `Deduction.test.tsx` | done, broader than listed | Deleted the old `'ANIMAL_ART / CULPRIT registry'` describe block (its five assertions are superseded by `cases.test.ts`, already shipped in Phase 2, which checks them per case — strictly stronger). Parametrized every case-shaped assertion over BOTH `DETECTIVE_CASES` entries via `describe.each`. Added three new regression tests tied directly to the orchestrator rulings: animal-size, `.pistas-bar` selector, and the CSS-only uppercase mechanism. |
+| 5.5 Screenshot check | PASS | See below. |
+| 5.6 `npm test` / `npm run build` | done | 1020 tests / 56 files (up from 1011/56 — Phase 3/4's count — the net delta is small because a describe block was deleted while `describe.each` added more). Build green. |
+
+### Four orchestrator rulings, and what changed because of them
+
+1. **Animal size regression (undone, not merely restored).** The shipped S4
+   render used `size={36}` on every `CaptionedArt` animal — a real regression
+   from `main`'s 64px `Art` helper, confirmed by rendering both
+   (`/tmp/shots/ref-deduction-main.png` vs `/tmp/shots/deduction-s4.png`).
+   Sized to **`ANIMAL_SIZE = 180`** — past `docs/09`'s ~140-unit trail
+   baseline, not merely back to 64, because with only 3-4 choices and no
+   canvas competing for space, this screen has strictly more room per animal
+   than a trail does, and the animal IS the answer here.
+2. **`.pistas-rail` dead-CSS defect (found on `main`, fixed here).** Verified
+   the orchestrator's claim directly: `PistasRail.tsx:157` renders
+   `className="pistas-bar"`, never `"pistas-rail"`, so `Deduction.tsx`'s old
+   `.pistas-rail {...}` block (base rule AND its `@media (max-height:520px)`
+   override) matched nothing and the rail fell through to `LAYOUT_CSS`'s
+   full LevelPlay-sized `.pistas-bar` treatment (96px `PISTAS` text, a wide
+   horizontal bar) — confirmed by rendering `?nivel=deduccion` on this
+   branch's own HEAD before this slice touched it
+   (`/tmp/shots/deduction-s4.png` shows exactly this). Renamed the selector
+   to `.pistas-bar` and re-scoped it as a narrow **132px-wide vertical
+   column** (lamp, `PISTAS` at 18px, four slots stacked) rather than
+   redesigning the screen further, per the explicit instruction to fix only
+   the selector and the sizing.
+3. **Captions are visually uppercase, never literally.** `ANIMAL_LABEL` stays
+   normal Spanish case (`"Pato"`) in the DOM; `.cv-caption` gets
+   `text-transform: uppercase`. Reasoning recorded in both the code comment
+   and a dedicated test (`'captions render uppercase via CSS text-transform,
+   never as literal uppercase text'`): several screen readers treat a
+   genuinely all-caps short DOM string as an acronym and spell it letter by
+   letter, which would be a real accessibility regression for a five-year-old
+   audience; a CSS paint rule gets the directive's visual requirement with
+   none of that cost.
+4. **(Ruling 4 is Phase 6/migration-scoped — see that phase's section below.)**
+
+### S5 screenshot check (task 5.5)
+
+- `/tmp/shots/duck-deduction-s5.png` (1280×900) — **PASS**. Three animals
+  (pato, vaca, gato — no gallina), large and confidently spaced, each word
+  directly beneath its picture in uppercase. The rail sits on the right as a
+  narrow column (lamp, PISTAS, four duck-clue-kind slots: webfoot/breadcrumb/
+  bubble/feather, all drained since this render has no progress), no longer
+  dominating the page. The lineup reads as the subject of the screen.
+- `/tmp/shots/duck-deduction-s5-short.png` (1280×480) — **PASS**. Confirms the
+  `max-height: 520px` rail media query still applies: the rail collapses to a
+  horizontal row below the lineup, exactly as `LevelPlay`'s own short-viewport
+  convention does.
+
+**What still looks wrong, said honestly rather than absorbed** (per the
+explicit instruction not to redesign further): there is a large amount of
+empty vertical space above and below the lineup at 1280×900 — `.cv-lineup`
+vertically centers its content inside the full-viewport flex column, and with
+only three animals at 180px tall the used region is much shorter than the
+viewport. This is the SAME "most of the page is empty" defect the orchestrator
+identified on `main` (`ref-deduction-main.png`), reduced in severity (the
+lineup itself is far more prominent now, and the rail no longer eats the right
+half) but not eliminated. Left as a visible, recorded gap rather than
+addressed, since the instruction was to fix the selector and the sizing only.
+
+## Phase 6: Per-case routing (S6) — COMPLETE (6/6)
+
+| Task | Status | Evidence |
+|---|---|---|
+| 6.1 `caseState.ts` case-aware rewrite | done | `activeCase`, `nextCaseStep`, `railSlots(records, kase)`, `lampOn(records, kase)` — matches design.md §1's literal signatures. |
+| 6.2 `caseState.test.ts` case-aware tests | done, plus the ruling-4 integration test | 14 tests: `activeCase` duck-first/duck-open/duck-resolved/all-resolved; `nextCaseStep` gap-filling within the active case; `railSlots`/`lampOn` per case, including a cross-case non-interference guard; and the orchestrator-ruling-4 test proving a `migrateDuckCase`-seeded record set resumes in the HEN case. |
+| 6.3 `GameScreen.tsx` per-case routing | done, with one necessary-minimum deviation | `GameView`/`GameAction.deduce` carry `caseId`; `resolveNextAction` now uses `caseOf` instead of a hardcoded `LAST_DETECTIVE_TRAIL_ID`; `DETECTIVE_TRAIL_IDS` re-export dropped. **Deviation**: `initialView`'s `?nivel=deduccion` branch needed `caseId: DETECTIVE_CASES[0].id` added just to typecheck against the new `GameView.deduce` shape — this is a strict subset of design.md §8's eventual Phase-7 rewrite (which adds `?nivel=deduccion-<caseId>` and the `?nivel=mapa` dev gate), not an early implementation of Phase 7 itself. |
+| 6.4 `GameScreen.test.tsx` updates | done, with one scope-fence deviation | Parametrized every `resolveNextAction`/`nextView` deduce scenario over BOTH cases via `describe.each`. **Deviation, deliberate**: did NOT add `onExit={() => {}}` to `<GameScreen/>` mount cases as the task text suggested "in preparation for Phase 7" — `GameScreenProps` has no `onExit` field until Phase 7 (task 7.1) adds it, and passing an undeclared prop in a JSX literal fails `tsc`'s excess-property check, which would have broken `npm run build`. Left for Phase 7 to add together with the prop declaration. |
+| 6.5 `HomeScreen.tsx`/`App.tsx` active-case wiring | done, plus a necessary consequential test fix | `HomeScreen` now derives `activeCase(records)` once and threads it into `railSlots`/`lampOn`; `App.tsx`'s `viewFor` threads `CaseStep.deduce`'s new `caseId` into `GameView.deduce`. **Not separately listed but required**: `HomeScreen.test.tsx`'s three case-state tests hardcoded the HEN's clue kinds/ids as the only possible active case — with duck-first routing now real, a fresh child's active case is the DUCK's. Rewrote those three tests against duck ids/kinds and added a fourth: filing every one of the hen's trails must NOT light the duck case's own lamp (proves the two cases never cross-light each other). |
+| 6.6 `npm test` / `npm run build` | done | 1031 tests / 56 files (up from 1020/56 — Phase 5's count). Build green. |
+
+### Orchestrator ruling 4 — `migrateDuckCase` also seeds `duck-deduce`
+
+The Phase 1/2 apply run flagged and deferred this discrepancy (spec says the
+migration seeds the duck case's `-deduce` pseudo-id; design.md and tasks 1.2/
+1.3 did not). This batch resolved it in the spec's favour, exactly as the
+orchestrator ruled, because Phase 6 is what makes the omission observable:
+
+- Added `DUCK_CASE_SOLVED_ID = 'duck-deduce'` to `game/types.ts`, quoting
+  `detective/cases.ts`'s `caseSolvedId('duck')` formula literally rather than
+  importing it — `game/` cannot import `detective/cases.ts` without dragging
+  the whole catalog-backed case registry in, the same reason `DUCK_TRAIL_IDS`
+  already lives in `game/types.ts` instead of next to the registry.
+- Widened `migrateDuckCase`'s idempotency guard from "none of the four duck
+  trail ids has a record" to "none of the four duck trail ids OR
+  `DUCK_CASE_SOLVED_ID` has a record" — a lone existing `duck-deduce` record
+  now also blocks the whole seed, tested directly.
+- The seeded `duck-deduce` record is the LITERAL shape the real writer uses
+  (`{ ...EMPTY_RECORD, approvals: 1 }`, design.md §5, spec "Case-Solved
+  Persistence") — never `seedFrom(source)`. A deduction pseudo-record carries
+  no accuracy/fluency of its own to copy forward; `seedFrom` exists for real
+  trail progress, which this is not.
+- Added the exact test the orchestrator asked for, in `caseState.test.ts`:
+  `'a migrated duck-only record set resumes inside the HEN case, never the
+  duck deduction'` — feeds `migrateDuckCase`'s own output straight into
+  `activeCase`/`nextCaseStep` and asserts the child lands on `trail1`
+  (the hen's first trail), not on the duck's own deduction.
+- Corrected `design.md` §6 in place (marked `[Corrected 2026-09-12 —
+  orchestrator ruling 4]`) rather than leaving the shipped code and the
+  design doc disagreeing; also strengthened §6's "D4's accepted cost"
+  paragraph to state explicitly that its "never meets the duck" claim is only
+  true END TO END because of this seed — without it, per-case routing would
+  turn "never meets the duck" into "is asked to solve the duck case blind",
+  which is worse than the cost D4 already accepted.
+
+No screenshot task is assigned to S6 (design's Slice Plan pins screenshots to
+S2/S5/S8 only) — took one anyway for confidence, given how much the home
+screen's default rendering changed: `/tmp/shots/home-duck-first-s6.png` shows
+the office rail now displaying the duck's four drained clue kinds (webfoot/
+breadcrumb/bubble/feather) instead of the hen's, confirming `activeCase`
+correctly resolves to the duck case for a fresh child.
+
 ## Remaining Tasks (out of scope for this apply run)
 
-- [ ] Phase 5: Deduction becomes case-driven and captioned (S5)
-- [ ] Phase 6: Per-case routing (S6)
 - [ ] Phase 7: Exit to the home office; map becomes a dev surface (S7)
 - [ ] Phase 8: The lens centres on the fingertip (S8)
 - [ ] Phase 9: Docs — Nivel reterm, directive transcription, D6 fixes (S9)
 
 ## Status
 
-35/69 tasks complete (Phase 1: 5/5, Phase 2: 16/16, Phase 3: 5/5, Phase 4:
-7/7). All four slices committed separately. Ready for the next apply batch
-(Phase 5, S5) or for verify on this slice's scope.
+45/69 tasks complete (Phase 1: 5/5, Phase 2: 16/16, Phase 3: 5/5, Phase 4:
+7/7, Phase 5: 6/6, Phase 6: 6/6). All six slices committed separately. Ready
+for the next apply batch (Phase 7, S7) or for verify on this slice's scope.
 
 ## Orchestrator correction after the S2 screenshot review (2026-09-12)
 

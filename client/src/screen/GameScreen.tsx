@@ -9,33 +9,35 @@ import LevelPlay from './LevelPlay'
 import Deduction from './Deduction'
 import { LEVELS, getLevel, nextLevelId } from '../levels/catalog'
 import { applyAttempt } from '../game/adaptiveTolerance'
-import { DETECTIVE_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
+import { EMPTY_RECORD } from '../game/types'
 import type { LevelAttempt, LevelRecord } from '../game/types'
 import { openProgressStore } from '../game/openProgressStore'
-import { DETECTIVE_CASES, caseSolvedId } from '../detective/cases'
+import { DETECTIVE_CASES, caseOf, caseSolvedId } from '../detective/cases'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
  * is a third GameView branch") — it has no path, no ink and none of the
  * three pillars, so it is never represented as a catalog level (proposal
- * decision #3). */
+ * decision #3). [case-registry-and-captions, Phase 6] `deduce` now carries
+ * WHICH case (design.md §1, spec: detective-mode "Case Routing Across
+ * Multiple Cases") — there is more than one in the registry. */
 export type GameView =
   | { view: 'map'; finished: boolean }
   | { view: 'play'; levelId: string }
-  | { view: 'deduce' }
+  | { view: 'deduce'; caseId: string }
 
 /**
  * Navigation intents. `next` carries the ALREADY-RESOLVED successor id (null =
  * the catalog is done), which keeps the reducer independent of the catalog and
- * therefore testable on its own. `deduce` carries nothing: the deduction view
- * is a single, catalog-independent destination — same reason `next`'s
- * successor is resolved by the caller instead of looked up in here.
+ * therefore testable on its own. `deduce` carries the case id it targets —
+ * same reason `next`'s successor is resolved by the caller instead of looked
+ * up in here.
  */
 export type GameAction =
   | { type: 'play'; levelId: string }
   | { type: 'back' }
   | { type: 'next'; levelId: string | null }
-  | { type: 'deduce' }
+  | { type: 'deduce'; caseId: string }
   | { type: 'reset' }
 
 /**
@@ -56,7 +58,7 @@ export function nextView(state: GameView, action: GameAction): GameView {
         ? { view: 'map', finished: true }
         : { view: 'play', levelId: action.levelId }
     case 'deduce':
-      return { view: 'deduce' }
+      return { view: 'deduce', caseId: action.caseId }
     case 'back':
     case 'reset':
       return state.view === 'map' && !state.finished ? state : { view: 'map', finished: false }
@@ -70,36 +72,23 @@ export function nextView(state: GameView, action: GameAction): GameView {
  * An unknown id falls back to the map instead of crashing.
  *
  * `?nivel=deduccion` is the one reserved id that is NOT a catalog lookup — it
- * opens the deduction view directly, the same deep-link convenience every
- * other level already has, for the same reviewability reason.
+ * opens the FIRST case's deduction view directly, the same deep-link
+ * convenience every other level already has, for the same reviewability
+ * reason. [case-registry-and-captions, Phase 6, necessary minimum] Per-case
+ * `?nivel=deduccion-<caseId>` links and the `?nivel=mapa` dev gate are
+ * Phase 7 scope (design.md §8) — only the caseId this view now REQUIRES to
+ * compile is added here.
  */
 export function initialView(search: string): GameView {
   try {
     const id = new URLSearchParams(search).get('nivel')
-    if (id === 'deduccion') return { view: 'deduce' }
+    if (id === 'deduccion') return { view: 'deduce', caseId: DETECTIVE_CASES[0].id }
     if (id && LEVELS.some((l) => l.id === id)) return { view: 'play', levelId: id }
   } catch {
     // malformed query string: fall through to the map
   }
   return { view: 'map', finished: false }
 }
-
-/**
- * The four detective trail ids, in play order. MOVED to `game/types.ts` in
- * S5 (still re-exported here so this file's own existing call sites below,
- * and every S4 test that imports it from this module, need no change):
- * `game/migratePhase1.ts` needs the exact same list and `game/` cannot
- * import from `screen/` without creating a cycle, since `GameScreen.tsx`
- * itself imports the migration. See `game/types.ts` for the full doc
- * comment (design.md "Migration / Rollout").
- */
-export { DETECTIVE_TRAIL_IDS }
-
-/** The last detective trail — completing it is the only event that can make
- * the deduction screen reachable (design.md "Decision: deduction is a third
- * GameView branch": "dispatch `deduce` when the finished level is the LAST
- * trail and all four clues are earned"). */
-const LAST_DETECTIVE_TRAIL_ID = DETECTIVE_TRAIL_IDS[DETECTIVE_TRAIL_IDS.length - 1]
 
 /**
  * All of `trailIds`' records carry at least one approval (design.md
@@ -127,13 +116,22 @@ export function allEarned(
  * cannot observe a re-render after `renderToString`, so the decision itself
  * must be testable on its own (level-engine spec "Deduction View Reachable
  * from nextView").
+ *
+ * [case-registry-and-captions, Phase 6] Made PER-CASE: `finishedLevelId` no
+ * longer has to be the hen's last trail — it resolves to `deduce` when it is
+ * the LAST trail of WHICHEVER case owns it (`caseOf`), and that case's own
+ * trails are all earned. A level `caseOf` cannot place (an ordinary,
+ * non-detective level) always resolves to `next`.
  */
 export function resolveNextAction(
   finishedLevelId: string,
   records: Readonly<Record<string, LevelRecord>>,
 ): GameAction {
-  return finishedLevelId === LAST_DETECTIVE_TRAIL_ID && allEarned(DETECTIVE_TRAIL_IDS, records)
-    ? { type: 'deduce' }
+  const kase = caseOf(finishedLevelId)
+  const isLastTrailOfCase =
+    !!kase && finishedLevelId === kase.trailIds[kase.trailIds.length - 1]
+  return isLastTrailOfCase && allEarned(kase.trailIds, records)
+    ? { type: 'deduce', caseId: kase.id }
     : { type: 'next', levelId: nextLevelId(finishedLevelId) }
 }
 
@@ -183,13 +181,12 @@ export default function GameScreen({ footer, initial }: GameScreenProps = {}) {
   }
 
   if (state.view === 'deduce') {
-    // [case-registry-and-captions, Phase 5 interim wiring — superseded by
-    // Phase 6] Hardcoded to the duck case (design.md §5's own worked
-    // example): `GameView`/`GameAction` do not carry a `caseId` yet, so this
-    // is the minimum needed for `GameScreen` to compile against `Deduction`'s
-    // new required props. Full per-case routing (`DETECTIVE_CASES.find`
-    // against `state.caseId`) lands in Phase 6.
-    const kase = DETECTIVE_CASES[0]
+    // [case-registry-and-captions, Phase 6] Full per-case routing (design.md
+    // §5): the case is resolved from `state.caseId`, not hardcoded. Falls
+    // back to the first case for a malformed/unknown id, the same
+    // never-crash convention `getLevel`/`isUnlocked` already use for an
+    // unknown level id.
+    const kase = DETECTIVE_CASES.find((k) => k.id === state.caseId) ?? DETECTIVE_CASES[0]
     const solvedId = caseSolvedId(kase.id)
     return (
       <Deduction

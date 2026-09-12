@@ -481,9 +481,23 @@ instead of being asked again.
 
 Same three parts as `migratePhase1.ts`, plus its single application site.
 
+**[Corrected 2026-09-12 — orchestrator ruling 4]** The version of this section
+originally shipped seeded only the four duck trail ids. That was WRONG, and
+`level-engine/spec.md`'s "Duck Case Positional-Unlock Migration" requirement
+was right to say otherwise: it also seeds the duck case's own
+`<caseId>-deduce` pseudo-id (`DUCK_CASE_SOLVED_ID` in `game/types.ts`,
+matching `detective/cases.ts`'s `caseSolvedId('duck')`). The reasoning this
+correction fixes: once Phase 6 makes routing per-case (`home/caseState.ts`'s
+`activeCase`), a case counts as resolved only when its trails are ALL filed
+**and** its deduction is solved. A migrated child's `f1-libre` approvals
+predate the duck case's existence entirely, so leaving `duck-deduce` unseeded
+would route that exact child straight into the duck DEDUCTION — asking them
+to solve a case whose trails they never walked, a strictly worse outcome than
+the cost already accepted below (never meeting the duck case at all).
+
 ```ts
 // (a) the declarative table — what the seed protects, and what it seeds
-import { EMPTY_RECORD, APPROVALS_TO_UNLOCK, DUCK_TRAIL_IDS } from './types'
+import { EMPTY_RECORD, APPROVALS_TO_UNLOCK, DUCK_TRAIL_IDS, DUCK_CASE_SOLVED_ID } from './types'
 import type { LevelRecord } from './types'
 
 /** The id whose approvals used to grant `trail1` its positional unlock, and
@@ -492,7 +506,9 @@ export const DUCK_PREDECESSOR_ID = 'f1-libre'
 
 // (b) the per-field merge policy — identical to migratePhase1's seedFrom, and
 //     identical for the same reasons (max on the forgiving fields, attempts
-//     summed, streakFail deliberately not carried).
+//     summed, streakFail deliberately not carried). Used ONLY for the four
+//     trail ids — the deduction pseudo-record below carries no accuracy or
+//     fluency of its own to copy forward.
 function seedFrom(source: LevelRecord): LevelRecord { /* …as migratePhase1.ts:64-74… */ }
 
 // (c) the pure function, returning only changed entries
@@ -504,11 +520,16 @@ export function migrateDuckCase(
   // child meets the duck case normally. This is the branch that keeps the
   // migration invisible to every new player.
   if (!source || source.approvals < APPROVALS_TO_UNLOCK) return {}
-  // Any duck record at all means the insertion has already been lived through —
-  // migrated earlier, or genuinely played. Never re-seed.
-  if (DUCK_TRAIL_IDS.some((id) => records[id])) return {}
+  // Any duck record — a trail OR the deduction pseudo-id — means the
+  // insertion has already been lived through: migrated earlier, or
+  // genuinely played. Never re-seed.
+  if ([...DUCK_TRAIL_IDS, DUCK_CASE_SOLVED_ID].some((id) => records[id])) return {}
   const changed: Record<string, LevelRecord> = {}
   for (const id of DUCK_TRAIL_IDS) changed[id] = seedFrom(source)
+  // The exact literal shape §5's real writer uses (`{...EMPTY_RECORD,
+  // approvals: 1}`, spec "Case-Solved Persistence") — the case is being
+  // marked resolved, not scored.
+  changed[DUCK_CASE_SOLVED_ID] = { ...EMPTY_RECORD, approvals: 1 }
   return changed
 }
 ```
@@ -517,12 +538,12 @@ export function migrateDuckCase(
 used to grant `trail1` its unlock, quoted rather than re-decided, so the migration protects
 precisely the children it needs to and nobody else.
 
-**Idempotency argument**: structural, not flagged. The second guard is "no duck id has a
-record yet", and the function's own writes create those records, so a second run returns `{}`
-and performs no write. That is what makes calling it from `openProgressStore` — which
-`GameScreen.tsx:157` invokes inside a `useState` lazy initialiser, double-invoked under
-StrictMode — harmless. It never mutates `records`, never deletes, and never touches
-`f1-libre`'s own entry, which is what keeps the rollback plan real.
+**Idempotency argument**: structural, not flagged. The second guard is "none of the four duck
+trail ids OR `DUCK_CASE_SOLVED_ID` has a record yet", and the function's own writes create
+those records, so a second run returns `{}` and performs no write. That is what makes calling
+it from `openProgressStore` — which `GameScreen.tsx:157` invokes inside a `useState` lazy
+initialiser, double-invoked under StrictMode — harmless. It never mutates `records`, never
+deletes, and never touches `f1-libre`'s own entry, which is what keeps the rollback plan real.
 
 **Wiring** (`openProgressStore.ts:23-30`) — one more loop, ordering irrelevant because the two
 migrations share no id:
@@ -541,7 +562,11 @@ export function openProgressStore(): LevelProgressStore {
 ids, so `isFiled` is true for them, so `nextCaseStep` skips the duck case entirely and that
 child **never meets the duck**. It is not a side effect and it is not a bug — it is the price
 of the no-demotion rule that `migratePhase1.ts:1-10` exists by name to enforce, and the
-alternative is locking a child out of `trail1`..`trail4` they already earned. There is no
+alternative is locking a child out of `trail1`..`trail4` they already earned. This claim is
+only TRUE end to end because `DUCK_CASE_SOLVED_ID` is seeded alongside the four trails (the
+2026-09-12 correction above): without it, `activeCase` would find the duck's trails filed but
+its deduction unsolved, and route the child INTO the duck deduction instead of past it —
+"never meets the duck" would become "is asked to solve the duck case blind". There is no
 production user base (`openspec/config.yaml:8` records the backend as not scaffolded).
 Mitigation: "Reiniciar progreso" stays reachable on the dev-gated map (§8). `migrateDuckCase`
 must land **before** the catalog insertion (slice S1 before S2) — the same ordering rule

@@ -42,9 +42,14 @@ function initialShell(): Shell {
   return view.view === 'map' ? { at: 'home' } : { at: 'game', initial: view }
 }
 
-/** Where a mode's resolved step opens the game. */
+/** Where a mode's resolved step opens the game. [case-registry-and-captions,
+ * Phase 6] `CaseStep.deduce` now carries `caseId` — threaded straight
+ * through, so the home's active-case decision and the game shell's rendered
+ * case can never disagree. */
 function viewFor(step: CaseStep): GameView {
-  return step.kind === 'deduce' ? { view: 'deduce' } : { view: 'play', levelId: step.levelId }
+  return step.kind === 'deduce'
+    ? { view: 'deduce', caseId: step.caseId }
+    : { view: 'play', levelId: step.levelId }
 }
 
 export default function App() {

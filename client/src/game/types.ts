@@ -81,3 +81,13 @@ export const DUCK_TRAIL_IDS: readonly string[] = [
   'duck-trail3',
   'duck-trail4',
 ]
+
+/**
+ * The duck case's own `<caseId>-deduce` pseudo-id (level-engine spec "Duck
+ * Case Positional-Unlock Migration"; `detective/cases.ts`'s `caseSolvedId`
+ * computes the exact same string as `caseSolvedId('duck')`, quoted here
+ * literally rather than imported — `game/migrateDuckCase.ts` needs it before
+ * the catalog gains the duck's `LevelConfig`s, and `game/` cannot import
+ * `detective/cases.ts` without dragging that catalog dependency in, the same
+ * reason `DUCK_TRAIL_IDS` lives here instead of in `detective/cases.ts`). */
+export const DUCK_CASE_SOLVED_ID = 'duck-deduce'
