@@ -12,8 +12,9 @@ import { applyAttempt } from '../game/adaptiveTolerance'
 import { EMPTY_RECORD } from '../game/types'
 import type { LevelAttempt, LevelRecord } from '../game/types'
 import { openProgressStore } from '../game/openProgressStore'
-import { DETECTIVE_CASES, caseOf, caseSolvedId } from '../detective/cases'
+import { DETECTIVE_CASES, caseSolvedId } from '../detective/cases'
 import { isDevMode } from '../canvas/devMode'
+import { sectorOf } from '../zoo/sectors'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
@@ -120,33 +121,50 @@ export function allEarned(
 }
 
 /**
+ * Leaving the game shell entirely (zoo-map design.md §6). Deliberately NOT a
+ * `GameAction` member: `nextView` is shell-independent (its own comment
+ * above) and `App`'s `Shell` lives one level up (`App.tsx`'s `{ at: 'map' }`)
+ * — adding `exit` to `GameAction` would force `nextView`'s switch to grow a
+ * case for a state `GameView` cannot represent. Keeping it in a sibling type
+ * means `nextView` stays unchanged and the one call site below MUST
+ * discriminate before dispatching, which is the whole point: `dispatch` can
+ * never be the silent fallback because there is no branch that reaches it
+ * without deciding first.
+ */
+export type ExitAction = { type: 'exit' }
+export type NextAction = GameAction | ExitAction
+
+/**
  * What a finished level's "next" control resolves to. `nextView` itself must
  * stay catalog-independent (its own comment above), so this is where the
- * catalog knowledge (`nextLevelId`) AND the clue-earned knowledge
- * (`allEarned`) actually meet — design.md's own words: "the *decision* lives
- * in `GameScreen.onNext`". Exported and pure for the same reason
+ * catalog knowledge (`nextLevelId`) AND the zoo's sector knowledge
+ * (`sectorOf`) actually meet — design.md §6's own words: "the *decision*
+ * lives in `GameScreen.onNext`". Exported and pure for the same reason
  * `shouldFileClue` is exported from `LevelPlay.tsx`: the real `onNext`
  * closure runs inside a `useState` setter, and this repo's node harness
  * cannot observe a re-render after `renderToString`, so the decision itself
  * must be testable on its own (level-engine spec "Deduction View Reachable
  * from nextView").
  *
- * [case-registry-and-captions, Phase 6] Made PER-CASE: `finishedLevelId` no
- * longer has to be the hen's last trail — it resolves to `deduce` when it is
- * the LAST trail of WHICHEVER case owns it (`caseOf`), and that case's own
- * trails are all earned. A level `caseOf` cannot place (an ordinary,
- * non-detective level) always resolves to `next`.
+ * [zoo-map-home] Finishing ANY adventure a zoo sector owns exits to the map
+ * — not just the sector's last one, and never to the deduction screen (D2,
+ * the auto-route is retired). `docs/12` §3: "Volver de un nivel cae en el
+ * mapa." A level no sector has adopted yet (today the hen's `trail1..4` and
+ * everything past the estanque's own ids) keeps today's `next` behaviour,
+ * byte-for-byte.
+ *
+ * `records` is kept in the signature — unused today, hence the leading `_`
+ * (`tsconfig`'s `noUnusedParameters` would otherwise fail the build) — for
+ * two reasons: the sole call site already passes `store.all()` positionally
+ * alongside `finishedLevelId`, and paso D's own unlock rules will need it
+ * the moment a sector's `unlockedWhen` stops being a constant function.
  */
 export function resolveNextAction(
   finishedLevelId: string,
-  records: Readonly<Record<string, LevelRecord>>,
-): GameAction {
-  const kase = caseOf(finishedLevelId)
-  const isLastTrailOfCase =
-    !!kase && finishedLevelId === kase.trailIds[kase.trailIds.length - 1]
-  return isLastTrailOfCase && allEarned(kase.trailIds, records)
-    ? { type: 'deduce', caseId: kase.id }
-    : { type: 'next', levelId: nextLevelId(finishedLevelId) }
+  _records: Readonly<Record<string, LevelRecord>>,
+): NextAction {
+  if (sectorOf(finishedLevelId)) return { type: 'exit' }
+  return { type: 'next', levelId: nextLevelId(finishedLevelId) }
 }
 
 export interface GameScreenProps {
@@ -178,9 +196,11 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
   const [state, setState] = useState<GameView>(() => {
     if (initial) return initial
     const search = typeof window === 'undefined' ? '' : window.location.search
-    // The office is the default landing (design.md §8) — `{view:'map'}` here
-    // is only GameScreen's OWN defensive fallback for a bare mount, never the
-    // production route (App.tsx always resolves `initialView` itself first).
+    // The zoo map is the default landing (zoo-map design.md §6) —
+    // `{view:'map'}` HERE is the internal, dev-gated `LevelMap` (a different
+    // screen entirely), and is only ever GameScreen's OWN defensive fallback
+    // for a bare mount — never the production route (App.tsx always resolves
+    // `initialView` itself first, and its own fallback is the zoo map).
     return initialView(search, isDevMode()) ?? { view: 'map', finished: false }
   })
   // Records live in storage, not in React state: bumping the version is what
@@ -200,7 +220,16 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
           store.save(state.levelId, applyAttempt(store.get(state.levelId), attempt))
           setVersion((n) => n + 1)
         }}
-        onNext={() => dispatch(resolveNextAction(state.levelId, store.all()))}
+        onNext={() => {
+          // `resolveNextAction` returns `NextAction` — `GameAction` widened
+          // by the one outcome `nextView` cannot express (design.md §6).
+          // This is the single point that has to discriminate before
+          // dispatching, so `dispatch` never silently becomes the fallback
+          // for "leave the shell".
+          const action = resolveNextAction(state.levelId, store.all())
+          if (action.type === 'exit') onExit()
+          else dispatch(action)
+        }}
         onBack={onExit}
       />
     )

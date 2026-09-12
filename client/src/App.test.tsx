@@ -17,24 +17,31 @@ function fakeStore(): ProgressStore {
   }
 }
 
-describe('App shell (docs/10: the home is the entry point)', () => {
-  it('opens on the office, not on the level map and not on the letter workbench', () => {
+describe('App shell (docs/12: the zoo map is the entry point)', () => {
+  it('opens on the zoo map, not the office and not the internal level map', () => {
     const html = renderToString(<App />)
-    expect(html).toContain('/art/home-octopus.png')
+    expect(html).toContain('/art/zoo-map.png')
+    expect(html).not.toContain('/art/home-octopus.png')
     expect(html).not.toContain('Elegí un camino')
   })
 
-  it('puts no uncaptioned word on the first screen, and none at all today (docs/10 §3)', () => {
+  it('every visible word on the first screen passes auditCaptions (D3)', () => {
     const rendered = renderToString(<App />)
     const audit = auditCaptions(rendered)
     expect(audit.uncaptioned).toEqual([])
     expect(audit.imagelessContainers).toEqual([])
-    const visible = rendered
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/g, '')
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-    expect(visible).toBe('')
+  })
+
+  // D3's rewritten assertion, proven able to fail (proposal D3, tasks.md
+  // 3.4): the OLD assertion here was "zero visible text at all", which the
+  // map cannot satisfy — it carries a star count and the octopus's phrase,
+  // both real words. The invariant that survives is `docs/09` §8's "ningún
+  // texto aparece solo", already encoded as `auditCaptions`. This proves
+  // that check is not vacuous by handing it a string it MUST reject.
+  it('the auditCaptions assertion above can fail — proven on a hand-built bare word', () => {
+    const bare = '<main><div class="cv-zoo-hud-right">12</div></main>'
+    const audit = auditCaptions(bare)
+    expect(audit.uncaptioned).not.toEqual([])
   })
 
   it('a ?nivel= deep link still skips straight into the game', () => {
@@ -43,8 +50,8 @@ describe('App shell (docs/10: the home is the entry point)', () => {
     // the shell calls — `initialView` — rather than through a rendered string.
     // `dev` defaults to `false` here, same as every real caller under SSR.
     expect(initialView('?nivel=trail1')).toEqual({ view: 'play', levelId: 'trail1' })
-    // [case-registry-and-captions, Phase 7] Nothing asked for resolves to
-    // `null` now (design.md §8) — the office, not the map, is the fallback.
+    // Nothing asked for resolves to `null` (design.md §8) — the zoo map is
+    // the fallback, not the internal `LevelMap`.
     expect(initialView('')).toBeNull()
   })
 })
