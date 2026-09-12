@@ -562,6 +562,66 @@ export function garland(
   return d
 }
 
+/** One cycle of a varied garland ({@link garlandVaried}). */
+export interface GarlandCycle {
+  /** Horizontal span of this U, in viewBox units. */
+  width: number
+  /** How far below `yTop` this U dips, in viewBox units. */
+  depth: number
+}
+
+/**
+ * Nivel 3 desafío 3 — a garland whose U's differ in SIZE and in SPACING
+ * ("variación de tamaño y distancia entre las U", docs/11 Nivel 3).
+ *
+ * Identical rounded-U cubic to {@link garland}: the control points go to
+ * `(4·(yTop + depth) − yTop)/3`, the exact value that puts the symmetric
+ * cubic's midpoint on `yTop + depth`, and sit at 15% / 85% of the cycle's own
+ * width. A uniform `cycles` list reproduces `garland`'s `d` string exactly
+ * (`paths.test.ts`), which is what proves nothing was re-derived.
+ *
+ * With per-cycle widths, `x1` and `yBottom` stop meaning anything — the span
+ * is the SUM of the widths and the depth is per cycle — so this is a
+ * separate generator rather than a widened `garland` (design.md §2).
+ *
+ * Emits ONLY absolute `M` and `C`: {@link transformPath} (`paths.ts:172-174`)
+ * throws on any other command, and `buildLevel.ts`'s `layOutPaths` runs every
+ * level through it.
+ */
+export function garlandVaried(
+  o: { x0?: number; yTop?: number; cycles?: readonly GarlandCycle[] } = {},
+): string {
+  const x0 = o.x0 ?? 140
+  const yTop = o.yTop ?? 285
+  const cycles = o.cycles?.length ? o.cycles : [{ width: 180, depth: 150 }]
+  let x = x0
+  let d = move(x, yTop)
+  for (const c of cycles) {
+    const w = Math.max(1, c.width)
+    const cy = (4 * (yTop + c.depth) - yTop) / 3
+    d += cubic(x + w * 0.15, cy, x + w * 0.85, cy, x + w, yTop)
+    x += w
+  }
+  return d
+}
+
+/**
+ * Radius of curvature at the BOTTOM of a garland/hills U (`t = ½` of one
+ * cycle's cubic), in viewBox units. Derived from the generators' own
+ * symmetric cubic, not measured: at the bottom of a U, `x'=1.275·w`, `x''=0`,
+ * `y'=0`, `y''=−8·depth`, so `κ = 8·depth / (1.275·w)²` and this returns
+ * `1/κ` (design.md §2).
+ *
+ * Used to assert the authoring predicate `uTurnRadius(width, depth) >
+ * corridorWidth/2 − BAND_INSET` for every garland/hills level at its
+ * AUTHORED width (`catalog.test.ts`): below that radius, `pushBand`'s fixed
+ * `±half` offset (`buildLevel.ts`) folds through itself on the concave side
+ * of the turn.
+ */
+export function uTurnRadius(width: number, depth: number): number {
+  return (1.275 * width) ** 2 / (8 * depth) // ≈ 0.2032·w²/depth
+}
+
 /**
  * Fase 2 `f2-colinas` — the cursive `n n n n` hills: the mirror of
  * {@link garland}. Each cycle leaves `yBottom`, RISES to `yTop` and returns to

@@ -82,11 +82,11 @@ Hard dependencies (violating these breaks a green slice or D7):
 
 ## Phase 3: Per-cycle garland and the U-radius arithmetic (S3)
 
-- [ ] 3.1 Add `GarlandCycle` interface and `garlandVaried(o)` to `client/src/levels/paths.ts` (design §2's exact rounded-U cubic; absolute `M`/`C` only).
-- [ ] 3.2 Add `uTurnRadius(width, depth)` to `client/src/levels/paths.ts` (design §2's derivation, `≈0.2032·w²/depth`).
-- [ ] 3.3 Export `BAND_INSET` from `client/src/levels/buildLevel.ts:38`. No other change to `buildLevel.ts` — checkpoints and the ideal band hold unconditionally for non-uniform paths (design §2).
-- [ ] 3.4 Update `client/src/levels/paths.test.ts`: a uniform `cycles` list reproduces `garland`'s exact `d`; only `M`/`C` emitted; each cycle's `t = ½` point sits on `yTop + depth`; `uTurnRadius` reproduces shipped `f2-guirnalda` (43.9); the band predicate `uTurnRadius(width, depth) > corridorWidth/2 − BAND_INSET` holds for every garland/hills level at its authored width, per design §2's table (including desafío 3's 4.5-unit margin).
-- [ ] 3.5 Run `npm test` and `npm run build`; confirm green.
+- [x] 3.1 Add `GarlandCycle` interface and `garlandVaried(o)` to `client/src/levels/paths.ts` (design §2's exact rounded-U cubic; absolute `M`/`C` only).
+- [x] 3.2 Add `uTurnRadius(width, depth)` to `client/src/levels/paths.ts` (design §2's derivation, `≈0.2032·w²/depth`).
+- [x] 3.3 Export `BAND_INSET` from `client/src/levels/buildLevel.ts:38`. No other change to `buildLevel.ts` — checkpoints and the ideal band hold unconditionally for non-uniform paths (design §2).
+- [x] 3.4 Update `client/src/levels/paths.test.ts`: a uniform `cycles` list reproduces `garland`'s exact `d`; only `M`/`C` emitted; each cycle's `t = ½` point sits on `yTop + depth`; `uTurnRadius` reproduces shipped `f2-guirnalda` (43.9); the band predicate `uTurnRadius(width, depth) > corridorWidth/2 − BAND_INSET` holds for every garland/hills level at its authored width, per design §2's table (including desafío 3's 4.5-unit margin).
+- [x] 3.5 Run `npm test` and `npm run build`; confirm green.
 
 ## Phase 4: Hazard art as a second branch, circle untouched (S4)
 

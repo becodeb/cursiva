@@ -5,11 +5,13 @@
 import { describe, expect, it } from 'vitest'
 import { flattenPathD, polylineLength } from '../letters/svgLetter'
 import type { Point } from '../letters/types'
+import { BAND_INSET } from './buildLevel'
 import {
   armClearance,
   cornerClearance,
   crests,
   garland,
+  garlandVaried,
   hills,
   loops,
   spiral,
@@ -19,6 +21,7 @@ import {
   switchback,
   transformPath,
   triangularWave,
+  uTurnRadius,
   wave,
 } from './paths'
 
@@ -70,6 +73,7 @@ const GENERATORS: ReadonlyArray<{ name: string; d: string; start: Point }> = [
   { name: 'wave', d: wave(), start: { x: 120, y: 300 } },
   { name: 'spiral', d: spiral(), start: { x: 760, y: 300 } },
   { name: 'garland', d: garland(), start: { x: 140, y: 285 } },
+  { name: 'garlandVaried', d: garlandVaried(), start: { x: 140, y: 285 } },
   { name: 'hills', d: hills(), start: { x: 140, y: 435 } },
   { name: 'loops', d: loops(), start: { x: 160, y: 450 } },
   { name: 'crests', d: crests(), start: { x: 120, y: 310 } },
@@ -409,6 +413,82 @@ describe('garland', () => {
 
   it('honours cycles', () => {
     expect(excursions(poly(garland({ cycles: 2 })), (p) => p.y > 423)).toBe(2)
+  })
+})
+
+describe('garlandVaried', () => {
+  it('reproduces garland\'s exact d string for a uniform cycles list (proof nothing was re-derived)', () => {
+    const uniform = Array.from({ length: 4 }, () => ({ width: (860 - 140) / 4, depth: 435 - 285 }))
+    expect(garlandVaried({ x0: 140, yTop: 285, cycles: uniform })).toBe(garland({ cycles: 4 }))
+  })
+
+  it('emits only M and C (level-engine spec: Non-uniform cycles still emit only M/C)', () => {
+    const commands = new Set(
+      garlandVaried({ cycles: [{ width: 180, depth: 150 }, { width: 130, depth: 95 }] }).match(
+        /[A-Za-z]/g,
+      ),
+    )
+    expect(commands).toEqual(new Set(['M', 'C']))
+  })
+
+  it("each cycle's t = ½ point sits on yTop + depth, even with differing widths and depths", () => {
+    const cycles = [
+      { width: 180, depth: 180 },
+      { width: 130, depth: 95 },
+      { width: 195, depth: 200 },
+    ]
+    const x0 = 95
+    const yTop = 220
+    const points = poly(garlandVaried({ x0, yTop, cycles }))
+    let x = x0
+    for (const c of cycles) {
+      // The curve is symmetric under t → 1−t combined with x → w−x (the
+      // control points sit at 0.15w and 0.85w, mirror images about w/2), so
+      // the midpoint IN X is exactly the t=½ point — no numeric root-finding
+      // needed to locate it in the flattened polyline.
+      const xMid = x + c.width / 2
+      const nearest = points.reduce((best, p) =>
+        Math.abs(p.x - xMid) < Math.abs(best.x - xMid) ? p : best,
+      )
+      expect(nearest.y).toBeCloseTo(yTop + c.depth, 0)
+      x += c.width
+    }
+  })
+
+  it('honours a single-cycle default, matching garland at cycles: 1', () => {
+    const points = poly(garlandVaried())
+    expect(Math.max(...points.map((p) => p.y))).toBeCloseTo(285 + 150, 1)
+    expect(Math.min(...points.map((p) => p.y))).toBeCloseTo(285, 1)
+  })
+})
+
+describe('uTurnRadius', () => {
+  it('reproduces the shipped f2-guirnalda / f2-colinas U radius (design.md §2)', () => {
+    expect(uTurnRadius(180, 150)).toBeCloseTo(43.9, 1)
+  })
+
+  it('holds the ideal-band predicate for every garland/hills level at its authored width (design.md §2 table)', () => {
+    // uTurnRadius(width, depth) > corridorWidth/2 − BAND_INSET, for every
+    // shipped and Nivel 3 garland/hills level. Widths/depths derived from
+    // each level's own generator call, not hardcoded from the table, so this
+    // stays tied to the generators; corridorWidth values are the design's own
+    // literals since the catalog does not carry these levels yet (S3 ships
+    // before S7).
+    const cases: ReadonlyArray<{ name: string; width: number; depth: number; corridorWidth: number }> = [
+      { name: 'f2-guirnalda (today)', width: (860 - 140) / 4, depth: 435 - 285, corridorWidth: 85 },
+      { name: 'f2-colinas', width: (860 - 140) / 4, depth: 435 - 285, corridorWidth: 85 },
+      { name: 'desafío 1 / desafío 4', width: (880 - 120) / 3, depth: 430 - 190, corridorWidth: 100 },
+      { name: 'desafío 2', width: (880 - 120) / 4, depth: 430 - 290, corridorWidth: 80 },
+      // desafío 3's worst (narrowest-margin) cycle: {165, 170}.
+      { name: 'desafío 3 (worst cycle)', width: 165, depth: 170, corridorWidth: 68 },
+    ]
+    for (const c of cases) {
+      const band = c.corridorWidth / 2 - BAND_INSET
+      expect(uTurnRadius(c.width, c.depth)).toBeGreaterThan(band)
+    }
+    // The tightest margin the design records: 4.5 units on desafío 3.
+    const worst = uTurnRadius(165, 170) - (68 / 2 - BAND_INSET)
+    expect(worst).toBeCloseTo(4.5, 1)
   })
 })
 
