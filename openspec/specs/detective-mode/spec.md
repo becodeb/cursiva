@@ -68,13 +68,30 @@ child traces (D5, `docs/05:14`).
 
 ### Requirement: Deduction Screen
 
-With all of the active case's trails filed, the mode SHALL present a deduction screen offering exactly `case.options.length` captioned animal choices, of which exactly one (`case.culprit`) is correct. Picking the culprit MUST close the case. Picking any other option MUST cost nothing: no score penalty, no lockout, and the child MUST be able to pick again immediately (D4). The screen MUST read its options, `ruledOutBy`, and culprit from the active `DetectiveCase`, never from a global constant.
-(Previously: hardcoded to exactly four choices with a global `CULPRIT` always equal to the hen.)
+The mode SHALL present a deduction screen only when reached through the
+deep-link routes `?nivel=deduccion` (the first unresolved case) or
+`?nivel=deduccion-<caseId>` (a specific case), offering exactly
+`case.options.length` captioned animal choices, of which exactly one
+(`case.culprit`) is correct. Picking the culprit MUST close the case. Picking
+any other option MUST cost nothing: no score penalty, no lockout, and the
+child MUST be able to pick again immediately (D4). The screen MUST read its
+options, `ruledOutBy`, and culprit from the active `DetectiveCase`, never from
+a global constant. Filing all of a case's trail clues MUST NOT, by itself,
+route to this screen — finishing a sector's adventure exits to the zoo map
+instead (`main-screen` "Exit Returns to the Zoo Map").
+(Previously: hardcoded to exactly four choices with a global `CULPRIT` always
+equal to the hen; then automatically reachable once all of the active case's
+trails were filed, with no deep-link path.)
 
-#### Scenario: All of a case's clues collected reaches its deduction screen
-- GIVEN all trails of the active case have clues `earned` and filed
-- WHEN the mode evaluates its state
-- THEN the deduction screen MUST become reachable, presenting `case.options.length` captioned choices
+#### Scenario: A deep link reaches the deduction screen
+- GIVEN the URL carries `?nivel=deduccion-duck`
+- WHEN `initialView` resolves the shell
+- THEN the deduction screen MUST render for the duck case
+
+#### Scenario: Filing all trail clues alone does not route there
+- GIVEN all of a case's trails filed by finishing its last adventure
+- WHEN the child exits that adventure
+- THEN the resulting view MUST be the zoo map, not the deduction screen
 
 #### Scenario: Correct pick closes the case
 - GIVEN the deduction screen for a case with its choices shown
@@ -84,7 +101,8 @@ With all of the active case's trails filed, the mode SHALL present a deduction s
 #### Scenario: Wrong pick is free and immediately retryable
 - GIVEN the deduction screen for a case with its choices shown
 - WHEN the child picks a distractor
-- THEN no penalty or score change MUST occur, the case MUST remain open, and the child MUST be able to pick again without any additional action
+- THEN no penalty or score change MUST occur, the case MUST remain open, and
+  the child MUST be able to pick again without any additional action
 
 ### Requirement: Colour Asset Registry
 
@@ -179,20 +197,14 @@ Closing a case's deduction on its culprit MUST leave an observable record that s
 - WHEN the store is inspected for `<caseId>-deduce`
 - THEN no record MUST exist for that pseudo-id
 
-### Requirement: Case Routing Across Multiple Cases
+### Requirement: Case Routing Across Multiple Cases (REMOVED)
 
-The mode SHALL route the child to the first case in `DETECTIVE_CASES` order that is not yet resolved. A case is resolved when all four of its trails are filed AND its deduction is solved (per Case-Solved Persistence).
-
-#### Scenario: An open duck deduction is not skipped
-- GIVEN the duck case's four trails filed and its deduction unsolved
-- WHEN case routing is evaluated
-- THEN it MUST return the duck case's deduction step, not the hen case's first trail
-
-#### Scenario: A resolved case advances to the next
-- GIVEN the duck case fully resolved and the hen case's first trail unfiled
-- WHEN case routing is evaluated
-- THEN it MUST return the hen case's first trail id
-# Delta for Detective Mode
+(Reason: deduction is paused per `docs/13` §4 decision 1; `home/caseState.ts`,
+its sole implementer, is deleted along with `client/src/home/`.)
+(Migration: the zoo map's sector registry (`zoo-map` capability) owns which
+adventure opens next, via `nextAdventure(sector, records)`. Existing
+`<caseId>-deduce` records written under Case-Solved Persistence stay readable
+and inert — no sector claims them and `totalStars` excludes them.)
 
 ## ADDED Requirements
 

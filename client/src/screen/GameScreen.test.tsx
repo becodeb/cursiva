@@ -1,29 +1,30 @@
-// Deduction-view wiring tests for the session shell (design unit 7, spec:
-// detective-mode "Deduction Screen", level-engine "Deduction View Reachable
-// from nextView"). `levelFlow.test.ts` already covers `nextView`'s
-// pre-existing `play`/`next`/`back`/`reset` cases end to end — this file adds
-// ONLY the `deduce` surface this slice introduces, so the two files stay
-// split by concern the same way `clues.test.ts`/`palette.test.ts` are split
-// from each other.
+// Deduction-view and exit-route wiring tests for the session shell (design
+// unit 7, spec: detective-mode "Deduction Screen", level-engine "Deduction
+// View Reachable from nextView"). `levelFlow.test.ts` already covers
+// `nextView`'s pre-existing `play`/`next`/`back`/`reset` cases end to end —
+// this file adds ONLY the `deduce` surface and `resolveNextAction`, so the
+// two files stay split by concern the same way `clues.test.ts`/
+// `palette.test.ts` are split from each other.
 //
 // Node environment, no DOM. `nextView`, `allEarned` and `resolveNextAction`
-// are all pure functions over plain values (design.md "Testing Strategy":
-// "Unit (pure) | nextView with deduce; allEarned | Node, no DOM, existing
-// GameScreen test pattern"), so every scenario below is asserted directly on
-// them — the real `onNext` closure GameScreen builds runs inside a `useState`
-// setter, and this repo's harness cannot observe a re-render after
-// `renderToString` (the same constraint `LevelPlay.test.tsx` documents), so
-// there is nothing to gain from trying to simulate the click itself.
+// are all pure functions over plain values, so every scenario below is
+// asserted directly on them — the real `onNext` closure GameScreen builds
+// runs inside a `useState` setter, and this repo's harness cannot observe a
+// re-render after `renderToString` (the same constraint `LevelPlay.test.tsx`
+// documents), so there is nothing to gain from trying to simulate the click
+// itself.
 //
-// [case-registry-and-captions, Phase 6] `deduce` now carries a `caseId` (spec:
-// detective-mode "Case Routing Across Multiple Cases") and `resolveNextAction`
-// is per-case, driven by `caseOf` — every scenario below runs for BOTH the
-// duck case (`duck-trail*`) and the hen case (`trail*`), so a regression that
-// only breaks one case cannot hide behind the other. `DETECTIVE_TRAIL_IDS` is
-// imported straight from `game/types` now — `GameScreen.tsx` dropped its
-// re-export once `resolveNextAction` stopped hardcoding the hen's ids.
+// [zoo-map-home] `resolveNextAction` no longer routes to `deduce` at all —
+// the auto-route is retired (proposal D2, design.md §6). It is now
+// SECTOR-aware, not case-aware: a finished level owned by ANY zoo sector
+// exits the shell, and a level no sector has adopted (today the hen's
+// `trail1..4`, wired to no sector) keeps today's `next` behaviour unchanged.
+// The `nextView` reducer's OWN `deduce` branch is untouched below — it is
+// still reachable directly (the deep-link path, `initialView`), just no
+// longer through `resolveNextAction`.
 import { describe, expect, it } from 'vitest'
 import GameScreen, { allEarned, initialView, nextView, resolveNextAction, type GameView } from './GameScreen'
+import { nextLevelId } from '../levels/catalog'
 import { EMPTY_RECORD, DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, type LevelRecord } from '../game/types'
 
 const playing = (levelId: string): GameView => ({ view: 'play', levelId })
@@ -133,70 +134,45 @@ describe('allEarned (design.md "Decision: earned clues are derived from progress
   })
 })
 
-describe.each([
-  ['duck', DUCK_TRAIL_IDS, 'duck'],
-  ['hen', DETECTIVE_TRAIL_IDS, 'hen'],
-] as const)(
-  'resolveNextAction — %s case (design.md "Decision: deduction is a third GameView branch")',
-  (_label, trailIds, caseId) => {
-    it(
-      'scenario "Deduction view becomes reachable after the fourth clue": the whole case filed ' +
-        'and its last trail just completed → resolves to deduce for THIS case, and composing it ' +
-        'through nextView reaches that case\'s deduction view',
-      () => {
-        // "The last trail just completed" means its own record now also
-        // carries an approval — the completion that triggers this very call
-        // is what wrote it.
-        const records = recordsWith(trailIds, 1)
-        const lastTrail = trailIds[trailIds.length - 1]
-        const action = resolveNextAction(lastTrail, records)
-        expect(action).toEqual({ type: 'deduce', caseId })
-        expect(nextView(playing(lastTrail), action)).toEqual({ view: 'deduce', caseId })
-      },
-    )
-
-    it(
-      'scenario "Deduction view stays unreachable with clues missing": fewer than all filed → ' +
-        'never resolves to deduce, from ANY of this case\'s trails',
-      () => {
-        const lastTrail = trailIds[trailIds.length - 1]
-        const records = recordsWith(trailIds, 1, { [lastTrail]: 0 })
-        for (const id of trailIds) {
-          const action = resolveNextAction(id, records)
-          expect(action.type).not.toBe('deduce')
-          expect(nextView(playing(id), action)).not.toEqual({ view: 'deduce', caseId })
-        }
-      },
-    )
-
-    it('all of the case earned but the finished level is NOT its last trail → still resolves to next, not deduce', () => {
-      // Both conditions are required (design.md: "the finished level is the
-      // last trail of its case AND that case's clues are all earned") — this
-      // proves the "last trail" gate is load-bearing on its own, not implied
-      // by allEarned.
-      const records = recordsWith(trailIds, 1)
-      const action = resolveNextAction(trailIds[0], records)
-      expect(action.type).toBe('next')
-    })
-  },
-)
-
-describe('resolveNextAction — cross-case and non-detective levels', () => {
-  it('an ordinary (non-detective) finished level id never resolves to deduce', () => {
-    const action = resolveNextAction('f1-libre', recordsWith(DETECTIVE_TRAIL_IDS, 1))
-    expect(action.type).toBe('next')
+// [zoo-map-home] The old deduce-route cases above (`describe.each`, per
+// case) are converted below into exit-route cases (design.md §6, tasks.md
+// Phase 3): a zoo sector owns EVERY one of the estanque's eight adventure
+// ids, so finishing any one of them exits — regardless of position, unlike
+// the retired "last trail of the case" rule. The hen's `trail1..4` are wired
+// to no sector at all, so they keep today's `next` behaviour forever.
+describe('resolveNextAction (zoo-map design.md §6: "finishing ANY sector adventure returns to the map")', () => {
+  it('every id a zoo sector owns exits the shell, regardless of position within the sector', () => {
+    for (const id of DUCK_TRAIL_IDS) {
+      expect(resolveNextAction(id, {})).toEqual({ type: 'exit' })
+    }
+    for (const id of ['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4']) {
+      expect(resolveNextAction(id, {})).toEqual({ type: 'exit' })
+    }
   })
 
-  it("completing the duck's last trail never resolves to the HEN case, and vice versa", () => {
-    const duckDone = resolveNextAction(
-      DUCK_TRAIL_IDS[DUCK_TRAIL_IDS.length - 1],
-      recordsWith(DUCK_TRAIL_IDS, 1),
-    )
-    expect(duckDone).toEqual({ type: 'deduce', caseId: 'duck' })
-    const henDone = resolveNextAction(
-      DETECTIVE_TRAIL_IDS[DETECTIVE_TRAIL_IDS.length - 1],
-      recordsWith(DETECTIVE_TRAIL_IDS, 1),
-    )
-    expect(henDone).toEqual({ type: 'deduce', caseId: 'hen' })
+  it('duck-trail4 exits — never routes to deduce (D2: the auto-route is retired)', () => {
+    const action = resolveNextAction('duck-trail4', recordsWith(DUCK_TRAIL_IDS, 1))
+    expect(action).toEqual({ type: 'exit' })
+    expect(action.type).not.toBe('deduce')
+  })
+
+  it('composing an exit action through nextView is a type error — exit is deliberately outside GameAction', () => {
+    // @ts-expect-error — `ExitAction` is not a `GameAction`; the whole point
+    // of keeping `exit` OUT of that union (design.md §6) is that `nextView`
+    // cannot accept it and the one call site (`GameScreen`'s `onNext`) MUST
+    // discriminate before ever calling `dispatch`.
+    nextView({ view: 'map', finished: false }, { type: 'exit' })
+  })
+
+  it("a hen trail — no sector owns it — keeps today's next behaviour, never exits", () => {
+    for (const id of DETECTIVE_TRAIL_IDS) {
+      const action = resolveNextAction(id, recordsWith(DETECTIVE_TRAIL_IDS, 1))
+      expect(action).toEqual({ type: 'next', levelId: nextLevelId(id) })
+    }
+  })
+
+  it('an ordinary non-sector, non-detective level keeps today\'s next behaviour unchanged', () => {
+    const action = resolveNextAction('f1-libre', {})
+    expect(action).toEqual({ type: 'next', levelId: nextLevelId('f1-libre') })
   })
 })
