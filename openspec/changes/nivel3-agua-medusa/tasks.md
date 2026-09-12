@@ -90,11 +90,11 @@ Hard dependencies (violating these breaks a green slice or D7):
 
 ## Phase 4: Hazard art as a second branch, circle untouched (S4)
 
-- [ ] 4.1 Add optional `art?: { href: string; w: number; h: number }` to `TraceHazards` in `client/src/canvas/TraceCanvas.tsx`; widen the hazard ref array to `Array<SVGCircleElement | SVGGElement | null>`.
-- [ ] 4.2 Add the art branch to hazard markup as a **separate, untouched** JSX alternative to the existing `<circle>` (design §4): `<g ref transform>` holding a static `<image>` placed by `placeArt(art, 2·r, {x:0,y:0})`.
-- [ ] 4.3 Branch the rAF loop on `!!hz.art`, read once per frame: `transform="translate(x,y)"` for art hazards, `cx`/`cy` mutation for circle hazards — exact snippet in design §4.
-- [ ] 4.4 **Numeric verification (mandatory, not a screenshot).** In `client/src/canvas/TraceCanvas.test.tsx`, `renderToString` `trail1`'s hazard through the changed component and assert `cx`, `cy`, `r="30"` are unchanged and the markup does NOT match a translated `<g>` wrapping a `<circle>` (design §4's regex). Add a parallel art-present case asserting the group's `transform`, the `<image href>`, and `width`/`height` equal `placeArt(art, 2·radius, {x:0,y:0})`.
-- [ ] 4.5 Run `npm test` and `npm run build`; confirm green.
+- [x] 4.1 Add optional `art?: { href: string; w: number; h: number }` to `TraceHazards` in `client/src/canvas/TraceCanvas.tsx`; widen the hazard ref array to `Array<SVGCircleElement | SVGGElement | null>`.
+- [x] 4.2 Add the art branch to hazard markup as a **separate, untouched** JSX alternative to the existing `<circle>` (design §4): `<g ref transform>` holding a static `<image>` placed by `placeArt(art, 2·r, {x:0,y:0})`.
+- [x] 4.3 Branch the rAF loop on `!!hz.art`, read once per frame: `transform="translate(x,y)"` for art hazards, `cx`/`cy` mutation for circle hazards — exact snippet in design §4.
+- [x] 4.4 **Numeric verification (mandatory, not a screenshot).** In `client/src/canvas/TraceCanvas.test.tsx`, `renderToString` `trail1`'s hazard through the changed component and assert `cx`, `cy`, `r="30"` are unchanged and the markup does NOT match a translated `<g>` wrapping a `<circle>` (design §4's regex). Add a parallel art-present case asserting the group's `transform`, the `<image href>`, and `width`/`height` equal `placeArt(art, 2·radius, {x:0,y:0})`.
+- [x] 4.5 Run `npm test` and `npm run build`; confirm green.
 
 ## Phase 5: Medusa and estrella de mar art (S5)
 

@@ -198,6 +198,14 @@ export interface TraceHazards {
   radii: readonly number[]
   /** Centre of hazard `index` at `timeMs`, in viewBox units. Pure. */
   at: (index: number, timeMs: number) => { x: number; y: number }
+  /** Draw every hazard of this level as this picture instead of the plain
+   *  circle. Absent = the shipped circle, so every existing caller is
+   *  untouched. Same contract as `carrierArt`: WHICH picture is entirely the
+   *  caller's decision, and this component imports nothing from `detective/`.
+   *  No `size` — the drawn size is always `2 * radii[index]`, so the picture
+   *  and the hit circle (`obstacles.ts`'s `hitObstacle`) can never drift
+   *  apart (design.md §4). */
+  art?: { href: string; w: number; h: number }
 }
 
 /** Hazard body. A muted plum: far from the green start dot and the ochre goal
@@ -626,7 +634,9 @@ export default function TraceCanvas({
   )
 
   // Hazards and carrier are read by the rAF loop, never by it through props.
-  const hazardEls = useRef<Array<SVGCircleElement | null>>([])
+  // The union is a second branch, not a wrapper: `trail1`'s circle stays a
+  // bare `SVGCircleElement`, never a `<g>` (design.md §4's corrected choice).
+  const hazardEls = useRef<Array<SVGCircleElement | SVGGElement | null>>([])
   const hazardsRef = useRef(hazards)
   hazardsRef.current = hazards
   const carrierEl = useRef<SVGGElement | null>(null)
@@ -702,12 +712,20 @@ export default function TraceCanvas({
       // `setState` at 60fps is precisely the cost this loop exists to avoid.
       const hz = hazardsRef.current
       if (hz) {
+        // Read ONCE per frame, not per hazard, and from the same expression
+        // the JSX below branches on — so the picture and the loop can never
+        // disagree about which shape a hazard is (design.md §4).
+        const byTransform = !!hz.art
         for (let i = 0; i < hz.radii.length; i++) {
           const el = hazardEls.current[i]
           if (!el) continue
           const p = hz.at(i, now)
-          el.setAttribute('cx', String(p.x))
-          el.setAttribute('cy', String(p.y))
+          if (byTransform) {
+            el.setAttribute('transform', `translate(${p.x} ${p.y})`)
+          } else {
+            el.setAttribute('cx', String(p.x))
+            el.setAttribute('cy', String(p.y))
+          }
         }
       }
 
@@ -784,9 +802,12 @@ export default function TraceCanvas({
     }
   }, [fading])
 
-  const setHazardEl = useCallback((index: number, el: SVGCircleElement | null): void => {
-    hazardEls.current[index] = el
-  }, [])
+  const setHazardEl = useCallback(
+    (index: number, el: SVGCircleElement | SVGGElement | null): void => {
+      hazardEls.current[index] = el
+    },
+    [],
+  )
 
   // The VISIBLE sheet, in viewBox units — the same rectangle the `<svg>` and
   // the paper rect below are given. `startArt`/`endArt` are clamped into it so
@@ -1239,19 +1260,40 @@ export default function TraceCanvas({
         // the ball coming while their own trace is already under it. `cx`/`cy`
         // are mutated by the rAF loop — these values are only the t=0 pose.
         <g pointerEvents="none">
-          {hazards.radii.map((r, idx) => (
-            <circle
-              key={idx}
-              ref={(el) => setHazardEl(idx, el)}
-              cx={hazardHome[idx]?.x ?? 0}
-              cy={hazardHome[idx]?.y ?? 0}
-              r={r}
-              fill={inkOnly ? 'none' : HAZARD_COLOR}
-              stroke={inkOnly ? INK_COLOR : 'none'}
-              strokeWidth={inkOnly ? 3 : 0}
-              opacity={HAZARD_OPACITY}
-            />
-          ))}
+          {hazards.radii.map((r, idx) =>
+            hazards.art ? (
+              // Art hazard: a SEPARATE, untouched branch from the plain
+              // circle below — never a `<g>` wrapping a circle (design.md
+              // §4's corrected choice). The `<image>` carries its own
+              // placement and NO transform of its own: the rAF loop above
+              // rewrites this GROUP's `transform` every frame, exactly as it
+              // does for the carrier.
+              <g
+                key={idx}
+                ref={(el) => setHazardEl(idx, el)}
+                transform={`translate(${hazardHome[idx]?.x ?? 0} ${hazardHome[idx]?.y ?? 0})`}
+              >
+                <image
+                  href={hazards.art.href}
+                  {...placeArt(hazards.art, 2 * r, { x: 0, y: 0 })}
+                  preserveAspectRatio="xMidYMid meet"
+                  opacity={HAZARD_OPACITY}
+                />
+              </g>
+            ) : (
+              <circle
+                key={idx}
+                ref={(el) => setHazardEl(idx, el)}
+                cx={hazardHome[idx]?.x ?? 0}
+                cy={hazardHome[idx]?.y ?? 0}
+                r={r}
+                fill={inkOnly ? 'none' : HAZARD_COLOR}
+                stroke={inkOnly ? INK_COLOR : 'none'}
+                strokeWidth={inkOnly ? 3 : 0}
+                opacity={HAZARD_OPACITY}
+              />
+            ),
+          )}
         </g>
       )}
       {carrier && (
