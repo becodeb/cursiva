@@ -9,8 +9,9 @@ context: |
   Canvas: normalized SVG viewBox (0 0 1000 600), Pointer Events API (getScreenCTM().inverse()),
     localStorage (key cursiva.progress.v1).
   Convention: docs are Spanish; technical SDD artifacts default to English.
-  Source of truth: 7 main specs under openspec/specs/ (letter-model, trace-canvas, trace-validation,
-    guided-trace-mode, free-trace-mode, progress-store, main-screen).
+  Source of truth: 10 main specs under openspec/specs/ (detective-mode, free-trace-mode,
+    guided-trace-mode, letter-combinations, letter-model, level-engine, main-screen,
+    progress-store, trace-canvas, trace-validation).
 
 rules:
   proposal:

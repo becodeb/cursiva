@@ -113,9 +113,9 @@ Precisión    = clamp(100 − 100 · Σ penalizado_i / (K · Tolerancia), 0, 100
 
 - `GRACIA = 3` px absorbe el temblor natural del dedo.
 - `TolBase` = 16 con `pen`, 26 con `touch`. **El dedo de un chico de 6 años no es un stylus.**
-- `escala` normaliza contra el canal de referencia (80): un sendero de Fase 1 mide 110 y una letra 42, así que puntuar los dos con la misma tolerancia haría que los niveles anchos y perdonadores fueran **los más difíciles**.
+- `escala` normaliza contra el canal de referencia (80): un sendero de Nivel 2 (Fase 1 en el código) mide 110 y una letra 42, así que puntuar los dos con la misma tolerancia haría que los niveles anchos y perdonadores fueran **los más difíciles**.
 - La escala está **acotada a `[0.7, 2.5]`**:
-  - **El piso** existe porque las Fases 3-5 usan canales angostos (40-42) para que la **letra se vea** — un canal más ancho que el grafema lo borra. Sin piso, un canal de 40 daría `26 · 0.5 = 13` unidades al dedo, más estricto que el stylus. Eso es exactamente la frustración que prohíbe el principio 3 de `docs/01`.
+  - **El piso** existe porque los Niveles 5-7 (Fases 3-5 en el código) usan canales angostos (40-42) para que la **letra se vea** — un canal más ancho que el grafema lo borra. Sin piso, un canal de 40 daría `26 · 0.5 = 13` unidades al dedo, más estricto que el stylus. Eso es exactamente la frustración que prohíbe el principio 3 de `docs/01`.
   - **El techo** existe porque la tolerancia adaptativa (§6) puede llegar a un canal de 260; pasada la escala 2.5 cualquier garabato en la zona puntúa 100 y el pilar de precisión deja de significar algo.
 - El remuestreo por arco es lo que hace que trazar lento o rápido no cambie la precisión.
 

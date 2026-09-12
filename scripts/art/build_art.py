@@ -45,17 +45,26 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SRC = os.path.join(ROOT, 'art-source')
 OUT = os.path.join(ROOT, 'client', 'public', 'art')
 
-# Mirrors `client/src/detective/palette.ts` and `TraceCanvas.tsx`'s INK_COLOR.
+# Mirrors `client/src/detective/palette.ts`'s `ART_OUTLINE`, NOT
+# `TraceCanvas.tsx`'s `INK_COLOR`. `INK_COLOR` (`#1e293b`, hue 217 -- a slate
+# blue) is the colour of the child's OWN pencil trace; this pipeline used to
+# point straight at it, which is why every clue mark's outline shipped blue
+# instead of a neutral marker line. `ART_OUTLINE` exists precisely so a drawn-
+# world contour and the child's trace can never be conflated again -- see its
+# doc comment in `palette.ts` for the incident and the achromatic rule
+# `palette.test.ts` now asserts on it.
 # `scripts/art/palette_sync.test.py` is not a thing; the guard is
-# `client/src/detective/artManifest.test.ts`, which reads the emitted manifest
-# and asserts these against the real TypeScript tokens.
-INK = (0x1E, 0x29, 0x3B)
-CLUE_DRAINED = (0xC8, 0xCD, 0xD2)
+# `client/src/detective/artManifest.test.ts`, which mirrors this literal
+# against the real TypeScript token so the two cannot drift apart.
+INK = (0x1A, 0x1A, 0x1A)
+CLUE_DRAINED = (0x83, 0x83, 0x83)
 POND = (0x3F, 0x6F, 0x8F)
 KERNEL = (0xB8, 0x91, 0x2F)
 PRINT = (0x00, 0x00, 0x00)
 PLUME = (0x2F, 0x6B, 0x5C)
 LAMP = (0xF2, 0xD3, 0x77)
+BREADCRUMB = (0xA9, 0x68, 0x2C)
+BUBBLE = (0x4F, 0xB3, 0xD9)
 
 # The two ground bases, mirroring `TraceCanvas.tsx`'s `GROUND_FIELD` and
 # `CORRIDOR_EARTH`. Each scatter tile is muted toward the ground it lies on, so
@@ -102,8 +111,8 @@ def recolour(img: png.Image, fill, keep_ink: bool):
 
 
 def mute(img: png.Image, target, sat: float = 0.30,
-         toward: float = 0.42, contour_lift: float = 0.62):
-    """Desaturate ground art and wash its FILLS toward the paper colour.
+         toward: float = 0.62, contour_lift: float = 0.78):
+    """Desaturate ground art and wash it toward the ground it sits on.
 
     The ground is the only art that covers the whole sheet, and section 4 of
     `docs/09_GUIA_DE_ESTILO_VISUAL.md` is "el color es la recompensa": the only
@@ -116,8 +125,8 @@ def mute(img: png.Image, target, sat: float = 0.30,
       1. pull each channel toward its own luma by `sat`, so the hue survives at
          a third of its strength instead of being greyed out entirely;
       2. blend toward `target` -- the colour of the GROUND this art sits on, not
-         the paper. Fills blend by `toward * (luma/255)`; CONTOURS (luma < 90)
-         blend by the flat, much stronger `contour_lift`.
+         the paper. FILLS blend by a flat `toward`; CONTOURS (luma < 90) blend
+         by the flat, harsher `contour_lift`.
 
     Why contours need their own, harsher lever, measured rather than assumed.
     The first pass weighted the blend by luma alone, which by construction left
@@ -127,6 +136,18 @@ def mute(img: png.Image, target, sat: float = 0.30,
     the path: the texture was out-shouting its own subject. Lifting the contours
     into the ground fixes it, and it is the smaller lever -- dropping tuft
     density instead would have thinned the field into bald patches.
+
+    WHY THE FILL WEIGHT IS FLAT NOW, and it is the same lesson one step further
+    in. It used to be `toward * (luma / 255)`, which blends BRIGHT fills hardest
+    and dark ones barely at all. On a light ground that is backwards: a bright
+    fill is already close to the ground and has almost no contrast to give up,
+    while the dark fills carrying all the contrast were the ones the lever
+    refused to touch. Measured over the shipped mud tiles, raising `toward` from
+    0.42 to 0.78 under the old weighting moved the loudest clump's body contrast
+    from 85 to 71 -- the parameter was nearly inert. Flat, the same tiles land in
+    the 19-39 band where the ground belongs, and `artHierarchy.test.ts` is what
+    now holds them there relative to the clue marks rather than in absolute
+    terms.
 
     Cached on the RGB triple like `recolour`, because a scatter tile is mostly
     a handful of repeated flat fills.
@@ -141,7 +162,7 @@ def mute(img: png.Image, target, sat: float = 0.30,
         if got is None:
             r, g, b = key
             lum = luma(r, g, b)
-            t = contour_lift if lum < INK_LUMA else toward * (lum / 255.0)
+            t = contour_lift if lum < INK_LUMA else toward
             out = bytearray(3)
             for c_i, c in enumerate((r, g, b)):
                 v = lum + (c - lum) * sat
@@ -190,6 +211,19 @@ SINGLES = [
     ('huella gris.png',       'clue-footprint-drained.png', 256, CLUE_DRAINED, True),
     ('pluma verde.png',       'clue-feather-earned.png',   256, PLUME,        True),
     ('pluma gris.png',        'clue-feather-drained.png',  256, CLUE_DRAINED, True),
+    # The duck case's three new clues (design.md §4). `huella palmeada.png` is
+    # entirely dark -- black web, navy outline, both under INK_LUMA -- so
+    # `keep_ink=True` would send every opaque pixel to INK for BOTH states,
+    # the same trap `keep_ink=False` avoids for `huella negra.png` above.
+    # `miga de pan.png` and `burbuja.png` both carry a bright body over a
+    # navy contour, so they take the two-tone `True` path like every other
+    # clue.
+    ('huella palmeada.png',   'clue-webfoot-earned.png',     256, PRINT,        False),
+    ('huella palmeada.png',   'clue-webfoot-drained.png',    256, CLUE_DRAINED, False),
+    ('miga de pan.png',       'clue-breadcrumb-earned.png',  256, BREADCRUMB,   True),
+    ('miga de pan.png',       'clue-breadcrumb-drained.png', 256, CLUE_DRAINED, True),
+    ('burbuja.png',           'clue-bubble-earned.png',      256, BUBBLE,       True),
+    ('burbuja.png',           'clue-bubble-drained.png',     256, CLUE_DRAINED, True),
     ('lamparita prendida.png', 'lamp-on.png',              192, LAMP,         True),
     # BOTH lamp states come from the LIT drawing, and that is deliberate.
     # `lamparita apagada.png` is a bare dark silhouette with no contour of its
@@ -199,6 +233,14 @@ SINGLES = [
     # the same drawing gives OFF the ink contour every other drained mark has,
     # and makes the swap read as the SAME lamp lighting up rather than one
     # shape being replaced by a different one.
+    #
+    # The invisibility half of that argument expired on 2026-09-12, when
+    # `CLUE_DRAINED` moved to `#838383` and stopped vanishing into the earth --
+    # and it is worth noticing that this comment had ALREADY recorded the
+    # symptom, one asset at a time, without anyone reading it as a statement
+    # about the token. The second half is why the pairing stays anyway: two
+    # states of one drawing read as a lamp lighting up, two drawings read as a
+    # substitution.
     ('lamparita prendida.png', 'lamp-off.png',             192, CLUE_DRAINED, True),
     ('gallina.png',           'animal-gallina.png',        448, None,         True),
     ('pato.png',              'animal-pato.png',           448, None,         True),

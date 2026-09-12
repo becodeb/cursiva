@@ -35,44 +35,68 @@
     "h": 353,
     "w": 384
   },
+  "clue-breadcrumb-drained": {
+    "bytes": 8244,
+    "file": "art/clue-breadcrumb-drained.png",
+    "h": 237,
+    "w": 256
+  },
+  "clue-breadcrumb-earned": {
+    "bytes": 8266,
+    "file": "art/clue-breadcrumb-earned.png",
+    "h": 237,
+    "w": 256
+  },
+  "clue-bubble-drained": {
+    "bytes": 7692,
+    "file": "art/clue-bubble-drained.png",
+    "h": 255,
+    "w": 256
+  },
+  "clue-bubble-earned": {
+    "bytes": 7807,
+    "file": "art/clue-bubble-earned.png",
+    "h": 255,
+    "w": 256
+  },
   "clue-corn-drained": {
-    "bytes": 8756,
+    "bytes": 8485,
     "file": "art/clue-corn-drained.png",
     "h": 256,
     "w": 195
   },
   "clue-corn-earned": {
-    "bytes": 8622,
+    "bytes": 8764,
     "file": "art/clue-corn-earned.png",
     "h": 256,
     "w": 195
   },
   "clue-droplet-drained": {
-    "bytes": 8943,
+    "bytes": 8691,
     "file": "art/clue-droplet-drained.png",
     "h": 256,
     "w": 195
   },
   "clue-droplet-earned": {
-    "bytes": 8635,
+    "bytes": 8708,
     "file": "art/clue-droplet-earned.png",
     "h": 256,
     "w": 195
   },
   "clue-feather-drained": {
-    "bytes": 7103,
+    "bytes": 6944,
     "file": "art/clue-feather-drained.png",
     "h": 256,
     "w": 102
   },
   "clue-feather-earned": {
-    "bytes": 8244,
+    "bytes": 8293,
     "file": "art/clue-feather-earned.png",
     "h": 256,
     "w": 103
   },
   "clue-footprint-drained": {
-    "bytes": 9997,
+    "bytes": 9757,
     "file": "art/clue-footprint-drained.png",
     "h": 256,
     "w": 217
@@ -83,122 +107,134 @@
     "h": 256,
     "w": 220
   },
+  "clue-webfoot-drained": {
+    "bytes": 6943,
+    "file": "art/clue-webfoot-drained.png",
+    "h": 230,
+    "w": 256
+  },
+  "clue-webfoot-earned": {
+    "bytes": 6292,
+    "file": "art/clue-webfoot-earned.png",
+    "h": 230,
+    "w": 256
+  },
   "ground-grass-1": {
-    "bytes": 9975,
+    "bytes": 8548,
     "file": "art/ground-grass-1.png",
     "h": 125,
     "w": 84
   },
   "ground-grass-10": {
-    "bytes": 11326,
+    "bytes": 9666,
     "file": "art/ground-grass-10.png",
     "h": 110,
     "w": 121
   },
   "ground-grass-11": {
-    "bytes": 8889,
+    "bytes": 7591,
     "file": "art/ground-grass-11.png",
     "h": 127,
     "w": 87
   },
   "ground-grass-12": {
-    "bytes": 10758,
+    "bytes": 9213,
     "file": "art/ground-grass-12.png",
     "h": 109,
     "w": 126
   },
   "ground-grass-2": {
-    "bytes": 11563,
+    "bytes": 9892,
     "file": "art/ground-grass-2.png",
     "h": 105,
     "w": 124
   },
   "ground-grass-3": {
-    "bytes": 8879,
+    "bytes": 7490,
     "file": "art/ground-grass-3.png",
     "h": 125,
     "w": 77
   },
   "ground-grass-4": {
-    "bytes": 9703,
+    "bytes": 8373,
     "file": "art/ground-grass-4.png",
     "h": 87,
     "w": 126
   },
   "ground-grass-5": {
-    "bytes": 11260,
+    "bytes": 9552,
     "file": "art/ground-grass-5.png",
     "h": 104,
     "w": 126
   },
   "ground-grass-6": {
-    "bytes": 8876,
+    "bytes": 7564,
     "file": "art/ground-grass-6.png",
     "h": 79,
     "w": 124
   },
   "ground-grass-7": {
-    "bytes": 9588,
+    "bytes": 8211,
     "file": "art/ground-grass-7.png",
     "h": 79,
     "w": 126
   },
   "ground-grass-8": {
-    "bytes": 9134,
+    "bytes": 7760,
     "file": "art/ground-grass-8.png",
     "h": 126,
     "w": 78
   },
   "ground-grass-9": {
-    "bytes": 8520,
+    "bytes": 7346,
     "file": "art/ground-grass-9.png",
     "h": 69,
     "w": 126
   },
   "ground-mud-1": {
-    "bytes": 8895,
+    "bytes": 7538,
     "file": "art/ground-mud-1.png",
     "h": 98,
     "w": 126
   },
   "ground-mud-2": {
-    "bytes": 9182,
+    "bytes": 6617,
     "file": "art/ground-mud-2.png",
     "h": 107,
     "w": 127
   },
   "ground-mud-3": {
-    "bytes": 10060,
+    "bytes": 7214,
     "file": "art/ground-mud-3.png",
     "h": 112,
     "w": 126
   },
   "ground-mud-4": {
-    "bytes": 8309,
+    "bytes": 6456,
     "file": "art/ground-mud-4.png",
     "h": 98,
     "w": 117
   },
   "ground-mud-5": {
-    "bytes": 7411,
+    "bytes": 5585,
     "file": "art/ground-mud-5.png",
     "h": 78,
     "w": 121
   },
   "ground-mud-6": {
-    "bytes": 3723,
+    "bytes": 3342,
     "file": "art/ground-mud-6.png",
     "h": 64,
     "w": 68
   },
   "ground-mud-7": {
-    "bytes": 3198,
+    "bytes": 2824,
     "file": "art/ground-mud-7.png",
     "h": 59,
     "w": 60
   },
   "ground-mud-8": {
-    "bytes": 3081,
+    "bytes": 2823,
     "file": "art/ground-mud-8.png",
     "h": 56,
     "w": 62
@@ -216,13 +252,13 @@
     "w": 448
   },
   "lamp-off": {
-    "bytes": 8529,
+    "bytes": 8324,
     "file": "art/lamp-off.png",
     "h": 192,
     "w": 181
   },
   "lamp-on": {
-    "bytes": 8397,
+    "bytes": 8444,
     "file": "art/lamp-on.png",
     "h": 192,
     "w": 181

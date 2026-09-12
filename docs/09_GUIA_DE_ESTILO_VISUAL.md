@@ -9,8 +9,18 @@ pantallas. Si algo nuevo no cumple esto, no entra.
 
 Todo está dibujado con un marcador grueso.
 
-- **Contorno negro parejo**, del mismo grosor en todo el dibujo, con
-  puntas redondeadas. No hay línea fina ni línea que se afine.
+- **Contorno oscuro y grueso, con puntas redondeadas**, de grosor
+  parecido en todo el dibujo pero **no idéntico**. *Esta viñeta decía
+  "contorno negro parejo, del mismo grosor". Estaba mal y produjo el
+  problema que arregló el 2026-09-12:* pedir una línea pareja y uniforme
+  empuja al generador hacia el vector limpio, que es exactamente lo que
+  no queremos. Un marcador lo maneja una mano: la línea tiene temblor
+  chico, las curvas no cierran perfecto, el grosor varía un poco a lo
+  largo del trazo. Esa irregularidad es el estilo, no un defecto a
+  corregir.
+- **El contorno es ACROMÁTICO: su tono es cero.** Ver sección 4. Esto ya
+  falló dos veces —contornos a tono 217 (azul) y a tono 136 (verde)— y
+  por eso ahora es una regla con nombre y con test.
 - **Relleno plano que se pasa un poco del contorno**, como un dibujo de
   chico hecho prolijo. Ese desborde es deliberado: es lo que separa este
   estilo de un vector genérico.
@@ -98,17 +108,67 @@ arte generado tiene que usar estos, no aproximaciones.
 | Uso | Hex |
 |---|---|
 | Papel / fondo | `#fdfcf7` |
-| Tinta / contorno | `#1e293b` |
-| Pista apagada | `#c8cdd2` |
+| Contorno del arte | `#1a1a1a` |
+| Trazo del chico (`INK_COLOR`) | `#1e293b` |
+| Pista apagada | `#838383` |
 | Gotita de agua | `#3f6f8f` |
 | Grano de maíz | `#b8912f` |
 | Huella | `#000000` |
 | Pluma | `#2f6b5c` |
 | Lamparita encendida | `#f2d377` |
 
+**El contorno del arte y el trazo del chico NO son el mismo color, y
+confundirlos fue un error real.** Hasta el 2026-09-12 esta tabla tenía una
+sola fila, `Tinta / contorno: #1e293b`, y `build_art.py` mandaba todo píxel
+de contorno a ese valor. `#1e293b` tiene **tono 217° y saturación 0,33: es
+azul pizarra.** Medido sobre el arte embarcado, era el segundo color más
+frecuente de cada marca, entre el 25% y el 30% de sus píxeles opacos — y una
+marca se dibuja unas 35 veces por nivel, así que el azul era el color más
+repetido de la pantalla.
+
+`INK_COLOR #1e293b` es el lápiz del chico y está bien que sea un gris
+azulado: es su trazo, tiene que distinguirse del mundo. `ART_OUTLINE
+#1a1a1a` es la línea de marcador del mundo dibujado. **Su tono debe ser
+cero**, y `palette.test.ts` lo afirma, porque esto ya falló dos veces: azul
+en las pistas y verde (`#19241c`, tono 136°) en las matas de pasto.
+
 **El color es la recompensa.** Una marca sólo toma color cuando el chico
 la recoge. La huella es la excepción y va a negro, no a un color, porque
 una huella en la tierra no tiene color propio.
+
+**La recompensa es el TONO, no el contraste. Confundirlos costó el defecto
+del 2026-09-12 y esta guía tiene parte de la culpa por no decirlo.** "Pista
+apagada" quería decir *sin color*, y se implementó como *casi invisible*:
+`CLUE_DRAINED` era `#c8cdd2`, elegido cuando el corredor era papel casi
+blanco (`#fdfcf7`, luma 252), contra el que separaba 48. Cuando la hoja
+ganó suelo (sección 7) el corredor pasó a `CORRIDOR_EARTH #d9c3ae`, luma
+199, y ese mismo gris quedó a 5 de su fondo. Nadie lo revisó porque nada
+estaba mal escrito: un valor correcto en su contexto se volvió incorrecto
+cuando el contexto se movió abajo suyo. Medido sobre el arte embarcado,
+una mata de pasto separaba 79 de SU fondo y se dibujaba hasta 1,9 veces
+más grande que una pista. Al chico se le pedía buscar lo menos visible de
+la pantalla.
+
+Entonces la regla, dicha entera:
+
+- Una pista apagada es **acromática** —saturación cero, sin excepción— y
+  **legible**: separa al menos 55 de luma del suelo que tiene abajo.
+  `#838383` separa 68 de la tierra y 76 del campo.
+- Ganar una pista es **ganar tono**. `PRINT #000000` es la única que no
+  tiene tono para ganar, y paga en luma: 131 de salto contra el gris
+  apagado.
+- Consecuencia aceptada a sabiendas: una pista apagada ahora tiene MÁS
+  contraste de luma contra la tierra que `BUBBLE` o `KERNEL` ganadas. No
+  es un problema de lectura —esas dos son saturadas contra arcilla de
+  croma bajo, y las lleva el tono—, pero significa que en esta paleta la
+  luma ya no se puede leer como señal de recompensa.
+
+**Y la jerarquía es una regla, no una cuestión de gusto.** Una pista
+apagada tiene que separarse de su suelo **más** que cualquier marca
+decorativa del suelo se separa del suyo, y no puede dibujarse **más
+chica** que ella. Lo afirma `client/src/detective/artHierarchy.test.ts`
+sobre los PNG embarcados —no sobre el arte fuente, porque el `mute()` del
+pipeline es el que decide la mitad decorativa de la comparación.
 
 **El arte se recolorea a estos valores, no se aproxima.** Lo dibujado
 venía cerca pero no igual —la gota en `#3090c0` contra `POND #3f6f8f`, el
@@ -199,6 +259,14 @@ todo el campo a tamaño completo, donde una silueta repetida canta; el
 barro va chico, adentro del corredor y medio tapado por el propio rastro
 del chico.
 
+**El suelo se dibuja más chico que una pista, y eso también es regla.** El
+pasto iba a 30-52 unidades contra pistas de 28 —la decoración era hasta
+1,9 veces el tamaño de lo que hay que juntar—, y el 2026-09-12 bajó a
+18-26. El paso de la grilla bajó con él, de 76 a 58: la cobertura va como
+`tamaño² / paso²`, así que achicar las matas sin cerrar la grilla deja el
+campo pelado, que es justamente lo que el `contour_lift` se había
+inventado para evitar. Los dos se mueven juntos o ninguno.
+
 **Y una trampa que costó una iteración:** apagar sólo los rellenos no
 alcanza. El contorno dibujado del pasto viene en `#19241c`, a un pelo de
 la tinta `#1e293b`. Con ~130 matas contra ~35 pistas, el ojo se iba al
@@ -206,6 +274,15 @@ pasto y no al camino. Los contornos del suelo necesitan su propia
 palanca, más dura que la de los rellenos — es el parámetro
 `contour_lift` de `build_art.py`. Bajar la densidad en cambio deja
 peladas.
+
+**Y la misma lección una vuelta más, el 2026-09-12.** La palanca de los
+rellenos pesaba por luma (`toward * luma/255`), o sea que mezclaba más
+fuerte los rellenos CLAROS. Sobre un suelo claro eso está al revés: un
+relleno claro ya casi no tiene contraste que entregar, y los oscuros —los
+que cargan todo el contraste— eran justo los que la palanca no tocaba.
+Medido: subir `toward` de 0,42 a 0,78 movía el barro más ruidoso de 85 a
+71, casi nada. Ahora los rellenos mezclan con un `toward` plano y el
+mismo barro cae a 19-39.
 
 ## 8. Tipografía: Nunito
 
@@ -225,6 +302,85 @@ redondeadas. Es la misma regla aplicada a la letra.
 - Se declara en `client/index.html`, no en `LAYOUT_CSS`. `LevelMap` y
   `MainScreen` usan estilos inline y nunca ven `LAYOUT_CSS`; la raíz del
   documento es el único lugar que las alcanza a todas.
-- **La palabra "PISTAS" del riel no es tipografía y no debe serlo.** Son
-  polilíneas dibujadas a mano, es una decisión tomada (D6), y hay cuatro
-  tests que fijan su geometría.
+- **La palabra "PISTAS" del riel es texto tipografiado real, no una imagen**
+  (D6 enmendada por `case-registry-and-captions`; la decisión original — seis
+  polilíneas dibujadas a mano, cuatro tests fijando su geometría — quedó
+  obsoleta en cuanto la app declaró Nunito en la raíz del documento, §8 más
+  arriba). Lo que D6 protege ahora no es "nunca texto": es que **ningún texto
+  aparezca solo**. `PISTAS` puede ser un `<div className="pistas-word">`
+  porque el propio riel (`pistas-bar`) siempre trae también las imágenes del
+  farol y de cada pista rasterizada al lado — la palabra nunca es la única
+  portadora de sentido en ese contenedor. Esa regla es código, no
+  convención: `client/src/detective/captionAudit.ts` la audita
+  (`CAPTION_CONTAINERS`, `auditCaptions`) y `client/src/detective/
+  CaptionedArt.tsx` es el único componente que puede crear un par
+  imagen+palabra fuera del riel, con `label: string` obligatorio a nivel de
+  tipo. Ver `client/src/detective/PistasRail.tsx`'s propio comentario de
+  módulo para el detalle de la transición.
+
+---
+
+## 9. El bloque de estilo (pegar TAL CUAL en el generador)
+
+*Esta sección faltaba y esa ausencia fue un error con consecuencias. Entre
+el 2026-09-10 y el 2026-09-12 el estilo sólo existía descrito en prosa
+acá arriba, así que cada vez que se generaba un asset había que
+reconstruir el prompt de memoria — y derivaba. La prosa es para entender
+por qué; **esto es lo que se pega**. Si cambia el estilo, cambia acá.*
+
+Va en inglés a propósito: los modelos de imagen rinden bastante mejor.
+
+```
+Style: a single 2D game asset drawn with a thick felt-tip marker, by
+hand. Dark outline #1a1a1a, thick, with rounded ends. The line is
+HUMAN, not vector: slight wobble along the stroke, small variation in
+thickness, curves that do not close perfectly. Flat colour fill that
+overshoots the outline slightly on one side and falls short on the
+other, like a child colouring in tidily. Chunky, generous shapes with
+no fine detail. Flat colours only.
+
+Do NOT produce: smooth vector or clip-art lines, a logo, gradients,
+soft or drop shadows, glow, 3D shading, bevels, outlines in any colour
+other than #1a1a1a, texture noise, photorealism, or a background.
+
+Plain white background, object centred and isolated, nothing else in
+the image.
+```
+
+Después del bloque va **una sola línea** describiendo el objeto y su
+color de relleno en hex. Ejemplo completo:
+
+```
+<bloque de estilo>
+
+A single feather, seen from the side, pointing UP. Fill #2f6b5c.
+```
+
+### Reglas que se pegan junto al objeto
+
+- **Las marcas de pista apuntan hacia ARRIBA.** El motor las rota para
+  seguir la tangente del camino y asume que el "adelante" del dibujo es
+  hacia arriba. Si vienen acostadas, salen todas torcidas.
+- **Las huellas se piden en par**, izquierda y derecha espejada. La
+  alternancia es lo que hace que un rastro se lea como "alguien caminó
+  por acá"; la forma sola no alcanza (sección 5).
+- **Cada pista se pide dos veces**, una con su color ganado y otra en
+  `#838383`. El pipeline recolorea igual, pero la forma tiene que
+  funcionar en los dos estados.
+- Los animales llevan **el origen en las patas** y todos la misma
+  altura, así se paran sobre la misma línea de suelo.
+
+### Checklist para rechazar en cinco segundos
+
+Antes de meter un asset al pipeline, mirá sólo esto:
+
+1. **¿El contorno es gris/negro neutro?** Si tira a azul o a verde, se
+   rechaza. Es el error que más veces se repitió.
+2. **¿La línea tiembla?** Si es una curva perfectamente lisa, es vector,
+   no marcador.
+3. **¿El relleno se pasa de la línea en algún lado?** Si calza perfecto,
+   es vector.
+4. **¿Se entiende a 24 píxeles?** Achicalo y miralo. Las marcas se
+   dibujan a 20-30 unidades, no al tamaño de la lámina.
+5. **¿Aguanta repetido?** Pegalo unas treinta veces en fila. Es la
+   prueba que más assets reprueba (sección 5).

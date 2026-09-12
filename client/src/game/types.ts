@@ -65,3 +65,29 @@ export const APPROVALS_TO_UNLOCK = 2
  * testable today, and need no edit once the catalog lands the real levels.
  */
 export const DETECTIVE_TRAIL_IDS: readonly string[] = ['trail1', 'trail2', 'trail3', 'trail4']
+
+/**
+ * The duck case's four trail ids, in play order (design.md §3 "The duck
+ * case's four levels"). Lives here rather than in `detective/cases.ts`
+ * because `game/migrateDuckCase.ts` needs this exact list before the
+ * catalog gains the four `LevelConfig`s (Phase 1 ships before Phase 2 —
+ * design.md §6 "D4's accepted cost"), and `game/` cannot import
+ * `detective/cases.ts` without dragging the whole catalog-backed case
+ * registry in.
+ */
+export const DUCK_TRAIL_IDS: readonly string[] = [
+  'duck-trail1',
+  'duck-trail2',
+  'duck-trail3',
+  'duck-trail4',
+]
+
+/**
+ * The duck case's own `<caseId>-deduce` pseudo-id (level-engine spec "Duck
+ * Case Positional-Unlock Migration"; `detective/cases.ts`'s `caseSolvedId`
+ * computes the exact same string as `caseSolvedId('duck')`, quoted here
+ * literally rather than imported — `game/migrateDuckCase.ts` needs it before
+ * the catalog gains the duck's `LevelConfig`s, and `game/` cannot import
+ * `detective/cases.ts` without dragging that catalog dependency in, the same
+ * reason `DUCK_TRAIL_IDS` lives here instead of in `detective/cases.ts`). */
+export const DUCK_CASE_SOLVED_ID = 'duck-deduce'

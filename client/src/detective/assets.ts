@@ -26,11 +26,21 @@
 // browser alike, and neither should have to fetch JSON to know how big a
 // footprint is. `artManifest.test.ts` is the guard that the copy has not
 // drifted from the pipeline.
-import { POND, KERNEL, PRINT, PLUME } from './palette'
+import { POND, KERNEL, PRINT, PLUME, BREADCRUMB, BUBBLE } from './palette'
 
-/** One art per trail theme. Each trail owns exactly one kind, and — per the
- * palette — exactly one earned colour. */
-export type ClueKind = 'droplet' | 'corn' | 'footprint' | 'feather'
+/** One art per trail theme. Each theme owns exactly one kind; distinctness of
+ * its earned colour is now scoped PER CASE (`palette.test.ts`,
+ * `detective/cases.ts`'s `clueKindsOf`), not globally — `webfoot` and
+ * `footprint` both render `PRINT`, and that is legal because they never
+ * appear in the same case (design.md §4). */
+export type ClueKind =
+  | 'droplet'
+  | 'corn'
+  | 'footprint'
+  | 'feather'
+  | 'webfoot'
+  | 'breadcrumb'
+  | 'bubble'
 
 /** One art per deduction-screen animal choice (design unit 7). */
 export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
@@ -48,6 +58,15 @@ export interface ArtImage {
   href: string
   w: number
   h: number
+  /**
+   * Where this picture is HELD, as a fraction of its own box — the same shape
+   * `canvas/placeArt.ts` (design.md §7) reads and `home/modes.ts` used to
+   * duplicate as its own `HomeMode.grip`. Absent means the box's own centre,
+   * which is right for a caption or a clue mark but wrong for anything held
+   * by one specific point rather than drawn whole. Optional on purpose: only
+   * `CARRIER_LENS_ART` declares one today.
+   */
+  grip?: readonly [number, number]
 }
 
 export interface ClueArt {
@@ -92,65 +111,74 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       drained: { href: '/art/clue-feather-drained.png', w: 102, h: 256 },
     },
   },
+  // Duck case only (design.md §4). `webfoot` reuses `PRINT` on purpose — a
+  // print in the earth has no colour of its own, the same material argument
+  // `footprint` already makes, and the two never appear in the same case.
+  webfoot: {
+    earned: PRINT,
+    art: {
+      earned: { href: '/art/clue-webfoot-earned.png', w: 256, h: 230 },
+      drained: { href: '/art/clue-webfoot-drained.png', w: 256, h: 230 },
+    },
+  },
+  breadcrumb: {
+    earned: BREADCRUMB,
+    art: {
+      earned: { href: '/art/clue-breadcrumb-earned.png', w: 256, h: 237 },
+      drained: { href: '/art/clue-breadcrumb-drained.png', w: 256, h: 237 },
+    },
+  },
+  bubble: {
+    earned: BUBBLE,
+    art: {
+      earned: { href: '/art/clue-bubble-earned.png', w: 256, h: 255 },
+      drained: { href: '/art/clue-bubble-drained.png', w: 256, h: 255 },
+    },
+  },
 }
 
 /**
- * The lineup. `gallina` is the culprit: water, corn, three-toed prints and
- * feathers all point at her, so she carries no `ruledOutBy`.
- *
- * Each distractor is ruled out by exactly ONE clue, so every clue the child
- * collected does real work in the deduction:
- *
- * - `pato` by the FOOTPRINT — webbed, not three splayed toes.
- * - `vaca` by the FEATHER — no feathers.
- * - `gato` by the CORN — a cat does not eat it.
- *
- * The droplet rules out nobody, on purpose: every animal drinks. A child
- * learning to reason should meet a clue that establishes presence without
- * narrowing the field, otherwise "there was a clue" and "it was decisive"
- * collapse into the same idea.
+ * The lineup art. Each animal's own picture only — WHO is ruled out by WHAT
+ * is no longer a fact about the animal, it is a fact about the CASE
+ * (`case-registry-and-captions` design.md §1, spec: detective-mode "Case
+ * Registry Data Shape"). The hen is a cleared distractor in the duck's case
+ * and the culprit in her own; a global `ruledOutBy` on this record could not
+ * represent both, so it moved to `DetectiveCase.ruledOutBy`
+ * (`detective/cases.ts`), and the module-level `CULPRIT` constant that used
+ * to name a single animal for the whole app is gone with it — every consumer
+ * now reads `DetectiveCase.culprit` for its own case.
  *
  * These four keep their AUTHORED colours — they are the one place the guide's
  * "colour is the reward" rule is not in force, because the animals ARE the
  * answer (`build_art.py`'s `SINGLES` table records the same reasoning).
  */
-export const ANIMAL_ART: Readonly<
-  Record<AnimalId, { art: ArtImage; ruledOutBy: ClueKind | null }>
-> = {
-  gallina: {
-    art: { href: '/art/animal-gallina.png', w: 370, h: 448 },
-    ruledOutBy: null,
-  },
-  pato: {
-    art: { href: '/art/animal-pato.png', w: 368, h: 448 },
-    ruledOutBy: 'footprint',
-  },
-  vaca: {
-    art: { href: '/art/animal-vaca.png', w: 448, h: 405 },
-    ruledOutBy: 'feather',
-  },
-  gato: {
-    art: { href: '/art/animal-gato.png', w: 448, h: 414 },
-    ruledOutBy: 'corn',
-  },
+export const ANIMAL_ART: Readonly<Record<AnimalId, ArtImage>> = {
+  gallina: { href: '/art/animal-gallina.png', w: 370, h: 448 },
+  pato: { href: '/art/animal-pato.png', w: 368, h: 448 },
+  vaca: { href: '/art/animal-vaca.png', w: 448, h: 405 },
+  gato: { href: '/art/animal-gato.png', w: 448, h: 414 },
 }
-
-/** The animal the four clues actually identify. */
-export const CULPRIT: AnimalId = 'gallina'
 
 /** The magnifying glass that rides the child's fingertip on a detective trail
  * (`TraceCanvas`'s `carrierArt` override).
  *
- * Authored standalone, and padded by `build_art.py`'s `CENTRED` step so the
- * image's centre is the LENS rather than the bounding box. That padding is why
- * this is taller than it looks on screen: a caller scales by `h`, and roughly
- * the outer quarter of the canvas is deliberate transparent margin balancing
- * the handle. Size the carrier by what the lens should measure, not by what
- * the file measures. */
+ * [Corrected, case-registry-and-captions Phase 8] Authored standalone, and
+ * `build_art.py`'s `centre_on()` step DOES pad it so the image's centre is
+ * the lens rather than the bounding box — but `emit()` then crops every
+ * output back to its alpha bounding box, which removes exactly that padding
+ * again. The correction is applied and unconditionally undone: the shipped
+ * file's lens sits at `grip` below, not at (0.5, 0.5). `canvas/placeArt.ts`
+ * is what reads this fact now — the same source of truth `home/modes.ts`'s
+ * lamp-lit arm uses, so a trail and the home office can never place the lens
+ * differently. */
 export const CARRIER_LENS_ART: ArtImage = {
   href: '/art/carrier-lens.png',
   w: 361,
   h: 384,
+  // Measured on the shipped file (design.md §7's own worked measurement) —
+  // this is a fact about the PICTURE, never about the arm that holds it or
+  // the finger that carries it.
+  grip: [0.603, 0.391],
 }
 
 /** The octopus holding the glass — the child's own presence in the world.

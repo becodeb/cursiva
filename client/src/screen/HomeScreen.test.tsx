@@ -1,7 +1,8 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import HomeScreen from './HomeScreen'
-import { DETECTIVE_TRAIL_IDS, EMPTY_RECORD, type LevelRecord } from '../game/types'
+import { auditCaptions } from '../detective/captionAudit'
+import { DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, EMPTY_RECORD, type LevelRecord } from '../game/types'
 import type { Records } from '../home/caseState'
 
 function filed(...ids: readonly string[]): Records {
@@ -29,10 +30,11 @@ describe('HomeScreen (docs/10 §3, §7: what this screen is NOT)', () => {
     expect(text).toBe('')
   })
 
-  it('carries no heading and no <text> element either', () => {
+  it('every word (if any) carries its own image — captioned-art invariant, checked not granted', () => {
     const html = render()
-    expect(html).not.toMatch(/<h[1-6][\s>]/)
-    expect(html).not.toContain('<text')
+    const audit = auditCaptions(html)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 
   it('renders no `url(#…)` reference — the ban that hydrates blank on real devices', () => {
@@ -75,28 +77,38 @@ describe('HomeScreen (the office)', () => {
 })
 
 describe('HomeScreen (the case state is REAL, not decorative)', () => {
-  it('a fresh child sees four drained clues and an unlit lamp', () => {
+  // [case-registry-and-captions, Phase 6] The home now shows the ACTIVE case
+  // (design.md §1) — a fresh child's active case is the DUCK's (id "duck",
+  // clued webfoot/breadcrumb/bubble/feather), not the hen's, because the duck
+  // is first in `DETECTIVE_CASES` (the user's binding decision 3).
+  it('a fresh child sees the DUCK case: four drained clues and an unlit lamp', () => {
     const html = render()
     expect(html).toContain('/art/lamp-off.png')
     expect(html).not.toContain('/art/lamp-on.png')
-    for (const kind of ['droplet', 'corn', 'footprint', 'feather']) {
+    for (const kind of ['webfoot', 'breadcrumb', 'bubble', 'feather']) {
       expect(html, kind).toContain(`/art/clue-${kind}-drained.png`)
       expect(html, kind).not.toContain(`/art/clue-${kind}-earned.png`)
     }
   })
 
-  it('shows a filed clue in its earned colour and leaves the others drained', () => {
-    const html = render(filed('trail1', 'trail3'))
-    expect(html).toContain('/art/clue-droplet-earned.png')
-    expect(html).toContain('/art/clue-footprint-earned.png')
-    expect(html).toContain('/art/clue-corn-drained.png')
+  it("shows a filed clue in the duck case's earned colour and leaves the others drained", () => {
+    const html = render(filed(DUCK_TRAIL_IDS[0], DUCK_TRAIL_IDS[2]))
+    expect(html).toContain('/art/clue-webfoot-earned.png')
+    expect(html).toContain('/art/clue-bubble-earned.png')
+    expect(html).toContain('/art/clue-breadcrumb-drained.png')
     expect(html).toContain('/art/clue-feather-drained.png')
   })
 
-  it('lights the lamp only once the whole case is collected', () => {
-    const html = render(filed(...DETECTIVE_TRAIL_IDS))
+  it('lights the lamp only once the WHOLE active case is collected', () => {
+    const html = render(filed(...DUCK_TRAIL_IDS))
     expect(html).toContain('/art/lamp-on.png')
     expect(html).not.toContain('/art/lamp-off.png')
+  })
+
+  it("filing every one of the HEN's trails does not light the duck case's own lamp — the two never cross-light", () => {
+    const html = render(filed(...DETECTIVE_TRAIL_IDS))
+    expect(html).toContain('/art/lamp-off.png')
+    expect(html).not.toContain('/art/lamp-on.png')
   })
 })
 

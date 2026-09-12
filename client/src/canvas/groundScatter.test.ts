@@ -183,10 +183,14 @@ describe('groundScatter — shape of the output', () => {
   })
 
   it('grass leans but never spins', () => {
+    // The band was 30-52 until 2026-09-12, which put decoration at up to 1.9x
+    // the 28-unit clue mark it is supposed to sit behind. The ORDERING against
+    // the clue mark is asserted where it belongs, in
+    // `detective/artHierarchy.test.ts`; this only pins that the band is a band.
     for (const m of grassScatter(input())) {
       expect(Math.abs(m.angle)).toBeLessThanOrEqual(7)
-      expect(m.size).toBeGreaterThanOrEqual(30)
-      expect(m.size).toBeLessThanOrEqual(52)
+      expect(m.size).toBeGreaterThanOrEqual(18)
+      expect(m.size).toBeLessThanOrEqual(26)
     }
   })
 

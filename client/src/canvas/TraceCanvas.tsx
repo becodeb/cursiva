@@ -42,6 +42,7 @@ import { taperedCorridor, type CorridorSegment } from './corridorTaper'
 import type { ScatterMark } from './groundScatter'
 import { useTraceInput, type TracePoint } from './useTraceInput'
 import { isDevMode } from './devMode'
+import { clampArtBox, placeArt, STANDING_GRIP } from './placeArt'
 import { devCheckpointState, type DevCheckpointState } from './devCheckpointState'
 import { DevCheckpointOverlay } from './devCheckpointOverlay'
 import type { LetterCheckpoint } from '../letters/types'
@@ -303,6 +304,13 @@ export interface TraceCarrierArt {
   href: string
   w: number
   h: number
+  /** [case-registry-and-captions, Phase 8] Where the carrier is HELD, as a
+   * fraction of its own box — read by `canvas/placeArt.ts` (design.md §7).
+   * Absent centres on the bounding box, same as `placeArt`'s own default.
+   * `detective/assets.ts`'s `CARRIER_LENS_ART` is the one caller that
+   * declares this today; this type stays structural (no import from
+   * `detective/`) so `ArtImage` satisfies it by shape alone. */
+  grip?: readonly [number, number]
 }
 
 /** Rendered HEIGHT of a `carrierArt` override, in viewBox units — big enough
@@ -780,6 +788,14 @@ export default function TraceCanvas({
     hazardEls.current[index] = el
   }, [])
 
+  // The VISIBLE sheet, in viewBox units — the same rectangle the `<svg>` and
+  // the paper rect below are given. `startArt`/`endArt` are clamped into it so
+  // a route that begins or ends against an edge cannot cut its character in
+  // half (`clampArtBox`, `canvas/placeArt.ts`). Deliberately the visible band
+  // (`viewBoxY`/`viewBoxHeight`), not the full 600: a cropped level shows less
+  // paper, and the character has to fit in what is actually shown.
+  const sheetBounds = { x: 0, y: viewBoxY, width: viewBoxWidth, height: viewBoxHeight }
+
   return (
     <svg
       ref={svgRef}
@@ -1039,15 +1055,17 @@ export default function TraceCanvas({
       )}
       {endMarker && endArt && (
         // Registry art standing where the route ends (`TraceStandingArt`),
-        // in place of the diamonds below. Its origin is its FEET — `y` runs
-        // from `-size` to 0 — so it stands ON the end of the route instead of
-        // being cut in half by it.
+        // in place of the diamonds below. Its origin is its FEET
+        // (`STANDING_GRIP`) so it stands ON the end of the route instead of
+        // being cut in half by it, and then `clampArtBox` slides it the
+        // minimum needed to stay inside the sheet — a route ending against
+        // the edge used to cut the lamp in half the other way.
         <image
           href={endArt.href}
-          x={endMarker.x - (endArt.size * endArt.w) / endArt.h / 2}
-          y={endMarker.y - endArt.size}
-          width={(endArt.size * endArt.w) / endArt.h}
-          height={endArt.size}
+          {...clampArtBox(
+            placeArt({ ...endArt, grip: STANDING_GRIP }, endArt.size, endMarker),
+            sheetBounds,
+          )}
           preserveAspectRatio="xMidYMid meet"
           pointerEvents="none"
         />
@@ -1080,15 +1098,15 @@ export default function TraceCanvas({
         </g>
       )}
       {startMarker && startArt && (
-        // Registry art standing where the route begins, feet on the point —
-        // same convention as `endArt` above, and it REPLACES the green dot
-        // rather than joining it (see `startArt`).
+        // Registry art standing where the route begins, feet on the point and
+        // clamped into the sheet — same convention as `endArt` above, and it
+        // REPLACES the green dot rather than joining it (see `startArt`).
         <image
           href={startArt.href}
-          x={startMarker.x - (startArt.size * startArt.w) / startArt.h / 2}
-          y={startMarker.y - startArt.size}
-          width={(startArt.size * startArt.w) / startArt.h}
-          height={startArt.size}
+          {...clampArtBox(
+            placeArt({ ...startArt, grip: STANDING_GRIP }, startArt.size, startMarker),
+            sheetBounds,
+          )}
           preserveAspectRatio="xMidYMid meet"
           pointerEvents="none"
         />
@@ -1249,17 +1267,21 @@ export default function TraceCanvas({
           {carrierArt ? (
             // Registry art (`detective/assets.ts`'s `CARRIER_LENS_ART`).
             //
-            // The `<image>` carries its own centring offset and NO transform
-            // of its own: the rAF loop above rewrites `transform` on this
-            // GROUP every single frame, so anything written there is gone in
-            // ~16ms. Centring has to live on the child, which is why this is
-            // not simply `transform="translate(-w/2 -h/2)"`.
+            // The `<image>` carries its own placement and NO transform of its
+            // own: the rAF loop above rewrites `transform` on this GROUP every
+            // single frame, so anything written there is gone in ~16ms.
+            // Placement has to live on the child, which is why this is not
+            // simply `transform="translate(-w/2 -h/2)"`.
+            //
+            // [case-registry-and-captions, Phase 8] `placeArt` puts
+            // `carrierArt.grip` — the LENS, not the bounding box — exactly on
+            // the group's own origin (`{x:0, y:0}`, since the group is already
+            // translated to the carried point every frame above). This is the
+            // fix for the ~11-unit drift the old bbox-centred `x`/`y` shipped
+            // with (design.md §7).
             <image
               href={carrierArt.href}
-              x={-(CARRIER_ART_SIZE * carrierArt.w) / carrierArt.h / 2}
-              y={-CARRIER_ART_SIZE / 2}
-              width={(CARRIER_ART_SIZE * carrierArt.w) / carrierArt.h}
-              height={CARRIER_ART_SIZE}
+              {...placeArt(carrierArt, CARRIER_ART_SIZE, { x: 0, y: 0 })}
               preserveAspectRatio="xMidYMid meet"
             />
           ) : (

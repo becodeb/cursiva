@@ -25,13 +25,23 @@ Todo eso entra **después** de que la mecánica esté validada. Ponerle un perso
 
 ### 3.1 Contenido
 
-19 niveles, suficientes para recorrer la progresión completa de punta a punta:
+**Esta lista ya no describe el MVP original: describe el catálogo vivo.** El
+MVP validó la mecánica con 19 niveles repartidos en corredores sin tema
+(`travesía`, `pelotas`, `paseo`, `pasillo`, `ondas`, `espiral`); el cambio
+`detective-mode` retemó esos seis a un solo caso (la gallina) y el cambio
+`case-registry-and-captions` sumó un segundo caso (el pato) delante de ese.
+Los seis originales siguen en el repo, sin cablear, en `LEGACY_PHASE_1`
+(`levels/catalog.ts`) — es el plan de reversión completo, no basura.
 
-- **Fase 1** (7): garabato libre · travesía · pelotas (tiempo) · paseo y pasillo (escolta) · ondas · espiral
-- **Fase 2** (4): guirnalda · colinas · bucles · crestas
-- **Fase 3** (4): `l` · `a` · `m` · `o` — una por familia de movimiento
-- **Fase 4** (2): `la` · `ma`
-- **Fase 5** (2): `ala` · `mama` (esta última **sin guía**)
+21 niveles activos:
+
+- **Nivel 1** — Exploración (Fase 1 en el código, 1): `f1-libre`, el garabato libre re-temado como la página de apertura del caso — sin pista propia.
+- **Nivel 2** — Laberintos, rastros y casos (Fase 1 en el código, 8): dos casos de cuatro rastros cada uno. Caso del **pato** (`duck-trail1`..`duck-trail4`, tres opciones al cerrar: pato/vaca/gato) y caso de la **gallina** (`trail1`..`trail4`, cuatro opciones: gallina/pato/vaca/gato).
+- **Nivel 3** — Agua, medusa y U (Fase 2 en el código, 1 de 4): `f2-guirnalda`.
+- **Nivel 4** — Montañas y ovejas (Fase 2 en el código, 3 de 4): `f2-colinas` · `f2-bucles` (transición explícitamente flagueada — ya es una letra, la `l`, no una U ni una montaña) · `f2-crestas`.
+- **Nivel 5** — Grafema aislado (Fase 3 en el código, 4): `f3-l` · `f3-a` · `f3-m` · `f3-o` — una por familia de movimiento.
+- **Nivel 6** — Enlace y ligadura (Fase 4 en el código, 2): `f4-la` · `f4-ma`.
+- **Nivel 7** — Palabra y automatización (Fase 5 en el código, 2): `f5-ala` · `f5-mama` (esta última **sin guía**).
 
 Catálogo detallado en `08_MOTOR_DE_NIVELES.md`.
 
@@ -54,6 +64,11 @@ Catálogo detallado en `08_MOTOR_DE_NIVELES.md`.
 ### 3.3 Interfaz mínima
 
 Un nivel ocupa **exactamente un viewport y no scrollea nunca**. No es una preferencia estética: el lienzo declara `touch-action: none` para que un trazo no se lo lleve el scroll, así que si la página necesitara scrollear, los botones de abajo quedarían fuera de alcance. La salida es que no haga falta scrollear.
+
+El maquetado de abajo cita textual el encabezado que `LevelMap.tsx`/`LevelPlay` siguen
+emitiendo hoy — "Fase N", no "Nivel N" — porque el reterm de este documento es de
+vocabulario de diseño, no del rótulo que la pantalla realmente dibuja (§Docs de
+`design.md`, sección "Fase → Nivel"). Es una cita del código, no un error de reterm.
 
 ```
 ┌──────────────────────────────────────────────────┐  ← 100dvh (100vh de respaldo),

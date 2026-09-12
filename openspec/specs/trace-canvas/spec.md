@@ -163,3 +163,59 @@ The static guide path SHALL render every subpath of a letter's `pathDefinition` 
 - GIVEN a multi-letter word's guide (already pen-lift-safe via `buildWord`)
 - WHEN rendered
 - THEN its rendering behavior MUST remain unchanged
+
+### Requirement: Clue Layer Rendering
+
+The canvas SHALL accept an optional `clues` prop, following the `hazards`
+prop precedent (`TraceCanvas.tsx:166-177`), and render each clue mark as its
+own `<g>` layer. A mark's rendered colour MUST reflect its reducer state:
+grey while `drained`, and its trail's registered earned colour (or, for
+footprints, black) once `earned` — the colour change MUST be a discrete
+attribute swap, not an animated transition. The clue layer, and every other
+element this change adds to the canvas, MUST NOT introduce any `url(#…)`
+reference (gradient, mask, or filter), because such references hydrate blank
+on real devices (`TraceCanvas.tsx:70-84`).
+
+#### Scenario: Drained mark renders grey
+
+- GIVEN a clue mark in `drained` state passed via the `clues` prop
+- WHEN the canvas renders
+- THEN the mark's fill or stroke colour MUST be the shared grey token
+
+#### Scenario: Earned mark renders its trail colour
+
+- GIVEN a clue mark in `earned` state whose trail owns colour `X`
+- WHEN the canvas renders
+- THEN the mark's fill or stroke colour MUST equal `X`
+
+#### Scenario: Earned footprint renders black, never chromatic
+
+- GIVEN a footprints clue mark in `earned` state
+- WHEN the canvas renders
+- THEN the mark's colour MUST be black (or a grey-to-black value) and MUST
+  NOT be any chromatic colour
+
+#### Scenario: No url() reference is introduced
+
+- GIVEN the canvas rendered with `clues` populated via `renderToString`
+- WHEN the resulting HTML string is scanned
+- THEN it MUST NOT contain the substring `url(#`
+
+### Requirement: Carrier Art Placement via placeArt()
+
+`placeArt(art, height, center, grip?)` SHALL be the single pure exported function computing where carrier/lens art is drawn: given an optional grip point `[gx, gy]` in the art's own 0..1 box, it MUST return the `x`, `y`, `width`, `height` that place the grip point exactly at `center`. When no grip is declared, it MUST default to the box centre `(0.5, 0.5)`. Every call site (`TraceCanvas`, `home/modes.ts`) MUST use this function and MUST NOT compute its own centring offset.
+
+#### Scenario: Declared grip lands on the target point
+- GIVEN `CARRIER_LENS_ART`'s declared grip `(0.603, 0.391)` and a target center `C`
+- WHEN `placeArt` is called with that grip
+- THEN the returned box MUST place the art's `(0.603, 0.391)` point exactly at `C`, not the box's geometric centre
+
+#### Scenario: No grip defaults to box centre
+- GIVEN art with no declared grip
+- WHEN `placeArt` is called
+- THEN its result MUST equal calling it with grip `(0.5, 0.5)`
+
+#### Scenario: TraceCanvas renders the carrier via placeArt's output
+- GIVEN a trail rendered via `renderToString` with the carrier at a known position
+- WHEN the carrier `<image>`'s `x`/`y` attributes are read from the HTML string
+- THEN they MUST equal `placeArt`'s computed `x`/`y` for that art and grip, not the previous `(0.5, 0.5)` bounding-box formula

@@ -23,8 +23,15 @@ describe('nextView (session flow reducer)', () => {
     expect(nextView(playing('f5-mama'), { type: 'next', levelId: null })).toEqual(done)
   })
 
-  it('‹ Volver returns to a plain map, never the finished banner', () => {
-    expect(nextView(playing('f2-bucles'), { type: 'back' })).toEqual(map)
+  it('reset returns to a plain map, never the finished banner', () => {
+    // [case-registry-and-captions, Phase 7] The former UI trigger for this
+    // path — LevelPlay's ‹ Volver — no longer dispatches `{type:'back'}`; it
+    // calls `GameScreen`'s required `onExit` prop directly, which reaches the
+    // office (`App.tsx`'s `goHome`), never the map (design.md §8). `back`
+    // stays a reachable GameAction only through `{type:'reset'}`'s shared
+    // `case` branch — the map's own "Reiniciar progreso" control — which this
+    // test now drives explicitly.
+    expect(nextView(playing('f2-bucles'), { type: 'reset' })).toEqual(map)
   })
 
   it('leaving the finished map clears the closing line', () => {

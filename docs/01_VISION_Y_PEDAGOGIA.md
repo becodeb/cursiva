@@ -30,7 +30,18 @@ inhibición        ritmo              grafo-memoria   anticipación   automatiza
 precisión         direccionalidad    forma+sentido   empalme        velocidad
 ```
 
-### Fase 1 — Control visomotor e inhibición
+**Nomenclatura narrativa (`docs/11`).** La directiva de El Pulpito Detective nombra esta
+misma progresión con siete **Niveles**, y el calce con las cinco fases de arriba no es
+uno a uno: la Fase 1 se abre en Nivel 1 (exploración) y Nivel 2 (laberintos, rastros y
+casos); la Fase 2 se abre en Nivel 3 (agua y medusa) y Nivel 4 (montañas y ovejas); las
+Fases 3, 4 y 5 son, cada una, Nivel 5, Nivel 6 y Nivel 7. Nada de esto renumera el código:
+`Phase` sigue siendo `1 | 2 | 3 | 4 | 5` (`levels/types.ts:8`), y toda regla que hoy lee un
+número de fase — el retiro de la guía (§3.1 de `docs/03`), la superficie `blank`/`ruled` —
+sigue leyendo exactamente el mismo número. **Nivel** es el nombre con el que la historia
+agrupa ese contenido; **Fase** es lo que el motor todavía distingue en el código. Los
+encabezados de abajo llevan los dos.
+
+### Fase 1 — Control visomotor e inhibición (Nivel 1 · Exploración y descubrimiento / Nivel 2 · Laberintos, rastros y casos)
 **Qué entrena:** coordinación ojo-mano, control tónico, inhibición motriz, percepción figura-fondo.
 **Mecánica:** un garabato libre de calentamiento, y después senderos y laberintos. El dedo recorre un canal desde el inicio hasta la meta sin tocar los bordes. Rectos, con ángulos, con curvas amplias, con bucles.
 **Sin letras.** La forma no significa nada todavía; lo único que importa es que el dedo obedezca al ojo.
@@ -38,6 +49,10 @@ precisión         direccionalidad    forma+sentido   empalme        velocidad
 **Toda la hoja, y en blanco.** La Fase 1 **no se dibuja sobre el renglón**: la hoja está vacía, sin pauta. Por dos razones, y las dos son de esta misma página. Primera: los renglones no significan nada hasta la Fase 3, donde la zona *es* la lección; antes de eso son decoración que el chico tiene que filtrar, exactamente lo que prohíbe el principio de carga cognitiva controlada (§5). Segunda, y más importante: una banda de escritura mide 120 unidades de alto, y un recorrido encerrado ahí entrena solamente la yema del dedo. Lo que la Fase 1 tiene que construir es el control de **brazo y muñeca** del que después dependen las letras, y eso pide movimiento **grande**: los caminos cruzan la hoja entera, a escalas, posiciones y orientaciones variadas. El renglón aparece cuando hay algo que apoyar en él.
 
 **Empieza sin ninguna consigna.** El primer nivel de todos no tiene camino: el chico dibuja lo que quiera, grande y donde quiera. No se evalúa la forma sino cuánta hoja alcanzó a recorrer. Es el calentamiento del brazo antes de que nada le pida quedarse adentro de algo.
+
+**Los tres recintos del Nivel 1, y por qué el tercero es el estanque.** El Nivel 1 repite la misma lógica —limpiar para descubrir que el animal no está— en tres sectores del zoológico. Los dos primeros los fija la directiva: la pecera empañada de los **peces** y la arena del sector de las **tortugas**. El tercero lo deja abierto ("otro recinto") y se decidió que sea **el estanque de los patos**. No es una elección de decorado: el Nivel 2 abre con el caso del pato, y que el chico haya estado parado en el estanque vacío justo antes es lo que convierte el primer rastro en una consecuencia y no en un ejercicio nuevo. La acción motora del tercer recinto tiene que ser distinta de las otras dos —retirar hojas de la superficie del agua, no empañar ni barrer—, que es lo que la directiva pide para que los tres no sean el mismo desafío tres veces.
+
+**Cada recinto lleva su cartel, y el cartel lleva imagen y palabra.** `PECES`, `TORTUGAS`, `PATOS`. La palabra nunca va sola: siempre acompaña al dibujo del animal, y el chico puede resolver el nivel entero sin leerla. Es exposición incidental a la lengua escrita, no un requisito de lectura. La regla está escrita en `docs/09` §8 y la hace cumplir `client/src/detective/captionAudit.ts`.
 
 **Dos mecánicas hacen el trabajo pesado de esta fase**, y cada una entrena una mitad distinta de lo que la fase nombra:
 
@@ -49,21 +64,21 @@ Volver al inicio **no es un castigo**: no hay puntaje en contra, ni marca roja, 
 
 **El orden de la fase sube una exigencia por vez:** garabato libre → movimiento grueso → esperar el hueco → escolta ancha → escolta angosta y larga → curvas amplias de muñeca → el caracol. La inhibición va antes que la precisión a propósito: pedir puntería y quietud en la misma pantalla serían dos lecciones a la vez, que es exactamente lo que el principio de carga cognitiva controlada evita.
 
-### Fase 2 — Patrón motor continuo (pre-cursiva)
+### Fase 2 — Patrón motor continuo, pre-cursiva (Nivel 3 · Agua, medusa y movimientos en U / Nivel 4 · Montañas y ovejas)
 **Qué entrena:** planificación motora, ritmo, direccionalidad izquierda→derecha, inhibición del levantamiento del dedo.
 **Mecánica:** patrones repetidos de corrido —guirnaldas (`uuuu`), bucles altos (`llll`), colinas (`mmmm`), crestas, espirales— trazados **sin levantar el dedo**.
 Acá aparece por primera vez la regla que define la cursiva: *no se levanta el dedo*.
 
-### Fase 3 — Grafema aislado
+### Fase 3 — Grafema aislado (Nivel 5 · Grafema aislado)
 **Qué entrena:** memoria motora de largo plazo, integración forma-sentido, uso de las tres zonas del renglón.
 **Mecánica:** trazado de la letra respetando punto de inicio, dirección del giro y altura en la pauta.
 **Agrupamiento por familia de movimiento, no alfabético:** la `a` se enseña con la `c`, `d`, `g`, `o`, `q` porque comparten el mismo giro antihorario.
 
-### Fase 4 — Enlace y ligadura
+### Fase 4 — Enlace y ligadura (Nivel 6 · Enlace y ligadura)
 **Qué entrena:** anticipación espacial, empalme, memoria de trabajo secuencial. **Es el núcleo de la cursiva.**
 **Mecánica:** dos o tres letras en un solo movimiento continuo. El enlace no es un adorno: es lo que convierte letras dibujadas en escritura.
 
-### Fase 5 — Palabra y automatización
+### Fase 5 — Palabra y automatización (Nivel 7 · Palabra y automatización)
 **Qué entrena:** automatización motora, velocidad, ortografía motora.
 **Mecánica:** palabra completa de corrido, con retiro progresivo de la guía visual para forzar la recuperación de la representación motora interna.
 
@@ -95,7 +110,7 @@ El lienzo replica la pauta caligráfica real, en un espacio virtual fijo de `100
 - **Zona media** (y 300–420): cuerpo de la letra — `a c e i m n o r s u v w x z`
 - **Zona baja** (y 420–540): colas descendentes — `g j p q y`
 
-## 8. Familias de movimiento (Fase 3 en adelante)
+## 8. Familias de movimiento (Nivel 5 en adelante, Fase 3 en el código)
 
 | Familia | Movimiento | Letras |
 | :--- | :--- | :--- |

@@ -46,17 +46,30 @@ export interface ScatterInput {
   seed: number
 }
 
-/** Grass lattice pitch, in viewBox units. */
-const GRASS_STEP = 76
+/** Grass lattice pitch, in viewBox units.
+ *
+ * Cut from 76 with the tufts themselves on 2026-09-12, and the two MUST move
+ * together: coverage goes as `size² / step²`, so shrinking the tufts without
+ * tightening the lattice thins the field into the bald patches
+ * `build_art.py`'s `mute()` already records paying to avoid. At 18-26 units on
+ * a 58-unit pitch the field covers about the same fraction of the sheet it did
+ * at 30-52 on 76. */
+const GRASS_STEP = 58
 /** How far a tuft may wander off its lattice node. Below the step, so the
  * lattice never shows through as rows, but not so far that tufts pile up. */
-const GRASS_JITTER = 26
+const GRASS_JITTER = 20
 /** Clearance kept between a tuft and the corridor edge. Grass does not grow on
  * a walked path — that contrast is the ONLY thing telling the child where the
  * path is, now that both sides are textured rather than grey-vs-white. */
 const GRASS_CLEARANCE = 26
-const GRASS_SIZE_MIN = 30
-const GRASS_SIZE_MAX = 52
+/** Grass was 30-52 units against a 28-unit clue mark: the decoration rendered
+ * up to 1.9x the size of the thing the child has to find. Whatever the tuning,
+ * that ordering is not a matter of taste — `artHierarchy.test.ts` asserts that
+ * nothing scattered on the ground is bigger than a clue mark, the same rule
+ * `MUD_SIZE_MAX` below already kept on its own. 26 leaves a deliberate two
+ * units of headroom so a rounding change cannot make the suite flap. */
+const GRASS_SIZE_MIN = 18
+const GRASS_SIZE_MAX = 26
 /** Tufts lean, they do not spin: a rotated-by-90° tuft reads as debris. */
 const GRASS_TILT = 7
 

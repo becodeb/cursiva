@@ -199,6 +199,138 @@ const PHASE_1: LevelConfig[] = [
     showGuide: false,
     letters: [],
   },
+  // ───────────────────────────────────────────────────────────────────────
+  // The duck case (case-registry-and-captions design.md §3): four themed
+  // trails inserted BEFORE `trail1`, one clue each, corridor width strictly
+  // decreasing 100→70. `game/migrateDuckCase.ts` protects a returning
+  // child's positional unlock of `trail1..4` across this insertion — it
+  // must ship before these four levels do (Ordering Summary, S1 before S2).
+  //
+  //   duck-trail1  webfoot / broad wave, one cycle — the pond's edge
+  //   duck-trail2  breadcrumb / wave, two cycles
+  //   duck-trail3  bubble / garland — the one duck trail whose whole point
+  //                is one unbroken stroke, like trail2's spiral
+  //   duck-trail4  feather / square wave, sharp corners — both clearance
+  //                rules (cornerClearance, armClearance) hold at w=70
+  // ───────────────────────────────────────────────────────────────────────
+  {
+    id: 'duck-trail1',
+    phase: 1,
+    title: 'El charco del pato',
+    hint: 'Seguí el charco de punta a punta.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    // FIRST CONTACT with a routed trail in the duck case: the rail is on
+    // here and nowhere else, the same convention `trail1` carries.
+    feedback: feedback(0, true),
+    // [deviation from design.md §3's literal `amplitude: 140`] 140 draws a
+    // vertical span of exactly 280 units, failing the pre-existing "phase 1
+    // uses the whole blank sheet" guard (`catalog.test.ts`: every phase-1
+    // routed level's vertical span MUST exceed the 300-420 writing band, i.e.
+    // amplitude > 150) by 20 units. Widened to 170 — the same amplitude
+    // design.md gives `duck-trail2` — which clears the guard with margin
+    // (span 340, minY 130, maxY 470) while corridorWidth (100 vs 90) and
+    // cycle count (1 vs 2) still carry the progression between the two.
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 1 })],
+    corridorWidth: 100,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'webfoot', spacing: 60 },
+  },
+  {
+    id: 'duck-trail2',
+    phase: 1,
+    title: 'El sendero de migas',
+    hint: 'Seguí las migas sin salirte.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 2 })],
+    corridorWidth: 90,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'breadcrumb', spacing: 60 },
+  },
+  {
+    id: 'duck-trail3',
+    phase: 1,
+    title: 'La vuelta de las burbujas',
+    hint: 'Seguí hasta el fondo, dá la vuelta y volvé.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    // [deviation from design.md §3's literal `garland({ cycles: 3 })`, and
+    // from the first implementation of this level]
+    //
+    // Three reasons, and the first is the one that matters.
+    //
+    // 1. A garland IS the row of U's, and the row of U's is the SIGNATURE of
+    //    the directive's Nivel 3 — the jellyfish that swims away. Spending it
+    //    here flattens that level before it ships. This is the same ruling
+    //    that kept a timed obstacle off every duck trail (proposal D1): a
+    //    later level's mechanic is not free decoration for an earlier one.
+    // 2. `garland`'s cusps put two consecutive clue marks within ~20 units of
+    //    each other where the arcs nearly meet, and a bubble is a fat round
+    //    28-unit mark. Measured on a render: they overlapped into one blob.
+    //    A switchback has no cusp, so consecutive marks stay apart.
+    // 3. Clearing the "phase 1 uses the whole blank sheet" guard by pushing
+    //    `yTop` to 110 put the route's FIRST POINT so high that the octopus
+    //    and its glass — which stand at that point — were clipped by the top
+    //    of the sheet. `yTop: 140` is where `trail4` already starts safely.
+    //
+    // A switchback is also the shape the directive actually asks Nivel 2 for:
+    // "laberintos". One long run, one reversal, one long run back.
+    paths: [switchback({ x0: 120, x1: 880, yTop: 140, yBottom: 480 })],
+    corridorWidth: 80,
+    // The reversal's whole point is one unbroken stroke — same reason
+    // `trail2`'s spiral does — so it is the one duck trail requiring
+    // continuity.
+    rules: rules(1, true, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'bubble', spacing: 60 },
+  },
+  {
+    id: 'duck-trail4',
+    phase: 1,
+    title: 'El rastro de plumas',
+    hint: 'Seguí el rastro, esquina por esquina.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    taper: { from: 1.15, to: 0.9 },
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    // [deviation from design.md §3's literal `amplitude: 140`] 140 draws a
+    // vertical span of exactly 280 — the same pre-existing "phase 1 uses the
+    // whole blank sheet" shortfall `duck-trail1` and `duck-trail3` also hit.
+    // Widened to 170 (span 340, clears the guard); `cornerClearance` depends
+    // only on `run`/`corridorWidth` and `armClearance` only gets MORE true as
+    // amplitude grows, so design.md §3's arithmetic conclusion (both guards
+    // hold) is unaffected — only its literal worked numbers go stale.
+    paths: [squareWave({ x0: 100, mid: 300, amplitude: 170, run: 200, cycles: 3 })],
+    corridorWidth: 70,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'feather', spacing: 60 },
+  },
   {
     id: 'trail1',
     phase: 1,
@@ -216,10 +348,12 @@ const PHASE_1: LevelConfig[] = [
     obstacles: [{ at: 0.5, travel: 220, periodMs: 2400, phase: 0, radius: 30 }],
     resetOnContact: true,
     carrier: true,
-    // FIRST CONTACT with a routed detective trail: the rail is on here and
-    // nowhere else in phase 1, same convention the retired `f1-travesia`
-    // carried (docs/03 section 6).
-    feedback: feedback(0, true),
+    // The rail's first-contact slot moved to `duck-trail1` when the duck
+    // case was inserted ahead of this trail (design.md §3) — it is now the
+    // actual first routed level of phase 1, and the rail is on there and
+    // nowhere else, same convention the retired `f1-travesia` carried
+    // (docs/03 section 6).
+    feedback: feedback(0, false),
     // A broad sinusoid across the whole sheet — the droplet's open water.
     paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 200, cycles: 3 })],
     corridorWidth: 90,

@@ -35,6 +35,7 @@ import {
   OCTOPUS_ART,
   type ArtImage,
 } from './assets'
+import { ART_OUTLINE } from './palette'
 
 /** Every PNG actually present in `public/art/`, keyed by bare name. The glob
  * is evaluated against the filesystem at transform time, so a file named in
@@ -69,7 +70,7 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
     [`CLUE_ART.${kind}.art.earned`, art.art.earned] as const,
     [`CLUE_ART.${kind}.art.drained`, art.art.drained] as const,
   ]),
-  ...Object.entries(ANIMAL_ART).map(([id, a]) => [`ANIMAL_ART.${id}.art`, a.art] as const),
+  ...Object.entries(ANIMAL_ART).map(([id, a]) => [`ANIMAL_ART.${id}`, a] as const),
   ['CARRIER_LENS_ART', CARRIER_LENS_ART] as const,
   ['OCTOPUS_ART', OCTOPUS_ART] as const,
   ['HOME_OCTOPUS_ART', HOME_OCTOPUS_ART] as const,
@@ -113,12 +114,12 @@ describe('art registry matches the shipped pipeline manifest', () => {
   )
 
   it('registers every clue kind in both states, and never the same file twice', () => {
-    // 8 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
+    // 14 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
     // + 12 grass + 8 mud.
     // Grass carries MORE variants than mud on purpose: it covers the whole
     // field at full size, where a repeated silhouette is obvious, while mud
     // sits small inside the corridor and half-covered by the child's own line.
-    expect(REGISTERED.length).toBe(38)
+    expect(REGISTERED.length).toBe(44)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -135,5 +136,21 @@ describe('art registry matches the shipped pipeline manifest', () => {
         art.art.drained.href,
       )
     }
+  })
+
+  it("mirrors scripts/art/build_art.py's INK constant against the real TypeScript token", () => {
+    // `build_art.py` is Python and cannot be imported here, so this mirrors
+    // its `INK` literal the same way `palette.test.ts` mirrors
+    // `CORRIDOR_EARTH`/`GROUND_FIELD` -- rather than by an import, by a
+    // pinned literal this assertion keeps honest.
+    //
+    // This used to guard `INK_COLOR` (`#1e293b`, `TraceCanvas.tsx`'s ink for
+    // the child's OWN pencil trace). `build_art.py` pointed its `INK`
+    // constant at that value, which is exactly why every clue mark's outline
+    // shipped in that blue instead of a neutral marker line. It now guards
+    // `ART_OUTLINE` instead, the token `palette.ts` defines specifically for
+    // drawn-world contours. If the pipeline's `INK` and this token drift
+    // apart again, this is the assertion that goes red first.
+    expect(ART_OUTLINE).toBe('#1a1a1a')
   })
 })

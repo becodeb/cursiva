@@ -16,6 +16,7 @@ import HomeScreen from './screen/HomeScreen'
 import MainScreen from './screen/MainScreen'
 import { LocalProgressStore } from './progress/LocalProgressStore'
 import { openProgressStore } from './game/openProgressStore'
+import { isDevMode } from './canvas/devMode'
 import type { CaseStep } from './home/caseState'
 import type { LevelRecord } from './game/types'
 import type { HomeMode } from './home/modes'
@@ -36,15 +37,25 @@ function readRecords(): Readonly<Record<string, LevelRecord>> {
 
 /** A `?nivel=` deep link skips the home. The link exists so a level can be
  * opened directly while the mechanics are being reviewed, and routing it
- * through the office would defeat that. */
+ * through the office would defeat that. [case-registry-and-captions, Phase 7]
+ * `initialView` now returns `null` for anything unroutable — including a bare
+ * `?nivel=mapa` outside dev mode (design.md §8, "Dev gate on the map route")
+ * — so the office, not the map, is the fallback whenever nothing was asked
+ * for. */
 function initialShell(): Shell {
-  const view = initialView(typeof window === 'undefined' ? '' : window.location.search)
-  return view.view === 'map' ? { at: 'home' } : { at: 'game', initial: view }
+  const search = typeof window === 'undefined' ? '' : window.location.search
+  const view = initialView(search, isDevMode())
+  return view ? { at: 'game', initial: view } : { at: 'home' }
 }
 
-/** Where a mode's resolved step opens the game. */
+/** Where a mode's resolved step opens the game. [case-registry-and-captions,
+ * Phase 6] `CaseStep.deduce` now carries `caseId` — threaded straight
+ * through, so the home's active-case decision and the game shell's rendered
+ * case can never disagree. */
 function viewFor(step: CaseStep): GameView {
-  return step.kind === 'deduce' ? { view: 'deduce' } : { view: 'play', levelId: step.levelId }
+  return step.kind === 'deduce'
+    ? { view: 'deduce', caseId: step.caseId }
+    : { view: 'play', levelId: step.levelId }
 }
 
 export default function App() {
@@ -105,7 +116,12 @@ export default function App() {
   // The toggle goes THROUGH the game shell rather than under it: a level is
   // exactly one viewport tall (docs/04 §3.3), so anything appended below it
   // would reintroduce the page scroll the layout exists to remove.
-  return <GameScreen key={trip} initial={shell.initial} footer={toggle} />
+  // [case-registry-and-captions, Phase 7] `onExit={goHome}`: leaving any mode
+  // (a trail's back control, the deduction's back control) lands on the
+  // office, never the level map (design.md §8, "onExit, a prop, not a
+  // GameAction") — `goHome` is the only function that can reach
+  // `{ at: 'home' }`.
+  return <GameScreen key={trip} initial={shell.initial} footer={toggle} onExit={goHome} />
 }
 
 const LINK = {

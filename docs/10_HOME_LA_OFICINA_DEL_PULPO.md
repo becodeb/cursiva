@@ -60,7 +60,7 @@ texto, no hay botón "Iniciar".
   Con `prefers-reduced-motion` el pulso no existe.
 - **Lámpara y riel** arriba, chicos, con el estado real del caso en curso.
 - **Objetos de otros modos** en los brazos laterales. Un modo bloqueado
-  muestra el objeto en gris pista apagada (`#c8cdd2`), derivado por el
+  muestra el objeto en gris pista apagada (`#838383`, ver docs/09 §4), derivado por el
   pipeline igual que las pistas apagadas. Un modo que todavía no existe
   no muestra nada: el brazo queda vacío.
 - **Escritorio** de madera, plano, delante del pulpo. Da el "lugar" sin
@@ -221,7 +221,7 @@ Archivo destino: `art-source/mapa.png`.
 
 ### 6.5 Estados apagados
 
-No se piden. El pipeline los deriva recoloreando a `#c8cdd2` con el
+No se piden. El pipeline los deriva recoloreando a `#838383` con el
 contorno intacto, igual que hace con las pistas.
 
 ### 6.6 Prompt único para ChatGPT con acceso a los archivos del repo
