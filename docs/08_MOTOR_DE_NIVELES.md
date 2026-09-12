@@ -240,14 +240,21 @@ Como la pauta no está a la vista para dar escala, los patrones se escalan **1.2
 | bucles | 180-420 | 150-450 |
 | crestas | 200-420 | 172-448 |
 
-**Un golpe = un ciclo del patrón**, así que los bpm bajan cuando el ciclo se alarga: 66/63 para los cuatro arcos cortos de las hamacas y las montañas, 56/52 para los tres largos de las crestas y los rulos. Todo queda entre 50 y 70 bpm, un paso que un chico de 6 a 8 años puede seguir de verdad: rápido para ser un ritmo, lento para seguir siendo un movimiento y no un garabato.
+**Un golpe = un ciclo del patrón**, así que los bpm bajan cuando el ciclo se alarga. Todo queda entre 50 y 70 bpm, un paso que un chico puede seguir de verdad: rápido para ser un ritmo, lento para seguir siendo un movimiento y no un garabato.
+
+Los cuatro primeros son el **Nivel 3** de la directiva (agua y medusa) y forman una microprogresión, no cuatro repeticiones: el canal se angosta de 100 a 80, los ciclos pasan de 3 largos a 4 cortos, después dejan de ser todos iguales, y el último cambia de eje por completo.
 
 | id | Título | Camino | Canal | Ritmo | Fluidez mín. |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `f2-guirnalda` | Las hamacas | arcos hacia abajo (`u u u u`), 4 ciclos | 85 | 66 bpm | 35 |
+| `f2-guirnalda` | Las olas de la medusa | arcos hacia abajo (`u u u`), 3 ciclos amplios | 100 | 54 bpm | 35 |
+| `f2-agua2` | La medusa se apura | los mismos arcos, 4 ciclos más chicos y más juntos | 80 | 64 bpm | 38 |
+| `f2-agua3` | Las olas cambian | arcos de ancho y hondura variables dentro del mismo camino | 80 | 68 bpm | 40 |
+| `f2-agua4` | La estrella de mar | arcos amplios con una estrella que cruza el trayecto | 90 | — | — |
 | `f2-colinas` | Las montañas | arcos hacia arriba (`n n n n`), 4 ciclos | 85 | 63 bpm | 40 |
 | `f2-bucles` | Los rulos altos | bucles cruzados hasta la zona alta (`l l l`), 3 ciclos | 80 | 52 bpm | 45 |
 | `f2-crestas` | Las olas grandes | onda amplia zona alta ↔ base, 3 ciclos | 80 | 56 bpm | 45 |
+
+**`f2-agua4` no lleva ni metrónomo ni piso de fluidez, y no es un olvido.** Es el desafío de "frenar y continuar": la estrella de mar cruza el camino y hay que esperar a que se despeje. La fluidez se calcula como `1 − CV(velocidad)`, o sea que castiga exactamente la variación de velocidad que este nivel está pidiendo, y un metrónomo estaría marcando "seguí" mientras la estrella dice "esperá". Los dos se apagan a propósito, y `catalog.test.ts` fija que sea un único nivel el que se toma esa excepción.
 
 ### Fase 3 — Grafema aislado
 
