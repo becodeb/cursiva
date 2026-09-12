@@ -576,3 +576,26 @@ that gets re-litigated.
   Nivel 1, with the reason: the directive does not ask for fine precision there,
   so scoring it would measure something the level is not requesting, and an unlit
   star on the first screen of the game reads as "you did it wrong".
+
+## Correction: the clipped start carrier was not real (2026-09-12)
+
+An earlier entry in this file, and the orchestrator's report to the user, both
+claimed that `duck-trail4`'s starting octopus is clipped by the left edge of the
+sheet and that the shipped hen `trail4` has the same pre-existing defect.
+
+**That claim was wrong, and it is withdrawn.** It came from reading a screenshot
+by eye. Measured properly — the rendered `<image>` boxes dumped from the live DOM
+for all eight trail levels, plus a 5x pixel crop of the start region on both
+`duck-trail4` and `trail4` — no standing art overflows its viewBox on any shipped
+level. The octopus's leftmost arm lands at about x=40 on a sheet whose left edge
+is at x=16. It is whole.
+
+The failure mode itself is real and was demonstrated once, on `duck-trail3` while
+its route still started at `yTop: 110`: the glass was cut by the top of the sheet
+(`/tmp/shots/duck-trail3.png`). Moving that route fixed it.
+
+So `clampArtBox` in `client/src/canvas/placeArt.ts` is a GUARD, not a fix. It
+fires on no shipped level today. It is kept because the failure it prevents has
+been observed once and because the routes coming in the directive's Niveles 3 and
+4 — a jellyfish path and mountain peaks — put art near the top edge by design.
+Describing it as a repaired defect would be false.
