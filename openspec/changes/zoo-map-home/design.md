@@ -100,7 +100,7 @@ letterbox `meet` leaves is filled with the document background `#76B56A`.
 
 | Sector | Measured feature on the PNG | `hit` (x, y, w, h) |
 |---|---|---|
-| `nocturna` | night sky blob `#496A93` at 102, 27, 235×168 | 95, 22, 250, 190 |
+| `nocturna` | night sky blob `#496A93` at image px 136, 90 → 527, 360 | **88, 22, 257, 190** |
 | `montanas` | grey peaks `#90969D` at 385, 73, 236×102 (snow caps above) | 360, 22, 270, 140 |
 | `estanque` | lagoon water `#67BCE8` at 675, 77, 246×180 | 660, 68, 280, 200 |
 | `bosque` | tree canopy, left edge | 25, 230, 300, 300 |
@@ -121,6 +121,13 @@ on y** (212 → 230). No decision changes — both clear the strict-disjointness
 number is corrected here rather than copied forward wrong. `entrada` ends at y = 594, six
 units inside the viewBox, so the drawn gate extends below the `hit` and the `hit` never
 needs clipping.
+
+**[corrected during Phase 5] `nocturna` moved from x 95 / w 250 to x 88 / w 257.** The
+first pass sampled it coarsely; the provenance test added for `imageToViewBox` re-sampled
+the navy sky at image x 136 = viewBox 88.5, which is 6.5 units OUTSIDE the rect the registry
+declared. That gap is not academic: the fog is sized from the `hit`, so those 6.5 units were
+unfogged, and they are exactly the dark sliver the first captures showed at the map's left
+edge. This is the §4 loop working as designed.
 
 **These numbers are a measured first pass, not gospel.** `docs/12` §4 governs what happens
 when one misses: **the registry is corrected against the `?debug=sectores` screenshot, never
@@ -941,6 +948,25 @@ be provably the entry screen before its predecessor disappears.
       ratio *is* the overlap (measured worst case 1.300, across all five). What the bound
       still forbids is the regression it was written for — bosque at 2.23× under the
       superseded quadrant construction.
+- [x] **`scripts/shot.sh` now writes into the repo.** A bare or relative output name
+      resolves to `capturas/` at the repo root instead of the caller's cwd; an absolute
+      path is still honoured. Captures were landing in `/tmp`, where the person who has
+      to read them could not reach them — and §4 of this document makes reading them
+      part of the work. `capturas/` is gitignored; the images regenerate from the dev
+      server. Commit `ae1bb7e`.
+- [x] **`NOCTURNA_HIT` corrected from x 95 / w 250 to x 88 / w 257.** Found by the
+      provenance test added for the image-to-viewBox transform (below): the navy sky is
+      sampled at image x 136, which is viewBox 88.5, so 6.5 units of the drawn sector sat
+      outside its own rect — and therefore outside the fog sized from that rect. That was
+      the dark sliver at the map's left edge. `docs/12` §4's direction, applied: the
+      registry gives way, never the drawing.
+- [x] **The image-to-viewBox transform is now code, not prose.** `imageToViewBox` is
+      exported from `zoo/sectors.ts` and tested three ways: that `slice` scales by the
+      larger (width) ratio, that the crop is 33.33 symmetric, and that nocturna's hit
+      contains the night sky's measured source bbox. It is an AUTHORING tool — nothing
+      draws through it, every hit is a literal — but its spec scenario was prose-only, and
+      a spec claim no test can fail is not a claim. Pasos B-H measure their own sectors off
+      the same PNG and should push samples through this rather than re-derive the factor.
 - [ ] **Residual, and deliberately not chased.** A thin sliver of the nocturna sector's own
       dark edge still shows at the map's far left, where the outermost blob's rounded corner
       curves in. The interior junctions cannot reach an OUTER corner, and the only remaining

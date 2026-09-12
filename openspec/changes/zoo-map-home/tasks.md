@@ -74,17 +74,26 @@ Recorded as one `size:exception` PR per the user's ruling, not split.
 
 ## Phase 5: Screenshot Verification (deliverable, not optional)
 
-- [ ] 5.1 Start the dev server: `npm run dev` (port 5173).
-- [ ] 5.2 Capture `scripts/shot.sh http://localhost:5173 zoo-map-1000x600.png 1000 600` — the map, no flag.
-- [ ] 5.3 Capture `scripts/shot.sh "http://localhost:5173?debug=sectores" zoo-map-debug-1000x600.png 1000 600` — `hit`/`animalSpot` overlay.
-- [ ] 5.4 Capture `scripts/shot.sh http://localhost:5173 zoo-map-portrait-768x1024.png 768 1024` — portrait tablet ratio, ≥500 window-width floor respected, `CHROME_OFFSET=87` already handled by the script.
-- [ ] 5.5 Read the 5.3 capture. For any `hit` rect that misses its drawn sector, correct the rect in `client/src/zoo/sectors.ts` (`docs/12` §4: registry is corrected, never `zoo-map.png`); re-run Phase 1's geometry/containment tests and re-capture 5.3 until every rect aligns.
-- [ ] 5.6 Human-review all three captures against design §"Open Questions": does `PRINT_FACING` point the toe at the sector; do the two fog patches read as fog, not two ellipses; does `#76B56A` read continuous with the map's edge at the portrait ratio (no seam); does the HUD stay clear of drawn sky at the portrait ratio.
+- [x] 5.1 Start the dev server: `npm run dev -- --host 0.0.0.0` (port 5173). `--host` added so the map is reviewable from a real tablet on the LAN, not only from headless chromium on this box.
+- [x] 5.2 Captured as `capturas/mapa.png` (1000x600, no flag). `scripts/shot.sh` was changed in `ae1bb7e` so a relative name lands in `capturas/` at the repo root instead of `/tmp` — a capture the reviewer cannot open has done nothing.
+- [x] 5.3 Captured as `capturas/mapa-debug-sectores.png` (1000x600) — `hit`/`animalSpot` overlay.
+- [x] 5.4 Captured as `capturas/mapa-tablet-vertical.png` (768x1024) — portrait tablet ratio, above the 500px window-width floor, `CHROME_OFFSET=87` handled by the script.
+- [x] 5.5 Read the 5.3 capture. For any `hit` rect that misses its drawn sector, correct the rect in `client/src/zoo/sectors.ts` (`docs/12` §4: registry is corrected, never `zoo-map.png`); re-run Phase 1's geometry/containment tests and re-capture 5.3 until every rect aligns.
+  **This loop ran three times and found four real defects, none of which any test could see.**
+  (a) The fog was sized `1.06 x hit.h` per patch at the width quadrants, so bosque's fog spanned
+  ~670 units for a 300-unit sector; replaced by a cell grid (`14cfe1e`). (b) The speech bubble had
+  no width and rendered at its intrinsic 488px, 49% of the stage, swallowing two sectors; sized in
+  percent (`14cfe1e`). (c) The grid's rounded blobs left a hole at each junction and nocturna leaked
+  night sky and two stars, which `docs/12` §1 forbids outright; closed with `FOG_OVERLAP` 1.30 plus
+  interior junction patches (`1ed1318`). (d) `NOCTURNA_HIT.x` was 95 while the drawn night sky starts
+  at viewBox 88.5, so 6.5 units of the sector sat outside its own rect and outside the fog sized from
+  it — the registry was corrected to x 88 / w 257, exactly the direction `docs/12` §4 mandates.
+- [x] 5.6 Human-review all three captures against design §"Open Questions": does `PRINT_FACING` point the toe at the sector; do the two fog patches read as fog, not two ellipses; does `#76B56A` read continuous with the map's edge at the portrait ratio (no seam); does the HUD stay clear of drawn sky at the portrait ratio.
 
 ## Phase 6: Final Gate
 
-- [ ] 6.1 Run `npm test` (full suite, repo root or `client/`) and `npm run build` — both green, this is the final proof.
-- [ ] 6.2 Confirm scope stop: this change ends at **paso A**. Do NOT start any `docs/13` §8 paso B–H content — no duck reshaping, no lagoon background, no entrance/intro, no sheep/llama/snake/bee/dolphin/hedgehog sectors, no backpack contents. Those are the next change.
+- [x] 6.1 Run `npm test` (full suite, repo root or `client/`) and `npm run build` — both green, this is the final proof.
+- [x] 6.2 Confirm scope stop: this change ends at **paso A**. Do NOT start any `docs/13` §8 paso B–H content — no duck reshaping, no lagoon background, no entrance/intro, no sheep/llama/snake/bee/dolphin/hedgehog sectors, no backpack contents. Those are the next change.
 
 ---
 

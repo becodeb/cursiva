@@ -117,12 +117,58 @@ const alwaysOpen = (): boolean => true
 /** Entrada, bosque, montañas, arena and nocturna: content is pasos B-H. */
 const alwaysClosed = (): boolean => false
 
+/** The map source's own pixel dimensions (`ZOO_MAP_ART`, `assets.ts:193-200`)
+ *  and the stage it is laid on. Named rather than inlined because the whole
+ *  registry below is downstream of these four numbers. */
+const MAP_IMG_W = 1536
+const MAP_IMG_H = 1024
+const STAGE_W = 1000
+const STAGE_H = 600
+
+/**
+ * A point on `zoo-map.png`, in its own pixels, expressed in viewBox units.
+ *
+ * `xMidYMid slice` covers the stage, so it scales by the LARGER of the two
+ * ratios: `max(1000/1536, 600/1024) = max(0.651042, 0.585938) = 0.651042`, the
+ * width one. The image therefore renders 1000 wide by `1024 × 0.651042 =
+ * 666.67` tall, centred, so its top sits `(600 − 666.67) / 2 = −33.33` and
+ * `33.33` units are cropped off the top and the bottom alike. Uniform scale on
+ * both axes — that is what makes one factor enough.
+ *
+ * This is an AUTHORING tool, not a render-time one: nothing draws through it,
+ * because every `hit` below is already a literal. It is exported and tested
+ * for two reasons. Its scenario ("Transform matches the measured scale
+ * factor", spec: zoo-map) was prose-only, and a spec claim no test can fail is
+ * not a claim. And pasos B-H have to measure their own sectors off this same
+ * PNG — they should push their samples through the function this change's
+ * numbers came from, not re-derive the factor and get 0.65 or forget the
+ * crop.
+ */
+export function imageToViewBox(
+  imgX: number,
+  imgY: number,
+): { x: number; y: number } {
+  const scale = Math.max(STAGE_W / MAP_IMG_W, STAGE_H / MAP_IMG_H)
+  return {
+    x: imgX * scale,
+    y: imgY * scale - (MAP_IMG_H * scale - STAGE_H) / 2,
+  }
+}
+
 const ENTRADA_HIT: Rect = { x: 398, y: 424, w: 228, h: 170 }
 const BOSQUE_HIT: Rect = { x: 25, y: 230, w: 300, h: 300 }
 const ESTANQUE_HIT: Rect = { x: 660, y: 68, w: 280, h: 200 }
 const MONTANAS_HIT: Rect = { x: 360, y: 22, w: 270, h: 140 }
 const ARENA_HIT: Rect = { x: 675, y: 290, w: 280, h: 228 }
-const NOCTURNA_HIT: Rect = { x: 95, y: 22, w: 250, h: 190 }
+// x 88, not 95, and 257 wide rather than 250. The provenance test found this:
+// the navy sky was sampled at image x 136, which is viewBox 88.5, so a hit
+// starting at 95 left 6.5 units of the DRAWN sector outside its own rect — and
+// therefore outside the fog that is sized from that rect. That is the thin
+// dark sliver the first captures showed at the map's left edge. `docs/12` §4
+// is explicit about which side gives way: the registry is corrected, never the
+// drawing. Still disjoint from everything (montañas starts at 360, bosque's
+// band starts at y 230).
+const NOCTURNA_HIT: Rect = { x: 88, y: 22, w: 257, h: 190 }
 
 /** design.md §4's closed-form fog construction, restated as code rather than
  * hand-authored numbers. The `hit` is TILED by `cols × rows` cells and one

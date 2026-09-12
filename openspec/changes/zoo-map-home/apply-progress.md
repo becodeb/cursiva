@@ -188,6 +188,15 @@ tests, build green.**
 **16/16 assigned tasks complete** (1.1-1.9, 2.1-2.5, 3.1-3.5, 4.1-4.4).
 Phase 5 (screenshot verification) and Phase 6 (final gate) remain `[ ]` in
 `tasks.md`, explicitly out of this apply pass's scope — the orchestrator
-drives those next. Final state: **60 files / 1154 tests, `npm run build`
+drives those next.
+
+> **Superseded tally.** The 1154 above was true when this note was written, at the
+> end of S4. Phases 5-6 then ran, and reading the captures found four defects no
+> test could see (tasks.md 5.5 lists them). The fixes landed in `14cfe1e`,
+> `1ed1318` and the verify pass, each with tests. **The change's real final state
+> is 60 files / 1159 tests, build green** — see `verify-report.md`, which re-ran
+> both rather than trusting this number.
+
+Final state at the end of S4: **60 files / 1154 tests, `npm run build`
 green.** Ready for Phase 5 (screenshots) to proceed, or for `sdd-verify` to
 review S1-S4 first.

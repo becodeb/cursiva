@@ -15,6 +15,7 @@ import {
   fogBoxes,
   footprintTrail,
   hitCentre,
+  imageToViewBox,
   isFiled,
   isOpen,
   nextAdventure,
@@ -334,5 +335,48 @@ describe('rot is pinned to the literal 0 (design.md §4)', () => {
     // — never this vitest run — would notice.
     const bad: FogPatch = { art: 0, x: 0, y: 0, size: 10, rot: 15 }
     expect(bad).toBeTruthy()
+  })
+})
+
+describe('Image-to-ViewBox Transform', () => {
+  // zoo-map spec: "Transform matches the measured scale factor". This
+  // requirement used to be prose only — the factor lived in comments and in
+  // design.md and in nothing that could fail. Every `hit` in the registry is
+  // downstream of it, so an unasserted transform means unasserted geometry.
+
+  it('covers the stage by the WIDTH ratio, the larger of the two', () => {
+    // 1000/1536 = 0.651042 beats 600/1024 = 0.585938. Picking the smaller one
+    // is `meet`, not `slice`: it would letterbox the map inside the stage
+    // instead of cropping it, and every y below would be wrong by 33 units.
+    expect(imageToViewBox(1536, 0).x).toBeCloseTo(1000, 6)
+    expect(imageToViewBox(768, 0).x).toBeCloseTo(500, 6)
+  })
+
+  it('crops 33.33 units off the top and the bottom alike', () => {
+    // The image renders 1024 x 0.651042 = 666.67 tall on a 600 stage, centred.
+    expect(imageToViewBox(0, 0).y).toBeCloseTo(-33.333, 2)
+    expect(imageToViewBox(0, 1024).y).toBeCloseTo(633.333, 2)
+    // Symmetric: the stage's own midline is the image's own midline.
+    expect(imageToViewBox(0, 512).y).toBeCloseTo(300, 6)
+  })
+
+  it("the nocturna hit contains the night sky's measured source bbox", () => {
+    // Provenance, not arithmetic. The navy sky `#496A93` was region-sampled on
+    // the shipped PNG at image pixels (136, 90)-(527, 360); pushing those two
+    // corners through the transform has to land inside the rect the registry
+    // declares, or the rect is not describing the thing it names. This is the
+    // one invariant the geometry tests cannot express: they prove the rects
+    // are disjoint and fogged, never that a rect sits on its own DRAWING.
+    // The rest of that job belongs to the `?debug=sectores` capture.
+    const nocturna = SECTORS.find((s) => s.id === 'nocturna')
+    const hit = nocturna?.hit
+    expect(hit).toBeDefined()
+    if (!hit) return
+    const tl = imageToViewBox(136, 90)
+    const br = imageToViewBox(527, 360)
+    expect(tl.x).toBeGreaterThanOrEqual(hit.x)
+    expect(tl.y).toBeGreaterThanOrEqual(hit.y)
+    expect(br.x).toBeLessThanOrEqual(hit.x + hit.w)
+    expect(br.y).toBeLessThanOrEqual(hit.y + hit.h)
   })
 })
