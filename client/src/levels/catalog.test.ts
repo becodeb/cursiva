@@ -12,8 +12,9 @@ import { flattenPathD } from '../letters/svgLetter'
 import { LevelProgressStore } from '../game/LevelProgressStore'
 import type { StorageLike } from '../game/LevelProgressStore'
 import { migratePhase1 } from '../game/migratePhase1'
-import { DETECTIVE_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
+import { DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
 import type { LevelRecord } from '../game/types'
+import { migrateDuckCase } from '../game/migrateDuckCase'
 import { buildLevelTarget } from './buildLevel'
 import { clueCountFor } from '../detective/clues'
 import {
@@ -29,9 +30,14 @@ import { armClearance, cornerClearance, spiral } from './paths'
 import type { Phase } from './types'
 
 // docs/08 section 5 tables, after the detective-mode retheme: 1 libre + 4
-// detective trails + 4 patrones + 4 grafemas + 2 enlaces + 2 palabras.
+// rastros del pato + 4 detective trails + 4 patrones + 4 grafemas + 2 enlaces
+// + 2 palabras.
 const EXPECTED_IDS = [
   'f1-libre',
+  'duck-trail1',
+  'duck-trail2',
+  'duck-trail3',
+  'duck-trail4',
   'trail1',
   'trail2',
   'trail3',
@@ -90,6 +96,10 @@ describe('LEVELS — catalog shape', () => {
 describe('LEVELS — authored values match the doc tables', () => {
   const CORRIDORS: Record<string, number> = {
     'f1-libre': 0,
+    'duck-trail1': 100,
+    'duck-trail2': 90,
+    'duck-trail3': 80,
+    'duck-trail4': 70,
     trail1: 90,
     trail2: 70,
     trail3: 90,
@@ -109,6 +119,10 @@ describe('LEVELS — authored values match the doc tables', () => {
   }
   const FLUENCY: Record<string, number> = {
     'f1-libre': 0,
+    'duck-trail1': 0,
+    'duck-trail2': 0,
+    'duck-trail3': 0,
+    'duck-trail4': 0,
     trail1: 0,
     trail2: 0,
     trail3: 0,
@@ -234,12 +248,12 @@ describe('LEVELS — surface, kind and feedback', () => {
 
   it('turns the assisted rail on at FIRST CONTACT only', () => {
     // docs/03 section 6: the rail is the first-contact assist. Left on it stops
-    // being an assist and becomes the child's motor plan. Trail 1 is now the
-    // first routed level of phase 1, so it inherits the role `f1-travesia`
-    // used to carry.
+    // being an assist and becomes the child's motor plan. `duck-trail1` is now
+    // the first routed level of phase 1 (the duck case precedes `trail1`), so
+    // it inherits the role `f1-travesia`/`trail1` used to carry.
     const railed = LEVELS.filter((l) => l.feedback.rail).map((l) => l.id)
-    expect(railed).toEqual(['trail1', 'f3-l'])
-    expect(levelsByPhase(1).filter((l) => l.kind === 'path')[0].id).toBe('trail1')
+    expect(railed).toEqual(['duck-trail1', 'f3-l'])
+    expect(levelsByPhase(1).filter((l) => l.kind === 'path')[0].id).toBe('duck-trail1')
     expect(levelsByPhase(3)[0].id).toBe('f3-l')
   })
 
@@ -251,9 +265,9 @@ describe('LEVELS — surface, kind and feedback', () => {
     }
   })
 
-  it('narrows trail 1 and trail 4, and never in a direction that widens', () => {
+  it('narrows duck-trail4, trail 1 and trail 4, and never in a direction that widens', () => {
     const tapered = LEVELS.filter((l) => l.taper)
-    expect(tapered.map((l) => l.id)).toEqual(['trail1', 'trail4'])
+    expect(tapered.map((l) => l.id)).toEqual(['duck-trail4', 'trail1', 'trail4'])
     for (const level of tapered) {
       expect(level.taper?.from).toBeGreaterThan(level.taper?.to ?? Infinity)
     }
@@ -262,11 +276,20 @@ describe('LEVELS — surface, kind and feedback', () => {
 
 describe('LEVELS — hazards and reset', () => {
   it('resets the run on every detective trail, and nowhere else', () => {
-    // `resetOnContact` is a RULE, not a punishment (types.ts). All four trails
-    // set it (parent brief) — touching the border sends the glass back to the
+    // `resetOnContact` is a RULE, not a punishment (types.ts). Every trail in
+    // both cases sets it — touching the border sends the glass back to the
     // start, exactly the case-file mechanic the brief specifies.
     const resetting = LEVELS.filter((l) => l.resetOnContact).map((l) => l.id)
-    expect(resetting).toEqual(['trail1', 'trail2', 'trail3', 'trail4'])
+    expect(resetting).toEqual([
+      'duck-trail1',
+      'duck-trail2',
+      'duck-trail3',
+      'duck-trail4',
+      'trail1',
+      'trail2',
+      'trail3',
+      'trail4',
+    ])
   })
 
   it('gives every detective trail the fingertip carrier — it is the magnifying glass', () => {
@@ -402,7 +425,17 @@ describe('getLevel', () => {
 
 describe('levelsByPhase', () => {
   it('groups the catalog by phase', () => {
-    expect(levelsByPhase(1).map((l) => l.id)).toEqual(['f1-libre', 'trail1', 'trail2', 'trail3', 'trail4'])
+    expect(levelsByPhase(1).map((l) => l.id)).toEqual([
+      'f1-libre',
+      'duck-trail1',
+      'duck-trail2',
+      'duck-trail3',
+      'duck-trail4',
+      'trail1',
+      'trail2',
+      'trail3',
+      'trail4',
+    ])
     expect(levelsByPhase(4).map((l) => l.id)).toEqual(['f4-la', 'f4-ma'])
     expect(levelsByPhase(5)).toHaveLength(2)
     const total = ([1, 2, 3, 4, 5] as Phase[]).reduce((n, p) => n + levelsByPhase(p).length, 0)
@@ -436,7 +469,7 @@ describe('nextLevelId', () => {
 describe('detective-mode — four trails replace the six corridor levels', () => {
   it('lists exactly the four trail ids in LEVELS, none of the six removed ones', () => {
     const phase1Ids = levelsByPhase(1).map((l) => l.id)
-    expect(phase1Ids).toEqual(['f1-libre', ...DETECTIVE_TRAIL_IDS])
+    expect(phase1Ids).toEqual(['f1-libre', ...DUCK_TRAIL_IDS, ...DETECTIVE_TRAIL_IDS])
     for (const removed of REMOVED_IDS) expect(phase1Ids).not.toContain(removed)
   })
 
@@ -594,6 +627,20 @@ describe('detective-mode — square-wave corner constraint on the real trail 4 c
   })
 })
 
+describe('detective-mode — duck-trail4 clears the corner and arm guards at its narrower width', () => {
+  it('satisfies both cornerClearance and armClearance measured from the shipped path (design.md §3)', () => {
+    const level = getLevel('duck-trail4')
+    const target = buildLevelTarget(level)
+    const [p0, p1, p2] = target.polyline
+    expect(p0.y).toBeCloseTo(p1.y) // p0→p1 is the flat top run
+    expect(p1.x).toBeCloseTo(p2.x) // p1→p2 is the vertical transition
+    const run = Math.abs(p1.x - p0.x)
+    const amplitude = Math.abs(p2.y - p1.y) / 2
+    expect(cornerClearance(run, 90, level.corridorWidth)).toBe(true)
+    expect(armClearance(amplitude, level.corridorWidth)).toBe(true)
+  })
+})
+
 describe('detective-mode — progress migration reaches a mid-campaign child with no locked dead end', () => {
   /** In-memory storage double — mirrors `game/levelProgress.test.ts`'s own. */
   function fakeStorage(): StorageLike {
@@ -651,9 +698,16 @@ describe('detective-mode — progress migration reaches a mid-campaign child wit
     store.save('f1-libre', record({ approvals: 2 }))
     for (const id of REMOVED_IDS.slice(0, 4)) store.save(id, record({ approvals: 2 }))
 
-    const changed = migratePhase1(store.all())
-    for (const [id, r] of Object.entries(changed)) store.save(id, r)
+    // Both migrations apply, in either order (they share no id): the phase-1
+    // retheme migration AND the duck-case insertion migration, which is what
+    // protects `trail1`'s new positional predecessor (`duck-trail4`).
+    for (const migrated of [migratePhase1(store.all()), migrateDuckCase(store.all())]) {
+      for (const [id, r] of Object.entries(migrated)) store.save(id, r)
+    }
 
+    for (const id of DUCK_TRAIL_IDS) {
+      expect(store.isUnlocked(id)).toBe(true)
+    }
     for (const id of DETECTIVE_TRAIL_IDS) {
       expect(store.isUnlocked(id)).toBe(true)
     }

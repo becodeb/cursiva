@@ -26,11 +26,21 @@
 // browser alike, and neither should have to fetch JSON to know how big a
 // footprint is. `artManifest.test.ts` is the guard that the copy has not
 // drifted from the pipeline.
-import { POND, KERNEL, PRINT, PLUME } from './palette'
+import { POND, KERNEL, PRINT, PLUME, BREADCRUMB, BUBBLE } from './palette'
 
-/** One art per trail theme. Each trail owns exactly one kind, and — per the
- * palette — exactly one earned colour. */
-export type ClueKind = 'droplet' | 'corn' | 'footprint' | 'feather'
+/** One art per trail theme. Each theme owns exactly one kind; distinctness of
+ * its earned colour is now scoped PER CASE (`palette.test.ts`,
+ * `detective/cases.ts`'s `clueKindsOf`), not globally — `webfoot` and
+ * `footprint` both render `PRINT`, and that is legal because they never
+ * appear in the same case (design.md §4). */
+export type ClueKind =
+  | 'droplet'
+  | 'corn'
+  | 'footprint'
+  | 'feather'
+  | 'webfoot'
+  | 'breadcrumb'
+  | 'bubble'
 
 /** One art per deduction-screen animal choice (design unit 7). */
 export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
@@ -90,6 +100,30 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
     art: {
       earned: { href: '/art/clue-feather-earned.png', w: 103, h: 256 },
       drained: { href: '/art/clue-feather-drained.png', w: 102, h: 256 },
+    },
+  },
+  // Duck case only (design.md §4). `webfoot` reuses `PRINT` on purpose — a
+  // print in the earth has no colour of its own, the same material argument
+  // `footprint` already makes, and the two never appear in the same case.
+  webfoot: {
+    earned: PRINT,
+    art: {
+      earned: { href: '/art/clue-webfoot-earned.png', w: 256, h: 230 },
+      drained: { href: '/art/clue-webfoot-drained.png', w: 256, h: 230 },
+    },
+  },
+  breadcrumb: {
+    earned: BREADCRUMB,
+    art: {
+      earned: { href: '/art/clue-breadcrumb-earned.png', w: 256, h: 237 },
+      drained: { href: '/art/clue-breadcrumb-drained.png', w: 256, h: 237 },
+    },
+  },
+  bubble: {
+    earned: BUBBLE,
+    art: {
+      earned: { href: '/art/clue-bubble-earned.png', w: 256, h: 255 },
+      drained: { href: '/art/clue-bubble-drained.png', w: 256, h: 255 },
     },
   },
 }

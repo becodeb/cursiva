@@ -56,6 +56,8 @@ KERNEL = (0xB8, 0x91, 0x2F)
 PRINT = (0x00, 0x00, 0x00)
 PLUME = (0x2F, 0x6B, 0x5C)
 LAMP = (0xF2, 0xD3, 0x77)
+BREADCRUMB = (0x99, 0x41, 0x38)
+BUBBLE = (0x4F, 0xB3, 0xD9)
 
 # The two ground bases, mirroring `TraceCanvas.tsx`'s `GROUND_FIELD` and
 # `CORRIDOR_EARTH`. Each scatter tile is muted toward the ground it lies on, so
@@ -190,6 +192,19 @@ SINGLES = [
     ('huella gris.png',       'clue-footprint-drained.png', 256, CLUE_DRAINED, True),
     ('pluma verde.png',       'clue-feather-earned.png',   256, PLUME,        True),
     ('pluma gris.png',        'clue-feather-drained.png',  256, CLUE_DRAINED, True),
+    # The duck case's three new clues (design.md §4). `huella palmeada.png` is
+    # entirely dark -- black web, navy outline, both under INK_LUMA -- so
+    # `keep_ink=True` would send every opaque pixel to INK for BOTH states,
+    # the same trap `keep_ink=False` avoids for `huella negra.png` above.
+    # `miga de pan.png` and `burbuja.png` both carry a bright body over a
+    # navy contour, so they take the two-tone `True` path like every other
+    # clue.
+    ('huella palmeada.png',   'clue-webfoot-earned.png',     256, PRINT,        False),
+    ('huella palmeada.png',   'clue-webfoot-drained.png',    256, CLUE_DRAINED, False),
+    ('miga de pan.png',       'clue-breadcrumb-earned.png',  256, BREADCRUMB,   True),
+    ('miga de pan.png',       'clue-breadcrumb-drained.png', 256, CLUE_DRAINED, True),
+    ('burbuja.png',           'clue-bubble-earned.png',      256, BUBBLE,       True),
+    ('burbuja.png',           'clue-bubble-drained.png',     256, CLUE_DRAINED, True),
     ('lamparita prendida.png', 'lamp-on.png',              192, LAMP,         True),
     # BOTH lamp states come from the LIT drawing, and that is deliberate.
     # `lamparita apagada.png` is a bare dark silhouette with no contour of its

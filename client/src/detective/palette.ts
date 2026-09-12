@@ -34,3 +34,12 @@ export const PLUME = '#2f6b5c'
 /** The single light source. Appears in the lamp glyph and its halo and
  * nowhere else. */
 export const LAMP = '#f2d377'
+
+/** Duck case only — the breadcrumb trail. Hue derived, not picked: it sits
+ * inside the interval `palette.test.ts` leaves open between the warm-clay
+ * band floor and the `GOAL_COLOR` hue-collision threshold (design.md §4). */
+export const BREADCRUMB = '#994138'
+
+/** Duck case only — the bubble trail. Sampled from `art-source/burbuja.png`'s
+ * cyan body, lifted out of `POND`'s slate (design.md §4). */
+export const BUBBLE = '#4fb3d9'

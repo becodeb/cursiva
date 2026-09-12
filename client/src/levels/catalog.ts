@@ -199,6 +199,125 @@ const PHASE_1: LevelConfig[] = [
     showGuide: false,
     letters: [],
   },
+  // ───────────────────────────────────────────────────────────────────────
+  // The duck case (case-registry-and-captions design.md §3): four themed
+  // trails inserted BEFORE `trail1`, one clue each, corridor width strictly
+  // decreasing 100→70. `game/migrateDuckCase.ts` protects a returning
+  // child's positional unlock of `trail1..4` across this insertion — it
+  // must ship before these four levels do (Ordering Summary, S1 before S2).
+  //
+  //   duck-trail1  webfoot / broad wave, one cycle — the pond's edge
+  //   duck-trail2  breadcrumb / wave, two cycles
+  //   duck-trail3  bubble / garland — the one duck trail whose whole point
+  //                is one unbroken stroke, like trail2's spiral
+  //   duck-trail4  feather / square wave, sharp corners — both clearance
+  //                rules (cornerClearance, armClearance) hold at w=70
+  // ───────────────────────────────────────────────────────────────────────
+  {
+    id: 'duck-trail1',
+    phase: 1,
+    title: 'El charco del pato',
+    hint: 'Seguí el charco de punta a punta.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    // FIRST CONTACT with a routed trail in the duck case: the rail is on
+    // here and nowhere else, the same convention `trail1` carries.
+    feedback: feedback(0, true),
+    // [deviation from design.md §3's literal `amplitude: 140`] 140 draws a
+    // vertical span of exactly 280 units, failing the pre-existing "phase 1
+    // uses the whole blank sheet" guard (`catalog.test.ts`: every phase-1
+    // routed level's vertical span MUST exceed the 300-420 writing band, i.e.
+    // amplitude > 150) by 20 units. Widened to 170 — the same amplitude
+    // design.md gives `duck-trail2` — which clears the guard with margin
+    // (span 340, minY 130, maxY 470) while corridorWidth (100 vs 90) and
+    // cycle count (1 vs 2) still carry the progression between the two.
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 1 })],
+    corridorWidth: 100,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'webfoot', spacing: 60 },
+  },
+  {
+    id: 'duck-trail2',
+    phase: 1,
+    title: 'El sendero de migas',
+    hint: 'Seguí las migas sin salirte.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 2 })],
+    corridorWidth: 90,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'breadcrumb', spacing: 60 },
+  },
+  {
+    id: 'duck-trail3',
+    phase: 1,
+    title: 'Las burbujas',
+    hint: 'Bajá y subí por cada burbuja, sin levantar el dedo.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    // [deviation from design.md §3's literal `garland({ cycles: 3 })`]
+    // `garland`'s DEFAULT `yTop`/`yBottom` (285/435) draw a vertical span of
+    // only 150 units, almost entirely INSIDE the 300-420 writing band — the
+    // same pre-existing "phase 1 uses the whole blank sheet" guard
+    // `duck-trail1` had to clear. Widened here for the same reason: phase 1
+    // trains the whole arm outside that band, unlike phase 2's `f2-guirnalda`
+    // (same generator, deliberately left in-band because phase 2 IS the
+    // writing-band pattern phase).
+    paths: [garland({ cycles: 3, yTop: 110, yBottom: 490 })],
+    corridorWidth: 80,
+    // The garland's whole point is one unbroken stroke — same reason
+    // `trail2`'s spiral does — so it is the one duck trail requiring
+    // continuity.
+    rules: rules(1, true, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'bubble', spacing: 60 },
+  },
+  {
+    id: 'duck-trail4',
+    phase: 1,
+    title: 'El rastro de plumas',
+    hint: 'Seguí el rastro, esquina por esquina.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    taper: { from: 1.15, to: 0.9 },
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    // [deviation from design.md §3's literal `amplitude: 140`] 140 draws a
+    // vertical span of exactly 280 — the same pre-existing "phase 1 uses the
+    // whole blank sheet" shortfall `duck-trail1` and `duck-trail3` also hit.
+    // Widened to 170 (span 340, clears the guard); `cornerClearance` depends
+    // only on `run`/`corridorWidth` and `armClearance` only gets MORE true as
+    // amplitude grows, so design.md §3's arithmetic conclusion (both guards
+    // hold) is unaffected — only its literal worked numbers go stale.
+    paths: [squareWave({ x0: 100, mid: 300, amplitude: 170, run: 200, cycles: 3 })],
+    corridorWidth: 70,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    clue: { kind: 'feather', spacing: 60 },
+  },
   {
     id: 'trail1',
     phase: 1,
@@ -216,10 +335,12 @@ const PHASE_1: LevelConfig[] = [
     obstacles: [{ at: 0.5, travel: 220, periodMs: 2400, phase: 0, radius: 30 }],
     resetOnContact: true,
     carrier: true,
-    // FIRST CONTACT with a routed detective trail: the rail is on here and
-    // nowhere else in phase 1, same convention the retired `f1-travesia`
-    // carried (docs/03 section 6).
-    feedback: feedback(0, true),
+    // The rail's first-contact slot moved to `duck-trail1` when the duck
+    // case was inserted ahead of this trail (design.md §3) — it is now the
+    // actual first routed level of phase 1, and the rail is on there and
+    // nowhere else, same convention the retired `f1-travesia` carried
+    // (docs/03 section 6).
+    feedback: feedback(0, false),
     // A broad sinusoid across the whole sheet — the droplet's open water.
     paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 200, cycles: 3 })],
     corridorWidth: 90,

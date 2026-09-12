@@ -262,7 +262,16 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
 
   it('covers every detective trail in the shipped catalog', () => {
     expect(trails.length).toBeGreaterThan(0)
-    expect(trails.map((t) => t.id)).toEqual(['trail1', 'trail2', 'trail3', 'trail4'])
+    expect(trails.map((t) => t.id)).toEqual([
+      'duck-trail1',
+      'duck-trail2',
+      'duck-trail3',
+      'duck-trail4',
+      'trail1',
+      'trail2',
+      'trail3',
+      'trail4',
+    ])
   })
 
   for (const level of LEVELS.filter((l) => l.clue)) {

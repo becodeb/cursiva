@@ -2,8 +2,9 @@
 // detective-mode "Colour Asset Registry" — "Footprints earn in greyscale
 // only", "Trail colour absent before earning"). Pure data assertions, no DOM.
 import { describe, expect, it } from 'vitest'
-import { CLUE_DRAINED, KERNEL, LAMP, PLUME, POND, PRINT } from './palette'
+import { BREADCRUMB, BUBBLE, CLUE_DRAINED, KERNEL, LAMP, PLUME, POND, PRINT } from './palette'
 import { CLUE_ART } from './assets'
+import { DETECTIVE_CASES, clueKindsOf } from './cases'
 
 /** Shipped accents this palette must stay clear of (`TraceCanvas.tsx:149,177,194`). */
 const GOAL_COLOR = '#b45309'
@@ -63,10 +64,10 @@ const WARM_CLAY_SATURATION_MIN = 0.3
  * fail. */
 const HUE_COLLISION_DEG = 15
 
-const EARNED = { POND, KERNEL, PRINT, PLUME } as const
+const EARNED = { POND, KERNEL, PRINT, PLUME, BREADCRUMB, BUBBLE } as const
 
 describe('detective palette (design.md "Art Direction (revised plan)")', () => {
-  it('keeps the four earned values pairwise distinct', () => {
+  it('keeps the six earned values pairwise distinct', () => {
     const values = Object.values(EARNED)
     expect(new Set(values).size).toBe(values.length)
   })
@@ -118,11 +119,13 @@ describe('detective palette (design.md "Art Direction (revised plan)")', () => {
     expect(LAMP).not.toBe(GOAL_COLOR)
   })
 
-  it("keeps a trail's earned colour absent from the registry mapping while its mark is drained (detective-mode spec, \"Trail colour absent before earning\")", () => {
-    for (const art of Object.values(CLUE_ART)) {
-      expect(art.earned).not.toBe(CLUE_DRAINED)
+  it("keeps a CASE's earned clue colours pairwise distinct, and no clue earns the drained grey", () => {
+    for (const art of Object.values(CLUE_ART)) expect(art.earned).not.toBe(CLUE_DRAINED)
+    for (const kase of DETECTIVE_CASES) {
+      const earned = clueKindsOf(kase).map((k) => CLUE_ART[k].earned)
+      expect(new Set(earned).size, `${kase.id}: two clues share an earned colour`).toBe(
+        earned.length,
+      )
     }
-    const earnedValues = Object.values(CLUE_ART).map((art) => art.earned)
-    expect(new Set(earnedValues).size).toBe(earnedValues.length)
   })
 })

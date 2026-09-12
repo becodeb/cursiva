@@ -113,12 +113,12 @@ describe('art registry matches the shipped pipeline manifest', () => {
   )
 
   it('registers every clue kind in both states, and never the same file twice', () => {
-    // 8 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
+    // 14 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
     // + 12 grass + 8 mud.
     // Grass carries MORE variants than mud on purpose: it covers the whole
     // field at full size, where a repeated silhouette is obvious, while mud
     // sits small inside the corridor and half-covered by the child's own line.
-    expect(REGISTERED.length).toBe(38)
+    expect(REGISTERED.length).toBe(44)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
