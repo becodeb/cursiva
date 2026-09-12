@@ -305,15 +305,15 @@ run in parallel.
 Spec-adjacent: `docs/12` §4 (reading captures is part of the work). Sequential
 — capture, then read, then correct if needed, then re-capture.
 
-- [ ] 4.1 Start the dev server: `npm run dev -- --host 0.0.0.0` (port 5173).
-- [ ] 4.2 Capture the four duck levels via `scripts/shot.sh`, which writes
+- [x] 4.1 Start the dev server: `npm run dev -- --host 0.0.0.0` (port 5173).
+- [x] 4.2 Capture the four duck levels via `scripts/shot.sh`, which writes
       into `capturas/` at the repo root (gitignored) and already handles this
       host's three chromium traps (`--disable-gpu` mandatory, the
       `CHROME_OFFSET` viewport correction, the 500px width floor):
       `scripts/shot.sh "http://localhost:5173/?nivel=duck-trail1"
       duck-trail1.png 1000 600` (and the equivalent for `duck-trail2`,
       `duck-trail3`, `duck-trail4`).
-- [ ] 4.3 Capture the narrative entry as `capturas/duck-intro.png`. **This
+- [x] 4.3 Capture the narrative entry as `capturas/duck-intro.png`. **This
       one cannot use `scripts/shot.sh`'s single-URL model**: the entry is only
       reachable by tapping the estanque sector on the map (`App.onEnter` →
       `resolveEnterAction`), and `?nivel=duck-trail1` deliberately bypasses it
@@ -321,7 +321,7 @@ Spec-adjacent: `docs/12` §4 (reading captures is part of the work). Sequential
       Use a real interactive browser session against `http://localhost:5173/`
       — click the estanque, then capture the resulting screen with the
       browser's or OS's own screenshot tool, saved to `capturas/duck-intro.png`.
-- [ ] 4.4 Capture the map after the duck is recovered, as
+- [x] 4.4 Capture the map after the duck is recovered, as
       `capturas/zoo-map-duck-recovered.png`. Same constraint as 4.3: this
       needs `duck-trail4` filed in `cursiva.levels.v1`, which requires either
       playing through the four levels in the same interactive session or
@@ -329,7 +329,7 @@ Spec-adjacent: `docs/12` §4 (reading captures is part of the work). Sequential
       browser/OS tool, not `scripts/shot.sh` (its fresh `--user-data-dir` per
       invocation means localStorage would not survive a second automated
       call).
-- [ ] 4.5 **Read every capture from 4.2-4.4** — production, not proof, is the
+- [x] 4.5 **Read every capture from 4.2-4.4** — production, not proof, is the
       goal here. Specifically check: does the paper channel read as legible
       over the water at each of the four levels; does the channel's overflow
       into the reed bands (measured: 17.6/12.6/42.6/2.6 over the top,
@@ -338,7 +338,7 @@ Spec-adjacent: `docs/12` §4 (reading captures is part of the work). Sequential
       the others; does the entry screen's bubble land on the octopus rather
       than over him; does the map's closing bubble read as a closing rather
       than a leftover "onward" phrase.
-- [ ] 4.6 If 4.5 finds the channel illegible or the overflow reading as
+- [x] 4.6 If 4.5 finds the channel illegible or the overflow reading as
       damage, correct the responsible code (`catalog.ts`'s duck-trail3
       geometry, or `TraceCanvas.tsx`'s layering) — never the registry values
       that were already measured directly (§ the task brief's "do not
@@ -425,3 +425,62 @@ Consequences for apply:
   tree only has to be green at the end of B3, not at the end of B2. Apply must
   still leave `npm test` green after every phase it reports complete, so
   `zoo/adventures.ts` lands in whichever phase makes that true.
+
+
+---
+
+## Phase 4 evidence (orchestrator)
+
+Dev server on 5173. All captures written to `capturas/` (gitignored) by
+`scripts/shot.sh`, which already handles this host's three chromium traps.
+
+| Capture | URL | Size |
+|---|---|---|
+| `b-duck-trail1.png` | `?nivel=duck-trail1` | 1000x600 |
+| `b-duck-trail2.png` | `?nivel=duck-trail2` | 1000x600 |
+| `b-duck-trail3.png` | `?nivel=duck-trail3` | 1000x600 |
+| `b-duck-trail4.png` | `?nivel=duck-trail4` | 1000x600 |
+| `b-intro.png` | `?nivel=intro-duck-trail1` | 1000x600 |
+| `b-intro-tablet.png` | `?nivel=intro-duck-trail1` | 768x1024 |
+| `b-mapa-pato.png` | `?dev&debug=pato-recuperado` | 1000x600 |
+| `baseline-duck-trail1.png` | `main` before the change | 1000x600 |
+
+### What reading them found
+
+**The channel is legible over the water — decision 2 confirmed in the
+render.** `SHEET_PAPER` against the lagoon reads at a glance in all four
+levels. Nothing about the corridor is ambiguous.
+
+**The backdrop is full-bleed within the sheet.** Measured rather than
+eyeballed, because the sheet's own letterboxing makes this easy to misread:
+the corridor occupies screen columns 208..792 in both the baseline and the
+new capture — *identical* — which fixes the sheet SVG at 635 px wide for
+1000 viewBox units. Centred on x=500 that is 182..817, and the drawn art
+measures 180..819. The art therefore covers its sheet edge to edge. The
+flat water colour filling the rest of the window is `.cv-play`'s CSS
+background, which the design set to `backdrop.quiet` on purpose; it makes
+the sheet's edge invisible and the lagoon read as continuous. The sheet's
+letterboxing itself is pre-existing and byte-identical on `main`.
+
+**The four-step progression reads as one movement.** Step 3's varied
+amplitude is visible as authored: a wide shallow first cycle, a narrower
+deeper second. Step 4 reads as the tightest and the only narrowing one.
+
+**The closing reads as a closing.** The duck stands in its lagoon, the
+footprints run to it, the bubble says so, the star count moved.
+
+**The overflow is not visible as a defect.** Every corridor exceeds the
+drawn quiet band (`[97.6, 499.1]`), but because the band's colour and the
+bank above/below are the same authored scene, the corridor crossing into
+the reeds reads as a path along the shore, not as a mistake.
+
+### One defect found and fixed — task 4.6
+
+The narrative entry's stage is a square sized on width alone. At 1000x600
+the 4% padding leaves 520 of height and the stage claimed its full 620, so
+the octopus — anchored to the stage's bottom — lost its lower tentacles
+past the viewport edge. Landscape is this app's primary orientation, so the
+narrow side has to decide the stage's side. Fixed in `022afdb` by clamping
+the side with `84dvh`; re-captured at both sizes. Landscape now clears the
+edge by 56 px; portrait tablet renders byte-identically (octopus rows
+377..811 before and after).
