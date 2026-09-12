@@ -120,7 +120,7 @@
     "w": 256
   },
   "goal-medusa": {
-    "bytes": 113489,
+    "bytes": 86905,
     "file": "art/goal-medusa.png",
     "h": 384,
     "w": 357
@@ -246,7 +246,7 @@
     "w": 62
   },
   "hazard-starfish": {
-    "bytes": 58155,
+    "bytes": 47678,
     "file": "art/hazard-starfish.png",
     "h": 296,
     "w": 320

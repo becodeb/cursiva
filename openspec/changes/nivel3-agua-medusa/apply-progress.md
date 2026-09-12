@@ -517,3 +517,44 @@ needs an explicit decision** (accept the authored navy contour as a fifth
 `docs/09` §4 exception, or approve a specific two-tone recolour fill per
 creature). Ready for the next apply batch (Phase 7, S7) once that decision
 is made, or for `sdd-verify` to review S4-S6 first.
+
+## Orchestrator resolution of the S5 contour defect (2026-09-12)
+
+S5 reported task 5.5 as FAILED and, correctly, refused to invent a colour to fix
+it. `medusa.png` and `estrella de mar.png` shipped a contour of `rgb(0,17,120)`
+and `rgb(0,20,122)` — chroma 119 and 122 — because the pipeline's `fill=None`
+path skips `recolour` entirely and nothing forced their outline anywhere.
+
+**Measured across the shipped art before deciding.** Contour chroma: the four
+deduction animals 0-2, the clue marks and the lamp 0 (`ART_OUTLINE`), the
+octopus 63, the medusa and starfish 119 and 122. So the drawn world does have
+one contour colour and it is achromatic; these two were the outliers by a factor
+of two over the worst existing case and ten over the recorded grass incident.
+
+**Fix: a third pipeline mode, `recontour`.** It sends only contour pixels to
+`INK` and leaves every fill exactly as authored. The two existing modes could not
+express what drawn-world creature art needs: `recolour` flattens a drawing to one
+fill, which is right for a clue mark and destroys a jellyfish, and `fill=None`
+skips everything, which is right for the deduction animals — they stand alone on
+the lineup, never beside a clue mark — and wrong for anything standing ON the
+sheet. No colour was invented: `ART_OUTLINE` already existed.
+
+Both files now measure `#1a1a1a` across 95% of their contour, with the remaining
+3-4% the resample's fringe where the outline meets a saturated fill. The animals
+measure 7% on the same metric, so the profile is normal.
+
+**Guarded, not just fixed.** `artHierarchy.test.ts` gained a test globbing
+`goal-*`/`hazard-*` — by prefix, so a prop added later is covered without anyone
+remembering — asserting at most 25% of a prop's contour carries colour. The
+threshold is anchored on measurements with a wide gap on both sides: 3/4/7% for
+conforming art against 92% for the defect. **Proved falsifiable**: reverting the
+pipeline row to `fill=None`, rebuilding and re-running gave
+`92% of goal-medusa.png's contour carries colour`, then restoring returned it to
+green.
+
+**Recorded, not fixed:** `carrier-octopus.png` measures 97% of its contour
+carrying colour — the same defect, and the worst of all of them. It is left alone
+because `docs/09` §2 makes that navy line part of the character's own look, so
+changing it is an art-direction decision and not a pipeline one. It is outside
+the `goal-*`/`hazard-*` glob, so the new test does not silently exempt it by
+name; it simply is not a prop.
