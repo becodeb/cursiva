@@ -35,6 +35,8 @@ import {
   HOME_OCTOPUS_ART,
   LAMP_ART,
   OCTOPUS_ART,
+  SECTOR_ADVENTURE_ART,
+  SECTOR_BACKGROUND_ART,
   ZOO_BACKPACK_ART,
   ZOO_FOG_ART,
   ZOO_MAP_ART,
@@ -95,6 +97,12 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
   ['ZOO_STAR_ART', ZOO_STAR_ART] as const,
   ['ZOO_OCTOPUS_PRINT_ART', ZOO_OCTOPUS_PRINT_ART] as const,
   ['ZOO_SPEECH_BUBBLE_ART', ZOO_SPEECH_BUBBLE_ART] as const,
+  ...Object.entries(SECTOR_BACKGROUND_ART).map(([id, art]) =>
+    [`SECTOR_BACKGROUND_ART.${id}`, art] as const,
+  ),
+  ...Object.entries(SECTOR_ADVENTURE_ART).map(([id, art]) =>
+    [`SECTOR_ADVENTURE_ART.${id}`, art] as const,
+  ),
   ...GROUND_GRASS.map((art, i) => [`GROUND_GRASS[${i}]`, art] as const),
   ...GROUND_MUD.map((art, i) => [`GROUND_MUD[${i}]`, art] as const),
 ]
@@ -134,11 +142,11 @@ describe('art registry matches the shipped pipeline manifest', () => {
   it('registers every clue kind in both states, and never the same file twice', () => {
     // 14 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
     // + 1 goal (medusa) + 1 hazard (estrella de mar) + 9 zoo journey
-    // + 12 grass + 8 mud.
+    // + 6 sector backgrounds + 10 sector adventure cutouts + 12 grass + 8 mud.
     // Grass carries MORE variants than mud on purpose: it covers the whole
     // field at full size, where a repeated silhouette is obvious, while mud
     // sits small inside the corridor and half-covered by the child's own line.
-    expect(REGISTERED.length).toBe(55)
+    expect(REGISTERED.length).toBe(71)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })

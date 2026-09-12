@@ -275,6 +275,102 @@
     "h": 192,
     "w": 181
   },
+  "sector-aquarium-background": {
+    "bytes": 26778,
+    "file": "art/sector-aquarium-background.png",
+    "h": 1024,
+    "w": 1536
+  },
+  "sector-bee": {
+    "bytes": 19806,
+    "file": "art/sector-bee.png",
+    "h": 230,
+    "w": 256
+  },
+  "sector-dolphin": {
+    "bytes": 27980,
+    "file": "art/sector-dolphin.png",
+    "h": 418,
+    "w": 448
+  },
+  "sector-flashlight": {
+    "bytes": 15542,
+    "file": "art/sector-flashlight.png",
+    "h": 234,
+    "w": 256
+  },
+  "sector-flower": {
+    "bytes": 14866,
+    "file": "art/sector-flower.png",
+    "h": 245,
+    "w": 256
+  },
+  "sector-forest-background": {
+    "bytes": 35774,
+    "file": "art/sector-forest-background.png",
+    "h": 1024,
+    "w": 1536
+  },
+  "sector-honeycomb": {
+    "bytes": 16525,
+    "file": "art/sector-honeycomb.png",
+    "h": 256,
+    "w": 181
+  },
+  "sector-lagoon-background": {
+    "bytes": 103852,
+    "file": "art/sector-lagoon-background.png",
+    "h": 1024,
+    "w": 1536
+  },
+  "sector-llama": {
+    "bytes": 32311,
+    "file": "art/sector-llama.png",
+    "h": 448,
+    "w": 299
+  },
+  "sector-range-background": {
+    "bytes": 46390,
+    "file": "art/sector-range-background.png",
+    "h": 1024,
+    "w": 1536
+  },
+  "sector-sand-background": {
+    "bytes": 55641,
+    "file": "art/sector-sand-background.png",
+    "h": 1024,
+    "w": 1536
+  },
+  "sector-slope-background": {
+    "bytes": 38744,
+    "file": "art/sector-slope-background.png",
+    "h": 1024,
+    "w": 1536
+  },
+  "sector-snail": {
+    "bytes": 27559,
+    "file": "art/sector-snail.png",
+    "h": 321,
+    "w": 448
+  },
+  "sector-snake-large": {
+    "bytes": 23276,
+    "file": "art/sector-snake-large.png",
+    "h": 95,
+    "w": 500
+  },
+  "sector-snake-medium": {
+    "bytes": 18604,
+    "file": "art/sector-snake-medium.png",
+    "h": 114,
+    "w": 492
+  },
+  "sector-snake-small": {
+    "bytes": 23780,
+    "file": "art/sector-snake-small.png",
+    "h": 98,
+    "w": 480
+  },
   "zoo-backpack": {
     "bytes": 7232,
     "file": "art/zoo-backpack.png",

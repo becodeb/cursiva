@@ -345,6 +345,18 @@ SINGLES = [
     ('estrella.png',          'zoo-star.png',              256, 'contour',    True),
     ('huella pulpo.png',      'zoo-octopus-print.png',     256, 'contour',    True),
     ('bocadillo.png',         'zoo-speech-bubble.png',     512, 'contour',    True),
+    # Sector adventure cutouts. Their authored canvases are standardized below;
+    # this table owns the compact, intrinsic dimensions the client renders.
+    ('vibora chica.png',      'sector-snake-small.png',    512, 'contour',    True),
+    ('vibora mediana.png',    'sector-snake-medium.png',   512, 'contour',    True),
+    ('vibora grande.png',     'sector-snake-large.png',    512, 'contour',    True),
+    ('llama.png',             'sector-llama.png',          448, 'contour',    True),
+    ('abeja.png',             'sector-bee.png',            256, 'contour',    True),
+    ('flor.png',              'sector-flower.png',         256, 'contour',    True),
+    ('panal.png',             'sector-honeycomb.png',      256, 'contour',    True),
+    ('delfin.png',            'sector-dolphin.png',        448, 'contour',    True),
+    ('caracol.png',           'sector-snail.png',          448, 'contour',    True),
+    ('linterna.png',          'sector-flashlight.png',     256, 'contour',    True),
 ]
 
 # Full-canvas scenes are already authored at final dimensions. They bypass the
@@ -352,13 +364,19 @@ SINGLES = [
 # deliberately flat palette.
 PASSTHROUGHS = [
     ('mapa zoologico.png', 'zoo-map.png', 1536, 1024),
+    ('fondo laguna.png', 'sector-lagoon-background.png', 1536, 1024),
+    ('fondo arena.png', 'sector-sand-background.png', 1536, 1024),
+    ('fondo ladera.png', 'sector-slope-background.png', 1536, 1024),
+    ('fondo cordillera.png', 'sector-range-background.png', 1536, 1024),
+    ('fondo bosque.png', 'sector-forest-background.png', 1536, 1024),
+    ('fondo pecera.png', 'sector-aquarium-background.png', 1536, 1024),
 ]
 
 # Authoring-canvas contract for the zoo slice. These dimensions are deliberate:
 # cutouts keep a shared square canvas (including their transparent margin), while
 # the map is a final-size opaque scene. Failing here prevents a newly exported
 # source from silently changing crop/downscale behavior later in the pipeline.
-ZOO_SOURCE_SIZES = {
+AUTHORED_SOURCE_SIZES = {
     'mapa zoologico.png': (1536, 1024),
     'niebla 1.png': (1024, 1024),
     'niebla 2.png': (1024, 1024),
@@ -370,11 +388,27 @@ ZOO_SOURCE_SIZES = {
     'bocadillo.png': (1024, 1024),
     'pulpo con lupa.png': (1024, 1024),
     'pulpo oficina.png': (1024, 1024),
+    'fondo laguna.png': (1536, 1024),
+    'fondo arena.png': (1536, 1024),
+    'fondo ladera.png': (1536, 1024),
+    'fondo cordillera.png': (1536, 1024),
+    'fondo bosque.png': (1536, 1024),
+    'fondo pecera.png': (1536, 1024),
+    'vibora chica.png': (1024, 1024),
+    'vibora mediana.png': (1024, 1024),
+    'vibora grande.png': (1024, 1024),
+    'llama.png': (1024, 1024),
+    'abeja.png': (1024, 1024),
+    'flor.png': (1024, 1024),
+    'panal.png': (1024, 1024),
+    'delfin.png': (1024, 1024),
+    'caracol.png': (1024, 1024),
+    'linterna.png': (1024, 1024),
 }
 
 
-def validate_zoo_source_sizes() -> None:
-    for name, expected in ZOO_SOURCE_SIZES.items():
+def validate_authored_source_sizes() -> None:
+    for name, expected in AUTHORED_SOURCE_SIZES.items():
         img = png.read_png(os.path.join(SRC, name))
         actual = (img.w, img.h)
         if actual != expected:
@@ -497,7 +531,7 @@ CENTRED = [
 
 def main() -> None:
     os.makedirs(OUT, exist_ok=True)
-    validate_zoo_source_sizes()
+    validate_authored_source_sizes()
     manifest: dict[str, dict] = {}
 
     for src, name, expected_w, expected_h in PASSTHROUGHS:
@@ -518,7 +552,7 @@ def main() -> None:
         # alpha antialiasing at the outer silhouette, but snap any resulting
         # dark chromatic blend back to the neutral world contour.
         if fill == 'contour' and (
-            name.startswith('zoo-') or name in ('carrier-octopus.png', 'home-octopus.png')
+            name.startswith(('zoo-', 'sector-')) or name in ('carrier-octopus.png', 'home-octopus.png')
         ):
             recontour(final)
         key = name[:-4]

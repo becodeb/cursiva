@@ -237,6 +237,48 @@ export const ZOO_SPEECH_BUBBLE_ART: ArtImage = {
   h: 372,
 }
 
+/** Full-canvas sectors are scenery rather than sprites: callers preserve their
+ * 3:2 intrinsic coordinate system and leave the quiet centre free for a
+ * finger-drawn route. */
+export const SECTOR_BACKGROUND_ART: Readonly<Record<
+  'lagoon' | 'sand' | 'slope' | 'range' | 'forest' | 'aquarium',
+  ArtImage
+>> = {
+  lagoon: { href: '/art/sector-lagoon-background.png', w: 1536, h: 1024 },
+  sand: { href: '/art/sector-sand-background.png', w: 1536, h: 1024 },
+  slope: { href: '/art/sector-slope-background.png', w: 1536, h: 1024 },
+  range: { href: '/art/sector-range-background.png', w: 1536, h: 1024 },
+  forest: { href: '/art/sector-forest-background.png', w: 1536, h: 1024 },
+  aquarium: { href: '/art/sector-aquarium-background.png', w: 1536, h: 1024 },
+}
+
+/** Props used by the sector adventures. Each file is a transparent cutout;
+ * the snakes intentionally share a body thickness and differ only in length. */
+export const SECTOR_ADVENTURE_ART: Readonly<Record<
+  | 'snakeSmall'
+  | 'snakeMedium'
+  | 'snakeLarge'
+  | 'llama'
+  | 'bee'
+  | 'flower'
+  | 'honeycomb'
+  | 'dolphin'
+  | 'snail'
+  | 'flashlight',
+  ArtImage
+>> = {
+  snakeSmall: { href: '/art/sector-snake-small.png', w: 480, h: 98 },
+  snakeMedium: { href: '/art/sector-snake-medium.png', w: 492, h: 114 },
+  snakeLarge: { href: '/art/sector-snake-large.png', w: 500, h: 95 },
+  llama: { href: '/art/sector-llama.png', w: 299, h: 448 },
+  bee: { href: '/art/sector-bee.png', w: 256, h: 230 },
+  flower: { href: '/art/sector-flower.png', w: 256, h: 245 },
+  honeycomb: { href: '/art/sector-honeycomb.png', w: 181, h: 256 },
+  dolphin: { href: '/art/sector-dolphin.png', w: 448, h: 418 },
+  snail: { href: '/art/sector-snail.png', w: 448, h: 321 },
+  flashlight: { href: '/art/sector-flashlight.png', w: 256, h: 234 },
+}
+
 /** The single light source (design.md "Colour — the reward system"), used both
  * in the rail and standing at the end of the route.
  *

@@ -43,6 +43,8 @@ import { CLUE_MARK_SIZE } from '../screen/LevelPlay'
 import {
   HOME_OCTOPUS_ART,
   OCTOPUS_ART,
+  SECTOR_ADVENTURE_ART,
+  SECTOR_BACKGROUND_ART,
   ZOO_BACKPACK_ART,
   ZOO_FOG_ART,
   ZOO_MAP_ART,
@@ -256,8 +258,8 @@ const PROP_FILES = import.meta.glob('../../public/art/{goal,hazard}-*.png', {
 /** Zoo-journey outputs plus the two octopuses whose legacy navy contours were
  * corrected in the same pipeline change. Exact names make adding or removing
  * a shipped asset an explicit contract update rather than a wildcard surprise. */
-const ZOO_GUARD_FILES = import.meta.glob(
-  '../../public/art/{zoo-*,carrier-octopus,home-octopus}.png',
+const WORLD_GUARD_FILES = import.meta.glob(
+  '../../public/art/{zoo-*,sector-*,carrier-octopus,home-octopus}.png',
   {
     eager: true,
     query: '?inline',
@@ -265,7 +267,7 @@ const ZOO_GUARD_FILES = import.meta.glob(
   },
 ) as Inlined
 
-const ZOO_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
+const WORLD_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
   'zoo-map.png': ZOO_MAP_ART,
   'zoo-fog-1.png': ZOO_FOG_ART[0],
   'zoo-fog-2.png': ZOO_FOG_ART[1],
@@ -277,6 +279,73 @@ const ZOO_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
   'zoo-speech-bubble.png': ZOO_SPEECH_BUBBLE_ART,
   'carrier-octopus.png': OCTOPUS_ART,
   'home-octopus.png': HOME_OCTOPUS_ART,
+  ...Object.fromEntries(
+    Object.entries(SECTOR_BACKGROUND_ART).map(([id, art]) => [`sector-${id}-background.png`, art]),
+  ),
+  ...Object.fromEntries(
+    Object.entries(SECTOR_ADVENTURE_ART).map(([id, art]) => [
+      `sector-${id.replace(/([A-Z])/g, '-$1').toLowerCase()}.png`,
+      art,
+    ]),
+  ),
+}
+
+const FULL_CANVAS_ART = new Set([
+  'zoo-map.png',
+  ...Object.values(SECTOR_BACKGROUND_ART).map((art) => art.href.split('/').pop()!),
+])
+
+/** Authoring canvases are a separate contract from compact shipped assets:
+ * backgrounds retain their final 3:2 coordinate system, while cutouts retain
+ * a square transparent workspace before `build_art.py` crops them. */
+const SECTOR_SOURCE_FILES = import.meta.glob(
+  '../../../art-source/{fondo laguna,fondo arena,fondo ladera,fondo cordillera,fondo bosque,fondo pecera,vibora chica,vibora mediana,vibora grande,llama,abeja,flor,panal,delfin,caracol,linterna}.png',
+  { eager: true, query: '?inline', import: 'default' },
+) as Inlined
+
+const SECTOR_SOURCE_CANVASES: Readonly<Record<string, { w: number; h: number; opaque: boolean }>> = {
+  'fondo laguna.png': { w: 1536, h: 1024, opaque: true },
+  'fondo arena.png': { w: 1536, h: 1024, opaque: true },
+  'fondo ladera.png': { w: 1536, h: 1024, opaque: true },
+  'fondo cordillera.png': { w: 1536, h: 1024, opaque: true },
+  'fondo bosque.png': { w: 1536, h: 1024, opaque: true },
+  'fondo pecera.png': { w: 1536, h: 1024, opaque: true },
+  'vibora chica.png': { w: 1024, h: 1024, opaque: false },
+  'vibora mediana.png': { w: 1024, h: 1024, opaque: false },
+  'vibora grande.png': { w: 1024, h: 1024, opaque: false },
+  'llama.png': { w: 1024, h: 1024, opaque: false },
+  'abeja.png': { w: 1024, h: 1024, opaque: false },
+  'flor.png': { w: 1024, h: 1024, opaque: false },
+  'panal.png': { w: 1024, h: 1024, opaque: false },
+  'delfin.png': { w: 1024, h: 1024, opaque: false },
+  'caracol.png': { w: 1024, h: 1024, opaque: false },
+  'linterna.png': { w: 1024, h: 1024, opaque: false },
+}
+
+/** The tracing corridor is deliberate negative space, not empty scenery by
+ * accident: docs/09 §9 reserves y=20–80% for only the sector's calm base
+ * colour. A two-channel tolerance accepts lossless PNG tooling that rounds a
+ * palette value while still rejecting decoration, contours, or texture. */
+const SECTOR_QUIET_BAND_BASE: Readonly<Record<string, readonly [number, number, number]>> = {
+  'fondo laguna.png': [180, 197, 208],
+  'fondo arena.png': [214, 203, 186],
+  'fondo ladera.png': [157, 163, 150],
+  'fondo cordillera.png': [200, 211, 216],
+  'fondo bosque.png': [148, 155, 140],
+  'fondo pecera.png': [155, 182, 197],
+}
+
+/** Full-canvas sector art is a true pass-through: the authored source IS the
+ * shipped coordinate system. Keep this explicit rather than deriving names,
+ * because `laguna` → `lagoon` and `cordillera` → `range` are intentional
+ * product vocabulary translations. */
+const SECTOR_SOURCE_TO_EMITTED: Readonly<Record<string, string>> = {
+  'fondo laguna.png': 'sector-lagoon-background.png',
+  'fondo arena.png': 'sector-sand-background.png',
+  'fondo ladera.png': 'sector-slope-background.png',
+  'fondo cordillera.png': 'sector-range-background.png',
+  'fondo bosque.png': 'sector-forest-background.png',
+  'fondo pecera.png': 'sector-aquarium-background.png',
 }
 
 function named(files: Inlined): readonly (readonly [string, string])[] {
@@ -328,6 +397,61 @@ function scatterSizes(): readonly number[] {
 }
 
 describe('visual hierarchy: the clue outranks the ground it lies on', () => {
+  it('locks the sector source canvas and alpha contracts before shipping', async () => {
+    const files = named(SECTOR_SOURCE_FILES)
+    const emitted = new Map(named(WORLD_GUARD_FILES))
+    expect(files.map(([name]) => name).sort()).toEqual(Object.keys(SECTOR_SOURCE_CANVASES).sort())
+    for (const [name, url] of files) {
+      const expected = SECTOR_SOURCE_CANVASES[name]
+      const art = await decodePng(base64ToBytes(url.split(',')[1]))
+      expect({ w: art.w, h: art.h }, `${name}: authoring canvas drifted`).toEqual({
+        w: expected.w,
+        h: expected.h,
+      })
+      let transparent = 0
+      for (let index = 3; index < art.px.length; index += 4) {
+        if (art.px[index] === 0) transparent += 1
+      }
+      if (expected.opaque) expect(transparent, `${name}: background must be opaque`).toBe(0)
+      else expect(transparent, `${name}: cutout needs transparent margin`).toBeGreaterThan(0)
+
+      const quietBase = SECTOR_QUIET_BAND_BASE[name]
+      if (quietBase) {
+        let decorated = 0
+        for (let y = Math.floor(art.h * 0.2); y < Math.floor(art.h * 0.8); y++) {
+          for (let x = 0; x < art.w; x++) {
+            const at = (y * art.w + x) * 4
+            if (
+              Math.abs(art.px[at] - quietBase[0]) > 2 ||
+              Math.abs(art.px[at + 1] - quietBase[1]) > 2 ||
+              Math.abs(art.px[at + 2] - quietBase[2]) > 2
+            ) {
+              decorated += 1
+            }
+          }
+        }
+        expect(decorated, `${name}: the y=20–80% tracing band must stay calm`).toBe(0)
+
+        // `PASSTHROUGHS` must not later introduce a resize, recolour, or
+        // crop. Check every RGBA byte, including the quiet corridor and the
+        // intentionally dark/chromatic scenery fills outside it.
+        const emittedName = SECTOR_SOURCE_TO_EMITTED[name]
+        const emittedUrl = emitted.get(emittedName)
+        expect(emittedUrl, `${name}: its pass-through output is missing`).toBeDefined()
+        const shipped = await decodePng(base64ToBytes(emittedUrl!.split(',')[1]))
+        expect({ w: shipped.w, h: shipped.h }, `${name}: pass-through dimensions drifted`).toEqual({
+          w: art.w,
+          h: art.h,
+        })
+        let mismatchedBytes = 0
+        for (let index = 0; index < art.px.length; index++) {
+          if (art.px[index] !== shipped.px[index]) mismatchedBytes += 1
+        }
+        expect(mismatchedBytes, `${name}: emitted art differs from its source`).toBe(0)
+      }
+    }
+  }, 20_000)
+
   it('finds the shipped ground and clue art', () => {
     // The half that keeps every assertion below honest. `import.meta.glob`
     // returns `{}` for a pattern that matches nothing, and every `for` loop
@@ -427,12 +551,12 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
     }
   })
 
-  it('keeps every zoo asset on its intrinsic canvas with safe alpha and dark pixels', async () => {
-    const files = named(ZOO_GUARD_FILES)
-    expect(files.map(([name]) => name).sort()).toEqual(Object.keys(ZOO_GUARDED_ART).sort())
+  it('keeps zoo and sector art on intrinsic canvases with safe alpha and dark pixels', async () => {
+    const files = named(WORLD_GUARD_FILES)
+    expect(files.map(([name]) => name).sort()).toEqual(Object.keys(WORLD_GUARDED_ART).sort())
 
     for (const [name, url] of files) {
-      const expected = ZOO_GUARDED_ART[name]
+      const expected = WORLD_GUARDED_ART[name]
       const art = await decodePng(base64ToBytes(url.split(',')[1]))
       expect({ w: art.w, h: art.h }, `${name}: intrinsic dimensions drifted`).toEqual({
         w: expected.w,
@@ -443,6 +567,11 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
       let partial = 0
       let visible = 0
       let darkChromatic = 0
+      // A full scene may legitimately include a dark green/brown fill (for
+      // example aquarium algae); only near-black pixels are unambiguously the
+      // drawn contour. Transparent cutouts have no such scene fill, so their
+      // stricter <90 rule remains the world-outline contract.
+      const contourLuma = FULL_CANVAS_ART.has(name) ? 50 : INK_LUMA
       for (let i = 0; i < art.px.length; i += 4) {
         const [r, g, b, a] = [art.px[i], art.px[i + 1], art.px[i + 2], art.px[i + 3]]
         if (a === 0) transparent += 1
@@ -450,7 +579,7 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
         if (a > 0 && a < 255) partial += 1
         if (
           a > 0 &&
-          luma(r, g, b) < INK_LUMA &&
+          luma(r, g, b) < contourLuma &&
           Math.max(r, g, b) - Math.min(r, g, b) > ZOO_DARK_CHROMA_TOLERANCE
         ) {
           darkChromatic += 1
@@ -458,7 +587,7 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
       }
 
       expect(visible, `${name}: asset is empty`).toBeGreaterThan(0)
-      if (name === 'zoo-map.png') {
+      if (FULL_CANVAS_ART.has(name)) {
         expect(transparent, `${name}: full-canvas map must be opaque`).toBe(0)
         expect(partial, `${name}: full-canvas map must be opaque`).toBe(0)
       } else {
