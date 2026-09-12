@@ -1105,9 +1105,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     })
   }, [clueDef, trailClueMarks, clueState])
 
-  // The ground (docs/09 §7). Keyed off `level.clue`, the same sole
-  // discriminator every other detective branch uses — NOT off `level.maze`,
-  // which `catalog.ts`'s `LEGACY_PHASE_1` rollback array also sets. Memoized on
+  // The ground (docs/09 §7). Keyed off `inDetectiveWorld`, the WORLD half of the
+  // split — NOT off `level.clue`, which is the CASE half and which this comment
+  // used to name, and not off `level.maze` either, which `catalog.ts`'s
+  // `LEGACY_PHASE_1` rollback array also sets. The distinction became real with
+  // Nivel 3: those levels stand on grass without carrying a single clue, so a
+  // ground keyed off the clue would have left them on bare paper. Memoized on
   // the route and the corridor, NEVER recomputed per frame: a re-scatter
   // mid-run would make the field crawl under the child's finger.
   //
