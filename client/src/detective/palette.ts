@@ -1,9 +1,10 @@
-// Six new colour tokens (`detective-mode` design unit 3, spec: detective-mode
+// Seven new colour tokens (`detective-mode` design unit 3, spec: detective-mode
 // "Colour Asset Registry"; design.md "Art Direction (revised plan)" §Colour —
 // the reward system). The base ink-on-paper palette (paper `#fdfcf7`, wall
 // `#e2e8f0`, ink `#1e293b`) is NOT redefined here — it stays imported from
 // `TraceCanvas.tsx` wherever a consumer needs it. Adding no new neutral is
-// itself the anti-cliché move.
+// itself the anti-cliché move, except for `ART_OUTLINE` below, which is not a
+// UI neutral but a rule for the ART PIPELINE.
 //
 // Rules `palette.test.ts` asserts: the earned values are pairwise distinct and
 // distinct again within each case; none literally equals `GOAL_COLOR
@@ -18,6 +19,26 @@
 // the pairing they guarded cannot occur. That is the same structural argument
 // the test already made for `CARRIER_COLOR`, and it is proved where it can be
 // observed, in `TraceCanvas.test.tsx`'s `inkOnly` suite.
+
+/** The marker line of every drawn-world art asset -- clue marks and ground
+ * contours alike, via `scripts/art/build_art.py`'s `INK`. This is deliberately
+ * NOT `TraceCanvas.tsx`'s `INK_COLOR` (`#1e293b`, hue 217° -- a slate blue),
+ * which is the colour of the child's OWN pencil trace. Conflating the two is
+ * exactly what shipped every clue mark's outline in that blue: the pipeline
+ * used to point its `INK` straight at `INK_COLOR`'s value, so a colour meant
+ * for the child's hand ended up on the drawn world's contours instead.
+ *
+ * An art contour is achromatic BY RULE: hue 0, asserted in `palette.test.ts`.
+ * This is the second time an authored contour has drifted off that rule --
+ * the first was the grass tufts' authored `#19241c` (hue 136°, green),
+ * documented at `build_art.py`'s `mute()` -- so this token exists to name the
+ * rule once instead of re-discovering it a third time.
+ *
+ * `#1a1a1a` keeps `build_art.py:72`'s own measured luma of ~25 for the
+ * authored outlines, so no threshold elsewhere in the pipeline (`INK_LUMA`)
+ * needs to move. Mirrored into `build_art.py`'s `INK` constant and guarded
+ * against drifting apart in `artManifest.test.ts`. */
+export const ART_OUTLINE = '#1a1a1a'
 
 /** Every unearned clue mark, whatever its trail. One step darker than the
  * shipped wall grey `#e2e8f0` so it reads on paper and on wall alike. */

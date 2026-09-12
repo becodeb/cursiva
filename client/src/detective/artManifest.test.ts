@@ -35,6 +35,7 @@ import {
   OCTOPUS_ART,
   type ArtImage,
 } from './assets'
+import { ART_OUTLINE } from './palette'
 
 /** Every PNG actually present in `public/art/`, keyed by bare name. The glob
  * is evaluated against the filesystem at transform time, so a file named in
@@ -135,5 +136,21 @@ describe('art registry matches the shipped pipeline manifest', () => {
         art.art.drained.href,
       )
     }
+  })
+
+  it("mirrors scripts/art/build_art.py's INK constant against the real TypeScript token", () => {
+    // `build_art.py` is Python and cannot be imported here, so this mirrors
+    // its `INK` literal the same way `palette.test.ts` mirrors
+    // `CORRIDOR_EARTH`/`GROUND_FIELD` -- rather than by an import, by a
+    // pinned literal this assertion keeps honest.
+    //
+    // This used to guard `INK_COLOR` (`#1e293b`, `TraceCanvas.tsx`'s ink for
+    // the child's OWN pencil trace). `build_art.py` pointed its `INK`
+    // constant at that value, which is exactly why every clue mark's outline
+    // shipped in that blue instead of a neutral marker line. It now guards
+    // `ART_OUTLINE` instead, the token `palette.ts` defines specifically for
+    // drawn-world contours. If the pipeline's `INK` and this token drift
+    // apart again, this is the assertion that goes red first.
+    expect(ART_OUTLINE).toBe('#1a1a1a')
   })
 })

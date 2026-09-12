@@ -45,11 +45,18 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SRC = os.path.join(ROOT, 'art-source')
 OUT = os.path.join(ROOT, 'client', 'public', 'art')
 
-# Mirrors `client/src/detective/palette.ts` and `TraceCanvas.tsx`'s INK_COLOR.
+# Mirrors `client/src/detective/palette.ts`'s `ART_OUTLINE`, NOT
+# `TraceCanvas.tsx`'s `INK_COLOR`. `INK_COLOR` (`#1e293b`, hue 217 -- a slate
+# blue) is the colour of the child's OWN pencil trace; this pipeline used to
+# point straight at it, which is why every clue mark's outline shipped blue
+# instead of a neutral marker line. `ART_OUTLINE` exists precisely so a drawn-
+# world contour and the child's trace can never be conflated again -- see its
+# doc comment in `palette.ts` for the incident and the achromatic rule
+# `palette.test.ts` now asserts on it.
 # `scripts/art/palette_sync.test.py` is not a thing; the guard is
-# `client/src/detective/artManifest.test.ts`, which reads the emitted manifest
-# and asserts these against the real TypeScript tokens.
-INK = (0x1E, 0x29, 0x3B)
+# `client/src/detective/artManifest.test.ts`, which mirrors this literal
+# against the real TypeScript token so the two cannot drift apart.
+INK = (0x1A, 0x1A, 0x1A)
 CLUE_DRAINED = (0xC8, 0xCD, 0xD2)
 POND = (0x3F, 0x6F, 0x8F)
 KERNEL = (0xB8, 0x91, 0x2F)

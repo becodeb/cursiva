@@ -36,67 +36,67 @@
     "w": 384
   },
   "clue-breadcrumb-drained": {
-    "bytes": 8237,
+    "bytes": 8131,
     "file": "art/clue-breadcrumb-drained.png",
     "h": 237,
     "w": 256
   },
   "clue-breadcrumb-earned": {
-    "bytes": 8382,
+    "bytes": 8266,
     "file": "art/clue-breadcrumb-earned.png",
     "h": 237,
     "w": 256
   },
   "clue-bubble-drained": {
-    "bytes": 7815,
+    "bytes": 7830,
     "file": "art/clue-bubble-drained.png",
     "h": 255,
     "w": 256
   },
   "clue-bubble-earned": {
-    "bytes": 7767,
+    "bytes": 7807,
     "file": "art/clue-bubble-earned.png",
     "h": 255,
     "w": 256
   },
   "clue-corn-drained": {
-    "bytes": 8756,
+    "bytes": 8712,
     "file": "art/clue-corn-drained.png",
     "h": 256,
     "w": 195
   },
   "clue-corn-earned": {
-    "bytes": 8622,
+    "bytes": 8764,
     "file": "art/clue-corn-earned.png",
     "h": 256,
     "w": 195
   },
   "clue-droplet-drained": {
-    "bytes": 8943,
+    "bytes": 9016,
     "file": "art/clue-droplet-drained.png",
     "h": 256,
     "w": 195
   },
   "clue-droplet-earned": {
-    "bytes": 8635,
+    "bytes": 8708,
     "file": "art/clue-droplet-earned.png",
     "h": 256,
     "w": 195
   },
   "clue-feather-drained": {
-    "bytes": 7103,
+    "bytes": 7104,
     "file": "art/clue-feather-drained.png",
     "h": 256,
     "w": 102
   },
   "clue-feather-earned": {
-    "bytes": 8244,
+    "bytes": 8293,
     "file": "art/clue-feather-earned.png",
     "h": 256,
     "w": 103
   },
   "clue-footprint-drained": {
-    "bytes": 9997,
+    "bytes": 10015,
     "file": "art/clue-footprint-drained.png",
     "h": 256,
     "w": 217
@@ -252,13 +252,13 @@
     "w": 448
   },
   "lamp-off": {
-    "bytes": 8529,
+    "bytes": 8498,
     "file": "art/lamp-off.png",
     "h": 192,
     "w": 181
   },
   "lamp-on": {
-    "bytes": 8397,
+    "bytes": 8444,
     "file": "art/lamp-on.png",
     "h": 192,
     "w": 181

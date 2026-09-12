@@ -2,7 +2,7 @@
 // detective-mode "Colour Asset Registry" — "Footprints earn in greyscale
 // only", "Trail colour absent before earning"). Pure data assertions, no DOM.
 import { describe, expect, it } from 'vitest'
-import { BREADCRUMB, BUBBLE, CLUE_DRAINED, KERNEL, LAMP, PLUME, POND, PRINT } from './palette'
+import { ART_OUTLINE, BREADCRUMB, BUBBLE, CLUE_DRAINED, KERNEL, LAMP, PLUME, POND, PRINT } from './palette'
 import { CLUE_ART } from './assets'
 import { DETECTIVE_CASES, clueKindsOf } from './cases'
 
@@ -74,6 +74,16 @@ describe('detective palette (design.md "Art Direction (revised plan)")', () => {
 
   it('gives footprints zero chroma (detective-mode spec, "Footprints earn in greyscale only")', () => {
     const { s } = hexToHsl(PRINT)
+    expect(s).toBe(0)
+  })
+
+  it('keeps ART_OUTLINE achromatic, so an art contour never carries a hue again', () => {
+    // This is the rule that would have caught both incidents before they
+    // shipped: `#1e293b` (`INK_COLOR`, hue 217° -- the blue every clue mark's
+    // outline shipped in) and, before that, the grass tufts' authored
+    // `#19241c` (hue 136°, green). Point `ART_OUTLINE` back at either and
+    // this goes red.
+    const { s } = hexToHsl(ART_OUTLINE)
     expect(s).toBe(0)
   })
 
