@@ -1,5 +1,9 @@
 # Home: la oficina del pulpo
 
+> **Reemplazado el 2026-09-12** por `docs/12_MAPA_DEL_ZOOLOGICO.md`: la
+> pantalla principal pasa a ser el mapa del zoológico. Este documento queda
+> como registro de la decisión anterior y del corte 1 que se implementó.
+
 Ideada el 2026-09-11. Estado: **corte 1 implementado el 2026-09-11** — el
 pulpo, la lupa como continuar, la lámpara y el riel con estado real, y un solo
 modo (`detective`) en el registro. El lápiz y el mapa siguen sin entrar: sus
