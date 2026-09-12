@@ -357,6 +357,13 @@ SINGLES = [
     ('delfin.png',            'sector-dolphin.png',        448, 'contour',    True),
     ('caracol.png',           'sector-snail.png',          448, 'contour',    True),
     ('linterna.png',          'sector-flashlight.png',     256, 'contour',    True),
+    # Hedgehog drawing activities. The body deliberately has no spikes: the
+    # child supplies them with their own line. Both poses retain authored fills
+    # while `contour` keeps the shared world marker neutral.
+    ('erizo.png',              'hedgehog-profile.png',      448, 'contour',    True),
+    ('erizo enroscado.png',    'hedgehog-curled.png',       448, 'contour',    True),
+    # A compact front-facing reward/prop for the mountain activity.
+    ('gorro andino.png',       'andean-hat.png',            256, 'contour',    True),
 ]
 
 # Full-canvas scenes are already authored at final dimensions. They bypass the
@@ -404,6 +411,9 @@ AUTHORED_SOURCE_SIZES = {
     'delfin.png': (1024, 1024),
     'caracol.png': (1024, 1024),
     'linterna.png': (1024, 1024),
+    'erizo.png': (1024, 1024),
+    'erizo enroscado.png': (1024, 1024),
+    'gorro andino.png': (1024, 1024),
 }
 
 
@@ -552,7 +562,7 @@ def main() -> None:
         # alpha antialiasing at the outer silhouette, but snap any resulting
         # dark chromatic blend back to the neutral world contour.
         if fill == 'contour' and (
-            name.startswith(('zoo-', 'sector-')) or name in ('carrier-octopus.png', 'home-octopus.png')
+            name.startswith(('zoo-', 'sector-', 'hedgehog-')) or name in ('andean-hat.png', 'carrier-octopus.png', 'home-octopus.png')
         ):
             recontour(final)
         key = name[:-4]

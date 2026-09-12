@@ -279,6 +279,20 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   flashlight: { href: '/art/sector-flashlight.png', w: 256, h: 234 },
 }
 
+/** Hedgehog drawing activities: the two poses stay separate so the child can
+ * draw spikes on a side-on body or recognise the same animal curled up. */
+export const HEDGEHOG_ART: Readonly<Record<'profile' | 'curled', ArtImage>> = {
+  profile: { href: '/art/hedgehog-profile.png', w: 448, h: 306 },
+  curled: { href: '/art/hedgehog-curled.png', w: 412, h: 407 },
+}
+
+/** A front-facing Andean wool hat icon for the mountain activity. */
+export const ANDEAN_HAT_ART: ArtImage = {
+  href: '/art/andean-hat.png',
+  w: 216,
+  h: 256,
+}
+
 /** The single light source (design.md "Colour — the reward system"), used both
  * in the rail and standing at the end of the route.
  *

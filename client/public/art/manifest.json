@@ -1,4 +1,10 @@
 {
+  "andean-hat": {
+    "bytes": 11616,
+    "file": "art/andean-hat.png",
+    "h": 256,
+    "w": 216
+  },
   "animal-gallina": {
     "bytes": 120278,
     "file": "art/animal-gallina.png",
@@ -250,6 +256,18 @@
     "file": "art/hazard-starfish.png",
     "h": 296,
     "w": 320
+  },
+  "hedgehog-curled": {
+    "bytes": 32528,
+    "file": "art/hedgehog-curled.png",
+    "h": 407,
+    "w": 412
+  },
+  "hedgehog-profile": {
+    "bytes": 19646,
+    "file": "art/hedgehog-profile.png",
+    "h": 306,
+    "w": 448
   },
   "home-desk": {
     "bytes": 74832,

@@ -24,6 +24,7 @@
 // sitting in `public/art/`.
 import { describe, it, expect } from 'vitest'
 import {
+  ANDEAN_HAT_ART,
   ANIMAL_ART,
   CARRIER_LENS_ART,
   CLUE_ART,
@@ -31,6 +32,7 @@ import {
   GROUND_GRASS,
   GROUND_MUD,
   HAZARD_STARFISH_ART,
+  HEDGEHOG_ART,
   HOME_DESK_ART,
   HOME_OCTOPUS_ART,
   LAMP_ART,
@@ -82,6 +84,8 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
     [`CLUE_ART.${kind}.art.drained`, art.art.drained] as const,
   ]),
   ...Object.entries(ANIMAL_ART).map(([id, a]) => [`ANIMAL_ART.${id}`, a] as const),
+  ...Object.entries(HEDGEHOG_ART).map(([id, art]) => [`HEDGEHOG_ART.${id}`, art] as const),
+  ['ANDEAN_HAT_ART', ANDEAN_HAT_ART] as const,
   ['CARRIER_LENS_ART', CARRIER_LENS_ART] as const,
   ['OCTOPUS_ART', OCTOPUS_ART] as const,
   ['HOME_OCTOPUS_ART', HOME_OCTOPUS_ART] as const,
@@ -142,11 +146,12 @@ describe('art registry matches the shipped pipeline manifest', () => {
   it('registers every clue kind in both states, and never the same file twice', () => {
     // 14 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
     // + 1 goal (medusa) + 1 hazard (estrella de mar) + 9 zoo journey
-    // + 6 sector backgrounds + 10 sector adventure cutouts + 12 grass + 8 mud.
+    // + 6 sector backgrounds + 10 sector adventure cutouts + 2 hedgehog poses
+    // + 1 Andean hat + 12 grass + 8 mud.
     // Grass carries MORE variants than mud on purpose: it covers the whole
     // field at full size, where a repeated silhouette is obvious, while mud
     // sits small inside the corridor and half-covered by the child's own line.
-    expect(REGISTERED.length).toBe(71)
+    expect(REGISTERED.length).toBe(74)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })

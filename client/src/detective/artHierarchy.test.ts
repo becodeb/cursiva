@@ -42,6 +42,8 @@ import { grassScatter, mudScatter, type ScatterMark } from '../canvas/groundScat
 import { CLUE_MARK_SIZE } from '../screen/LevelPlay'
 import {
   HOME_OCTOPUS_ART,
+  HEDGEHOG_ART,
+  ANDEAN_HAT_ART,
   OCTOPUS_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
@@ -259,7 +261,7 @@ const PROP_FILES = import.meta.glob('../../public/art/{goal,hazard}-*.png', {
  * corrected in the same pipeline change. Exact names make adding or removing
  * a shipped asset an explicit contract update rather than a wildcard surprise. */
 const WORLD_GUARD_FILES = import.meta.glob(
-  '../../public/art/{zoo-*,sector-*,carrier-octopus,home-octopus}.png',
+  '../../public/art/{zoo-*,sector-*,hedgehog-*,andean-hat,carrier-octopus,home-octopus}.png',
   {
     eager: true,
     query: '?inline',
@@ -279,6 +281,9 @@ const WORLD_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
   'zoo-speech-bubble.png': ZOO_SPEECH_BUBBLE_ART,
   'carrier-octopus.png': OCTOPUS_ART,
   'home-octopus.png': HOME_OCTOPUS_ART,
+  'hedgehog-profile.png': HEDGEHOG_ART.profile,
+  'hedgehog-curled.png': HEDGEHOG_ART.curled,
+  'andean-hat.png': ANDEAN_HAT_ART,
   ...Object.fromEntries(
     Object.entries(SECTOR_BACKGROUND_ART).map(([id, art]) => [`sector-${id}-background.png`, art]),
   ),
@@ -299,7 +304,7 @@ const FULL_CANVAS_ART = new Set([
  * backgrounds retain their final 3:2 coordinate system, while cutouts retain
  * a square transparent workspace before `build_art.py` crops them. */
 const SECTOR_SOURCE_FILES = import.meta.glob(
-  '../../../art-source/{fondo laguna,fondo arena,fondo ladera,fondo cordillera,fondo bosque,fondo pecera,vibora chica,vibora mediana,vibora grande,llama,abeja,flor,panal,delfin,caracol,linterna}.png',
+  '../../../art-source/{fondo laguna,fondo arena,fondo ladera,fondo cordillera,fondo bosque,fondo pecera,vibora chica,vibora mediana,vibora grande,llama,abeja,flor,panal,delfin,caracol,linterna,erizo,erizo enroscado,gorro andino}.png',
   { eager: true, query: '?inline', import: 'default' },
 ) as Inlined
 
@@ -320,6 +325,9 @@ const SECTOR_SOURCE_CANVASES: Readonly<Record<string, { w: number; h: number; op
   'delfin.png': { w: 1024, h: 1024, opaque: false },
   'caracol.png': { w: 1024, h: 1024, opaque: false },
   'linterna.png': { w: 1024, h: 1024, opaque: false },
+  'erizo.png': { w: 1024, h: 1024, opaque: false },
+  'erizo enroscado.png': { w: 1024, h: 1024, opaque: false },
+  'gorro andino.png': { w: 1024, h: 1024, opaque: false },
 }
 
 /** The tracing corridor is deliberate negative space, not empty scenery by
@@ -413,7 +421,19 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
         if (art.px[index] === 0) transparent += 1
       }
       if (expected.opaque) expect(transparent, `${name}: background must be opaque`).toBe(0)
-      else expect(transparent, `${name}: cutout needs transparent margin`).toBeGreaterThan(0)
+      else {
+        expect(transparent, `${name}: cutout needs transparent margin`).toBeGreaterThan(0)
+        // New cutouts are source assets, not just pipeline products: reject a
+        // navy/green contour before `recontour()` could hide it downstream.
+        // The soft edge may blend a fill into the marker, but the source's
+        // truly dark pixels must already be neutral #1a1a1a-family ink.
+        let darkChromatic = 0
+        for (let index = 0; index < art.px.length; index += 4) {
+          if (art.px[index + 3] === 0 || luma(art.px[index], art.px[index + 1], art.px[index + 2]) >= INK_LUMA) continue
+          if (Math.max(art.px[index], art.px[index + 1], art.px[index + 2]) - Math.min(art.px[index], art.px[index + 1], art.px[index + 2]) > ZOO_DARK_CHROMA_TOLERANCE) darkChromatic += 1
+        }
+        expect(darkChromatic, `${name}: source contour must be achromatic before processing`).toBe(0)
+      }
 
       const quietBase = SECTOR_QUIET_BAND_BASE[name]
       if (quietBase) {
