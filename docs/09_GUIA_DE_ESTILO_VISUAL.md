@@ -9,8 +9,18 @@ pantallas. Si algo nuevo no cumple esto, no entra.
 
 Todo está dibujado con un marcador grueso.
 
-- **Contorno negro parejo**, del mismo grosor en todo el dibujo, con
-  puntas redondeadas. No hay línea fina ni línea que se afine.
+- **Contorno oscuro y grueso, con puntas redondeadas**, de grosor
+  parecido en todo el dibujo pero **no idéntico**. *Esta viñeta decía
+  "contorno negro parejo, del mismo grosor". Estaba mal y produjo el
+  problema que arregló el 2026-09-12:* pedir una línea pareja y uniforme
+  empuja al generador hacia el vector limpio, que es exactamente lo que
+  no queremos. Un marcador lo maneja una mano: la línea tiene temblor
+  chico, las curvas no cierran perfecto, el grosor varía un poco a lo
+  largo del trazo. Esa irregularidad es el estilo, no un defecto a
+  corregir.
+- **El contorno es ACROMÁTICO: su tono es cero.** Ver sección 4. Esto ya
+  falló dos veces —contornos a tono 217 (azul) y a tono 136 (verde)— y
+  por eso ahora es una regla con nombre y con test.
 - **Relleno plano que se pasa un poco del contorno**, como un dibujo de
   chico hecho prolijo. Ese desborde es deliberado: es lo que separa este
   estilo de un vector genérico.
@@ -98,13 +108,29 @@ arte generado tiene que usar estos, no aproximaciones.
 | Uso | Hex |
 |---|---|
 | Papel / fondo | `#fdfcf7` |
-| Tinta / contorno | `#1e293b` |
+| Contorno del arte | `#1a1a1a` |
+| Trazo del chico (`INK_COLOR`) | `#1e293b` |
 | Pista apagada | `#c8cdd2` |
 | Gotita de agua | `#3f6f8f` |
 | Grano de maíz | `#b8912f` |
 | Huella | `#000000` |
 | Pluma | `#2f6b5c` |
 | Lamparita encendida | `#f2d377` |
+
+**El contorno del arte y el trazo del chico NO son el mismo color, y
+confundirlos fue un error real.** Hasta el 2026-09-12 esta tabla tenía una
+sola fila, `Tinta / contorno: #1e293b`, y `build_art.py` mandaba todo píxel
+de contorno a ese valor. `#1e293b` tiene **tono 217° y saturación 0,33: es
+azul pizarra.** Medido sobre el arte embarcado, era el segundo color más
+frecuente de cada marca, entre el 25% y el 30% de sus píxeles opacos — y una
+marca se dibuja unas 35 veces por nivel, así que el azul era el color más
+repetido de la pantalla.
+
+`INK_COLOR #1e293b` es el lápiz del chico y está bien que sea un gris
+azulado: es su trazo, tiene que distinguirse del mundo. `ART_OUTLINE
+#1a1a1a` es la línea de marcador del mundo dibujado. **Su tono debe ser
+cero**, y `palette.test.ts` lo afirma, porque esto ya falló dos veces: azul
+en las pistas y verde (`#19241c`, tono 136°) en las matas de pasto.
 
 **El color es la recompensa.** Una marca sólo toma color cuando el chico
 la recoge. La huella es la excepción y va a negro, no a un color, porque
@@ -240,3 +266,70 @@ redondeadas. Es la misma regla aplicada a la letra.
   imagen+palabra fuera del riel, con `label: string` obligatorio a nivel de
   tipo. Ver `client/src/detective/PistasRail.tsx`'s propio comentario de
   módulo para el detalle de la transición.
+
+---
+
+## 9. El bloque de estilo (pegar TAL CUAL en el generador)
+
+*Esta sección faltaba y esa ausencia fue un error con consecuencias. Entre
+el 2026-09-10 y el 2026-09-12 el estilo sólo existía descrito en prosa
+acá arriba, así que cada vez que se generaba un asset había que
+reconstruir el prompt de memoria — y derivaba. La prosa es para entender
+por qué; **esto es lo que se pega**. Si cambia el estilo, cambia acá.*
+
+Va en inglés a propósito: los modelos de imagen rinden bastante mejor.
+
+```
+Style: a single 2D game asset drawn with a thick felt-tip marker, by
+hand. Dark outline #1a1a1a, thick, with rounded ends. The line is
+HUMAN, not vector: slight wobble along the stroke, small variation in
+thickness, curves that do not close perfectly. Flat colour fill that
+overshoots the outline slightly on one side and falls short on the
+other, like a child colouring in tidily. Chunky, generous shapes with
+no fine detail. Flat colours only.
+
+Do NOT produce: smooth vector or clip-art lines, a logo, gradients,
+soft or drop shadows, glow, 3D shading, bevels, outlines in any colour
+other than #1a1a1a, texture noise, photorealism, or a background.
+
+Plain white background, object centred and isolated, nothing else in
+the image.
+```
+
+Después del bloque va **una sola línea** describiendo el objeto y su
+color de relleno en hex. Ejemplo completo:
+
+```
+<bloque de estilo>
+
+A single feather, seen from the side, pointing UP. Fill #2f6b5c.
+```
+
+### Reglas que se pegan junto al objeto
+
+- **Las marcas de pista apuntan hacia ARRIBA.** El motor las rota para
+  seguir la tangente del camino y asume que el "adelante" del dibujo es
+  hacia arriba. Si vienen acostadas, salen todas torcidas.
+- **Las huellas se piden en par**, izquierda y derecha espejada. La
+  alternancia es lo que hace que un rastro se lea como "alguien caminó
+  por acá"; la forma sola no alcanza (sección 5).
+- **Cada pista se pide dos veces**, una con su color ganado y otra en
+  `#c8cdd2`. El pipeline recolorea igual, pero la forma tiene que
+  funcionar en los dos estados.
+- Los animales llevan **el origen en las patas** y todos la misma
+  altura, así se paran sobre la misma línea de suelo.
+
+### Checklist para rechazar en cinco segundos
+
+Antes de meter un asset al pipeline, mirá sólo esto:
+
+1. **¿El contorno es gris/negro neutro?** Si tira a azul o a verde, se
+   rechaza. Es el error que más veces se repitió.
+2. **¿La línea tiembla?** Si es una curva perfectamente lisa, es vector,
+   no marcador.
+3. **¿El relleno se pasa de la línea en algún lado?** Si calza perfecto,
+   es vector.
+4. **¿Se entiende a 24 píxeles?** Achicalo y miralo. Las marcas se
+   dibujan a 20-30 unidades, no al tamaño de la lámina.
+5. **¿Aguanta repetido?** Pegalo unas treinta veces en fila. Es la
+   prueba que más assets reprueba (sección 5).

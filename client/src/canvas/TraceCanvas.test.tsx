@@ -725,6 +725,54 @@ describe('TraceCanvas startArt / endArt (registry art standing at the ends of th
     for (const html of [off, on]) expect(html).toContain('y="248"') // 300 - 52
   })
 
+  it('a route starting against the LEFT edge does not cut the character in half', () => {
+    // The shipped defect: `?nivel=duck-trail4` (and, predating it, `trail4`)
+    // begins hard against the left edge, so the feet-placed octopus hung off
+    // the sheet and rendered as half an octopus.
+    const html = renderToString(
+      <TraceCanvas startMarker={{ x: 12, y: 300 }} startArt={OCTOPUS} />,
+    )
+    const image = html.slice(html.indexOf('<image'), html.indexOf('>', html.indexOf('<image')))
+    const attr = (name: string): number =>
+      Number(image.match(new RegExp(`${name}="([-\\d.]+)"`))?.[1])
+    expect(attr('x')).toBe(0)
+    expect(attr('x') + attr('width')).toBeLessThanOrEqual(1000)
+    // Full size and still standing on the route's own y: only x moved, and
+    // only by the 40 units it was overflowing.
+    expect(attr('height')).toBe(60)
+    expect(attr('y')).toBe(240)
+  })
+
+  it('the lamp at the RIGHT edge is pulled back in, and by the minimum', () => {
+    const html = renderToString(
+      <TraceCanvas endMarker={{ x: 995, y: 300 }} endArt={LAMP_ON} />,
+    )
+    const image = html.slice(html.indexOf('<image'), html.indexOf('>', html.indexOf('<image')))
+    const attr = (name: string): number =>
+      Number(image.match(new RegExp(`${name}="([-\\d.]+)"`))?.[1])
+    const width = (LAMP_ON.size * LAMP_ON.w) / LAMP_ON.h
+    expect(attr('x') + attr('width')).toBeCloseTo(1000, 6)
+    expect(attr('width')).toBeCloseTo(width, 6)
+    // Still nearly where the route ends: the shift is under half its width.
+    expect(995 - width / 2 - attr('x')).toBeLessThan(width / 2)
+  })
+
+  it('clamps into the VISIBLE band, not the full 600-unit sheet', () => {
+    // A cropped level shows less paper (`viewBoxY`/`viewBoxHeight`), and the
+    // character has to fit inside what is actually shown.
+    const html = renderToString(
+      <TraceCanvas
+        viewBoxY={200}
+        viewBoxHeight={200}
+        startMarker={{ x: 500, y: 240 }}
+        startArt={OCTOPUS}
+      />,
+    )
+    const image = html.slice(html.indexOf('<image'), html.indexOf('>', html.indexOf('<image')))
+    const y = Number(image.match(/ y="([-\d.]+)"/)?.[1])
+    expect(y).toBe(200) // feet at 240 would have put the top at 180, above the band
+  })
+
   it('keeps the shipped dot and diamonds for every caller that passes no art', () => {
     const html = renderToString(<TraceCanvas startMarker={start} endMarker={end} />)
     expect(html).toContain('#22c55e')

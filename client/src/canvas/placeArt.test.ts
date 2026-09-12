@@ -2,7 +2,7 @@
 // Its Grip, Not Its Bounding Box"). Pure function, no DOM.
 import { describe, expect, it } from 'vitest'
 import { CARRIER_LENS_ART } from '../detective/assets'
-import { DEFAULT_GRIP, placeArt } from './placeArt'
+import { clampArtBox, DEFAULT_GRIP, placeArt, STANDING_GRIP } from './placeArt'
 
 describe('placeArt (design.md §7: "placeArt() lives in canvas/, takes a structural shape")', () => {
   it('with no declared grip, centres the box on `center`', () => {
@@ -57,5 +57,98 @@ describe('placeArt (design.md §7: "placeArt() lives in canvas/, takes a structu
 
   it('DEFAULT_GRIP is the box centre', () => {
     expect(DEFAULT_GRIP).toEqual([0.5, 0.5])
+  })
+})
+
+describe('clampArtBox (standing art may not be cut in half by the edge of the sheet)', () => {
+  // The real sheet every trail renders into.
+  const SHEET = { x: 0, y: 0, width: 1000, height: 600 }
+
+  it('leaves a box that already fits exactly where it was', () => {
+    const box = { x: 100, y: 200, width: 104, height: 96 }
+    expect(clampArtBox(box, SHEET)).toEqual(box)
+  })
+
+  it('touching an edge without crossing it is still no shift', () => {
+    const box = { x: 0, y: 504, width: 104, height: 96 } // flush left, flush bottom
+    expect(clampArtBox(box, SHEET)).toEqual(box)
+  })
+
+  it('shifts ONE axis when only one overflows, and by the minimum', () => {
+    // `?nivel=duck-trail4`: the route starts near the left edge, so the
+    // octopus placed by its feet hangs 40 units off the sheet.
+    const box = { x: -40, y: 300, width: 104, height: 96 }
+    const fixed = clampArtBox(box, SHEET)
+    expect(fixed.x).toBe(0) // exactly the overflow, not a padded inset
+    expect(fixed.y).toBe(300) // the axis that fit is untouched
+    expect(fixed.width).toBe(104)
+    expect(fixed.height).toBe(96)
+  })
+
+  it('shifts the RIGHT and BOTTOM edges back in by the minimum too', () => {
+    const fixed = clampArtBox({ x: 960, y: 560, width: 104, height: 96 }, SHEET)
+    expect(fixed.x).toBe(1000 - 104)
+    expect(fixed.y).toBe(600 - 96)
+  })
+
+  it('shifts BOTH axes when both overflow', () => {
+    const fixed = clampArtBox({ x: -12, y: -30, width: 104, height: 96 }, SHEET)
+    expect(fixed).toEqual({ x: 0, y: 0, width: 104, height: 96 })
+  })
+
+  it('honours a CROPPED band: bounds are the visible sheet, not the full 600', () => {
+    // `viewBoxY`/`viewBoxHeight` crop empty margin (TraceCanvas), and a
+    // character has to fit in what is actually shown.
+    const band = { x: 0, y: 120, width: 1000, height: 360 }
+    expect(clampArtBox({ x: 10, y: 60, width: 104, height: 96 }, band).y).toBe(120)
+    expect(clampArtBox({ x: 10, y: 460, width: 104, height: 96 }, band).y).toBe(480 - 96)
+  })
+
+  it('NEVER resizes — a character shrunk to fit would read as standing further away', () => {
+    const fixed = clampArtBox({ x: -500, y: -500, width: 104, height: 96 }, SHEET)
+    expect(fixed.width).toBe(104)
+    expect(fixed.height).toBe(96)
+  })
+
+  it('art WIDER than the sheet pins to the near edge, never off the other side', () => {
+    // No position fits, so clamping must not turn one clipped edge into two.
+    const fixed = clampArtBox({ x: -200, y: 0, width: 1400, height: 96 }, SHEET)
+    expect(fixed.x).toBe(0)
+    // The far side overflows, which is unavoidable; the left edge is visible.
+    expect(fixed.x + fixed.width).toBeGreaterThan(SHEET.width)
+  })
+
+  it('art TALLER than the band pins to its top for the same reason', () => {
+    const band = { x: 0, y: 120, width: 1000, height: 200 }
+    const fixed = clampArtBox({ x: 0, y: 400, width: 104, height: 400 }, band)
+    expect(fixed.y).toBe(120)
+  })
+
+  it('composes with placeArt: the feet stay on the point whenever no shift is needed', () => {
+    const art = { w: 384, h: 353 } // carrier-octopus.png
+    const feet = { x: 500, y: 300 }
+    const box = clampArtBox(placeArt({ ...art, grip: STANDING_GRIP }, 96, feet), SHEET)
+    expect(box.y + box.height).toBeCloseTo(feet.y) // standing ON the point
+    expect(box.x + box.width / 2).toBeCloseTo(feet.x)
+  })
+
+  it('composes with placeArt: a start against the left edge moves by less than half the art', () => {
+    const art = { w: 384, h: 353 }
+    const feet = { x: 12, y: 300 }
+    const raw = placeArt({ ...art, grip: STANDING_GRIP }, 96, feet)
+    const box = clampArtBox(raw, SHEET)
+    expect(box.x).toBe(0)
+    // docs/09 §2: the octopus marks WHERE YOU STARTED FROM, so the drift is
+    // bounded by half its own width (~52 units on a 1000-unit sheet).
+    expect(box.x - raw.x).toBeLessThanOrEqual(raw.width / 2)
+    expect(box.y + box.height).toBeCloseTo(feet.y) // the vertical axis never moved
+  })
+})
+
+describe('STANDING_GRIP (docs/09 §3: "los animales llevan el origen en las patas")', () => {
+  it('is centred horizontally and stands on the point', () => {
+    expect(STANDING_GRIP).toEqual([0.5, 1])
+    const box = placeArt({ w: 100, h: 100, grip: STANDING_GRIP }, 40, { x: 0, y: 0 })
+    expect(box).toEqual({ x: -20, y: -40, width: 40, height: 40 })
   })
 })
