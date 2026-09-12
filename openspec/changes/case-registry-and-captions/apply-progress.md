@@ -136,3 +136,39 @@ Full suite at the end of S2: **999 tests / 54 files, `npm run build` green.**
 21/69 tasks complete (Phase 1: 5/5, Phase 2: 16/16). Both slices committed
 separately. Ready for the next apply batch (Phase 3, S3) or for verify on
 this slice's scope.
+
+## Orchestrator correction after the S2 screenshot review (2026-09-12)
+
+The S2 screenshot check was reported as PASS on all three shots. Two of the four
+duck trails did not survive a second look.
+
+**`duck-trail3` rebuilt: `garland` → `switchback`.** Three defects, one root cause.
+
+1. **A garland IS the row of U's, and the row of U's is the signature of the
+   directive's Nivel 3** (the jellyfish). Spending it on a Nivel 2 case trail
+   flattens that level before it ships. This is proposal D1's ruling — a later
+   level's mechanic is not free decoration for an earlier one — applied to the
+   shape instead of to the obstacle. Neither the design nor the first
+   implementation caught it.
+2. `garland`'s cusps put consecutive clue marks ~20 units apart where the arcs
+   nearly meet. A bubble is a fat round 28-unit mark, so on the render
+   (`/tmp/shots/duck-trail3.png`) they merged into single blobs. A switchback
+   has no cusp.
+3. Clearing the pre-existing "phase 1 uses the whole blank sheet" guard by
+   pushing `yTop` to 110 put the route's FIRST POINT so high that the octopus
+   and its glass — which stand at that point — were clipped by the top of the
+   sheet. `yTop: 140` is where `trail4` already starts safely.
+
+Now `switchback({ x0: 120, x1: 880, yTop: 140, yBottom: 480 })`, which is also
+the shape the directive actually asks Nivel 2 for: "laberintos". Guard maths:
+`minY 140 < 180`, `maxY 480 > 420`, span `340 > 300`. Re-shot at
+`/tmp/shots/duck-trail3-fixed.png` — carrier whole, marks evenly spaced, lamp on
+the corridor. 999 tests / 54 files still green.
+
+**`duck-trail4`'s start carrier is clipped by the LEFT edge — and that is
+PRE-EXISTING, not this change's doing.** Verified against the shipped hen trail
+at `/tmp/shots/ref-trail4.png`, which clips the octopus in exactly the same way.
+Both square-wave trails start at `(x0, mid - amplitude)`, and the octopus art is
+drawn from that point outward with no edge inset. Recorded here rather than
+fixed: it is a `TraceCanvas` start-marker concern, outside this change's scope,
+and fixing it silently inside an unrelated slice would hide it.

@@ -264,25 +264,38 @@ const PHASE_1: LevelConfig[] = [
   {
     id: 'duck-trail3',
     phase: 1,
-    title: 'Las burbujas',
-    hint: 'Bajá y subí por cada burbuja, sin levantar el dedo.',
+    title: 'La vuelta de las burbujas',
+    hint: 'Seguí hasta el fondo, dá la vuelta y volvé.',
     kind: 'path',
     surface: 'blank',
     maze: true,
     resetOnContact: true,
     carrier: true,
     feedback: feedback(0, false),
-    // [deviation from design.md §3's literal `garland({ cycles: 3 })`]
-    // `garland`'s DEFAULT `yTop`/`yBottom` (285/435) draw a vertical span of
-    // only 150 units, almost entirely INSIDE the 300-420 writing band — the
-    // same pre-existing "phase 1 uses the whole blank sheet" guard
-    // `duck-trail1` had to clear. Widened here for the same reason: phase 1
-    // trains the whole arm outside that band, unlike phase 2's `f2-guirnalda`
-    // (same generator, deliberately left in-band because phase 2 IS the
-    // writing-band pattern phase).
-    paths: [garland({ cycles: 3, yTop: 110, yBottom: 490 })],
+    // [deviation from design.md §3's literal `garland({ cycles: 3 })`, and
+    // from the first implementation of this level]
+    //
+    // Three reasons, and the first is the one that matters.
+    //
+    // 1. A garland IS the row of U's, and the row of U's is the SIGNATURE of
+    //    the directive's Nivel 3 — the jellyfish that swims away. Spending it
+    //    here flattens that level before it ships. This is the same ruling
+    //    that kept a timed obstacle off every duck trail (proposal D1): a
+    //    later level's mechanic is not free decoration for an earlier one.
+    // 2. `garland`'s cusps put two consecutive clue marks within ~20 units of
+    //    each other where the arcs nearly meet, and a bubble is a fat round
+    //    28-unit mark. Measured on a render: they overlapped into one blob.
+    //    A switchback has no cusp, so consecutive marks stay apart.
+    // 3. Clearing the "phase 1 uses the whole blank sheet" guard by pushing
+    //    `yTop` to 110 put the route's FIRST POINT so high that the octopus
+    //    and its glass — which stand at that point — were clipped by the top
+    //    of the sheet. `yTop: 140` is where `trail4` already starts safely.
+    //
+    // A switchback is also the shape the directive actually asks Nivel 2 for:
+    // "laberintos". One long run, one reversal, one long run back.
+    paths: [switchback({ x0: 120, x1: 880, yTop: 140, yBottom: 480 })],
     corridorWidth: 80,
-    // The garland's whole point is one unbroken stroke — same reason
+    // The reversal's whole point is one unbroken stroke — same reason
     // `trail2`'s spiral does — so it is the one duck trail requiring
     // continuity.
     rules: rules(1, true, true, 0),
