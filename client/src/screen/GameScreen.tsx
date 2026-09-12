@@ -13,6 +13,7 @@ import { EMPTY_RECORD } from '../game/types'
 import type { LevelAttempt, LevelRecord } from '../game/types'
 import { openProgressStore } from '../game/openProgressStore'
 import { DETECTIVE_CASES, caseOf, caseSolvedId } from '../detective/cases'
+import { isDevMode } from '../canvas/devMode'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
@@ -69,25 +70,38 @@ export function nextView(state: GameView, action: GameAction): GameView {
  * Deep link (`?nivel=<id>`) so any level can be opened directly while the
  * mechanics are being evaluated — reaching phase 5 legitimately costs eight
  * approvals, which would make the late levels impossible to review.
- * An unknown id falls back to the map instead of crashing.
+ * An unknown id, and no id at all, resolves to `null` — the office
+ * (`{ at: 'home' }`) is the default landing, never the map (design.md §8,
+ * "Dev gate on the map route").
  *
- * `?nivel=deduccion` is the one reserved id that is NOT a catalog lookup — it
- * opens the FIRST case's deduction view directly, the same deep-link
- * convenience every other level already has, for the same reviewability
- * reason. [case-registry-and-captions, Phase 6, necessary minimum] Per-case
- * `?nivel=deduccion-<caseId>` links and the `?nivel=mapa` dev gate are
- * Phase 7 scope (design.md §8) — only the caseId this view now REQUIRES to
- * compile is added here.
+ * `?nivel=deduccion` opens the FIRST case's deduction view directly, the
+ * same deep-link convenience every other level already has.
+ * `?nivel=deduccion-<caseId>` opens THAT case's deduction view, if the id is
+ * one `DETECTIVE_CASES` actually carries — an unknown case id falls through
+ * rather than crashing.
+ *
+ * [case-registry-and-captions, Phase 7] `?nivel=mapa` is a DEV SURFACE
+ * (proposal D3): it is the only way left to reach the level map's own tools
+ * (progress reset, test mode), and it only resolves when `dev` is true — so
+ * a plain production/preview visit to `?nivel=mapa` still falls through to
+ * the office. `dev` is `isDevMode()` at the call sites (`App.initialShell`,
+ * `GameScreen`'s own bare-mount fallback below), never hardcoded here, so
+ * this function stays a pure decision over its two explicit parameters.
  */
-export function initialView(search: string): GameView {
+export function initialView(search: string, dev = false): GameView | null {
   try {
     const id = new URLSearchParams(search).get('nivel')
     if (id === 'deduccion') return { view: 'deduce', caseId: DETECTIVE_CASES[0].id }
+    if (id?.startsWith('deduccion-')) {
+      const caseId = id.slice('deduccion-'.length)
+      if (DETECTIVE_CASES.some((k) => k.id === caseId)) return { view: 'deduce', caseId }
+    }
+    if (id === 'mapa' && dev) return { view: 'map', finished: false }
     if (id && LEVELS.some((l) => l.id === id)) return { view: 'play', levelId: id }
   } catch {
-    // malformed query string: fall through to the map
+    // malformed query string: fall through to the office
   }
-  return { view: 'map', finished: false }
+  return null
 }
 
 /**
@@ -142,21 +156,33 @@ export interface GameScreenProps {
   footer?: ReactNode
   /** Where to open. The home (docs/10) resolves "por donde lo dejé" itself and
    * hands the answer down, so the child lands on the trail rather than on the
-   * map. Omitted, this falls back to the `?nivel=` deep link and then the map,
-   * which is exactly what every existing caller and test gets. */
+   * map. Omitted, this falls back to the `?nivel=` deep link and then the
+   * office fallback below, which is exactly what every existing caller and
+   * test gets. */
   initial?: GameView
+  /** [case-registry-and-captions, Phase 7] Where "leaving this mode" goes.
+   * Required, like `CaptionedArt`'s `label` (design.md §2) — no caller can
+   * silently keep landing on the level map. `App.tsx` passes `goHome`, the
+   * only function that can reach `{ at: 'home' }` (design.md §8, "onExit, a
+   * prop, not a GameAction"). */
+  onExit: () => void
 }
 
-export default function GameScreen({ footer, initial }: GameScreenProps = {}) {
+export default function GameScreen({ footer, initial, onExit }: GameScreenProps) {
   // One store per game session, loaded and migrated by `openProgressStore`
   // (which is also what the app shell reads the home's records through — see
   // its header for why constructing this twice by hand is a trap). Inside a
   // lazy initialiser, so it runs exactly once per mount, including under
   // StrictMode's double-invoke.
   const [store] = useState(openProgressStore)
-  const [state, setState] = useState<GameView>(
-    () => initial ?? initialView(typeof window === 'undefined' ? '' : window.location.search),
-  )
+  const [state, setState] = useState<GameView>(() => {
+    if (initial) return initial
+    const search = typeof window === 'undefined' ? '' : window.location.search
+    // The office is the default landing (design.md §8) — `{view:'map'}` here
+    // is only GameScreen's OWN defensive fallback for a bare mount, never the
+    // production route (App.tsx always resolves `initialView` itself first).
+    return initialView(search, isDevMode()) ?? { view: 'map', finished: false }
+  })
   // Records live in storage, not in React state: bumping the version is what
   // re-renders this shell so both children re-read them after a write.
   const [version, setVersion] = useState(0)
@@ -175,7 +201,7 @@ export default function GameScreen({ footer, initial }: GameScreenProps = {}) {
           setVersion((n) => n + 1)
         }}
         onNext={() => dispatch(resolveNextAction(state.levelId, store.all()))}
-        onBack={() => dispatch({ type: 'back' })}
+        onBack={onExit}
       />
     )
   }
@@ -196,7 +222,7 @@ export default function GameScreen({ footer, initial }: GameScreenProps = {}) {
           store.save(solvedId, { ...EMPTY_RECORD, approvals: 1 })
           setVersion((n) => n + 1)
         }}
-        onExit={() => dispatch({ type: 'back' })}
+        onExit={onExit}
       />
     )
   }

@@ -23,7 +23,7 @@
 // imported straight from `game/types` now — `GameScreen.tsx` dropped its
 // re-export once `resolveNextAction` stopped hardcoding the hen's ids.
 import { describe, expect, it } from 'vitest'
-import { allEarned, initialView, nextView, resolveNextAction, type GameView } from './GameScreen'
+import GameScreen, { allEarned, initialView, nextView, resolveNextAction, type GameView } from './GameScreen'
 import { EMPTY_RECORD, DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, type LevelRecord } from '../game/types'
 
 const playing = (levelId: string): GameView => ({ view: 'play', levelId })
@@ -51,15 +51,63 @@ describe('nextView: deduce (level-engine spec "Deduction View Reachable from nex
     )
   })
 
-  it('back/reset from the deduction view returns to a plain map', () => {
-    expect(nextView(deduceDuck, { type: 'back' })).toEqual({ view: 'map', finished: false })
+  it('reset from the deduction view returns to a plain map, for either case', () => {
+    // [case-registry-and-captions, Phase 7] `nextView`'s `back` branch stays
+    // reachable (design.md §8: "the whole point of the deliverable... but
+    // still reached by {type:'reset'}"), but the UI no longer dispatches
+    // `{type:'back'}` to leave a mode — see the required-`onExit`-prop proof
+    // below. Only `{type:'reset'}` — the map's own "Reiniciar progreso"
+    // control — is asserted here now.
     expect(nextView(deduceDuck, { type: 'reset' })).toEqual({ view: 'map', finished: false })
+    expect(nextView(deduceHen, { type: 'reset' })).toEqual({ view: 'map', finished: false })
+  })
+
+  // Compile-time proof (design.md §8: "onExit, a prop, not a GameAction" —
+  // "required, like `label`, so no caller can silently keep landing on the
+  // map"). Same precedent as `CaptionedArt.test.tsx`'s `label` proof: this
+  // repo's node/no-DOM harness cannot simulate a click on `LevelPlay`'s ‹
+  // Volver or `Deduction`'s back control to observe that `GameScreen` wires
+  // them to the `onExit` prop and never to `dispatch({type:'back'})` — a
+  // click needs a live DOM this harness does not have. What IS provable, and
+  // provable only by `npm run build`'s `tsc --noEmit` (never by this test's
+  // own vitest run — see the CaptionedArt precedent's own comment), is that
+  // NO caller can mount `GameScreen` without supplying `onExit` at all, which
+  // is the structural guarantee design.md asks for: dispatch can never be the
+  // silent fallback because there is no path that compiles without a real
+  // exit destination.
+  it('documents the onExit-omission compile error; the real proof is npm run build, not this test run', () => {
+    // @ts-expect-error — `onExit` is required; a `GameScreen` with nowhere to
+    // exit to would silently keep landing on the level map (design.md §8). If
+    // this line ever stops erroring, the invariant is gone, and only
+    // `npm run build` — never `npm test` — notices.
+    const proof = <GameScreen initial={deduceDuck} />
+    expect(proof).toBeTruthy()
   })
 })
 
 describe('initialView: ?nivel=deduccion deep link', () => {
   it("opens the FIRST case's deduction view directly (duck, design decision 3)", () => {
     expect(initialView('?nivel=deduccion')).toEqual(deduceDuck)
+  })
+
+  it('?nivel=deduccion-<caseId> opens that specific case', () => {
+    expect(initialView('?nivel=deduccion-hen')).toEqual(deduceHen)
+    expect(initialView('?nivel=deduccion-duck')).toEqual(deduceDuck)
+  })
+
+  it('an unknown case id in ?nivel=deduccion-<caseId> falls through to null, never a crash', () => {
+    expect(initialView('?nivel=deduccion-raccoon')).toBeNull()
+  })
+})
+
+describe('initialView: ?nivel=mapa is a dev-only surface (design.md §8, proposal D3)', () => {
+  it('resolves the map only when dev is true', () => {
+    expect(initialView('?nivel=mapa', true)).toEqual({ view: 'map', finished: false })
+  })
+
+  it('falls through to null (the office) when dev is false, including the default', () => {
+    expect(initialView('?nivel=mapa', false)).toBeNull()
+    expect(initialView('?nivel=mapa')).toBeNull()
   })
 })
 

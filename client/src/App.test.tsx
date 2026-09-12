@@ -41,8 +41,11 @@ describe('App shell (docs/10: the home is the entry point)', () => {
     // The shell reads `window.location.search`, which is absent under SSR, so
     // the routing decision itself is asserted through the same pure function
     // the shell calls — `initialView` — rather than through a rendered string.
+    // `dev` defaults to `false` here, same as every real caller under SSR.
     expect(initialView('?nivel=trail1')).toEqual({ view: 'play', levelId: 'trail1' })
-    expect(initialView('')).toEqual({ view: 'map', finished: false })
+    // [case-registry-and-captions, Phase 7] Nothing asked for resolves to
+    // `null` now (design.md §8) — the office, not the map, is the fallback.
+    expect(initialView('')).toBeNull()
   })
 })
 

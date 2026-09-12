@@ -1,7 +1,7 @@
 # Apply Progress: Case Registry and Captioned Art
 
-Cumulative scope across apply runs: **Phase 1 (S1) through Phase 6 (S6).**
-Phases 7-9 are untouched and remain `[ ]` in `tasks.md`.
+Cumulative scope across apply runs: **Phase 1 (S1) through Phase 7 (S7).**
+Phases 8-9 are untouched and remain `[ ]` in `tasks.md`.
 
 Mode: Standard (strict TDD disabled — `openspec/config.yaml testing.strict_tdd: false`).
 
@@ -353,17 +353,68 @@ the office rail now displaying the duck's four drained clue kinds (webfoot/
 breadcrumb/bubble/feather) instead of the hen's, confirming `activeCase`
 correctly resolves to the duck case for a fresh child.
 
+## Phase 7: Exit to the home office; map becomes a dev surface (S7) — COMPLETE (8/8)
+
+| Task | Status | Evidence |
+|---|---|---|
+| 7.1 `GameScreenProps.onExit` required; `dispatch({type:'back'})` replaced | done | Both wiring sites (`LevelPlay.onBack`, `Deduction.onExit`) now call `onExit()` directly. `nextView`'s `back` case untouched — still reached by `{type:'reset'}`. |
+| 7.2 `App.tsx` passes `onExit={goHome}` | done | At the sole `<GameScreen/>` mount site. |
+| 7.3 `initialView` rewrite (design §8) | done | Takes `dev = false`; `?nivel=deduccion` → first case; `?nivel=deduccion-<caseId>` → that case if it exists, else falls through; `?nivel=mapa` only resolves when `dev` is true; everything else → `null`. Return type is now `GameView \| null`. |
+| 7.4 `App.tsx initialShell` | done | `const v = initialView(search, isDevMode()); return v ? {at:'game', initial:v} : {at:'home'}`. |
+| 7.5 `levelFlow.test.ts` retitle | done, with a path-name deviation | See tasks.md's note: the file is `client/src/screen/levelFlow.test.ts`, not `client/src/game/levelFlow.test.ts` as the task text names it — same file, task-text path drift. Retitled and now drives `{type:'reset'}` explicitly. The `onExit`-prop half of the assertion moved to task 7.6's compile-time proof, since `nextView` itself has no `onExit` parameter. |
+| 7.6 `GameScreen.test.tsx` split + new cases | done | Split test into a `reset`-only case (both `deduceDuck`/`deduceHen`) plus a `CaptionedArt`-precedent `@ts-expect-error` compile proof that `onExit` is required. Added `initialView` cases: `?nivel=deduccion-hen`/`-duck`, an unknown-case-id fallthrough, and `?nivel=mapa` under `dev` true/false/default. |
+| 7.7 `App.test.tsx` `initialView('')` | done | Now `.toBeNull()`. `?nivel=trail1` (dev defaults false) and "opens on the office" both confirmed still green, unchanged — the latter is now load-bearing proof the dev gate never turns the dev server itself into a map. |
+| 7.8 `npm test` / `npm run build` | done | 1036 tests / 56 files (up from 1031/56); build green. |
+
+### Falsifiability proof for the onExit compile-error claim (task 7.6)
+
+Same precedent as `CaptionedArt.test.tsx`'s `label` proof (Phase 3, task 3.2),
+done for real rather than assumed:
+
+1. Temporarily removed the `@ts-expect-error` suppression from
+   `GameScreen.test.tsx`'s new compile-proof test.
+2. Ran `npx tsc --noEmit` — FAILED exactly as expected: `TS2741: Property
+   'onExit' is missing in type '{ initial: {...} }' but required in type
+   'GameScreenProps'.`
+3. Restored the suppression; `tsc --noEmit` clean again; full `npm test` /
+   `npm run build` re-run green (1036/56, build green).
+
+### Why the "GameScreen wires Deduction.onExit/LevelPlay.onBack to onExit,
+never to dispatch" claim is proven at compile time, not by a click
+
+This repo's harness is `renderToString` in a node environment with no DOM
+and no click simulation (documented repeatedly across this change's own
+files — `Deduction.tsx`'s module comment, `LevelPlay.test.tsx`). There is no
+way to simulate a press on `LevelPlay`'s ‹ Volver or `Deduction`'s back
+control and observe which function actually ran. What IS structurally
+guaranteed, and what design.md's own words ask for ("required, like
+`label`, so no caller can silently keep landing on the map"), is that
+`onExit` is a required prop: no `GameScreen` can be mounted at all — in
+production or in a test — without a real exit destination. `dispatch` was
+also removed from both call sites by direct code inspection (they now read
+`onBack={onExit}` and `onExit={onExit}`, both simple pass-throughs), which
+a human reviewer can verify in the diff; there is no decision or branch left
+in that wiring for a unit test to be wrong about.
+
+### Work Unit Evidence — S7
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `npm test -- levelFlow GameScreen App` → 35/35 passed |
+| Runtime harness | N/A for a new render this phase — visually confirmed together with Phase 8's task 8.7 lens screenshot, since exiting a trail and the lens defect share the same rendered surface |
+| Rollback boundary | One prop (`onExit` on `GameScreenProps`, threaded from `App.tsx`'s `goHome`) and one `isDevMode()` gate inside `initialView`; both are independently revertible — reverting `onExit` restores `dispatch({type:'back'})` at the two call sites, reverting the dev gate restores the old three-branch `initialView` returning `GameView` (never `null`) |
+
 ## Remaining Tasks (out of scope for this apply run)
 
-- [ ] Phase 7: Exit to the home office; map becomes a dev surface (S7)
 - [ ] Phase 8: The lens centres on the fingertip (S8)
 - [ ] Phase 9: Docs — Nivel reterm, directive transcription, D6 fixes (S9)
 
 ## Status
 
-45/69 tasks complete (Phase 1: 5/5, Phase 2: 16/16, Phase 3: 5/5, Phase 4:
-7/7, Phase 5: 6/6, Phase 6: 6/6). All six slices committed separately. Ready
-for the next apply batch (Phase 7, S7) or for verify on this slice's scope.
+53/69 tasks complete (Phase 1: 5/5, Phase 2: 16/16, Phase 3: 5/5, Phase 4:
+7/7, Phase 5: 6/6, Phase 6: 6/6, Phase 7: 8/8). All seven slices committed
+separately. Ready for the next apply batch (Phase 8, S8) or for verify on
+this slice's scope.
 
 ## Orchestrator correction after the S2 screenshot review (2026-09-12)
 
