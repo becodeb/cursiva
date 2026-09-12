@@ -9,15 +9,18 @@ pantallas. Si algo nuevo no cumple esto, no entra.
 
 Todo está dibujado con un marcador grueso.
 
-- **Contorno oscuro y grueso, con puntas redondeadas**, de grosor
-  parecido en todo el dibujo pero **no idéntico**. *Esta viñeta decía
-  "contorno negro parejo, del mismo grosor". Estaba mal y produjo el
-  problema que arregló el 2026-09-12:* pedir una línea pareja y uniforme
-  empuja al generador hacia el vector limpio, que es exactamente lo que
-  no queremos. Un marcador lo maneja una mano: la línea tiene temblor
-  chico, las curvas no cierran perfecto, el grosor varía un poco a lo
-  largo del trazo. Esa irregularidad es el estilo, no un defecto a
-  corregir.
+- **Contorno negro, grueso, de grosor parejo, con puntas redondeadas.**
+
+  *Esta viñeta se escribió bien, se "corrigió" mal el 2026-09-12 y se
+  volvió a su forma original el mismo día. Vale la pena entender el ida
+  y vuelta antes de tocarla otra vez.* Se cambió a "grosor no idéntico,
+  con temblor" razonando que pedir una línea pareja empuja al generador
+  hacia el vector limpio. **El razonamiento era plausible y el hecho lo
+  desmintió:** el prompt acordado decía *even outlines of uniform
+  weight*, la lámina que produjo es la que se aprobó, y esa lámina tiene
+  mano —se nota dibujada— con el grosor bastante parejo. "Parejo" y
+  "dibujado a mano" no son opuestos. El ancla del estilo es **la lámina
+  aprobada**, no el razonamiento sobre ella.
 - **El contorno es ACROMÁTICO: su tono es cero.** Ver sección 4. Esto ya
   falló dos veces —contornos a tono 217 (azul) y a tono 136 (verde)— y
   por eso ahora es una regla con nombre y con test.
@@ -182,8 +185,23 @@ de imágenes.
 
 1. **Los cuatro animales** conservan su color dibujado. En la pantalla de
    deducción el animal ES la respuesta; ahí el color no decora, informa.
-2. **El pulpo y la lupa** conservan el suyo. Son la presencia del chico
-   en el mundo, lo único vivo en pantalla, y están siempre visibles.
+2. **El pulpo y la lupa** conservan su color de **relleno** — el naranja
+   del pulpo vale la pena, son la presencia del chico en el mundo y están
+   siempre visibles. **Su contorno NO es una excepción: sigue la regla
+   general.**
+
+   *Acotado el 2026-09-12.* Esta excepción decía "conservan el suyo", sin
+   distinguir relleno de contorno, y con eso estaba **preservando una
+   deriva en vez de proteger una decisión**. Medido sobre las fuentes:
+   `pulpo con lupa.png` trae contorno `#021d41` a tono 214° con
+   **saturación 0,94**, y `pulpo oficina.png` `#011a45` a tono 218° con
+   **0,97**. Eso no es un negro frío, es azul marino saturado, y no es lo
+   que pedía el prompt acordado —*bold, even BLACK outlines*— ni lo que
+   tiene la lámina aprobada. Dos assets quedaron con un sistema de
+   contorno propio y el resto del juego con otro.
+
+   **Los dos hay que regenerarlos con el bloque de la sección 9.** Hasta
+   que eso pase, son el único arte del juego que no cumple la sección 1.
 3. **El suelo tiene color, pero apagado.** Ver sección 7.
 4. **Las criaturas del Nivel 3 (la medusa y la estrella de mar) conservan
    su relleno**, con la misma razón que el punto 1: son seres vivos en el
@@ -424,6 +442,19 @@ A single feather, seen from the side, pointing UP. Fill #2f6b5c.
   funcionar en los dos estados.
 - Los animales llevan **el origen en las patas** y todos la misma
   altura, así se paran sobre la misma línea de suelo.
+
+### Nunca uses un asset existente como referencia de contorno
+
+Pedir *"mirá `pulpo con lupa.png` y copiá ese estilo"* es lo natural y es
+justo lo que falló. Ese archivo tiene el contorno a **saturación 0,94**, y
+quien escribió ese prompt lo describió con total exactitud: *"contorno azul
+marino"*. El prompt era fiel; la referencia era la equivocada.
+
+**El bloque de arriba es la única referencia de contorno.** Un asset
+existente sirve como referencia de *personaje* —qué cara tiene el pulpo,
+cuántos brazos, de qué color es— pero nunca de línea. Si querés anclar a
+algo dibujado, anclá a la **lámina aprobada**, no a un asset suelto que
+puede haber derivado.
 
 ### Checklist para rechazar en cinco segundos
 
