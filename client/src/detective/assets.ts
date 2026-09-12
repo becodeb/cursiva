@@ -253,6 +253,31 @@ export const GROUND_GRASS: readonly ArtImage[] = [
   { href: '/art/ground-grass-12.png', w: 126, h: 109 },
 ]
 
+/** Stands where a Nivel 3 route ends, in place of the engine's two hollow
+ * diamonds and the case lamp (`LevelConfig.goalArt`, design.md §5). Keeps its
+ * authored colour — a living thing in the world, not a clue mark — the same
+ * reasoning `ANIMAL_ART` and `OCTOPUS_ART` above record.
+ *
+ * **Measured, not assumed**: the authored contour is a saturated navy
+ * (~`rgb(0,18,120)`, chroma ≈118/255), not the near-achromatic `ART_OUTLINE`
+ * every other drawn-world contour uses. `docs/09` §4's fourth exception
+ * accepts this as authored-colour cost, same as the animals' own outlines. */
+export const GOAL_MEDUSA_ART: ArtImage = {
+  href: '/art/goal-medusa.png',
+  w: 357,
+  h: 384,
+}
+
+/** Nivel 3's `f2-agua4` hazard, drawn in place of the plain circle
+ * (`LevelConfig.hazardArt` → `TraceHazards.art`, design.md §4). Same
+ * authored-contour note as {@link GOAL_MEDUSA_ART} — measured navy
+ * (~`rgb(0,20,122)`, chroma ≈122/255). */
+export const HAZARD_STARFISH_ART: ArtImage = {
+  href: '/art/hazard-starfish.png',
+  w: 320,
+  h: 296,
+}
+
 export const GROUND_MUD: readonly ArtImage[] = [
   { href: '/art/ground-mud-1.png', w: 126, h: 98 },
   { href: '/art/ground-mud-2.png', w: 127, h: 107 },

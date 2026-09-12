@@ -261,6 +261,15 @@ SINGLES = [
     # with their mode.
     ('pulpo oficina.png',     'home-octopus.png',          448, None,         True),
     ('escritorio.png',        'home-desk.png',             512, None,         True),
+    # Nivel 3 (design.md §6): the jellyfish stands at the route's end and the
+    # starfish crosses it as a hazard. Both keep their authored colour for the
+    # same reason the animals do -- they are living things in the world, not
+    # clue marks, so section 4's "colour is the reward" rule protects them from
+    # nothing here. `fill=None` means `recolour` never runs, so neither row
+    # names a contour colour at all -- `ART_OUTLINE` is never referenced by
+    # this pipeline for these two files, only measured against afterward.
+    ('medusa.png',            'goal-medusa.png',           384, None,         True),
+    ('estrella de mar.png',   'hazard-starfish.png',       320, None,         True),
 ]
 
 # The two ground sources are SCATTER TILES, not single subjects: a field of
