@@ -862,11 +862,29 @@ export default function TraceCanvas({
           pointerEvents="none"
         />
       )}
-      {corridor && mazeOn && (
+      {corridor && (mazeOn || ground) && (
         // MAZE (docs/01 fase 1: "senderos y laberintos … sin tocar los
         // bordes"). The sheet is filled solid and the corridor is painted BACK
         // OVER it in the paper colour, so the child sees a channel through a
         // field instead of a grey line on open paper.
+        //
+        // GROUND WITHOUT A MAZE runs this too, and the `|| ground` is not a
+        // convenience. The two flags used to move together because every level
+        // with ground on was also a maze. Nivel 3's U levels are the first that
+        // are not: they are in the detective world, so the sheet is a field of
+        // grass, but they keep `maze: false` because a pattern level has a
+        // SHAPE the child is learning and `guide={showShapeLine && !level.maze}`
+        // takes that line away inside a maze.
+        //
+        // With ground on and this block skipped, the channel fell back to the
+        // soft `CORRIDOR_FILL` grey-blue, which is the NO-ground styling and
+        // was never meant to be seen against grass. Measured on a render: the
+        // channel came out `#cad6d1` against a `#c9d7bd` field — two luma
+        // apart, so the only thing actually marking the route was the absence
+        // of grass tufts on it. A level whose whole rule is "stay inside the
+        // channel" was not drawing a channel a child could see. Painting the
+        // earth here costs nothing on a maze, where the wall rect above already
+        // covers the sheet before the same stroke runs.
         //
         // Two ordinary paints, no `<defs>`, no `url(#…)`, no mask — see
         // `MAZE_WALL` for the whole reason. The corridor is stroked at exactly
@@ -880,13 +898,15 @@ export default function TraceCanvas({
         // `TraceCanvas.test.tsx` proves the taper by parsing the emitted
         // stroke/stroke-width pairs.
         <g pointerEvents="none">
-          <rect
-            x={0}
-            y={viewBoxY}
-            width={viewBoxWidth}
-            height={viewBoxHeight}
-            fill={ground ? GROUND_FIELD : MAZE_WALL}
-          />
+          {mazeOn && (
+            <rect
+              x={0}
+              y={viewBoxY}
+              width={viewBoxWidth}
+              height={viewBoxHeight}
+              fill={ground ? GROUND_FIELD : MAZE_WALL}
+            />
+          )}
           {corridorPieces
             ? corridorPieces.map((piece, idx) => (
                 <path

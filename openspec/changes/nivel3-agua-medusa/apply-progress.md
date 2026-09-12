@@ -753,3 +753,37 @@ phase's own insertion required (documented above, not hidden inside 7.3).
 Phase 8 (`docs/`) untouched, per the scope fence. Baseline for the next pass:
 60 files / 1118 tests, `npm run build` green. Ready for `sdd-apply` to close
 out Phase 8 (docs-only) or for `sdd-verify` to review Phase 7 now.
+
+## Orchestrator fix after the S7 screenshot review (2026-09-12)
+
+S7 reported all four screenshot checks as PASS, and the four levels are right.
+But looking at the renders surfaced something none of the checks was aimed at:
+**the corridor was not readable as a corridor.**
+
+The earth channel is painted inside `{corridor && mazeOn && …}` in
+`TraceCanvas.tsx`. Every level with ground on had also been a maze until now, so
+the two flags had never come apart. Nivel 3's levels are the first pair that
+does: they are in the detective world, so the sheet is a field of grass, but they
+keep `maze: false` on purpose, because a pattern level has a SHAPE the child is
+learning and `guide={showShapeLine && !level.maze}` takes that line away inside a
+maze.
+
+With that block skipped the channel fell back to `CORRIDOR_FILL`, the soft
+grey-blue meant for a paper sheet with no ground. Measured on the render: the
+channel came out `#cad6d1` against a `#c9d7bd` field. The only thing actually
+marking the route was the absence of grass tufts on it — on a level whose entire
+rule is "stay inside the channel".
+
+**Fix:** the channel block now runs on `mazeOn || ground`, and the solid wall
+rect inside it is gated on `mazeOn` alone. A maze is unchanged — the rect already
+covered the sheet before the same stroke ran. A ground level without a maze now
+gets `CORRIDOR_EARTH`, the same trodden earth the trails use, and keeps its shape
+line.
+
+**A note on how this was judged, because the first measurement was the wrong
+instrument.** Luma separation says the fix changed nothing: earth against field
+is 8 luma apart before blending and about 2 after, the same as before. That is
+true and irrelevant — the trails' corridors do not separate by luma either. They
+separate by HUE, warm tan against green, which is exactly what a low-chroma
+palette buys. The render is the evidence here, and the measurement was only good
+for proving the old channel was not being drawn in the intended colour.
