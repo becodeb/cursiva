@@ -9,7 +9,7 @@
 // SVG `<image href>`. `INTRO_CSS`'s comments carry NO BACKTICKS — this is a
 // template literal, and one backtick inside a comment ends the string.
 import CaptionedArt from '../detective/CaptionedArt'
-import { ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import { ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import type { Adventure } from '../zoo/adventures'
@@ -60,7 +60,7 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
         <img src={ZOO_OCTOPUS_BACKPACK_ART.href} alt="" className="cv-intro-octopus" />
         <span className="cv-intro-bubble">
           <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-          <CaptionedArt art={ANIMAL_ART[adventure.animal]} label={adventure.intro} size={76} />
+          <CaptionedArt art={ZOO_ANIMAL_ART[adventure.animal]} label={adventure.intro} size={76} />
         </span>
       </button>
     </main>

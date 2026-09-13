@@ -34,6 +34,7 @@ function filed(...ids: readonly string[]): Records {
 
 const estanque = SECTORS.find((s) => s.id === 'estanque')!
 const sendero = SECTORS.find((s) => s.id === 'sendero')!
+const montanas = SECTORS.find((s) => s.id === 'montanas')!
 const withHit = SECTORS.filter((s) => s.hit)
 // "Closed" per the spec means `unlockedWhen` is not unconditionally true AND
 // the sector carries a `hit` — the sendero has neither an unlock rule worth
@@ -210,8 +211,13 @@ describe('Registry↔Catalog Structural Consistency', () => {
     }
   })
 
-  it('the five undeveloped sectors carry no adventures and stay fogged for any input', () => {
-    for (const sector of SECTORS.filter((s) => s.id !== 'estanque' && s.id !== 'sendero')) {
+  it('the four remaining undeveloped sectors carry no adventures and stay fogged for any input', () => {
+    // `montañas` is promoted OUT of this set by row C (`docs/13` §8) — it now
+    // carries the sheep and llama adventures and opens once `duck-trail4` is
+    // filed, asserted separately below.
+    for (const sector of SECTORS.filter(
+      (s) => s.id !== 'estanque' && s.id !== 'sendero' && s.id !== 'montanas',
+    )) {
       expect(sector.adventureIds, sector.id).toEqual([])
       expect(sector.unlockedWhen(filed('duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4')), sector.id).toBe(
         false,
@@ -298,7 +304,12 @@ describe('recentlyDiscovered', () => {
   })
 
   it('resolves to null once every open sector is fully filed', () => {
-    expect(recentlyDiscovered(filed(...estanque.adventureIds))).toBeNull()
+    // `montañas` opens once `duck-trail4` (part of `estanque.adventureIds`)
+    // is filed, so it must be fully filed too for no open sector to have an
+    // unfinished adventure left.
+    expect(
+      recentlyDiscovered(filed(...estanque.adventureIds, ...montanas.adventureIds)),
+    ).toBeNull()
   })
 })
 

@@ -11,7 +11,7 @@
 // numbers picked by eye. `docs/12` §4 governs what happens when one misses: a
 // misplaced `hit` is corrected HERE, never in `zoo-map.png` itself.
 import { LEVELS } from '../levels/catalog'
-import { ANIMAL_ART, ZOO_FOG_ART, type AnimalId, type ArtImage } from '../detective/assets'
+import { ZOO_ANIMAL_ART, ZOO_FOG_ART, type ArtImage, type ZooAnimalId } from '../detective/assets'
 import { placeArt, STANDING_GRIP, type ArtBox } from '../canvas/placeArt'
 import type { LevelRecord } from '../game/types'
 
@@ -68,8 +68,8 @@ export interface FogPatch {
 }
 
 export interface ZooAnimal {
-  /** Drawn from `ANIMAL_ART[id]`, by its FEET (`STANDING_GRIP`). */
-  id: AnimalId
+  /** Drawn from `ZOO_ANIMAL_ART[id]`, by its FEET (`STANDING_GRIP`). */
+  id: ZooAnimalId
   /** Offset from the sector's single `animalSpot`, so one spot carries a
    *  group later without a schema change. */
   dx: number
@@ -349,9 +349,29 @@ export const SECTORS: readonly ZooSector[] = [
     // aspect ≥ 270/(2.12×140) = 0.91 → only art 2 (474×424 → 1.118) clears it.
     fog: closedFog(MONTANAS_HIT, 2),
     animalSpot: hitCentre(MONTANAS_HIT),
-    animals: [],
-    adventureIds: [],
-    unlockedWhen: alwaysClosed,
+    // Each animal appears once its OWN adventure's last level is filed, not
+    // when the whole sector is — the same per-animal `appearsWhen` the duck
+    // established. The llama's smaller/negative `dy` stands it higher than
+    // the sheep's: the cumbre above the ladera, the same sentence as the two
+    // peak heights (design.md §4.3).
+    animals: [
+      { id: 'oveja', dx: -55, dy: 10, size: 84, appearsWhen: ['sheep-hill4'] },
+      { id: 'llama', dx: 55, dy: -6, size: 96, appearsWhen: ['llama-peak4'] },
+    ],
+    adventureIds: [
+      'sheep-hill1',
+      'sheep-hill2',
+      'sheep-hill3',
+      'sheep-hill4',
+      'llama-peak1',
+      'llama-peak2',
+      'llama-peak3',
+      'llama-peak4',
+    ],
+    // The first `unlockedWhen` that is neither `alwaysOpen` nor
+    // `alwaysClosed` — row C is reachable without waiting for paso D
+    // (design.md §4.3, proposal question 3's assumption).
+    unlockedWhen: (records) => isFiled(records, 'duck-trail4'),
   },
   {
     id: 'arena',
@@ -442,7 +462,7 @@ export function animalPlacements(
   const placed: { art: ArtImage; box: ArtBox }[] = []
   for (const animal of sector.animals) {
     if (!animal.appearsWhen.every((id) => isFiled(records, id))) continue
-    const art = ANIMAL_ART[animal.id]
+    const art = ZOO_ANIMAL_ART[animal.id]
     const box = placeArt({ ...art, grip: STANDING_GRIP }, animal.size, {
       x: sector.animalSpot.x + animal.dx,
       y: sector.animalSpot.y + animal.dy,
