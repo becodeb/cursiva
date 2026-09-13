@@ -158,7 +158,7 @@ cargado. Se decide cuando lleguen.
 |---|---|---|
 | Exploración libre | **Hecha** (`glass1..4`, `sand1..4`, `night1..4`) | Nada. Grilla de piezas que se borran (vidrio, arena) o se iluminan (linterna) al tocarlas, sin `mask` ni `clipPath` (veda de `url(#)`). |
 | Patos | Existe como **caso detective** (`duck-trail1..4`: onda, espiral, triangular, cuadrada) | **Recortar como ondulaciones**: los cuatro niveles pasan a ser ondas suaves con la progresión de la sección 2. La espiral es del caracol y la triangular de las ovejas; no se gastan acá. Los ids se conservan (son claves persistidas); cambia el contenido. |
-| Víboras | **No existe.** | Dos mecánicas nuevas: **arrastrar objetos** (ordenar, llevar) y **el corredor es el arte** (el cuerpo de la víbora como camino). |
+| Víboras | **Hecha** (`snake1..4`) | Nada. Arrastre de objetos (ordenar de la más chica a la más grande) y corredor-arte: el cuerpo de la víbora, ajustado por medición al momento de compilar, es el camino. |
 | Ovejas | **Hecha** (`sheep-hill1..4`) | Nada. Cresta sobre línea de suelo con altura por vértice (`peakRidge`), ovejas paradas en los picos (`vertexArt`), fondo de ladera. |
 | Llamas | **Hecha** (`llama-peak1..4`) | Nada. Picos altos y empinados sobre la misma cresta, fondo de cordillera, gorro andino a la mochila. |
 | Erizo | **No existe.** | Mecánica nueva: **trazos sueltos** evaluados uno por uno como segmentos rectos que salen del cuerpo hacia afuera, con un contador de espinas; no es corredor. |

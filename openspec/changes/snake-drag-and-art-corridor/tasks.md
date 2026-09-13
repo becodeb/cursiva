@@ -304,22 +304,22 @@ running at `http://localhost:5173`. Output goes to **`capturas/pasoE/`** —
 
 ## Phase 9: Final Gate
 
-- [ ] 9.1 Run `npm test` (full suite) — green. Baseline: 69 test files / 1436
+- [x] 9.1 Run `npm test` (full suite) — green. Baseline: 69 test files / 1436
       tests. Report actual new totals; new test files expected:
       `artCorridor.test.ts`, `arrange.test.ts`, `ArtCorridorLayer.test.tsx`.
       No test drops outside any deliberate, named removal (none named here).
-- [ ] 9.2 Run `npm run build` — green (`tsc --noEmit && vite build`; never a
+- [x] 9.2 Run `npm run build` — green (`tsc --noEmit && vite build`; never a
       bare `tsc --noEmit`).
-- [ ] 9.3 Confirm byte-identical to `main` via `git diff main...HEAD`:
+- [x] 9.3 Confirm byte-identical to `main` via `git diff main...HEAD`:
       `useTraceInput.ts`, `migrateEntrance.ts`, `cases.ts`, `Deduction.tsx`,
       `AdventureIntro.tsx`, `AdventureClosing.tsx`, `revealGrid.ts`,
       `coverage.ts`, `evaluateLevel.ts`, `corridorTick` itself, every shipped
       level.
-- [ ] 9.4 Confirm zero new `url(#` occurrences beyond what pre-existed
+- [x] 9.4 Confirm zero new `url(#` occurrences beyond what pre-existed
       (`rg 'url\(#' client/src` shows no new hit).
-- [ ] 9.5 Update `docs/13_AVENTURAS_POR_ANIMAL.md` §4's status row for
+- [x] 9.5 Update `docs/13_AVENTURAS_POR_ANIMAL.md` §4's status row for
       *Víboras* from pending to shipped.
-- [ ] 9.6 Confirm every task in this file is closed (`[x]`), none left
+- [x] 9.6 Confirm every task in this file is closed (`[x]`), none left
       `[~]` — the native gate does not advance to archive while a task sits
       partial.
 

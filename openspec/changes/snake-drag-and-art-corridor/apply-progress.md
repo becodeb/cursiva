@@ -208,5 +208,28 @@ change except that the víbora now also qualifies for it).
 
 ## Phase 9 (Final Gate)
 
-See the apply return envelope / final report for the full suite, build,
-`url(#` and byte-identical-diff results.
+- `npm test`: 72 test files / 1553 tests, green (baseline was 69/1436).
+- `npm run build` (`tsc --noEmit && vite build`): green.
+- `git diff main...HEAD` byte-identical check: `useTraceInput.ts`,
+  `migrateEntrance.ts`, `cases.ts`, `Deduction.tsx`, `AdventureIntro.tsx`,
+  `AdventureClosing.tsx`, `revealGrid.ts`, `coverage.ts`, `evaluateLevel.ts`
+  all show zero diff against `main`; `corridorTrack.ts`'s `corridorTick`
+  function body is proven byte-identical by its own dedicated source-diff
+  test; `catalog.ts`'s diff against `main` contains ZERO removed/changed
+  lines (additions only) — every shipped level is untouched.
+- `rg 'url\('`-equivalent check: the diff's only new occurrences of the
+  string `url(#` are inside test descriptions and `.not.toContain('url(#')`
+  guard assertions — zero new actual `url(#...)` usage in real markup.
+- `docs/13_AVENTURAS_POR_ANIMAL.md` §4's Víboras row updated from "No
+  existe" to "Hecha (`snake1..4`)".
+- All 64 tasks in `tasks.md` are `[x]`, none partial.
+
+One process note for whoever reads this later: partway through this phase
+an errant `git checkout main -- .` (meant as a read-only diff check, typed
+wrong) overwrote the working tree, and a `git stash pop` immediately after
+picked up an UNRELATED stash from a different branch (`sdd/ovejas-y-
+llamas`), producing merge conflicts. Recovered cleanly via `git reset
+--hard HEAD` (every real change was already committed at that point) —
+the foreign stash was never touched or dropped, and the full suite/build
+were re-verified green immediately after. No committed work was lost;
+recorded here only so the same mistake is not repeated.
