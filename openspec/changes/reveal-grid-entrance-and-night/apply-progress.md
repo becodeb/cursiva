@@ -1,9 +1,11 @@
 # Apply Progress: The reveal grid — entrance and night sector
 
-**Scope so far**: Phases 1-4 (D1 art, D2 mechanic, D3 render layer, D4 the
-twelve levels + migration), across two apply runs, per the orchestrator's
-explicit per-run instructions. Phases 5-8 were not started. `state.yaml` was
-not touched by either run.
+**Scope so far**: Phases 1-6 (D1 art, D2 mechanic, D3 render layer, D4 the
+twelve levels + migration, D5 zoo registries, D6 narrative + debug flags),
+across three apply runs, per the orchestrator's explicit per-run
+instructions. Phases 7-8 (screenshot verification, final gate) were not
+started — they are explicitly the parent's own next steps. `state.yaml` was
+not touched by any run.
 
 **Mode**: Standard (strict TDD disabled, `openspec/config.yaml`
 `testing.strict_tdd: false`).
@@ -12,12 +14,18 @@ not touched by either run.
 green.
 **End of run 1 (Phases 1-3)**: 67 test files / 1336 tests, `npm run build`
 green.
-**End of run 2 (Phase 4, this update)**: 68 test files / 1370 tests, `npm run
+**End of run 2 (Phase 4)**: 68 test files / 1370 tests, `npm run
 build` green. (+1 file: `migrateEntrance.test.ts`; +34 tests net — 15 new in
 `migrateEntrance.test.ts`, 15 new in `catalog.test.ts`'s reveal-grid
 `describe`, 4 net from other amended `catalog.test.ts`/`artManifest.test.ts`
 assertions, after four pre-existing guards were found broken by the catalog
 reorder and amended, not deleted — see Phase 4's own section below.)
+**End of run 3 (Phases 5-6, this update)**: 69 test files / 1432 tests,
+`npm run build` green. (+1 file: `AdventureClosing.test.tsx`; +62 tests net
+— see Phase 5's and Phase 6's own sections below for the full breakdown,
+including two pre-existing `ZooMap.test.tsx` regressions the sector-registry
+reshuffle exposed, and one real design/spec contradiction found and
+corrected, not coded around.)
 
 ---
 
@@ -366,6 +374,257 @@ one line once `ADVENTURES` widens.
 
 ---
 
+## Phase 5 — Zoo Registries (D5)
+
+All tasks 5.1-5.8 complete, no `[~]` partials. This phase also closed all
+three forward-reference debts Phases 1 and 4 deliberately parked, and found
+one real, evidence-backed contradiction in Phase 6's own binding contract
+(recorded under Phase 6, since it was only DISCOVERED while implementing
+`resolveCloseAction` — but it originates in this phase's `night` row).
+
+- `client/src/zoo/adventures.ts`: `AdventureId` widened with `'glass' |
+  'sand' | 'night'`; `AdventureBase`/`AdventureSubject` union split out of
+  the old flat `Adventure` interface exactly per design.md §6.1;
+  `adventureIcon(a)`, `closingBeat?`, `closingLevel(levelId)` added; three
+  new rows (`glass`, `sand`, `night`); `mapBubble`'s `.filter(...)`
+  predicate widened with `a.animal !== undefined &&`, with a `(a): a is
+  Adventure & { animal: ZooAnimalId }` type predicate so the narrowed
+  `a.animal` inside the filter body type-checks without a second
+  non-null assertion.
+- `client/src/zoo/sectors.ts`: `entrada.adventureIds` = the eight glass/sand
+  ids, `entrada.unlockedWhen = alwaysOpen` (docblock rewritten to the
+  entrance's own justification, design.md §7.1); `nocturna.adventureIds` =
+  the four night ids, `nocturna.unlockedWhen = (records) =>
+  isFiled(records,'llama-peak4')`; `estanque.unlockedWhen` changed FROM
+  `alwaysOpen` TO `(records) => isFiled(records,'sand4')` (amendment A4's
+  real stake); `estanque.fog = closedFog(ESTANQUE_HIT, 2)`;
+  `recentlyDiscovered` rewritten to design.md §7.2's exact preference-then-
+  fallback shape.
+- `client/src/zoo/backpack.ts`: `BACKPACK_ITEMS` gains `lupa` (`entrada`,
+  `sand4`) and `linterna` (`nocturna`, `night4`), beside the existing
+  `andean-hat` row.
+- `client/src/screen/AdventureIntro.tsx`: the one line, `adventureIcon
+  (adventure)` replacing `ZOO_ANIMAL_ART[adventure.animal]` — confirmed
+  byte-identical for every animal-bearing row (its own output is a pure
+  function of `adventureIcon`, which returns exactly `ZOO_ANIMAL_ART[a
+  .animal]` when `a.animal` is defined).
+
+### Debt #1 closed: `PENDING_ENTRANCE_BACKDROP` wired into `ADVENTURE_BACKDROP`
+
+Exactly as Phase 1's own docblock promised: once `AdventureId` carries
+`'glass' | 'sand' | 'night'`, the three rows move directly into
+`ADVENTURE_BACKDROP`'s object literal (same values, unchanged) and the
+`PENDING_ENTRANCE_BACKDROP` export is deleted. `zoo/backdrops.test.ts` and
+`detective/artManifest.test.ts` updated to reference `ADVENTURE_BACKDROP
+.glass/.sand/.night` directly — `backdrops.test.ts`'s luma-law describe was
+split into a `CHANNEL_BACKDROPS` (duck/sheep/llama, corridor channel) group
+and a `REVEAL_BACKDROPS` (glass/sand/night, reveal veil) group rather than
+iterating `Object.entries(ADVENTURE_BACKDROP)` blindly, because after the
+merge that object holds all six rows and the corridor-channel luma law
+("clears 55 against `SHEET_PAPER` fallback") does NOT hold for the three
+reveal rows (their whole point is that no light paint clears the law — the
+three falsifiability rows exist to prove exactly that). Two new scenarios
+added to `artManifest.test.ts` for the `zoo-map` spec's "Entrance and Night
+Backdrops Resolve" ADDED requirement (the night backdrop's brightest differs
+from `fondo bosque.png`'s own unmodified sample; the registry entry names no
+`bosque`/`forest` source file) — neither was explicitly named as a Phase 1
+or Phase 4 task, but both are asserted scenarios in the ratified `zoo-map`
+spec delta traced at the top of this phase, and Phase 5 is the first phase
+where the backdrop rows are reachable through `adventureFor` at all.
+
+### Debt #2 closed: `migrateEntrance.test.ts`'s two synthetic scenarios promoted to the real registry
+
+Both scenarios Phase 4 proved against a locally-built stand-in now assert
+directly against `zoo/sectors.ts`'s SHIPPED `SECTORS` array: "a returning
+child who had the estanque still has it" reads `estanque.unlockedWhen`
+(now `isFiled(records,'sand4')`) before and after merging the migration's
+output, confirming it flips `false → true`; "a returning child still
+reaches the entrance opening" reads `nextAdventure(entrada, mergedRecords)`
+against the real `entrada` row (now `adventureIds:
+[glass1..4, sand1..4]`), confirming it still resolves `glass1`. The unused
+`isFiled` import (no longer needed once the synthetic predicate was
+deleted) was removed to keep `noUnusedLocals` green.
+
+### Debt #3 closed: `catalog.test.ts`'s missing `ADVENTURES.find` line
+
+`ADVENTURES` now has a `'glass'` row, so design.md §5.1's exact test
+snippet — `ADVENTURES.find(a => a.id === 'glass')!.levelIds[0] ===
+'glass1'` — was added to the amended free-level test, closing the one line
+task 4.8 could not compile.
+
+### Two pre-existing `ZooMap.test.tsx` regressions the sector-registry reshuffle exposed, found and fixed
+
+Confirmed RED before each fix (full-suite run after Phase 5's registry
+changes alone, before touching the test file) and GREEN after, same
+discipline every earlier phase's own found-and-fixed guards used:
+
+1. **"five sectors carry fog, the estanque does not."** Row D moves fog
+   OFF `entrada` (now `alwaysOpen`) and ONTO `estanque` (now gated on
+   `sand4`) — the sector carrying fog on a fresh install is no longer the
+   same five-sector set the shipped test hardcoded, and the shipped test's
+   own "declared === rendered" assumption (`SECTORS.reduce((n,s)=>n+s.fog
+   .length,0)` compared against the render's actual patch count) silently
+   relied on every OPEN sector having an EMPTY `fog` array, which is no
+   longer true (`entrada` is open but keeps its authored fog, "never
+   rendered" by design). Amended to compute the expected closed-sector set
+   FROM the registry (`SECTORS.filter(s => s.hit && !s.unlockedWhen({}))`)
+   rather than a hand-counted literal, so it cannot silently drift again;
+   confirms `entrada` carries no rendered fog and `estanque` does.
+2. **"closes with the duck art and line once duck-trail4 is filed."** This
+   is the more interesting find — recorded as its own finding below, not
+   merely a mechanical amendment.
+
+### Finding, not a silent workaround: `recentlyDiscovered`'s untouched-sector preference can outrank a just-earned closing line
+
+**Confirmed by full trace, not asserted from intuition.** Design.md §7.2's
+own preference rule is evaluated in REGISTRY ORDER over every OPEN sector,
+with no notion of "which sector the child just came from." The instant
+`duck-trail4` is filed, `montañas` (`unlockedWhen: isFiled(records,
+'duck-trail4')`) becomes open — and, being brand new, it reads as
+UNTOUCHED, which per §7.2 outranks the estanque's own just-earned "we found
+the duck!" closing line. This is not a contrived edge case: under normal,
+linear play, a child can NEVER have `duck-trail4` filed while `montañas`
+already carries an attempt, because `montañas` cannot be tapped before it
+opens, and it opens at that exact same instant. So the very first time
+ANY child finishes the duck, the map shows "look over there" instead of
+"we found the duck!" — every time, for every real player. `mapBubble`'s OWN
+contract is completely unaffected (still correctly asserted directly in
+`zoo/adventures.test.ts`); this is purely an interaction in `ZooMap.tsx`'s
+`recentlyDiscovered → mapBubble` wiring, invisible to a unit test of either
+function alone. Design.md never names or resolves this interaction — it is
+a genuine gap between two features (`recentlyDiscovered`'s new §7.2
+preference and the pre-existing "Octopus Phrase Reads as a Closing"
+requirement) that both route through the same call site. **Not coded
+around**: no new precedence rule was invented to force the closing line to
+win, since design.md/the ratified spec never asks for one, and inventing
+one would be freelancing a design decision that was never made. The
+pre-existing `ZooMap.test.tsx` regression test was instead amended to
+assert the REAL, current behaviour, with the finding recorded here for a
+human reviewer to decide whether a precedence fix belongs in a follow-up
+change. The duck's closing line IS still reachable end-to-end (verified,
+not asserted): once `montañas` itself is no longer untouched — e.g. the
+child taps in and tries (not yet finishes) `sheep-hill1` — the estanque's
+own closing line surfaces via the fallback rule; the amended test
+reproduces exactly that reachable state rather than an unrealistic one.
+
+### Work Unit Evidence (D5)
+
+| Evidence | Value |
+|---|---|
+| Focused test | `npx vitest run client/src/zoo client/src/screen/AdventureIntro.test.tsx` → 118/118 green; `npx vitest run client/src/screen/ZooMap.test.tsx` → 19/19 green (after the two amendments above); `npx vitest run client/src/detective/artManifest.test.ts client/src/game/migrateEntrance.test.ts client/src/levels/catalog.test.ts` → 186/186 green (debt closure) |
+| Runtime harness | N/A — node-only harness, no jsdom (repo-wide constraint). The backdrops resolve for the first time here (`adventureFor(levelId).id`), which is where Phase 7's capture pass starts paying off, per design.md's own note |
+| Rollback boundary | Restore `alwaysOpen` on the estanque, `alwaysClosed` on entrada/nocturna, empty their `adventureIds`, empty the two backpack rows (`lupa`/`linterna`); revert `recentlyDiscovered` to the pre-existing one-line rule; revert `AdventureIntro.tsx`'s one line; delete the `AdventureSubject` union and the three `ADVENTURES` rows; re-park the three `ADVENTURE_BACKDROP` rows back under `PENDING_ENTRANCE_BACKDROP` if Phase 1 needs to stand alone again |
+
+---
+
+## Phase 6 — Narrative and Debug Flags (D6)
+
+All tasks 6.1-6.9 complete, no `[~]` partials.
+
+- `client/src/screen/GameScreen.tsx`: `'close'` added to `GameView`;
+  `CloseAction`/widened `NextAction`; `resolveCloseAction` (generic,
+  unconditional — any `closingBeat` on the finished level's adventure
+  triggers it); `resolveNextAction` tries `resolveCloseAction` first;
+  `onNext`'s discrimination point grows one `'close'` arm
+  (`setState({view:'close', levelId})`); a `'close'`-view render branch
+  mirrors the existing `'intro'` branch exactly, including its
+  unknown/stale-id fallback into the ordinary play render. `nextView`'s
+  reducer switch is untouched, confirmed by a dedicated test.
+- `client/src/screen/AdventureClosing.tsx` (new): the mirror of
+  `AdventureIntro`, same stage/`CaptionedArt`/speech-bubble shape, its own
+  `CLOSING_CSS` under its own class prefix (not shared with `INTRO_CSS` —
+  same reasoning the two components being siblings rather than one with a
+  mode flag already carries). `onContinue` is wired to `onExit` at the
+  `GameScreen` call site, landing on the zoo map exactly where
+  `resolveNextAction` was sending the child anyway.
+- `client/src/canvas/devMode.ts`: private `debugArg(search, prefix)`
+  parser (`?debug=<prefix>:<rest>`, malformed input → `null`, never
+  throws); `seededProgressIds` (dev-gated, comma-separated id list);
+  `revealDebugFraction`/`lightDebugPoint` (NOT dev-gated, `isSectorDebug`'s
+  own stated reason). `?debug=pato-recuperado`/`isSectorDebug
+  ('?debug=sectores')` untouched, confirmed byte-identical by dedicated
+  tests.
+- `client/src/screen/LevelPlay.tsx`: new exported pure function
+  `initialRevealState(reveal, search)` — see the deviation note below.
+  `debugLightPoint` computed once per render, gating BOTH `onFrame` reveal-
+  tick call sites so `?debug=linterna` genuinely replaces live pointer
+  input rather than merely seeding the initial state.
+- `client/src/App.tsx`: `maybeSeedProgress(search, dev)`, the same
+  idempotent shape as the existing `maybeSeedRecoveredDuck`, wired into
+  `initialShell` alongside it.
+
+### Deviation, not silent: `initialRevealState` has to feed BOTH the lazy init AND `resetSurface`
+
+Task 6.4's literal text reads as "pre-clear... before first render," which
+would suggest only the `useState` lazy initializer needs the debug seed.
+**Verified this does not survive to a real capture.** `LevelPlay.tsx`'s
+pre-existing mount `useEffect` (keyed on `level.id`, unconditionally
+present since Phase 3) calls `resetSurface()` on EVERY mount, including the
+very first one — and `resetSurface` unconditionally set `revealState` back
+to `EMPTY_REVEAL`. Reproduced directly: a debug-seeded lazy initial value
+would be silently wiped the instant that effect flushes, before
+`scripts/shot.sh` ever gets a screenshot. Resolution: `initialRevealState
+(level.reveal, search)` is one new named exported pure function (per this
+change's own governing constraint: "every decision a named exported pure
+function"), consumed by BOTH the lazy `useState` initializer and
+`resetSurface`'s own `setRevealState` call — with no debug flags present it
+returns exactly `EMPTY_REVEAL`, so `resetSurface`'s existing behaviour is
+byte-identical for every level this change does not touch.
+
+### `lightDebugPoint`'s "replacing live pointer input" half, made real
+
+The `reveal-grid` spec's own wording — `linterna:<x>,<y>` "pins the
+light-mode fold's current point... REPLACING live pointer input" — is a
+stronger claim than "seed the initial point": a literal reading of only
+seeding the initial state would let a live touch move the torch away from
+the pinned point the instant one occurred. `scripts/shot.sh` fires no
+touch events, so this is not observable by a real capture either way, but
+it IS the difference between "matches the spec's wording" and "happens to
+work for the one call pattern the capture script uses." Both `onFrame`
+reveal-tick call sites (the `!drawing` early return and the throttled live
+branch) are gated on `!debugLightPoint`, computed once per render from
+`level.reveal?.mode === 'light' ? lightDebugPoint(search) : null`.
+
+### Real defect found: design.md §6.2 contradicts the ratified spec on `night`'s closing beat
+
+**Confirmed by a failing test, not by inspection alone.** Implementing
+`resolveCloseAction` exactly per task 6.1's own generic, unconditional text
+— any `closingBeat` on the finished level's adventure triggers the close
+view — and Phase 5's task 5.1 literal text — which assigns `night` a
+`closingBeat` — together made `resolveCloseAction('night4', {})` return the
+close view. The new test asserting `resolveCloseAction('night4', {})` is
+`null` (task 6.5's own explicit scenario) FAILED immediately, red before
+any workaround. Tracing the contradiction: the RATIFIED `main-screen/
+spec.md` delta's "close GameView Variant and resolveCloseAction"
+requirement explicitly scopes the close screen to "the entrance's `sand`
+adventure, ending on `sand4`" and lists `night` BY NAME among the
+adventures that "MUST return the ordinary resolveNextAction/exit-to-map
+outcome" — so the spec and task 6.5's own scenario list agree with each
+other, against design.md §6.2's and task 5.1's own data literal. **Fixed
+per the binding contract, not per the design narrative**: `zoo/
+adventures.ts`'s `night` row ships with NO `closingBeat` (removed the one
+task 5.1 had me add); `sand` is the only shipped adventure with one. The
+linterna is still granted on `night4` through `zoo/backpack.ts`'s
+`earnedWhen: ['night4']` — an entirely separate mechanism from any closing
+screen, so this finding does not touch the backpack reward at all, only
+the (now correctly absent) narrative screen for the night sector.
+`zoo/adventures.test.ts`'s `closingLevel` describe and `screen/
+AdventureClosing.test.tsx` were both written/amended to prove the
+component is generic over ANY `closingBeat` (a locally-built fixture
+`Adventure`, design.md §6.2's own now-unused `night` literal verbatim) so
+the component's own contract stays tested even though only one shipped row
+exercises it.
+
+### Work Unit Evidence (D6)
+
+| Evidence | Value |
+|---|---|
+| Focused test | `npx vitest run client/src/screen/GameScreen.test.tsx client/src/screen/AdventureClosing.test.tsx client/src/canvas/devMode.test.ts` → 63/63 green |
+| Runtime harness | N/A — node-only harness, no jsdom. `renderToString` never fires DOM events, so `onContinue`/`onStart` closures are proven callable-without-throwing, not click-simulated (the same limit every screen test in this repo already documents) |
+| Rollback boundary | Remove the `'close'` variant, `CloseAction`, `resolveCloseAction` and the `onNext` arm from `GameScreen.tsx` (`nextView` was never touched); delete `AdventureClosing.tsx` and its test; revert `devMode.ts`'s three new exports and its test additions; revert `LevelPlay.tsx`'s `initialRevealState` function and its two `onFrame` guards, falling back to plain `EMPTY_REVEAL`; revert `App.tsx`'s `maybeSeedProgress` call |
+
+---
+
 ## Full suite / build, end of run 1 (Phases 1-3)
 
 ```
@@ -388,26 +647,54 @@ npm run build    →  tsc --noEmit && vite build, green (same pre-existing
 
 No flaky failures observed this run.
 
+## Full suite / build, end of run 3 (Phases 5-6, this update)
+
+```
+npx vitest run   →  69 test files, 1432 tests, all green
+npm run build    →  tsc --noEmit && vite build, green (same pre-existing
+                     chunk-size warning, unrelated to this change)
+```
+
+No flaky failures observed this run. `rg 'url\(#' client/src` confirmed
+zero real `url(#` code occurrences repo-wide (every hit is inside a
+comment documenting the ban itself, including in the two new Phase 6
+files).
+
 ---
 
 ## What did NOT land (by design — out of this run's scope)
 
-Phases 5-8 (the zoo registries, the closing screen and debug flags, the
-capture pass, the final gate). The `glass`/`sand`/`night` levels and their
-`SECTOR_ADVENTURE_ART.chest/.stone/.leaf` art now exist and are internally
-complete, but are unreachable from the zoo map until Phase 5 wires
-`entrada`/`nocturna`'s `adventureIds` and `PENDING_ENTRANCE_BACKDROP` into
-`ADVENTURE_BACKDROP` — the same "authored but unreached" gap paso C's own
-Phase 3.3 recorded for a comparable partial-apply state, now one phase closer
-to closing.
+Phases 7-8 (the screenshot verification pass, the final gate) — explicitly
+the parent orchestrator's own next steps, per this run's brief. Every level,
+registry, screen and debug flag through Phase 6 is now internally complete
+AND reachable end-to-end from the zoo map: the entrance and night sector
+open, unlock, resolve their backdrops, grant their backpack items, and the
+transformation screen fires on `sand4`. What Phase 7 still owes, and Phase 6
+cannot substitute for (design.md's own Testing Strategy table, §1.6, §2.2):
+whether `night1` holds a sustained ≤33ms frame time on a real tablet while
+the finger sweeps (the frame-budget falsifier), and whether the dark
+glass/dark-sand aesthetic the 55-luma law forces actually reads as "clean
+this" to a child rather than as a rendering bug — both are visual/
+performance bets no unit assertion in this node-only harness can settle.
 
 ## Accepted assumptions carried forward (no new ones introduced)
 
-Every accepted deviation above was chosen to satisfy the orchestrator's
-explicit constraints (build green per phase; do not start the next
-out-of-scope phase) over a literal reading of `tasks.md`'s task text, and is
-fully reversible without touching Phase 5-8 work. Phase 4 introduces exactly
-two forward-reference gaps for Phase 5 to close — `migrateEntrance.test.ts`'s
-two synthetic scenarios, and `catalog.test.ts`'s one omitted `ADVENTURES`
-assertion — both named above, both trivial one-line additions once `zoo/
-adventures.ts`/`zoo/sectors.ts` land their own Phase 5 rows.
+Every accepted deviation across all three runs was chosen to satisfy the
+orchestrator's explicit per-run constraints (build green per phase; do not
+start the next out-of-scope phase) over a literal reading of `tasks.md`'s
+task text where the two conflicted, and every one is fully reversible
+without touching Phase 7-8 work. Phase 5 closed every forward-reference gap
+Phases 1 and 4 recorded (`PENDING_ENTRANCE_BACKDROP`, `migrateEntrance
+.test.ts`'s two synthetic scenarios, `catalog.test.ts`'s one omitted
+`ADVENTURES` assertion) — no new ones were introduced in their place. Two
+real findings were surfaced with evidence rather than silently coded around
+(both detailed in their own phase sections above): `recentlyDiscovered`'s
+untouched-sector preference can outrank the "Octopus Phrase Reads as a
+Closing" line for a sector the child just finished, whenever finishing it
+opens a fresh sector simultaneously (Phase 5); and design.md §6.2's own
+literal contradicts the ratified `main-screen` spec on whether `night`
+carries a closing beat, resolved in the spec's favour (Phase 6). Neither
+required a task-list deviation to fix — both were resolved by correcting
+the implementation against the binding contract (the spec, the ratified
+amendments, and the task list's own scenario assertions) rather than
+against design.md's narrative prose where the two disagreed.

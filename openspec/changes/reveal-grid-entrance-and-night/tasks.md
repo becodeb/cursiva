@@ -272,24 +272,14 @@ binding:
       `glass1` regardless of what was seeded; no source record is ever
       mutated. Run `npx vitest run client/src/game/migrateEntrance.test.ts`
       — green.
-      **[~] Partial, with reason — see `apply-progress.md`.** All six named
-      scenarios are asserted and green (15 tests). Two of them cannot yet run
-      against the REAL shipped rows they will eventually protect, because
-      those rows are Phase 5 work, out of scope for this run:
-      `zoo/sectors.ts`'s shipped `estanque.unlockedWhen` is still
-      `alwaysOpen` (Phase 5's task 5.4 rewires it to `isFiled(records,
-      'sand4')`), and the shipped `entrada.adventureIds` is still `[]`
-      (Phase 5's task 5.4 wires `[glass1..4, sand1..4]`). Asserting against
-      either shipped row right now would pass trivially regardless of
-      whether this migration works. Both scenarios are instead proven
-      against a locally-built predicate/sector object that is BYTE-IDENTICAL
-      to what Phase 5 ships (`isFiled(records, 'sand4')`; a `ZooSector`
-      literal with `id:'entrada'` and `adventureIds:
-      ['glass1'..'sand4']`) — the same forward-reference pattern Phase 1's
-      `PENDING_ENTRANCE_BACKDROP` used. The two REAL, already-shippable
-      no-demotion claims — `f1-libre`'s and `f2-guirnalda`'s own
-      `isUnlocked` against the real, post-4.7 `LEVELS` — are asserted
-      directly, with no substitution.
+      **[x] Done — closed in Phase 5.** All six named scenarios are asserted
+      and green. The two scenarios that Phase 4 could only prove against a
+      locally-built stand-in (`isFiled(records,'sand4')`; a `ZooSector`
+      literal with `adventureIds:['glass1'..'sand4']`) now assert directly
+      against the REAL shipped `zoo/sectors.ts` rows — Phase 5's task 5.4
+      wired `estanque.unlockedWhen` to `isFiled(records,'sand4')` and
+      `entrada.adventureIds` to `[glass1..4, sand1..4]`. See
+      `apply-progress.md`'s Phase 5 section.
 - [x] 4.3 In `client/src/game/openProgressStore.ts`: add
       `migrateEntrance(store.all())` to the existing migration loop — order
       irrelevant, the four migrations share no id.
@@ -381,18 +371,14 @@ binding:
       needs no edit (`kind !== 'path'` already exempts the twelve) and
       `:559,575`'s free branch needs only the widened count of `paths: []`
       levels — no line change either place.
-      **[~] Partial, with reason — see `apply-progress.md`.** `EXPECTED_IDS`,
-      the amended free-level test, and R1-R8 (as their own new `describe`,
-      15 tests) all landed exactly as specified, confirmed against `:445-470`
-      and `:559,575` needing no edit. ONE line of the amended free-level test
-      is deferred: `ADVENTURES.find(a=>a.id==='glass')!.levelIds[0] ===
-      'glass1'` cannot compile yet — `ADVENTURES`/`AdventureId` only gain a
-      `'glass'` row in Phase 5's task 5.1, out of scope and explicitly
-      forbidden to start in this run. This is the exact same forward-
-      reference gap `PENDING_ENTRANCE_BACKDROP` (Phase 1) and
-      `migrateEntrance.test.ts`'s two synthetic scenarios (4.2, above)
-      already name — Phase 5 must add this one assertion once `ADVENTURES`
-      widens.
+      **[x] Done — closed in Phase 5.** `EXPECTED_IDS`, the amended
+      free-level test, and R1-R8 (as their own new `describe`, 15 tests) all
+      landed exactly as specified, confirmed against `:445-470` and
+      `:559,575` needing no edit. The one deferred line,
+      `ADVENTURES.find(a=>a.id==='glass')!.levelIds[0] === 'glass1'`, now
+      compiles and asserts — Phase 5's task 5.1 widened `ADVENTURES`/
+      `AdventureId` with the `'glass'` row. See `apply-progress.md`'s Phase 5
+      section.
       **Found and fixed, four pre-existing guards the task list did not call
       out** (same discipline as Phase 1's `artHierarchy.test.ts` exemption):
       (1) `catalog.test.ts`'s "sounds and buzzes on every level with a
@@ -427,7 +413,7 @@ Night Backdrops Resolve); `main-screen/spec.md` (Narrative Entry Screen
 Content, animal-less rendering). Depends on Phase 4's twelve ids. 5.1 before
 5.2/5.4; 5.4/5.5 can run in parallel with each other.
 
-- [ ] 5.1 In `client/src/zoo/adventures.ts`: widen `AdventureId = 'duck' |
+- [x] 5.1 In `client/src/zoo/adventures.ts`: widen `AdventureId = 'duck' |
       'sheep' | 'llama' | 'glass' | 'sand' | 'night'`. Add `AdventureSubject`
       union (`{animal:ZooAnimalId;icon?:undefined} |
       {animal?:undefined;icon:ArtImage}`) and `Adventure = AdventureBase &
@@ -447,10 +433,28 @@ Content, animal-less rendering). Depends on Phase 4's twelve ids. 5.1 before
       Encontramos todo en la oscuridad! La linterna va a la mochila.', art:
       SECTOR_ADVENTURE_ART.flashlight}`). Widen `mapBubble`'s
       `.filter(...)` predicate with `a.animal !== undefined &&`.
-- [ ] 5.2 In `client/src/screen/AdventureIntro.tsx`: line 63,
+      **[corrected] `night` ships with NO `closingBeat` — see
+      `apply-progress.md`'s Phase 6 section.** This task's own literal text
+      assigns `night` a `closingBeat`, which directly contradicts the
+      RATIFIED `main-screen` spec delta's "close GameView Variant and
+      resolveCloseAction" requirement (explicitly names `night` among the
+      adventures that must resolve to the ordinary exit outcome, not the
+      close screen) and Phase 6's own task 6.5 scenario list
+      (`resolveCloseAction('night4', …)` MUST return `null`). Confirmed by
+      `resolveCloseAction`'s generic, unconditional implementation (task
+      6.1: any `closingBeat` triggers the close view) — a `night` row
+      carrying one would make `night4` resolve to close, which both the
+      spec and task 6.5 forbid. The spec and the task list win over this
+      task's own data literal; `sand` is the only shipped `closingBeat`.
+      **Also closes the `PENDING_ENTRANCE_BACKDROP` forward reference Phase
+      1 parked** (`client/src/zoo/backdrops.ts`): with `AdventureId` now
+      carrying `glass`/`sand`/`night`, the three rows are wired directly
+      into `ADVENTURE_BACKDROP` and the placeholder export is removed;
+      `backdrops.test.ts`/`artManifest.test.ts` updated to match.
+- [x] 5.2 In `client/src/screen/AdventureIntro.tsx`: line 63,
       `ZOO_ANIMAL_ART[adventure.animal]` → `adventureIcon(adventure)` — the
       only line this task touches.
-- [ ] 5.3 In `client/src/zoo/adventures.test.ts`: `adventureFor`/
+- [x] 5.3 In `client/src/zoo/adventures.test.ts`: `adventureFor`/
       `introLevel` resolve `glass1`/`sand1`/`night1` correctly,
       `glass2..4`/`sand2..4`/`night2..4` return `undefined` for
       `introLevel`; `adventureIcon` returns animal art for an animal-bearing
@@ -460,7 +464,7 @@ Content, animal-less rendering). Depends on Phase 4's twelve ids. 5.1 before
       `closingLevel('night4')` return their adventures, `closingLevel
       ('glass4')` and every pre-existing last-level id (`duck-trail4`,
       `sheep-hill4`, `llama-peak4`) return `undefined`.
-- [ ] 5.4 In `client/src/zoo/sectors.ts`: `entrada.adventureIds =
+- [x] 5.4 In `client/src/zoo/sectors.ts`: `entrada.adventureIds =
       [glass1..4, sand1..4]`, `entrada.unlockedWhen = alwaysOpen` (rewrite
       `alwaysOpen`'s docblock from "Deleted in paso D, not a rule" to the
       entrance's own justification — design.md §7.1). `nocturna.adventureIds
@@ -474,12 +478,12 @@ Content, animal-less rendering). Depends on Phase 4's twelve ids. 5.1 before
       s.adventureIds.every(id => (records[id]?.attempts??0)===0))`, falling
       back to the EXISTING rule unchanged when no sector qualifies — never
       return `null` while any open sector has unfinished work.
-- [ ] 5.5 In `client/src/zoo/backpack.ts`: `BACKPACK_ITEMS` gains
+- [x] 5.5 In `client/src/zoo/backpack.ts`: `BACKPACK_ITEMS` gains
       `{id:'lupa', art: CARRIER_LENS_ART, grantedBy:'entrada',
       earnedWhen:['sand4']}` and `{id:'linterna', art:
       SECTOR_ADVENTURE_ART.flashlight, grantedBy:'nocturna',
       earnedWhen:['night4']}` beside the existing `andean-hat` row.
-- [ ] 5.6 In `client/src/zoo/sectors.test.ts`: narrow the "undeveloped
+- [x] 5.6 In `client/src/zoo/sectors.test.ts`: narrow the "undeveloped
       sectors stay fogged for any input" filter to the three that remain
       (`bosque`, `arena`, `sendero`). Add: `entrada.unlockedWhen` returns
       `true` for every input including `{}`; `estanque.unlockedWhen({})` is
@@ -491,13 +495,26 @@ Content, animal-less rendering). Depends on Phase 4's twelve ids. 5.1 before
       what the pre-existing fallback rule would (never `null` while
       unfinished work remains) — every shipped row for the old rule stays
       green.
-- [ ] 5.7 In `client/src/zoo/backpack.test.ts`: `earnedItems` excludes
+      **Finding, not a silent workaround — see `apply-progress.md`.**
+      `recentlyDiscovered`'s untouched-sector preference (§7.2) can outrank
+      `mapBubble`'s "Octopus Phrase Reads as a Closing" line for the sector
+      the child JUST finished, whenever finishing it simultaneously opens a
+      brand-new sector (`montañas` opens the instant `duck-trail4` is
+      filed, and a freshly-opened sector always reads as untouched). This
+      is a real, always-reachable interaction under normal play, not an
+      edge case — flagged for the human reviewer, and worked out (not
+      coded around) in `screen/ZooMap.test.tsx`'s own regression guard.
+- [x] 5.7 In `client/src/zoo/backpack.test.ts`: `earnedItems` excludes
       `lupa`/`linterna` while `sand4`/`night4` are unfiled, includes each
       once its own id is filed.
-- [ ] 5.8 Run `npx vitest run client/src/zoo client/src/screen/
+- [x] 5.8 Run `npx vitest run client/src/zoo client/src/screen/
       AdventureIntro.test.tsx` — green. The backdrops resolve for the first
       time here (Phase 1's rows, reached through `adventureFor(levelId).id`)
       — this is where the captures start paying off.
+      **Done — 118/118 green** (`client/src/zoo` + `AdventureIntro.test.tsx`).
+      Full suite also re-run after fixing two pre-existing `ZooMap.test.tsx`
+      regressions the registry reshuffle exposed (see `apply-progress.md`):
+      68 test files, 1400 tests, all green.
 
 ## Phase 6: Narrative and Debug Flags (D6)
 
@@ -508,7 +525,7 @@ Spec traceability: `main-screen/spec.md` (close GameView Variant and
 and Phase 4's twelve levels. 6.1 before 6.2. 6.3-6.4 can run in parallel with
 6.1-6.2.
 
-- [ ] 6.1 In `client/src/screen/GameScreen.tsx`: add `'close'` to
+- [x] 6.1 In `client/src/screen/GameScreen.tsx`: add `'close'` to
       `GameView`; export `CloseAction = {type:'close'; levelId:string}`;
       widen `NextAction = GameAction | ExitAction | CloseAction`; export
       `resolveCloseAction(finishedLevelId, records): CloseAction | null` —
@@ -517,12 +534,12 @@ and Phase 4's twelve levels. 6.1 before 6.2. 6.3-6.4 can run in parallel with
       `resolveCloseAction` first, falling back to today's exit/next logic.
       `onNext`'s single discrimination point grows one arm for `'close'`.
       `nextView`'s reducer switch stays untouched.
-- [ ] 6.2 Create `client/src/screen/AdventureClosing.tsx`: mirror of
+- [x] 6.2 Create `client/src/screen/AdventureClosing.tsx`: mirror of
       `AdventureIntro` — same stage/`CaptionedArt`/speech-bubble shape,
       props `{adventure, onContinue}`, rendering `closingBeat.art`/
       `.line`. `onContinue` resolves to `{at:'map'}`. `AdventureIntro`
       stays byte-identical (only touched by 5.2's one line).
-- [ ] 6.3 In `client/src/canvas/devMode.ts`: add a private `debugArg(search,
+- [x] 6.3 In `client/src/canvas/devMode.ts`: add a private `debugArg(search,
       prefix)` parser; export `seededProgressIds(search)` —
       `?debug=progreso:<id>,<id>,…`, dev-gated exactly like
       `shouldSeedRecoveredDuck`; export `revealDebugFraction(search)` —
@@ -531,25 +548,51 @@ and Phase 4's twelve levels. 6.1 before 6.2. 6.3-6.4 can run in parallel with
       build); export `lightDebugPoint(search)` — `?debug=linterna:<x>,<y>`,
       NOT dev-gated. `?debug=pato-recuperado` and `isSectorDebug` stay
       byte-identical.
-- [ ] 6.4 Wire the two non-gated flags: `revealDebugFraction` feeds
+- [x] 6.4 Wire the two non-gated flags: `revealDebugFraction` feeds
       `debugClearedTiles` (Phase 2) to pre-clear an erase-mode level's
       reveal state before first render; `lightDebugPoint` pins a light-mode
       level's fold point, replacing live pointer input, in
       `screen/LevelPlay.tsx`. Wire `seededProgressIds` into the progress-
       store bootstrap (alongside `shouldSeedRecoveredDuck`) to seed a filed
       record per listed id.
-- [ ] 6.5 In `client/src/screen/GameScreen.test.ts`: `resolveCloseAction
+      **Done, one addition beyond the literal text — see `apply-
+      progress.md`'s Phase 6 section.** The debug seed had to survive
+      `LevelPlay.tsx`'s own mount effect (which calls `resetSurface`
+      unconditionally, including on the very first render) or it would be
+      wiped before paint: `initialRevealState(level.reveal, search)` is a
+      new named exported pure function feeding BOTH the lazy `useState`
+      initializer AND `resetSurface`, not only the initial value.
+      "Replacing live pointer input" (`lightDebugPoint`'s own contract) is a
+      guard on both `onFrame` reveal-tick call sites, not only the seed.
+- [x] 6.5 In `client/src/screen/GameScreen.test.tsx`: `resolveCloseAction
       ('sand4', records)` returns the close view; `resolveCloseAction`
       on `'glass4'`/`'night4'`/`'llama-peak4'`/`'sheep-hill4'`/
       `'duck-trail4'` all return `null` and fall through to the ordinary
       exit-to-map outcome; `nextView`'s exhaustive switch is unaffected for
       every pre-existing input.
-- [ ] 6.6 In `client/src/screen/AdventureClosing.test.tsx`: renders
+      **[corrected] The file is `.tsx`, not `.ts`** — it already existed
+      before this run, a typo in this task's own text. Also covers 6.6's
+      `{at:'map'}` and "replaying resolves close again" scenarios (see
+      6.6's own note) and the `'close'` view's own mount wiring
+      (`AdventureClosing` prop-capturing probe, the same convention the
+      file's existing `AdventureIntro` probe already uses).
+- [x] 6.6 In `client/src/screen/AdventureClosing.test.tsx`: renders
       `closingBeat.art`+`.line` for the `sand` adventure; `auditCaptions`
       reports `uncaptioned: []`; `onContinue` resolves to `{at:'map'}`;
       replaying `sand4` to completion (no persisted flag) resolves `'close'`
       again.
-- [ ] 6.7 In `client/src/canvas/devMode.test.ts`:
+      **Done, two scenarios placed in `GameScreen.test.tsx` instead** —
+      both are properties of `resolveCloseAction`/`GameScreen`'s OWN
+      wiring, not of the `AdventureClosing` component itself (which has no
+      store/routing access): `{at:'map'}` is `GameScreen`'s close-view
+      mount test (`onContinue` wired to `onExit`, the same function
+      `App.tsx`'s `goToMap` is); "replaying resolves close again" is
+      `resolveCloseAction`'s own idempotence test (no persisted-flag
+      argument exists to suppress it). This file asserts the component's
+      OWN rendering contract, generically — a fixture adventure, not only
+      `sand`, since `night` no longer ships a `closingBeat` (see the
+      finding after 6.9, below).
+- [x] 6.7 In `client/src/canvas/devMode.test.ts`:
       `seededProgressIds('?debug=progreso:sand4,night2')` returns
       `['sand4','night2']`, dev-gated; `revealDebugFraction
       ('?debug=revelado:60')` returns `0.6`; `lightDebugPoint
@@ -557,11 +600,35 @@ and Phase 4's twelve levels. 6.1 before 6.2. 6.3-6.4 can run in parallel with
       require no `window`/component context; malformed query strings return
       `null`/`[]`, never throw; `?debug=pato-recuperado`/`isSectorDebug
       ('?debug=sectores')` byte-identical to before this change.
-- [ ] 6.8 In `docs/13_AVENTURAS_POR_ANIMAL.md`: update §4's status row for
+- [x] 6.8 In `docs/13_AVENTURAS_POR_ANIMAL.md`: update §4's status row for
       *Exploración libre* / row D from pending to shipped.
-- [ ] 6.9 Run `npx vitest run client/src/screen/GameScreen.test.ts
+- [x] 6.9 Run `npx vitest run client/src/screen/GameScreen.test.ts
       client/src/screen/AdventureClosing.test.tsx
       client/src/canvas/devMode.test.ts` — green.
+      **Done — see `apply-progress.md`'s Phase 6 section for the full
+      suite/build totals.**
+
+### Real defect found: design.md §6.2 contradicts the ratified spec on `night`'s closing beat
+
+**Not a silent deviation — corrected against the binding contract.** Task
+5.1's own literal text (and design.md §6.2) assigns `night` a
+`closingBeat`. But the RATIFIED `main-screen/spec.md` delta's "close
+GameView Variant and resolveCloseAction" requirement explicitly scopes the
+close screen to "the entrance's `sand` adventure, ending on `sand4`" and
+lists `night` BY NAME among the adventures that "MUST return the ordinary
+resolveNextAction/exit-to-map outcome" — and task 6.5's own scenario list
+requires `resolveCloseAction('night4', ...)` to return `null`. Given task
+6.1's `resolveCloseAction` is GENERIC and unconditional (any `closingBeat`
+on the finished level's adventure triggers the close view, no adventure-id
+allowlist anywhere in its own spec text), a `night` row carrying a
+`closingBeat` would make `night4` resolve to `'close'`, contradicting both
+the spec and task 6.5 in the same stroke. The spec and the task list agree
+with EACH OTHER against design.md's/task 5.1's own data literal —
+`zoo/adventures.ts`'s `night` row therefore ships with **no**
+`closingBeat`; `sand` is the ONLY shipped adventure with one. The linterna
+is still granted on `night4` through `zoo/backpack.ts`'s `earnedWhen`,
+entirely independent of any closing screen — this finding affects the
+narrative-screen surface only, not the backpack reward.
 
 ## Phase 7: Screenshot Verification (human-reviewed, not optional)
 
