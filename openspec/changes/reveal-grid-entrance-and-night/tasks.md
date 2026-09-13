@@ -642,28 +642,28 @@ is the window not the viewport (`CHROME_OFFSET=87`, already compensated
 inside the script); width is clamped to a 500px floor — a 390px phone is not
 measurable this way, use an iframe harness instead.
 
-- [ ] 7.1 Start the dev server on a free port (check for a stale server
+- [x] 7.1 Start the dev server on a free port (check for a stale server
       first, do not assume the default port is free — paso C's own 7.1);
       confirm it answers before capturing.
-- [ ] 7.2 Capture each of the twelve levels at 1280×900 into `capturas/`:
+- [x] 7.2 Capture each of the twelve levels at 1280×900 into `capturas/`:
       `glass1..4.png`, `sand1..4.png`, `night1..4.png` — plus one
       part-revealed capture per adventure using `?debug=revelado:<pct>` on
       one erase level per adventure and `?debug=linterna:<x>,<y>` on one
       night level.
-- [ ] 7.3 Capture the entrance's narrative entry (`glass1`'s intro) and the
+- [x] 7.3 Capture the entrance's narrative entry (`glass1`'s intro) and the
       transformation closing (`sand4`'s `AdventureClosing`) via this app's
       existing dev-route pattern for narrative screens.
-- [ ] 7.4 Capture the zoo map at three unlock states using
+- [x] 7.4 Capture the zoo map at three unlock states using
       `?debug=progreso:<id>,<id>,…` (Phase 6) instead of a live playthrough:
       a fresh install (only `entrada` clear); after the entrance
       (`?debug=progreso:sand4` — `estanque` open, `lupa` in the backpack);
       fully unlocked (`?debug=progreso:sand4,duck-trail4,sheep-hill4,
       llama-peak4,night4` — every sector open, both new backpack items
       present).
-- [ ] 7.5 Capture one duck level and one llama level, the human-readable
+- [x] 7.5 Capture one duck level and one llama level, the human-readable
       confirmation of the byte-identical regression the unit suite already
       pins.
-- [ ] 7.6 **Read every capture.** Answer, explicitly: does `GLASS_GRIME`
+- [x] 7.6 **Read every capture.** Answer, explicitly: does `GLASS_GRIME`
       read as a dirty pane rather than a bug; does `SAND_DRIFT` read as sand
       at all once the law has forced it dark; does a 200-unit torch on a
       1000-wide sheet read as a torch or a spotlight; do five opacity steps

@@ -114,6 +114,16 @@ export function initialView(search: string, dev = false): GameView | null {
       const levelId = id.slice('intro-'.length)
       if (introLevel(levelId)) return { view: 'intro', levelId }
     }
+    // `cierre-<levelId>`, the mirror of `intro-<levelId>` above. The `'close'`
+    // view is otherwise reachable only by finishing an adventure's last level,
+    // and `scripts/shot.sh`'s single-URL model cannot play through four levels
+    // to get there — the same reason `?debug=pato-recuperado` exists. Without
+    // this route the closing screen is the one screen in the change no capture
+    // can show, and paso C's unticked capture tasks are what blocked its gate.
+    if (id?.startsWith('cierre-') && dev) {
+      const levelId = id.slice('cierre-'.length)
+      if (closingLevel(levelId)) return { view: 'close', levelId }
+    }
     if (id && LEVELS.some((l) => l.id === id)) return { view: 'play', levelId: id }
   } catch {
     // malformed query string: fall through to the office

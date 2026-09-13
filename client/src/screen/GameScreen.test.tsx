@@ -165,6 +165,31 @@ describe('initialView: ?nivel=intro-<levelId> is a dev-only capture surface (duc
   })
 })
 
+// Added during the Phase 7 capture pass. The `'close'` view is otherwise
+// reachable only by finishing an adventure's last level, so `scripts/shot.sh`
+// -- one URL, no clicks, no seeded localStorage -- could not photograph the
+// transformation screen at all. Dev-gated exactly like `intro-`, and only for
+// a level that really closes an adventure, so a typo stays null rather than
+// rendering a closing screen for a level that has none.
+describe('initialView: ?nivel=cierre-<levelId> is a dev-only capture surface (reveal-grid-entrance-and-night)', () => {
+  it('resolves the closing screen only when dev is true', () => {
+    expect(initialView('?nivel=cierre-sand4', true)).toEqual({
+      view: 'close',
+      levelId: 'sand4',
+    })
+  })
+
+  it('falls through to null when dev is false, including the default', () => {
+    expect(initialView('?nivel=cierre-sand4', false)).toBeNull()
+    expect(initialView('?nivel=cierre-sand4')).toBeNull()
+  })
+
+  it('falls through to null for a level that closes no adventure, even in dev mode', () => {
+    expect(initialView('?nivel=cierre-sand1', true)).toBeNull()
+    expect(initialView('?nivel=cierre-trail1', true)).toBeNull()
+  })
+})
+
 describe('allEarned (design.md "Decision: earned clues are derived from progress, not stored")', () => {
   it('true once every trail id has at least one approval', () => {
     expect(allEarned(DETECTIVE_TRAIL_IDS, recordsWith(DETECTIVE_TRAIL_IDS, 1))).toBe(true)

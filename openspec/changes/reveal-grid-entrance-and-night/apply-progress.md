@@ -822,3 +822,49 @@ required a task-list deviation to fix — both were resolved by correcting
 the implementation against the binding contract (the spec, the ratified
 amendments, and the task list's own scenario assertions) rather than
 against design.md's narrative prose where the two disagreed.
+
+## Phase 7 — the capture pass (orchestrator, 2026-09-13)
+
+Dev server on `:5180` (`--strictPort`; 5173-5177 were all held by other
+projects). 22 captures in `capturas/d/` (before the fixes) and 7 in
+`capturas/e/` (after). Every one was read, not just taken.
+
+### Task 7.6, answered explicitly
+
+- **Does `GLASS_GRIME` read as a dirty pane?** No. It reads as a flat sage
+  slab over blue-grey water — the hue fights the tank rather than sitting on
+  it. Not shipped as a defect: the 55-luma law (`docs/09:158`) forces a dark
+  paint, and which dark is an art-direction call for the author. Recorded as
+  a finding, literal untouched.
+- **Does `SAND_DRIFT` read as sand?** It reads as wet earth over dry sand.
+  Defensible as mud, but it is not sand. Same disposition as above.
+- **Does a 200-unit torch read as a torch?** No — it reads as a stepped
+  plus sign. This is a real defect. See task 7.7.
+- **Do five opacity steps read as a falloff or five rings?** Neither, for
+  the same reason: the spatial resolution, not the opacity resolution, is
+  what quantizes the disc into a cross.
+- **Does the transformation land after `sand4` as a beat?** Yes.
+  `capturas/e/cierre-sand4.png` — "¡Se fueron todos los animales! Agarrá la
+  lupa: los vamos a buscar." It reads as the turn of the story, not as an
+  interruption.
+
+### One thing that looked like a defect and is not
+
+The hard horizontal edge in every `?debug=revelado:N` capture is the flag's
+own behaviour: `revealGrid.ts:308` clears the top `round(fraction * rows)`
+tile ROWS by design. Real finger input is radial. Verified in the source
+before reporting it, rather than filing it.
+
+### Added during the pass: `?nivel=cierre-<levelId>`
+
+The `'close'` view was reachable only by finishing an adventure's last
+level, and `scripts/shot.sh`'s one-URL model cannot play through four levels
+to get there — so the transformation screen was the one screen in this
+change no capture could show. Added the dev-gated mirror of
+`?nivel=intro-<levelId>` in `screen/GameScreen.tsx`, with three tests in
+`GameScreen.test.tsx` (resolves in dev, null outside dev, null for a level
+that closes no adventure). This is the same gap `?debug=pato-recuperado`
+was invented for in paso B.
+
+Final: **69 test files / 1436 tests green, build green.** Baseline at the
+branch point was 65 / 1286.
