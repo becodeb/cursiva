@@ -159,8 +159,8 @@ cargado. Se decide cuando lleguen.
 | Exploración libre | **No existe.** | Mecánica nueva: superficie tapada por una **grilla de piezas** que se borran al tocarlas. Sin `mask` ni `clipPath` (veda de `url(#)`). La linterna es la misma grilla con opacidad por distancia al dedo, sin persistir. |
 | Patos | Existe como **caso detective** (`duck-trail1..4`: onda, espiral, triangular, cuadrada) | **Recortar como ondulaciones**: los cuatro niveles pasan a ser ondas suaves con la progresión de la sección 2. La espiral es del caracol y la triangular de las ovejas; no se gastan acá. Los ids se conservan (son claves persistidas); cambia el contenido. |
 | Víboras | **No existe.** | Dos mecánicas nuevas: **arrastrar objetos** (ordenar, llevar) y **el corredor es el arte** (el cuerpo de la víbora como camino). |
-| Ovejas | Parcial: hay onda triangular (`trail3`) y marcas por arco | Zigzag bajo con **lista de alturas por vértice** (alta-baja); ovejas como marcas en los picos. Como es anguloso, la fusión de esquinas del corredor ya aplica acá. |
-| Llamas | Parcial: la misma onda triangular | Picos altos y empinados. **Medir el límite de fusión de esquinas** del corredor (`strokeLinejoin: round`) antes de prometer picos próximos. Accesorio de pastor para la mochila. |
+| Ovejas | **Hecha** (`sheep-hill1..4`) | Nada. Cresta sobre línea de suelo con altura por vértice (`peakRidge`), ovejas paradas en los picos (`vertexArt`), fondo de ladera. |
+| Llamas | **Hecha** (`llama-peak1..4`) | Nada. Picos altos y empinados sobre la misma cresta, fondo de cordillera, gorro andino a la mochila. |
 | Erizo | **No existe.** | Mecánica nueva: **trazos sueltos** evaluados uno por uno como segmentos rectos que salen del cuerpo hacia afuera, con un contador de espinas; no es corredor. |
 | Medusa | **Hecha** (`f2-guirnalda`, `f2-agua2..4`) | Nada. Se engancha al sector estanque. |
 | Caracol | Generador de espiral existe (`trail2`, `f1-espiral`) | Consigna pendiente. No se implementa hasta cerrarla. |
@@ -187,6 +187,33 @@ cargado. Se decide cuando lleguen.
 4. **Las pistas del pato** (huella palmeada, miga) siguen valiendo como
    marcas que se encienden a lo largo del camino. Lo que se retira es el
    cuestionario, no la recompensa visual.
+5. **Enmendado al implementar el paso C (2026-09-13).** Tres cosas que
+   esta sección afirmaba resultaron falsas al medirlas, y conviene saberlo
+   antes de escribir la fila de la próxima aventura:
+   - **La advertencia de fusión de esquinas apuntaba al animal
+     equivocado.** Decía medirla en las llamas, por lo empinadas. La forma
+     cerrada del corredor admisible sobre una cresta es
+     `W* = r·√(r²+a²)/(r+a)`, o sea `√(1+k²)/(1+k)` veces el paso `r`, que
+     se queda entre 0,707 y 0,85 para cualquier inclinación realista: lo
+     que manda es **el paso entre picos, no la pendiente**. Las llamas
+     sobran holgadas porque son pocas y anchas; las ovejas aprietan porque
+     repetir más achica el paso.
+   - **"Montañitas bajas" es indibujable como onda.** Un generador que
+     alterna de lado según el índice choca con el guard de fase 1 (`docs/01`
+     §49), que exige tocar arriba **y** abajo: los picos "bajos" serían
+     justo los que el guard obliga a ser altos. Se resolvió leyendo mejor
+     los esquemas de la autora — en `ovejas-alta-baja.png` y en
+     `llamas-picos.png` los valles están todos sobre una misma línea y los
+     picos van arriba. Es una **cresta sobre línea de suelo**, no una onda,
+     y con eso los picos cortos quedan libres.
+   - **La decisión 3 necesita un canal por fondo.** El cielo de
+     `fondo cordillera.png` (`#c8d3d8`, luma 208,3) corre sin interrupción
+     por toda la imagen y deja el corredor de papel a 43,4 de separación,
+     bajo el mínimo de 55 de `docs/09` §4. No hay franja admisible y bajar
+     la amplitud no lo arregla. El sector montañas usa un canal de piedra
+     (`CHANNEL_STONE #606569`, luma 100), que separa 59,8 de la ladera y
+     145,0 de la cordillera. Un fondo claro nuevo va a necesitar la misma
+     medición antes de prometerle papel.
 
 ## 5. Estructura de cada aventura (`.docx` §13)
 
