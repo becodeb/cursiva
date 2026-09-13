@@ -251,7 +251,7 @@ binding:
 3. 4.7 depends on both 4.1 (migration exists first) and 4.6 (chest/stone/
    leaf registered).
 
-- [ ] 4.1 Create `client/src/game/migrateEntrance.ts`,
+- [x] 4.1 Create `client/src/game/migrateEntrance.ts`,
       `migrateDuckCase.ts`'s exact three-part shape: `ENTRANCE_UNLOCK_ID=
       'sand4'`, `NIGHT_UNLOCK_ID='night4'`; `migrateEntrance(records)` seeds
       `sand4` (via `seedFrom` — field-wise MAX, `attempts` summed,
@@ -261,7 +261,7 @@ binding:
       when `records['llama-peak4']?.approvals >= APPROVALS_TO_UNLOCK &&
       !records.night4`. Pure, copy-forward only, returns only changed
       entries.
-- [ ] 4.2 Create `client/src/game/migrateEntrance.test.ts`: idempotent (a
+- [x] 4.2 Create `client/src/game/migrateEntrance.test.ts`: idempotent (a
       second run on its own output returns `{}`); a fresh install (`{}`)
       writes nothing; a mid-campaign payload with any non-empty records and
       no entrance/night ids keeps `estanque.unlockedWhen` returning `true`
@@ -272,10 +272,28 @@ binding:
       `glass1` regardless of what was seeded; no source record is ever
       mutated. Run `npx vitest run client/src/game/migrateEntrance.test.ts`
       — green.
-- [ ] 4.3 In `client/src/game/openProgressStore.ts`: add
+      **[~] Partial, with reason — see `apply-progress.md`.** All six named
+      scenarios are asserted and green (15 tests). Two of them cannot yet run
+      against the REAL shipped rows they will eventually protect, because
+      those rows are Phase 5 work, out of scope for this run:
+      `zoo/sectors.ts`'s shipped `estanque.unlockedWhen` is still
+      `alwaysOpen` (Phase 5's task 5.4 rewires it to `isFiled(records,
+      'sand4')`), and the shipped `entrada.adventureIds` is still `[]`
+      (Phase 5's task 5.4 wires `[glass1..4, sand1..4]`). Asserting against
+      either shipped row right now would pass trivially regardless of
+      whether this migration works. Both scenarios are instead proven
+      against a locally-built predicate/sector object that is BYTE-IDENTICAL
+      to what Phase 5 ships (`isFiled(records, 'sand4')`; a `ZooSector`
+      literal with `id:'entrada'` and `adventureIds:
+      ['glass1'..'sand4']`) — the same forward-reference pattern Phase 1's
+      `PENDING_ENTRANCE_BACKDROP` used. The two REAL, already-shippable
+      no-demotion claims — `f1-libre`'s and `f2-guirnalda`'s own
+      `isUnlocked` against the real, post-4.7 `LEVELS` — are asserted
+      directly, with no substitution.
+- [x] 4.3 In `client/src/game/openProgressStore.ts`: add
       `migrateEntrance(store.all())` to the existing migration loop — order
       irrelevant, the four migrations share no id.
-- [ ] 4.4 **Verify `piedra.png`'s alpha before wiring it** (design.md §3.4's
+- [x] 4.4 **Verify `piedra.png`'s alpha before wiring it** (design.md §3.4's
       flagged risk — the `oveja.png` defect class): read it with
       `scripts/art/png.py` and inspect `alpha_bbox`'s returned box against
       the canvas's own size. If the margin is opaque (its rendered
@@ -285,7 +303,16 @@ binding:
       margins in preview — check those are genuinely transparent, not the
       same failure with a different symptom, before assuming no opt-in is
       needed.
-- [ ] 4.5 In `scripts/art/build_art.py`: add three `SINGLES` rows —
+      **Done.** Measured directly, not guessed: `alpha_bbox` on `piedra.png`
+      returned the FULL 1313×1198 canvas (the exact "crops nothing" symptom);
+      a connected-component scan found 4,200 separate opaque blobs — one real
+      572,352px stone and 4,199 scattered specks totalling 390,851px — the
+      same defect class as `oveja.png` (4,374 specks), confirmed by
+      measurement rather than by the preview's checkerboard alone.
+      `cofre.png` and `hoja.png` each scanned as exactly ONE opaque blob —
+      genuinely clean, not the same failure with a different symptom.
+      `'piedra.png'` added to `SPECKLED_ALPHA_SOURCES`.
+- [x] 4.5 In `scripts/art/build_art.py`: add three `SINGLES` rows —
       `('cofre.png', 'sector-chest.png', 256, 'contour', True)`,
       `('piedra.png', 'sector-stone.png', 256, 'contour', True)`,
       `('hoja.png', 'sector-leaf.png', 256, 'contour', True)` — `'contour'`
@@ -298,11 +325,16 @@ binding:
       (`build_art.py:491`) for every asset in the build. Re-run the
       pipeline; read `manifest.json`'s `sector-chest`/`sector-stone`/
       `sector-leaf` entries for their measured `w` (`h=256` fixed).
-- [ ] 4.6 In `client/src/detective/assets.ts`: widen `SECTOR_ADVENTURE_ART`'s
+      **Done.** `hoja.png`'s authored canvas measured 1238×1271 — NOT
+      1024×1024 — so it takes no `AUTHORED_SOURCE_SIZES` entry either,
+      exactly as design.md §3.4 flagged as the open possibility ("probably
+      not; one `png.py` call decides"). Pipeline re-run. Measured:
+      `sector-chest` 256×200, `sector-stone` 256×170, `sector-leaf` 242×256.
+- [x] 4.6 In `client/src/detective/assets.ts`: widen `SECTOR_ADVENTURE_ART`'s
       key union with `'chest' | 'stone' | 'leaf'`; add the three entries with
       4.5's measured `w`/`h`. In `client/src/detective/artManifest.test.ts`:
       add the three cutouts to the registry↔manifest parity check.
-- [ ] 4.7 In `client/src/levels/catalog.ts`: insert `glass1..4` then
+- [x] 4.7 In `client/src/levels/catalog.ts`: insert `glass1..4` then
       `sand1..4` (8 entries) immediately before `f1-libre` — `LEVELS[0]`
       becomes `glass1` (design.md §5.1, amendment A1). Insert `night1..4` as
       the last four entries of `PHASE_1`, between `llama-peak4` and
@@ -331,7 +363,7 @@ binding:
         .leaf` (4.6's consumer wiring).
       Titles/hints ≤ 80 chars, naming no failure; `hint` is authored but
       never rendered (§4.2, suppressed by the pre-existing `drawnPlace`).
-- [ ] 4.8 In `client/src/levels/catalog.test.ts`: insert `glass1..4,
+- [x] 4.8 In `client/src/levels/catalog.test.ts`: insert `glass1..4,
       sand1..4` at the START of `EXPECTED_IDS` (before `'f1-libre'`); insert
       `night1..4` between `'llama-peak4'` and `'f2-guirnalda'`. Amend
       (not delete) the free-level test (`:253`) to design.md §5.1's exact
@@ -349,10 +381,43 @@ binding:
       needs no edit (`kind !== 'path'` already exempts the twelve) and
       `:559,575`'s free branch needs only the widened count of `paths: []`
       levels — no line change either place.
-- [ ] 4.9 Run `npx vitest run client/src/levels/catalog.test.ts` — green.
+      **[~] Partial, with reason — see `apply-progress.md`.** `EXPECTED_IDS`,
+      the amended free-level test, and R1-R8 (as their own new `describe`,
+      15 tests) all landed exactly as specified, confirmed against `:445-470`
+      and `:559,575` needing no edit. ONE line of the amended free-level test
+      is deferred: `ADVENTURES.find(a=>a.id==='glass')!.levelIds[0] ===
+      'glass1'` cannot compile yet — `ADVENTURES`/`AdventureId` only gain a
+      `'glass'` row in Phase 5's task 5.1, out of scope and explicitly
+      forbidden to start in this run. This is the exact same forward-
+      reference gap `PENDING_ENTRANCE_BACKDROP` (Phase 1) and
+      `migrateEntrance.test.ts`'s two synthetic scenarios (4.2, above)
+      already name — Phase 5 must add this one assertion once `ADVENTURES`
+      widens.
+      **Found and fixed, four pre-existing guards the task list did not call
+      out** (same discipline as Phase 1's `artHierarchy.test.ts` exemption):
+      (1) `catalog.test.ts`'s "sounds and buzzes on every level with a
+      corridor" asserted `haptics === (kind==='path')`, which the twelve's
+      OWN frozen literal (`haptics: true` despite `kind:'free'`, this task's
+      own text) falsifies — amended to `haptics === (hasCorridor ||
+      !!level.reveal)`, `tone` unchanged. (2) A SECOND, separate "keeps
+      f1-libre at index 0" guard (`:711`, distinct from `:253`'s free-level
+      test) also asserted `LEVELS[0].id === 'f1-libre'` — amended to assert
+      `glass1` at index 0 and `f1-libre` unchanged mechanically. (3)
+      `levelsByPhase`'s and (4) the detective-mode `phase1Ids` describe's own
+      exact-order arrays both listed phase 1's ids literally and needed the
+      eight entrance + four night ids spliced in. All four confirmed by
+      running the full file RED before the fix and GREEN after (81/81).
+      `minAccuracy`-by-phase and `showGuide` doc-table tests also needed a
+      one-line exemption each for `level.reveal`/`kind==='free'`, both named
+      inline in their own amended assertions rather than silently.
+- [x] 4.9 Run `npx vitest run client/src/levels/catalog.test.ts` — green.
       `glass`/`sand`/`night` exist in `LEVELS` but are unreachable from the
       map until Phase 5 wires `entrada`/`nocturna`'s `adventureIds` — same
       "authored but unreached" gap paso C's Phase 3.3 recorded.
+      **Done — 81/81 tests green** (66 pre-existing + 15 new: R1-R8 plus
+      four supporting checks). Full suite also confirmed green afterward:
+      `npx vitest run` → 68 test files, 1370 tests (new files:
+      `migrateEntrance.test.ts`). `npm run build` → green.
 
 ## Phase 5: Zoo Registries (D5)
 
