@@ -38,10 +38,21 @@ vi.mock('./AdventureIntro', () => ({
   },
 }))
 
+// Same SSR-probe convention as `AdventureIntro` above, for the `'close'`
+// view's own mount test (design.md §6.3, main-screen spec).
+const adventureClosingProbe: { current: Record<string, unknown> | null } = { current: null }
+vi.mock('./AdventureClosing', () => ({
+  default: (props: Record<string, unknown>) => {
+    adventureClosingProbe.current = props
+    return null
+  },
+}))
+
 import GameScreen, {
   allEarned,
   initialView,
   nextView,
+  resolveCloseAction,
   resolveEnterAction,
   resolveNextAction,
   type GameView,
@@ -273,5 +284,80 @@ describe('GameScreen intro view (duck-undulations-and-sector-backdrop design.md 
     // documents: a state update after a completed `renderToString` call is a
     // no-op on the server, so a re-render cannot be observed here.
     expect(onStart).not.toThrow()
+  })
+})
+
+// resolveCloseAction (reveal-grid-entrance-and-night, design.md §6.3,
+// main-screen spec "close GameView Variant and resolveCloseAction").
+describe('resolveCloseAction', () => {
+  it('finishing sand4 resolves to the close view', () => {
+    expect(resolveCloseAction('sand4', {})).toEqual({ type: 'close', levelId: 'sand4' })
+  })
+
+  it('finishing glass4 does not resolve to the close view — the entrance closes at sand4, not here', () => {
+    expect(resolveCloseAction('glass4', {})).toBeNull()
+  })
+
+  it('finishing night4 does not resolve to the close view — no closingBeat on that adventure', () => {
+    expect(resolveCloseAction('night4', {})).toBeNull()
+  })
+
+  it('finishing llama-peak4/sheep-hill4/duck-trail4 does not resolve to the close view (shipped-behaviour guard)', () => {
+    for (const id of ['llama-peak4', 'sheep-hill4', 'duck-trail4']) {
+      expect(resolveCloseAction(id, {}), id).toBeNull()
+    }
+  })
+
+  it('replaying sand4 resolves to the close view again — no persisted flag suppresses it', () => {
+    expect(resolveCloseAction('sand4', {})).toEqual({ type: 'close', levelId: 'sand4' })
+    expect(resolveCloseAction('sand4', { 'sand4': { ...EMPTY_RECORD, approvals: 5 } })).toEqual({
+      type: 'close',
+      levelId: 'sand4',
+    })
+  })
+})
+
+describe("resolveNextAction tries resolveCloseAction first (design.md §6.3)", () => {
+  it('sand4 resolves to close, not the ordinary sector-exit outcome entrada would otherwise trigger', () => {
+    expect(resolveNextAction('sand4', {})).toEqual({ type: 'close', levelId: 'sand4' })
+  })
+
+  it("nextView's exhaustive switch is unaffected by the 'close' variant, for every pre-existing input", () => {
+    expect(nextView(playing('trail4'), { type: 'next', levelId: 'trail5' })).toEqual(playing('trail5'))
+    expect(nextView({ view: 'map', finished: false }, { type: 'reset' })).toEqual({
+      view: 'map',
+      finished: false,
+    })
+  })
+})
+
+describe("GameScreen close view (design.md §6.3, main-screen spec 'AdventureClosing Screen Renders the Transformation')", () => {
+  it("mounts AdventureClosing for the 'close' view, and its onContinue is wired to onExit", () => {
+    let exited = false
+    renderToString(
+      <GameScreen
+        initial={{ view: 'close', levelId: 'sand4' }}
+        onExit={() => {
+          exited = true
+        }}
+      />,
+    )
+    expect(adventureClosingProbe.current, 'AdventureClosing never mounted').toBeTruthy()
+    const sand = ADVENTURES.find((a) => a.id === 'sand')!
+    expect(adventureClosingProbe.current?.adventure).toBe(sand)
+    const onContinue = adventureClosingProbe.current?.onContinue as (() => void) | undefined
+    expect(typeof onContinue).toBe('function')
+    onContinue?.()
+    expect(exited).toBe(true)
+  })
+
+  it('an unknown/stale close levelId (no closingBeat) falls through to the ordinary play render, never crashes', () => {
+    adventureClosingProbe.current = null
+    expect(() =>
+      renderToString(<GameScreen initial={{ view: 'close', levelId: 'glass4' }} onExit={() => {}} />),
+    ).not.toThrow()
+    // `glass4`'s own adventure carries no `closingBeat` — `AdventureClosing`
+    // must never mount for it.
+    expect(adventureClosingProbe.current).toBeNull()
   })
 })

@@ -14,9 +14,10 @@ import { EMPTY_RECORD } from '../game/types'
 import type { LevelAttempt, LevelRecord } from '../game/types'
 import { openProgressStore } from '../game/openProgressStore'
 import { DETECTIVE_CASES, caseSolvedId } from '../detective/cases'
+import AdventureClosing from './AdventureClosing'
 import { isDevMode } from '../canvas/devMode'
 import { sectorOf } from '../zoo/sectors'
-import { introLevel } from '../zoo/adventures'
+import { closingLevel, introLevel } from '../zoo/adventures'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
@@ -30,6 +31,7 @@ export type GameView =
   | { view: 'play'; levelId: string }
   | { view: 'intro'; levelId: string }
   | { view: 'deduce'; caseId: string }
+  | { view: 'close'; levelId: string }
 
 /**
  * Navigation intents. `next` carries the ALREADY-RESOLVED successor id (null =
@@ -146,7 +148,32 @@ export function allEarned(
  * without deciding first.
  */
 export type ExitAction = { type: 'exit' }
-export type NextAction = GameAction | ExitAction
+/**
+ * Finishing the last level of an adventure that carries a closing BEAT
+ * (`docs/13` §5 item 6; design.md §6.3) — the entrance's `sand` adventure,
+ * ending on `sand4`, today. Kept OUT of `GameAction` for the same reason
+ * `ExitAction` is: `nextView`'s reducer switch must stay ignorant of a
+ * state it never needs to represent (main-screen spec "close GameView
+ * Variant and resolveCloseAction").
+ */
+export type CloseAction = { type: 'close'; levelId: string }
+export type NextAction = GameAction | ExitAction | CloseAction
+
+/**
+ * Whether a finished level's adventure has a closing BEAT to show
+ * (`zoo/adventures.ts`'s `closingLevel`) — pure, and the mirror of
+ * `resolveEnterAction` for the exit side of a run. Tried FIRST by
+ * `resolveNextAction`, below, so `sand4` resolves to the transformation
+ * screen instead of the ordinary sector-exit-to-map outcome every other
+ * finished adventure (including `glass`/`night`, this same change's other
+ * two reveal-grid adventures) still gets.
+ */
+export function resolveCloseAction(
+  finishedLevelId: string,
+  _records: Readonly<Record<string, LevelRecord>>,
+): CloseAction | null {
+  return closingLevel(finishedLevelId) ? { type: 'close', levelId: finishedLevelId } : null
+}
 
 /**
  * What a finished level's "next" control resolves to. `nextView` itself must
@@ -167,6 +194,10 @@ export type NextAction = GameAction | ExitAction
  * everything past the estanque's own ids) keeps today's `next` behaviour,
  * byte-for-byte.
  *
+ * [reveal-grid-entrance-and-night] `resolveCloseAction` is tried FIRST
+ * (design.md §6.3): a closing beat is a MORE SPECIFIC outcome than a plain
+ * sector exit, and `sand4` is both — the closing screen must win.
+ *
  * `records` is kept in the signature — unused today, hence the leading `_`
  * (`tsconfig`'s `noUnusedParameters` would otherwise fail the build) — for
  * two reasons: the sole call site already passes `store.all()` positionally
@@ -175,8 +206,10 @@ export type NextAction = GameAction | ExitAction
  */
 export function resolveNextAction(
   finishedLevelId: string,
-  _records: Readonly<Record<string, LevelRecord>>,
+  records: Readonly<Record<string, LevelRecord>>,
 ): NextAction {
+  const close = resolveCloseAction(finishedLevelId, records)
+  if (close) return close
   if (sectorOf(finishedLevelId)) return { type: 'exit' }
   return { type: 'next', levelId: nextLevelId(finishedLevelId) }
 }
@@ -259,7 +292,23 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
     // this file.
   }
 
-  if (state.view === 'play' || state.view === 'intro') {
+  if (state.view === 'close') {
+    // The transformation (`docs/13` §5 item 6, design.md §6.3): shown once
+    // per adventure that carries a `closingBeat`, reached only through
+    // `onNext` below calling `resolveCloseAction` — never through a
+    // `GameAction`. `onContinue` is `onExit` — the child lands on the zoo
+    // map, exactly where `resolveNextAction` was sending them anyway
+    // (main-screen spec "AdventureClosing Screen Renders the
+    // Transformation").
+    const adventure = closingLevel(state.levelId)
+    if (adventure) {
+      return <AdventureClosing adventure={adventure} onContinue={onExit} />
+    }
+    // Unknown/stale id: fall through to the ordinary play render below, the
+    // same never-crash convention `intro`'s own branch just used above.
+  }
+
+  if (state.view === 'play' || state.view === 'intro' || state.view === 'close') {
     const level = getLevel(state.levelId)
     return (
       <LevelPlay
@@ -272,12 +321,13 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
         }}
         onNext={() => {
           // `resolveNextAction` returns `NextAction` — `GameAction` widened
-          // by the one outcome `nextView` cannot express (design.md §6).
-          // This is the single point that has to discriminate before
+          // by the two outcomes `nextView` cannot express (design.md §6,
+          // §6.3). This is the single point that has to discriminate before
           // dispatching, so `dispatch` never silently becomes the fallback
-          // for "leave the shell".
+          // for "leave the shell" or "show the transformation".
           const action = resolveNextAction(state.levelId, store.all())
           if (action.type === 'exit') onExit()
+          else if (action.type === 'close') setState({ view: 'close', levelId: action.levelId })
           else dispatch(action)
         }}
         onBack={onExit}

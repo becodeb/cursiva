@@ -46,3 +46,77 @@ export function shouldSeedRecoveredDuck(search: string): boolean {
     return false
   }
 }
+
+/**
+ * `?debug=<prefix>:<rest>` — the shared parser behind the three screenshot-
+ * seeding flags below (design.md §9). Private: every flag's own grammar
+ * (comma-separated ids, a bare percentage, an `x,y` pair) is parsed by its
+ * own exported function, never by a caller reaching into this one directly.
+ * Malformed input (a bad query string, or `debug` present but not matching
+ * `prefix`) returns `null`, never throws.
+ */
+function debugArg(search: string, prefix: string): string | null {
+  try {
+    const raw = new URLSearchParams(search).get('debug')
+    if (raw === null) return null
+    const at = raw.indexOf(':')
+    if (at < 0) return null
+    if (raw.slice(0, at) !== prefix) return null
+    return raw.slice(at + 1)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * `?debug=progreso:<id>,<id>,…` (design.md §9; `level-engine` spec
+ * "Comma-Separated Progress Seeding Flag"). DEV-GATED at the call site,
+ * exactly like `?nivel=mapa` and `shouldSeedRecoveredDuck` above: unlike
+ * `revealDebugFraction`/`lightDebugPoint` below, this one writes REAL
+ * persisted `LevelProgressStore` records, so it needs the same gate every
+ * other navigable/mutating surface in this file uses. Generalizes
+ * `shouldSeedRecoveredDuck`'s one boolean into an arbitrary id list — the
+ * same shape, one seeded record per listed id, instead of one hardcoded id.
+ * Malformed input, or no match at all, returns `[]`, never throws.
+ */
+export function seededProgressIds(search: string): readonly string[] {
+  const arg = debugArg(search, 'progreso')
+  if (arg === null || arg.length === 0) return []
+  return arg.split(',').filter((id) => id.length > 0)
+}
+
+/**
+ * `?debug=revelado:<pct>` (design.md §9; `reveal-grid` spec "Screenshot
+ * Seeding Flags for Render State"). NOT dev-gated — `isSectorDebug`'s own
+ * stated reason above: it paints render state, adds no control and no
+ * route, and must work against the EXACT build a reviewer is
+ * screenshotting. Feeds `levels/revealGrid.ts`'s `debugClearedTiles` to
+ * pre-clear an erase-mode level before a live finger ever touches it.
+ * Malformed input, a missing flag, or a non-numeric percentage all return
+ * `null`, never throw.
+ */
+export function revealDebugFraction(search: string): number | null {
+  const arg = debugArg(search, 'revelado')
+  if (arg === null) return null
+  const pct = Number(arg)
+  if (!Number.isFinite(pct)) return null
+  return pct / 100
+}
+
+/**
+ * `?debug=linterna:<x>,<y>` (design.md §9; same `reveal-grid` spec). NOT
+ * dev-gated, for the same reason as `revealDebugFraction` above — and it
+ * exists because `scripts/shot.sh` cannot move a finger. Pins a light-mode
+ * level's fold point at the given viewBox coordinate, replacing live
+ * pointer input entirely. Malformed input, a missing flag, or a
+ * non-numeric coordinate all return `null`, never throw.
+ */
+export function lightDebugPoint(search: string): { x: number; y: number } | null {
+  const arg = debugArg(search, 'linterna')
+  if (arg === null) return null
+  const [xRaw, yRaw] = arg.split(',')
+  const x = Number(xRaw)
+  const y = Number(yRaw)
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+  return { x, y }
+}

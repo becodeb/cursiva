@@ -156,7 +156,7 @@ cargado. Se decide cuando lleguen.
 
 | Aventura | Estado | Qué hay que hacer |
 |---|---|---|
-| Exploración libre | **No existe.** | Mecánica nueva: superficie tapada por una **grilla de piezas** que se borran al tocarlas. Sin `mask` ni `clipPath` (veda de `url(#)`). La linterna es la misma grilla con opacidad por distancia al dedo, sin persistir. |
+| Exploración libre | **Hecha** (`glass1..4`, `sand1..4`, `night1..4`) | Nada. Grilla de piezas que se borran (vidrio, arena) o se iluminan (linterna) al tocarlas, sin `mask` ni `clipPath` (veda de `url(#)`). |
 | Patos | Existe como **caso detective** (`duck-trail1..4`: onda, espiral, triangular, cuadrada) | **Recortar como ondulaciones**: los cuatro niveles pasan a ser ondas suaves con la progresión de la sección 2. La espiral es del caracol y la triangular de las ovejas; no se gastan acá. Los ids se conservan (son claves persistidas); cambia el contenido. |
 | Víboras | **No existe.** | Dos mecánicas nuevas: **arrastrar objetos** (ordenar, llevar) y **el corredor es el arte** (el cuerpo de la víbora como camino). |
 | Ovejas | **Hecha** (`sheep-hill1..4`) | Nada. Cresta sobre línea de suelo con altura por vértice (`peakRidge`), ovejas paradas en los picos (`vertexArt`), fondo de ladera. |

@@ -17,7 +17,7 @@ import MainScreen from './screen/MainScreen'
 import ZooMap from './screen/ZooMap'
 import { LocalProgressStore } from './progress/LocalProgressStore'
 import { openProgressStore } from './game/openProgressStore'
-import { isDevMode, shouldSeedRecoveredDuck } from './canvas/devMode'
+import { isDevMode, seededProgressIds, shouldSeedRecoveredDuck } from './canvas/devMode'
 import { EMPTY_RECORD } from './game/types'
 import type { LevelRecord } from './game/types'
 
@@ -51,6 +51,25 @@ function maybeSeedRecoveredDuck(search: string, dev: boolean): void {
   }
 }
 
+/**
+ * `?debug=progreso:<id>,<id>,…`, dev-gated (`canvas/devMode.ts`'s
+ * `seededProgressIds`, design.md §9): files every listed id before the
+ * map's own records are read, generalizing `maybeSeedRecoveredDuck`'s one
+ * hardcoded id into an arbitrary list — the same idempotent shape, one
+ * store read and one guarded write per id.
+ */
+function maybeSeedProgress(search: string, dev: boolean): void {
+  if (!dev) return
+  const ids = seededProgressIds(search)
+  if (ids.length === 0) return
+  const store = openProgressStore()
+  for (const id of ids) {
+    if (store.get(id).approvals < 1) {
+      store.save(id, { ...EMPTY_RECORD, approvals: 1 })
+    }
+  }
+}
+
 /** A `?nivel=` deep link skips the map. The link exists so a level can be
  * opened directly while the mechanics are being reviewed, and routing it
  * through the map would defeat that. `initialView` returns `null` for
@@ -61,6 +80,7 @@ function initialShell(): Shell {
   const search = typeof window === 'undefined' ? '' : window.location.search
   const dev = isDevMode()
   maybeSeedRecoveredDuck(search, dev)
+  maybeSeedProgress(search, dev)
   const view = initialView(search, dev)
   return view ? { at: 'game', initial: view } : { at: 'map' }
 }

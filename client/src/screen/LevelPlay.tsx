@@ -26,7 +26,8 @@ import TraceCanvas, {
   type TraceVertexArt,
 } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
-import { EMPTY_REVEAL, revealTick, revealTiles } from '../levels/revealGrid'
+import { debugClearedTiles, EMPTY_REVEAL, revealTick, revealTiles, type RevealState } from '../levels/revealGrid'
+import { lightDebugPoint, revealDebugFraction } from '../canvas/devMode'
 import { grassScatter, mudScatter } from '../canvas/groundScatter'
 import type { TracePoint } from '../canvas/useTraceInput'
 import { contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnContact'
@@ -232,6 +233,30 @@ export function drawingBand(
   const top = Math.max(0, Math.floor(Math.min(PAUTA_TOP - BAND_MARGIN, minY - reach)))
   const bottom = Math.min(SHEET_HEIGHT, Math.ceil(Math.max(PAUTA_BOTTOM + BAND_MARGIN, maxY + reach)))
   return { y: top, height: bottom - top }
+}
+
+/**
+ * The reveal grid's INITIAL fold state (Phase 6, design.md §9) —
+ * `EMPTY_REVEAL`, or a debug-seeded one when the exact non-gated
+ * screenshot-seeding query flags are present (`canvas/devMode.ts`'s
+ * `revealDebugFraction`/`lightDebugPoint`): `scripts/shot.sh` cannot draw a
+ * finger, so these flags pre-clear an erase level's tiles or pin a light
+ * level's torch before the very first render, no live interaction required.
+ * `?debug=linterna:<x>,<y>` also REPLACES live pointer input for that
+ * level's own live fold (`onFrame`'s `!debugLightPoint` guard below) — the
+ * flag's own contract. Absent flags (the ordinary, non-debug path) return
+ * EXACTLY `EMPTY_REVEAL`, byte-identical to before this wiring.
+ */
+export function initialRevealState(reveal: LevelConfig['reveal'], search: string): RevealState {
+  if (!reveal) return EMPTY_REVEAL
+  if (reveal.mode === 'erase') {
+    const fraction = revealDebugFraction(search)
+    if (fraction === null) return EMPTY_REVEAL
+    return { ...EMPTY_REVEAL, cleared: debugClearedTiles(reveal, fraction) }
+  }
+  const point = lightDebugPoint(search)
+  if (point === null) return EMPTY_REVEAL
+  return { ...EMPTY_REVEAL, point }
 }
 
 /**
@@ -736,8 +761,21 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   const [trailLampOn, setTrailLampOn] = useState(false)
   // The reveal grid's live fold (`reveal-grid` capability, design.md §4.2) —
   // the erase set / light latch for THIS attempt. Reset wherever a run
-  // starts over, exactly like `corridorTrackRef` above.
-  const [revealState, setRevealState] = useState(EMPTY_REVEAL)
+  // starts over, exactly like `corridorTrackRef` above. Seeded from
+  // `initialRevealState` (Phase 6, design.md §9) rather than the bare
+  // `EMPTY_REVEAL` constant, so a screenshot-seeding debug flag survives
+  // the mount effect below (which calls `resetSurface` unconditionally on
+  // every level change, including the very first render) instead of being
+  // silently wiped the instant the effect flushes.
+  const debugSearch = typeof window === 'undefined' ? '' : window.location.search
+  const [revealState, setRevealState] = useState(() => initialRevealState(level.reveal, debugSearch))
+  // `?debug=linterna:<x>,<y>` REPLACES live pointer input for a light-mode
+  // level's fold (`reveal-grid` spec "Screenshot Seeding Flags for Render
+  // State") — the two `onFrame` sites below skip the live tick entirely
+  // while this is set, so the pinned point from `initialRevealState`
+  // survives untouched regardless of any live sample.
+  const debugLightPoint =
+    level.reveal?.mode === 'light' ? lightDebugPoint(debugSearch) : null
 
   const resetSurface = useCallback((): void => {
     setAttempt(null)
@@ -751,8 +789,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setTrailLampOn(false)
     setRestarted(false)
     setClearSignal((n) => n + 1)
-    setRevealState(EMPTY_REVEAL)
-  }, [])
+    setRevealState(initialRevealState(level.reveal, debugSearch))
+  }, [level.reveal, debugSearch])
 
   // A new level starts its own flow: demo first when the level asks for one AND
   // the child is still in the full-guide band. A trail's clue state and filed
@@ -919,8 +957,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // The reveal grid's fold also rides this sample: the finger lifting
         // is what turns the torch off (design.md §4.2's "the light goes out
         // when the finger lifts", one line above the tone's own version of
-        // the same sentence).
-        if (level.reveal) {
+        // the same sentence). Skipped while `?debug=linterna` pins the
+        // point — the flag replaces live pointer input entirely.
+        if (level.reveal && !debugLightPoint) {
           setRevealState((prev) => revealTick(prev, points, false, level.reveal!, target.viewBoxWidth))
         }
         return
@@ -961,7 +1000,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       // The reveal grid's live fold rides this SAME sample too (design.md
       // §4.2, docs/02 §7.2) — no second cloud scan. Monotone; a still
       // finger costs a no-op setState (design.md §1.4's REVEAL_EPSILON).
-      if (level.reveal) {
+      // Skipped while `?debug=linterna` pins the point (same guard as the
+      // `!drawing` branch above).
+      if (level.reveal && !debugLightPoint) {
         setRevealState((prev) => revealTick(prev, points, drawing, level.reveal!, target.viewBoxWidth))
       }
       // Detective mode's clue marks ride this SAME sample (design.md "The rAF
@@ -1017,6 +1058,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       isCase,
       level.corridorWidth,
       level.reveal,
+      debugLightPoint,
     ],
   )
 
