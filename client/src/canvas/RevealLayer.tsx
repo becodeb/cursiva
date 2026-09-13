@@ -42,6 +42,14 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
           width={tile.w}
           height={tile.h}
           fill={reveal.fill}
+          // Defect found by reading `capturas/d/glass1.png`, `sand2-revelado.png`
+          // and `night2-linterna.png` (Phase 7.6): adjacent tiles sit at
+          // fractional device pixels (a 1000-wide sheet over 15 columns is
+          // 66.67 per tile), so two antialiased edges meeting at a fractional
+          // pixel composite to a visible lighter hairline — a rendering
+          // artifact, not a geometry gap; the tiles genuinely abut. A plain
+          // presentation attribute, not a `url(#…)` reference.
+          shapeRendering="crispEdges"
           {...(tile.opacity < 1 ? { opacity: tile.opacity } : {})}
         />
       ))}

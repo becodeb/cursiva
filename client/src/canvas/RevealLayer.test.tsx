@@ -75,4 +75,24 @@ describe('RevealLayer', () => {
     expect(html).not.toContain('<rect')
     expect(html).not.toContain('<image')
   })
+
+  it('every tile carries shape-rendering="crispEdges" — Phase 7.6 defect: seams between adjacent tiles read as visible hairlines', () => {
+    // Found by reading `capturas/d/glass1.png`, `sand2-revelado.png` and
+    // `night2-linterna.png`: a 1000-wide sheet over 15 columns puts tile
+    // edges at fractional device pixels, so two antialiased edges compositing
+    // at a fractional pixel read as a lighter hairline across what should be
+    // one continuous surface. `crispEdges` disables that antialiasing.
+    const reveal: TraceReveal = {
+      fill: '#64726b',
+      tiles: [
+        { x: 0, y: 0, w: 66.67, h: 66.67, opacity: 1 },
+        { x: 66.67, y: 0, w: 66.67, h: 66.67, opacity: 0.5 },
+      ],
+    }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+    const rectCount = (html.match(/<rect/g) ?? []).length
+    const crispCount = (html.match(/shape-rendering="crispEdges"/g) ?? []).length
+    expect(rectCount).toBe(2)
+    expect(crispCount).toBe(rectCount)
+  })
 })
