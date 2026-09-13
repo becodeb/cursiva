@@ -28,6 +28,22 @@ export function isSectorDebug(search: string): boolean {
 }
 
 /**
+ * `?debug=espina` (`snake-drag-and-art-corridor` design.md §8). NOT
+ * dev-gated — `isSectorDebug`'s own stated reason: it overlays `target.paths`
+ * as a plain line over the art, adding no control, no word and no route, and
+ * must work against the EXACT build a reviewer is screenshotting. Mirrors
+ * `isSectorDebug`'s own colon-less shape: an exact-match flag, not a
+ * `<prefix>:<rest>` pair.
+ */
+export function isSpineDebug(search: string): boolean {
+  try {
+    return new URLSearchParams(search).get('debug') === 'espina'
+  } catch {
+    return false
+  }
+}
+
+/**
  * `?debug=pato-recuperado` (duck-undulations-and-sector-backdrop, screenshot
  * verification): a DEV-GATED capture aid — unlike `isSectorDebug` above,
  * this one seeds a real persisted record (`duck-trail4` filed) rather than
@@ -119,4 +135,21 @@ export function lightDebugPoint(search: string): { x: number; y: number } | null
   const y = Number(yRaw)
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null
   return { x, y }
+}
+
+/**
+ * `?debug=ordenadas:<k>` (`object-arrange` spec, "debugArrange Seeds the
+ * First K Pieces Home, Ungated"; design.md §8). NOT dev-gated, for the same
+ * reason as `revealDebugFraction`/`lightDebugPoint` above: it paints render
+ * state (which pieces are already home), adds no control and persists
+ * nothing, and must work against the exact build being screenshotted.
+ * Malformed input, a missing flag, or a non-numeric count all return
+ * `null`, never throw.
+ */
+export function arrangeDebugCount(search: string): number | null {
+  const arg = debugArg(search, 'ordenadas')
+  if (arg === null) return null
+  const k = Number(arg)
+  if (!Number.isFinite(k)) return null
+  return k
 }

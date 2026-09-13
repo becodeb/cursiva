@@ -25,9 +25,9 @@ import TraceCanvas, {
   type TraceReveal,
   type TraceVertexArt,
 } from '../canvas/TraceCanvas'
-import { backdropFor } from '../zoo/backdrops'
+import { backdropFor, TORCH_CHALK } from '../zoo/backdrops'
 import { debugClearedTiles, EMPTY_REVEAL, revealTick, revealTiles, type RevealState } from '../levels/revealGrid'
-import { lightDebugPoint, revealDebugFraction } from '../canvas/devMode'
+import { arrangeDebugCount, isSpineDebug, lightDebugPoint, revealDebugFraction } from '../canvas/devMode'
 import { grassScatter, mudScatter } from '../canvas/groundScatter'
 import type { TracePoint } from '../canvas/useTraceInput'
 import { contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnContact'
@@ -43,11 +43,14 @@ import { railFade, railPull } from '../canvas/rail'
 import { multiCorridorTick, routeTrackStart, type RouteTrack } from './corridorTrack'
 import {
   arrangeTick,
+  debugArrange,
   initialArrange,
   isArranged,
+  pieceBox,
   type ArrangeConfig,
   type ArrangeState,
 } from '../levels/arrange'
+import type { TraceArtCorridor } from '../canvas/TraceCanvas'
 import { directionArrowOf } from './directionArrow'
 import { goalMarkerOf } from './goalMarker'
 import type { LevelConfig } from '../levels/types'
@@ -755,14 +758,43 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // demo replay) and `restartRun` (contact reset) both send it back to the
   // start of the route, exactly like `contactRef` above.
   const corridorTrackRef = useRef<RouteTrack>(routeTrackStart(target.routes.length))
+  // Hoisted above the arrange state below so `?debug=ordenadas:<k>` can seed
+  // it at mount — `arrangeDebugCount`/`isSpineDebug` are both ungated
+  // (design.md §8), the same reasoning `isSectorDebug` already carries.
+  const debugSearch = typeof window === 'undefined' ? '' : window.location.search
   // Before the tracing opens, the child drags this level's art-corridor
   // pieces into their own hollows, smallest to largest (`object-arrange`
   // spec, design.md §5.2). Absent `level.arrange` = no arrange phase, the
   // dummy config below is never consulted for real gating since
   // `arrangeOpen` is `false` whenever `level.arrange` itself is absent.
   const arrangeConfig = level.arrange ?? EMPTY_ARRANGE_CONFIG
-  const [arrangeState, setArrangeState] = useState<ArrangeState>(() => initialArrange(arrangeConfig))
+  const [arrangeState, setArrangeState] = useState<ArrangeState>(() => {
+    const debugCount = level.arrange ? arrangeDebugCount(debugSearch) : null
+    return debugCount !== null ? debugArrange(arrangeConfig, debugCount) : initialArrange(arrangeConfig)
+  })
   const arrangeOpen = !!level.arrange && !isArranged(arrangeState)
+  // The SAME layer serves both phases (trace-canvas spec): during arrange,
+  // each piece's box is its live scatter/held/snapped position; once
+  // arranged (or on a level with no `arrange` at all), it is
+  // `placeArtCorridor`'s own placement — the SAME box `target.artCorridor`
+  // already carries, so nothing here recomputes placement independently.
+  const traceArtCorridor: TraceArtCorridor | undefined = useMemo(() => {
+    const placements = target.artCorridor // ArtCorridorPlacement[]: box/rotate
+    const configPieces = level.artCorridor // ArtCorridorPiece[]: art.href
+    if (!placements || !configPieces || placements.length === 0) return undefined
+    const homeBoxes = placements.map((p) => p.box)
+    if (arrangeOpen) {
+      return configPieces.map((piece, i) => ({
+        href: piece.art.href,
+        box: pieceBox(arrangeState, i, homeBoxes, arrangeConfig),
+      }))
+    }
+    return configPieces.map((piece, i) => ({
+      href: piece.art.href,
+      box: placements[i].box,
+      rotate: placements[i].rotate,
+    }))
+  }, [target.artCorridor, level.artCorridor, arrangeOpen, arrangeState, arrangeConfig])
   // A trail's marks lit so far this run (drained → earned, `clueTick`), and
   // whether its ONE clue has been filed into the rail. Filing rides
   // `onRelease`'s existing approval signal — never the marks alone (spec
@@ -787,7 +819,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // the mount effect below (which calls `resetSurface` unconditionally on
   // every level change, including the very first render) instead of being
   // silently wiped the instant the effect flushes.
-  const debugSearch = typeof window === 'undefined' ? '' : window.location.search
   const [revealState, setRevealState] = useState(() => initialRevealState(level.reveal, debugSearch))
   // `?debug=linterna:<x>,<y>` REPLACES live pointer input for a light-mode
   // level's fold (`reveal-grid` spec "Screenshot Seeding Flags for Render
@@ -1376,14 +1407,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // the FIRST thing §3 takes away: the dotted band keeps the channel and
         // its dashed centre, but not the solid shape.
         // ...and not in a maze either: the walls are already the shape.
-        guide={showShapeLine && !level.maze ? target.paths : undefined}
+        // ...and not over an art corridor either: a crisp dark centreline
+        // drawn down the middle of a drawn snake is the one thing the art
+        // corridor cannot carry (design.md §2.1's R1 — a dark line over the
+        // author's own black spots separates only 14, short of the 55-luma
+        // law by 41).
+        guide={showShapeLine && !level.maze && !level.artCorridor ? target.paths : undefined}
         // ...but NOT inside a maze. docs/08 makes the crisp-line-over-soft-
         // channel rule a phase-3-and-up rule, because only there is the
         // corridor wider than the glyph. A maze has no shape to recover: the
         // walls already say exactly where the path runs, and a line down the
         // middle of them is one more thing on a screen docs/01 principle 1
         // wants empty.
-        showCentreLine={showCorridor && !level.maze}
+        showCentreLine={showCorridor && !level.maze && !level.artCorridor}
         // Fases 1-2 draw on blank paper: the pauta means nothing before a
         // letter exists (docs/01 principle 1).
         surface={level.surface}
@@ -1478,6 +1514,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         inkColor={inWorld ? MUD_INK : backdropEntry?.ink}
         inkDimColor={inWorld ? MUD_INK_DIM : backdropEntry?.inkDim}
         inkHidden={arrangeOpen}
+        artCorridor={traceArtCorridor}
         // Any bump restarts the run (docs/01 principle 2).
         resetSignal={resetOnContact ? resetSignal : undefined}
         // Clue marks (design unit 4/6). Absent on every level without a
@@ -1498,7 +1535,18 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         onStart={onStart}
         onFrame={onFrame}
         onRelease={onRelease}
-      />
+      >
+        {isSpineDebug(debugSearch) && target.paths.length > 0 && (
+          // `?debug=espina` (design.md §8): overlays the FITTED centreline
+          // over the art, so §1.4's coincidence is photographable rather
+          // than only assertable. Ungated, render-only.
+          <g pointerEvents="none">
+            {target.paths.map((d, idx) => (
+              <path key={`spine-debug-${idx}`} d={d} fill="none" stroke={TORCH_CHALK} strokeWidth={2} />
+            ))}
+          </g>
+        )}
+      </TraceCanvas>
       </div>
       <div className="cv-foot">
       {/* Pillars and coach copy (accuracy/direction/fluency readouts, the

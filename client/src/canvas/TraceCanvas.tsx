@@ -42,8 +42,9 @@ import { taperedCorridor, type CorridorSegment } from './corridorTaper'
 import type { ScatterMark } from './groundScatter'
 import { useTraceInput, type TracePoint } from './useTraceInput'
 import { isDevMode } from './devMode'
-import { clampArtBox, placeArt, STANDING_GRIP } from './placeArt'
+import { clampArtBox, placeArt, STANDING_GRIP, type ArtBox } from './placeArt'
 import { RevealLayer } from './RevealLayer'
+import { ArtCorridorLayer } from './ArtCorridorLayer'
 import { devCheckpointState, type DevCheckpointState } from './devCheckpointState'
 import { DevCheckpointOverlay } from './devCheckpointOverlay'
 import type { LetterCheckpoint } from '../letters/types'
@@ -439,6 +440,21 @@ export interface TraceReveal {
   art?: readonly { href: string; w: number; h: number; size: number; x: number; y: number }[]
 }
 
+/** One art-corridor piece's own render box (art-corridor spec, "Art Corridor
+ *  Layer Render Contract"). The BOX already reflects wherever the piece
+ *  currently sits — `placeArtCorridor`'s output during the trace phase, or
+ *  the live arrange state's own scatter/held/snapped position — so this
+ *  layer never asks WHY a box is where it is, only draws it there. */
+export interface TraceArtCorridorPiece {
+  href: string
+  box: ArtBox
+  /** Degrees, about the box's own centre. Absent = 0 (no `transform`
+   *  attribute at all, so an unrotated piece's markup stays plain). */
+  rotate?: number
+}
+
+export type TraceArtCorridor = readonly TraceArtCorridorPiece[]
+
 /** How long the abandoned ink takes to fade on a reset. Long enough to be seen
  * as a departure rather than a glitch, short enough that the child is not kept
  * waiting to start again. */
@@ -610,6 +626,11 @@ export interface TraceCanvasProps {
    * sets one), so this is a no-op for the static markup a test can see.
    * Absent or `false` renders exactly as before this change. */
   inkHidden?: boolean
+  /** The snake adventure's drawn-cutout corridor pieces (`art-corridor`/
+   * `object-arrange` capabilities), rendered above the channel stroke and
+   * below every ink layer. Absent = no corridor-art layer, which is every
+   * level that predates this field. */
+  artCorridor?: TraceArtCorridor
   /** Clue marks (`detective-mode`), rendered as their own `<g>` layer UNDER
    * the ink — see `TraceClueMark`. Absent = no clue layer. */
   clues?: TraceClues
@@ -680,6 +701,7 @@ export default function TraceCanvas({
   carrierArt,
   inkOnly = false,
   inkHidden = false,
+  artCorridor,
   clues,
   ground,
   backdrop,
@@ -1073,6 +1095,14 @@ export default function TraceCanvas({
                 />
               ))}
         </g>
+      )}
+      {artCorridor && (
+        // The snake adventure's own drawn-cutout pieces: above the channel
+        // stroke (the hollow each snake lies in) and below every ink layer
+        // (trace-canvas spec, "Art Corridor Layer Renders as Plain
+        // Images..."). Live through both the arrange and trace phases — the
+        // CALLER decides which box each piece gets; this only draws it.
+        <ArtCorridorLayer artCorridor={artCorridor} />
       )}
       {ground && (
         // The ground itself: individual `<image>` marks, because a texture FILL

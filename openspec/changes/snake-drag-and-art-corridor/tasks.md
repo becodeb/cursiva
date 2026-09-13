@@ -172,37 +172,37 @@ Spec traceability: `trace-canvas/spec.md` (Art Corridor Layer render
 contract). Depends on Phase 2 (`ArtCorridorPlacement`) and Phase 4 (live
 arrange boxes).
 
-- [ ] 5.1 Create `client/src/canvas/ArtCorridorLayer.tsx`: `TraceArtCorridor`
+- [x] 5.1 Create `client/src/canvas/ArtCorridorLayer.tsx`: `TraceArtCorridor`
       structural type in `TraceCanvas.tsx`; one `<image>` per piece at its
       live box (arrange phase: scatter/held/snapped; trace phase:
       `placeArtCorridor`'s output), `transform="rotate(…)"` only when
       authored, zero `url(#`.
-- [ ] 5.2 In `client/src/canvas/TraceCanvas.tsx`: add `artCorridor?:
+- [x] 5.2 In `client/src/canvas/TraceCanvas.tsx`: add `artCorridor?:
       TraceArtCorridor` prop; insert the layer after the channel-stroke block
       and before every ink layer.
-- [ ] 5.3 In `client/src/screen/LevelPlay.tsx`: narrow the two guide
+- [x] 5.3 In `client/src/screen/LevelPlay.tsx`: narrow the two guide
       booleans — `guide={showShapeLine && !level.maze && !level.artCorridor
       ? … }`, `showCentreLine={showCorridor && !level.maze &&
       !level.artCorridor}`.
-- [ ] 5.4 In `client/src/canvas/devMode.ts`: add `arrangeDebugCount(search)`
+- [x] 5.4 In `client/src/canvas/devMode.ts`: add `arrangeDebugCount(search)`
       (`?debug=ordenadas:<k>`, ungated) and `isSpineDebug(search)`
       (`?debug=espina`, ungated, mirrors `isSectorDebug`'s shape). The four
       shipped parsers stay byte-identical.
-- [ ] 5.5 Wire both flags in `LevelPlay.tsx`: `arrangeDebugCount` seeds the
+- [x] 5.5 Wire both flags in `LevelPlay.tsx`: `arrangeDebugCount` seeds the
       initial arrange state via `debugArrange`; `isSpineDebug` overlays
       `target.paths` as a 2-unit `TORCH_CHALK` line over the art.
-- [ ] 5.6 Create `client/src/canvas/ArtCorridorLayer.test.tsx`: one `<image>`
+- [x] 5.6 Create `client/src/canvas/ArtCorridorLayer.test.tsx`: one `<image>`
       per piece at the derived box; rotation present only when authored;
       zero `url(#`.
-- [ ] 5.7 In `client/src/canvas/TraceCanvas.test.tsx`: with `artCorridor` set,
+- [x] 5.7 In `client/src/canvas/TraceCanvas.test.tsx`: with `artCorridor` set,
       the layer sits after the channel and before the ink; without it,
       markup is byte-identical to today for a lagoon backdrop, a `ground`
       maze, and a plain maze (the six pre-existing `url(#` guards stay green,
       unedited).
-- [ ] 5.8 In `client/src/canvas/devMode.test.ts`: both new parsers round-trip
+- [x] 5.8 In `client/src/canvas/devMode.test.ts`: both new parsers round-trip
       correctly, reject malformed input, require no `window`; the four
       shipped parsers stay byte-identical.
-- [ ] 5.9 Run `npm test -- canvas/ArtCorridorLayer canvas/TraceCanvas
+- [x] 5.9 Run `npm test -- canvas/ArtCorridorLayer canvas/TraceCanvas
       canvas/devMode` — green.
 
 ## Phase 6: The Four Snake Levels (E6)

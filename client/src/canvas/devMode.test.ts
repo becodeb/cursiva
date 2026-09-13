@@ -5,7 +5,9 @@
 // it gets no test file of its own here.
 import { describe, expect, it } from 'vitest'
 import {
+  arrangeDebugCount,
   isSectorDebug,
+  isSpineDebug,
   lightDebugPoint,
   revealDebugFraction,
   seededProgressIds,
@@ -125,5 +127,56 @@ describe('?debug=pato-recuperado / ?debug=sectores stay byte-identical (design.m
   it('isSectorDebug is unaffected by the new grammar', () => {
     expect(isSectorDebug('?debug=sectores')).toBe(true)
     expect(isSectorDebug('?debug=revelado:60')).toBe(false)
+  })
+})
+
+describe('isSpineDebug (snake-drag-and-art-corridor design.md §8, mirrors isSectorDebug\'s shape)', () => {
+  it('is true for ?debug=espina', () => {
+    expect(isSpineDebug('?debug=espina')).toBe(true)
+  })
+
+  it('is false for an unrelated or absent query string', () => {
+    expect(isSpineDebug('?debug=sectores')).toBe(false)
+    expect(isSpineDebug('')).toBe(false)
+  })
+
+  it('requires no window/component context', () => {
+    expect(isSpineDebug('?debug=espina')).toBe(true)
+  })
+
+  it('never throws on a malformed query string', () => {
+    expect(() => isSpineDebug('%')).not.toThrow()
+    expect(isSpineDebug('%')).toBe(false)
+  })
+})
+
+describe('arrangeDebugCount (object-arrange spec, "debugArrange Seeds the First K Pieces Home, Ungated")', () => {
+  it('?debug=ordenadas:2 returns 2', () => {
+    expect(arrangeDebugCount('?debug=ordenadas:2')).toBe(2)
+  })
+
+  it('is null for an unrelated or absent query string', () => {
+    expect(arrangeDebugCount('?debug=sectores')).toBeNull()
+    expect(arrangeDebugCount('')).toBeNull()
+  })
+
+  it('requires no window/component context', () => {
+    expect(arrangeDebugCount('?debug=ordenadas:0')).toBe(0)
+  })
+
+  it('never throws on a malformed query string, and returns null', () => {
+    expect(() => arrangeDebugCount('%')).not.toThrow()
+    expect(arrangeDebugCount('%')).toBeNull()
+    expect(arrangeDebugCount('?debug=ordenadas:noesunnumero')).toBeNull()
+  })
+})
+
+describe('the four shipped parsers stay byte-identical alongside the two new ones', () => {
+  it('every shipped parser still resolves exactly as before', () => {
+    expect(isSectorDebug('?debug=sectores')).toBe(true)
+    expect(shouldSeedRecoveredDuck('?debug=pato-recuperado')).toBe(true)
+    expect(seededProgressIds('?debug=progreso:sand4,night2')).toEqual(['sand4', 'night2'])
+    expect(revealDebugFraction('?debug=revelado:60')).toBe(0.6)
+    expect(lightDebugPoint('?debug=linterna:500,300')).toEqual({ x: 500, y: 300 })
   })
 })

@@ -1077,6 +1077,75 @@ describe('TraceCanvas inkColor / inkDimColor (the child\'s line is MUD on a trai
   })
 })
 
+describe('TraceCanvas artCorridor prop (trace-canvas spec: renders above the channel, below the ink)', () => {
+  const backdrop = { href: '/art/sector-sand-background.png', quiet: '#d6cbba', channel: '#3b332b' }
+  const corridor = { paths: ['M 100 300 L 900 300'], width: 60 }
+  const artCorridor = [
+    { href: '/art/sector-snake-medium.png', box: { x: 200, y: 250, width: 200, height: 46 } },
+  ]
+
+  it('the corridor images render after the channel stroke and before the ink', () => {
+    const html = renderToString(
+      <TraceCanvas
+        backdrop={backdrop}
+        corridor={corridor}
+        artCorridor={artCorridor}
+        guide="M 0 0 L 100 100"
+      />,
+    )
+    const channelIdx = html.indexOf('#3b332b')
+    const corridorImgIdx = html.indexOf('/art/sector-snake-medium.png')
+    const guideIdx = html.indexOf('M 0 0 L 100 100')
+    expect(channelIdx).toBeGreaterThan(-1)
+    expect(corridorImgIdx).toBeGreaterThan(-1)
+    expect(guideIdx).toBeGreaterThan(-1)
+    expect(corridorImgIdx).toBeGreaterThan(channelIdx)
+    expect(guideIdx).toBeGreaterThan(corridorImgIdx)
+  })
+
+  it('no artCorridor prop renders no corridor-layer image', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} corridor={corridor} />)
+    expect(html).not.toContain('/art/sector-snake-medium.png')
+  })
+
+  it('zero <mask>, <pattern>, <clipPath>, <defs>, or url(# with artCorridor populated', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} corridor={corridor} artCorridor={artCorridor} />)
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<defs')
+    expect(html).not.toContain('url(#')
+  })
+
+  it('without artCorridor, markup is byte-identical to today for a lagoon backdrop, a ground maze, and a plain maze', () => {
+    const lagoon = { href: '/art/sector-lagoon-background.png', quiet: '#b4c5d0' }
+    const withoutProp = renderToString(<TraceCanvas backdrop={lagoon} corridor={{ paths: ['M 0 0'], width: 40 }} />)
+    const explicitUndefined = renderToString(
+      <TraceCanvas backdrop={lagoon} corridor={{ paths: ['M 0 0'], width: 40 }} artCorridor={undefined} />,
+    )
+    expect(withoutProp).toBe(explicitUndefined)
+
+    const groundMaze = renderToString(
+      <TraceCanvas maze corridor={{ paths: ['M 0 0'], width: 40 }} ground={{ mud: { marks: [], art: [] }, grass: { marks: [], art: [] } }} />,
+    )
+    const groundMazeExplicit = renderToString(
+      <TraceCanvas
+        maze
+        corridor={{ paths: ['M 0 0'], width: 40 }}
+        ground={{ mud: { marks: [], art: [] }, grass: { marks: [], art: [] } }}
+        artCorridor={undefined}
+      />,
+    )
+    expect(groundMaze).toBe(groundMazeExplicit)
+
+    const plainMaze = renderToString(<TraceCanvas maze corridor={{ paths: ['M 0 0'], width: 40 }} />)
+    const plainMazeExplicit = renderToString(
+      <TraceCanvas maze corridor={{ paths: ['M 0 0'], width: 40 }} artCorridor={undefined} />,
+    )
+    expect(plainMaze).toBe(plainMazeExplicit)
+  })
+})
+
 describe('TraceCanvas inkHidden (object-arrange spec: suppresses ink while the arrange phase is open)', () => {
   const strokes = [
     [
