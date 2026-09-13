@@ -51,7 +51,11 @@ export const DRAWN_SPINE: Readonly<Record<'snakeSmall' | 'snakeMedium' | 'snakeL
       [0.16960748792270527, -0.2153356994971902],
     ],
     residual: 3.2717806204692295,
-    thickness: 0.5918367346938775,
+    // The narrowest cross-section within the traceable span, NOT the
+    // median (task 8.7/8.8's own correction: a channel stroked at the
+    // median thickness pokes out past the drawn body at a real trough of
+    // the wave).
+    thickness: 0.4897959183673469,
     traceFrom: 0.22083333333333333,
     traceTo: 0.9375,
   },
@@ -64,7 +68,7 @@ export const DRAWN_SPINE: Readonly<Record<'snakeSmall' | 'snakeMedium' | 'snakeL
       [0.14703590785907852, -0.18374756335282652],
     ],
     residual: 3.361360316309586,
-    thickness: 0.43859649122807015,
+    thickness: 0.3508771929824561,
     traceFrom: 0.21747967479674796,
     traceTo: 0.9471544715447154,
   },
@@ -79,7 +83,7 @@ export const DRAWN_SPINE: Readonly<Record<'snakeSmall' | 'snakeMedium' | 'snakeL
       [0.11705600000000004, -0.1615017543859649],
     ],
     residual: 1.704141190173857,
-    thickness: 0.5578947368421052,
+    thickness: 0.4842105263157895,
     traceFrom: 0.197,
     traceTo: 0.945,
   },

@@ -277,29 +277,29 @@ running at `http://localhost:5173`. Output goes to **`capturas/pasoE/`** —
 `scripts/shot.sh`. `?debug=` flags are render-only and need no `&dev`;
 `?nivel=intro-<id>`/`?nivel=cierre-<id>` need `&dev`.
 
-- [ ] 8.1 Confirm the dev server at `http://localhost:5173` answers before
+- [x] 8.1 Confirm the dev server at `http://localhost:5173` answers before
       capturing.
-- [ ] 8.2 Capture each of the four snake levels untraced and part-traced into
+- [x] 8.2 Capture each of the four snake levels untraced and part-traced into
       `capturas/pasoE/`: `snake1..4.png`, plus a mid-drag and a
       correctly-arranged capture of `snake2` via `?debug=ordenadas:<k>`.
-- [ ] 8.3 Capture `?debug=espina` on `snake1` and `snake3` — the fitted
+- [x] 8.3 Capture `?debug=espina` on `snake1` and `snake3` — the fitted
       centreline overlaid on the drawing, photographing §1.4's coincidence.
-- [ ] 8.4 Capture the arena before and after `snake4`
+- [x] 8.4 Capture the arena before and after `snake4`
       (`?debug=progreso:night4` / `?debug=progreso:night4,snake1,snake2,
       snake3,snake4`) — the map with the víbora standing, the backpack with
       `carrito`.
-- [ ] 8.5 Capture `?nivel=intro-snake&dev` (the adventure intro); confirm no
+- [x] 8.5 Capture `?nivel=intro-snake&dev` (the adventure intro); confirm no
       `?nivel=cierre-snake` route exists, since `snake` carries no
       `closingBeat` (the arena's map-bubble line is the only closing beat).
-- [ ] 8.6 Capture one `night` level and one `llama` level, the human-readable
+- [x] 8.6 Capture one `night` level and one `llama` level, the human-readable
       confirmation that both render byte-identical to before this change.
-- [ ] 8.7 **Read every capture.** Answer explicitly: does `SAND_HOLLOW` read
+- [x] 8.7 **Read every capture.** Answer explicitly: does `SAND_HOLLOW` read
       as a scooped hollow or a hole punched in the beach; does `TORCH_CHALK`
       read as a child's pencil or a highlight; do three vertical snakes
       (`snake3`) read as snakes or as ropes; does the arrange phase's silence
       read as "pick one up" or "nothing is happening". Record any defect
       found by reading, not by any test.
-- [ ] 8.8 Correct and re-capture any defect found in 8.7, with a regression
+- [x] 8.8 Correct and re-capture any defect found in 8.7, with a regression
       test added alongside the fix, not only a re-shot picture.
 
 ## Phase 9: Final Gate

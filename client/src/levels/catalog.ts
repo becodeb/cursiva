@@ -186,6 +186,34 @@ function snakeVerticalPieces(): readonly ArtCorridorPiece[] {
  *  shape). */
 const SNAKE_FEEDBACK: LevelFeedback = { tone: true, haptics: true, metronomeBpm: 0, rail: false }
 
+/** Scatter points for `snakeHorizontalPieces()` (task 8.7/8.8's own
+ *  correction): the FIRST authored values sat at `y ≈ 560-580`, close
+ *  enough to the sheet's own bottom edge that a screenshot caught the
+ *  scattered pieces mostly clipped below the visible canvas — only the
+ *  empty hollows showed. Each piece's own box height (106/148/144) is
+ *  centred well inside `[0, 600]` here instead, at a DIFFERENT `x` than
+ *  its home slot (all three of which share `x = 455.66`) so the jumbled
+ *  pile reads as distinct from the hollows waiting for it. */
+function snakeHorizontalScatter(): readonly { x: number; y: number }[] {
+  return [
+    { x: 250, y: 200 },
+    { x: 500, y: 320 },
+    { x: 750, y: 450 },
+  ]
+}
+
+/** Scatter points for `snakeVerticalPieces()` — same correction, `y = 300`
+ *  (matching the columns' own vertical centre, since a vertical piece is
+ *  nearly as tall as the sheet itself and any other `y` clips it), at
+ *  `x` values distinct from the three home columns (198/498/798). */
+function snakeVerticalScatter(): readonly { x: number; y: number }[] {
+  return [
+    { x: 300, y: 300 },
+    { x: 500, y: 300 },
+    { x: 700, y: 300 },
+  ]
+}
+
 /** Level ids that fell back to a degraded path at import time (diagnostics). */
 const degraded: string[] = []
 
@@ -1014,7 +1042,12 @@ const PHASE_1: LevelConfig[] = [
     carrier: false,
     feedback: SNAKE_FEEDBACK,
     paths: snakeHorizontalPieces().map(snakePathD),
-    corridorWidth: 48,
+    // Lowered from an earlier 48 (task 8.7/8.8): the channel must stay
+    // under the body EVERYWHERE along the wave, not just at its median
+    // cross-section — a screenshot caught `SAND_HOLLOW` poking out past
+    // the small/medium snake's own thinnest trough at 48. 38 clears C1's
+    // corrected, MINIMUM-thickness margin comfortably (design.md §3.2 C1).
+    corridorWidth: 38,
     rules: { ...rules(1, false, true, 0), minAccuracy: 55 },
     showGuide: true,
     letters: [],
@@ -1033,17 +1066,13 @@ const PHASE_1: LevelConfig[] = [
     carrier: false,
     feedback: SNAKE_FEEDBACK,
     paths: snakeHorizontalPieces().map(snakePathD),
-    corridorWidth: 42,
+    corridorWidth: 34, // lowered from 42 alongside snake1's own correction
     rules: { ...rules(1, false, true, 0), minAccuracy: 62 },
     showGuide: true,
     letters: [],
     artCorridor: snakeHorizontalPieces(),
     arrange: {
-      from: [
-        { x: 150, y: 560 },
-        { x: 500, y: 580 },
-        { x: 850, y: 560 },
-      ],
+      from: snakeHorizontalScatter(),
       snapRadius: 60,
     },
   },
@@ -1059,17 +1088,19 @@ const PHASE_1: LevelConfig[] = [
     carrier: false,
     feedback: SNAKE_FEEDBACK,
     paths: snakeVerticalPieces().map(snakePathD),
-    corridorWidth: 36,
+    // Lowered from 36 to `MIN_CORRIDOR` itself (design.md §3.5's own named
+    // lever): at `s_L = 0.72` the vertical family's C1 margin is the
+    // tightest in the family (task 8.7/8.8's correction made it tighter
+    // still), and 30 is as far as it goes without also raising `s_L` —
+    // which C6 has no room left to give (the vertical box already nearly
+    // fills the 600-tall sheet).
+    corridorWidth: 30,
     rules: { ...rules(1, false, true, 0), minAccuracy: 70 },
     showGuide: true,
     letters: [],
     artCorridor: snakeVerticalPieces(),
     arrange: {
-      from: [
-        { x: 200, y: 560 },
-        { x: 500, y: 560 },
-        { x: 800, y: 560 },
-      ],
+      from: snakeVerticalScatter(),
       snapRadius: 60,
     },
   },
@@ -1085,17 +1116,20 @@ const PHASE_1: LevelConfig[] = [
     carrier: false,
     feedback: SNAKE_FEEDBACK,
     paths: snakeHorizontalPieces().map(snakePathD),
-    corridorWidth: 32,
+    // Below `MIN_CORRIDOR` (30) on purpose: `snake3`'s own authored value
+    // now sits exactly at that floor, and R1 still needs `snake4` strictly
+    // BELOW it. The engine clamps the EFFECTIVE width to 30 regardless
+    // (`buildLevel.ts`'s own `clamp`), so `snake3` and `snake4` play at the
+    // identical real corridor either way — already true of every pair at
+    // or under 56 (design.md §6.2's own finding, restated here at the
+    // family's tightest end rather than contradicted by it).
+    corridorWidth: 28,
     rules: { ...rules(1, false, true, 0), minAccuracy: 76 },
     showGuide: true,
     letters: [],
     artCorridor: snakeHorizontalPieces(),
     arrange: {
-      from: [
-        { x: 150, y: 560 },
-        { x: 500, y: 580 },
-        { x: 850, y: 560 },
-      ],
+      from: snakeHorizontalScatter(),
       snapRadius: 60,
     },
   },

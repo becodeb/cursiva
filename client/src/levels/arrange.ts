@@ -167,3 +167,57 @@ export function debugArrange(cfg: ArrangeConfig, k: number): ArrangeState {
     offset: { x: 0, y: 0 },
   }
 }
+
+/** `initialArrange`, or `debugArrange` when `?debug=ordenadas:<k>` seeded a
+ *  count — the ONE function every reset site must call (the initial
+ *  `useState`, `resetSurface`, `restartRun`), so the debug seed is never
+ *  silently wiped by a later reset the same way `initialRevealState`
+ *  already protects the reveal grid's own screenshot-seeding flag. Calling
+ *  `initialArrange` directly from any reset site is the exact bug a
+ *  screenshot caught (task 8.7/8.8): the debug-seeded state applied once at
+ *  mount, then the mount effect's own `resetSurface` call wiped it a moment
+ *  later. */
+export function seedArrange(cfg: ArrangeConfig, debugCount: number | null): ArrangeState {
+  return debugCount !== null ? debugArrange(cfg, debugCount) : initialArrange(cfg)
+}
+
+/** One art-corridor piece's own render facts, structural on purpose (the
+ *  same convention `canvas/TraceCanvas.tsx`'s own structural props use) so
+ *  this module never imports `ArtCorridorPiece`/`ArtImage`. */
+export interface ArrangeRenderPiece {
+  readonly href: string
+  readonly rotate?: number
+}
+
+/** One rendered piece: the box the layer draws it at, and its rotation —
+ *  structurally the shape `canvas/TraceCanvas.tsx`'s `TraceArtCorridor`
+ *  expects, without importing that type here. */
+export interface RenderedPiece {
+  readonly href: string
+  readonly box: ArtBox
+  readonly rotate?: number
+}
+
+/**
+ * The render-ready box AND rotation for every piece during the arrange
+ * phase, in one place — found necessary after a screenshot caught the gap
+ * this closes (task 8.7/8.8): a piece already snapped into its own slot
+ * MUST render at its authored rotation (matching the hollow it now fills,
+ * `snake3`'s own vertical columns); a scattered or held piece has no
+ * meaningful "in transit" orientation and renders unrotated. Once
+ * `isArranged` is true the level switches away from this function entirely
+ * and reads `placeArtCorridor`'s own placements instead (`screen/
+ * LevelPlay.tsx`).
+ */
+export function arrangeRenderPieces(
+  state: ArrangeState,
+  pieces: readonly ArrangeRenderPiece[],
+  homeBoxes: readonly ArtBox[],
+  cfg: ArrangeConfig,
+): readonly RenderedPiece[] {
+  return pieces.map((piece, i) => ({
+    href: piece.href,
+    box: pieceBox(state, i, homeBoxes, cfg),
+    rotate: state.placed[i] !== null ? piece.rotate : undefined,
+  }))
+}

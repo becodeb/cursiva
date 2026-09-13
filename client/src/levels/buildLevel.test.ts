@@ -440,7 +440,11 @@ describe('buildLevelTarget — pushBand containment on wave crests (design.md §
   // ideal cloud can never leave the drawn channel, folded or not, at any
   // curvature, on any generator (design.md §2's proof, not measured per-case).
   function nominalBand(level: LevelConfig): number {
-    const band = Math.max(4, level.corridorWidth / 2 - 6)
+    // Against the EFFECTIVE, engine-clamped width (`snake4`'s own 28 is
+    // authored below `MIN_CORRIDOR` on purpose — R1's ordering needs it
+    // strictly under `snake3`'s own floor-pinned 30 — so `buildLevelTarget`
+    // actually bands the ideal cloud at 30, not 28).
+    const band = Math.max(4, Math.max(MIN_CORRIDOR, level.corridorWidth) / 2 - 6)
     // `pushBand` scales `band` by `taper.from ↔ taper.to` along the route
     // (buildLevel.ts:74-76), so the widest point the ideal cloud ever reaches
     // is `band × max(from, to)`, not the untapered nominal value.

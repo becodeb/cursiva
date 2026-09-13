@@ -4,12 +4,14 @@
 import { describe, expect, it } from 'vitest'
 import type { ArtBox } from '../canvas/placeArt'
 import {
+  arrangeRenderPieces,
   arrangeTick,
   debugArrange,
   grabPiece,
   initialArrange,
   isArranged,
   pieceBox,
+  seedArrange,
   type ArrangeConfig,
   type ArrangeState,
 } from './arrange'
@@ -168,6 +170,54 @@ describe('pieceBox', () => {
     const box = pieceBox(state, 0, HOME_BOXES, CFG)
     expect(box.x).toBeCloseTo(HOME_BOXES[0].x, 6)
     expect(box.y).toBeCloseTo(HOME_BOXES[0].y, 6)
+  })
+})
+
+describe('seedArrange (task 8.7/8.8 regression: the debug seed must survive every reset site)', () => {
+  it('with no debug count, seeds the plain scattered state', () => {
+    expect(seedArrange(CFG, null)).toEqual(initialArrange(CFG))
+  })
+
+  it('with a debug count, seeds debugArrange instead — every reset site must call THIS, not initialArrange directly', () => {
+    expect(seedArrange(CFG, 2)).toEqual(debugArrange(CFG, 2))
+    expect(seedArrange(CFG, 2)).not.toEqual(initialArrange(CFG))
+  })
+})
+
+describe('arrangeRenderPieces (task 8.7/8.8 regression: a placed piece must render at its authored rotation)', () => {
+  const PIECES = [
+    { href: '/art/small.png', rotate: -90 },
+    { href: '/art/medium.png', rotate: -90 },
+    { href: '/art/large.png', rotate: -90 },
+  ]
+
+  it('a SCATTERED piece renders with no rotation', () => {
+    const state = initialArrange(CFG)
+    const rendered = arrangeRenderPieces(state, PIECES, HOME_BOXES, CFG)
+    expect(rendered[0].rotate).toBeUndefined()
+  })
+
+  it('a HELD piece (mid-drag) renders with no rotation', () => {
+    let state = initialArrange(CFG)
+    state = arrangeTick(state, HOME_BOXES, CFG.from[0], true, CFG)
+    expect(state.held).toBe(0)
+    const rendered = arrangeRenderPieces(state, PIECES, HOME_BOXES, CFG)
+    expect(rendered[0].rotate).toBeUndefined()
+  })
+
+  it('a PLACED piece renders at its own authored rotation, matching the hollow it fills', () => {
+    const state: ArrangeState = { placed: [0, null, null], held: null, offset: { x: 0, y: 0 } }
+    const rendered = arrangeRenderPieces(state, PIECES, HOME_BOXES, CFG)
+    expect(rendered[0].rotate).toBe(-90)
+    // The other two, still scattered, stay unrotated.
+    expect(rendered[1].rotate).toBeUndefined()
+    expect(rendered[2].rotate).toBeUndefined()
+  })
+
+  it('every piece keeps its own href regardless of arrange state', () => {
+    const state = initialArrange(CFG)
+    const rendered = arrangeRenderPieces(state, PIECES, HOME_BOXES, CFG)
+    expect(rendered.map((r) => r.href)).toEqual(PIECES.map((p) => p.href))
   })
 })
 

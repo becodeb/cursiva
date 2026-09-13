@@ -16,7 +16,7 @@ import { migratePhase1 } from '../game/migratePhase1'
 import { DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
 import type { LevelRecord } from '../game/types'
 import { migrateDuckCase } from '../game/migrateDuckCase'
-import { BAND_INSET, buildLevelTarget } from './buildLevel'
+import { BAND_INSET, MIN_CORRIDOR, buildLevelTarget } from './buildLevel'
 import { clueCountFor } from '../detective/clues'
 import {
   DEGRADED_LEVEL_IDS,
@@ -150,10 +150,10 @@ describe('LEVELS — authored values match the doc tables', () => {
     'night2': 0,
     'night3': 0,
     'night4': 0,
-    'snake1': 48,
-    'snake2': 42,
-    'snake3': 36,
-    'snake4': 32,
+    'snake1': 38,
+    'snake2': 34,
+    'snake3': 30,
+    'snake4': 28,
     'f1-libre': 0,
     'duck-trail1': 100,
     'duck-trail2': 90,
@@ -1362,16 +1362,23 @@ describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
 
   describe('C1-C6 over the authored literals', () => {
     for (const id of SNAKE_IDS) {
-      it(`${id}: C1 — corridorWidth + 2·residual ≤ thickness for the narrowest piece`, () => {
+      it(`${id}: C1 — corridorWidth + 2·residual ≤ thickness for the narrowest piece (against the EFFECTIVE, engine-clamped width)`, () => {
         const level = getLevel(id)
         const pieces = level.artCorridor!
+        // `buildLevelTarget` clamps to `[MIN_CORRIDOR, MAX_CORRIDOR]` at
+        // runtime regardless of the authored literal (`snake4`'s own 28 is
+        // authored BELOW the floor on purpose, so R1's ordering still holds
+        // once `snake3` itself sits exactly at the floor) — C1 must clear
+        // against the width the child ACTUALLY plays, not the pre-clamp
+        // literal.
+        const effectiveWidth = Math.max(MIN_CORRIDOR, level.corridorWidth)
         let minMargin = Infinity
         for (const piece of pieces) {
           const spine = DRAWN_SPINE[piece.spine]
           const height = (piece.span * piece.art.h) / piece.art.w
           const thicknessVb = spine.thickness * height
           const residualVb = (spine.residual * piece.span) / piece.art.w
-          const margin = thicknessVb - level.corridorWidth - 2 * residualVb
+          const margin = thicknessVb - effectiveWidth - 2 * residualVb
           if (margin < minMargin) minMargin = margin
         }
         expect(minMargin, `${id}: C1 margin`).toBeGreaterThan(0)
@@ -1380,7 +1387,7 @@ describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
       it(`${id}: C2 — every piece's wave-crest radius clears corridorWidth/2 - BAND_INSET`, () => {
         const level = getLevel(id)
         const pieces = level.artCorridor!
-        const required = level.corridorWidth / 2 - BAND_INSET_C2
+        const required = Math.max(MIN_CORRIDOR, level.corridorWidth) / 2 - BAND_INSET_C2
         for (const piece of pieces) {
           const spine = DRAWN_SPINE[piece.spine]
           const height = (piece.span * piece.art.h) / piece.art.w
@@ -1465,6 +1472,23 @@ describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
           expect(Math.abs(tx), `${id} piece ${i}: |tx|`).toBeLessThan(0.5)
         }
       })
+    }
+  })
+
+  it('every arrange.from scatter point sits fully inside the 600-tall sheet (task 8.7/8.8 regression: a screenshot caught the FIRST scatter points clipped near the bottom edge)', () => {
+    for (const id of ['snake2', 'snake3', 'snake4'] as const) {
+      const level = getLevel(id)
+      const pieces = level.artCorridor!
+      const scatter = level.arrange!.from
+      expect(scatter.length).toBe(3)
+      for (let i = 0; i < scatter.length; i++) {
+        const piece = pieces[i]
+        const height = (piece.span * piece.art.h) / piece.art.w
+        const top = scatter[i].y - height / 2
+        const bottom = scatter[i].y + height / 2
+        expect(top, `${id} piece ${i} top`).toBeGreaterThanOrEqual(0)
+        expect(bottom, `${id} piece ${i} bottom`).toBeLessThanOrEqual(600)
+      }
     }
   })
 

@@ -42,11 +42,10 @@ import { pulseOnLeaving } from '../canvas/haptics'
 import { railFade, railPull } from '../canvas/rail'
 import { multiCorridorTick, routeTrackStart, type RouteTrack } from './corridorTrack'
 import {
+  arrangeRenderPieces,
   arrangeTick,
-  debugArrange,
-  initialArrange,
   isArranged,
-  pieceBox,
+  seedArrange,
   type ArrangeConfig,
   type ArrangeState,
 } from '../levels/arrange'
@@ -768,10 +767,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // dummy config below is never consulted for real gating since
   // `arrangeOpen` is `false` whenever `level.arrange` itself is absent.
   const arrangeConfig = level.arrange ?? EMPTY_ARRANGE_CONFIG
-  const [arrangeState, setArrangeState] = useState<ArrangeState>(() => {
-    const debugCount = level.arrange ? arrangeDebugCount(debugSearch) : null
-    return debugCount !== null ? debugArrange(arrangeConfig, debugCount) : initialArrange(arrangeConfig)
-  })
+  // Every reset site (the initial `useState` below, `resetSurface`,
+  // `restartRun`) MUST go through this, never `initialArrange` directly —
+  // see `seedArrange`'s own doc comment for the bug this closes.
+  const seedArrangeState = useCallback(
+    (): ArrangeState => seedArrange(arrangeConfig, level.arrange ? arrangeDebugCount(debugSearch) : null),
+    [arrangeConfig, level.arrange, debugSearch],
+  )
+  const [arrangeState, setArrangeState] = useState<ArrangeState>(seedArrangeState)
   const arrangeOpen = !!level.arrange && !isArranged(arrangeState)
   // The SAME layer serves both phases (trace-canvas spec): during arrange,
   // each piece's box is its live scatter/held/snapped position; once
@@ -784,10 +787,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     if (!placements || !configPieces || placements.length === 0) return undefined
     const homeBoxes = placements.map((p) => p.box)
     if (arrangeOpen) {
-      return configPieces.map((piece, i) => ({
-        href: piece.art.href,
-        box: pieceBox(arrangeState, i, homeBoxes, arrangeConfig),
-      }))
+      return arrangeRenderPieces(
+        arrangeState,
+        configPieces.map((p) => ({ href: p.art.href, rotate: p.rotate })),
+        homeBoxes,
+        arrangeConfig,
+      )
     }
     return configPieces.map((piece, i) => ({
       href: piece.art.href,
@@ -843,8 +848,11 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setRevealState(initialRevealState(level.reveal, debugSearch))
     // The arrangement resets to its deterministic scatter with the run —
     // `docs/13` §6's "posibilidad de reinicio", free (object-arrange spec).
-    setArrangeState(initialArrange(arrangeConfig))
-  }, [level.reveal, debugSearch, target.routes.length, arrangeConfig])
+    // THROUGH `seedArrangeState`, never `initialArrange` directly, or this
+    // mount effect's own call silently wipes `?debug=ordenadas:<k>` the
+    // instant it fires (task 8.7/8.8's own regression).
+    setArrangeState(seedArrangeState())
+  }, [level.reveal, debugSearch, target.routes.length, arrangeConfig, seedArrangeState])
 
   // A new level starts its own flow: demo first when the level asks for one AND
   // the child is still in the full-guide band. A trail's clue state and filed
@@ -969,7 +977,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setOffPath(false)
     setAttempt(null)
     setStrokes([])
-    setArrangeState(initialArrange(arrangeConfig))
+    setArrangeState(seedArrangeState())
     toneRef.current?.setActive(false)
     setResetSignal((n) => n + 1)
     setRestarted(true)
@@ -983,7 +991,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     // `false → true` forces exactly one pulse through the same edge rule the
     // off-path channel uses, so a restart can never turn into a buzzing nag.
     if (feedback.haptics) pulseOnLeaving(false, true)
-  }, [feedback.haptics, clueDef, trailClueMarks.length, target.routes.length, arrangeConfig])
+  }, [feedback.haptics, clueDef, trailClueMarks.length, target.routes.length, seedArrangeState])
 
   // The cue is a passing line, not a state the child has to dismiss.
   useEffect(() => {

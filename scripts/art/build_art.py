@@ -673,7 +673,18 @@ def sample_spine(img: png.Image) -> dict:
             col_min_luma[x] = col_min_luma[nearest]
             col_max_luma[x] = col_max_luma[nearest]
 
-    thickness_px = _median(list(thickness_cols.values()))
+    # A PROVISIONAL thickness (the median) only to size the two tip insets
+    # below -- reasonable for "how far in from a tapering tip", where being
+    # off by a few px changes nothing else. The MANIFEST's own `thickness`
+    # (what `catalog.test.ts`'s C1 actually gates the channel width against)
+    # is recomputed below as the MINIMUM over the traceable span instead:
+    # measured on the first screenshot of this data (task 8.7), a corridor
+    # stroked at the MEDIAN thickness pokes the sand hollow out past the
+    # drawn body at a real trough of the wave, where the body is thinner
+    # than its own median run length. A channel that must stay under the
+    # body EVERYWHERE has to answer to the narrowest cross-section it
+    # actually crosses, not the typical one.
+    provisional_thickness_px = _median(list(thickness_cols.values()))
 
     # The TRACEABLE span excludes both tip ends (half-thickness in, so the
     # corridor stroke's round cap lands ON the body) and the eye-white zone,
@@ -682,18 +693,18 @@ def sample_spine(img: png.Image) -> dict:
     # sheet's composite drawing suggested, so this is orientation-agnostic
     # rather than assuming a side.
     eye_cols = [x for x in range(w) if col_max_luma[x] >= EYE_WHITE_LUMA]
-    left_tip_inset = thickness_px / 2
-    right_tip_inset = (w - 1) - thickness_px / 2
+    left_tip_inset = provisional_thickness_px / 2
+    right_tip_inset = (w - 1) - provisional_thickness_px / 2
     if eye_cols:
         near_left = min(eye_cols) < (w - 1) - max(eye_cols)
         if near_left:
             # The eye sits near x=0: the boundary that matters is the
             # cluster's FAR edge (closest to the rest of the body), pushed
             # one further half-thickness away from the eye.
-            head_boundary = max(eye_cols) + thickness_px / 2
+            head_boundary = max(eye_cols) + provisional_thickness_px / 2
             tail_boundary = right_tip_inset
         else:
-            head_boundary = min(eye_cols) - thickness_px / 2
+            head_boundary = min(eye_cols) - provisional_thickness_px / 2
             tail_boundary = left_tip_inset
     else:
         head_boundary = right_tip_inset
@@ -703,6 +714,10 @@ def sample_spine(img: png.Image) -> dict:
     trace_to_px = min(float(w - 1), max(head_boundary, tail_boundary))
     trace_from_col = max(0, min(w - 1, round(trace_from_px)))
     trace_to_col = max(trace_from_col, min(w - 1, round(trace_to_px)))
+
+    # The REAL `thickness`: the narrowest cross-section anywhere in the
+    # traceable span, not the typical one (see the note above).
+    thickness_px = min(thickness_cols[x] for x in range(trace_from_col, trace_to_col + 1))
 
     body_cols = range(trace_from_col, trace_to_col + 1)
     body_darkest_luma = min(col_min_luma[x] for x in body_cols)
