@@ -5,7 +5,7 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import AdventureIntro from './AdventureIntro'
 import { auditCaptions } from '../detective/captionAudit'
-import { ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import { ANIMAL_ART, ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
 import { ADVENTURES } from '../zoo/adventures'
 
 const adventure = ADVENTURES[0] // the duck
@@ -57,5 +57,31 @@ describe('AdventureIntro (main-screen spec "Narrative Entry Screen Content")', (
     const audit = auditCaptions(brokenHtml)
     expect(audit.uncaptioned).toEqual([adventure.intro])
     expect(audit.imagelessContainers).toEqual(['cv-captioned'])
+  })
+})
+
+describe("AdventureIntro — row C's sheep and llama entries render their own animal and line (main-screen spec)", () => {
+  const sheep = ADVENTURES[1]
+  const llama = ADVENTURES[2]
+
+  it("the sheep adventure's entry shows ZOO_ANIMAL_ART.oveja's href and its own intro text", () => {
+    const html = renderToString(<AdventureIntro adventure={sheep} onStart={() => {}} />)
+    expect(html).toContain(`href="${ZOO_ANIMAL_ART.oveja.href}"`)
+    expect(html.split(sheep.intro).length - 1).toBe(1)
+  })
+
+  it("the llama adventure's entry shows ZOO_ANIMAL_ART.llama's href and its own intro text", () => {
+    const html = renderToString(<AdventureIntro adventure={llama} onStart={() => {}} />)
+    expect(html).toContain(`href="${ZOO_ANIMAL_ART.llama.href}"`)
+    expect(html.split(llama.intro).length - 1).toBe(1)
+  })
+
+  it('keeps auditCaptions clean for both new entries', () => {
+    for (const a of [sheep, llama]) {
+      const html = renderToString(<AdventureIntro adventure={a} onStart={() => {}} />)
+      const audit = auditCaptions(html)
+      expect(audit.uncaptioned, a.id).toEqual([])
+      expect(audit.imagelessContainers, a.id).toEqual([])
+    }
   })
 })

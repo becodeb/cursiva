@@ -1,10 +1,10 @@
-// The backpack registry (`docs/12` §3, §5; `docs/13` §8 defers WHICH object
-// each sector grants to paso D). The shape ships now so the HUD has one call
-// site that survives paso D unchanged; the contents are paso D's decision —
-// shipping a registry with nothing in it is not a stub standing in for
-// content, it is the true state of the world on paso A: no sector has
-// granted anything yet, because no sector but the estanque is even open.
-import type { ArtImage } from '../detective/assets'
+// The backpack registry (`docs/12` §3, §5; `docs/13` §8 assigns the
+// shepherd's hat to THIS step — "el gorro a la mochila" — and defers which
+// object every OTHER sector grants to paso D; that is the part this header
+// used to over-state). The shape shipped empty on paso A so the HUD had one
+// call site that survives paso D unchanged; row C is the first sector to
+// actually grant something.
+import { ANDEAN_HAT_ART, type ArtImage } from '../detective/assets'
 import { isFiled, type Records, type SectorId } from './sectors'
 
 export interface BackpackItem {
@@ -18,8 +18,20 @@ export interface BackpackItem {
   earnedWhen: readonly string[]
 }
 
-/** Deliberately EMPTY. */
-export const BACKPACK_ITEMS: readonly BackpackItem[] = []
+/** One entry today: the Andean hat, the llama adventure's own shepherd
+ * accessory (`docs/13` §2). `llama-peak4` rather than all eight sheep/llama
+ * ids — the hat belongs to the LLAMA adventure specifically, and
+ * `llama-peak4` is also the sector's own last level, so both readings land
+ * on the same id. The Pulpito does not WEAR it (design.md §4.4) — a worn hat
+ * needs a composited sprite that does not exist. */
+export const BACKPACK_ITEMS: readonly BackpackItem[] = [
+  {
+    id: 'andean-hat',
+    art: ANDEAN_HAT_ART,
+    grantedBy: 'montanas',
+    earnedWhen: ['llama-peak4'],
+  },
+]
 
 export function earnedItems(records: Records): readonly BackpackItem[] {
   return BACKPACK_ITEMS.filter((item) => item.earnedWhen.every((id) => isFiled(records, id)))

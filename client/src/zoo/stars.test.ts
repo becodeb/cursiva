@@ -38,4 +38,16 @@ describe('totalStars', () => {
     const records: Records = { 'hen-deduce': record(2) }
     expect(totalStars(records)).toBe(0)
   })
+
+  it('counts approvals on the eight new sheep/llama catalog ids, with no change to stars.ts itself', () => {
+    // `REAL_LEVEL_IDS` already contains these via `catalog.ts`'s `LEVELS` —
+    // this closes the coverage gap, no production code changes here.
+    const records: Records = {
+      'sheep-hill1': record(2),
+      'sheep-hill4': record(1),
+      'llama-peak1': record(2),
+      'llama-peak4': record(1),
+    }
+    expect(totalStars(records)).toBe(6)
+  })
 })

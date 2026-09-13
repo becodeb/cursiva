@@ -229,8 +229,31 @@ describe('resolveEnterAction (main-screen spec "resolveEnterAction Chooses Betwe
     }
   })
 
+  // Row C widens the requirement's asserted scope to every registered
+  // adventure — `resolveEnterAction` needed no code change (it already
+  // calls `introLevel`, which is adventure-generic); this closes the
+  // coverage gap the stale spec prose left.
+  it('always resolves sheep-hill1 and llama-peak1 to the narrative entry, unconditional on records', () => {
+    for (const records of [{}, recordsWith(DUCK_TRAIL_IDS, 1)]) {
+      expect(resolveEnterAction('sheep-hill1', records)).toEqual({
+        view: 'intro',
+        levelId: 'sheep-hill1',
+      })
+      expect(resolveEnterAction('llama-peak1', records)).toEqual({
+        view: 'intro',
+        levelId: 'llama-peak1',
+      })
+    }
+  })
+
   it('resolves every other duck level, the hen trails and an unknown id straight to play, unchanged', () => {
     for (const id of ['duck-trail2', 'duck-trail3', 'duck-trail4', 'trail1', 'f3-a', 'not-a-real-id']) {
+      expect(resolveEnterAction(id, {})).toEqual({ view: 'play', levelId: id })
+    }
+  })
+
+  it('resolves every other sheep/llama level straight to play', () => {
+    for (const id of ['sheep-hill2', 'sheep-hill3', 'sheep-hill4', 'llama-peak2', 'llama-peak3', 'llama-peak4']) {
       expect(resolveEnterAction(id, {})).toEqual({ view: 'play', levelId: id })
     }
   })

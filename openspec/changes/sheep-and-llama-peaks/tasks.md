@@ -352,30 +352,30 @@ this phase.
       to before this change (the medusa keeps its scattered ground, the duck
       keeps its lagoon behaviour — `drawnPlace` evaluates the same as
       `inWorld`/`backdrop` did separately for both).
-- [ ] 4.13 In `client/src/zoo/backpack.ts`: `BACKPACK_ITEMS = [{id:'andean-
+- [x] 4.13 In `client/src/zoo/backpack.ts`: `BACKPACK_ITEMS = [{id:'andean-
       hat', art: ANDEAN_HAT_ART, grantedBy:'montanas',
       earnedWhen:['llama-peak4']}]`; correct the header comment (no longer
       "paso D's decision" for THIS item — paso D still owns every other
       sector's grant).
-- [ ] 4.14 In `client/src/zoo/backpack.test.ts`: `earnedItems` returns `[]`
+- [x] 4.14 In `client/src/zoo/backpack.test.ts`: `earnedItems` returns `[]`
       while `llama-peak4` is unfiled and includes `andean-hat` once it is.
-- [ ] 4.15 In `client/src/zoo/stars.test.ts`: add one row confirming
+- [x] 4.15 In `client/src/zoo/stars.test.ts`: add one row confirming
       `totalStars` counts approvals on the eight new real catalog ids with no
       change to `stars.ts` itself (`REAL_LEVEL_IDS` already contains them via
       `catalog.ts`'s `LEVELS`).
-- [ ] 4.16 In `client/src/screen/GameScreen.test.tsx`: extend the
+- [x] 4.16 In `client/src/screen/GameScreen.test.tsx`: extend the
       `resolveEnterAction` describe with `'sheep-hill1'` and `'llama-peak1'`
       rows (each → `{view:'intro', levelId}`, unconditional on `records`) and
       confirm `'sheep-hill2..4'`/`'llama-peak2..4'` still resolve straight to
       `play` — `resolveEnterAction` needs no code change (it already calls
       `introLevel`, which is adventure-generic), this closes the coverage gap
       the stale spec prose left.
-- [ ] 4.17 In `client/src/screen/AdventureIntro.test.tsx`: two new render
+- [x] 4.17 In `client/src/screen/AdventureIntro.test.tsx`: two new render
       rows — the sheep adventure's entry shows `ZOO_ANIMAL_ART.oveja`'s href
       and its own `intro` text; the llama adventure's shows
       `ZOO_ANIMAL_ART.llama`'s href and its own `intro` text; `auditCaptions`
       stays clean for both.
-- [ ] 4.18 Run `npx vitest run client/src/levels/vertexArt.test.ts
+- [x] 4.18 Run `npx vitest run client/src/levels/vertexArt.test.ts
       client/src/canvas/TraceCanvas.test.tsx client/src/screen/
       LevelPlay.test.tsx client/src/zoo client/src/screen/GameScreen.test.tsx
       client/src/screen/AdventureIntro.test.tsx` — green, and re-run Phase
