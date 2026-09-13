@@ -22,6 +22,7 @@ import TraceCanvas, {
   type TraceCorridor,
   type TraceGround,
   type TraceHazards,
+  type TraceVertexArt,
 } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import { grassScatter, mudScatter } from '../canvas/groundScatter'
@@ -29,6 +30,7 @@ import type { TracePoint } from '../canvas/useTraceInput'
 import { contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnContact'
 import { buildLevelTarget } from '../levels/buildLevel'
 import { hitObstacle, obstacleAt } from '../levels/obstacles'
+import { routeApexes } from '../levels/vertexArt'
 import { evaluateLevel } from '../game/evaluateLevel'
 import { coachMessage } from '../game/adaptiveTolerance'
 import { playApprovalTone } from '../modes/tone'
@@ -1130,8 +1132,25 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // this stays correct once the medusa's four levels get a row of their own.
   const backdrop = useMemo<TraceBackdrop | undefined>(() => {
     const b = backdropFor(level.id)
-    return b ? { href: b.art.href, quiet: b.quiet } : undefined
+    return b ? { href: b.art.href, quiet: b.quiet, channel: b.channel } : undefined
   }, [level.id])
+
+  // The level is drawn in a PLACE — a sector's backdrop or the detective
+  // world's ground — so the engine's own marker colours, all chosen against
+  // paper, yield to ink. Today `backdrop ⇒ inWorld`, so every shipped level
+  // renders byte-identically; the eight mountain levels are the first to be
+  // a place without being the world (design.md §3.2).
+  const drawnPlace = inWorld || !!backdrop
+
+  // Static art standing at the route's own peaks (design.md §3.3) — derived
+  // from the BUILT route, never authored as coordinates, so no literal can
+  // drift from a re-tuned generator call.
+  const vertexArt = useMemo<TraceVertexArt | undefined>(() => {
+    if (!level.vertexArt) return undefined
+    const at = routeApexes(target.polyline)
+    if (at.length === 0) return undefined
+    return { ...level.vertexArt.art, size: level.vertexArt.size, at }
+  }, [level.vertexArt, target.polyline])
 
   const ground = useMemo<TraceGround | undefined>(() => {
     // A backdrop retires the scattered ground (docs/13 §4 decision 3): the
@@ -1265,7 +1284,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // dot says nothing the octopus does not. Every non-detective level
         // passes nothing and keeps its dot.
         startArt={
-          inWorld ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE } : undefined
+          drawnPlace ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE } : undefined
         }
         // Shown wherever the start dot is shown (docs/03 §3): from phase 3 on,
         // "where the letter ends" is real information, not decoration. At the
@@ -1285,7 +1304,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // octopus's head — observed on a screenshot. On a letter level there
         // is no character at the start, so the arrow stays the only thing
         // carrying direction.
-        directionArrow={showMarkers && !inWorld ? directionArrow : undefined}
+        directionArrow={showMarkers && !drawnPlace ? directionArrow : undefined}
         completedStrokes={shownStrokes}
         offPath={offPath}
         clearSignal={clearSignal}
@@ -1313,7 +1332,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // feather's PLUME — see the palette suite, which asserts the shipped
         // sage never renders under an override.
         carrierArt={inWorld ? CARRIER_LENS_ART : undefined}
-        inkOnly={inWorld}
+        inkOnly={drawnPlace}
         // The child's own line is MUD in the world (see `MUD_INK`). Only the
         // trace changes substance: the carrier, the hazards and the silhouetted
         // markers above all stay ink, because they are the world.
@@ -1330,6 +1349,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // The sector's drawn place — an adventure's backdrop, once its
         // sector has one. Absent for every level whose adventure has none.
         backdrop={backdrop}
+        // Static art standing at the route's own peaks (design.md §3.3).
+        // Absent for every level that predates `LevelConfig.vertexArt`.
+        vertexArt={vertexArt}
         onStart={onStart}
         onFrame={onFrame}
         onRelease={onRelease}

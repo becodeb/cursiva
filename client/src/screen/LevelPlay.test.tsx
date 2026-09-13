@@ -285,6 +285,81 @@ describe('LevelPlay backdrop (duck-undulations-and-sector-backdrop design.md §3
     expect(ground!.grass.marks.length).toBeGreaterThan(0)
     expect(ground!.mud.marks.length).toBeGreaterThan(0)
   })
+
+  // Regression pair, named explicitly (design.md §3.2's `drawnPlace`):
+  // `backdrop ⇒ inWorld` held for every level that shipped before this
+  // change, so `drawnPlace` must evaluate the same as `inWorld`/`backdrop`
+  // did separately for both — nothing about their rendering may move.
+  it('duck-trail2 renders byte-identical to before this change (drawnPlace === inWorld for it)', () => {
+    renderToString(
+      <LevelPlay
+        level={getLevel('duck-trail2')}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect(traceCanvasProbe.current?.inkOnly).toBe(true)
+    expect(traceCanvasProbe.current?.directionArrow).toBeUndefined()
+    const startArt = traceCanvasProbe.current?.startArt as { href: string } | undefined
+    expect(startArt?.href).toBe(OCTOPUS_ART.href)
+  })
+
+  it("f2-agua2 renders byte-identical to before this change (drawnPlace === inWorld for it, no backdrop)", () => {
+    renderToString(
+      <LevelPlay
+        level={getLevel('f2-agua2')}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect(traceCanvasProbe.current?.inkOnly).toBe(true)
+    expect(traceCanvasProbe.current?.directionArrow).toBeUndefined()
+    const startArt = traceCanvasProbe.current?.startArt as { href: string } | undefined
+    expect(startArt?.href).toBe(OCTOPUS_ART.href)
+  })
+})
+
+describe('LevelPlay — sheep-hill3 stands the octopus without a direction arrow (design.md §3.2, row C)', () => {
+  it('drawnPlace is true from the backdrop alone (this level is not inDetectiveWorld)', () => {
+    renderToString(
+      <LevelPlay
+        level={getLevel('sheep-hill3')}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    const startArt = traceCanvasProbe.current?.startArt as { href: string } | undefined
+    expect(startArt?.href).toBe(OCTOPUS_ART.href)
+    expect(traceCanvasProbe.current?.directionArrow).toBeUndefined()
+    expect(traceCanvasProbe.current?.inkOnly).toBe(true)
+    // A backdrop retires the scattered ground entirely — zero GROUND_GRASS/
+    // GROUND_MUD marks, not merely an empty array.
+    expect(traceCanvasProbe.current?.ground).toBeUndefined()
+  })
+
+  it('passes vertexArt with 3 apexes, one per authored peak', () => {
+    renderToString(
+      <LevelPlay
+        level={getLevel('sheep-hill3')}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    const vertexArt = traceCanvasProbe.current?.vertexArt as
+      | { href: string; at: readonly { x: number; y: number }[] }
+      | undefined
+    expect(vertexArt).toBeDefined()
+    expect(vertexArt!.at).toHaveLength(3)
+    expect(vertexArt!.href).toBe('/art/sector-sheep.png')
+  })
 })
 
 describe('LevelPlay icon controls keep an accessible name (C1 removes visible text, not names)', () => {

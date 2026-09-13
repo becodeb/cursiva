@@ -336,7 +336,7 @@ this phase.
       nothing. Pair with a tightness check: the same assertion with a
       `channel` string injected MUST fail, so the byte-identity check is
       provably sensitive, not vacuous.
-- [ ] 4.11 In `client/src/screen/LevelPlay.tsx`: add `const drawnPlace =
+- [x] 4.11 In `client/src/screen/LevelPlay.tsx`: add `const drawnPlace =
       inWorld || !!backdrop`. Change three call sites: `startArt` from
       `inWorld ? OCTOPUS_ART : undefined` to `drawnPlace ? {...OCTOPUS_ART,
       size: OCTOPUS_SIZE} : undefined`; `inkOnly` from `inWorld` to
@@ -345,7 +345,7 @@ this phase.
       the existing backdrop-resolution memo. Resolve `vertexArt` from
       `level.vertexArt` + `routeApexes(target.polyline)` into
       `TraceVertexArt`'s `at` array when both are present.
-- [ ] 4.12 In `client/src/screen/LevelPlay.test.tsx`: `sheep-hill3` — the
+- [x] 4.12 In `client/src/screen/LevelPlay.test.tsx`: `sheep-hill3` — the
       octopus stands at the start, no direction arrow renders, markers are
       `inkOnly`, zero `GROUND_GRASS`/`GROUND_MUD` hrefs; **regression pair,
       named explicitly**: `duck-trail2` and `f2-agua2` render byte-identical
