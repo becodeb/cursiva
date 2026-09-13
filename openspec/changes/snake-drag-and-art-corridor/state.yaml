@@ -1,0 +1,193 @@
+change: snake-drag-and-art-corridor
+branch: sdd/viboras-en-la-arena
+scope: docs/13_AVENTURAS_POR_ANIMAL.md §8 row E — "Víboras en la arena ·
+  Mecánica nueva: Arrastre de objetos; el arte como corredor"
+execution_mode: auto
+artifact_store: openspec
+delivery_strategy: exception-ok
+review_budget_lines: 800
+
+phases:
+  explore: skipped
+  propose: done
+  spec: done
+  design: done
+  tasks: pending
+  apply: pending
+  verify: pending
+  archive: pending
+
+artifacts:
+  proposal: openspec/changes/snake-drag-and-art-corridor/proposal.md
+  specs:
+    - openspec/changes/snake-drag-and-art-corridor/specs/level-engine/spec.md
+    - openspec/changes/snake-drag-and-art-corridor/specs/guided-trace-mode/spec.md
+    - openspec/changes/snake-drag-and-art-corridor/specs/trace-canvas/spec.md
+    - openspec/changes/snake-drag-and-art-corridor/specs/zoo-map/spec.md
+    - openspec/changes/snake-drag-and-art-corridor/specs/art-corridor/spec.md
+    - openspec/changes/snake-drag-and-art-corridor/specs/object-arrange/spec.md
+  design: openspec/changes/snake-drag-and-art-corridor/design.md
+
+next_recommended:
+  - sdd-tasks
+
+notes: |
+  THE ART IS ALREADY BUILT AND WIRED. `build_art.py`'s `SINGLES` already
+  emits `sector-snake-{small,medium,large}.png` and `assets.ts`'s
+  `SECTOR_ADVENTURE_ART` already declares `snakeSmall {480x98}`,
+  `snakeMedium {492x114}`, `snakeLarge {500x95}`. There is NO art step in
+  this change. What `build_art.py` still owes is MEASUREMENT, not pixels:
+  each snake's drawn spine and its luma extremes, emitted into
+  `manifest.json` the same way `sample_corridor_band` already emits
+  `quiet`/`brightest`.
+
+  MEASUREMENTS ALREADY TAKEN this session with `scripts/art/png.py`, luma
+  601. Do not re-derive them; DO re-read them off the rebuilt manifest
+  before pinning any literal (paso C/D's own rule).
+
+    source            alpha bbox   waves   body fill          median thick   spine cols luma<70
+    vibora chica      960x196      ~2.5    #7b9b6e (140.3)    114 px         12.0 %
+    vibora mediana    983x230      ~3.5    #759268 (132.5)     99 px         30.4 %
+    vibora grande    1000x189      ~4.5    #67895c (121.7)    105 px         37.1 %
+
+  `alpha_bbox` is STABLE from threshold 8 to 200 on all three, so none
+  carries the `oveja.png`/`piedra.png` speckled-alpha defect (§4 decision
+  6). The drawn contour is already exactly `#1a1a1a`.
+
+    fondo arena.png   quiet band = source rows 204-824, flat #d6cbba (204.4),
+                      brightest #dad0c0 (209.2)
+
+  THE FINDING THAT DRIVES THE DESIGN: the author's black spots sit ON the
+  body's midline, over up to 37 % of the traced columns. `INK_COLOR`
+  (#1e293b, luma 40) against `#1a1a1a` (luma 26) separates 14 — it misses
+  `docs/09` §4's 55-luma law by 41. A DARK INK ON A SNAKE IS UNDRAWABLE,
+  the same class of finding as "montañitas bajas" in paso C.
+  `TORCH_CHALK` (#f2efe6, luma 239, already shipped in `backdrops.ts`)
+  clears the spots by 213 and the body by 99-117. The eye whites
+  (#f5f5f5, luma 245) touch the spine for 1-3 % of columns at the head
+  end, which is why the traceable span must END BEHIND THE HEAD.
+
+  The snake's own body clears the sand by 69-87, so the corridor needs no
+  painted channel under it — but a paper channel would MISS the law by 43
+  (252 vs 209.2), so the snake backdrop row cannot resolve to
+  `SHEET_PAPER` in `backdrops.test.ts`'s existing loop. Proposal decision
+  3 restates the law rather than exempting the row.
+
+  NO MIGRATION IS NEEDED, and this reverses the brief's working
+  assumption. `snake1..4` APPEND after `night4` (the last phase-1 id) and
+  demote nothing a real consumer reads: `isUnlocked` is positional but its
+  only remaining consumer is `LevelMap.tsx:81`, the dev chrome — verified,
+  and it is the same reading paso D's amendment A4 already ratified. Paso
+  C is the precedent: it inserted eight ids ahead of all of phase 2 with
+  no migration at all. `arena.unlockedWhen` moves from `alwaysClosed` to
+  `isFiled(records,'night4')`, which only ever WIDENS access, so no
+  returning child loses anything. `migrateEntrance.ts` is untouched.
+
+  Forecast: ~2,400 authored code lines plus ~1,300 SDD artifact lines
+  against an 800-line budget. Decision needed before apply: Yes.
+  Chained PRs recommended: Yes. 800-line budget risk: High.
+  `size:exception` was accepted by the user at session start, UP FRONT, so
+  this is a note and not a blocker. Six slices: E1 measurement / E2
+  art-corridor / E3 arrange+drag / E4 render layers / E5 the four levels /
+  E6 zoo registries.
+
+  Five product questions are open in proposal.md's "Proposal question
+  round", each with a stated working assumption. SDD ran in `auto` mode so
+  none could be asked live; flagging them is the precedent pasos C and D
+  both set.
+
+  Baseline to preserve: 69 test files / 1436 tests green, `npm run build`
+  green. Commands are `npm test` and `npm run build` at the root; never a
+  bare `tsc --noEmit` (TS 7 quirk, `openspec/config.yaml`).
+
+  SPEC-PHASE FINDING: the task brief's list of "existing capability specs
+  to delta" named `free-trace-mode` and `progress-store`. Neither is
+  named in the proposal's own Modified Capabilities section (which names
+  `guided-trace-mode`), and neither is touched by this change on
+  inspection: `progress-store` is the per-letter store
+  (`cursiva.progress.v1`), unrelated to `LevelProgressStore`
+  (`cursiva.levels.v1`, itself specified inside `level-engine`, not
+  `progress-store`); `free-trace-mode` owns `coverageScore`/erase-grid
+  completion, which no snake level touches (`snake1..4` are `kind:
+  'path'`, never `kind: 'free'`). The completion conjunction decision 4
+  describes ("arrange gates tracing, completion becomes AND of both") is
+  `guided-trace-mode`'s "Completion Handoff" requirement. Deltas were
+  written against `guided-trace-mode`, per the proposal and the code, not
+  against the two capabilities the brief named.
+
+  SPECS RECONCILED AGAINST design.md §0 (2026-09-13, post-design pass).
+  design.md landed after the six spec deltas and ratified seven
+  amendments (A1-A7) that superseded decisions the specs still encoded.
+  All six spec files were rewritten in place (not appended) to match
+  what design.md commits to building:
+
+  - level-engine: `enforceOrder` flipped from "false on snake1, true on
+    snake2-4" to TRUE ON ALL FOUR (A3 - evaluateLevel scores accuracy
+    against the UNION of all three bands, so without enforceOrder a
+    child tracing only the small snake would score ~100 and be
+    approved). Arc-length monotonicity narrowed from "non-decreasing
+    across all four" to "non-decreasing within the three HORIZONTAL
+    levels only, snake3 the named vertical outlier" (A7 - three oblique
+    snakes don't fit the sheet at any scale that also clears the
+    phase-1 span guard; three vertical ones fit at 0.72 scale, which
+    shortens snake3's arc). Added a new requirement for
+    `multiCorridorTick` (A2 - a REAL pre-existing defect:
+    `corridorTick` reads `paths[0]` only via `buildLevel.ts:181`, so a
+    three-path level's wall feedback was wrong on two of its three
+    snakes; fixed by a delegating sibling, `corridorTick` itself
+    untouched). Added the `toleranceFor` clamp note: every corridorWidth
+    <=56 scores at an identical live tolerance, so `minAccuracy`'s
+    strict increase, not corridorWidth, carries the narrowing.
+    Confirmed (not just kept) the no-migration claim per A1, now stated
+    as verified via grep over `LevelMap.tsx:81`.
+  - guided-trace-mode: reworded the completion requirement from an "AND
+    of two scores" framing to the accurate sequencing gate design.md
+    §5.2 specifies - stroke evaluation is suppressed entirely while
+    unarranged, not scored as a second pillar.
+  - trace-canvas: REVERSED the channel decision. A6 found the sand DOES
+    need a channel (`SAND_HOLLOW`, luma 52.5) because
+    `TraceCanvas.tsx:1046` falls back to `SHEET_PAPER` with no channel,
+    red by 42.8 - "no channel painted" was right about luma and wrong
+    about mechanism. The luma law grew from 3 red rows to 4 (R1-R4, R2
+    being the pre-existing SHEET_PAPER-vs-sand row, unedited) and
+    `corridorArt` gained a third field, `headWhite`. Removed the
+    standalone "Arrange Layer" render requirement entirely - design has
+    no second render layer; the arrange pieces ARE the art-corridor
+    images, repositioned live. Added a registry-completeness guard
+    requirement (a real gap design found: the luma loop iterates two
+    hand-listed groups, not the full registry, so a future backdrop
+    silently escapes the law).
+  - zoo-map: fixed "bosque alone stays fogged" to "bosque AND sendero"
+    per design §7.1's own framing; added the structural reason (not
+    just narrative) for no closingBeat.
+  - art-corridor: renamed `snakeSpine`/`snakePlacement` to
+    `spineWave`/`placeArtCorridor` per design's actual names, and
+    replaced the "author independently, then measure drift" premise
+    (which the ORIGINAL proposal built decision 2 on, and which the
+    FIRST spec draft still encoded) with design's real mechanism: the
+    generator's parameters are FITTED to 3 measured points per
+    half-arch at build time, closed-form, so there is no independent
+    geometry to drift in the first place. Added the C1-C6
+    constraint-set requirement design §3.2 names directly.
+  - object-arrange: REMOVED `useDragInput` entirely (A4 - the premise
+    that useTraceInput allows only one stroke is false; `multiStroke`
+    already ships and `LevelPlay.tsx:1323` passes it unconditionally;
+    verified against source, both true). Replaced the "gated via
+    useTraceInput's `enabled` option" framing with design's actual
+    mechanism: `onFrame` redirects to `arrangeTick` and `onRelease`
+    returns early while unarranged, pointer capture itself untouched
+    throughout. Updated function signatures to match design's
+    `initialArrange`/`grabPiece`/`arrangeTick`/`isArranged`/
+    `debugArrange`, and added the ungated `?debug=ordenadas:<k>`
+    requirement design §8 specifies.
+
+  NO CONTRADICTION FOUND between design.md and docs/13 §8 row E's
+  binding scope, or between design.md and the actual code. A2 and A4 -
+  the two amendments a spec-level reconciliation most needed to trust -
+  were independently verified against the working tree before rewriting
+  any spec: `buildLevel.ts:181` does read `polyline` from `paths[0]`
+  only; `useTraceInput.ts:104` does ship `multiStroke`, and
+  `LevelPlay.tsx:1323` does pass it unconditionally. A7's choice of the
+  VERTICAL branch over the oblique one is a valid reading of `docs/13`
+  §2's own "orientación vertical u oblicua" (an "or"), not a scope
+  departure.
