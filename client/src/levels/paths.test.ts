@@ -14,6 +14,8 @@ import {
   garlandVaried,
   hills,
   loops,
+  peakRidge,
+  peakRidgeCorridorLimit,
   spiral,
   squareWave,
   straight,
@@ -703,5 +705,61 @@ describe('squareWave', () => {
 
   it('is rejected by transformPath when a non-M/L/C command is injected (level-engine spec: transformPath rejects an unsupported command)', () => {
     expect(() => transformPath(`${squareWave()} A 1 1 0 0 1 10 10`)).toThrow('comando no soportado')
+  })
+})
+
+describe('peakRidge', () => {
+  it('emits only M and L commands, and survives transformPath (level-engine spec: Output contains only M and L)', () => {
+    const commands = new Set(peakRidge({ heights: [320, 170, 320] }).match(/[A-Za-z]/g))
+    expect(commands).toEqual(new Set(['M', 'L']))
+    expect(() => transformPath(peakRidge({ heights: [320, 170, 320] }))).not.toThrow()
+  })
+
+  it('lands each peak exactly at base minus its own height (level-engine spec: Peaks land exactly at base minus their height)', () => {
+    const points = poly(peakRidge({ x0: 90, x1: 910, base: 480, heights: [320, 170, 320] }))
+    const peakYs = points.filter((p) => p.y < 480).map((p) => Math.round(p.y * 100) / 100)
+    // three peaks, one per height entry — each apex sits alone at base - h.
+    expect(new Set(peakYs)).toEqual(new Set([480 - 320, 480 - 170]))
+    const apex2 = points.find((p) => Math.abs(p.x - (90 + 2.5 * ((910 - 90) / 3))) < 1)
+    expect(apex2?.y).toBeCloseTo(480 - 320, 6)
+  })
+
+  it('starts and ends on the base line (level-engine spec: The route starts and ends on the base line)', () => {
+    const points = poly(peakRidge({ x0: 90, x1: 910, base: 480, heights: [320, 170, 320] }))
+    expect(points[0].y).toBeCloseTo(480, 6)
+    expect(points[points.length - 1].y).toBeCloseTo(480, 6)
+    expect(points[0].x).toBeCloseTo(90, 6)
+    expect(points[points.length - 1].x).toBeCloseTo(910, 6)
+  })
+})
+
+describe('peakRidgeCorridorLimit', () => {
+  it("reduces to cornerClearance's own closed-form inversion on a uniform ridge (level-engine spec: Uniform heights reduce to cornerClearance's own inversion)", () => {
+    const x0 = 90
+    const x1 = 910
+    const heights = [320, 320, 320]
+    const n = heights.length
+    const r = (x1 - x0) / (2 * n)
+    const h = heights[0]
+    const closedForm = (r * Math.sqrt(r * r + h * h)) / (r + h)
+    expect(peakRidgeCorridorLimit({ x0, x1, heights })).toBeCloseTo(closedForm, 6)
+  })
+
+  it("matches design.md's hand-computed value for sheep-hill3's non-uniform heights (level-engine spec: Hand-computed angles for a non-uniform height list)", () => {
+    // heights: [320, 170, 320], r = 136.67 (design.md §1.4, sheep-hill3, W* = 88.8).
+    expect(peakRidgeCorridorLimit({ x0: 90, x1: 910, heights: [320, 170, 320] })).toBeCloseTo(
+      88.8,
+      1,
+    )
+  })
+
+  it('is tight: the corner-fusion condition fails at W* + 1, for at least one authored height list (level-engine spec: The limit is tight, not merely sufficient)', () => {
+    const heights = [320, 170, 320]
+    const x0 = 90
+    const x1 = 910
+    const wStar = peakRidgeCorridorLimit({ x0, x1, heights })
+    const admits = (w: number): boolean => w <= peakRidgeCorridorLimit({ x0, x1, heights })
+    expect(admits(wStar)).toBe(true)
+    expect(admits(wStar + 1)).toBe(false)
   })
 })

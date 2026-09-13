@@ -770,6 +770,84 @@ export function loops(
 }
 
 /**
+ * `docs/13` §2's "montañitas cortas y sucesivas" / "picos altos y
+ * empinados" — a ridge of peaks over a ground line. The linear sibling of
+ * {@link waveVaried}, and the RIDGE sibling of {@link triangularWave}: a
+ * wave alternates about a centreline, a ridge only ever rises from `base`.
+ * That distinction is not cosmetic — `alternatingZigzag` alternates SIDES
+ * by index, so under the phase-1 arm guard (`minY < 180` AND `maxY > 420`)
+ * a wave's "short" apexes are exactly the ones the guard forces tall, and
+ * "alta - baja" is undrawable.
+ *
+ * `heights[i]` is peak `i`'s rise ABOVE `base`, so a peak's `y` is
+ * `base − heights[i]` exactly (no overshoot is possible — these are
+ * straight lines). Emits ONLY `M`/`L`.
+ */
+export function peakRidge(
+  o: { x0?: number; x1?: number; base?: number; heights?: readonly number[] } = {},
+): string {
+  const x0 = o.x0 ?? 90
+  const x1 = o.x1 ?? 910
+  const base = o.base ?? 480
+  const heights = o.heights?.length ? o.heights : [320, 170, 320]
+  const n = heights.length
+  const w = (x1 - x0) / n
+  let d = move(x0, base)
+  for (let i = 0; i < n; i++) {
+    d += line(x0 + (i + 0.5) * w, base - heights[i])
+    d += line(x0 + (i + 1) * w, base)
+  }
+  return d
+}
+
+/**
+ * The widest corridor a {@link peakRidge} can carry before two rounded
+ * joins (`strokeLinejoin="round"`) merge into one filled shape —
+ * `docs/13` §4's "medir el límite de fusión de esquinas", as a number
+ * rather than a promise.
+ *
+ * EXACT, not conservative: each straight run is charged its own two
+ * corners' consumption `(w/2)/tan(θ/2)`, never one angle twice. It reduces
+ * to {@link cornerClearance}'s closed form exactly when the two incident
+ * angles are equal, which is what the uniform-ridge row of `paths.test.ts`
+ * asserts. An END corner (the route's first or last vertex) contributes
+ * zero consumption.
+ */
+export function peakRidgeCorridorLimit(
+  o: { x0?: number; x1?: number; heights?: readonly number[] } = {},
+): number {
+  const x0 = o.x0 ?? 90
+  const x1 = o.x1 ?? 910
+  const heights = o.heights?.length ? o.heights : [320, 170, 320]
+  const n = heights.length
+  const r = (x1 - x0) / (2 * n)
+
+  // Full interior angle at peak i.
+  const peakAngle = heights.map((h) => 2 * Math.atan(r / h))
+
+  // Corner angle at route vertex v (0 = start valley, 2n = end valley,
+  // odd = a peak, even interior = a valley between two peaks). `null` marks
+  // an END corner, which contributes zero consumption.
+  const cornerAngle = (v: number): number | null => {
+    if (v === 0 || v === 2 * n) return null
+    if (v % 2 === 1) return peakAngle[(v - 1) / 2]
+    const j = v / 2
+    return (peakAngle[j - 1] + peakAngle[j]) / 2
+  }
+  const consumption = (angle: number | null): number =>
+    angle === null ? 0 : 1 / (2 * Math.tan(angle / 2))
+
+  let limit = Infinity
+  for (let v = 0; v < 2 * n; v++) {
+    const h = heights[Math.floor(v / 2)]
+    const legLength = Math.sqrt(r * r + h * h)
+    const denom = 1 + consumption(cornerAngle(v)) + consumption(cornerAngle(v + 1))
+    limit = Math.min(limit, legLength / denom)
+  }
+  return limit
+}
+
+/**
  * Fase 2 `f2-crestas` — large waves spanning the FULL ruled height: the same
  * alternating-arch construction as {@link wave}, centred on the midpoint of
  * `[yTop, yBottom]` with amplitude `(yBottom − yTop)/2`, so the crests land
