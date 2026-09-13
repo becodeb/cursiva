@@ -640,6 +640,26 @@ export function shouldTickClue(hasClueMarks: boolean, out: boolean): boolean {
   return hasClueMarks && !out
 }
 
+/**
+ * [A1] Whether the live sample is outside the corridor — the guard a
+ * routeless level was missing. `multiCorridorTick` (`corridorTrack.ts:188`)
+ * returns `Infinity` for an empty `routes` array, so `distance >
+ * corridorWidth / 2` was `true` on the very first drawing frame of every
+ * `kind: 'free'` level: the child's live line rendered in `inkDimColor` for
+ * the whole attempt, plus one spurious haptic pulse per stroke — a phantom
+ * error signal `docs/03` §7 forbids. A level with no route has no wall to be
+ * outside of, so a routeless level (`routeCount === 0`) is never off-path.
+ *
+ * Extracted as a named, exported pure function — like `shouldFileClue`/
+ * `shouldTickClue` above — because this repo's harness (node, no jsdom, no
+ * testing-library) cannot observe a decision made only inside `onFrame`'s
+ * closure: nothing here re-renders after a live sample, so the only way to
+ * prove the guard is testable is to name it.
+ */
+export function isOffPath(routeCount: number, distance: number, corridorWidth: number): boolean {
+  return routeCount > 0 && distance > corridorWidth / 2
+}
+
 /** One of the three pillars (docs/03 §7): a star, a name, and a raw value —
  * shown side by side and NEVER averaged into a single grade. */
 function Pillar({
@@ -1055,7 +1075,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         head.y,
       )
       corridorTrackRef.current = corridorSample.track
-      const out = corridorSample.distance > target.corridorWidth / 2
+      // A routeless level has no wall to be outside of (A1) — see
+      // `isOffPath`'s own header for the defect this guards against.
+      const out = isOffPath(target.routes.length, corridorSample.distance, target.corridorWidth)
       // "La linterna encendida": the tone sounds while the finger is INSIDE and
       // stops when it drifts. Silence is the whole message — there is no
       // out-of-corridor sound, because that would be the error sound docs/03 §7

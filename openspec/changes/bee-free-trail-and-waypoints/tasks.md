@@ -23,25 +23,37 @@ Spec traceability: none of the four new/delta specs cover this — it is a
 pre-existing-code repair named by design §0/§2.1, verified against
 `LevelPlay.tsx:1058` and `corridorTrack.ts:188`.
 
-- [ ] 1.1 RED: in `client/src/screen/LevelPlay.test.tsx`, write a test that
+- [x] 1.1 RED: in `client/src/screen/LevelPlay.test.tsx`, write a test that
       renders `glass1` (a `kind:'free'` level with an empty `routes`) and
       asserts the live stroke's colour is `INK_COLOR`, not `OFF_PATH_INK`.
       Confirm it is RED on the current tree — this is the empirical proof
-      the defect exists today.
-- [ ] 1.2 In `client/src/zoo/backdrops.test.ts`: add a falsifiability row
+      the defect exists today. **Deviation, disclosed**: this file's own
+      header states nothing re-renders `TraceCanvas` after a live `onFrame`
+      sample (state dispatches are no-ops post-`renderToString`), so the
+      colour is proven via the extracted, named, exported decision
+      (`isOffPath`) that drives it, combined with `TraceCanvas.tsx`'s already-
+      shipped `stroke={offPath ? inkDimColor : inkColor}` mapping — the same
+      pattern `shouldFileClue`/`shouldTickClue` already use in this file for
+      exactly this reason.
+- [x] 1.2 In `client/src/zoo/backdrops.test.ts`: add a falsifiability row
       proving `OFF_PATH_INK` fails the 55-gap law against `GLASS_GRIME`
       (Δ51.9, short by **3.1**) and against `SAND_DRIFT` (Δ52.2, short by
       **2.8**) — the numeric documentation of why 1.1 matters. `night`'s
       `TORCH_CHALK_DIM` already clears the law either way; no row needed
       there.
-- [ ] 1.3 GREEN: in `client/src/screen/LevelPlay.tsx:1058`, apply the guard:
+- [x] 1.3 GREEN: in `client/src/screen/LevelPlay.tsx:1058`, apply the guard:
       `const out = target.routes.length > 0 && corridorSample.distance >
       target.corridorWidth / 2`. Confirm 1.1 now passes.
-- [ ] 1.4 In `client/src/screen/LevelPlay.test.tsx`: extend the regression —
+- [x] 1.4 In `client/src/screen/LevelPlay.test.tsx`: extend the regression —
       `night2`, `glass1`, `duck-trail2` MUST differ from pre-change markup in
       EXACTLY one attribute (the live ink's stroke colour) and in nothing
-      else, asserted attribute by attribute, not claimed.
-- [ ] 1.5 Run `npm test -- screen/LevelPlay zoo/backdrops` — green. Commit
+      else, asserted attribute by attribute, not claimed. Implemented as the
+      `isOffPath` decision-level equivalence (same deviation as 1.1): every
+      routeless free level (`night2`, `glass1`, `sand2`) is proven to never
+      report off-path regardless of sampled distance, while a routed level
+      (`duck-trail2`) is proven UNCHANGED — still reports off-path beyond
+      half the corridor width, exactly as before this fix.
+- [x] 1.5 Run `npm test -- screen/LevelPlay zoo/backdrops` — green. Commit
       message names A1 explicitly and states it repairs twelve shipped
       levels.
 

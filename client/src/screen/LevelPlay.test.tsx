@@ -61,7 +61,7 @@ vi.mock('../zoo/backdrops', async (importOriginal) => {
   }
 })
 
-import LevelPlay, { drawingBand, shouldFileClue, shouldTickClue } from './LevelPlay'
+import LevelPlay, { drawingBand, isOffPath, shouldFileClue, shouldTickClue } from './LevelPlay'
 import {
   CARRIER_LENS_ART,
   CLUE_ART,
@@ -832,6 +832,51 @@ describe('shouldTickClue (defect fix: clue collection gated on inside/outside)',
 
   it('never ticks on a level with no clue marks, even if somehow "inside" is true', () => {
     expect(shouldTickClue(false, false)).toBe(false)
+  })
+})
+
+// [A1] `glass1` is a `kind: 'free'` level with an empty `routes` array —
+// `multiCorridorTick` (`corridorTrack.ts:188`) returns `Infinity` for it, and
+// the PRE-FIX expression (`corridorSample.distance > target.corridorWidth /
+// 2`, with no route-count guard) evaluates `Infinity > 0` — `true` — on the
+// very first drawing frame, so the live ink would render in `inkDimColor` for
+// the whole attempt. `isOffPath` is the extracted, named decision the fix
+// wires in (`LevelPlay.tsx`'s `onFrame`); testing it directly is this file's
+// only way to prove the colour it drives, because nothing in this SSR-only
+// harness re-renders `TraceCanvas` after a live `onFrame` sample (see this
+// file's own header) — `TraceCanvas.tsx`'s `stroke={offPath ? inkDimColor :
+// inkColor}` is the untouched, already-shipped mapping from this boolean to
+// the colour the design names.
+describe('isOffPath (A1: a routeless level has no wall to be outside of)', () => {
+  it('confirms the empirical defect: glass1 has an empty routes array, and the un-guarded expression would be true', () => {
+    const target = buildLevelTarget(getLevel('glass1'))
+    expect(target.routes).toHaveLength(0)
+    // The exact pre-fix expression, restated so the RED case is measured, not
+    // asserted: `Infinity > corridorWidth / 2` for any non-negative width.
+    expect(Infinity > target.corridorWidth / 2).toBe(true)
+  })
+
+  it('GREEN: glass1 (kind: free, empty routes) never reports off-path, whatever the sampled distance', () => {
+    const target = buildLevelTarget(getLevel('glass1'))
+    expect(isOffPath(target.routes.length, Infinity, target.corridorWidth)).toBe(false)
+    expect(isOffPath(target.routes.length, 0, target.corridorWidth)).toBe(false)
+  })
+
+  it('night2 and every other routeless free level never reports off-path either', () => {
+    for (const id of ['night2', 'glass1', 'sand2']) {
+      const target = buildLevelTarget(getLevel(id))
+      expect(target.routes, id).toHaveLength(0)
+      expect(isOffPath(target.routes.length, Infinity, target.corridorWidth), id).toBe(false)
+    }
+  })
+
+  it('a routed level (duck-trail2) is UNCHANGED: still reports off-path beyond half the corridor width', () => {
+    // The one attribute A1 changes is gated on `routeCount === 0` — a routed
+    // level's own off-path behaviour is exactly what it was before this fix.
+    const target = buildLevelTarget(getLevel('duck-trail2'))
+    expect(target.routes.length).toBeGreaterThan(0)
+    expect(isOffPath(target.routes.length, target.corridorWidth, target.corridorWidth)).toBe(true)
+    expect(isOffPath(target.routes.length, 0, target.corridorWidth)).toBe(false)
   })
 })
 

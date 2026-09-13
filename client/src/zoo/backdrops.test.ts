@@ -9,7 +9,9 @@ import { viewBoxToImage } from './sectors'
 import {
   ADVENTURE_BACKDROP,
   CHANNEL_STONE,
+  GLASS_GRIME,
   NIGHT_VEIL,
+  SAND_DRIFT,
   SAND_HOLLOW,
   TORCH_CHALK,
   backdropFor,
@@ -22,6 +24,10 @@ const SHEET_PAPER = '#fdfcf7'
 const CORRIDOR_EARTH = '#d9c3ae'
 /** `TraceCanvas.tsx`'s default ink, mirrored for the same reason. */
 const INK_COLOR = '#1e293b'
+/** `TraceCanvas.tsx`'s off-path dim (private there), mirrored for the same
+ * reason — this is exactly the colour A1's defect rendered on every
+ * routeless level before the fix (`LevelPlay.tsx`'s `isOffPath`). */
+const OFF_PATH_INK = '#94a3b8'
 
 const MIN_BACKDROP_CONTRAST = 55 // docs/09:158
 
@@ -117,6 +123,22 @@ describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
 
   it("goes red for INK_COLOR against NIGHT_VEIL — the slate line does not clear the veil (design.md §2.4)", () => {
     expect(Math.abs(luma(INK_COLOR) - luma(NIGHT_VEIL))).toBeLessThan(MIN_BACKDROP_CONTRAST)
+  })
+
+  // [A1, design.md §0/§2.1] The numeric documentation of why `LevelPlay.tsx`'s
+  // `isOffPath` guard matters: `OFF_PATH_INK` is what `glass1..4`/`sand1..4`
+  // have actually been rendering (not the DECLARED `ink ?? INK_COLOR` the two
+  // tests above check) every time `offPath` incorrectly latched true on a
+  // routeless level. Both fail the law — short by 3.1 and 2.8 — which is the
+  // measured proof the defect is real, not only a naming gap. `night`'s own
+  // `TORCH_CHALK_DIM` already clears the law either way (asserted above,
+  // "clears the child's own ink against the veil"), so no row is needed there.
+  it("goes red for OFF_PATH_INK against GLASS_GRIME — A1's defect, short by 3.1", () => {
+    expect(Math.abs(luma(OFF_PATH_INK) - luma(GLASS_GRIME))).toBeLessThan(MIN_BACKDROP_CONTRAST)
+  })
+
+  it("goes red for OFF_PATH_INK against SAND_DRIFT — the same defect, short by 2.8", () => {
+    expect(Math.abs(luma(OFF_PATH_INK) - luma(SAND_DRIFT))).toBeLessThan(MIN_BACKDROP_CONTRAST)
   })
 })
 
