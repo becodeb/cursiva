@@ -172,13 +172,14 @@ the Pure Fold Module", "The Waypoint Latch Is Monotone and Visit-Order-
 Free", "waypointScore Recomputes Purely From the Complete Stroke List";
 `level-engine/spec.md` "Optional Waypoints Field on LevelConfig...".
 
-- [ ] 4.1 Create `client/src/levels/waypoints.ts`: `Waypoint`,
+- [x] 4.1 Create `client/src/levels/waypoints.ts`: `Waypoint`,
       `WaypointConfig`, `WaypointState`, `EMPTY_WAYPOINTS`, `trailPasses`
       (segment containment, not point containment — design §1.3),
       `waypointTick`, `waypointScore`, `waypointArt` (goal always last),
       `waypointRings`, `debugWaypoints`/`debugTrail`/`debugCarrier` (one `k`
-      drives all three, per §8).
-- [ ] 4.2 Create `client/src/levels/waypoints.test.ts`: `trailPasses` —
+      drives all three, per §8). Also `seedWaypoints` (the
+      `seedArrange`/`initialArrange` convention).
+- [x] 4.2 Create `client/src/levels/waypoints.test.ts`: `trailPasses` —
       a two-point stroke stepping ACROSS a waypoint without landing inside
       it lights it (the assertion that fails under sample-only containment);
       a point exactly at `radius` is inside. `waypointTick` — same reference
@@ -189,18 +190,20 @@ Free", "waypointScore Recomputes Purely From the Complete Stroke List";
       both; dormant before a latch, lit after; rings mirror art order.
       `debugWaypoints`/`debugTrail`/`debugCarrier` — one `k` drives all
       three; clamps to `[0, stops.length + 1]`. Every export runs with no
-      DOM.
-- [ ] 4.3 In `client/src/levels/types.ts`: add `LevelConfig.waypoints?:
+      DOM. 24 tests, all green.
+- [x] 4.3 In `client/src/levels/types.ts`: add `LevelConfig.waypoints?:
       WaypointConfig` (additive; same file Phase 2.2 already touched —
-      apply after 2.2 lands).
-- [ ] 4.4 In `client/src/game/evaluateLevel.ts:119-120`: one conditional in
+      apply after 2.2 lands). Landed together with Phase 2's `carrierArt?`
+      edit (same file, same commit slice boundary honoured via the
+      `import type` forward reference noted there).
+- [x] 4.4 In `client/src/game/evaluateLevel.ts:119-120`: one conditional in
       the `free` branch — `waypointScore` when `config.waypoints` is
       present, else `revealScore` (byte-identical fallback).
-- [ ] 4.5 In `client/src/game/evaluateLevel.test.ts`: any pre-existing
+- [x] 4.5 In `client/src/game/evaluateLevel.test.ts`: any pre-existing
       `kind:'free'` level scores identically, byte for byte, before and
       after this change; a bee fixture routes through `waypointScore`, not
       `revealScore`.
-- [ ] 4.6 Run `npm test -- levels/waypoints game/evaluateLevel` — green.
+- [x] 4.6 Run `npm test -- levels/waypoints game/evaluateLevel` — green.
 
 ## Phase 5: The Render Layer
 

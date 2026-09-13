@@ -194,7 +194,10 @@ export interface LevelConfig {
    *  authors none — the child invents it — so a start, N stops and one goal
    *  are what replaces it. Only legal on `kind: 'free'`; absent on every
    *  level that predates it, which keeps `f1-libre` and the twelve reveal
-   *  levels bit-identical. */
+   *  levels bit-identical.
+   *
+   *  [free-trail-waypoints, Phase 4] Additive — applied here, after Phase
+   *  2's `carrierArt?`/`LevelTarget.start?` land in this same file. */
   waypoints?: WaypointConfig
   /** Ride THIS picture on the fingertip instead of the world's magnifying
    *  glass. A level's own art beats a default it did not ask for — the exact

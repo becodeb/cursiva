@@ -10,6 +10,7 @@ import { coverageScore } from '../levels/coverage'
 import type { LevelConfig, LevelTarget } from '../levels/types'
 import { TolPen, TolTouch } from '../canvas/validation/constants'
 import { evaluateLevel, toleranceFor } from './evaluateLevel'
+import { waypointScore, type WaypointConfig } from '../levels/waypoints'
 
 /**
  * A perfect trace: the target path resampled to EVEN ARC LENGTH and evenly
@@ -281,5 +282,55 @@ describe('evaluateLevel — nivel libre: la precisión es cobertura', () => {
     // corridor and still fails a reversed stroke.
     const reversed = [...perfectStroke(travesia)].reverse().map((p, i) => ({ ...p, t: i * 16 }))
     expect(evaluateLevel([reversed], travesia, 'pen').wrongDirection).toBe(true)
+  })
+
+  it("any pre-existing kind:'free' level scores identically, byte for byte, before and after this change", () => {
+    // `f1-libre` carries no `waypoints` field, so the conditional must fall
+    // through to the exact same `revealScore` call it always made.
+    for (const strokes of [[scribble()], [], [[{ x: 200, y: 300, t: 0 }, { x: 420, y: 300, t: 300 }]]]) {
+      const before = coverageScore(strokes, libre.viewBoxWidth)
+      const after = evaluateLevel(strokes, libre, 'touch')
+      expect(after.accuracy).toBe(before)
+    }
+  })
+})
+
+describe('evaluateLevel — a bee fixture routes through waypointScore, not revealScore', () => {
+  const waypoints: WaypointConfig = {
+    start: { x: 250, y: 400 },
+    stops: [{ x: 500, y: 265, radius: 110 }],
+    stopArt: { dormant: { href: '/art/sector-flower-dormant.png', w: 256, h: 245 }, lit: { href: '/art/sector-flower.png', w: 256, h: 245 } },
+    stopSize: 64,
+    goal: { x: 750, y: 385, radius: 96 },
+    goalArt: { href: '/art/sector-honeycomb.png', w: 181, h: 256 },
+    goalSize: 96,
+  }
+  const beeLike: LevelTarget = {
+    ...buildLevelTarget(getLevel('f1-libre')),
+    config: { ...getLevel('f1-libre'), waypoints },
+  }
+
+  it('scores accuracy as waypointScore, not coverageScore, when the level authors waypoints', () => {
+    const strokes = [[{ x: waypoints.stops[0].x, y: waypoints.stops[0].y, t: 0 }]]
+    const attempt = evaluateLevel(strokes, beeLike, 'touch')
+    expect(attempt.accuracy).toBe(waypointScore(strokes, waypoints))
+    // Sanity: this is NOT what coverageScore would report for one point.
+    expect(attempt.accuracy).not.toBe(coverageScore(strokes, beeLike.viewBoxWidth))
+  })
+
+  it('reports the same accuracy waypointScore itself computes, across the 0/50/100 range', () => {
+    const cases: ReadonlyArray<ReadonlyArray<ReadonlyArray<TracePoint>>> = [
+      [],
+      [[{ x: waypoints.stops[0].x, y: waypoints.stops[0].y, t: 0 }]],
+      [
+        [
+          { x: waypoints.stops[0].x, y: waypoints.stops[0].y, t: 0 },
+          { x: waypoints.goal.x, y: waypoints.goal.y, t: 100 },
+        ],
+      ],
+    ]
+    for (const strokes of cases) {
+      expect(evaluateLevel(strokes, beeLike, 'touch').accuracy).toBe(waypointScore(strokes, waypoints))
+    }
   })
 })
