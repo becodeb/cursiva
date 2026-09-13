@@ -17,7 +17,7 @@ import { K, TolPen, TolTouch } from '../canvas/validation/constants'
 import { fluencyScore } from '../canvas/validation/fluency'
 import { score } from '../canvas/validation/score'
 import type { TracePoint } from '../canvas/useTraceInput'
-import { coverageScore } from '../levels/coverage'
+import { revealScore } from '../levels/revealGrid'
 import type { LevelTarget } from '../levels/types'
 import type { LevelAttempt } from './types'
 
@@ -105,15 +105,19 @@ export function evaluateLevel(
 
   const allowedStrokes = rules.mustBeContinuous ? 1 : strokes.length || 1
 
-  // ── Nivel libre: el pilar de precisión es COBERTURA ────────────────────────
+  // ── Nivel libre: el pilar de precisión es COBERTURA (o el veló revelado) ───
   // A `free` level has no target path (docs/08 section 5), so "did it stay on
   // the route" has no referent. What the warm-up trains is reach, so accuracy
-  // reports how much of the sheet the stroke visited (coverage.ts) and the
-  // direction pillar is satisfied by construction: with no checkpoints there is
-  // no wrong way round, and failing a child for it would be inventing an error
-  // the level does not have (docs/01 principle 2).
+  // reports how much of the sheet the stroke visited (`levels/coverage.ts`) —
+  // or, for a reveal-grid level (`levels/revealGrid.ts`, design.md §4.3), the
+  // cleared fraction or the hidden-object latch. `revealScore` delegates to
+  // `coverageScore` unchanged when the level carries no `reveal` field, which
+  // is what keeps `f1-libre` bit-identical. The direction pillar is satisfied
+  // by construction: with no checkpoints there is no wrong way round, and
+  // failing a child for it would be inventing an error the level does not
+  // have (docs/01 principle 2).
   if (target.config.kind === 'free') {
-    const accuracy = coverageScore(strokes, target.viewBoxWidth)
+    const accuracy = revealScore(strokes, target.config, target.viewBoxWidth)
     const { fluency, extraLifts } = fluencyScore(strokes, allowedStrokes)
     const accuracyOk = accuracy >= rules.minAccuracy
     const fluencyOk = fluency >= rules.minFluency

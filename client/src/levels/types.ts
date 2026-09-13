@@ -160,6 +160,38 @@ export interface LevelConfig {
    * Additive, absent on every level that predates it — the same convention
    * `goalArt` established. */
   vertexArt?: { art: ArtImage; size: number }
+  /** A covering layer of independent tiles over this level's backdrop
+   *  (`docs/13` §4, "superficie tapada por una grilla de piezas que se borran
+   *  al tocarlas"). The field's REASON TO EXIST is `docs/13` §6's "trayectoria
+   *  esperada": a reveal level has none, and `cols`/`rows`/`radius` are what
+   *  replaces it — area to cover instead of a route to follow.
+   *
+   *  A UNION, not a `mode` flag with optional siblings: only a `light` level
+   *  may carry `objects`, and only an `erase` level is scored on area.
+   *  Stating that in the type makes `npm run build` the thing that catches
+   *  an object list on a glass level, the same mechanism `FogPatch.rot: 0`
+   *  and `CaptionedArt`'s required `label` already use. Additive and absent
+   *  everywhere else — the convention `goalArt`/`vertexArt` established. */
+  reveal?: RevealConfig
+}
+
+/** A covering layer over a routeless level's backdrop (`levels/revealGrid.ts`
+ *  design.md §1.2). `erase` levels persist a cleared tile `Set` across the
+ *  attempt and score on the cleared fraction against `rules.minAccuracy`;
+ *  `light` levels persist nothing but which `objects` were ever lit, and
+ *  complete when every one of them has been. */
+export type RevealConfig =
+  | { mode: 'erase'; cols: number; rows: number; radius: number }
+  | { mode: 'light'; cols: number; rows: number; radius: number; objects: readonly RevealObject[] }
+
+/** Something hidden in the dark, lying ON the backdrop UNDER the veil.
+ *  Authored coordinates, unlike `vertexArt` — there is no route to derive a
+ *  position from, which is the whole point of a routeless level. */
+export interface RevealObject {
+  art: ArtImage
+  size: number
+  x: number
+  y: number
 }
 
 /** Runtime target derived from a LevelConfig at load time. */

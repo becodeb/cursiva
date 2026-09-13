@@ -112,3 +112,26 @@ describe('coverageScore — the f1-libre threshold', () => {
     expect(coverageScore([[{ x: 60, y: 540 }, { x: 940, y: 60 }]], 1000)).toBeLessThan(threshold)
   })
 })
+
+describe('coverageScore — bit-identity with its own defaults (design.md §1.3)', () => {
+  // `coverageScore`'s whole body now delegates to `clearedTiles` — this is
+  // the falsifiable proof that passing the DEFAULT cols/rows explicitly
+  // reproduces the same score as omitting them, for every fixture above.
+  const fixtures: ReadonlyArray<[string, Array<{ x: number; y: number }>[]]> = [
+    ['no strokes', []],
+    ['single point', [[{ x: 500, y: 300 }]]],
+    ['energetic scribble', [energeticScribble()]],
+    [
+      'off-sheet stroke',
+      [[{ x: -400, y: -200 }, { x: 1400, y: 900 }]],
+    ],
+    [
+      'two separate dabs',
+      [[{ x: 20, y: 20 }, { x: 60, y: 60 }], [{ x: 940, y: 540 }, { x: 980, y: 580 }]],
+    ],
+  ]
+
+  it.each(fixtures)('%s: coverageScore(s, 1000) === coverageScore(s, 1000, 12, 8)', (_label, strokes) => {
+    expect(coverageScore(strokes, 1000)).toBe(coverageScore(strokes, 1000, COVERAGE_COLUMNS, COVERAGE_ROWS))
+  })
+})
