@@ -233,39 +233,39 @@ Spec traceability: `trace-canvas/spec.md` (`SAND_HOLLOW` channel,
 ZooAnimalId/vibora, no closingBeat). Depends on Phase 6. Reunites the
 `carrito` registry entry with its consumer here, per the resequencing note.
 
-- [ ] 7.1 In `client/src/zoo/backdrops.ts`: add `SAND_HOLLOW = '#3b332b'`;
+- [x] 7.1 In `client/src/zoo/backdrops.ts`: add `SAND_HOLLOW = '#3b332b'`;
       widen `AdventureBackdrop` with `corridorArt?: {brightest; darkest;
       headWhite}`; add the `snake` row — `channel: SAND_HOLLOW`, `ink:
       TORCH_CHALK`, `inkDim: TORCH_CHALK_DIM`, `corridorArt` from 1.4's
       recorded values.
-- [ ] 7.2 In `client/src/zoo/backdrops.test.ts`: assert L1–L4 (all ≥ 55) and
+- [x] 7.2 In `client/src/zoo/backdrops.test.ts`: assert L1–L4 (all ≥ 55) and
       the four falsifiability rows R1/R2/R3/R4 (all < 55, R2 reusing the
       existing unedited assertion). **Add the registry-completeness guard**:
       the union of the luma loop's hand-listed groups' keys equals
       `Object.keys(ADVENTURE_BACKDROP)`; add a test proving a hypothetical
       ungrouped row fails the guard (sensitivity proof).
-- [ ] 7.3 In `client/src/detective/assets.ts`: add `CART_ART` (from 1.3's
+- [x] 7.3 In `client/src/detective/assets.ts`: add `CART_ART` (from 1.3's
       measured `sector-cart` width) and widen `ZooAnimalId | 'vibora'`,
       `ZOO_ANIMAL_ART.vibora = SECTOR_ADVENTURE_ART.snakeMedium`.
-- [ ] 7.4 In `client/src/detective/artManifest.test.ts`: complete the
+- [x] 7.4 In `client/src/detective/artManifest.test.ts`: complete the
       `sector-cart` parity check now that 7.3 registers it.
-- [ ] 7.5 In `client/src/zoo/adventures.ts`: `AdventureId | 'snake'`; add the
+- [x] 7.5 In `client/src/zoo/adventures.ts`: `AdventureId | 'snake'`; add the
       `snake` row (`animal: 'vibora'`, `levelIds: snake1..4`, `sector:
       'arena'`, intro/closing text per design.md §7.2, **no `closingBeat`**).
-- [ ] 7.6 In `client/src/zoo/sectors.ts`: `arena.unlockedWhen = (records) =>
+- [x] 7.6 In `client/src/zoo/sectors.ts`: `arena.unlockedWhen = (records) =>
       isFiled(records, 'night4')`; `arena.adventureIds = snake1..4`;
       `arena.animals = [{id:'vibora', dx:0, dy:0, size:30,
       appearsWhen:['snake4']}]`. Narrow the "undeveloped sectors stay fogged"
       test set to `bosque`/`sendero`.
-- [ ] 7.7 In `client/src/zoo/backpack.ts`: add `{id:'carrito', art: CART_ART,
+- [x] 7.7 In `client/src/zoo/backpack.ts`: add `{id:'carrito', art: CART_ART,
       grantedBy:'arena', earnedWhen:['snake4']}`.
-- [ ] 7.8 In `client/src/zoo/adventures.test.ts`, `sectors.test.ts`,
+- [x] 7.8 In `client/src/zoo/adventures.test.ts`, `sectors.test.ts`,
       `backpack.test.ts`: the víbora appears/disappears on `snake4`; `arena`
       stays fogged until `night4`; `resolveCloseAction` returns `null` for
       every `snake1..4` (no `closingBeat`); the map bubble resolves the
       víbora's closing line once `snake4` is filed; `carrito` is
       absent/present per `earnedWhen`.
-- [ ] 7.9 Run `npm test -- zoo/ detective/artManifest` — green. The backdrop
+- [x] 7.9 Run `npm test -- zoo/ detective/artManifest` — green. The backdrop
       resolves for the first time here — where the captures start paying off.
 
 ## Phase 8: Screenshot Verification (last, human-reviewed, not optional)

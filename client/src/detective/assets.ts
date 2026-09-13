@@ -47,8 +47,10 @@ export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
 
 /** Every animal the ZOO can stand — a superset of {@link AnimalId}, which is
  * the deduction screen's exhaustive answer set and is NOT widened here
- * (`docs/13` §4 decision 1: the deduction is paused, not revived). */
-export type ZooAnimalId = AnimalId | 'oveja' | 'llama'
+ * (`docs/13` §4 decision 1: the deduction is paused, not revived). Widened
+ * with `'vibora'` for the arena's own recovered animal
+ * (`snake-drag-and-art-corridor` design.md §7.1, proposal decision 7). */
+export type ZooAnimalId = AnimalId | 'oveja' | 'llama' | 'vibora'
 
 /** A derived raster from `client/public/art/`, with its intrinsic pixel size
  * so a caller can hold aspect while scaling to a target height.
@@ -242,6 +244,18 @@ export const ZOO_SPEECH_BUBBLE_ART: ArtImage = {
   h: 372,
 }
 
+/** The arena's backpack reward (`docs/13` §8 row E) — a snake carried home
+ * in a little cart, `snake4`'s own `earnedWhen` (`zoo/backpack.ts`). Its
+ * pipeline row (`carrito.png` → `zoo-cart.png`) shipped in Phase 1 ahead of
+ * this registry entry (design.md §7.1's resequencing note); `w`/`h` are
+ * copied from the rebuilt `manifest.json`, guarded by
+ * `artManifest.test.ts`. */
+export const CART_ART: ArtImage = {
+  href: '/art/zoo-cart.png',
+  w: 216,
+  h: 256,
+}
+
 /** Full-canvas sectors are scenery rather than sprites: callers preserve their
  * 3:2 intrinsic coordinate system and leave the quiet centre free for a
  * finger-drawn route. */
@@ -310,6 +324,9 @@ export const ZOO_ANIMAL_ART: Readonly<Record<ZooAnimalId, ArtImage>> = {
   ...ANIMAL_ART,
   oveja: SECTOR_ADVENTURE_ART.sheep,
   llama: SECTOR_ADVENTURE_ART.llama,
+  // The one a child would draw if asked to draw "a snake" — the middle
+  // size, neither the smallest nor the largest of the three.
+  vibora: SECTOR_ADVENTURE_ART.snakeMedium,
 }
 
 /** Hedgehog drawing activities: the two poses stay separate so the child can

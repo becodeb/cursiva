@@ -6,7 +6,14 @@
 import { describe, expect, it } from 'vitest'
 import { luma } from '../detective/palette'
 import { viewBoxToImage } from './sectors'
-import { ADVENTURE_BACKDROP, CHANNEL_STONE, NIGHT_VEIL, backdropFor } from './backdrops'
+import {
+  ADVENTURE_BACKDROP,
+  CHANNEL_STONE,
+  NIGHT_VEIL,
+  SAND_HOLLOW,
+  TORCH_CHALK,
+  backdropFor,
+} from './backdrops'
 
 /** The channel paint's shipped defaults, mirrored as literals rather than
  * imported — the same convention `palette.test.ts` follows: pulling the
@@ -35,15 +42,45 @@ const CHANNEL_BACKDROPS = {
   sheep: ADVENTURE_BACKDROP.sheep!,
   llama: ADVENTURE_BACKDROP.llama!,
 }
+/** The one art-corridor row: its channel is the HOLLOW the snake lies in,
+ * not a painted band (design.md §2.3) — kept in its own group so the
+ * registry-completeness guard below can prove every row belongs to
+ * EXACTLY one of the three groups. */
+const ART_CORRIDOR_BACKDROPS = {
+  snake: ADVENTURE_BACKDROP.snake!,
+}
 
 describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
-  it('separates the reveal veil paint from the lightest thing it covers, for all six backdrops', () => {
-    for (const [id, b] of [...Object.entries(CHANNEL_BACKDROPS), ...Object.entries(REVEAL_BACKDROPS)]) {
+  it('separates the reveal veil paint from the lightest thing it covers, for all seven backdrops', () => {
+    for (const [id, b] of [
+      ...Object.entries(CHANNEL_BACKDROPS),
+      ...Object.entries(REVEAL_BACKDROPS),
+      ...Object.entries(ART_CORRIDOR_BACKDROPS),
+    ]) {
       expect(
         Math.abs(luma(b.tile ?? b.channel ?? SHEET_PAPER) - luma(b.brightest)),
         id,
       ).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
     }
+  })
+
+  it('the union of the three groups equals every registered backdrop (registry-completeness guard)', () => {
+    const grouped = new Set([
+      ...Object.keys(CHANNEL_BACKDROPS),
+      ...Object.keys(REVEAL_BACKDROPS),
+      ...Object.keys(ART_CORRIDOR_BACKDROPS),
+    ])
+    expect([...grouped].sort()).toEqual(Object.keys(ADVENTURE_BACKDROP).sort())
+  })
+
+  it('a hypothetical ungrouped row fails the completeness guard (sensitivity proof)', () => {
+    const grouped = new Set([
+      ...Object.keys(CHANNEL_BACKDROPS),
+      ...Object.keys(REVEAL_BACKDROPS),
+      ...Object.keys(ART_CORRIDOR_BACKDROPS),
+    ])
+    const registryKeysWithHypothetical = [...Object.keys(ADVENTURE_BACKDROP), 'hypothetical']
+    expect([...grouped].sort()).not.toEqual(registryKeysWithHypothetical.sort())
   })
 
   it("clears the child's own ink against the veil, for the three reveal-grid rows", () => {
@@ -80,6 +117,53 @@ describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
 
   it("goes red for INK_COLOR against NIGHT_VEIL — the slate line does not clear the veil (design.md §2.4)", () => {
     expect(Math.abs(luma(INK_COLOR) - luma(NIGHT_VEIL))).toBeLessThan(MIN_BACKDROP_CONTRAST)
+  })
+})
+
+describe('Corridor art luma law — the snake row (design.md §2.1, §2.2)', () => {
+  const snake = ADVENTURE_BACKDROP.snake!
+  const art = snake.corridorArt!
+
+  it('L1-L4: all four pairwise gaps clear 55', () => {
+    // L1: the art's darkest (author's spots) vs the ink.
+    expect(Math.abs(luma(art.darkest) - luma(snake.ink!))).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
+    // L2: the art's brightest sampled body vs the ink.
+    expect(Math.abs(luma(art.brightest) - luma(snake.ink!))).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
+    // L3: the art's darkest vs the sand's brightest.
+    expect(Math.abs(luma(art.darkest) - luma(snake.brightest))).toBeGreaterThanOrEqual(
+      MIN_BACKDROP_CONTRAST,
+    )
+    // L4: the art's brightest body vs the sand's brightest.
+    expect(Math.abs(luma(art.brightest) - luma(snake.brightest))).toBeGreaterThanOrEqual(
+      MIN_BACKDROP_CONTRAST,
+    )
+  })
+
+  it('R1: a dark ink (INK_COLOR) against the art\'s darkest goes red — a dark ink is undrawable on a snake', () => {
+    expect(Math.abs(luma(INK_COLOR) - luma(art.darkest))).toBeLessThan(MIN_BACKDROP_CONTRAST)
+  })
+
+  // R2 is the SAME shipped, UNTOUCHED assertion above ("goes red for
+  // SHEET_PAPER against the sand") — reused, not re-authored: it already
+  // proves no paper channel is admissible on sand, which is exactly why
+  // this row's channel is `SAND_HOLLOW` rather than a default.
+
+  it("R3: TORCH_CHALK against the art's headWhite goes red — the traceable span must end behind the head", () => {
+    expect(Math.abs(luma(TORCH_CHALK) - luma(art.headWhite))).toBeLessThan(MIN_BACKDROP_CONTRAST)
+  })
+
+  it('R4: TORCH_CHALK against SHEET_PAPER goes red — the chalk line is admissible ONLY because there is no paper channel under it', () => {
+    expect(Math.abs(luma(TORCH_CHALK) - luma(SHEET_PAPER))).toBeLessThan(MIN_BACKDROP_CONTRAST)
+  })
+
+  it('the snake row declares SAND_HOLLOW as its channel, not absent', () => {
+    expect(snake.channel).toBe(SAND_HOLLOW)
+  })
+
+  it('clears the channel-vs-backdrop luma law with no exemption', () => {
+    expect(Math.abs(luma(SAND_HOLLOW) - luma(snake.brightest))).toBeGreaterThanOrEqual(
+      MIN_BACKDROP_CONTRAST,
+    )
   })
 })
 

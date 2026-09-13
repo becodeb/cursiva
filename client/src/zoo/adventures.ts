@@ -21,7 +21,7 @@ import { animalPlacements, type Records, type SectorId, type ZooSector } from '.
  *  carried at most one. `glass`/`sand`/`night` are the entrance and the
  *  night sector (design.md §5, §6.1) — none of the three recovers an
  *  animal, which is what `AdventureSubject` below exists to represent. */
-export type AdventureId = 'duck' | 'sheep' | 'llama' | 'glass' | 'sand' | 'night'
+export type AdventureId = 'duck' | 'sheep' | 'llama' | 'glass' | 'sand' | 'night' | 'snake'
 
 interface AdventureBase {
   id: AdventureId
@@ -135,6 +135,22 @@ export const ADVENTURES: readonly Adventure[] = [
     // see `apply-progress.md`'s Phase 6 section for the full finding. The
     // linterna is still granted on `night4` through `zoo/backpack.ts`'s
     // `earnedWhen`, entirely independent of any closing screen.
+  },
+  {
+    id: 'snake',
+    levelIds: ['snake1', 'snake2', 'snake3', 'snake4'],
+    sector: 'arena',
+    animal: 'vibora',
+    intro: 'Las víboras se enredaron en la arena. ¿Las ordenamos y las llevamos a su lugar?',
+    closing: '¡Las víboras están en su arena!',
+    // No `closingBeat` — `mapBubble`'s own selector filters on
+    // `a.animal !== undefined`, so ANY adventure that recovers an animal
+    // already carries `docs/13` §5 item 6 through the shipped map bubble
+    // the moment its animal is placed (design.md §7.2): the víbora stands
+    // in the arena and the Pulpito's line closes it, exactly as the duck,
+    // the sheep and the llama do — none of which carries a `closingBeat`
+    // either. The once-per-story closing screen stays reserved for the
+    // entrance's sand adventure, which recovers no animal.
   },
 ]
 

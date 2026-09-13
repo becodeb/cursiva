@@ -397,9 +397,16 @@ export const SECTORS: readonly ZooSector[] = [
     // aspect ≥ 280/(2.12×228) = 0.58 → art 1 clears it.
     fog: closedFog(ARENA_HIT, 2),
     animalSpot: hitCentre(ARENA_HIT),
-    animals: [],
-    adventureIds: [],
-    unlockedWhen: alwaysClosed,
+    // `size` is a HEIGHT (`placeArt.ts`): `snakeMedium`'s aspect is 4.32, so
+    // 30 renders 130×30 — not a typo beside the llama's 96, and it fits
+    // `ARENA_HIT`'s width with room (`snake-drag-and-art-corridor`
+    // design.md §7.1).
+    animals: [{ id: 'vibora', dx: 0, dy: 0, size: 30, appearsWhen: ['snake4'] }],
+    adventureIds: ['snake1', 'snake2', 'snake3', 'snake4'],
+    // The ladder's new last rung: entrada → estanque ← sand4 → montañas ←
+    // duck-trail4 → nocturna ← llama-peak4 → arena ← night4. Only ever
+    // WIDENS access (design.md §0 A1).
+    unlockedWhen: (records) => isFiled(records, 'night4'),
   },
   {
     id: 'nocturna',

@@ -20,9 +20,17 @@ const estanque = SECTORS.find((s) => s.id === 'estanque')!
 const montanas = SECTORS.find((s) => s.id === 'montanas')!
 
 describe('ADVENTURES', () => {
-  it('declares six rows: duck/sheep/llama, plus the entrance\'s glass/sand and the night sector (design.md §5, §6.1)', () => {
-    expect(ADVENTURES).toHaveLength(6)
-    expect(ADVENTURES.map((a) => a.id)).toEqual(['duck', 'sheep', 'llama', 'glass', 'sand', 'night'])
+  it('declares seven rows: duck/sheep/llama, the entrance\'s glass/sand, the night sector, and the arena\'s snake (design.md §5, §6.1)', () => {
+    expect(ADVENTURES).toHaveLength(7)
+    expect(ADVENTURES.map((a) => a.id)).toEqual([
+      'duck',
+      'sheep',
+      'llama',
+      'glass',
+      'sand',
+      'night',
+      'snake',
+    ])
 
     const duck = ADVENTURES[0]
     expect(duck.levelIds).toEqual(['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4'])

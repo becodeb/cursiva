@@ -333,6 +333,12 @@ describe('resolveCloseAction', () => {
     }
   })
 
+  it('finishing any of snake1..4 does not resolve to the close view — the snake adventure carries no closingBeat', () => {
+    for (const id of ['snake1', 'snake2', 'snake3', 'snake4']) {
+      expect(resolveCloseAction(id, {}), id).toBeNull()
+    }
+  })
+
   it('replaying sand4 resolves to the close view again — no persisted flag suppresses it', () => {
     expect(resolveCloseAction('sand4', {})).toEqual({ type: 'close', levelId: 'sand4' })
     expect(resolveCloseAction('sand4', { 'sand4': { ...EMPTY_RECORD, approvals: 5 } })).toEqual({

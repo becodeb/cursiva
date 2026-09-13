@@ -46,6 +46,13 @@ export interface AdventureBackdrop {
   /** `ink`'s off-path dim, `inkDimColor`'s own convention. ABSENT =
    *  `OFF_PATH_INK`. */
   inkDim?: string
+  /** This adventure's corridor SURFACE is DRAWN ART rather than a painted
+   *  band (`docs/13` §8 row E). The extremes are over the cutouts' BODIES;
+   *  the head's eye white is carried separately because it is the reason
+   *  the traced span stops behind the head (design.md §2.2 R3), not a
+   *  colour the ink has to clear. ABSENT = this adventure paints its
+   *  corridor, which is every row that predates this change. */
+  corridorArt?: { brightest: string; darkest: string; headWhite: string }
 }
 
 /** Mountain stone. Not a taste call — design.md §2.1's window is `[95,
@@ -85,6 +92,15 @@ export const TORCH_CHALK = '#f2efe6'
  *  partially-lit tile, which sits between the two terminal states the
  *  55-luma law is asserted on (design.md §2.4's named exception). */
 export const TORCH_CHALK_DIM = '#989896'
+
+/** The scooped hollow in the sand each snake lies in (design.md §2.3). Two-
+ *  sided window: must clear the sand's `brightest` (209.2) by 55 AND the
+ *  darkest snake body (`#67895c`, 121.7) by 55 — `luma ≤ min(154.2, 66.7) =
+ *  66.7` — and must not read as the art's own contour (26), a soft floor at
+ *  40. Luma 52.5 sits mid-window with 14.2 of headroom, and only the
+ *  CEILING can move as the measurement above already landed: pinned low, the
+ *  same lever `CHANNEL_STONE`/`GLASS_GRIME` use. */
+export const SAND_HOLLOW = '#3b332b'
 
 export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>> = {
   duck: {
@@ -147,6 +163,27 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
     tile: NIGHT_VEIL,
     ink: TORCH_CHALK,
     inkDim: TORCH_CHALK_DIM,
+  },
+  // The arena — "en la arena" is the sand itself, so this reuses the
+  // entrance's own sand background (no new art commissioned): same file,
+  // same measured `quiet`/`brightest`/`corridorRows`, a DIFFERENT adventure
+  // row because the corridor here is a drawn cutout, not a painted band
+  // (`docs/13` §8 row E). `ink`/`inkDim` reuse the night row's own two
+  // fields (design.md §2.1): a dark ink is undrawable over the snakes' own
+  // black spots (R1, gap 14), so `TORCH_CHALK` is the only admissible line.
+  snake: {
+    art: SECTOR_BACKGROUND_ART.sand,
+    quiet: '#d6cbba',
+    brightest: '#dad0c0',
+    corridorRows: { top: 51, bottom: 973 },
+    channel: SAND_HOLLOW,
+    ink: TORCH_CHALK,
+    inkDim: TORCH_CHALK_DIM,
+    // The small snake's own measured extremes (task 1.3/1.4): `bodyBrightest`
+    // #7b9b6e (luma 140.3, the brightest of the three bodies), `bodyDarkest`
+    // #1a1a1a (the author's spots, all three snakes alike), `headWhite`
+    // #f5f5f5 (the eye, luma 245 — R3's `TORCH_CHALK` gap of 6).
+    corridorArt: { brightest: '#7b9b6e', darkest: '#1a1a1a', headWhite: '#f5f5f5' },
   },
 }
 

@@ -44,6 +44,7 @@ import {
   HOME_OCTOPUS_ART,
   HEDGEHOG_ART,
   ANDEAN_HAT_ART,
+  CART_ART,
   OCTOPUS_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
@@ -279,6 +280,7 @@ const WORLD_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
   'zoo-star.png': ZOO_STAR_ART,
   'zoo-octopus-print.png': ZOO_OCTOPUS_PRINT_ART,
   'zoo-speech-bubble.png': ZOO_SPEECH_BUBBLE_ART,
+  'zoo-cart.png': CART_ART,
   'carrier-octopus.png': OCTOPUS_ART,
   'home-octopus.png': HOME_OCTOPUS_ART,
   'hedgehog-profile.png': HEDGEHOG_ART.profile,
@@ -586,13 +588,11 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
   })
 
   it('keeps zoo and sector art on intrinsic canvases with safe alpha and dark pixels', async () => {
-    // `zoo-cart.png` ships from Phase 1 of `snake-drag-and-art-corridor`
-    // ahead of its registry entry (`CART_ART`, Phase 7's own consumer wiring
-    // — design.md §7.1's resequencing note); excluded here the same way
-    // `artManifest.test.ts`'s `PENDING_MANIFEST_KEYS` excludes it from ITS
-    // own orphan guard, and for the same reason.
-    const PENDING_WORLD_GUARD_FILES = new Set(['zoo-cart.png'])
-    const files = named(WORLD_GUARD_FILES).filter(([name]) => !PENDING_WORLD_GUARD_FILES.has(name))
+    // `zoo-cart.png` shipped from Phase 1 of `snake-drag-and-art-corridor`
+    // ahead of its registry entry; Phase 7 registers `CART_ART`
+    // (`zoo/backpack.ts`'s own consumer wiring — design.md §7.1's
+    // resequencing note), closing that gap — no exclusion needed here now.
+    const files = named(WORLD_GUARD_FILES)
     expect(files.map(([name]) => name).sort()).toEqual(Object.keys(WORLD_GUARDED_ART).sort())
 
     for (const [name, url] of files) {

@@ -51,6 +51,7 @@ const entrada = SECTORS.find((s) => s.id === 'entrada')!
 const nocturna = SECTORS.find((s) => s.id === 'nocturna')!
 const sendero = SECTORS.find((s) => s.id === 'sendero')!
 const montanas = SECTORS.find((s) => s.id === 'montanas')!
+const arena = SECTORS.find((s) => s.id === 'arena')!
 const withHit = SECTORS.filter((s) => s.hit)
 // "Closed" per the spec means `unlockedWhen` is not unconditionally true AND
 // the sector carries a `hit` — the sendero has neither an unlock rule worth
@@ -241,15 +242,20 @@ describe('Registry↔Catalog Structural Consistency', () => {
     expect(nocturna.unlockedWhen(filed('llama-peak4'))).toBe(true)
   })
 
-  it('bosque and arena remain empty and fogged for every input (zoo-map spec)', () => {
+  it('bosque remains empty and fogged for every input (zoo-map spec; arena was promoted out by snake-drag-and-art-corridor)', () => {
     const bosque = SECTORS.find((s) => s.id === 'bosque')!
-    const arena = SECTORS.find((s) => s.id === 'arena')!
-    for (const sector of [bosque, arena]) {
-      expect(sector.adventureIds, sector.id).toEqual([])
-      for (const records of [{}, filed('sand4', 'night4', 'llama-peak4')]) {
-        expect(sector.unlockedWhen(records), sector.id).toBe(false)
-      }
+    expect(bosque.adventureIds).toEqual([])
+    for (const records of [{}, filed('sand4', 'night4', 'llama-peak4')]) {
+      expect(bosque.unlockedWhen(records)).toBe(false)
     }
+  })
+
+  it('arena stays fogged until night4 is filed, then opens with snake1..4', () => {
+    const arena = SECTORS.find((s) => s.id === 'arena')!
+    expect(arena.adventureIds).toEqual(['snake1', 'snake2', 'snake3', 'snake4'])
+    expect(arena.unlockedWhen({})).toBe(false)
+    expect(arena.unlockedWhen(filed('llama-peak4'))).toBe(false)
+    expect(arena.unlockedWhen(filed('night4'))).toBe(true)
   })
 
   it('every adventureIds and appearsWhen entry is a real catalog level id', () => {
@@ -271,12 +277,13 @@ describe('Registry↔Catalog Structural Consistency', () => {
     }
   })
 
-  it('bosque, arena and the scenery-only sendero carry no adventures and stay fogged for any input', () => {
-    // `montañas` was promoted OUT of this set by row C (`docs/13` §8), and
-    // `entrada`/`nocturna` are promoted out by row D (`docs/13` §8 row D,
-    // zoo-map spec "Sector-to-Adventure Mapping") — only `bosque`, `arena`
-    // and the scenery-only `sendero` remain undeveloped.
-    for (const sector of SECTORS.filter((s) => s.id === 'bosque' || s.id === 'arena' || s.id === 'sendero')) {
+  it('bosque and the scenery-only sendero carry no adventures and stay fogged for any input', () => {
+    // `montañas` was promoted OUT of this set by row C (`docs/13` §8),
+    // `entrada`/`nocturna` are promoted out by row D (zoo-map spec
+    // "Sector-to-Adventure Mapping"), and `arena` is promoted out by
+    // `snake-drag-and-art-corridor` (design.md §7.1) — only `bosque` and
+    // the scenery-only `sendero` remain undeveloped.
+    for (const sector of SECTORS.filter((s) => s.id === 'bosque' || s.id === 'sendero')) {
       expect(sector.adventureIds, sector.id).toEqual([])
       expect(
         sector.unlockedWhen(filed('duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4', 'sand4', 'night4')),
@@ -386,11 +393,19 @@ describe('recentlyDiscovered (design.md §7.2: preference layered in front of th
   it('resolves to null once every open sector is fully filed', () => {
     // Filing entrada's own eight ids opens the estanque (`sand4`); filing
     // the estanque's `duck-trail4` opens `montañas`; filing `montañas`'
-    // `llama-peak4` opens `nocturna` — every sector this chain reaches is
-    // fully filed, so there is genuinely no unfinished work left anywhere.
+    // `llama-peak4` opens `nocturna`; filing `nocturna`'s `night4` opens
+    // `arena` (`snake-drag-and-art-corridor` design.md §0 A1) — every
+    // sector this chain reaches is fully filed, so there is genuinely no
+    // unfinished work left anywhere.
     expect(
       recentlyDiscovered(
-        filed(...entrada.adventureIds, ...estanque.adventureIds, ...montanas.adventureIds, ...nocturna.adventureIds),
+        filed(
+          ...entrada.adventureIds,
+          ...estanque.adventureIds,
+          ...montanas.adventureIds,
+          ...nocturna.adventureIds,
+          ...arena.adventureIds,
+        ),
       ),
     ).toBeNull()
   })

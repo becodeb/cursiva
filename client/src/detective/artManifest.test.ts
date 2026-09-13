@@ -27,6 +27,7 @@ import {
   ANDEAN_HAT_ART,
   ANIMAL_ART,
   CARRIER_LENS_ART,
+  CART_ART,
   CLUE_ART,
   GOAL_MEDUSA_ART,
   GROUND_GRASS,
@@ -81,14 +82,11 @@ interface ManifestEntry {
 }
 
 /** Pipeline rows landed ahead of their registry entry, closed in a LATER
- * phase of this SAME change once their consumer exists. `zoo-cart` is
- * `carrito.png`'s row (task 1.2): `artManifest.test.ts` normally requires a
- * pipeline row, a registry entry AND a consumer together, but `carrito`'s
- * only consumer (`zoo/backpack.ts`) cannot exist before Phase 7 wires the
- * `arena` sector (design.md §7.1's resequencing note, the same gap paso D
- * resolved for `cofre`/`piedra`/`hoja`). Phase 7 registers `CART_ART` and
- * this set goes back to empty. */
-const PENDING_MANIFEST_KEYS = new Set(['zoo-cart'])
+ * phase of this SAME change once their consumer exists. Empty now: `zoo-
+ * cart` (`carrito.png`'s row, task 1.2) was the one pending entry, and
+ * Phase 7 registers `CART_ART` and wires its consumer (`zoo/backpack.ts`),
+ * closing the gap design.md §7.1's resequencing note opened. */
+const PENDING_MANIFEST_KEYS = new Set<string>([])
 
 const manifest: Record<string, ManifestEntry> = JSON.parse(
   Object.values(
@@ -111,6 +109,7 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
   ...Object.entries(HEDGEHOG_ART).map(([id, art]) => [`HEDGEHOG_ART.${id}`, art] as const),
   ['ANDEAN_HAT_ART', ANDEAN_HAT_ART] as const,
   ['CARRIER_LENS_ART', CARRIER_LENS_ART] as const,
+  ['CART_ART', CART_ART] as const,
   ['OCTOPUS_ART', OCTOPUS_ART] as const,
   ['HOME_OCTOPUS_ART', HOME_OCTOPUS_ART] as const,
   ['HOME_DESK_ART', HOME_DESK_ART] as const,
@@ -177,7 +176,8 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // Grass carries MORE variants than mud on purpose: it covers the whole
     // field at full size, where a repeated silhouette is obvious, while mud
     // sits small inside the corridor and half-covered by the child's own line.
-    expect(REGISTERED.length).toBe(79)
+    // + 1 CART_ART (the arena's backpack reward, Phase 7).
+    expect(REGISTERED.length).toBe(80)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -190,10 +190,12 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(orphans, 'the pipeline ships art nothing in the registry can reach').toEqual([])
   })
 
-  it('ships carrito.png\'s pipeline row ahead of its registry entry (Phase 1; Phase 7 wires CART_ART)', () => {
+  it("matches CART_ART's w/h against the pipeline's manifest (Phase 1's zoo-cart row, Phase 7's registry entry)", () => {
     const entry = manifest['zoo-cart']
     expect(entry, 're-run scripts/art/build_art.py').toBeDefined()
     expect(ON_DISK.has('zoo-cart'), 'zoo-cart.png must exist on disk').toBe(true)
+    expect(CART_ART.w).toBe(entry.w)
+    expect(CART_ART.h).toBe(entry.h)
   })
 
   it("carries the three snakes' fitted spine, thickness, traceable span and luma-extreme fields (design.md §1.1)", () => {
