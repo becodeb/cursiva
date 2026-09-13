@@ -215,6 +215,39 @@ cargado. Se decide cuando lleguen.
      145,0 de la cordillera. Un fondo claro nuevo va a necesitar la misma
      medición antes de prometerle papel.
 
+6. **Enmendado al implementar el paso D (2026-09-13).** Cuatro cosas que
+   conviene saber antes de escribir la fila de la próxima aventura:
+   - **La rama de pintura CLARA está medida y está vacía.** Un vaho blanco
+     sobre la pecera falla la ley de 55 por 40, y sobre la arena por 43:
+     `brightest` es 212 y 209. Toda superficie que tape un fondo claro tiene
+     que ser **oscura**, porque la tinta del propio chico ya impone un piso
+     de 95. La consecuencia estética es real y está sin resolver: el vaho
+     del vidrio lee verde sobre agua azul y la arena barrida lee como
+     barro. **Los dos literales quedaron intactos esperando a la autora**;
+     no son un defecto, son una decisión de dirección de arte que la ley
+     acorrala.
+   - **Una linterna de baldosas no puede leer como linterna** bajo el
+     presupuesto de cuadro que el propio diseño ratificó. El piso
+     anti-cruz es `ρ = radio/lado ≥ 4` y el presupuesto
+     `((2R/w)+2)·((2R/h)+2) ≤ 64` se reduce, con baldosas cuadradas, a
+     `ρ ≤ 3`. Son incompatibles por álgebra, para cualquier nivel y
+     cualquier radio: subir la resolución de la grilla no es salida. Lo
+     que cuantiza el disco en una cruz es el **tamaño de baldosa**, no los
+     cinco escalones de opacidad, así que una caída continua tampoco
+     redondea el contorno. Queda para el paso H, que vuelve a la zona
+     nocturna.
+   - **El defecto de alpha de `oveja.png` no era único.** `piedra.png`
+     traía lo mismo: 4.200 motas opacas que hacen que `alpha_bbox` no
+     recorte nada y embarque la lámina entera como un cajón. **Medir el
+     alpha de cada fuente nueva antes de cablearla**, no confiar en cómo
+     se ve el previsualizador — el damero de transparencia miente.
+   - **Un fondo derivado se normaliza, no se oscurece.** `nightfall()`
+     lleva el máximo de la fuente a un pico fijo, así que el `brightest`
+     que emite es constante por construcción y no hace falta medirlo.
+     Funcionó porque el `brightest` de `fondo bosque.png` es `#f5f5f5`,
+     croma cero: un píxel saturado habría clampeado un canal y costado
+     luma. Verificar esa condición antes de derivar otro.
+
 ## 5. Estructura de cada aventura (`.docx` §13)
 
 Toda aventura, exista o no todavía, cumple esta secuencia. Los

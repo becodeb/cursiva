@@ -868,3 +868,68 @@ was invented for in paso B.
 
 Final: **69 test files / 1436 tests green, build green.** Baseline at the
 branch point was 65 / 1286.
+
+## Phase 8 — the final gate (orchestrator, 2026-09-13)
+
+Every check run, not ticked on trust.
+
+- **8.1** `npm test` — **69 test files / 1436 tests green**, from a 65 / 1286
+  baseline. Four new test files, as forecast: `revealGrid.test.ts`,
+  `RevealLayer.test.tsx`, `migrateEntrance.test.ts`,
+  `AdventureClosing.test.tsx`. No test dropped.
+- **8.2** `npm run build` green. The `RevealConfig` discriminant was proved
+  at compile time with a temporary probe, as the task demanded, not by
+  trusting the type: `{mode:'erase', …, objects:[]}` fails with **TS2353**
+  and `{mode:'light', …}` with no `objects` fails with **TS2322**. Probe
+  deleted, build re-run green.
+- **8.3** `cases.ts` and `Deduction.tsx` are byte-identical to `main`
+  (`git diff --quiet`). Zero diff lines touch any `duck-trail*`,
+  `sheep-hill*`, `llama-peak*`, `f2-agua*`, `f2-guirnalda` or `trail1..4`
+  config. `AdventureIntro.tsx` carries one semantic change spread over three
+  lines — `adventureIcon(adventure)` replacing `ZOO_ANIMAL_ART[…]`, forced by
+  `Adventure.animal` becoming optional, plus its import. The stage markup is
+  untouched.
+- **8.4** Zero live `url(#` in `client/src`. Every hit is either a comment
+  explaining the ban or a test asserting `not.toContain('url(#')`.
+- **8.5** Scope stop holds. `bosque` and `arena` keep `adventureIds: []` and
+  stay fogged. No snake, bee, dolphin, hedgehog or snail content. The three
+  `caracol` matches in `catalog.ts` are pre-existing level titles — `main`
+  carries the same three.
+- **8.6** The five assumptions are recorded below.
+
+### Task 7.7, resolved rather than left open
+
+Marked complete, and the reason matters: the correction pass ran to a
+determinate outcome for **both** defects found by reading the captures. The
+seam hairlines were fixed with a regression test and re-captured. The torch
+was proved **uncorrectable within this change's own ratified constraints** —
+the anti-plus floor (`ρ >= 4`) and the ratified frame budget (`ρ <= 3`) are
+incompatible by algebra for every level and every radius, so no apply attempt
+could close it without weakening a ratified test. It is carried out of this
+change as a named follow-up, recorded in `docs/13` §4 decision 6, in the
+archive report, and in Engram. It is not silently absorbed.
+
+### 8.6 — the five product assumptions this code now embodies
+
+Question 4 was retired by ratified amendment A4. The remaining five are
+accepted working assumptions, not silent decisions, and the author has not
+ratified any of them:
+
+1. **Twelve levels, three adventures.** The entrance holds two surfaces and
+   the backdrop registry is keyed by adventure, so two surfaces is two
+   adventures. The scope lever (dropping `sand` to two levels, or deferring
+   it to paso E) was **not** taken: row D names the sand explicitly.
+2. **The transformation fires after `sand4`**, the entrance's last level, so
+   the whole entrance is one stretch of caretaking and the transformation
+   closes it, rather than splitting the entrance's own story in half.
+3. **The backpack mapping**: entrada grants the lupa (`docs/13` §8's own
+   example), nocturna grants the linterna. Estanque and bosque get no item
+   in this row — no art exists, and an honest gap beats a placeholder.
+4. **What is hidden in the dark**: `cofre`, `piedra`, `hoja`. No animal — the
+   hedgehog belongs to paso H and spending it here would leave that row with
+   nothing to find.
+5. **The estanque closes on a fresh install.** Building an entrance means the
+   pond is no longer open on first run. This is the most visible behaviour
+   change in the row for anyone who has played the current build, and it is
+   intended — it is the reason row D exists. Returning children are protected
+   by `migrateEntrance` (amendment A4).

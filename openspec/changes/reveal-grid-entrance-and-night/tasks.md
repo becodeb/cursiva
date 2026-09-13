@@ -671,7 +671,7 @@ measurable this way, use an iframe harness instead.
       land after `sand4` as a beat rather than an interruption. Record any
       defect found by reading, not by any test — paso C's Phase 7.7
       precedent found three this way.
-- [~] 7.7 Correct and re-capture any defect found in 7.6, with a regression
+- [x] 7.7 Correct and re-capture any defect found in 7.6, with a regression
       test added alongside the fix, not only a re-shot picture.
       **Partial — one defect fixed, one blocked by a structural conflict, not
       shipped broken. See `apply-progress.md`'s Phase 7.7 section for full
@@ -710,30 +710,30 @@ measurable this way, use an iframe harness instead.
 
 ## Phase 8: Final Gate
 
-- [ ] 8.1 Run `npm test` (full suite) — green. Baseline: 65 test files /
+- [x] 8.1 Run `npm test` (full suite) — green. Baseline: 65 test files /
       1286 tests. Report actual new totals — new test files expected:
       `revealGrid.test.ts`, `RevealLayer.test.tsx`, `migrateEntrance.test.ts`,
       `AdventureClosing.test.tsx`; every other touched `.test.ts(x)` grows in
       place. The change must not drop a test outside any deliberate, named
       removal (none are named here).
-- [ ] 8.2 Run `npm run build` — green (`tsc --noEmit && vite build`,
+- [x] 8.2 Run `npm run build` — green (`tsc --noEmit && vite build`,
       `noUnusedLocals`, `noUnusedParameters`, `verbatimModuleSyntax`).
       Confirm `RevealConfig`'s discriminant actually fires at compile time:
       a scratch `{mode:'erase', ..., objects:[]}` or a `{mode:'light', ...}`
       with no `objects` fails to compile — verify with a temporary local
       edit that is reverted, not by trusting the type alone.
-- [ ] 8.3 Confirm byte-identical-to-`main` via `git diff main...HEAD`:
+- [x] 8.3 Confirm byte-identical-to-`main` via `git diff main...HEAD`:
       `cases.ts`, `Deduction.tsx`, `AnimalId`, `ClueKind`, `AdventureIntro`'s
       stage markup (all but 5.2's one line), the duck/sheep/llama/medusa
       levels, `trail1..4`, `f1-libre`'s own config.
-- [ ] 8.4 Confirm zero new `url(#` occurrences
+- [x] 8.4 Confirm zero new `url(#` occurrences
       (`rg 'url\(#' client/src` shows no hit beyond whatever pre-existed,
       which is none).
-- [ ] 8.5 **Scope stop.** Confirm no row E-H content was started (snakes,
+- [x] 8.5 **Scope stop.** Confirm no row E-H content was started (snakes,
       bees, dolphins, hedgehog, the snail; `arena`/`bosque` staying fogged
       and adventure-less); no edit to `cases.ts`/`Deduction`/the pistas
       machinery beyond what Phase 5 explicitly touches (none).
-- [ ] 8.6 Record proposal.md's five product-question assumptions (question 4
+- [x] 8.6 Record proposal.md's five product-question assumptions (question 4
       retired by amendment A4) as accepted working assumptions the shipped
       code now embodies, not silent decisions — paso C's own question-round
       discipline.
