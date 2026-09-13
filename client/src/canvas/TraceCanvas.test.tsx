@@ -5,11 +5,13 @@
 // mode-side (readyMs in guidedTrace), not asserted here.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import TraceCanvas, { type DrawDemo } from './TraceCanvas'
+import TraceCanvas, { DEMO_STROKE, type DrawDemo } from './TraceCanvas'
 import { placeArt } from './placeArt'
 import { getLevel } from '../levels/catalog'
 import { buildLevelTarget } from '../levels/buildLevel'
 import { obstacleAt } from '../levels/obstacles'
+import { luma } from '../detective/palette'
+import { CHANNEL_STONE } from '../zoo/backdrops'
 
 function demo(over: Partial<DrawDemo> = {}): DrawDemo {
   return { d: 'M 1 2 L 3 4 L 5 4', delay: 1, duration: 1, strokeWidth: 14, ...over }
@@ -786,6 +788,123 @@ describe('TraceCanvas backdrop (duck-undulations-and-sector-backdrop design.md �
     expect(withoutBackdrop).toContain('fill="#c9d7bd"')
     expect(withoutBackdrop).toContain('stroke="#d9c3ae"')
     expect(withoutBackdrop).not.toContain('sector-lagoon-background')
+  })
+
+  // trace-canvas spec: "Channel Paint Follows the Backdrop Luma Law" — a
+  // backdrop declaring its own `channel` (design.md §2.1, row C's stone).
+  it('strokes the channel in the backdrop\'s own channel when it declares one', () => {
+    const stoneBackdrop = { ...backdrop, channel: CHANNEL_STONE }
+    const html = renderToString(<TraceCanvas corridor={corridor} maze backdrop={stoneBackdrop} />)
+    expect(html).toContain(`stroke="${CHANNEL_STONE}"`)
+    expect(html).not.toContain('stroke="#fdfcf7"')
+  })
+
+  it("byte-identical for the lagoon: no channel field, resolved paint is still SHEET_PAPER (task 4.10's regression)", () => {
+    const html = renderToString(<TraceCanvas corridor={corridor} maze backdrop={backdrop} />)
+    expect(backdrop).not.toHaveProperty('channel')
+    expect(html).toContain('stroke="#fdfcf7"')
+    expect(html).not.toContain(CHANNEL_STONE)
+  })
+
+  it('is tight: injecting a channel string on the lagoon backdrop DOES change the stroke (proves the byte-identity check is sensitive)', () => {
+    const withChannel = { ...backdrop, channel: CHANNEL_STONE }
+    const withoutChannel = renderToString(<TraceCanvas corridor={corridor} maze backdrop={backdrop} />)
+    const withChannelHtml = renderToString(<TraceCanvas corridor={corridor} maze backdrop={withChannel} />)
+    expect(withoutChannel).not.toEqual(withChannelHtml)
+  })
+
+  // trace-canvas spec: "Demo Stroke Contrasts With the Channel"
+  it('swaps the demo stroke to SHEET_PAPER over a channelled backdrop, and keeps DEMO_STROKE otherwise', () => {
+    const demoProp = { d: 'M 100 300 L 900 300', delay: 0, duration: 1, strokeWidth: 14 }
+    const stoneBackdrop = { ...backdrop, channel: CHANNEL_STONE }
+    const overStone = renderToString(
+      <TraceCanvas corridor={corridor} maze backdrop={stoneBackdrop} demo={demoProp} />,
+    )
+    expect(overStone).toContain('stroke="#fdfcf7"')
+    expect(overStone).not.toContain(`stroke="${DEMO_STROKE}"`)
+
+    const noBackdrop = renderToString(<TraceCanvas demo={demoProp} />)
+    expect(noBackdrop).toContain(`stroke="${DEMO_STROKE}"`)
+
+    const lagoonBackdrop = renderToString(
+      <TraceCanvas corridor={corridor} maze backdrop={backdrop} demo={demoProp} />,
+    )
+    expect(lagoonBackdrop).toContain(`stroke="${DEMO_STROKE}"`)
+  })
+})
+
+describe('TraceCanvas vertexArt (design.md §3.3: static art standing at the route\'s own peaks)', () => {
+  const SHEEP = { href: '/art/sector-sheep.png', w: 409, h: 448, size: 56 }
+  const points = [
+    { x: 250, y: 160 },
+    { x: 500, y: 310 },
+    { x: 750, y: 160 },
+  ]
+
+  it('renders exactly one <image> per apex, each via placeArt\'s own formula', () => {
+    const html = renderToString(<TraceCanvas vertexArt={{ ...SHEEP, at: points }} />)
+    const matches = html.match(new RegExp(`href="${SHEEP.href}"`, 'g')) ?? []
+    expect(matches).toHaveLength(3)
+    const width = (SHEEP.size * SHEEP.w) / SHEEP.h
+    const firstImage = html.slice(html.indexOf('<image'), html.indexOf('>', html.indexOf('<image')))
+    const attr = (name: string): number =>
+      Number(firstImage.match(new RegExp(`${name}="([-\\d.]+)"`))?.[1])
+    expect(attr('height')).toBe(SHEEP.size)
+    expect(attr('y')).toBe(points[0].y - SHEEP.size) // feet at the point
+    expect(attr('width')).toBeCloseTo(width, 6)
+    expect(attr('x')).toBeCloseTo(points[0].x - width / 2, 6)
+  })
+
+  it('renders vertex art BEFORE (under) the endArt block, in document order', () => {
+    const LAMP = { href: '/art/lamp-off.png', w: 132, h: 192, size: 52 }
+    const html = renderToString(
+      <TraceCanvas vertexArt={{ ...SHEEP, at: points }} endMarker={{ x: 900, y: 300 }} endArt={LAMP} />,
+    )
+    expect(html.indexOf(SHEEP.href)).toBeLessThan(html.indexOf(LAMP.href))
+  })
+
+  it('renders no vertex-art layer at all without the prop', () => {
+    const html = renderToString(<TraceCanvas />)
+    expect(html).not.toContain('sector-sheep')
+  })
+
+  it('introduces no url(#), <mask>, <pattern>, <clipPath>, or <defs>', () => {
+    const html = renderToString(<TraceCanvas vertexArt={{ ...SHEEP, at: points }} />)
+    expect(html).not.toContain('url(#')
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<defs')
+  })
+})
+
+// trace-canvas spec: "Channel Paint Follows the Backdrop Luma Law" —
+// falsifiability rows (task 6.2). Each proves the luma law is SENSITIVE, not
+// vacuously true: every colour below is the exact reason `CHANNEL_STONE` was
+// forced rather than chosen (design.md §2.1). Mirrored as literals rather
+// than imported from their owning (module-private) constants — the same
+// convention `backdrops.test.ts` already follows for SHEET_PAPER/
+// CORRIDOR_EARTH.
+describe('luma law falsifiability rows (design.md §2.1 — must go RED)', () => {
+  const MIN_CONTRAST = 55 // docs/09:158
+  const MUD_INK = '#8a6a4a' // screen/LevelPlay.tsx, module-private
+  const GOAL_COLOR = '#b45309' // canvas/TraceCanvas.tsx, module-private
+  const START_GREEN = '#22c55e' // start dot / direction arrow
+
+  it('MUD_INK fails the luma law against CHANNEL_STONE (gap 12)', () => {
+    expect(Math.abs(luma(MUD_INK) - luma(CHANNEL_STONE))).toBeLessThan(MIN_CONTRAST)
+  })
+
+  it('GOAL_COLOR fails the luma law against CHANNEL_STONE (gap 4)', () => {
+    expect(Math.abs(luma(GOAL_COLOR) - luma(CHANNEL_STONE))).toBeLessThan(MIN_CONTRAST)
+  })
+
+  it('the start marker / direction-arrow green fails the luma law against CHANNEL_STONE (gap 37)', () => {
+    expect(Math.abs(luma(START_GREEN) - luma(CHANNEL_STONE))).toBeLessThan(MIN_CONTRAST)
+  })
+
+  it('DEMO_STROKE fails the luma law against CHANNEL_STONE (gap 1)', () => {
+    expect(Math.abs(luma(DEMO_STROKE) - luma(CHANNEL_STONE))).toBeLessThan(MIN_CONTRAST)
   })
 })
 

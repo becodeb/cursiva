@@ -292,20 +292,20 @@ this phase.
       filed and `llama-peak4` unfiled, `animalPlacements` includes the sheep
       and excludes the llama; with both placed, the llama's `dy` sits above
       the sheep's.
-- [ ] 4.5 In `client/src/levels/types.ts`: add `vertexArt?: {art: ArtImage;
+- [x] 4.5 In `client/src/levels/types.ts`: add `vertexArt?: {art: ArtImage;
       size: number}`, additive, absent on every level that predates it —
       the same convention `goalArt` established.
-- [ ] 4.6 Create `client/src/levels/vertexArt.ts`: pure, DOM-free
+- [x] 4.6 Create `client/src/levels/vertexArt.ts`: pure, DOM-free
       `routeApexes(polyline, minRise = 40)` — scans the already-centred
       `LevelTarget.polyline` for local y-minima (peaks), in route order,
       rejecting rises below `minRise`. No `ClueKind`, no rail entry, no case
       membership — never touches `isCaseTrail`/`inDetectiveWorld`.
-- [ ] 4.7 Create `client/src/levels/vertexArt.test.ts`: `routeApexes` on
+- [x] 4.7 Create `client/src/levels/vertexArt.test.ts`: `routeApexes` on
       `sheep-hill3`'s built polyline returns 3 points, each within 3 units of
       its authored apex; on `llama-peak4`'s, 4 points; a flat polyline
       returns `[]`; `isCaseTrail`/`inDetectiveWorld` are unaffected by
       `vertexArt`'s presence on a level.
-- [ ] 4.8 In `client/src/canvas/TraceCanvas.tsx`: add `channel?: string` to
+- [x] 4.8 In `client/src/canvas/TraceCanvas.tsx`: add `channel?: string` to
       `TraceBackdrop` (absent = `SHEET_PAPER`). Add `TraceVertexArt`
       (`href`/`w`/`h`/`size`, `at: {x,y}[]`) and a `vertexArt?` prop;
       render one `<image>` per `at` entry via `placeArt({..., grip:
@@ -317,7 +317,7 @@ this phase.
       : (backdrop?.channel ?? SHEET_PAPER)`; the demo path's `stroke="#0284c7"`
       → `stroke={backdrop?.channel ? SHEET_PAPER : DEMO_STROKE}`. No
       `<mask>`, `<pattern>`, `<clipPath>`, `<defs>`, `useId`, or `url(#…)`.
-- [ ] 4.9 In `client/src/canvas/TraceCanvas.test.tsx`: (a) with `vertexArt`
+- [x] 4.9 In `client/src/canvas/TraceCanvas.test.tsx`: (a) with `vertexArt`
       set to 3 points, exactly 3 attributable `<image>`s render, each via
       `placeArt`'s formula, and all render before (under) the `endArt` block;
       no `vertexArt` prop → none render; (b) with a backdrop declaring
@@ -327,7 +327,7 @@ this phase.
       stroke follow today's `ground ? CORRIDOR_EARTH : SHEET_PAPER` /
       `DEMO_STROKE` rules; (d) zero `<mask`/`<pattern`/`<clipPath`/`<defs`/
       `url(#` anywhere in the diff.
-- [ ] 4.10 **Byte-identical regression, its own row.** In
+- [x] 4.10 **Byte-identical regression, its own row.** In
       `client/src/canvas/TraceCanvas.test.tsx`: render with the lagoon
       backdrop (`channel` absent) and confirm the emitted markup is BYTE-
       IDENTICAL to a snapshot taken before this change (same `stroke`
@@ -401,12 +401,12 @@ already settles `detectiveWorld` absent on all eight.
 **A check that cannot fail is not a check** — each row below is its own task
 because each proves the luma law is sensitive, not vacuously true.
 
-- [ ] 6.1 In `client/src/zoo/backdrops.test.ts`: add the lagoon-byte-identical
+- [x] 6.1 In `client/src/zoo/backdrops.test.ts`: add the lagoon-byte-identical
       regression as its own row — `ADVENTURE_BACKDROP.duck` renders with no
       `channel` field and the resolved paint equals `SHEET_PAPER`, matching
       what shipped before this change. (Data-level companion to 4.10's
       component-level version.)
-- [ ] 6.2 In `client/src/canvas/TraceCanvas.test.tsx` (or a new
+- [x] 6.2 In `client/src/canvas/TraceCanvas.test.tsx` (or a new
       `palette`-adjacent describe if a pure test is preferred — either
       satisfies the spec, component-level is chosen here since `MUD_INK`/
       `GOAL_COLOR`/the marker literal are module-private to `LevelPlay.tsx`/
@@ -417,7 +417,7 @@ because each proves the luma law is sensitive, not vacuously true.
       separately labelled row (not one of the four, see the drift note
       above) — `SHEET_PAPER` vs the cordillera's `brightest` (gap 7) — proving
       §2.1's independent "no admissible light channel" claim.
-- [ ] 6.3 Run `npx vitest run client/src/zoo/backdrops.test.ts client/src/
+- [x] 6.3 Run `npx vitest run client/src/zoo/backdrops.test.ts client/src/
       canvas/TraceCanvas.test.tsx` and confirm all five/four rows fail before
       any production code changes their inputs, then pass once `CHANNEL_STONE`
       is wired (i.e., write these as RED first if TDD sequencing is followed

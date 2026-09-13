@@ -62,6 +62,14 @@ const ROOTS_GUIDE_Y = 540 // descender guide: bottom of the roots zone
  * channel IS exposed sheet, so it must be exactly this value. */
 export const SHEET_PAPER = '#fdfcf7'
 
+/** The animated demo stroke's shipped colour — chalk-blue, readable over
+ * paper. Extracted from the inline literal so `backdrop?.channel`'s own
+ * contrast rule (design.md §3.2) can name it: `#0284c7` clears the paper by
+ * a wide margin but fails the mountain stone channel's luma law by nearly
+ * everything (gap 1), so a channelled backdrop swaps this for
+ * `SHEET_PAPER` instead — chalk on rock reads, blue-on-blue-grey would not. */
+export const DEMO_STROKE = '#0284c7'
+
 /** Maze wall fill. A soft warm grey against the bone paper — docs/01 principle
  * 1 keeps the palette muted, so the walls read as SOLID without ever reading as
  * a warning. Nothing saturated, nothing red.
@@ -314,6 +322,29 @@ export interface TraceBackdrop {
   /** Painted flat under the art so a slow image never flashes a bare
    * sheet. */
   quiet: string
+  /** The corridor channel's own paint, when this backdrop declares one
+   * (design.md §2.1, row C). ABSENT = {@link SHEET_PAPER}, which is what
+   * keeps the lagoon backdrop byte-identical to before this field existed:
+   * there is no admissible LIGHT channel over either mountain backdrop, so a
+   * dark `channel` is the only remaining move for those two. */
+  channel?: string
+}
+
+/**
+ * Static art standing at one or more points on the sheet — the sheep on
+ * their humps, the llamas on their summits (design.md §3.3). Structural, no
+ * import from `zoo/`/`levels/`, the same convention {@link TraceCarrierArt}
+ * and {@link TraceStandingArt} follow.
+ */
+export interface TraceVertexArt {
+  href: string
+  w: number
+  h: number
+  /** Rendered HEIGHT in viewBox units, per image. Width follows the aspect
+   * ratio. */
+  size: number
+  /** Where each copy stands, sheet coordinates. One `<image>` per entry. */
+  at: readonly { x: number; y: number }[]
 }
 
 /**
@@ -544,6 +575,10 @@ export interface TraceCanvasProps {
    * shipped grey wall / paper or field / earth channel, byte-identical to
    * before this prop existed. See {@link TraceBackdrop}. */
   backdrop?: TraceBackdrop
+  /** Static art standing at one or more points on the route (design.md
+   * §3.3). Absent = no vertex-art layer, byte-identical to before this prop
+   * existed. See {@link TraceVertexArt}. */
+  vertexArt?: TraceVertexArt
   /** Any CHANGE of this value RESTARTS THE RUN (`LevelConfig.resetOnContact`):
    * the stroke in progress is abandoned, both buffers are emptied, and the ink
    * that was on the sheet FADES rather than vanishing.
@@ -597,6 +632,7 @@ export default function TraceCanvas({
   clues,
   ground,
   backdrop,
+  vertexArt,
   resetSignal,
 }: TraceCanvasProps) {
   // `contain` letterboxes inside its box, so the CSS background would paint the
@@ -957,7 +993,7 @@ export default function TraceCanvas({
                   key={`channel-${idx}`}
                   d={piece.d}
                   fill="none"
-                  stroke={ground && !backdrop ? CORRIDOR_EARTH : SHEET_PAPER}
+                  stroke={ground && !backdrop ? CORRIDOR_EARTH : (backdrop?.channel ?? SHEET_PAPER)}
                   strokeWidth={piece.width}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -968,7 +1004,7 @@ export default function TraceCanvas({
                   key={`channel-${idx}`}
                   d={cd}
                   fill="none"
-                  stroke={ground && !backdrop ? CORRIDOR_EARTH : SHEET_PAPER}
+                  stroke={ground && !backdrop ? CORRIDOR_EARTH : (backdrop?.channel ?? SHEET_PAPER)}
                   strokeWidth={corridor.width}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -1104,7 +1140,7 @@ export default function TraceCanvas({
               key={idx}
               d={d.d}
               fill="none"
-              stroke="#0284c7"
+              stroke={backdrop?.channel ? SHEET_PAPER : DEMO_STROKE}
               strokeWidth={d.strokeWidth}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -1137,6 +1173,27 @@ export default function TraceCanvas({
           }}
           pointerEvents="none"
         />
+      )}
+      {vertexArt && (
+        // Static art standing at one or more points on the route
+        // (design.md §3.3) — the sheep on their humps, the llamas on their
+        // summits. Same placement formula as the standing animals and the
+        // carrier: origin at the FEET (`STANDING_GRIP`), clamped into the
+        // sheet. Rendered BEFORE `endArt` so vertex art joins the standing-
+        // character band under every ink layer.
+        <g pointerEvents="none">
+          {vertexArt.at.map((point, idx) => (
+            <image
+              key={`vertex-art-${idx}`}
+              href={vertexArt.href}
+              {...clampArtBox(
+                placeArt({ ...vertexArt, grip: STANDING_GRIP }, vertexArt.size, point),
+                sheetBounds,
+              )}
+              preserveAspectRatio="xMidYMid meet"
+            />
+          ))}
+        </g>
       )}
       {endMarker && endArt && (
         // Registry art standing where the route ends (`TraceStandingArt`),
