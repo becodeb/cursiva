@@ -1,7 +1,7 @@
 // LevelConfig → LevelTarget derivation contract (docs/08 section 2).
 import { describe, expect, it } from 'vitest'
 import type { Point } from '../letters/types'
-import { MAX_CORRIDOR, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget } from './buildLevel'
+import { MAX_CORRIDOR, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget, levelStart } from './buildLevel'
 import { LEGACY_PHASE_1, LEVELS, getLevel } from './catalog'
 import { flattenPathD } from '../letters/svgLetter'
 import { straight, wave, waveCrestRadius } from './paths'
@@ -371,6 +371,41 @@ describe('buildLevelTarget — a free level has no target', () => {
     const target = buildLevelTarget(getLevel('f1-libre'))
     expect(target.checkpoints).toEqual([])
     expect(target.viewBoxWidth).toBe(MIN_VIEWBOX_WIDTH)
+  })
+})
+
+// [the carrier repair, general] `levelStart`: the one place a routeless
+// mechanic plugs its own start in (design.md §2.2). Every shipped level's
+// target stays byte-identical — `target.start` is `undefined` exactly where
+// `target.polyline[0]` was `undefined` before this field existed.
+describe('levelStart — the routeless carrier-visibility repair', () => {
+  it('returns polyline[0] whenever a polyline exists, whatever config.waypoints says', () => {
+    const polyline: Point[] = [{ x: 12, y: 34 }, { x: 56, y: 78 }]
+    expect(levelStart(makeConfig(), polyline)).toEqual({ x: 12, y: 34 })
+    expect(
+      levelStart(
+        makeConfig({ waypoints: { start: { x: 999, y: 999 } } as unknown as LevelConfig['waypoints'] }),
+        polyline,
+      ),
+    ).toEqual({ x: 12, y: 34 })
+  })
+
+  it('falls back to config.waypoints.start when the polyline is empty', () => {
+    const start = { x: 250, y: 400 }
+    expect(
+      levelStart(makeConfig({ waypoints: { start } as unknown as LevelConfig['waypoints'] }), []),
+    ).toEqual(start)
+  })
+
+  it('returns undefined for an empty polyline and no authored waypoints — every shipped free level', () => {
+    expect(levelStart(makeConfig({ kind: 'free', paths: [] }), [])).toBeUndefined()
+  })
+
+  it("every shipped level's target.start is byte-identical to its old target.polyline[0] (undefined stays undefined)", () => {
+    for (const level of [...LEVELS, ...LEGACY_PHASE_1]) {
+      const target = buildLevelTarget(level)
+      expect(target.start, level.id).toEqual(target.polyline[0])
+    }
   })
 })
 

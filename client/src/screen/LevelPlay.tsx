@@ -1205,11 +1205,20 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setPhase('ready')
   }
 
-  const startMarker = target.polyline[0]
+  // `levels/buildLevel.ts`'s `levelStart`: `target.polyline[0]` for a routed
+  // level, the authored `waypoints.start` for a routeless one that declares
+  // it — the carrier-visibility repair, general (design.md §2.2). Byte-
+  // identical to `target.polyline[0]` for every level that predates this.
+  const startMarker = target.start
   const directionArrow = useMemo(() => directionArrowOf(target), [target])
   // Where the route ends. A `kind: 'free'` level has no route, so it gets no
   // goal — and no start dot and no arrow either, which is why the standing line
   // below has to be derived rather than fixed.
+  //
+  // [the carrier repair, recorded gap] `goalArt` stays dead on a `kind:
+  // 'free'` level — not repaired here, deferred to row G, because the
+  // hive's coordinate and its touch radius must live in the same object
+  // (`WaypointConfig.goal` already is that object; `goalArt` alone is not).
   const endMarker = useMemo(
     () => (level.kind === 'path' ? goalMarkerOf(target) : undefined),
     [level.kind, target],
@@ -1530,7 +1539,18 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // own. It is also what keeps CARRIER_COLOR from crowding the
         // feather's PLUME — see the palette suite, which asserts the shipped
         // sage never renders under an override.
-        carrierArt={inWorld ? CARRIER_LENS_ART : undefined}
+        //
+        // A level's own art beats a default it did not ask for (`goalArt`'s
+        // own argument, `:1196-1201`) — the carrier-visibility repair,
+        // general (design.md §2.3). Absent `level.carrierArt` = the shipped
+        // hard-wire, byte-for-byte.
+        carrierArt={
+          level.carrierArt
+            ? { ...level.carrierArt.art, size: level.carrierArt.size }
+            : inWorld
+              ? CARRIER_LENS_ART
+              : undefined
+        }
         inkOnly={drawnPlace}
         // The child's own line is MUD in the world (see `MUD_INK`). Only the
         // trace changes substance: the carrier, the hazards and the silhouetted

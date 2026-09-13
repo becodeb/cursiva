@@ -371,6 +371,11 @@ export interface TraceCarrierArt {
    * declares this today; this type stays structural (no import from
    * `detective/`) so `ArtImage` satisfies it by shape alone. */
   grip?: readonly [number, number]
+  /** Rendered HEIGHT, overriding {@link CARRIER_ART_SIZE}. Absent = the
+   * shipped 104, sized for the lens's transparent handle margin — a cutout
+   * that fills its own box (the bee) needs its own number
+   * (`LevelConfig.carrierArt.size`, the carrier-visibility repair). */
+  size?: number
 }
 
 /** Rendered HEIGHT of a `carrierArt` override, in viewBox units — big enough
@@ -1536,7 +1541,7 @@ export default function TraceCanvas({
             // with (design.md §7).
             <image
               href={carrierArt.href}
-              {...placeArt(carrierArt, CARRIER_ART_SIZE, { x: 0, y: 0 })}
+              {...placeArt(carrierArt, carrierArt.size ?? CARRIER_ART_SIZE, { x: 0, y: 0 })}
               preserveAspectRatio="xMidYMid meet"
             />
           ) : (

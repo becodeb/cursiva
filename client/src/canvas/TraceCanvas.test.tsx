@@ -588,6 +588,25 @@ describe('TraceCanvas carrierArt override (design.md "carrierArt override stays"
     const html = renderToString(<TraceCanvas carrierArt={LENS} />)
     expect(html).not.toContain(LENS.href)
   })
+
+  it('renders at CARRIER_ART_SIZE (104) by default, and at carrierArt.size when authored (the bee, 76)', () => {
+    // 148x160 at height 104 is 96.2 wide (matches the test above); at 76 it
+    // is 70.3 wide — a level's own art beats a default it did not ask for
+    // (design.md §2.3, the carrier-visibility repair).
+    const defaultHtml = renderToString(<TraceCanvas carrier={{ x: 140, y: 260 }} carrierArt={LENS} />)
+    const defaultImage = defaultHtml.slice(
+      defaultHtml.indexOf('<image'),
+      defaultHtml.indexOf('>', defaultHtml.indexOf('<image')),
+    )
+    expect(defaultImage).toContain('height="104"')
+
+    const sized = renderToString(
+      <TraceCanvas carrier={{ x: 140, y: 260 }} carrierArt={{ ...LENS, size: 76 }} />,
+    )
+    const sizedImage = sized.slice(sized.indexOf('<image'), sized.indexOf('>', sized.indexOf('<image')))
+    expect(sizedImage).toContain('height="76"')
+    expect(sizedImage).toContain('width="70.3"')
+  })
 })
 
 describe('TraceCanvas inkOnly (detective-mode: the world is ink, colour means earned)', () => {

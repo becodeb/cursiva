@@ -49,6 +49,26 @@ function round1(n: number): number {
 }
 
 /**
+ * Where a level BEGINS as a POINT, for everything that needs one rather than
+ * a route: the carrier's resting place, the standing octopus, the start dot.
+ *
+ * A routed level's start is its route's first point, which is what
+ * `LevelPlay.tsx`'s `startMarker` has always read. A ROUTELESS level has no
+ * route to derive one from — `RevealObject`'s own doc comment already makes
+ * exactly this argument for authored coordinates — so it must AUTHOR one, and
+ * this is the ONE place a future routeless mechanic plugs its own in.
+ *
+ * Returns `undefined` when a level supplies neither, which is every shipped
+ * `kind: 'free'` level: `target.start` is then `undefined` exactly as
+ * `target.polyline[0]` is today, and every gate downstream behaves
+ * byte-for-byte as it does now.
+ */
+export function levelStart(config: LevelConfig, polyline: readonly Point[]): Point | undefined {
+  if (polyline.length > 0) return polyline[0]
+  return config.waypoints?.start
+}
+
+/**
  * Perpendicular band around a dense centreline: the centre point plus the two
  * points at `±band` along the local normal, estimated from the neighbouring
  * samples (same estimator as `buildLetterConfig`).
@@ -174,6 +194,7 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
       ideal: [],
       checkpoints: [],
       polyline: [],
+      start: levelStart(config, []),
       length: 0,
       routes: [],
     }
@@ -235,6 +256,7 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
     ideal,
     checkpoints,
     polyline,
+    start: levelStart(config, polyline),
     length,
     routes,
     artCorridor,

@@ -62,33 +62,40 @@ pre-existing-code repair named by design §0/§2.1, verified against
 Spec traceability: `level-engine/spec.md` "LevelConfig.carrierArt and an
 Authored Start Repair Carrier Visibility on a Routeless Level".
 
-- [ ] 2.1 RED: in `client/src/screen/LevelPlay.test.tsx`, write §7.2's
+- [x] 2.1 RED: in `client/src/screen/LevelPlay.test.tsx`, write §7.2's
       carrier-presence regression — `renderToString` a synthetic
       `carrier:true` + `kind:'free'` level with an authored `waypoints.start`
       fixture; assert (a) the carrier `href` appears in markup, (b) the
       carrier group's `transform` is `translate(<start.x> <start.y>)`.
-      Confirm RED on the current tree.
-- [ ] 2.2 In `client/src/levels/types.ts`: add `LevelTarget.start?: Point`
+      Confirm RED on the current tree. **Deviation, disclosed**: `TraceCanvas`
+      is fully mocked in this file (a prop-capturing stub, per its own
+      header), so no test in it can observe rendered markup — implemented
+      instead as the established boundary pattern this file already uses
+      ("LevelPlay hands the magnifying glass to TraceCanvas"): assert the
+      `carrier`/`carrierArt` PROPS reach the canvas, which is where the named
+      defect actually lives (`startMarker = target.polyline[0]`, always
+      `undefined` on a routeless level).
+- [x] 2.2 In `client/src/levels/types.ts`: add `LevelTarget.start?: Point`
       and `LevelConfig.carrierArt?: { art: ArtImage; size: number }`.
-- [ ] 2.3 In `client/src/levels/buildLevel.ts` (+`.test.ts`): add exported
+- [x] 2.3 In `client/src/levels/buildLevel.ts` (+`.test.ts`): add exported
       `levelStart(config, polyline)` per design §2.2; wire into BOTH
       branches of `buildLevelTarget` so `target.start` is set; prove every
       shipped level's target byte-identical (returns `undefined` exactly
       where `polyline[0]` was `undefined` before).
-- [ ] 2.4 In `client/src/screen/LevelPlay.tsx`: `startMarker =
+- [x] 2.4 In `client/src/screen/LevelPlay.tsx`: `startMarker =
       target.start` (was `target.polyline[0]`); the carrier prop reads
       `level.carrierArt` when present, falling back to today's hard-wired
       `inWorld ? CARRIER_LENS_ART : undefined`.
-- [ ] 2.5 In `client/src/canvas/TraceCanvas.tsx` (+`.test.tsx`):
+- [x] 2.5 In `client/src/canvas/TraceCanvas.tsx` (+`.test.tsx`):
       `TraceCarrierArt.size?: number`; `placeArt(carrierArt, carrierArt.size
       ?? CARRIER_ART_SIZE, {x:0,y:0})`.
-- [ ] 2.6 GREEN: confirm 2.1's regression now passes.
-- [ ] 2.7 Note the recorded gap inline (a comment near `endMarker` in
+- [x] 2.6 GREEN: confirm 2.1's regression now passes.
+- [x] 2.7 Note the recorded gap inline (a comment near `endMarker` in
       `LevelPlay.tsx`, matching design §2.2): `goalArt` stays dead on a
       `kind:'free'` level — not repaired here, deferred to row G because the
       hive's coordinate and radius must live in one object (`WaypointConfig`
       already is that object; `goalArt` alone is not).
-- [ ] 2.8 Run `npm test -- levels/buildLevel screen/LevelPlay
+- [x] 2.8 Run `npm test -- levels/buildLevel screen/LevelPlay
       canvas/TraceCanvas` — green.
 
 ## Phase 3: The Art Pipeline — Forest Band and the Dormant Flower

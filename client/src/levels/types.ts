@@ -5,6 +5,10 @@
 import type { LetterCheckpoint, Point } from '../letters/types'
 import type { ArtImage, ClueKind } from '../detective/assets'
 import type { ArtCorridorPiece, ArtCorridorPlacement } from './artCorridor'
+// [free-trail-waypoints, Phase 4] `import type` only — `verbatimModuleSyntax`
+// erases this at compile time, so `types.ts` (touched first, Phase 2) never
+// depends on `levels/waypoints.ts` (created later, Phase 4) at runtime.
+import type { WaypointConfig } from './waypoints'
 
 export type Phase = 1 | 2 | 3 | 4 | 5
 
@@ -184,6 +188,24 @@ export interface LevelConfig {
    *  `art-corridor` capabilities). Additive and absent on every level that
    *  predates it — every existing level keeps painting its corridor. */
   artCorridor?: readonly ArtCorridorPiece[]
+  /** A routeless level scored by AUTHORED targets rather than by a route
+   *  (`docs/13` §8 row F, "trazo libre con puntos de paso"). The field's
+   *  REASON TO EXIST is `docs/13` §6's "trayectoria esperada": this family
+   *  authors none — the child invents it — so a start, N stops and one goal
+   *  are what replaces it. Only legal on `kind: 'free'`; absent on every
+   *  level that predates it, which keeps `f1-libre` and the twelve reveal
+   *  levels bit-identical. */
+  waypoints?: WaypointConfig
+  /** Ride THIS picture on the fingertip instead of the world's magnifying
+   *  glass. A level's own art beats a default it did not ask for — the exact
+   *  argument `goalArt` already carries (`LevelPlay.tsx:1196-1201`) — and
+   *  until this field existed the carrier art was hard-wired at
+   *  `LevelPlay.tsx:1511`. `{art, size}` rather than a bare `ArtImage`
+   *  because `vertexArt` already established that shape and because the
+   *  shipped `CARRIER_ART_SIZE` (104) is sized for the lens's transparent
+   *  handle margin, not for a cutout that fills its own box. Absent = the
+   *  shipped hard-wire, byte-for-byte. */
+  carrierArt?: { art: ArtImage; size: number }
 }
 
 /** A covering layer over a routeless level's backdrop (`levels/revealGrid.ts`
@@ -229,6 +251,13 @@ export interface LevelTarget {
   checkpoints: LetterCheckpoint[]
   /** Polyline of the main path, for the start marker and direction arrow. */
   polyline: Array<{ x: number; y: number }>
+  /** Where this level BEGINS as a point (`levels/buildLevel.ts`'s
+   *  `levelStart`): `polyline[0]` for a routed level, the authored
+   *  `config.waypoints.start` for a routeless one that declares it,
+   *  `undefined` for every level that has neither — exactly
+   *  `target.polyline[0]` was before this field existed. The one place a
+   *  future routeless mechanic plugs in its own start. */
+  start?: Point
   /** Total arc length of the main path. */
   length: number
   /** Every path's own polyline and arc length. `routes[0]` IS `polyline`/

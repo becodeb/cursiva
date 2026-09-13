@@ -333,6 +333,71 @@ describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
   })
 })
 
+// [the carrier repair, §7.2] The regression a carrier:true + kind:'free'
+// level renders no carrier at all today — `startMarker` used to read
+// `target.polyline[0]`, always `undefined` on a routeless level, so the
+// carrier's own gate (`level.carrier && startMarker`) never opened. Written
+// FIRST per design.md §7.2 and confirmed RED on the pre-fix tree (`target
+// .polyline[0]` with no fallback). `waypoints` is not yet a typed
+// `LevelConfig` field at this point in the apply order (Phase 4 adds it) —
+// the fixture is cast so this test compiles ahead of that field landing;
+// `npm run build`'s final gate is what proves the whole tree agrees once
+// every phase has landed.
+function makeWaypointCarrierLevel(start: { x: number; y: number }): LevelConfig {
+  return makeLevel({
+    kind: 'free',
+    surface: 'blank',
+    paths: [],
+    carrier: true,
+    carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 },
+    waypoints: { start } as unknown as LevelConfig['waypoints'],
+  })
+}
+
+describe('LevelPlay carrier-presence regression (§7.2: carrier:true + kind:"free" with an authored start renders a carrier)', () => {
+  it('reaches TraceCanvas with a defined carrier at the authored waypoints.start, and its own carrierArt', () => {
+    const start = { x: 250, y: 400 }
+    renderToString(
+      <LevelPlay
+        level={makeWaypointCarrierLevel(start)}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect(
+      traceCanvasProbe.current?.carrier,
+      'no carrier reached the canvas: a carrier:true + kind:"free" level rendered no carrier at all',
+    ).toEqual(start)
+    const art = traceCanvasProbe.current?.carrierArt as { href: string } | undefined
+    expect(art?.href).toBe(SECTOR_ADVENTURE_ART.bee.href)
+  })
+
+  it('falls back to the hard-wired lens when the level declares no carrierArt of its own (byte-identical default)', () => {
+    const start = { x: 250, y: 400 }
+    renderToString(
+      <LevelPlay
+        level={makeLevel({
+          kind: 'free',
+          surface: 'blank',
+          paths: [],
+          carrier: true,
+          waypoints: { start } as unknown as LevelConfig['waypoints'],
+        })}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect(traceCanvasProbe.current?.carrier).toEqual(start)
+    // Not `inWorld` (no `clue`, no `detectiveWorld`), so the shipped default
+    // is `undefined` — the hard-wired lens is only for the detective world.
+    expect(traceCanvasProbe.current?.carrierArt).toBeUndefined()
+  })
+})
+
 describe('LevelPlay backdrop (duck-undulations-and-sector-backdrop design.md §3.4)', () => {
   it('duck-trail2 gets the lagoon backdrop, zero scattered ground, and the quiet colour as the page background', () => {
     const html = renderToString(
