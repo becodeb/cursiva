@@ -33,7 +33,7 @@ Through the Adventure-Keyed Registry"; `design.md` §2-§3. **Task one,
 non-negotiable**: no tile paint and no level geometry may be authored before
 1.3 copies the manifest. 1.1 before 1.2 before 1.3. 1.4 depends on 1.3.
 
-- [ ] 1.1 In `scripts/art/build_art.py`: change the `fondo pecera.png` and
+- [x] 1.1 In `scripts/art/build_art.py`: change the `fondo pecera.png` and
       `fondo arena.png` `PASSTHROUGHS` rows' fifth element from `None` to
       `(51, 973)` (design.md §2.2's derivation via `viewBoxToImage`, rounded
       outward). Add the sixth `PASSTHROUGHS` row `('fondo bosque.png',
@@ -47,13 +47,16 @@ non-negotiable**: no tile paint and no level geometry may be authored before
       NIGHT_SHADOW)*L/SRC_MAX)`, `SRC_MAX` from one extra max-luma pass.
       Docblock states the two-edit swap (row + delete `nightfall`) and the
       `[77, 110]` swap-day gate, word for word from design.md §3.2.
-- [ ] 1.2 Run `python3 scripts/art/build_art.py` (or its documented
+- [x] 1.2 Run `python3 scripts/art/build_art.py` (or its documented
       invocation). Read `manifest.json`'s `sector-aquarium-background`,
       `sector-sand-background` and `sector-night-background` entries for
       `quiet`/`brightest`. **No later task may hand-copy a literal until this
       has run.** Expected: aquarium `#c7d9e0` (212), sand `#dad0c0` (209),
       night `brightest` luma ≈96 ± rounding, `quiet` luma ≈67.
-- [ ] 1.3 In `client/src/zoo/backdrops.ts`: widen `AdventureBackdrop` with
+      **Measured**: aquarium `#c7d9e0`/`#9bb6c5` (exact match); sand
+      `#dad0c0`/`#d6cbba` (exact match); night `brightest` `#526084` (luma
+      96), `quiet` `#394459` (luma 67) — both exactly as predicted.
+- [x] 1.3 In `client/src/zoo/backdrops.ts`: widen `AdventureBackdrop` with
       `tile?: string`, `ink?: string`, `inkDim?: string`; widen
       `corridorRows`'s comment to "a corridor **or a reveal grid**". Add
       tokens `GLASS_GRIME='#64726b'` (109), `SAND_DRIFT='#7a6a58'` (109),
@@ -65,10 +68,25 @@ non-negotiable**: no tile paint and no level geometry may be authored before
       (`SECTOR_BACKGROUND_ART.night` from 1.4, 1.2's `quiet`/`brightest`,
       `corridorRows:{51,973}`, `tile: NIGHT_VEIL`, `ink: TORCH_CHALK`,
       `inkDim: TORCH_CHALK_DIM`).
-- [ ] 1.4 In `client/src/detective/assets.ts`: widen `SECTOR_BACKGROUND_ART`'s
+      **[~] Partial, with reason — see `apply-progress.md`.** The interface
+      widening and all five tokens landed exactly as specified. The three
+      ROWS did NOT land inside `ADVENTURE_BACKDROP` itself: that object is
+      typed `Partial<Record<AdventureId, AdventureBackdrop>>`, and
+      `AdventureId` only gains `'glass' | 'sand' | 'night'` in task 5.1
+      (Phase 5, out of scope for this apply run and explicitly forbidden to
+      start). Adding those keys now fails `tsc --noEmit`
+      ("Object literal may only specify known properties") the moment this
+      file alone is compiled — a real cross-phase ordering gap in this
+      task list, not a workaround. The three rows instead live in a new
+      export, `PENDING_ENTRANCE_BACKDROP` (same file, fully documented,
+      exact literals below), ready for Phase 5 to wire in with one line.
+      `TORCH_CHALK_DIM` = `#989896` (luma ≈152): no formula named
+      `INK_COLOR_DIM` exists in this codebase (checked); implemented as the
+      same blend `MUD_INK_DIM` uses — 40% toward the backdrop it fades into.
+- [x] 1.4 In `client/src/detective/assets.ts`: widen `SECTOR_BACKGROUND_ART`'s
       key union with `'night'`; add `night: { href:
       '/art/sector-night-background.png', w: 1536, h: 1024 }`.
-- [ ] 1.5 In `client/src/zoo/backdrops.test.ts`: extend the luma law to all
+- [x] 1.5 In `client/src/zoo/backdrops.test.ts`: extend the luma law to all
       six rows (`|luma(tile ?? channel ?? SHEET_PAPER) − luma(brightest)| ≥
       55`); add `|luma(tile) − luma(ink ?? INK_COLOR)| ≥ 55` for the three
       new rows; add the night floor scenario (`brightest ≥
@@ -76,16 +94,32 @@ non-negotiable**: no tile paint and no level geometry may be authored before
       falsifiability rows that MUST go RED — `SHEET_PAPER` vs the aquarium's
       `brightest` (fails by 40), `SHEET_PAPER` vs the sand's (fails by 43),
       `INK_COLOR` vs `NIGHT_VEIL` (fails by 37, gap 18 against the 55 law).
-- [ ] 1.6 In `client/src/detective/artManifest.test.ts`: add
+      **[~]** Written against `PENDING_ENTRANCE_BACKDROP` (see 1.3's note)
+      instead of `ADVENTURE_BACKDROP.glass/.sand/.night` — same assertions,
+      same six rows via `{...ADVENTURE_BACKDROP, ...PENDING_ENTRANCE_BACKDROP}`.
+      Measured gaps confirmed exactly: aquarium 40, sand 43, night-ink 18
+      (the actual luma gap; "fails by 37" is 55−18, the law's shortfall).
+- [x] 1.6 In `client/src/detective/artManifest.test.ts`: add
       `ADVENTURE_BACKDROP.glass/.sand/.night` against
       `manifest['sector-aquarium-background']`/`['sector-sand-background']`/
       `['sector-night-background']`'s `quiet`/`brightest`/`corridorRows`,
       mirroring the existing `duck`/`sheep`/`llama` rows.
-- [ ] 1.7 Run `npx vitest run client/src/zoo/backdrops.test.ts client/src/
+      **[~]** Same substitution as 1.5: asserted against
+      `PENDING_ENTRANCE_BACKDROP.glass/.sand/.night`. Also bumped
+      `REGISTERED.length` 75→76 and its comment, a necessary consequence of
+      widening `SECTOR_BACKGROUND_ART` (task 1.4) that the task list did not
+      call out explicitly.
+- [x] 1.7 Run `npx vitest run client/src/zoo/backdrops.test.ts client/src/
       detective/artManifest.test.ts` — green. Confirm the three
       falsifiability rows are sensitive (temporarily assert the inverse and
       revert, or confirm they failed before 1.3's tokens existed — record
       which method was used, paso C Phase 6's own discipline).
+      **Done — 103/103 tests green.** Sensitivity confirmed by the first
+      method: inverted all three assertions (`toBeGreaterThanOrEqual`
+      instead of `toBeLessThan`), ran the suite — all 3 of 3 failed
+      (`3 failed | 16 passed (19)`), confirming every falsifiability row is
+      genuinely sensitive — then reverted and re-ran green (19/19). Full
+      output recorded in `apply-progress.md`.
 
 ## Phase 2: The Reveal Mechanic (D2)
 
@@ -95,13 +129,13 @@ Stroke Fold); `level-engine/spec.md` "Optional Reveal Field on LevelConfig";
 `free-trace-mode/spec.md` (both requirements). Fully standalone from Phase 1
 — no shared file. 2.1 before 2.2 before 2.3; 2.4 depends on 2.1-2.3.
 
-- [ ] 2.1 In `client/src/levels/types.ts`: add `RevealConfig` — a
+- [x] 2.1 In `client/src/levels/types.ts`: add `RevealConfig` — a
       discriminated union on `mode`: `{mode:'erase';cols;rows;radius}` |
       `{mode:'light';cols;rows;radius;objects:readonly RevealObject[]}` — and
       `RevealObject {art:ArtImage;size:number;x:number;y:number}`, additive.
       Add `reveal?: RevealConfig` to `LevelConfig` (`goalArt`/`vertexArt`'s
       own convention).
-- [ ] 2.2 Create `client/src/levels/revealGrid.ts`: `RevealGrid
+- [x] 2.2 Create `client/src/levels/revealGrid.ts`: `RevealGrid
       {cols;rows;width;radius}`; `clearedTiles(strokes, grid):
       ReadonlySet<number>` — index `row*cols+col` (`coverage.ts:59`'s own
       convention), a tile clears when a sample lands within `radius` of its
@@ -121,16 +155,16 @@ Stroke Fold); `level-engine/spec.md` "Optional Reveal Field on LevelConfig";
       `radius` of any whole-stroke sample; no `reveal` → delegates to
       `coverageScore` unchanged. `debugClearedTiles(reveal, fraction)` — pure,
       pre-clears the top `round(fraction*rows)` tile rows (Phase 6's flag).
-- [ ] 2.3 In `client/src/levels/coverage.ts`: widen `coverageScore(strokes,
+- [x] 2.3 In `client/src/levels/coverage.ts`: widen `coverageScore(strokes,
       viewBoxWidth, cols=COVERAGE_COLUMNS, rows=COVERAGE_ROWS)`, body
       delegating to `clearedTiles({cols,rows,width,radius:0})` and returning
       `Math.round(100*visited.size/(cols*rows))` — no second walk.
-- [ ] 2.4 In `client/src/game/evaluateLevel.ts`: line 116, `const accuracy =
+- [x] 2.4 In `client/src/game/evaluateLevel.ts`: line 116, `const accuracy =
       revealScore(strokes, target.config, target.viewBoxWidth)` replacing the
       direct `coverageScore` call — absent `reveal` still routes to
       `coverageScore` at its own defaults inside `revealScore`, exactly
       today's call.
-- [ ] 2.5 Create `client/src/levels/revealGrid.test.ts`: index convention
+- [x] 2.5 Create `client/src/levels/revealGrid.test.ts`: index convention
       matches `coverageScore`'s cell index for the same row/col; the
       containing tile always clears, one at `radius+ε` does not; `radius:0`
       reproduces `coverageScore`'s visited set exactly (fixture-driven);
@@ -142,11 +176,11 @@ Stroke Fold); `level-engine/spec.md` "Optional Reveal Field on LevelConfig";
       away, latch ≡ whole-stroke `revealScore`; the light branch requires
       every object; the erase branch equals the cleared fraction; no
       `reveal` delegates to `coverageScore`'s own defaults.
-- [ ] 2.6 In `client/src/levels/coverage.test.ts`: add
+- [x] 2.6 In `client/src/levels/coverage.test.ts`: add
       `coverageScore(s,1000) === coverageScore(s,1000,12,8)` for every
       fixture (bit-identity proof) — `coverage.test.ts:90-112`'s four
       hand-tuned rows stay untouched and green.
-- [ ] 2.7 Run `npx vitest run client/src/levels/revealGrid.test.ts client/src/
+- [x] 2.7 Run `npx vitest run client/src/levels/revealGrid.test.ts client/src/
       levels/coverage.test.ts client/src/game/evaluateLevel.test.ts` — green.
       Nothing authors a `reveal` field yet; exercised entirely through
       synthetic fixtures.
@@ -158,7 +192,7 @@ Rects…"; `trace-canvas/spec.md` "Reveal Layer Renders as Plain Rects Between
 Backdrop and Ink". Depends on Phase 2's `RevealState`/`revealTiles`/
 `RevealConfig`. 3.1 before 3.2 before 3.3.
 
-- [ ] 3.1 Create `client/src/canvas/RevealLayer.tsx`: `TraceRevealTile
+- [x] 3.1 Create `client/src/canvas/RevealLayer.tsx`: `TraceRevealTile
       {x;y;w;h;opacity}` and `TraceReveal {fill;tiles;art?}` types in
       `TraceCanvas.tsx` (structural, no import from `levels/`/`zoo/`,
       `TraceBackdrop`'s own convention). `RevealLayer` renders one `<image>`
@@ -166,11 +200,11 @@ Backdrop and Ink". Depends on Phase 2's `RevealState`/`revealTiles`/
       sheetBounds)` path, then one `<rect>` per tile — `opacity` emitted only
       when `<1`, a tile at 0 renders no element — inside `<g
       pointerEvents="none">`.
-- [ ] 3.2 In `client/src/canvas/TraceCanvas.tsx`: add `reveal?: TraceReveal`
+- [x] 3.2 In `client/src/canvas/TraceCanvas.tsx`: add `reveal?: TraceReveal`
       prop; insert `<RevealLayer .../>` immediately after the backdrop group
       (`TraceCanvas.tsx:933-944`) and before the maze/corridor block. Zero
       `<mask>`/`<pattern>`/`<clipPath>`/`<defs>`/`useId`/`url(#`.
-- [ ] 3.3 In `client/src/screen/LevelPlay.tsx`: add `const [revealState,
+- [x] 3.3 In `client/src/screen/LevelPlay.tsx`: add `const [revealState,
       setRevealState] = useState(EMPTY_REVEAL)`; inside the existing
       `onFrame`, after the `OFF_PATH_PERIOD_MS` throttle and beside
       `clueTick`/`contactTick` (no second cloud scan, docs/02 §7.2): `if
@@ -182,23 +216,23 @@ Backdrop and Ink". Depends on Phase 2's `RevealState`/`revealTiles`/
       passthrough: `inkColor={inWorld ? MUD_INK : backdrop?.ink}` /
       `inkDimColor={inWorld ? MUD_INK_DIM : backdrop?.inkDim}` — byte-
       identical today, no shipped backdrop declares `ink` yet.
-- [ ] 3.4 Create `client/src/canvas/RevealLayer.test.tsx`: `<rect` count is
+- [x] 3.4 Create `client/src/canvas/RevealLayer.test.tsx`: `<rect` count is
       exactly `N − cleared.size` for an erase grid; five opacity strings and
       no sixth for a light grid; hidden-object `<image>`s render under the
       tiles; zero `url(#`.
-- [ ] 3.5 In `client/src/canvas/TraceCanvas.test.tsx`: with `reveal` set, the
+- [x] 3.5 In `client/src/canvas/TraceCanvas.test.tsx`: with `reveal` set, the
       layer sits between the backdrop image and the guide/ink paths in
       document order; with no `reveal` prop, no reveal-layer `<rect>`
       renders; **byte-identical regression** — a lagoon backdrop, a `ground`
       maze and a plain maze render byte-identical to before this change.
       Confirm the six pre-existing guard tests (`TraceCanvas.test.tsx:145,
       163` and siblings) stay green untouched.
-- [ ] 3.6 In `client/src/screen/LevelPlay.test.tsx`: a synthetic
+- [x] 3.6 In `client/src/screen/LevelPlay.test.tsx`: a synthetic
       `reveal`-bearing fixture advances `revealState` on `onFrame`;
       `restartRun` resets it; a `night`-shaped fixture (`ink: TORCH_CHALK`)
       resolves `inkColor` to `TORCH_CHALK`; a fixture with no backdrop `ink`
       resolves to `MUD_INK`/`INK_COLOR` exactly as before this change.
-- [ ] 3.7 Run `npx vitest run client/src/canvas/RevealLayer.test.tsx
+- [x] 3.7 Run `npx vitest run client/src/canvas/RevealLayer.test.tsx
       client/src/canvas/TraceCanvas.test.tsx client/src/screen/
       LevelPlay.test.tsx` — green. Every shipped level renders byte-
       identical; exercised entirely through synthetic fixtures.
