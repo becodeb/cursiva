@@ -58,9 +58,18 @@ of the eight MUST be added to it.
 - WHEN compared against `main`
 - THEN it MUST be identical — none of the eight sheep/llama ids MUST appear
 
-#### Scenario: The ordinary shell renders for these levels
+#### Scenario: The wordless shell renders for these levels
 
-- GIVEN `sheep-hill1` rendered via `renderToString`
+Amended after reading the row C captures: the eight leave the detective world
+only because `CHANNEL_STONE` makes `MUD_INK` fail the luma law, and `inWorld`
+gated the on-screen words as well as the mud ink. Those are separate concerns,
+so the chrome moves to `drawnPlace` — the same gate already used for the
+octopus, the vertex art and the goal colour. The mechanics gates (the lens,
+`MUD_INK`, the PISTAS rail, the scattered ground) stay on `inWorld`.
+
+- GIVEN `sheep-hill1` or `llama-peak1` rendered via `renderToString`
 - WHEN the HTML string is inspected
-- THEN its title and hint text MUST render, unlike a world-only level's
-  wordless shell
+- THEN its title, hint, rotate prompt, coach/pillar copy and worded buttons
+  MUST NOT render, matching the duck adventure's wordless shell — the movement
+  is shown by `demo`, never written
+- AND no PISTAS rail MUST mount, because these levels carry no clue

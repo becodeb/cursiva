@@ -184,14 +184,45 @@ describe('LevelPlay chrome branch (design.md Orchestrator Correction C1)', () =>
     expect(textOf(html)).not.toContain('PISTAS')
   })
 
-  it("sheep-hill1 (row C, drawn on a backdrop but NOT in the detective world) shows its title and hint, unlike a world-only level's wordless shell (detective-mode spec: 'The ordinary shell renders for these levels')", () => {
+  /* Row C shipped the ordinary worded shell here, and reading the captures
+   * settled it the other way: `capturas/pasoC/` showed "Fase 1 · La ladera
+   * angosta", the written hint and the worded buttons on screens whose
+   * neighbouring duck adventure has none of it, and the child this is for
+   * cannot read either screen.
+   *
+   * The words were never a decision about these levels. They fell out of one:
+   * `CHANNEL_STONE` forced the eight out of the detective world (`MUD_INK`
+   * fails the luma law on stone), and `inWorld` happened to gate BOTH the mud
+   * ink and the chrome. Splitting them is what `drawnPlace` is for — it
+   * already gates the octopus, the vertex art and the goal colour for exactly
+   * this reason. The mechanics gates (the lens, `MUD_INK`, the PISTAS rail,
+   * the scattered ground) stay on `inWorld` and are untouched.
+   *
+   * `backdrop ⇒ drawnPlace`, so this asserts the full duck-shaped suppression.
+   */
+  it('sheep-hill1 (row C, drawn on a backdrop) suppresses the same chrome as a duck trail — shown, not written', () => {
     const level = getLevel('sheep-hill1')
     const html = renderToString(
       <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
-    expect(textOf(html)).toContain(`Fase 1 · ${level.title}`)
-    expect(html).toContain(level.hint)
+    expect(textOf(html)).not.toContain(`Fase 1 · ${level.title}`)
+    expect(html).not.toContain(level.hint)
+    expect(html).not.toContain('Girá el dispositivo')
+    expect(html).not.toContain('Precisión')
+    // The buttons lose their words too — icons, like the duck trails.
+    expect(textOf(html)).not.toContain('Borrar')
+    expect(textOf(html)).not.toContain('Siguiente')
     expect(html).not.toContain('<aside') // no PISTAS rail either — no clue
+  })
+
+  it('llama-peak1 suppresses the same chrome, so both mountain adventures read alike', () => {
+    const level = getLevel('llama-peak1')
+    const html = renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(textOf(html)).not.toContain(`Fase 1 · ${level.title}`)
+    expect(html).not.toContain(level.hint)
+    expect(textOf(html)).not.toContain('Siguiente')
   })
 
   it('a phase-2+ (non-detective) level is unaffected even when it CAN show its guide-request button', () => {

@@ -1195,15 +1195,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           type="button"
           onClick={onBack}
           className="cv-btn cv-btn-back"
-          aria-label={inWorld ? 'Volver' : undefined}
+          aria-label={drawnPlace ? 'Volver' : undefined}
         >
-          {inWorld ? <BackIcon /> : '‹ Volver'}
+          {drawnPlace ? <BackIcon /> : '‹ Volver'}
         </button>
         {/* No level title in the detective world (Orchestrator Correction C1:
          * "Hace todo bien grande, bien simple la pantalla, sin texto"). Every
          * other phase keeps this heading exactly as shipped — this is a
          * branch, not a removal. */}
-        {!inWorld && (
+        {!drawnPlace && (
           <h1 className="cv-title">
             Fase {level.phase} · {level.title}
           </h1>
@@ -1212,12 +1212,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       {/* The standing hint sentence is also suppressed (C1) — a world level's
        * instruction is SHOWN via `demo` (`TraceCanvas.tsx:747`), never
        * written. */}
-      {!inWorld && <p className="cv-hint">{level.hint}</p>}
+      {!drawnPlace && <p className="cv-hint">{level.hint}</p>}
       </div>
       {/* Upright phones are width-limited and rotating really is the fix, so
        * the screen says it plainly and keeps playing (docs/04 §3.3). Also
        * suppressed in the detective world — the brief's "sin texto" is literal. */}
-      {!inWorld && (
+      {!drawnPlace && (
         <p className="cv-rotate">Girá el dispositivo para dibujar más grande.</p>
       )}
       {/* PISTAS bar (design unit 5, level-engine spec "PISTAS Rail Chrome"):
@@ -1362,7 +1362,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
        * restart cue, the standing hint) are all suppressed in the detective
        * world (C1: no coach or pillar copy — and therefore no three stars,
        * D6). Every other phase's result section is untouched. */}
-      {!inWorld && (
+      {!drawnPlace && (
         <section aria-label="Resultado del intento" className="cv-result">
           {attempt ? (
             <>
@@ -1405,25 +1405,25 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           type="button"
           onClick={clearAttempt}
           className="cv-btn"
-          aria-label={inWorld ? 'Borrar' : undefined}
+          aria-label={drawnPlace ? 'Borrar' : undefined}
         >
-          {inWorld ? <RetryIcon /> : 'Borrar'}
+          {drawnPlace ? <RetryIcon /> : 'Borrar'}
         </button>
         {playDemo && (
           <button
             type="button"
             onClick={replayDemo}
             className="cv-btn"
-            aria-label={inWorld ? 'Ver de nuevo' : undefined}
+            aria-label={drawnPlace ? 'Ver de nuevo' : undefined}
           >
-            {inWorld ? <ReplayIcon /> : 'Ver de nuevo'}
+            {drawnPlace ? <ReplayIcon /> : 'Ver de nuevo'}
           </button>
         )}
         {/* Structurally unreachable in the detective world anyway — phase 1
          * always resolves `earnedGuideLevel` to 'full' (`guideLevelFor`), so
          * this never renders for it. Gated on `inWorld` too as belt-and-
          * braces against a future change to that rule. */}
-        {!inWorld && level.showGuide && earnedGuideLevel !== 'full' && !guideRequested && (
+        {!drawnPlace && level.showGuide && earnedGuideLevel !== 'full' && !guideRequested && (
           <button type="button" onClick={() => setGuideRequested(true)} className="cv-btn">
             Ver la guía
           </button>
@@ -1433,9 +1433,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           onClick={onNext}
           disabled={!attempt?.approved}
           className={`cv-btn ${attempt?.approved ? 'cv-btn-ok' : 'cv-btn-off'}`}
-          aria-label={inWorld ? 'Siguiente' : undefined}
+          aria-label={drawnPlace ? 'Siguiente' : undefined}
         >
-          {inWorld ? <ContinueIcon /> : 'Siguiente'}
+          {drawnPlace ? <ContinueIcon /> : 'Siguiente'}
         </button>
       </nav>
       </div>
