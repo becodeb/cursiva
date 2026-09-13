@@ -49,7 +49,7 @@ import {
   type ArtImage,
 } from './assets'
 import { ART_OUTLINE } from './palette'
-import { SECTOR_BACKDROP } from '../zoo/backdrops'
+import { ADVENTURE_BACKDROP } from '../zoo/backdrops'
 
 /** Every PNG actually present in `public/art/`, keyed by bare name. The glob
  * is evaluated against the filesystem at transform time, so a file named in
@@ -150,12 +150,12 @@ describe('art registry matches the shipped pipeline manifest', () => {
   it('registers every clue kind in both states, and never the same file twice', () => {
     // 14 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
     // + 1 goal (medusa) + 1 hazard (estrella de mar) + 9 zoo journey
-    // + 6 sector backgrounds + 10 sector adventure cutouts + 2 hedgehog poses
-    // + 1 Andean hat + 12 grass + 8 mud.
+    // + 6 sector backgrounds + 11 sector adventure cutouts (row C adds the
+    // sheep) + 2 hedgehog poses + 1 Andean hat + 12 grass + 8 mud.
     // Grass carries MORE variants than mud on purpose: it covers the whole
     // field at full size, where a repeated silhouette is obvious, while mud
     // sits small inside the corridor and half-covered by the child's own line.
-    expect(REGISTERED.length).toBe(74)
+    expect(REGISTERED.length).toBe(75)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -174,19 +174,38 @@ describe('art registry matches the shipped pipeline manifest', () => {
     }
   })
 
-  it("matches SECTOR_BACKDROP.estanque's quiet/brightest/corridorRows against the pipeline's own sampled values", () => {
+  it("matches ADVENTURE_BACKDROP.duck's quiet/brightest/corridorRows against the pipeline's own sampled values", () => {
     // `client/src/zoo/backdrops.ts` hand-copies `quiet`/`brightest` from
     // `manifest.json` (`build_art.py`'s `sample_corridor_band`), the same
     // drift risk `w`/`h` already guard against above — a re-muted lagoon
     // changes the manifest, and this is what makes that drift loud.
     const entry = manifest['sector-lagoon-background']
-    const backdrop = SECTOR_BACKDROP.estanque!
+    const backdrop = ADVENTURE_BACKDROP.duck!
     expect(entry.quiet).toBe(backdrop.quiet)
     expect(entry.brightest).toBe(backdrop.brightest)
     expect(entry.corridorRows).toEqual(backdrop.corridorRows)
     expect(backdrop.quiet).toBe('#b4c5d0')
     expect(backdrop.brightest).toBe('#b4c5d0')
     expect(backdrop.corridorRows).toEqual({ top: 135, bottom: 889 })
+  })
+
+  it("matches ADVENTURE_BACKDROP.sheep/.llama's quiet/brightest/corridorRows against the pipeline's own sampled values (row C)", () => {
+    const ladera = manifest['sector-slope-background']
+    const cordillera = manifest['sector-range-background']
+    const sheep = ADVENTURE_BACKDROP.sheep!
+    const llama = ADVENTURE_BACKDROP.llama!
+    expect(ladera.quiet).toBe(sheep.quiet)
+    expect(ladera.brightest).toBe(sheep.brightest)
+    expect(ladera.corridorRows).toEqual(sheep.corridorRows)
+    expect(cordillera.quiet).toBe(llama.quiet)
+    expect(cordillera.brightest).toBe(llama.brightest)
+    expect(cordillera.corridorRows).toEqual(llama.corridorRows)
+  })
+
+  it("matches SECTOR_ADVENTURE_ART.sheep's w/h against the pipeline's manifest (row C)", () => {
+    const entry = manifest['sector-sheep']
+    expect(SECTOR_ADVENTURE_ART.sheep.w).toBe(entry.w)
+    expect(SECTOR_ADVENTURE_ART.sheep.h).toBe(entry.h)
   })
 
   it("mirrors scripts/art/build_art.py's INK constant against the real TypeScript token", () => {

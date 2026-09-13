@@ -45,6 +45,11 @@ export type ClueKind =
 /** One art per deduction-screen animal choice (design unit 7). */
 export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
 
+/** Every animal the ZOO can stand — a superset of {@link AnimalId}, which is
+ * the deduction screen's exhaustive answer set and is NOT widened here
+ * (`docs/13` §4 decision 1: the deduction is paused, not revived). */
+export type ZooAnimalId = AnimalId | 'oveja' | 'llama'
+
 /** A derived raster from `client/public/art/`, with its intrinsic pixel size
  * so a caller can hold aspect while scaling to a target height.
  *
@@ -259,6 +264,7 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   | 'snakeMedium'
   | 'snakeLarge'
   | 'llama'
+  | 'sheep'
   | 'bee'
   | 'flower'
   | 'honeycomb'
@@ -271,12 +277,25 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   snakeMedium: { href: '/art/sector-snake-medium.png', w: 492, h: 114 },
   snakeLarge: { href: '/art/sector-snake-large.png', w: 500, h: 95 },
   llama: { href: '/art/sector-llama.png', w: 299, h: 448 },
+  // Row C (docs/13 §8): the sheep standing on the sheep-hill ridge peaks.
+  // `w` is measured off `manifest.json`'s `sector-sheep` entry (`h`, 448, is
+  // the pipeline's target height, held fixed by `build_art.py`'s `SINGLES`).
+  sheep: { href: '/art/sector-sheep.png', w: 409, h: 448 },
   bee: { href: '/art/sector-bee.png', w: 256, h: 230 },
   flower: { href: '/art/sector-flower.png', w: 256, h: 245 },
   honeycomb: { href: '/art/sector-honeycomb.png', w: 181, h: 256 },
   dolphin: { href: '/art/sector-dolphin.png', w: 448, h: 418 },
   snail: { href: '/art/sector-snail.png', w: 448, h: 321 },
   flashlight: { href: '/art/sector-flashlight.png', w: 256, h: 234 },
+}
+
+/** `ZOO_ANIMAL_ART` resolves every {@link ZooAnimalId} — spreading
+ * `ANIMAL_ART` preserves referential identity for every existing entry, so
+ * `mapBubble`'s art-reference comparisons keep working for the duck. */
+export const ZOO_ANIMAL_ART: Readonly<Record<ZooAnimalId, ArtImage>> = {
+  ...ANIMAL_ART,
+  oveja: SECTOR_ADVENTURE_ART.sheep,
+  llama: SECTOR_ADVENTURE_ART.llama,
 }
 
 /** Hedgehog drawing activities: the two poses stay separate so the child can

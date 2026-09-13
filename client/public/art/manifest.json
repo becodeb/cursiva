@@ -354,9 +354,15 @@
     "w": 299
   },
   "sector-range-background": {
+    "brightest": "#f5f5f5",
     "bytes": 46390,
+    "corridorRows": {
+      "bottom": 858,
+      "top": 166
+    },
     "file": "art/sector-range-background.png",
     "h": 1024,
+    "quiet": "#c8d3d8",
     "w": 1536
   },
   "sector-sand-background": {
@@ -365,10 +371,22 @@
     "h": 1024,
     "w": 1536
   },
+  "sector-sheep": {
+    "bytes": 225083,
+    "file": "art/sector-sheep.png",
+    "h": 448,
+    "w": 409
+  },
   "sector-slope-background": {
+    "brightest": "#9da396",
     "bytes": 38744,
+    "corridorRows": {
+      "bottom": 866,
+      "top": 220
+    },
     "file": "art/sector-slope-background.png",
     "h": 1024,
+    "quiet": "#9da396",
     "w": 1536
   },
   "sector-snail": {

@@ -138,18 +138,18 @@ run (2.2) MUST land and execute before 2.3-2.5 hand-copy any measured value**
 2.3 depends on 2.2's manifest output; 2.4/2.5 depend on 2.3's `CHANNEL_STONE`
 being defined; 2.6 is independent and could run in parallel with 2.4/2.5.
 
-- [ ] 2.1 In `scripts/art/build_art.py`: add `('oveja.png', 'sector-
+- [x] 2.1 In `scripts/art/build_art.py`: add `('oveja.png', 'sector-
       sheep.png', 448, 'contour', True)` to `SINGLES` (the llama's own row).
       Change the two mountain `PASSTHROUGHS` rows' `corridor_rows` from `None`
       to `(220, 866)` (ladera) and `(166, 858)` (cordillera) — `design.md`
       §2.2's derivation from the frozen geometry, not a guess. No new
       invocation surface, no new argument, no new caller.
-- [ ] 2.2 Run the art pipeline (`python3 scripts/art/build_art.py` or its
+- [x] 2.2 Run the art pipeline (`python3 scripts/art/build_art.py` or its
       documented invocation) to regenerate `manifest.json`. Read back
       `manifest.json`'s `sector-sheep` entry for its measured `w` (h is the
       known `448`) and the two backdrop entries' `quiet`/`brightest`. **No
       later task may hand-copy a literal until this step has actually run.**
-- [ ] 2.3 In `client/src/detective/assets.ts`: add `oveja.png`'s measured
+- [x] 2.3 In `client/src/detective/assets.ts`: add `oveja.png`'s measured
       `w`/`448` as `SECTOR_ADVENTURE_ART.sheep` (widen the type union to
       include `'sheep'`, mirroring the already-registered `llama` row). Add
       `ZooAnimalId = AnimalId | 'oveja' | 'llama'` and `ZOO_ANIMAL_ART:
@@ -159,7 +159,7 @@ being defined; 2.6 is independent and could run in parallel with 2.4/2.5.
       added to `AUTHORED_SOURCE_SIZES`** — settled: `oveja.png` belongs to the
       pre-existing hand-drawn animal family (`gallina.png`, `pato.png`), which
       that table does not cover either.
-- [ ] 2.4 In `client/src/zoo/backdrops.ts`: rename `SectorBackdrop` →
+- [x] 2.4 In `client/src/zoo/backdrops.ts`: rename `SectorBackdrop` →
       `AdventureBackdrop` and `SECTOR_BACKDROP` → `ADVENTURE_BACKDROP: Partial
       <Record<AdventureId, AdventureBackdrop>>` (see the flagged forward
       reference above — this line will not typecheck until Phase 4 lands
@@ -173,7 +173,7 @@ being defined; 2.6 is independent and could run in parallel with 2.4/2.5.
       brightest: <measured>, corridorRows: {166, 858}, channel:
       CHANNEL_STONE`) using 2.2's measured `brightest` values. Change
       `backdropFor` to key through `adventureFor(levelId)?.id`.
-- [ ] 2.5 In `client/src/zoo/backdrops.test.ts`: (a) the luma law for all
+- [x] 2.5 In `client/src/zoo/backdrops.test.ts`: (a) the luma law for all
       three registered backdrops — `|luma(backdrop.channel ?? SHEET_PAPER) -
       luma(backdrop.brightest)| >= 55`; (b) `corridorRows` coverage — each of
       the eight sheep/llama level ids' widest channel extent (`design.md`
@@ -187,13 +187,13 @@ being defined; 2.6 is independent and could run in parallel with 2.4/2.5.
       cordillera companion move to task 6.2 (they need `MUD_INK`/`GOAL_COLOR`/
       the marker literal, which live in `LevelPlay.tsx`/`TraceCanvas.tsx`,
       not here).
-- [ ] 2.6 In `client/src/detective/artManifest.test.ts`: extend the existing
+- [x] 2.6 In `client/src/detective/artManifest.test.ts`: extend the existing
       registry↔manifest parity check with two more backdrop rows —
       `ADVENTURE_BACKDROP.sheep`/`.llama` against `manifest['sector-slope-
       background']`/`['sector-range-background']`'s `quiet`/`brightest`/
       `corridorRows` — and one asset row confirming `SECTOR_ADVENTURE_ART.
       sheep.w`/`.h` match `manifest['sector-sheep'].w`/`.h`.
-- [ ] 2.7 Run `npx vitest run client/src/zoo/backdrops.test.ts client/src/
+- [x] 2.7 Run `npx vitest run client/src/zoo/backdrops.test.ts client/src/
       detective/artManifest.test.ts` — expect `backdrops.ts` to fail to
       resolve `AdventureId` until Phase 4 lands (the flagged forward
       reference); `artManifest.test.ts` must be green on its own.
@@ -205,7 +205,7 @@ Spec traceability: `level-engine/spec.md` — "Sheep and Llama Ridge Level Set",
 Coverage". Depends on Phase 1's `peakRidge`/`peakRidgeCorridorLimit`. 3.1
 before 3.2.
 
-- [ ] 3.1 In `client/src/levels/catalog.ts`: insert eight entries into
+- [x] 3.1 In `client/src/levels/catalog.ts`: insert eight entries into
       `PHASE_1`, between `trail4` and `f2-guirnalda` — `sheep-hill1..4` then
       `llama-peak1..4`. Shared across all eight: `x0:90, x1:910, base:480,
       phase:1, kind:'path', surface:'blank', maze:true, resetOnContact:true,
@@ -218,7 +218,7 @@ before 3.2.
       `sheep-hill1` and `llama-peak1` only; `feedback.rail:true` on `sheep-
       hill1` only. Titles/hints/intros/closings from `design.md` §5.2, each
       ≤ 80 chars, naming no failure.
-- [ ] 3.2 In `client/src/levels/catalog.test.ts`: insert the eight ids into
+- [x] 3.2 In `client/src/levels/catalog.test.ts`: insert the eight ids into
       `EXPECTED_IDS` (lines 36-61) between `'trail4'` and `'f2-guirnalda'`, in
       `sheep-hill1..4, llama-peak1..4` order — the hardcoded, order-sensitive
       `.toEqual` this test already runs. Add a new `describe('LEVELS — the
@@ -235,7 +235,7 @@ before 3.2.
       exercised by I7's own per-level rows; add one explicit row for it too.
       Confirm (no edit) that `catalog.test.ts:415-434`'s phase-1 span/minY/
       maxY guard passes automatically for the eight.
-- [ ] 3.3 Run `npx vitest run client/src/levels/catalog.test.ts` — green.
+- [x] 3.3 Run `npx vitest run client/src/levels/catalog.test.ts` — green.
       The eight levels exist in `LEVELS` but are unreachable from the map
       until Phase 4 opens `montañas` (expected, not a defect).
 
@@ -258,7 +258,7 @@ order relative to 4.3/4.4 but both depend on 4.1's ids existing; 4.9/4.10
 (backpack) are independent and could run in parallel with everything else in
 this phase.
 
-- [ ] 4.1 In `client/src/zoo/adventures.ts`: add `export type AdventureId =
+- [x] 4.1 In `client/src/zoo/adventures.ts`: add `export type AdventureId =
       'duck' | 'sheep' | 'llama'`; give `Adventure` a required `id:
       AdventureId`; set the existing duck row's `id: 'duck'`; add the `sheep`
       row (`levelIds: sheep-hill1..4, id:'sheep', sector:'montanas',
@@ -269,13 +269,13 @@ this phase.
       change to `ADVENTURES.filter(...).at(-1)` (the MOST RECENTLY recovered,
       in registry order), or the llama's closing line can never render once
       the sheep are already home.
-- [ ] 4.2 In `client/src/zoo/adventures.test.ts`: `adventureFor`/`introLevel`
+- [x] 4.2 In `client/src/zoo/adventures.test.ts`: `adventureFor`/`introLevel`
       resolve the six new ids correctly (`sheep-hill1`→intro row,
       `sheep-hill2..4`→`undefined` for `introLevel`, same for llama).
       `mapBubble` for `montañas`: none recovered → `ONWARD`; `sheep-hill4`
       filed, `llama-peak4` unfiled → the sheep's closing line; both filed →
       the LLAMA's closing line (not the sheep's) — the defect fix, proven.
-- [ ] 4.3 In `client/src/zoo/sectors.ts`: `montañas.unlockedWhen` →
+- [x] 4.3 In `client/src/zoo/sectors.ts`: `montañas.unlockedWhen` →
       `(records) => isFiled(records, 'duck-trail4')` (the first
       `unlockedWhen` that is neither `alwaysOpen` nor `alwaysClosed`).
       `animals: [{id:'oveja', dx:-55, dy:10, size:84,
@@ -283,7 +283,7 @@ this phase.
       appearsWhen:['llama-peak4']}]` — the llama's smaller/negative `dy`
       stands it higher. `adventureIds: [...sheep-hill1..4,
       ...llama-peak1..4]`. Widen `ZooAnimal.id` to `ZooAnimalId`.
-- [ ] 4.4 In `client/src/zoo/sectors.test.ts`: narrow the filter at lines
+- [x] 4.4 In `client/src/zoo/sectors.test.ts`: narrow the filter at lines
       213-220 from `s.id !== 'estanque' && s.id !== 'sendero'` to also
       exclude `'montanas'`, leaving exactly the four remaining undeveloped
       sectors (`entrada`, `bosque`, `arena`, `nocturna`) asserted fogged and

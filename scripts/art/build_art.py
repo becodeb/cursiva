@@ -364,6 +364,12 @@ SINGLES = [
     ('erizo enroscado.png',    'hedgehog-curled.png',       448, 'contour',    True),
     # A compact front-facing reward/prop for the mountain activity.
     ('gorro andino.png',       'andean-hat.png',            256, 'contour',    True),
+    # Row C (docs/13 §8): the sheep standing on the sheep-hill ridge peaks.
+    # `oveja.png` predates `AUTHORED_SOURCE_SIZES` exactly as `pato.png` and
+    # `gallina.png` do (design.md §6) -- no entry there, and `fill='contour'`
+    # matches the llama's own row since both are drawn-world props that stand
+    # beside the child's ink, not reward-coloured clue marks.
+    ('oveja.png',              'sector-sheep.png',          448, 'contour',    True),
 ]
 
 # Full-canvas scenes are already authored at final dimensions. They bypass the
@@ -381,8 +387,8 @@ PASSTHROUGHS = [
     ('mapa zoologico.png', 'zoo-map.png', 1536, 1024, None),
     ('fondo laguna.png', 'sector-lagoon-background.png', 1536, 1024, (135, 889)),
     ('fondo arena.png', 'sector-sand-background.png', 1536, 1024, None),
-    ('fondo ladera.png', 'sector-slope-background.png', 1536, 1024, None),
-    ('fondo cordillera.png', 'sector-range-background.png', 1536, 1024, None),
+    ('fondo ladera.png', 'sector-slope-background.png', 1536, 1024, (220, 866)),
+    ('fondo cordillera.png', 'sector-range-background.png', 1536, 1024, (166, 858)),
     ('fondo bosque.png', 'sector-forest-background.png', 1536, 1024, None),
     ('fondo pecera.png', 'sector-aquarium-background.png', 1536, 1024, None),
 ]
