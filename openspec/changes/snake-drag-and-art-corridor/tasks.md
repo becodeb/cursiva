@@ -103,28 +103,28 @@ derivation). Depends on Phase 1's manifest. 2.1 → 2.3 → 2.4 → 2.5.
 reads `paths[0]` only). Its regression lands here, before Phase 6 authors any
 level that would otherwise look broken for the wrong reason.
 
-- [ ] 3.1 In `client/src/screen/corridorTrack.test.ts`: **write the RED
+- [x] 3.1 In `client/src/screen/corridorTrack.test.ts`: **write the RED
       regression test first** — a synthetic three-route fixture where the
       shipped `corridorTick(polyline0, …)` alone reads a point near route 2's
       body as far outside, proving A2's defect, before `multiCorridorTick`
       exists.
-- [ ] 3.2 In `client/src/screen/corridorTrack.ts`: add `RouteSegment`,
+- [x] 3.2 In `client/src/screen/corridorTrack.ts`: add `RouteSegment`,
       `RouteTrack`, `routeTrackStart(n)`, `multiCorridorTick(routes, track, x,
       y)` per design.md §4 — delegates to the untouched `corridorTick` once
       per route, returns the nearest. `corridorTick` itself MUST NOT change.
-- [ ] 3.3 In `client/src/screen/corridorTrack.test.ts`: complete the GREEN
+- [x] 3.3 In `client/src/screen/corridorTrack.test.ts`: complete the GREEN
       suite — single-route call equals `corridorTick` exactly over the
       shipped `trail1`/`trail2` fixtures; three disjoint routes select the
       nearest and advance only that track; an unvisited route's `maxArc`
       stays `0`; `corridorTick`'s source is byte-identical (diff check).
-- [ ] 3.4 In `client/src/screen/LevelPlay.tsx`: swap the direct
+- [x] 3.4 In `client/src/screen/LevelPlay.tsx`: swap the direct
       `corridorTick(target.polyline, …)` call for
       `multiCorridorTick(target.routes, …)`; both `maxArc` consumers
       (`clueTick`, `reachedTrailEnd`) read `track.tracks[active].maxArc`.
-- [ ] 3.5 In `client/src/screen/LevelPlay.test.tsx`: `duck-trail2`, `night2`,
+- [x] 3.5 In `client/src/screen/LevelPlay.test.tsx`: `duck-trail2`, `night2`,
       `f2-agua2` (single-route levels) render byte-identical wall feedback to
       before this change.
-- [ ] 3.6 Run `npm test -- screen/corridorTrack screen/LevelPlay` — green.
+- [x] 3.6 Run `npm test -- screen/corridorTrack screen/LevelPlay` — green.
 
 ## Phase 4: The Arrange Mechanic (E4)
 

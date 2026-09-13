@@ -11,7 +11,13 @@ import { LEVELS } from '../levels/catalog'
 import { pointAtArcLength } from '../letters/svgLetter'
 import type { Point } from '../letters/types'
 import type { LevelTarget } from '../levels/types'
-import { corridorTick, CORRIDOR_TRACK_START } from './corridorTrack'
+import {
+  corridorTick,
+  multiCorridorTick,
+  routeTrackStart,
+  CORRIDOR_TRACK_START,
+} from './corridorTrack'
+import type { RouteSegment } from '../levels/types'
 // The end-to-end suite at the bottom drives the real collection reducer from
 // the real track, which is the only place the two meet outside `LevelPlay`.
 import { clueCountFor, clueMarks, clueTick, emptyClueState, reachedTrailEnd } from '../detective/clues'
@@ -123,6 +129,101 @@ describe('corridorTick — local wall distance (defect 1)', () => {
   it('returns Infinity for a route-less target (kind: free) rather than throwing', () => {
     const sample = corridorTick([], 0, CORRIDOR_TRACK_START, 10, 10)
     expect(sample.distance).toBe(Infinity)
+  })
+})
+
+/** Three straight, disjoint routes, far enough apart that a point near one
+ *  is genuinely far from the others — the snake family's own C3 shape
+ *  (`catalog.test.ts`), synthesised here so Phase 3 does not depend on
+ *  Phase 6's levels. */
+function threeRouteFixture(): readonly RouteSegment[] {
+  const route = (y: number): RouteSegment => {
+    const polyline = Array.from({ length: 20 }, (_, i) => ({ x: i * 20, y }))
+    let length = 0
+    for (let i = 1; i < polyline.length; i++) {
+      length += Math.hypot(polyline[i].x - polyline[i - 1].x, polyline[i].y - polyline[i - 1].y)
+    }
+    return { polyline, length }
+  }
+  return [route(0), route(200), route(400)]
+}
+
+describe('the pre-existing defect A2 repairs (RED regression, written before multiCorridorTick existed)', () => {
+  it("corridorTick(routes[0].polyline, …) ALONE reads a point on route 2's body as far outside", () => {
+    const routes = threeRouteFixture()
+    // A point sitting exactly ON route 2's centreline (y=200).
+    const onRoute2 = { x: 100, y: 200 }
+    const sample = corridorTick(routes[0].polyline, routes[0].length, CORRIDOR_TRACK_START, onRoute2.x, onRoute2.y)
+    // Measured only against route 0 (y=0), the point is 200 units away —
+    // "permanently outside" for any corridor narrower than 400 units, which
+    // every shipped level is. This is exactly the defect A2 fixes: a
+    // level's live wall feedback computed against `paths[0]` alone reads
+    // the second and third snake as permanently off-corridor.
+    expect(sample.distance).toBeCloseTo(200, 6)
+    expect(sample.distance).toBeGreaterThan(50) // any plausible corridor half-width
+  })
+})
+
+describe('multiCorridorTick — the nearest of several disjoint routes', () => {
+  it('a single-route call returns the exact same {distance, track} as corridorTick, over the shipped trail1/trail2 fixtures', () => {
+    for (const id of ['trail1', 'trail2']) {
+      const target = trailTarget(id)
+      const routes: RouteSegment[] = [{ polyline: target.polyline, length: target.length }]
+      const point = pointAtArcLength(target.polyline as Point[], target.length / 3)
+
+      const direct = corridorTick(target.polyline, target.length, CORRIDOR_TRACK_START, point.x, point.y)
+      const viaMulti = multiCorridorTick(routes, routeTrackStart(1), point.x, point.y)
+
+      expect(viaMulti.distance).toBe(direct.distance)
+      expect(viaMulti.track.tracks[0]).toEqual(direct.track)
+      expect(viaMulti.active).toBe(0)
+    }
+  })
+
+  it('three disjoint routes: selects the nearest and advances only that track', () => {
+    const routes = threeRouteFixture()
+    const track = routeTrackStart(3)
+    const onRoute2 = { x: 100, y: 200 }
+    const result = multiCorridorTick(routes, track, onRoute2.x, onRoute2.y)
+
+    expect(result.active).toBe(1)
+    expect(result.distance).toBeCloseTo(0, 6)
+    expect(result.track.tracks[0]).toEqual(CORRIDOR_TRACK_START) // untouched
+    expect(result.track.tracks[2]).toEqual(CORRIDOR_TRACK_START) // untouched
+    expect(result.track.tracks[1].arc).toBeGreaterThan(0) // advanced
+  })
+
+  it("a route the finger never visits keeps maxArc at 0", () => {
+    const routes = threeRouteFixture()
+    let track = routeTrackStart(3)
+    // Walk only route 0 and route 2, never route 1.
+    for (const arc of [0, 100, 200, 300]) {
+      for (const route of [0, 2]) {
+        const p = pointAtArcLength(routes[route].polyline as Point[], arc)
+        track = multiCorridorTick(routes, track, p.x, p.y).track
+      }
+    }
+    expect(track.tracks[1].maxArc).toBe(0)
+    expect(track.tracks[0].maxArc).toBeGreaterThan(0)
+    expect(track.tracks[2].maxArc).toBeGreaterThan(0)
+  })
+
+  it("corridorTick's own body is untouched by this change (source diff check)", () => {
+    const modules = import.meta.glob('./corridorTrack.ts', {
+      eager: true,
+      query: '?raw',
+      import: 'default',
+    })
+    const source = Object.values(modules)[0] as string
+    // The exact function body this file shipped before multiCorridorTick was
+    // introduced — pinned verbatim so an edit to corridorTick itself, rather
+    // than an addition after it, fails this test by name.
+    expect(source).toContain(
+      'export function corridorTick(\n  polyline: readonly Point[],\n  length: number,\n  track: CorridorTrack,\n  x: number,\n  y: number,\n): CorridorSample {',
+    )
+    expect(source).toContain(
+      '  return { distance: bestDistance, track: advanced(bestDistance === Infinity ? centre : bestArc) }\n}',
+    )
   })
 })
 

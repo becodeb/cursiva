@@ -40,7 +40,7 @@ import { playApprovalTone } from '../modes/tone'
 import { createTraceTone, playBeatTick, type TraceTone } from '../canvas/traceTone'
 import { pulseOnLeaving } from '../canvas/haptics'
 import { railFade, railPull } from '../canvas/rail'
-import { corridorTick, CORRIDOR_TRACK_START, type CorridorTrack } from './corridorTrack'
+import { multiCorridorTick, routeTrackStart, type RouteTrack } from './corridorTrack'
 import { directionArrowOf } from './directionArrow'
 import { goalMarkerOf } from './goalMarker'
 import type { LevelConfig } from '../levels/types'
@@ -434,12 +434,13 @@ export interface LevelPlayProps {
  *
  * Still used for the assisted rail (`inkWarp`/`railPull` below): the rail is
  * a visual magnet toward the nearest ideal point, not a boundary test, and
- * every level in the current catalog is single-path (`paths.length <= 1`,
- * verified against `LEVELS`/`LEGACY_PHASE_1`), so this grid degrades to the
- * same single-arm cloud `corridorTick` already walks. A future multi-path
- * level (a letter with a dot or crossbar) would need `corridorTick` extended
- * to search every path, not just `polyline` — it only covers `paths[0]`
- * today.
+ * still degrades to the single-arm cloud for every level with one path.
+ * The off-path wall check itself now walks EVERY route
+ * (`corridorTrack.ts`'s `multiCorridorTick`, `snake-drag-and-art-corridor`
+ * design.md §4/amendment A2): a multi-path level's live feedback used to be
+ * computed against `paths[0]` alone, reading the second and third snake as
+ * permanently off-corridor. `multiCorridorTick` delegates to the untouched
+ * `corridorTick` once per `target.routes` entry and reports the nearest.
  */
 interface IdealGrid {
   cell: number
@@ -742,7 +743,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // wherever a run starts over — `resetSurface` (new level, cleared attempt,
   // demo replay) and `restartRun` (contact reset) both send it back to the
   // start of the route, exactly like `contactRef` above.
-  const corridorTrackRef = useRef<CorridorTrack>(CORRIDOR_TRACK_START)
+  const corridorTrackRef = useRef<RouteTrack>(routeTrackStart(target.routes.length))
   // A trail's marks lit so far this run (drained → earned, `clueTick`), and
   // whether its ONE clue has been filed into the rail. Filing rides
   // `onRelease`'s existing approval signal — never the marks alone (spec
@@ -783,14 +784,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setOffPath(false)
     offPathRef.current = false
     contactRef.current = NO_CONTACT
-    corridorTrackRef.current = CORRIDOR_TRACK_START
+    corridorTrackRef.current = routeTrackStart(target.routes.length)
     // Progress and the lamp go back with the track they are derived from.
     reachedEndRef.current = false
     setTrailLampOn(false)
     setRestarted(false)
     setClearSignal((n) => n + 1)
     setRevealState(initialRevealState(level.reveal, debugSearch))
-  }, [level.reveal, debugSearch])
+  }, [level.reveal, debugSearch, target.routes.length])
 
   // A new level starts its own flow: demo first when the level asks for one AND
   // the child is still in the full-guide band. A trail's clue state and filed
@@ -908,7 +909,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     // Back to the start of the route with NO progress banked. This is what
     // makes "reached the end" mean "reached the end without leaving": the only
     // way `maxArc` survives to the far end is a run that never triggered this.
-    corridorTrackRef.current = CORRIDOR_TRACK_START
+    corridorTrackRef.current = routeTrackStart(target.routes.length)
     reachedEndRef.current = false
     setTrailLampOn(false)
     offPathRef.current = false
@@ -928,7 +929,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     // `false → true` forces exactly one pulse through the same edge rule the
     // off-path channel uses, so a restart can never turn into a buzzing nag.
     if (feedback.haptics) pulseOnLeaving(false, true)
-  }, [feedback.haptics, clueDef, trailClueMarks.length])
+  }, [feedback.haptics, clueDef, trailClueMarks.length, target.routes.length])
 
   // The cue is a passing line, not a state the child has to dismiss.
   useEffect(() => {
@@ -976,9 +977,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       // and the note on `buildIdealGrid` above. `corridorTrackRef` carries the
       // route position forward between samples, so a wavy or spiralled trail
       // never gets confused with a neighbouring arm of itself.
-      const corridorSample = corridorTick(
-        target.polyline,
-        target.length,
+      const corridorSample = multiCorridorTick(
+        target.routes,
         corridorTrackRef.current,
         head.x,
         head.y,
@@ -1014,7 +1014,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       // `clueTick` is monotone and returns the exact same state reference
       // when nothing flips, so an idle re-pass costs a no-op setState.
       if (shouldTickClue(!!clueDef && trailClueMarks.length > 0, out)) {
-        const maxArc = corridorSample.track.maxArc
+        const maxArc = corridorSample.track.tracks[corridorSample.active].maxArc
         setClueState((prev) => clueTick(prev, maxArc, trailClueMarks))
       }
       // Arriving at the end of the trail lights the lamp standing there. Same
@@ -1029,7 +1029,11 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       if (
         isCase &&
         !reachedEndRef.current &&
-        reachedTrailEnd(corridorSample.track.maxArc, target.length, level.corridorWidth)
+        reachedTrailEnd(
+          corridorSample.track.tracks[corridorSample.active].maxArc,
+          target.length,
+          level.corridorWidth,
+        )
       ) {
         reachedEndRef.current = true
         setTrailLampOn(true)

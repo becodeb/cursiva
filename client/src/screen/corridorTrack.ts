@@ -17,6 +17,7 @@
 // `contactTick`: pure, DOM-free, the caller (`LevelPlay`) owns the ref that
 // carries the track between samples.
 import type { Point } from '../letters/types'
+import type { RouteSegment } from '../levels/types'
 
 /**
  * How far AHEAD of the tracked position the window still searches, in
@@ -131,4 +132,58 @@ export function corridorTick(
   // The window found nothing (a degenerate polyline, or a track past the
   // end): fall back to the un-advanced centre rather than losing the track.
   return { distance: bestDistance, track: advanced(bestDistance === Infinity ? centre : bestArc) }
+}
+
+/**
+ * Amendment A2 (design.md §4): `buildLevelTarget` derives `polyline`/`length`
+ * from `paths[0]` alone, so a level whose `paths` holds more than one route
+ * (every snake level) had its live wall-contact feedback computed against
+ * the FIRST route only — `LevelPlay.tsx`'s own header already recorded the
+ * gap ("A future multi-path level … would need `corridorTick` extended to
+ * search every path"). One track per route, carried between samples.
+ */
+export interface RouteTrack {
+  readonly tracks: readonly CorridorTrack[]
+}
+
+/** The track a fresh run starts in: `n` routes, none of them visited. */
+export function routeTrackStart(n: number): RouteTrack {
+  return { tracks: Array.from({ length: n }, () => CORRIDOR_TRACK_START) }
+}
+
+/**
+ * The nearest of several DISJOINT routes, and the track advanced on that one
+ * alone. DELEGATES to {@link corridorTick} once per route — one body, not
+ * two — so a single-route call returns `corridorTick`'s own
+ * `{distance, track}` unchanged (asserted point for point over the shipped
+ * `trail1`/`trail2` fixtures, `corridorTrack.test.ts`). That bit-identity is
+ * what keeps every shipped level's wall feedback exactly what it is today.
+ *
+ * Taking the minimum across routes is correct ONLY because the routes are
+ * farther apart than the corridor is wide (`catalog.test.ts`'s C3, asserted
+ * for the snake family). Without that separation a fingertip between two
+ * arms could be claimed by the wrong route — the same failure the windowed
+ * search above already exists to prevent WITHIN a route.
+ */
+export function multiCorridorTick(
+  routes: readonly RouteSegment[],
+  track: RouteTrack,
+  x: number,
+  y: number,
+): { distance: number; track: RouteTrack; active: number } {
+  let bestDistance = Infinity
+  let bestActive = 0
+  let bestSample: CorridorSample | undefined
+  const samples = routes.map((route, i) =>
+    corridorTick(route.polyline, route.length, track.tracks[i] ?? CORRIDOR_TRACK_START, x, y),
+  )
+  for (let i = 0; i < samples.length; i++) {
+    if (samples[i].distance < bestDistance) {
+      bestDistance = samples[i].distance
+      bestActive = i
+      bestSample = samples[i]
+    }
+  }
+  const tracks = track.tracks.map((t, i) => (i === bestActive ? (samples[i]?.track ?? t) : t))
+  return { distance: bestSample?.distance ?? Infinity, track: { tracks }, active: bestActive }
 }

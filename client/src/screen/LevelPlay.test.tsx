@@ -68,6 +68,7 @@ import { INK_COLOR } from '../canvas/TraceCanvas'
 import { TORCH_CHALK } from '../zoo/backdrops'
 import { PRINT } from '../detective/palette'
 import { getLevel } from '../levels/catalog'
+import { buildLevelTarget } from '../levels/buildLevel'
 import type { RevealConfig } from '../levels/types'
 
 function makeLevel(over: Partial<LevelConfig> = {}): LevelConfig {
@@ -625,6 +626,43 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
     // Finger up: the frame handler's early-return branch.
     expect(() => onFrame([], false, 300)).not.toThrow()
   })
+
+  it.each(['duck-trail2', 'night2', 'f2-agua2'] as const)(
+    "%s: multiCorridorTick's wiring runs on-corridor and off-corridor samples without throwing (single-route wall feedback byte-identical, corridorTrack.test.ts proves the numbers)",
+    (id) => {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      renderToString(
+        <LevelPlay
+          level={level}
+          record={EMPTY_RECORD}
+          onAttempt={noop}
+          onNext={noop}
+          onBack={noop}
+        />,
+      )
+      const onFrame = traceCanvasProbe.current?.onFrame as (
+        points: TracePoint[],
+        drawing: boolean,
+        timeMs: number,
+      ) => void
+      expect(typeof onFrame).toBe('function')
+
+      // `night2` is a reveal (`kind: 'free'`) level with no route at all —
+      // its own `onFrame` branch returns before ever reaching
+      // `multiCorridorTick`, which is exactly the "unaffected" case this
+      // test proves alongside the two route-bearing levels.
+      const mid = target.polyline[Math.floor(target.polyline.length / 2)] ?? { x: 500, y: 300 }
+      // A sample ON the route, well past the ~30 Hz throttle.
+      expect(() => onFrame([mid], true, 200)).not.toThrow()
+      // A sample far off it — the same corridor half-width times 10, always
+      // outside any shipped level's corridor.
+      const half = (target.corridorWidth || 60) / 2
+      expect(() =>
+        onFrame([{ x: mid.x + half * 10, y: mid.y + half * 10 }], true, 400),
+      ).not.toThrow()
+    },
+  )
 
   it('passes a `clues` prop with the trail\'s marks to TraceCanvas, absent on an ordinary level', () => {
     const detective = makeDetectiveLevel()
