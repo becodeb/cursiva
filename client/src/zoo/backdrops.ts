@@ -114,34 +114,17 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
     corridorRows: { top: 166, bottom: 858 },
     channel: CHANNEL_STONE,
   },
-}
-
-/**
- * The entrance's and the night sector's three backdrop rows — authored and
- * ready, but kept OUT of `ADVENTURE_BACKDROP` for now, on purpose.
- *
- * **Discovered cross-phase dependency, not a silent deviation.** `design.md`
- * §2.5 places these three rows directly inside `ADVENTURE_BACKDROP`, keyed
- * `'glass' | 'sand' | 'night'`. But `ADVENTURE_BACKDROP` is typed
- * `Partial<Record<AdventureId, AdventureBackdrop>>`, and `AdventureId`
- * (`zoo/adventures.ts`) is only widened to include those three keys by
- * task 5.1 — Phase 5, explicitly out of scope for this apply run. Adding an
- * object-literal key `tsc` cannot see in `AdventureId` fails `npm run build`
- * ("Object literal may only specify known properties") the moment this file
- * is compiled on its own, which contradicts this Phase's own seam contract
- * (`tasks.md`'s Review Workload Forecast: "npm run build green" per phase,
- * and the D1 slice's rollback boundary, which assumes these three rows can
- * exist standalone). See `apply-progress.md` for the full note.
- *
- * All the values below are final and already hand-copied from the rebuilt
- * `manifest.json` (task 1.2) — `quiet`/`brightest` for `glass`/`sand` are
- * the source values unchanged (`emit_opaque_canvas` passes `fondo
- * pecera.png`/`fondo arena.png` through with no resize, no recolour); the
- * `night` row's are `nightfall`'s derived output (design.md §3.2). Phase 5
- * wires these three objects into `ADVENTURE_BACKDROP` in one line once
- * `AdventureId` is widened — no further "hand-copying" is left to do.
- */
-export const PENDING_ENTRANCE_BACKDROP: Readonly<Record<'glass' | 'sand' | 'night', AdventureBackdrop>> = {
+  // The entrance's and the night sector's three rows (design.md §2.5),
+  // wired in now that `AdventureId` (`zoo/adventures.ts`, task 5.1) carries
+  // `'glass' | 'sand' | 'night'`. Phase 1 parked these three under a
+  // temporary `PENDING_ENTRANCE_BACKDROP` export because `AdventureId`
+  // was not yet widened (see `apply-progress.md`'s Phase 1 section for the
+  // full cross-phase note); this closes that forward reference — the
+  // values themselves are unchanged, already hand-copied from the rebuilt
+  // `manifest.json` (task 1.2). `quiet`/`brightest` for `glass`/`sand` are
+  // the source values unchanged (`emit_opaque_canvas` passes `fondo
+  // pecera.png`/`fondo arena.png` through with no resize, no recolour); the
+  // `night` row's are `nightfall`'s derived output (design.md §3.2).
   glass: {
     art: SECTOR_BACKGROUND_ART.aquarium,
     quiet: '#9bb6c5',

@@ -28,6 +28,7 @@ import {
   nextLevelId,
 } from './catalog'
 import { hazardGapFraction } from './obstacles'
+import { ADVENTURES } from '../zoo/adventures'
 import {
   armClearance,
   cornerClearance,
@@ -312,6 +313,10 @@ describe('LEVELS — surface, kind and feedback', () => {
     expect(free.filter((l) => !l.reveal).map((l) => l.id)).toEqual(['f1-libre'])
     expect(free).toHaveLength(13)
     expect(LEVELS[0].id).toBe('glass1')
+    // Closes the forward reference task 4.8 named (`AdventureId`/`ADVENTURES`
+    // only gained a `'glass'` row in Phase 5's task 5.1) — design.md §5.1's
+    // exact test snippet, now compiling for real.
+    expect(ADVENTURES.find((a) => a.id === 'glass')!.levelIds[0]).toBe('glass1')
     for (const l of free) expect(l.paths, l.id).toEqual([])
     for (const l of free) expect(l.phase, l.id).toBe(1)
   })

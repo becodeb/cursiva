@@ -6,13 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import { luma } from '../detective/palette'
 import { viewBoxToImage } from './sectors'
-import {
-  ADVENTURE_BACKDROP,
-  CHANNEL_STONE,
-  NIGHT_VEIL,
-  PENDING_ENTRANCE_BACKDROP,
-  backdropFor,
-} from './backdrops'
+import { ADVENTURE_BACKDROP, CHANNEL_STONE, NIGHT_VEIL, backdropFor } from './backdrops'
 
 /** The channel paint's shipped defaults, mirrored as literals rather than
  * imported — the same convention `palette.test.ts` follows: pulling the
@@ -24,28 +18,36 @@ const INK_COLOR = '#1e293b'
 
 const MIN_BACKDROP_CONTRAST = 55 // docs/09:158
 
-/**
- * Task 1.5 exercises `PENDING_ENTRANCE_BACKDROP` rather than
- * `ADVENTURE_BACKDROP.glass/.sand/.night`: those three rows are not wired
- * into `ADVENTURE_BACKDROP` yet (`backdrops.ts`'s own docblock on
- * `PENDING_ENTRANCE_BACKDROP` — `AdventureId` is only widened in Phase 5,
- * out of scope for this apply run). All six rows this suite reasons about,
- * shipped and pending together:
- */
-const ALL_BACKDROPS = { ...ADVENTURE_BACKDROP, ...PENDING_ENTRANCE_BACKDROP }
+/** The three reveal-grid rows, now wired straight into `ADVENTURE_BACKDROP`
+ * (`AdventureId` widened by task 5.1) — no more `PENDING_ENTRANCE_BACKDROP`
+ * indirection; see `apply-progress.md`'s Phase 5 section for the closed
+ * forward reference. */
+const REVEAL_BACKDROPS = {
+  glass: ADVENTURE_BACKDROP.glass!,
+  sand: ADVENTURE_BACKDROP.sand!,
+  night: ADVENTURE_BACKDROP.night!,
+}
+/** The three pre-existing corridor-channel rows, kept split from the reveal
+ * rows above so the "no admissible light paint" falsifiability below stays
+ * meaningful for each group on its own terms. */
+const CHANNEL_BACKDROPS = {
+  duck: ADVENTURE_BACKDROP.duck!,
+  sheep: ADVENTURE_BACKDROP.sheep!,
+  llama: ADVENTURE_BACKDROP.llama!,
+}
 
-describe('PENDING_ENTRANCE_BACKDROP luma law (docs/09:158, design.md §2.5)', () => {
+describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
   it('separates the reveal veil paint from the lightest thing it covers, for all six backdrops', () => {
-    for (const [id, b] of Object.entries(ALL_BACKDROPS)) {
+    for (const [id, b] of [...Object.entries(CHANNEL_BACKDROPS), ...Object.entries(REVEAL_BACKDROPS)]) {
       expect(
-        Math.abs(luma(b!.tile ?? b!.channel ?? SHEET_PAPER) - luma(b!.brightest)),
+        Math.abs(luma(b.tile ?? b.channel ?? SHEET_PAPER) - luma(b.brightest)),
         id,
       ).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
     }
   })
 
   it("clears the child's own ink against the veil, for the three reveal-grid rows", () => {
-    for (const [id, b] of Object.entries(PENDING_ENTRANCE_BACKDROP)) {
+    for (const [id, b] of Object.entries(REVEAL_BACKDROPS)) {
       expect(Math.abs(luma(b.tile!) - luma(b.ink ?? INK_COLOR)), id).toBeGreaterThanOrEqual(
         MIN_BACKDROP_CONTRAST,
       )
@@ -53,7 +55,7 @@ describe('PENDING_ENTRANCE_BACKDROP luma law (docs/09:158, design.md §2.5)', ()
   })
 
   it("the night backdrop's brightest clears NIGHT_VEIL by the law's floor, not merely reads low (amendment A3)", () => {
-    expect(luma(PENDING_ENTRANCE_BACKDROP.night.brightest)).toBeGreaterThanOrEqual(
+    expect(luma(REVEAL_BACKDROPS.night.brightest)).toBeGreaterThanOrEqual(
       luma(NIGHT_VEIL) + MIN_BACKDROP_CONTRAST,
     )
   })
@@ -66,13 +68,13 @@ describe('PENDING_ENTRANCE_BACKDROP luma law (docs/09:158, design.md §2.5)', ()
   // above.
   it('goes red for SHEET_PAPER against the aquarium — no admissible light paint (design.md §2.2, §2.3)', () => {
     expect(
-      Math.abs(luma(SHEET_PAPER) - luma(PENDING_ENTRANCE_BACKDROP.glass.brightest)),
+      Math.abs(luma(SHEET_PAPER) - luma(REVEAL_BACKDROPS.glass.brightest)),
     ).toBeLessThan(MIN_BACKDROP_CONTRAST)
   })
 
   it('goes red for SHEET_PAPER against the sand — no admissible light paint (design.md §2.2, §2.3)', () => {
     expect(
-      Math.abs(luma(SHEET_PAPER) - luma(PENDING_ENTRANCE_BACKDROP.sand.brightest)),
+      Math.abs(luma(SHEET_PAPER) - luma(REVEAL_BACKDROPS.sand.brightest)),
     ).toBeLessThan(MIN_BACKDROP_CONTRAST)
   })
 
@@ -82,10 +84,10 @@ describe('PENDING_ENTRANCE_BACKDROP luma law (docs/09:158, design.md §2.5)', ()
 })
 
 describe('ADVENTURE_BACKDROP luma law (docs/09:158)', () => {
-  it('separates the corridor paint from the lightest thing it is painted over, for all three backdrops', () => {
-    for (const [id, b] of Object.entries(ADVENTURE_BACKDROP)) {
+  it('separates the corridor paint from the lightest thing it is painted over, for the three mountain/lagoon backdrops', () => {
+    for (const [id, b] of Object.entries(CHANNEL_BACKDROPS)) {
       expect(
-        Math.abs(luma(b!.channel ?? SHEET_PAPER) - luma(b!.brightest)),
+        Math.abs(luma(b.channel ?? SHEET_PAPER) - luma(b.brightest)),
         id,
       ).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
     }
@@ -196,6 +198,28 @@ describe('backdropFor', () => {
     const backdrop = backdropFor('llama-peak2')
     expect(backdrop).toBe(ADVENTURE_BACKDROP.llama)
     expect(backdrop?.channel).toBe(CHANNEL_STONE)
+  })
+
+  // zoo-map spec: "Entrance and Night Backdrops Resolve Through the
+  // Adventure-Keyed Registry" — the backdrops resolve for the first time
+  // here, now that `adventureFor` (`zoo/adventures.ts`, task 5.1) knows
+  // `glass`/`sand`/`night`.
+  it('resolves the glass adventure to the aquarium backdrop', () => {
+    for (const id of ['glass1', 'glass2', 'glass3', 'glass4']) {
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.glass)
+    }
+  })
+
+  it('resolves the sand adventure to the sand backdrop', () => {
+    for (const id of ['sand1', 'sand2', 'sand3', 'sand4']) {
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.sand)
+    }
+  })
+
+  it('resolves the night adventure to the night backdrop', () => {
+    for (const id of ['night1', 'night2', 'night3', 'night4']) {
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.night)
+    }
   })
 
   it('is undefined for the medusa levels — the regression guard (docs/13 §4, "Hecha — Nada")', () => {

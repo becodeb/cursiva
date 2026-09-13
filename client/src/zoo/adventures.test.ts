@@ -6,9 +6,9 @@
 // under test is pure over plain data.
 import { describe, expect, it } from 'vitest'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
-import { ZOO_ANIMAL_ART, ZOO_OCTOPUS_PRINT_ART } from '../detective/assets'
+import { CARRIER_LENS_ART, SECTOR_ADVENTURE_ART, ZOO_ANIMAL_ART, ZOO_OCTOPUS_PRINT_ART } from '../detective/assets'
 import { SECTORS, type Records } from './sectors'
-import { ADVENTURES, adventureFor, introLevel, mapBubble } from './adventures'
+import { ADVENTURES, adventureFor, adventureIcon, closingLevel, introLevel, mapBubble } from './adventures'
 
 function filed(...ids: readonly string[]): Records {
   const out: Record<string, LevelRecord> = {}
@@ -20,9 +20,9 @@ const estanque = SECTORS.find((s) => s.id === 'estanque')!
 const montanas = SECTORS.find((s) => s.id === 'montanas')!
 
 describe('ADVENTURES', () => {
-  it('declares three rows: the duck in the estanque, the sheep and the llama in montañas', () => {
-    expect(ADVENTURES).toHaveLength(3)
-    expect(ADVENTURES.map((a) => a.id)).toEqual(['duck', 'sheep', 'llama'])
+  it('declares six rows: duck/sheep/llama, plus the entrance\'s glass/sand and the night sector (design.md §5, §6.1)', () => {
+    expect(ADVENTURES).toHaveLength(6)
+    expect(ADVENTURES.map((a) => a.id)).toEqual(['duck', 'sheep', 'llama', 'glass', 'sand', 'night'])
 
     const duck = ADVENTURES[0]
     expect(duck.levelIds).toEqual(['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4'])
@@ -38,6 +38,27 @@ describe('ADVENTURES', () => {
     expect(llama.levelIds).toEqual(['llama-peak1', 'llama-peak2', 'llama-peak3', 'llama-peak4'])
     expect(llama.sector).toBe('montanas')
     expect(llama.animal).toBe('llama')
+  })
+
+  it('the glass/sand/night rows declare no animal, each an icon of its own, in the entrance/night sectors', () => {
+    const glass = ADVENTURES.find((a) => a.id === 'glass')!
+    const sand = ADVENTURES.find((a) => a.id === 'sand')!
+    const night = ADVENTURES.find((a) => a.id === 'night')!
+
+    expect(glass.levelIds).toEqual(['glass1', 'glass2', 'glass3', 'glass4'])
+    expect(glass.sector).toBe('entrada')
+    expect(glass.animal).toBeUndefined()
+    expect(glass.icon).toBe(CARRIER_LENS_ART)
+
+    expect(sand.levelIds).toEqual(['sand1', 'sand2', 'sand3', 'sand4'])
+    expect(sand.sector).toBe('entrada')
+    expect(sand.animal).toBeUndefined()
+    expect(sand.icon).toBe(ZOO_OCTOPUS_PRINT_ART)
+
+    expect(night.levelIds).toEqual(['night1', 'night2', 'night3', 'night4'])
+    expect(night.sector).toBe('nocturna')
+    expect(night.animal).toBeUndefined()
+    expect(night.icon).toBe(SECTOR_ADVENTURE_ART.flashlight)
   })
 })
 
@@ -83,6 +104,68 @@ describe('introLevel', () => {
     }
     for (const id of ['llama-peak2', 'llama-peak3', 'llama-peak4']) {
       expect(introLevel(id)).toBeUndefined()
+    }
+  })
+
+  it('resolves glass1/sand1/night1 to their own adventure', () => {
+    expect(introLevel('glass1')?.id).toBe('glass')
+    expect(introLevel('sand1')?.id).toBe('sand')
+    expect(introLevel('night1')?.id).toBe('night')
+  })
+
+  it('resolves undefined for every glass/sand/night level after each adventure\'s first', () => {
+    for (const id of ['glass2', 'glass3', 'glass4']) expect(introLevel(id)).toBeUndefined()
+    for (const id of ['sand2', 'sand3', 'sand4']) expect(introLevel(id)).toBeUndefined()
+    for (const id of ['night2', 'night3', 'night4']) expect(introLevel(id)).toBeUndefined()
+  })
+})
+
+describe('adventureIcon (design.md §6.1)', () => {
+  it('returns the registered animal art for an animal-bearing row', () => {
+    expect(adventureIcon(ADVENTURES[0])).toBe(ZOO_ANIMAL_ART.pato)
+    expect(adventureIcon(ADVENTURES[1])).toBe(ZOO_ANIMAL_ART.oveja)
+    expect(adventureIcon(ADVENTURES[2])).toBe(ZOO_ANIMAL_ART.llama)
+  })
+
+  it('returns the row\'s own icon for an animal-less row', () => {
+    const glass = ADVENTURES.find((a) => a.id === 'glass')!
+    const sand = ADVENTURES.find((a) => a.id === 'sand')!
+    const night = ADVENTURES.find((a) => a.id === 'night')!
+    expect(adventureIcon(glass)).toBe(CARRIER_LENS_ART)
+    expect(adventureIcon(sand)).toBe(ZOO_OCTOPUS_PRINT_ART)
+    expect(adventureIcon(night)).toBe(SECTOR_ADVENTURE_ART.flashlight)
+  })
+})
+
+describe('closingLevel (design.md §6.3, corrected against main-screen spec — see apply-progress.md)', () => {
+  it("resolves sand4 to its own adventure — the entrance's only closing beat", () => {
+    expect(closingLevel('sand4')?.id).toBe('sand')
+  })
+
+  it('resolves undefined for glass4 — the entrance closes at sand4, not here', () => {
+    expect(closingLevel('glass4')).toBeUndefined()
+  })
+
+  it('resolves undefined for night4 — main-screen spec names it explicitly among the excluded adventures', () => {
+    // design.md §6.2's own literal assigns `night` a `closingBeat`, which
+    // contradicts the RATIFIED `main-screen` spec delta ("close GameView
+    // Variant and resolveCloseAction" lists `night` BY NAME among the
+    // adventures that must resolve to the ordinary exit outcome) and
+    // tasks.md's own task 6.5 scenario list. The spec and the task list
+    // win; `night`'s registry row carries no `closingBeat` — see
+    // `apply-progress.md`'s Phase 6 section.
+    expect(closingLevel('night4')).toBeUndefined()
+  })
+
+  it('resolves undefined for every pre-existing adventure\'s last level (no closing beat)', () => {
+    for (const id of ['duck-trail4', 'sheep-hill4', 'llama-peak4']) {
+      expect(closingLevel(id)).toBeUndefined()
+    }
+  })
+
+  it('resolves undefined for a level that is not an adventure\'s own last level', () => {
+    for (const id of ['sand1', 'sand2', 'sand3', 'night1', 'night2', 'night3']) {
+      expect(closingLevel(id)).toBeUndefined()
     }
   })
 })
@@ -131,6 +214,26 @@ describe('mapBubble', () => {
     expect(mapBubble(montanas, filed('sheep-hill4', 'llama-peak4'))).toEqual({
       art: ZOO_ANIMAL_ART.llama,
       label: '¡Encontramos a la llama! Ya está en la cumbre.',
+    })
+  })
+
+  // zoo-map spec "Animal-less Adventures Are Excluded From the Animal-Keyed
+  // Closing Phrase": `entrada`/`nocturna` carry no `ZooAnimal` entries at
+  // all, so filing their own last level must never resolve the animal-
+  // placement branch — the onward phrase stays exactly what it was.
+  it('filing sand4 does not change entrada\'s bubble phrase', () => {
+    const entrada = SECTORS.find((s) => s.id === 'entrada')!
+    expect(mapBubble(entrada, filed('sand4'))).toEqual({
+      art: ZOO_OCTOPUS_PRINT_ART,
+      label: '¡Mirá! Las huellas van hacia allá. ¿Vamos?',
+    })
+  })
+
+  it('filing night4 does not change nocturna\'s bubble phrase', () => {
+    const nocturna = SECTORS.find((s) => s.id === 'nocturna')!
+    expect(mapBubble(nocturna, filed('night4'))).toEqual({
+      art: ZOO_OCTOPUS_PRINT_ART,
+      label: '¡Mirá! Las huellas van hacia allá. ¿Vamos?',
     })
   })
 })

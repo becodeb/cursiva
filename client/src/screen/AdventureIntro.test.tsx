@@ -15,7 +15,7 @@ describe('AdventureIntro (main-screen spec "Narrative Entry Screen Content")', (
     const html = renderToString(<AdventureIntro adventure={adventure} onStart={() => {}} />)
     expect(html).toContain(`src="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
     expect(html).toContain(`src="${ZOO_SPEECH_BUBBLE_ART.href}"`)
-    expect(html).toContain(`href="${ZOO_ANIMAL_ART[adventure.animal].href}"`)
+    expect(html).toContain(`href="${ZOO_ANIMAL_ART[adventure.animal!].href}"`)
   })
 
   it('renders the intro line exactly once', () => {
@@ -83,5 +83,35 @@ describe("AdventureIntro — row C's sheep and llama entries render their own an
       expect(audit.uncaptioned, a.id).toEqual([])
       expect(audit.imagelessContainers, a.id).toEqual([])
     }
+  })
+})
+
+// main-screen spec "Narrative Entry Screen Content" (amended: `Adventure.
+// animal` is now optional, design.md §6.1). The entrance's two adventures
+// declare no animal — `adventureIcon` resolves their own `icon` instead,
+// and the screen must render THAT art, never a fabricated placeholder
+// animal.
+describe('AdventureIntro — an animal-less adventure renders its own icon, not an animal (main-screen spec)', () => {
+  const glass = ADVENTURES.find((a) => a.id === 'glass')!
+
+  it('renders no ZOO_ANIMAL_ART href, and its own intro text exactly once', () => {
+    const html = renderToString(<AdventureIntro adventure={glass} onStart={() => {}} />)
+    for (const art of Object.values(ZOO_ANIMAL_ART)) {
+      expect(html).not.toContain(`href="${art.href}"`)
+    }
+    expect(html.split(glass.intro).length - 1).toBe(1)
+  })
+
+  it("renders the glass adventure's own icon href", () => {
+    const html = renderToString(<AdventureIntro adventure={glass} onStart={() => {}} />)
+    expect(glass.icon).toBeDefined()
+    expect(html).toContain(`href="${glass.icon!.href}"`)
+  })
+
+  it('keeps auditCaptions clean: zero uncaptioned words', () => {
+    const html = renderToString(<AdventureIntro adventure={glass} onStart={() => {}} />)
+    const audit = auditCaptions(html)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 })

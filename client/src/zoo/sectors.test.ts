@@ -28,11 +28,27 @@ import {
 
 function filed(...ids: readonly string[]): Records {
   const out: Record<string, LevelRecord> = {}
-  for (const id of ids) out[id] = { ...EMPTY_RECORD, approvals: 1 }
+  // `attempts: 1` alongside `approvals: 1` — a filed level was necessarily
+  // attempted at least once (the real store never files a level with zero
+  // attempts), which is what makes `recentlyDiscovered`'s `attempts`-based
+  // untouched check meaningful against this fixture.
+  for (const id of ids) out[id] = { ...EMPTY_RECORD, attempts: 1, approvals: 1 }
+  return out
+}
+
+/** A level the child has TRIED but not necessarily approved — `attempts`,
+ * not `approvals`, is what `recentlyDiscovered`'s untouched-sector
+ * preference reads (design.md §7.2, `attempts` is the field the store
+ * already keeps). */
+function attempted(...ids: readonly string[]): Records {
+  const out: Record<string, LevelRecord> = {}
+  for (const id of ids) out[id] = { ...EMPTY_RECORD, attempts: 1 }
   return out
 }
 
 const estanque = SECTORS.find((s) => s.id === 'estanque')!
+const entrada = SECTORS.find((s) => s.id === 'entrada')!
+const nocturna = SECTORS.find((s) => s.id === 'nocturna')!
 const sendero = SECTORS.find((s) => s.id === 'sendero')!
 const montanas = SECTORS.find((s) => s.id === 'montanas')!
 const withHit = SECTORS.filter((s) => s.hit)
@@ -105,8 +121,12 @@ describe('Fog Containment Invariant', () => {
     }
   })
 
-  it('the estanque and the sendero carry no fog obligation', () => {
-    expect(estanque.fog).toEqual([])
+  it('the estanque now carries a real fog obligation (row D); the sendero still carries none', () => {
+    // D4 shipped the estanque discovered (`fog: []`); row D closes it for
+    // real (design.md §7.1) — `closedFog(ESTANQUE_HIT, 2)` is asserted by
+    // the containment/bbox/centring checks above, which already include the
+    // estanque via the dynamically-computed `fogged` set.
+    expect(estanque.fog.length).toBeGreaterThan(0)
     expect(sendero.fog).toEqual([])
   })
 
@@ -192,6 +212,46 @@ describe('Registry↔Catalog Structural Consistency', () => {
     ])
   })
 
+  it("montañas' eight adventures are sheep-hill1..4 then llama-peak1..4, in order", () => {
+    expect(montanas.adventureIds).toEqual([
+      'sheep-hill1',
+      'sheep-hill2',
+      'sheep-hill3',
+      'sheep-hill4',
+      'llama-peak1',
+      'llama-peak2',
+      'llama-peak3',
+      'llama-peak4',
+    ])
+  })
+
+  it("entrada's eight levels are glass then sand, and entrada is never fogged (zoo-map spec)", () => {
+    expect(entrada.adventureIds).toEqual([
+      'glass1', 'glass2', 'glass3', 'glass4', 'sand1', 'sand2', 'sand3', 'sand4',
+    ])
+    for (const records of [{}, filed('sand4'), filed('glass1', 'glass2', 'glass3', 'glass4')]) {
+      expect(entrada.unlockedWhen(records)).toBe(true)
+    }
+  })
+
+  it('nocturna stays fogged until llama-peak4 is filed (zoo-map spec)', () => {
+    expect(nocturna.adventureIds).toEqual(['night1', 'night2', 'night3', 'night4'])
+    expect(nocturna.unlockedWhen({})).toBe(false)
+    expect(nocturna.unlockedWhen(filed('sheep-hill4'))).toBe(false)
+    expect(nocturna.unlockedWhen(filed('llama-peak4'))).toBe(true)
+  })
+
+  it('bosque and arena remain empty and fogged for every input (zoo-map spec)', () => {
+    const bosque = SECTORS.find((s) => s.id === 'bosque')!
+    const arena = SECTORS.find((s) => s.id === 'arena')!
+    for (const sector of [bosque, arena]) {
+      expect(sector.adventureIds, sector.id).toEqual([])
+      for (const records of [{}, filed('sand4', 'night4', 'llama-peak4')]) {
+        expect(sector.unlockedWhen(records), sector.id).toBe(false)
+      }
+    }
+  })
+
   it('every adventureIds and appearsWhen entry is a real catalog level id', () => {
     for (const sector of SECTORS) {
       for (const id of sector.adventureIds) expect(catalogIds.has(id), id).toBe(true)
@@ -211,25 +271,31 @@ describe('Registry↔Catalog Structural Consistency', () => {
     }
   })
 
-  it('the four remaining undeveloped sectors carry no adventures and stay fogged for any input', () => {
-    // `montañas` is promoted OUT of this set by row C (`docs/13` §8) — it now
-    // carries the sheep and llama adventures and opens once `duck-trail4` is
-    // filed, asserted separately below.
-    for (const sector of SECTORS.filter(
-      (s) => s.id !== 'estanque' && s.id !== 'sendero' && s.id !== 'montanas',
-    )) {
+  it('bosque, arena and the scenery-only sendero carry no adventures and stay fogged for any input', () => {
+    // `montañas` was promoted OUT of this set by row C (`docs/13` §8), and
+    // `entrada`/`nocturna` are promoted out by row D (`docs/13` §8 row D,
+    // zoo-map spec "Sector-to-Adventure Mapping") — only `bosque`, `arena`
+    // and the scenery-only `sendero` remain undeveloped.
+    for (const sector of SECTORS.filter((s) => s.id === 'bosque' || s.id === 'arena' || s.id === 'sendero')) {
       expect(sector.adventureIds, sector.id).toEqual([])
-      expect(sector.unlockedWhen(filed('duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4')), sector.id).toBe(
-        false,
-      )
+      expect(
+        sector.unlockedWhen(filed('duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4', 'sand4', 'night4')),
+        sector.id,
+      ).toBe(false)
     }
   })
 })
 
-describe('Estanque Starts Discovered (D4)', () => {
-  it('is open before any record exists', () => {
-    expect(estanque.unlockedWhen({})).toBe(true)
-    expect(isOpen(estanque, {})).toBe(true)
+describe('Estanque — the real stake of migrateEntrance (row D, design.md §7.1, amendment A4)', () => {
+  it('is closed before any record exists — D4 shipped this discovered; row D closes it for real', () => {
+    expect(estanque.unlockedWhen({})).toBe(false)
+    expect(isOpen(estanque, {})).toBe(false)
+  })
+
+  it('opens once sand4 is filed, never before', () => {
+    expect(estanque.unlockedWhen(filed('sand4'))).toBe(true)
+    expect(isOpen(estanque, filed('sand4'))).toBe(true)
+    expect(estanque.unlockedWhen(filed('glass1', 'glass2', 'glass3', 'glass4'))).toBe(false)
   })
 
   it('footprints originate at the plaza and end near the estanque, never on either endpoint', () => {
@@ -297,19 +363,45 @@ describe('sectorOf', () => {
   })
 })
 
-describe('recentlyDiscovered', () => {
-  it('resolves to the estanque while it still has an unfinished adventure', () => {
-    expect(recentlyDiscovered({})?.id).toBe('estanque')
-    expect(recentlyDiscovered(filed('duck-trail1'))?.id).toBe('estanque')
+describe('recentlyDiscovered (design.md §7.2: preference layered in front of the pre-existing rule)', () => {
+  it('a fresh install prefers the first open sector, entrada — none of its levels attempted yet', () => {
+    expect(recentlyDiscovered({})?.id).toBe('entrada')
+  })
+
+  it("attempting entrada's first level moves the preference onward, to the estanque once sand4 is filed", () => {
+    // `glass1` attempted (not filed) disqualifies entrada from the
+    // untouched check; `sand4` filed opens the estanque, whose own eight
+    // ids carry zero attempts — the next untouched OPEN sector.
+    const records: Records = { ...attempted('glass1'), ...filed('sand4') }
+    expect(recentlyDiscovered(records)?.id).toBe('estanque')
+  })
+
+  it("falls back to today's rule (never no sector) once entrada is attempted and nothing else has opened", () => {
+    // No untouched sector qualifies (entrada is attempted, no other sector
+    // is open yet), so this must fall back to the pre-existing rule —
+    // entrada still has seven unfiled ids — not to `null`.
+    expect(recentlyDiscovered(attempted('glass1'))?.id).toBe('entrada')
   })
 
   it('resolves to null once every open sector is fully filed', () => {
-    // `montañas` opens once `duck-trail4` (part of `estanque.adventureIds`)
-    // is filed, so it must be fully filed too for no open sector to have an
-    // unfinished adventure left.
+    // Filing entrada's own eight ids opens the estanque (`sand4`); filing
+    // the estanque's `duck-trail4` opens `montañas`; filing `montañas`'
+    // `llama-peak4` opens `nocturna` — every sector this chain reaches is
+    // fully filed, so there is genuinely no unfinished work left anywhere.
     expect(
-      recentlyDiscovered(filed(...estanque.adventureIds, ...montanas.adventureIds)),
+      recentlyDiscovered(
+        filed(...entrada.adventureIds, ...estanque.adventureIds, ...montanas.adventureIds, ...nocturna.adventureIds),
+      ),
     ).toBeNull()
+  })
+
+  it("every shipped row for the pre-existing fallback rule stays green: resolves to the estanque while it still has an unfinished adventure, once open", () => {
+    // Filing entrada opens the estanque and leaves every one of ITS OWN
+    // ids attempted-zero — that would normally win the untouched
+    // preference, so this attempts `duck-trail1` too, which makes the
+    // fallback rule (not the preference) the one actually exercised here.
+    const records: Records = { ...filed(...entrada.adventureIds), ...attempted('duck-trail1') }
+    expect(recentlyDiscovered(records)?.id).toBe('estanque')
   })
 })
 

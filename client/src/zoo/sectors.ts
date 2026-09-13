@@ -111,8 +111,12 @@ export interface ZooSector {
 export const PLAZA: Rect = { x: 408, y: 225, w: 180, h: 115 }
 export const PLAZA_CENTRE = { x: 498, y: 282 } as const
 
-/** D4: no entrance/intro exists yet, so a fully fogged map would be a dead
- *  first run. Deleted in paso D, not a rule (proposal, "Decisions"). */
+/** The entrance's own justification, replacing the placeholder promise this
+ *  comment used to carry ("Deleted in paso D, not a rule" — proposal,
+ *  "Decisions"). `entrada` is open on a fresh install because there is
+ *  nowhere else to start (`docs/12` §1; design.md §7.1): the estanque is the
+ *  only row that ever moves OFF this helper, to `isFiled(records, 'sand4')`
+ *  below. */
 const alwaysOpen = (): boolean => true
 /** Entrada, bosque, montañas, arena and nocturna: content is pasos B-H. */
 const alwaysClosed = (): boolean => false
@@ -299,12 +303,16 @@ export const SECTORS: readonly ZooSector[] = [
   {
     id: 'entrada',
     hit: ENTRADA_HIT,
-    // aspect ≥ 228/(2.12×170) = 0.63 → art 1 (343×479 → 0.716) clears it.
+    // D4: no entrance/intro existed yet, so the entrada shipped fogged.
+    // Row D opens it — `fog` is kept authored but never rendered while
+    // `unlockedWhen` returns true (`!isOpen`, `ZooMap.tsx:231`).
     fog: closedFog(ENTRADA_HIT, 1),
     animalSpot: hitCentre(ENTRADA_HIT),
     animals: [],
-    adventureIds: [],
-    unlockedWhen: alwaysClosed,
+    // glass then sand, in play order (design.md §5.2, `zoo-map` spec
+    // "Sector-to-Adventure Mapping").
+    adventureIds: ['glass1', 'glass2', 'glass3', 'glass4', 'sand1', 'sand2', 'sand3', 'sand4'],
+    unlockedWhen: alwaysOpen,
   },
   {
     id: 'bosque',
@@ -319,8 +327,14 @@ export const SECTORS: readonly ZooSector[] = [
   {
     id: 'estanque',
     hit: ESTANQUE_HIT,
-    // D4: starts discovered, so it never carries fog.
-    fog: [],
+    // D4 shipped this discovered (`alwaysOpen`, no fog). Row D closes it
+    // for real (design.md §7.1, amendment A4): opening the entrance is now
+    // what unlocks the pond, so the pond needs an actual fog patch to hide
+    // behind first. `closedFog(ESTANQUE_HIT, 2)` is design.md §7.1's own
+    // closest-aspect derivation for this cell (2×2 cells, aspect 1.40 —
+    // art 2's 1.118 is the closest of the three, NOT art 0, whose
+    // `max(cellH, cellW/aspect)`-minimising box would spill ~3× the cell).
+    fog: closedFog(ESTANQUE_HIT, 2),
     // Inside the water, clear of the reed island (x ∈ [768,833], y ∈
     // [130,182]) — design.md §1's measured spot.
     animalSpot: { x: 735, y: 200 },
@@ -341,7 +355,11 @@ export const SECTORS: readonly ZooSector[] = [
       'f2-agua3',
       'f2-agua4',
     ],
-    unlockedWhen: alwaysOpen,
+    // No longer `alwaysOpen` (amendment A4, design.md §7.1): the real stake
+    // of `migrateEntrance` is right here — without that migration a
+    // returning child would find the pond fogged over the moment this row
+    // ships.
+    unlockedWhen: (records) => isFiled(records, 'sand4'),
   },
   {
     id: 'montanas',
@@ -390,8 +408,10 @@ export const SECTORS: readonly ZooSector[] = [
     fog: closedFog(NOCTURNA_HIT, 1),
     animalSpot: hitCentre(NOCTURNA_HIT),
     animals: [],
-    adventureIds: [],
-    unlockedWhen: alwaysClosed,
+    adventureIds: ['night1', 'night2', 'night3', 'night4'],
+    // Opens once the mountains are done (design.md §7.1) — the night
+    // sector is the row's own last stop, after glass/sand/duck/sheep/llama.
+    unlockedWhen: (records) => isFiled(records, 'llama-peak4'),
   },
   {
     id: 'sendero',
@@ -432,13 +452,33 @@ export function sectorOf(levelId: string): ZooSector | undefined {
 }
 
 /**
- * Paso A's one temporary rule (design.md §5): the first open sector that
- * still has an unfinished adventure, else `null`. Today that is the estanque
- * until `f2-agua4` is filed. A real "recently" needs persisted knowledge of
- * what the child has already been shown (paso D's `<sector>-seen` state,
- * out of scope here) — one function, one call site, one line to replace.
+ * The place the child has not gone yet, preferred over the place they have
+ * not finished ([corrected] design.md §7.2, amendment: the proposal's own
+ * rule — "the first open sector none of whose adventures has ever been
+ * attempted," taken as the WHOLE rule — would regress to no sector for a
+ * child mid-way through the entrance: `entrada` already has an attempt and
+ * `estanque` is not yet open. The untouched-sector check below is a
+ * PREFERENCE layered in front of paso A's own rule, never a replacement of
+ * it, so this function must not start returning no sector while any open
+ * sector still has unfinished work — every shipped scenario for the
+ * fallback rule stays green.
+ *
+ * Derived, never persisted: `sectors.ts:441` (pre-this-change) proposed a
+ * `<sector>-seen` key and this change declines it — a new persisted key
+ * means a store version bump and a second migration in a change that
+ * already carries one, and `attempts` (which the store already keeps)
+ * answers "recently discovered" the way a child means it.
  */
 export function recentlyDiscovered(records: Records): ZooSector | null {
+  const untouched = SECTORS.find(
+    (sector) =>
+      isOpen(sector, records) &&
+      sector.adventureIds.length > 0 &&
+      sector.adventureIds.every((id) => (records[id]?.attempts ?? 0) === 0),
+  )
+  if (untouched) return untouched
+  // The fallback: paso A's own rule, unchanged (the first open sector that
+  // still has an unfinished adventure).
   return (
     SECTORS.find(
       (sector) => isOpen(sector, records) && sector.adventureIds.some((id) => !isFiled(records, id)),

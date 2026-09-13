@@ -8,26 +8,58 @@
 // Pure, no React — the same convention `zoo/sectors.ts` and `zoo/stars.ts`
 // already follow, so every decision here is testable with no DOM.
 import type { ArtImage, ZooAnimalId } from '../detective/assets'
-import { ZOO_ANIMAL_ART, ZOO_OCTOPUS_PRINT_ART } from '../detective/assets'
+import {
+  CARRIER_LENS_ART,
+  SECTOR_ADVENTURE_ART,
+  ZOO_ANIMAL_ART,
+  ZOO_OCTOPUS_PRINT_ART,
+} from '../detective/assets'
 import { animalPlacements, type Records, type SectorId, type ZooSector } from './sectors'
 
 /** One id per adventure — the key `zoo/backdrops.ts`'s registry now uses,
  *  and what lets `montañas` carry two adventures where every earlier sector
- *  carried at most one. */
-export type AdventureId = 'duck' | 'sheep' | 'llama'
+ *  carried at most one. `glass`/`sand`/`night` are the entrance and the
+ *  night sector (design.md §5, §6.1) — none of the three recovers an
+ *  animal, which is what `AdventureSubject` below exists to represent. */
+export type AdventureId = 'duck' | 'sheep' | 'llama' | 'glass' | 'sand' | 'night'
 
-export interface Adventure {
+interface AdventureBase {
   id: AdventureId
   /** In play order. `levelIds[0]` is where the narrative entry shows
    *  (`introLevel`). */
   levelIds: readonly string[]
   sector: SectorId
-  animal: ZooAnimalId
   /** The Pulpito's line on the entry screen, before the adventure starts. */
   intro: string
   /** His line on the map once this adventure's animal is standing in the
    *  zoo (`zoo-map` spec, "Octopus Phrase Reads as a Closing"). */
   closing: string
+  /** The once-per-adventure closing SCREEN (`docs/13` §5 item 6; design.md
+   *  §6.2). Distinct from `closing` above, which is the map bubble's
+   *  one-line label and stays exactly what it is: a caption cannot carry a
+   *  transformation. ABSENT = no closing screen, which is every shipped row
+   *  that predates this change — finishing the duck, sheep or llama
+   *  adventure behaves byte-for-byte as it does today. */
+  closingBeat?: { line: string; art: ArtImage }
+}
+
+/** An adventure recovers an animal, or it carries a picture of its own.
+ *  Exactly one, enforced by the union rather than by a test: the entrance
+ *  and the night sector recover NO animal (the erizo is paso H's), and
+ *  `mapBubble` keys a sector's closing line on an animal standing in the
+ *  zoo, so an animal-less adventure has to say what picture travels with
+ *  its two lines. `npm run build` is what catches a row with neither, the
+ *  same mechanism `FogPatch.rot: 0` uses (design.md §6.1). */
+type AdventureSubject =
+  | { animal: ZooAnimalId; icon?: undefined }
+  | { animal?: undefined; icon: ArtImage }
+
+export type Adventure = AdventureBase & AdventureSubject
+
+/** Total by construction — the union above is what makes the `else` branch
+ *  reachable only when `icon` is present (design.md §6.1). */
+export function adventureIcon(a: Adventure): ArtImage {
+  return a.animal ? ZOO_ANIMAL_ART[a.animal] : a.icon
 }
 
 export const ADVENTURES: readonly Adventure[] = [
@@ -55,6 +87,55 @@ export const ADVENTURES: readonly Adventure[] = [
     intro: 'Las llamas están en los picos. ¿Subimos a buscarlas?',
     closing: '¡Encontramos a la llama! Ya está en la cumbre.',
   },
+  // The entrance's two adventures (design.md §5.2, §6.1). Neither recovers
+  // an animal — `icon` carries the picture that travels with their two
+  // lines instead.
+  {
+    id: 'glass',
+    levelIds: ['glass1', 'glass2', 'glass3', 'glass4'],
+    sector: 'entrada',
+    icon: CARRIER_LENS_ART,
+    intro: 'El vidrio de la pecera está todo sucio. ¿Lo limpiamos?',
+    closing: 'El vidrio quedó limpito.',
+    // No closingBeat — the entrance's story closes at sand4, not here
+    // (design.md §6.2, proposal question 2's assumption, adopted).
+  },
+  {
+    id: 'sand',
+    levelIds: ['sand1', 'sand2', 'sand3', 'sand4'],
+    sector: 'entrada',
+    // "Las huellas siguen por la arena" — the map's own onward symbol reads
+    // on sand (design.md §6.1).
+    icon: ZOO_OCTOPUS_PRINT_ART,
+    intro: 'Ahora barremos la arena de la entrada. ¿Vamos?',
+    closing: 'La entrada quedó reluciente.',
+    closingBeat: {
+      line: '¡Se fueron todos los animales! Agarrá la lupa: los vamos a buscar.',
+      art: CARRIER_LENS_ART,
+    },
+  },
+  {
+    id: 'night',
+    levelIds: ['night1', 'night2', 'night3', 'night4'],
+    sector: 'nocturna',
+    icon: SECTOR_ADVENTURE_ART.flashlight,
+    intro: 'De noche hay cosas escondidas. ¿Las buscamos con la luz?',
+    closing: 'Encontramos todo en la oscuridad.',
+    // No `closingBeat` — [corrected] design.md §6.2's own literal assigns
+    // one here, but that directly contradicts the RATIFIED `main-screen`
+    // spec delta's "close GameView Variant and resolveCloseAction"
+    // requirement, which explicitly scopes the close screen to "the
+    // entrance's sand adventure, ending on sand4" and lists `night` BY
+    // NAME among the adventures that must resolve to the ordinary exit
+    // outcome instead — confirmed by `resolveCloseAction`'s own generic,
+    // unconditional implementation (design.md §6.3: any `closingBeat`
+    // triggers it) and by tasks.md's own task 6.5 scenario list
+    // (`resolveCloseAction('night4', …)` MUST return `null`). Both the
+    // spec and the task list agree against design.md's data table here;
+    // see `apply-progress.md`'s Phase 6 section for the full finding. The
+    // linterna is still granted on `night4` through `zoo/backpack.ts`'s
+    // `earnedWhen`, entirely independent of any closing screen.
+  },
 ]
 
 /** The adventure a level belongs to, or `undefined` for a level no
@@ -70,6 +151,17 @@ export function adventureFor(levelId: string): Adventure | undefined {
 export function introLevel(levelId: string): Adventure | undefined {
   const adventure = adventureFor(levelId)
   return adventure && adventure.levelIds[0] === levelId ? adventure : undefined
+}
+
+/** The adventure whose LAST `levelIds` entry this is, if it carries a
+ *  closing beat — the mirror of `introLevel` (design.md §6.3), and pure for
+ *  the same reason. `undefined` for every level that is not an adventure's
+ *  own last level, and for an adventure with no `closingBeat` at all
+ *  (today `duck`/`sheep`/`llama`/`glass`, every shipped row). */
+export function closingLevel(levelId: string): Adventure | undefined {
+  const adventure = adventureFor(levelId)
+  if (!adventure || !adventure.closingBeat) return undefined
+  return adventure.levelIds[adventure.levelIds.length - 1] === levelId ? adventure : undefined
 }
 
 /** What the Pulpito says about the sector the huellas point at, and the
@@ -93,11 +185,16 @@ export function mapBubble(
   // FIRST match, which would keep saying the sheep's closing line forever
   // once the sheep are home and never surface the llama's (`zoo-map` spec,
   // "Octopus Phrase Reads as a Closing Once the Sector's Animal Is
-  // Recovered").
+  // Recovered"). `a.animal !== undefined &&` excludes the entrance's and the
+  // night sector's animal-less adventures from ever resolving this branch
+  // (design.md §6.1, `zoo-map` spec "Animal-less Adventures Are Excluded
+  // From the Animal-Keyed Closing Phrase") — filing `sand4`/`night4` never
+  // changes `entrada`'s/`nocturna`'s bubble.
   const recovered = ADVENTURES.filter(
-    (a) =>
+    (a): a is Adventure & { animal: ZooAnimalId } =>
+      a.animal !== undefined &&
       a.sector === sector.id &&
-      animalPlacements(sector, records).some((p) => p.art === ZOO_ANIMAL_ART[a.animal]),
+      animalPlacements(sector, records).some((p) => p.art === ZOO_ANIMAL_ART[a.animal!]),
   ).at(-1)
   return recovered ? { art: ZOO_ANIMAL_ART[recovered.animal], label: recovered.closing } : ONWARD
 }

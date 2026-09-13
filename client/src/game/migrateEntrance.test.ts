@@ -7,8 +7,7 @@ import type { StorageLike } from './LevelProgressStore'
 import { EMPTY_RECORD, APPROVALS_TO_UNLOCK } from './types'
 import type { LevelRecord } from './types'
 import { migrateEntrance, ENTRANCE_UNLOCK_ID, NIGHT_UNLOCK_ID } from './migrateEntrance'
-import { isFiled, nextAdventure } from '../zoo/sectors'
-import type { ZooSector } from '../zoo/sectors'
+import { nextAdventure, SECTORS } from '../zoo/sectors'
 
 function makeRecord(over: Partial<LevelRecord> = {}): LevelRecord {
   return { ...EMPTY_RECORD, ...over }
@@ -185,24 +184,24 @@ describe('migrateEntrance — protects the real catalog\'s successor chains (des
 })
 
 describe('migrateEntrance — protects the pond, the real stake (design.md §8.1)', () => {
-  it("mirrors Phase 5's future estanque.unlockedWhen, returning true for a mid-campaign payload", () => {
-    // `zoo/sectors.ts`'s SHIPPED `estanque.unlockedWhen` is still
-    // `alwaysOpen` until Phase 5's own task 5.4 rewires it to `(records) =>
-    // isFiled(records, 'sand4')` — asserting against the shipped row right
-    // now would pass trivially regardless of whether this migration works,
-    // since the shipped predicate ignores `records` entirely. This proves
-    // the migration's real contract against Phase 5's own literal predicate
-    // instead, built from the already-shipped `isFiled` helper, ahead of
-    // that wiring landing (the same forward-reference pattern
-    // `PENDING_ENTRANCE_BACKDROP` used in Phase 1 — see apply-progress.md).
-    const estanqueUnlockedWhen = (records: Record<string, LevelRecord>): boolean =>
-      isFiled(records, 'sand4')
+  // Phase 5's task 5.4 has now wired `zoo/sectors.ts`'s real `estanque.
+  // unlockedWhen` to `isFiled(records, 'sand4')` (no longer `alwaysOpen`) —
+  // this closes the forward reference the earlier apply run recorded
+  // (`apply-progress.md`'s Phase 4 section) by asserting against the REAL
+  // shipped sector row instead of a locally-built stand-in predicate.
+  const estanque = SECTORS.find((s) => s.id === 'estanque')!
 
+  it("a returning child who had the estanque still has it — the real stake amendment A4 protects", () => {
+    // A4's own framing: without `migrateEntrance`, a returning child with
+    // ANY prior progress loses the pond outright the instant this row
+    // ships, because `estanque.unlockedWhen` stops ignoring `records`.
+    // `sand4`'s migrated seed is what keeps it open.
     const before: Record<string, LevelRecord> = { 'trail3': makeRecord({ approvals: 1 }) }
+    expect(estanque.unlockedWhen(before)).toBe(false) // true BEFORE migrating — the regression this exists to prevent
     const changed = migrateEntrance(before)
     const merged = { ...before, ...changed }
 
-    expect(estanqueUnlockedWhen(merged)).toBe(true)
+    expect(estanque.unlockedWhen(merged)).toBe(true)
   })
 
   it('a genuinely fresh install (no records at all) is not claimed open by this migration alone', () => {
@@ -211,32 +210,22 @@ describe('migrateEntrance — protects the pond, the real stake (design.md §8.1
     // until sand4 is actually played, migration or not.
     const changed = migrateEntrance({})
     expect(changed).toEqual({})
-    expect(isFiled(changed, 'sand4')).toBe(false)
+    expect(estanque.unlockedWhen(changed)).toBe(false)
   })
 })
 
 describe('migrateEntrance — a returning child still reaches the entrance opening', () => {
+  // Phase 5's task 5.4 has now wired the real `entrada.adventureIds =
+  // [glass1..4, sand1..4]` — this closes the second forward reference the
+  // earlier apply run recorded, asserting against the REAL shipped sector
+  // row rather than a locally-built `ZooSector` stand-in.
+  const entrada = SECTORS.find((s) => s.id === 'entrada')!
+
   it('nextAdventure resolves glass1 regardless of what was seeded', () => {
-    // Mirrors the SHAPE Phase 5's task 5.4 will wire onto the real `entrada`
-    // row (`entrada.adventureIds = [glass1..4, sand1..4]`) — the shipped
-    // `zoo/sectors.ts` entrada row still carries `adventureIds: []` until
-    // that phase lands, so `nextAdventure` against the real row would return
-    // `null` regardless of this migration. `nextAdventure` itself is
-    // generic and already shipped; this proves the migration's real
-    // contract against the exact ids Phase 5 will wire, ahead of that
-    // wiring landing.
-    const futureEntrada: ZooSector = {
-      id: 'entrada',
-      fog: [],
-      animalSpot: { x: 0, y: 0 },
-      animals: [],
-      adventureIds: ['glass1', 'glass2', 'glass3', 'glass4', 'sand1', 'sand2', 'sand3', 'sand4'],
-      unlockedWhen: () => true,
-    }
     const before: Record<string, LevelRecord> = { 'llama-peak4': makeRecord({ approvals: 1 }) }
     const changed = migrateEntrance(before)
     const merged = { ...before, ...changed }
 
-    expect(nextAdventure(futureEntrada, merged)).toBe('glass1')
+    expect(nextAdventure(entrada, merged)).toBe('glass1')
   })
 })

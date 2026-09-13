@@ -12,7 +12,13 @@ import { SECTORS, type Records } from '../zoo/sectors'
 
 function filed(...ids: readonly string[]): Records {
   const out: Record<string, LevelRecord> = {}
-  for (const id of ids) out[id] = { ...EMPTY_RECORD, approvals: 1 }
+  // `attempts: 1` alongside `approvals: 1` — a filed level was necessarily
+  // attempted at least once (the real store never files a level with zero
+  // attempts). `recentlyDiscovered`'s untouched-sector preference
+  // (design.md §7.2) reads `attempts`, not `approvals`, so a fixture that
+  // only sets the latter would leave `entrada` reading as "never touched"
+  // forever, whatever else gets filed.
+  for (const id of ids) out[id] = { ...EMPTY_RECORD, attempts: 1, approvals: 1 }
   return out
 }
 
@@ -66,29 +72,27 @@ describe('ZooMap (layer order)', () => {
     expect(animalAt).toBeGreaterThan(fogAt)
   })
 
-  it('five sectors carry fog, the estanque does not', () => {
+  it('the sectors closed on a fresh install carry fog; entrada, open from the start, does not (row D)', () => {
+    // Row D re-shuffles which sector is the open one (design.md §7.1,
+    // amendment A4): `entrada` is now `alwaysOpen` (there is nowhere else
+    // to start) and the estanque moves OFF `alwaysOpen` onto
+    // `isFiled(records, 'sand4')` — so on a FRESH install the closed set is
+    // `bosque`/`montanas`/`arena`/`nocturna`/`estanque`, not `entrada`.
+    // Computed from the registry itself, rather than a hand-counted
+    // literal, so this cannot silently drift from `sectors.ts`'s own data —
+    // the per-sector patch count and its junction-patch construction are
+    // already proven in `sectors.test.ts`; this only pins that the screen
+    // draws every patch the registry declares for the sectors actually
+    // closed right now.
     const html = render()
     const sectorsWithFog = new Set(
       [...html.matchAll(/data-fog-sector="([^"]+)"/g)].map((m) => m[1]),
     )
-    expect(sectorsWithFog.size).toBe(5)
-    expect(sectorsWithFog.has('estanque')).toBe(false)
-    // One patch per GRID CELL (design.md §4) — `cols × rows` per sector at a
-    // 130-unit target cell, so entrada/montañas/nocturna tile 2×1 and
-    // bosque/arena tile 2×2 — PLUS one on each interior junction where four
-    // cells meet, which only the 2×2 sectors have: (2 + 4 + 2 + 4 + 2) +
-    // (0 + 1 + 0 + 1 + 0) = 16 images from five sectors. The junction
-    // patches close the hole the four transparent blob corners leave at a
-    // junction; the first capture leaked night sky and two stars through it,
-    // which `docs/12` §1 forbids outright — a closed sector says "hay algo
-    // ahí" and must not say what. Recorded explicitly: `tasks.md` phrases
-    // this scenario as "exactly 5 fog images", which undercounts the
-    // construction design.md §4 requires; this asserts the actual, correct
-    // rendered behaviour rather than the miscounted phrasing. The per-sector
-    // count itself is proven in `sectors.test.ts`; this only pins that the
-    // screen draws every patch the registry declares.
-    const declared = SECTORS.reduce((n, sector) => n + sector.fog.length, 0)
-    expect(declared).toBe(16)
+    const closedOnFreshInstall = SECTORS.filter((s) => s.hit && !s.unlockedWhen({}))
+    expect([...sectorsWithFog].sort()).toEqual(closedOnFreshInstall.map((s) => s.id).sort())
+    expect(sectorsWithFog.has('entrada')).toBe(false)
+    expect(sectorsWithFog.has('estanque')).toBe(true)
+    const declared = closedOnFreshInstall.reduce((n, sector) => n + sector.fog.length, 0)
     expect([...html.matchAll(/data-fog-sector="/g)]).toHaveLength(declared)
   })
 
@@ -221,13 +225,41 @@ describe('ZooMap bubble (zoo-map spec "Octopus Phrase Reads as a Closing")', () 
   })
 
   it('closes with the duck art and line once duck-trail4 is filed', () => {
-    const html = render(filed('duck-trail4'))
+    // Row D FOUND an interaction design.md never names (recorded in
+    // apply-progress.md's Phase 5 section): filing `duck-trail4` alone
+    // ALSO opens `montañas` (`unlockedWhen: isFiled(records,
+    // 'duck-trail4')`), which — being brand new — reads as UNTOUCHED
+    // (design.md §7.2) and outranks the estanque's own just-earned closing
+    // line the instant the duck is found. That is a real, always-reachable
+    // state under normal play, not a contrived one — bare
+    // `filed(...entrada.adventureIds, 'duck-trail4')` reproduces it, and it
+    // resolves to montañas' ONWARD phrase, not the duck's closing line
+    // (`mapBubble`'s OWN contract is unaffected and still correctly
+    // asserted in `zoo/adventures.test.ts` — this is purely a
+    // `recentlyDiscovered` sector-selection interaction).
+    //
+    // The duck's closing line is still reachable end to end, the moment
+    // montañas itself is no longer untouched — e.g. the child taps into
+    // the freshly-opened montañas and tries (not yet finishes) its first
+    // level, then returns to the map. That is exactly what this fixture
+    // reproduces: `sheep-hill1` attempted, not approved.
+    const entrada = SECTORS.find((s) => s.id === 'entrada')!
+    const records: Records = {
+      ...filed(...entrada.adventureIds, 'duck-trail4'),
+      'sheep-hill1': { ...EMPTY_RECORD, attempts: 1 },
+    }
+    const html = render(records)
     expect(html).toContain('¡Encontramos al pato! Ya está en su laguna.')
     expect(html).not.toContain('¡Mirá! Las huellas van hacia allá. ¿Vamos?')
   })
 
   it('keeps auditCaptions green before and after the duck is recovered', () => {
+    const entrada = SECTORS.find((s) => s.id === 'entrada')!
+    const records: Records = {
+      ...filed(...entrada.adventureIds, 'duck-trail4'),
+      'sheep-hill1': { ...EMPTY_RECORD, attempts: 1 },
+    }
     expect(auditCaptions(render()).uncaptioned).toEqual([])
-    expect(auditCaptions(render(filed('duck-trail4'))).uncaptioned).toEqual([])
+    expect(auditCaptions(render(records)).uncaptioned).toEqual([])
   })
 })

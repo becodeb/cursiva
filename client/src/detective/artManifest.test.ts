@@ -49,7 +49,7 @@ import {
   type ArtImage,
 } from './assets'
 import { ART_OUTLINE, luma } from './palette'
-import { ADVENTURE_BACKDROP, PENDING_ENTRANCE_BACKDROP } from '../zoo/backdrops'
+import { ADVENTURE_BACKDROP } from '../zoo/backdrops'
 
 /** Every PNG actually present in `public/art/`, keyed by bare name. The glob
  * is evaluated against the filesystem at transform time, so a file named in
@@ -228,16 +228,16 @@ describe('art registry matches the shipped pipeline manifest', () => {
   })
 
   it("matches the entrance and night backdrops' quiet/brightest/corridorRows against the rebuilt manifest (design.md §2.3, §3.2)", () => {
-    // `ADVENTURE_BACKDROP.glass/.sand/.night` do not exist yet — these three
-    // rows are `PENDING_ENTRANCE_BACKDROP` until Phase 5 widens `AdventureId`
-    // and wires them in (`zoo/backdrops.ts`'s own docblock on that export).
-    // The parity this test guards is unaffected by where the row LIVES.
+    // `ADVENTURE_BACKDROP.glass/.sand/.night` are now wired in directly
+    // (Phase 5's task 5.1 widened `AdventureId`; `zoo/backdrops.ts`'s own
+    // Phase 1 `PENDING_ENTRANCE_BACKDROP` indirection is closed — see
+    // `apply-progress.md`). The parity this test guards is unchanged.
     const aquarium = manifest['sector-aquarium-background']
     const sand = manifest['sector-sand-background']
     const night = manifest['sector-night-background']
-    const glass = PENDING_ENTRANCE_BACKDROP.glass
-    const pendingSand = PENDING_ENTRANCE_BACKDROP.sand
-    const pendingNight = PENDING_ENTRANCE_BACKDROP.night
+    const glass = ADVENTURE_BACKDROP.glass!
+    const sandBackdrop = ADVENTURE_BACKDROP.sand!
+    const nightBackdrop = ADVENTURE_BACKDROP.night!
 
     expect(aquarium.quiet).toBe(glass.quiet)
     expect(aquarium.brightest).toBe(glass.brightest)
@@ -245,18 +245,38 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(glass.quiet).toBe('#9bb6c5')
     expect(glass.brightest).toBe('#c7d9e0')
 
-    expect(sand.quiet).toBe(pendingSand.quiet)
-    expect(sand.brightest).toBe(pendingSand.brightest)
-    expect(sand.corridorRows).toEqual(pendingSand.corridorRows)
-    expect(pendingSand.quiet).toBe('#d6cbba')
-    expect(pendingSand.brightest).toBe('#dad0c0')
+    expect(sand.quiet).toBe(sandBackdrop.quiet)
+    expect(sand.brightest).toBe(sandBackdrop.brightest)
+    expect(sand.corridorRows).toEqual(sandBackdrop.corridorRows)
+    expect(sandBackdrop.quiet).toBe('#d6cbba')
+    expect(sandBackdrop.brightest).toBe('#dad0c0')
 
-    expect(night.quiet).toBe(pendingNight.quiet)
-    expect(night.brightest).toBe(pendingNight.brightest)
-    expect(night.corridorRows).toEqual(pendingNight.corridorRows)
+    expect(night.quiet).toBe(nightBackdrop.quiet)
+    expect(night.brightest).toBe(nightBackdrop.brightest)
+    expect(night.corridorRows).toEqual(nightBackdrop.corridorRows)
     // nightfall()'s swap-day gate (design.md §3.2): brightest in [77, 110].
-    expect(luma(pendingNight.brightest)).toBeGreaterThanOrEqual(77)
-    expect(luma(pendingNight.brightest)).toBeLessThanOrEqual(110)
+    expect(luma(nightBackdrop.brightest)).toBeGreaterThanOrEqual(77)
+    expect(luma(nightBackdrop.brightest)).toBeLessThanOrEqual(110)
+  })
+
+  it("the night backdrop's brightest reflects nightfall()'s derivation, not fondo bosque.png's own unmodified sample (zoo-map spec)", () => {
+    // `sector-forest-background.png` is the SAME source (`fondo bosque.png`)
+    // passed through UNCHANGED for paso F's own forest sector row — its
+    // manifest entry is what "the un-derived forest source's own sampled
+    // brightest" means (zoo-map spec "Entrance and Night Backdrops Resolve
+    // Through the Adventure-Keyed Registry"). The derived night row must
+    // differ, proving the sample really was taken post-`nightfall()`.
+    const forest = manifest['sector-forest-background']
+    const night = manifest['sector-night-background']
+    expect(night.brightest).not.toBe(forest.brightest)
+    expect(ADVENTURE_BACKDROP.night!.brightest).not.toBe(forest.brightest)
+  })
+
+  it('the night backdrop registry entry names no source file — only the built sector-night-background.png (zoo-map spec)', () => {
+    const href = ADVENTURE_BACKDROP.night!.art.href
+    expect(href).toContain('sector-night-background')
+    expect(href.toLowerCase()).not.toContain('bosque')
+    expect(href.toLowerCase()).not.toContain('forest')
   })
 
   it("mirrors scripts/art/build_art.py's INK constant against the real TypeScript token", () => {
