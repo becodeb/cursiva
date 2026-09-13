@@ -284,6 +284,7 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   | 'sheep'
   | 'bee'
   | 'flower'
+  | 'flowerDormant'
   | 'honeycomb'
   | 'dolphin'
   | 'snail'
@@ -303,6 +304,11 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   sheep: { href: '/art/sector-sheep.png', w: 420, h: 448 },
   bee: { href: '/art/sector-bee.png', w: 256, h: 230 },
   flower: { href: '/art/sector-flower.png', w: 256, h: 245 },
+  // The flower BEFORE the bee has been to it (`free-trail-waypoints`
+  // design.md §3.2). Derives from the SAME `flor.png` as `flower` above, so
+  // the two states share `w`/`h` exactly — `artManifest.test.ts` guards the
+  // parity, a divergence being the `clue-footprint` failure class repeating.
+  flowerDormant: { href: '/art/sector-flower-dormant.png', w: 256, h: 245 },
   honeycomb: { href: '/art/sector-honeycomb.png', w: 181, h: 256 },
   dolphin: { href: '/art/sector-dolphin.png', w: 448, h: 418 },
   snail: { href: '/art/sector-snail.png', w: 448, h: 321 },
@@ -315,6 +321,15 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   chest: { href: '/art/sector-chest.png', w: 256, h: 200 },
   stone: { href: '/art/sector-stone.png', w: 256, h: 170 },
   leaf: { href: '/art/sector-leaf.png', w: 242, h: 256 },
+}
+
+/** The flower's two states. Both derive from `flor.png`, so the swap is an
+ * `href` swap and the mark does not move or change shape when it opens —
+ * exactly the argument `CLUE_ART`'s own `{earned, drained}` pair carries
+ * (`free-trail-waypoints` design.md §3.2). */
+export const FLOWER_ART: Readonly<Record<'dormant' | 'lit', ArtImage>> = {
+  dormant: SECTOR_ADVENTURE_ART.flowerDormant,
+  lit: SECTOR_ADVENTURE_ART.flower,
 }
 
 /** `ZOO_ANIMAL_ART` resolves every {@link ZooAnimalId} — spreading

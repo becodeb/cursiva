@@ -141,3 +141,30 @@ export const BREADCRUMB = '#a9682c'
 /** Duck case only — the bubble trail. Sampled from `art-source/burbuja.png`'s
  * cyan body, lifted out of `POND`'s slate (design.md §4). */
 export const BUBBLE = '#4fb3d9'
+
+/** The flower before the bee has been to it (`docs/13` §8 row F,
+ * `free-trail-waypoints` design.md §3.2).
+ *
+ * PROVISIONAL, and deliberately so. The law corners a RANGE and art
+ * direction picks the value inside it — the third time `docs/09` §4 has done
+ * this (paso D's fog and swept sand, paso E's snake ink), and both earlier
+ * times the cornered literal was left intact for the author rather than
+ * quietly chosen. Same here.
+ *
+ * The range, measured: the forest's quiet band is luma 151.2, so an
+ * achromatic dormant mark sits at luma <= 96.2 or >= 206.2. BOTH branches
+ * exist for the first time in this project — every earlier sector's band
+ * was light enough that only the dark one survived (`docs/13` §4 decision
+ * 6) — and the PALE branch is much the safer: at 210 it clears the child's
+ * own `INK_COLOR` (39.8) by 170.2, where the dark branch at 96.2 clears it
+ * by only 56.4, one luma above the law's own floor.
+ *
+ * `#d2d2d2` is luma 210.0, chroma 0: separates 58.8 from the band, 170.2
+ * from the ink. `zoo/backdrops.test.ts` asserts the CONSTRAINT — achromatic,
+ * >= 55 from the forest's own sampled `brightest`, >= 55 from the ink — and
+ * never this literal, so changing it is a one-line edit the suite still
+ * polices. Do NOT add this to `palette.test.ts`'s `EARNED`/ground-contrast
+ * loops by hand: it separates only 41.7 from `SHEET_PAPER` and would FAIL a
+ * general paper-ground check — correctly, because the flower never stands
+ * on paper, only on the forest band. */
+export const FLOWER_DORMANT = '#d2d2d2'

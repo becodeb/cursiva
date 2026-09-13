@@ -709,4 +709,33 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
         'as a background box, not a cutout',
     ).toBeLessThan(0.85)
   })
+
+  /**
+   * The dormant flower's honest legibility measurement (`free-trail-
+   * waypoints` design.md §3.3, task 3.9). `docs/09` §4's decorative-hierarchy
+   * rule (a dormant mark must separate from its ground more than any
+   * decorative ground mark separates from its own) is VACUOUS here: the
+   * forest backdrop introduces no scattered ground marks at all
+   * (`zoo-map` capability, decision 3), so `clue-*-drained.png` vs
+   * `ground-*.png` has nothing to compare the flower against. This is the
+   * honest replacement: an ABSOLUTE measurement against the real referent
+   * (the forest's own sampled `quiet`, `'#949b8c'` — `artManifest.test.ts`
+   * guards the literal), proving the PIPELINE actually painted the token
+   * onto the shipped pixels rather than mirroring a hex literal by hand.
+   *
+   * `'#949b8c'` here is `ADVENTURE_BACKDROP.bee.quiet` — asserted directly
+   * rather than through that import because the `bee` row itself is not
+   * created until Phase 7 (design.md §3.1's own value, unchanged either way).
+   *
+   * Deliberately NOT wired into the decorative-hierarchy comparison loop
+   * above — it is vacuous for this sector (no ground marks exist to compare
+   * against), and a test wired against an empty set is not proof.
+   */
+  it('separates the dormant flower from the forest band by at least 55 luma (design.md §3.3)', async () => {
+    const FOREST_QUIET = '#949b8c'
+    const url = named(WORLD_GUARD_FILES).find(([name]) => name === 'sector-flower-dormant.png')?.[1]
+    expect(url, 'sector-flower-dormant.png not found among the shipped world/sector art').toBeDefined()
+    const art = await decodePng(base64ToBytes(url!.split(',')[1]))
+    expect(bodyContrast(art, FOREST_QUIET)).toBeGreaterThanOrEqual(55)
+  })
 })

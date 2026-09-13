@@ -405,8 +405,8 @@ and **no `ink`/`inkDim`** (the defaults clear the band).
 // client/src/zoo/backdrops.ts
 bee: {
   art: SECTOR_BACKGROUND_ART.forest,
-  quiet: '#949b8c',      // [to copy]
-  brightest: '#949b8c',  // [to copy] — equal to `quiet`; the band is flat
+  quiet: '#949b8c',      // [confirmed by rebuild, apply-time]
+  brightest: '#949b8c',  // [confirmed by rebuild] — equal to `quiet`; the band is flat
   corridorRows: { top: 191, bottom: 926 },
 },
 ```
@@ -467,7 +467,7 @@ Registry — the aliasing idiom `ZOO_ANIMAL_ART` already uses, so `artManifest.t
 
 ```ts
 // client/src/detective/assets.ts
-  flowerDormant: { href: '/art/sector-flower-dormant.png', w: 256, h: 245 }, // [to copy]
+  flowerDormant: { href: '/art/sector-flower-dormant.png', w: 256, h: 245 }, // [confirmed by rebuild]
 …
 /** The flower's two states. Both derive from `flor.png`, so the swap is an
  *  `href` swap and the mark does not move or change shape when it opens —

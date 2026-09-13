@@ -177,7 +177,8 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // field at full size, where a repeated silhouette is obvious, while mud
     // sits small inside the corridor and half-covered by the child's own line.
     // + 1 CART_ART (the arena's backpack reward, Phase 7).
-    expect(REGISTERED.length).toBe(80)
+    // + 1 flowerDormant (the bee family's dormant flower, paso F).
+    expect(REGISTERED.length).toBe(81)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -330,6 +331,30 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(href).toContain('sector-night-background')
     expect(href.toLowerCase()).not.toContain('bosque')
     expect(href.toLowerCase()).not.toContain('forest')
+  })
+
+  it("matches the forest backdrop's quiet/brightest/corridorRows against the rebuilt manifest (free-trail-waypoints design.md §3.1, task 3.1)", () => {
+    // The bee's `ADVENTURE_BACKDROP` row is hand-copied from these exact
+    // values in Phase 7 (task 3.6/7.1) — asserted here, ahead of that row's
+    // own creation, as the guard against the pipeline's own numbers drifting.
+    const forest = manifest['sector-forest-background']
+    expect(forest.corridorRows).toEqual({ top: 191, bottom: 926 })
+    // The band is flat over this range: quiet and brightest are the SAME
+    // colour (design.md §3.1's own prediction, confirmed by the rebuild).
+    expect(forest.quiet).toBe('#949b8c')
+    expect(forest.brightest).toBe('#949b8c')
+  })
+
+  it("gives the flower's two states IDENTICAL w/h (free-trail-waypoints design.md §3.2) — both derive from flor.png", () => {
+    // A divergence here is the `clue-footprint-earned`/`-drained` failure
+    // class repeating (220x256 vs 217x256, because those two came from
+    // different drawings): the dormant→lit swap must not move the art.
+    const flower = manifest['sector-flower']
+    const dormant = manifest['sector-flower-dormant']
+    expect(SECTOR_ADVENTURE_ART.flowerDormant.w).toBe(flower.w)
+    expect(SECTOR_ADVENTURE_ART.flowerDormant.h).toBe(flower.h)
+    expect(dormant.w).toBe(flower.w)
+    expect(dormant.h).toBe(flower.h)
   })
 
   it("mirrors scripts/art/build_art.py's INK constant against the real TypeScript token", () => {

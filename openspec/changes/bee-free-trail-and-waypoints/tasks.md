@@ -105,14 +105,14 @@ State Is Achromatic and Provably Separated From the Forest Band". **Nothing
 downstream (Phases 4–7) may author a literal this phase has not yet
 emitted.**
 
-- [ ] 3.1 In `scripts/art/build_art.py:536`: change the forest
+- [x] 3.1 In `scripts/art/build_art.py:536`: change the forest
       `PASSTHROUGHS` row to `('fondo bosque.png', 'sector-forest-
       background.png', 1536, 1024, (191, 926))`.
-- [ ] 3.2 In `scripts/art/build_art.py`, beside the existing `flor.png` row
+- [x] 3.2 In `scripts/art/build_art.py`, beside the existing `flor.png` row
       (~line 466): add `('flor.png', 'sector-flower-dormant.png', 256,
       FLOWER_DORMANT, True)` as a `SINGLES` row (`keep_ink=True` keeps the
       `#1a1a1a` contour).
-- [ ] 3.3 In `client/src/detective/palette.ts`: add `export const
+- [x] 3.3 In `client/src/detective/palette.ts`: add `export const
       FLOWER_DORMANT = '#d2d2d2'` (provisional; the author owns the exact
       value). **Warning, read before touching `palette.test.ts`**: do NOT
       add `FLOWER_DORMANT` to `palette.test.ts`'s locally-declared `EARNED`
@@ -120,34 +120,47 @@ emitted.**
       only 41.7 from `SHEET_PAPER` and would FAIL a general paper-ground
       check — correctly, because the flower never stands on paper, only on
       the forest band. Its only luma assertion is the achromatic + ≥55-from-
-      forest-brightest one named in 3.9/7.2 (W1/W3).
-- [ ] 3.4 Run `python3 scripts/art/build_art.py` — rebuild the manifest.
-- [ ] 3.5 **Verify the `brightest` prediction** over `corridorRows (191,
+      forest-brightest one named in 3.9/7.2 (W1/W3). Confirmed: NOT added to
+      `palette.test.ts`.
+- [x] 3.4 Run `python3 scripts/art/build_art.py` — rebuild the manifest.
+- [x] 3.5 **Verify the `brightest` prediction** over `corridorRows (191,
       926)`: expected `#949b8c`, equal to `quiet` (the band is flat). If the
       rebuild returns anything above luma 155, narrow `corridorRows` toward
       the test-proven flat region `(204, 818)` — never move the
       `FLOWER_DORMANT` literal. If narrowing cannot close it, stop: the
       dormant branch flips pale→dark, and that is the author's fork, not a
-      tuning knob — record which outcome occurred.
-- [ ] 3.6 Hand-copy the rebuilt manifest's values into
+      tuning knob — record which outcome occurred. **Confirmed exactly as
+      predicted**: the rebuilt manifest's `sector-forest-background` entry
+      is `quiet: '#949b8c'`, `brightest: '#949b8c'`, `corridorRows: {top:
+      191, bottom: 926}` — no narrowing needed.
+- [x] 3.6 Hand-copy the rebuilt manifest's values into
       `client/src/zoo/backdrops.ts`'s new `bee` row (`quiet`, `brightest`)
       and `client/src/detective/assets.ts`'s `flowerDormant` entry (`w`,
       `h`) — replace every `[to copy]` placeholder in design.md with the
-      real numbers.
-- [ ] 3.7 In `client/src/detective/assets.ts`: add
+      real numbers. **The values were already correct as predicted** (no
+      author fork triggered); design.md's placeholders are now marked
+      `[confirmed by rebuild]`. The `bee` row itself lands in Phase 7
+      (task 7.1) — `flowerDormant`'s `w`/`h` (256×245, identical to
+      `flower`) are set now in `assets.ts`.
+- [x] 3.7 In `client/src/detective/assets.ts`: add
       `SECTOR_ADVENTURE_ART.flowerDormant` (aliasing idiom, no `REGISTERED`
       edit needed) and `FLOWER_ART: {dormant, lit}`.
-- [ ] 3.8 In `client/src/detective/artManifest.test.ts`: extend the forest's
+- [x] 3.8 In `client/src/detective/artManifest.test.ts`: extend the forest's
       parity check for `quiet`/`brightest`/`corridorRows`; add the `flower`
       ↔ `flowerDormant` dimension-parity assertion (identical `w`/`h` — both
       derive from `flor.png`; a divergence is the `clue-footprint` failure
-      class repeating).
-- [ ] 3.9 In `client/src/detective/artHierarchy.test.ts`: add the absolute
+      class repeating). The forest parity check asserts the rebuilt manifest
+      directly (not through `ADVENTURE_BACKDROP.bee`, which is not created
+      until Phase 7).
+- [x] 3.9 In `client/src/detective/artHierarchy.test.ts`: add the absolute
       measurement `bodyContrast(sector-flower-dormant.png,
       ADVENTURE_BACKDROP.bee.quiet) >= 55` (design §3.3). Do **not** wire
       the flower into the decorative-hierarchy comparison loop — it is
       vacuous for this sector (no ground marks exist to compare against).
-- [ ] 3.10 Run `npm test -- detective/artManifest detective/artHierarchy` —
+      Implemented against the literal `'#949b8c'` (the same value the `bee`
+      row hand-copies in Phase 7), since that row does not exist yet at this
+      point in the apply order.
+- [x] 3.10 Run `npm test -- detective/artManifest detective/artHierarchy` —
       green. **`artHierarchy.test.ts` is flaky under parallel load on this
       machine — a red result is re-run before being believed, not
       diagnosed.**

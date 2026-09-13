@@ -58,6 +58,10 @@ OUT = os.path.join(ROOT, 'client', 'public', 'art')
 # against the real TypeScript token so the two cannot drift apart.
 INK = (0x1A, 0x1A, 0x1A)
 CLUE_DRAINED = (0x83, 0x83, 0x83)
+# [free-trail-waypoints, task 3.2] The flower's off-state, mirrored from
+# `client/src/detective/palette.ts`'s `FLOWER_DORMANT` -- provisional, the
+# author's to retune; the pipeline only needs the same literal.
+FLOWER_DORMANT = (0xD2, 0xD2, 0xD2)
 POND = (0x3F, 0x6F, 0x8F)
 KERNEL = (0xB8, 0x91, 0x2F)
 PRINT = (0x00, 0x00, 0x00)
@@ -464,6 +468,11 @@ SINGLES = [
     ('llama.png',             'sector-llama.png',          448, 'contour',    True),
     ('abeja.png',             'sector-bee.png',            256, 'contour',    True),
     ('flor.png',              'sector-flower.png',         256, 'contour',    True),
+    # [free-trail-waypoints, task 3.2] The flower BEFORE the bee has been to
+    # it. `keep_ink=True` keeps the `#1a1a1a` contour and flattens only the
+    # petal -- the same two-tone path every `clue-*-drained` row takes, so
+    # the dormant state still reads as a flower rather than a blank patch.
+    ('flor.png',              'sector-flower-dormant.png', 256, FLOWER_DORMANT, True),
     ('panal.png',             'sector-honeycomb.png',      256, 'contour',    True),
     ('delfin.png',            'sector-dolphin.png',        448, 'contour',    True),
     ('caracol.png',           'sector-snail.png',          448, 'contour',    True),
@@ -533,7 +542,14 @@ PASSTHROUGHS = [
     ('fondo arena.png', 'sector-sand-background.png', 1536, 1024, (51, 973)),
     ('fondo ladera.png', 'sector-slope-background.png', 1536, 1024, (220, 866)),
     ('fondo cordillera.png', 'sector-range-background.png', 1536, 1024, (166, 858)),
-    ('fondo bosque.png', 'sector-forest-background.png', 1536, 1024, None),
+    # [free-trail-waypoints, task 3.1] The bee family draws no corridor at
+    # all -- the whole play area is the band, per `docs/13` §4 decision 3 --
+    # so the range is the widest one a bee level's art boxes actually sit
+    # in, pinned at the safe end of the test-proven flat region
+    # (design.md §4.1, §3.1): measured quiet/brightest are BOTH `#949b8c`
+    # over this range, so the two fields below are equal (design.md §3.1's
+    # own prediction, verified by re-running this script).
+    ('fondo bosque.png', 'sector-forest-background.png', 1536, 1024, (191, 926)),
     ('fondo pecera.png', 'sector-aquarium-background.png', 1536, 1024, (51, 973)),
     ('fondo bosque.png', 'sector-night-background.png', 1536, 1024, (51, 973), nightfall),
 ]

@@ -335,10 +335,22 @@
     "h": 245,
     "w": 256
   },
+  "sector-flower-dormant": {
+    "bytes": 11753,
+    "file": "art/sector-flower-dormant.png",
+    "h": 245,
+    "w": 256
+  },
   "sector-forest-background": {
+    "brightest": "#949b8c",
     "bytes": 35774,
+    "corridorRows": {
+      "bottom": 926,
+      "top": 191
+    },
     "file": "art/sector-forest-background.png",
     "h": 1024,
+    "quiet": "#949b8c",
     "w": 1536
   },
   "sector-honeycomb": {
