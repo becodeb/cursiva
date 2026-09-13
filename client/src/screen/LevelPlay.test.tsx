@@ -184,6 +184,16 @@ describe('LevelPlay chrome branch (design.md Orchestrator Correction C1)', () =>
     expect(textOf(html)).not.toContain('PISTAS')
   })
 
+  it("sheep-hill1 (row C, drawn on a backdrop but NOT in the detective world) shows its title and hint, unlike a world-only level's wordless shell (detective-mode spec: 'The ordinary shell renders for these levels')", () => {
+    const level = getLevel('sheep-hill1')
+    const html = renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(textOf(html)).toContain(`Fase 1 · ${level.title}`)
+    expect(html).toContain(level.hint)
+    expect(html).not.toContain('<aside') // no PISTAS rail either — no clue
+  })
+
   it('a phase-2+ (non-detective) level is unaffected even when it CAN show its guide-request button', () => {
     // Regression guard from the opposite direction: this branch must not
     // accidentally suppress chrome on an ordinary level whose config simply

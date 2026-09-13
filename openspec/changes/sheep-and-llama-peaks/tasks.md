@@ -388,10 +388,10 @@ Spec traceability: `detective-mode/spec.md` — "Sheep and Llama Levels Stay
 Outside the Detective World". No code change — §3.1's mud-ink arithmetic
 already settles `detectiveWorld` absent on all eight.
 
-- [ ] 5.1 Run `npx vitest run client/src/levels/world.test.ts` — confirm it
+- [x] 5.1 Run `npx vitest run client/src/levels/world.test.ts` — confirm it
       stays green with **no edit** and that its pinned world-only level-id
       list gains none of the eight.
-- [ ] 5.2 Add one row to `client/src/screen/LevelPlay.test.tsx` (or
+- [x] 5.2 Add one row to `client/src/screen/LevelPlay.test.tsx` (or
       `world.test.ts`, whichever already covers this shape) confirming
       `sheep-hill1` rendered via `renderToString` shows its title and hint
       text, unlike a world-only level's wordless shell.
