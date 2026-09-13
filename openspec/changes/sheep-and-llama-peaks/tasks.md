@@ -431,40 +431,83 @@ only a capture can answer. Sequential — capture, read, correct if needed,
 re-capture. Depends on all of Phases 1-6 landing (this is the only surface
 where backdrop, channel, vertex art and registries are all live together).
 
-**Deliberately left unstarted by `sdd-apply`.** The maintainer's explicit
-instruction for this apply session: "Do NOT take screenshots — I do that
-myself at the end." All of 7.1-7.7 are therefore reported `blocked` by that
-instruction, not skipped silently — everything Phases 1-6 landed is ready
-for the maintainer's own capture pass whenever they run it.
+**Left unstarted by `sdd-apply` by instruction, then run by the maintainer.**
+The apply session was told "Do NOT take screenshots — I do that myself at the
+end", so 7.1-7.7 were reported `blocked` rather than skipped silently. The
+maintainer's own capture pass is recorded below, including the two sub-items
+it could NOT reach and why.
 
-- [ ] 7.1 Start the dev server: `npm run dev -- --host 0.0.0.0` (port 5173).
-- [ ] 7.2 Capture all eight levels via `scripts/shot.sh` into `capturas/`
-      (gitignored): `?nivel=sheep-hill1..4` and `?nivel=llama-peak1..4`,
-      1000x600 each.
-- [ ] 7.3 Capture both narrative entries (`capturas/sheep-intro.png`,
-      `capturas/llama-intro.png`) via an interactive session — tap
-      `montañas` on the map after `duck-trail4` is filed (devtools or a full
-      playthrough), same constraint the duck change's task 4.3 recorded:
-      `?nivel=` bypasses the entry by design.
-- [ ] 7.4 Capture the map before and after each adventure closes
-      (`capturas/zoo-map-montanas-locked.png`, `-sheep-recovered.png`,
-      `-both-recovered.png`) and the backpack HUD with the hat present.
-- [ ] 7.5 Capture one duck level and one medusa level, proving both are
-      visually unchanged (regression evidence alongside 4.10's byte-identical
-      test).
-- [ ] 7.6 **Read every capture from 7.2-7.5.** Specifically: does the stone
-      channel over each mountain backdrop read as a path rather than a scar;
-      do the sheep/llama read as standing ON their peaks at 56/64 viewBox
-      units; does the `SHEET_PAPER` demo line read as a demonstration over
-      stone; does the ladera's `quiet` band (luma 160) behind the intro
-      screen leave its caption legible; does the llama channel grazing the
-      snow cap at viewBox 75 look deliberate or clipped; do the eight levels'
-      visible title/hint/result block (§3.1's forced non-world rendering)
-      read as a different app next to the wordless duck levels.
-- [ ] 7.7 If 7.6 finds a defect, correct the responsible code (never the
-      already-measured registry literals), re-run the affected phase's
-      tests, and re-capture. Record what was found and changed, or record
-      that no correction was needed.
+- [x] 7.1 Dev server started on **port 5199**, not 5173: 5174 was already
+      answering HTTP 200 from another session's server, and capturing against
+      a stale build would have proved nothing. Run from `client/` as
+      `npx vite --port 5199 --strictPort`, because the root script eats
+      `--host`/`--port` before vite sees them.
+- [x] 7.2 All eight levels captured at 1280x900 (the viewport; the SVG is
+      still 1000x600 inside it) into `capturas/pasoC/`: `sheep-hill1..4.png`,
+      `llama-peak1..4.png`.
+- [x] 7.3 Both narrative entries captured via the dev route `?nivel=intro-<id>`
+      that the duck change already built for exactly this:
+      `capturas/pasoC/sheep-intro.png`, `llama-intro.png`. No interactive
+      playthrough was needed after all.
+- [~] 7.4 **Partially reached.** Captured: the map fogged
+      (`zoo-map-montanas.png`), the map with montañas open via
+      `?debug=pato-recuperado` (`zoo-map-montanas-abierta.png`), the sector
+      debug overlay (`zoo-map-sectores.png`), and the internal dev level list
+      (`level-map-dev.png`, which is what `?nivel=mapa` actually routes to —
+      the zoo map is the bare-URL landing).
+      **NOT captured: the map after each mountain adventure closes, and the
+      backpack HUD with the hat present.** Both need `sheep-hill4`/
+      `llama-peak4` filed, and the only progress-seeding dev flag that exists
+      is `?debug=pato-recuperado` (`canvas/devMode.ts`), which seeds the duck
+      alone. Reaching them needs either a real drag-through of eight levels
+      or a new seeding flag; inventing the flag here would be unscoped work
+      on the surface this phase is supposed to be reviewing. Recorded as a
+      gap, not ticked as done. The underlying behaviour is unit-covered:
+      `sectors.test.ts` pins both `appearsWhen` rules and `backpack.test.ts`
+      pins the hat's grant condition.
+- [x] 7.5 Regression captures read: `regresion-duck-trail1.png` (paper
+      channel, footprints, PISTAS rail, lagoon backdrop — visually unchanged)
+      and `regresion-f2-guirnalda.png`.
+- [x] 7.6 **Every capture read.** Answers to the questions this task asks:
+      the stone channel reads as a path, not a scar, over both backdrops; the
+      sheep and llamas read as standing ON their peaks; the `SHEET_PAPER`
+      demo line reads as a demonstration over stone; the ladera's `quiet`
+      band leaves the intro caption legible; the llama channel grazing the
+      snow cap reads as deliberate. The last question — whether the eight
+      levels' visible title/hint/result block reads as a different app next
+      to the wordless duck levels — answered **yes**, and 7.7 records what
+      was done about it.
+- [x] 7.7 **Three defects found by reading, all corrected and re-captured.**
+      1. **Every sheep sat inside a light box.** `art-source/oveja.png`
+         carries an alpha DITHER across the whole canvas — 4,374 evenly
+         spaced opaque specks of 240px each alongside the one real
+         632,576px sheep — so `alpha_bbox` found opaque pixels in every
+         corner, cropped nothing, and shipped the entire lamina scaled down.
+         Fixed in `scripts/art/build_art.py` with `SPECKLED_ALPHA_SOURCES`
+         feeding the pipeline's existing `keep_largest_blob()`; the shipped
+         asset went 409x448/225 KB -> 420x448/83 KB and exactly one manifest
+         entry moved. Regression test on the shipped file's corners in
+         `artHierarchy.test.ts`.
+      2. **The eight showed the ordinary worded shell.** Never a decision
+         about these levels — it fell out of one. `CHANNEL_STONE` forced
+         them out of the detective world (`MUD_INK` fails the luma law on
+         stone) and `inWorld` happened to gate BOTH the mud ink and the
+         on-screen words. 13 chrome gates in `LevelPlay.tsx` moved to
+         `drawnPlace`; the mechanics gates (the lens, `MUD_INK`, the PISTAS
+         rail, the scattered ground) stayed on `inWorld`. Exactly one test
+         failed when the change landed — the one pinning the old behaviour —
+         which is the proof nothing else moved. The maintainer chose this;
+         `specs/detective-mode/spec.md`'s scenario was amended from "The
+         ordinary shell renders" to "The wordless shell renders".
+      3. **Montañas' fog never lifted.** `ZooMap.tsx` filtered fog on
+         `fog.length > 0` alone, never consulting `isOpen`. That agreed with
+         openness only while every sector was always-open (the estanque,
+         `fog: []`) or always-closed; montañas is the FIRST sector with a
+         conditional unlock, so its cloud stayed painted over a hit that was
+         already live and tappable. Fixed, plus two tests: one pinning that
+         montañas alone moves when `duck-trail4` is filed, and one asserting
+         the general invariant — a sector is fogged exactly when it is not
+         open — over both inputs.
 
 ## Phase 8: Final Gate
 
@@ -473,7 +516,10 @@ for the maintainer's own capture pass whenever they run it.
       from `vertexArt.ts`+test; the seven other `.test.ts` files listed above
       grow in place, no new files) — the change must not drop a test outside
       any deliberate, named removal (none are named here).
-      **Actual: 65 test files / 1282 tests, all green** — the +2 files are
+      **Actual at apply time: 65 test files / 1282 tests, all green.**
+      **Final after Phase 7's three corrections: 65 files / 1286 tests**
+      (+1 sheep-asset corner regression, +1 llama wordless-shell row, +2 fog
+      invariant rows; the sheep-shell row was rewritten, not added). The +2 files are
       `levels/vertexArt.test.ts` (new) and `zoo/backpack.test.ts` (new, since
       no test file existed for the empty pre-change registry); every other
       touched `.test.ts` grew in place.
