@@ -369,12 +369,17 @@ def prepare(src_name: str, target_h: int) -> png.Image:
     return png.box_resize(img, max(1, round(img.w * scale)), max(1, round(img.h * scale)))
 
 
-# (source, output, target height, fill or None, keep_ink)
+# (source, output, target height, fill or None, keep_ink[, sample_spine])
 #
 # `fill=None` keeps authored colours without contour processing;
 # `fill='contour'` keeps the fills but normalizes every dark contour to INK.
 # The animals, octopuses, and world characters keep authored fills because
 # they ARE the answer/presence in the scene, not reward-coloured clue marks.
+#
+# An optional SIXTH element, `True`, marks a row whose SHIPPED file (after
+# `recontour`, before the final halving) is also run through `sample_spine`
+# (design.md §1.1) -- the sibling of `sample_corridor_band` for a DRAWN
+# centreline instead of a painted band. Only the three snake rows pay for it.
 SINGLES = [
     ('gota de agua.png',      'clue-droplet-earned.png',   256, POND,         True),
     ('gota de agua.png',      'clue-droplet-drained.png',  256, CLUE_DRAINED, True),
@@ -453,9 +458,9 @@ SINGLES = [
     ('bocadillo.png',         'zoo-speech-bubble.png',     512, 'contour',    True),
     # Sector adventure cutouts. Their authored canvases are standardized below;
     # this table owns the compact, intrinsic dimensions the client renders.
-    ('vibora chica.png',      'sector-snake-small.png',    512, 'contour',    True),
-    ('vibora mediana.png',    'sector-snake-medium.png',   512, 'contour',    True),
-    ('vibora grande.png',     'sector-snake-large.png',    512, 'contour',    True),
+    ('vibora chica.png',      'sector-snake-small.png',    512, 'contour',    True, True),
+    ('vibora mediana.png',    'sector-snake-medium.png',   512, 'contour',    True, True),
+    ('vibora grande.png',     'sector-snake-large.png',    512, 'contour',    True, True),
     ('llama.png',             'sector-llama.png',          448, 'contour',    True),
     ('abeja.png',             'sector-bee.png',            256, 'contour',    True),
     ('flor.png',              'sector-flower.png',         256, 'contour',    True),
@@ -490,6 +495,16 @@ SINGLES = [
     ('cofre.png',              'sector-chest.png',          256, 'contour',    True),
     ('piedra.png',             'sector-stone.png',          256, 'contour',    True),
     ('hoja.png',               'sector-leaf.png',           256, 'contour',    True),
+    # The arena's cart, `docs/13` §8 row E's own backpack reward
+    # (design.md §7.1). PIPELINE ROW ONLY here -- no `CART_ART` registry entry
+    # and no consumer yet, deliberately: `artManifest.test.ts` requires a
+    # pipeline row, a registry entry AND a consumer to land in the same
+    # change, and `carrito`'s only consumer (`zoo/backpack.ts`) cannot exist
+    # before Phase 7 wires the `arena` sector. `carrito.png`'s `alpha_bbox`
+    # is stable 8-200 (checked, not guessed) so it needs no
+    # `SPECKLED_ALPHA_SOURCES` entry; its authored canvas is 1254x1254, not
+    # 1024x1024, so it takes no `AUTHORED_SOURCE_SIZES` entry either.
+    ('carrito.png',            'zoo-cart.png',              256, 'contour',    True),
 ]
 
 # Full-canvas scenes are already authored at final dimensions. They bypass the
@@ -559,6 +574,256 @@ def sample_corridor_band(img: png.Image, top: int, bottom: int) -> tuple[str, st
     quiet = max(counts.items(), key=lambda kv: kv[1])[0]
     assert brightest is not None
     return to_hex(quiet), to_hex(brightest)
+
+
+def _median(values: list[int]) -> float:
+    s = sorted(values)
+    n = len(s)
+    mid = n // 2
+    return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2
+
+
+EYE_WHITE_LUMA = 200  # design.md §1.1 -- the eye-white threshold `traceTo` stops behind.
+SPINE_ALPHA_THRESH = 128
+
+
+def sample_spine(img: png.Image) -> dict:
+    """The drawn body's centreline, as `spineWave`'s own parameters.
+
+    `mid`      the fitted centreline's y, as a fraction of the cutout's height
+    `halves`   [[width, rise], ...] -- width as a fraction of the cutout's WIDTH,
+               rise SIGNED as a fraction of its height (negative = up)
+    `residual` max |measured spine - reconstructed cubic|, SHIPPED px. The number
+               `catalog.test.ts` turns into a viewBox tolerance (design.md 3.2 C1).
+    `thickness`median opaque-column run length, as a fraction of the height
+    `traceFrom`/`traceTo`  the TRACEABLE span, as fractions of the width,
+               `traceFrom < traceTo` always. Whichever tip carries the eye
+               white (luma >= 200 -- measured, not assumed to sit on a
+               particular side: the shipped cutouts carry it near LOW x, not
+               the high-x side the composite reference sheet suggested) is
+               inset past the cluster's far edge by one half-thickness, so the
+               ink stops behind the head (design.md 2.2 red row R3) rather
+               than landing on the eye. The OTHER tip is inset by a plain
+               half-thickness from its own opaque edge (design.md §3.2 C5).
+    `bodyBrightest`/`bodyDarkest` the luma extremes over the opaque body,
+               strictly BETWEEN `traceFrom` and `traceTo` (so the eye white
+               never counts as `bodyBrightest`), as `#rrggbb`.
+    `headWhite` the single brightest opaque pixel anywhere in the cutout (the
+               eye), as `#rrggbb`.
+
+    Normalized to the cutout's own box so the numbers survive a re-export at a
+    different pixel size -- the same reason `ArtImage` carries `w`/`h` rather
+    than a scale. No alpha is sampled at RUNTIME; this is a build step, and
+    nothing in the client ever reads a pixel.
+
+    The centreline generator's own closed form (`alternatingArches`,
+    `client/src/levels/paths.ts`): one half-arch of width `width` starting at
+    `(x0, mid)` and ending at `(x0 + width, mid)` is the cubic Bezier through
+    control points offset by `off = (4/3) * rise` at 1/3 and 2/3 of the span,
+    which satisfies `y(t) = mid + 3 * off * t * (1 - t)` -- exactly `mid` at
+    `t = 0, 1` and exactly `mid + rise` at `t = 1/2`. Fitting therefore needs
+    only the two zero crossings (the half's start/end x) and the measured
+    extremum `rise` in between: no solver, closed form.
+    """
+    w, h = img.w, img.h
+    px = img.px
+    spine: list[float | None] = [None] * w
+    thickness_cols: dict[int, int] = {}
+    col_min_luma: dict[int, int] = {}
+    col_max_luma: dict[int, int] = {}
+    for x in range(w):
+        y_min = y_max = None
+        count = 0
+        lo_luma = 256
+        hi_luma = -1
+        for y in range(h):
+            i = (y * w + x) * 4
+            if px[i + 3] < SPINE_ALPHA_THRESH:
+                continue
+            if y_min is None:
+                y_min = y
+            y_max = y
+            count += 1
+            level = luma(px[i], px[i + 1], px[i + 2])
+            if level < lo_luma:
+                lo_luma = level
+            if level > hi_luma:
+                hi_luma = level
+        # A tight alpha-bbox crop guarantees SOME pixel at or above threshold 8
+        # touches the first/last row and column, but this scan's threshold
+        # (128, "opaque enough to belong to the body") is stricter -- so an
+        # antialiased edge column can legitimately come back empty. Left as a
+        # gap and NEAREST-FILLED below rather than treated as a defect: it is
+        # one or two feathered columns at the very tail/head tip, never the
+        # drawn body itself.
+        if y_min is not None:
+            spine[x] = (y_min + y_max) / 2
+            thickness_cols[x] = y_max - y_min + 1
+            col_min_luma[x] = lo_luma
+            col_max_luma[x] = hi_luma
+
+    known = [x for x in range(w) if spine[x] is not None]
+    if not known:
+        raise SystemExit('sample_spine: no column reaches the opaque threshold')
+    for x in range(w):
+        if spine[x] is None:
+            nearest = min(known, key=lambda k: abs(k - x))
+            spine[x] = spine[nearest]
+            thickness_cols[x] = thickness_cols[nearest]
+            col_min_luma[x] = col_min_luma[nearest]
+            col_max_luma[x] = col_max_luma[nearest]
+
+    thickness_px = _median(list(thickness_cols.values()))
+
+    # The TRACEABLE span excludes both tip ends (half-thickness in, so the
+    # corridor stroke's round cap lands ON the body) and the eye-white zone,
+    # WHICHEVER side of the cutout it sits on -- the measured art's own head
+    # is at low x for all three snakes, not the high-x side the reference
+    # sheet's composite drawing suggested, so this is orientation-agnostic
+    # rather than assuming a side.
+    eye_cols = [x for x in range(w) if col_max_luma[x] >= EYE_WHITE_LUMA]
+    left_tip_inset = thickness_px / 2
+    right_tip_inset = (w - 1) - thickness_px / 2
+    if eye_cols:
+        near_left = min(eye_cols) < (w - 1) - max(eye_cols)
+        if near_left:
+            # The eye sits near x=0: the boundary that matters is the
+            # cluster's FAR edge (closest to the rest of the body), pushed
+            # one further half-thickness away from the eye.
+            head_boundary = max(eye_cols) + thickness_px / 2
+            tail_boundary = right_tip_inset
+        else:
+            head_boundary = min(eye_cols) - thickness_px / 2
+            tail_boundary = left_tip_inset
+    else:
+        head_boundary = right_tip_inset
+        tail_boundary = left_tip_inset
+
+    trace_from_px = max(0.0, min(head_boundary, tail_boundary))
+    trace_to_px = min(float(w - 1), max(head_boundary, tail_boundary))
+    trace_from_col = max(0, min(w - 1, round(trace_from_px)))
+    trace_to_col = max(trace_from_col, min(w - 1, round(trace_to_px)))
+
+    body_cols = range(trace_from_col, trace_to_col + 1)
+    body_darkest_luma = min(col_min_luma[x] for x in body_cols)
+    body_brightest_luma = max(col_max_luma[x] for x in body_cols)
+
+    def hex_at_luma(target_luma: int, want_min_x: int, want_max_x: int) -> str:
+        for x in range(want_min_x, want_max_x + 1):
+            for y in range(h):
+                i = (y * w + x) * 4
+                if px[i + 3] < SPINE_ALPHA_THRESH:
+                    continue
+                if luma(px[i], px[i + 1], px[i + 2]) == target_luma:
+                    return '#%02x%02x%02x' % (px[i], px[i + 1], px[i + 2])
+        raise SystemExit('sample_spine: luma target not found')
+
+    body_darkest = hex_at_luma(body_darkest_luma, trace_from_col, trace_to_col)
+    body_brightest = hex_at_luma(body_brightest_luma, trace_from_col, trace_to_col)
+    head_white_luma = max(col_max_luma.values())
+    head_white = hex_at_luma(head_white_luma, 0, w - 1)
+
+    # The wave fit is over the TRACEABLE span only, `[traceFrom, traceTo]` --
+    # not the whole cutout. The tapering tail/head tips outside it are real
+    # drawn art but are not corridor: forcing a half-arch to start or end
+    # exactly at a tip column, which does not actually sit on any fitted
+    # centreline (a taper's own tip is a point, not a cross-section), is what
+    # produced an unfittable residual on the very first measurement of this
+    # data. `mid` is therefore the mean over the traceable span alone, which
+    # is also the span `spineWave`'s own path needs to cover: the round-capped
+    # corridor stroke already stops at the same two insets (C5).
+    mid_px = sum(spine[x] for x in body_cols) / len(body_cols)  # type: ignore[misc]
+
+    # Zero crossings of `spine(x) - mid_px` within the traceable span,
+    # interpolated to sub-pixel precision, walking left to right. ONLY real
+    # sign changes count -- `traceFrom`/`traceTo` are half-thickness INSETS
+    # from a tapering tip (design.md §3.2 C5), not points the drawn spine
+    # actually crosses `mid` at, so forcing either boundary to double as a
+    # zero crossing forced `spineWave`'s own `move(x0, mid)` origin onto a
+    # column the real art does not touch mid at -- measured on the first
+    # build of this slice as most of the fit's own residual, at BOTH tips,
+    # not fixable by splitting a half (the mismatch sits AT the boundary
+    # point itself, not inside a span a split can bisect). The fitted wave
+    # therefore spans the first-to-last REAL crossing, which sits inside
+    # `[traceFrom, traceTo]` by a small, honestly measured margin -- the
+    # tapering few pixels closest to each tip are drawn art the `<image>`
+    # still shows, just not part of the modelled centreline.
+    crossings: list[float] = []
+    for x in range(trace_from_col + 1, trace_to_col + 1):
+        d0 = spine[x - 1] - mid_px
+        d1 = spine[x] - mid_px
+        if d0 == 0.0 or (d0 < 0) != (d1 < 0):
+            cx = float(x) if d1 == d0 else (x - 1) + (0 - d0) / (d1 - d0)
+            crossings.append(cx)
+    if len(crossings) < 2:
+        crossings = [trace_from_px, trace_to_px]
+
+    # `fit_half`: the closed-form 3-point fit for one half-arch, and design.md
+    # §3.5's named THIRD fallback ("split a half-arch in two in the fit"),
+    # applied automatically wherever the closed-form fit alone leaves a
+    # residual over the §3.5 prediction (10% of that half's own amplitude): a
+    # hand-drawn spine's true peak is not always at its half's geometric
+    # midpoint the way `alternatingArches`'s own cubic assumes, and splitting
+    # the half lets each piece re-centre on its OWN local extremum. No code
+    # downstream of the manifest changes shape -- `spineWave` already takes an
+    # arbitrary-length `halves` list.
+    MAX_SPLIT_DEPTH = 4
+    RESIDUAL_FRACTION = 0.10
+
+    def fit_half(cx0: float, cx1: float, depth: int) -> tuple[list[list[float]], float]:
+        width_px = cx1 - cx0
+        lo = max(trace_from_col, round(cx0))
+        hi = min(trace_to_col, round(cx1))
+        if width_px <= 0 or hi <= lo:
+            return [], 0.0
+        best_dev = 0.0
+        best_y = mid_px
+        for x in range(lo, hi + 1):
+            dev = spine[x] - mid_px
+            if abs(dev) > abs(best_dev):
+                best_dev = dev
+                best_y = spine[x]
+        rise_px = best_y - mid_px
+        off = (4 / 3) * rise_px
+        local_residual = 0.0
+        for x in range(lo, hi + 1):
+            t = min(1.0, max(0.0, (x - cx0) / width_px))
+            recon = mid_px + 3 * off * t * (1 - t)
+            local_residual = max(local_residual, abs(spine[x] - recon))
+        amplitude = abs(rise_px)
+        if (
+            depth < MAX_SPLIT_DEPTH
+            and width_px > 2
+            and (amplitude == 0 or local_residual > RESIDUAL_FRACTION * amplitude)
+        ):
+            cx_mid = (cx0 + cx1) / 2
+            left_halves, left_res = fit_half(cx0, cx_mid, depth + 1)
+            right_halves, right_res = fit_half(cx_mid, cx1, depth + 1)
+            split_residual = max(left_res, right_res)
+            if split_residual < local_residual:
+                return left_halves + right_halves, split_residual
+        return [[width_px, rise_px]], local_residual
+
+    halves: list[list[float]] = []
+    residual = 0.0
+    for i in range(len(crossings) - 1):
+        cx0, cx1 = crossings[i], crossings[i + 1]
+        hs, res = fit_half(cx0, cx1, 0)
+        halves.extend(hs)
+        residual = max(residual, res)
+
+    return {
+        'mid': mid_px / h,
+        'halves': [[wpx / w, rpx / h] for wpx, rpx in halves],
+        'residual': residual,
+        'thickness': thickness_px / h,
+        'traceFrom': trace_from_px / w,
+        'traceTo': trace_to_px / w,
+        'bodyBrightest': body_brightest,
+        'bodyDarkest': body_darkest,
+        'headWhite': head_white,
+    }
+
 
 # Authoring-canvas contract for the zoo slice. These dimensions are deliberate:
 # cutouts keep a shared square canvas (including their transparent margin), while
@@ -741,7 +1006,9 @@ def main() -> None:
         print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
               f'{manifest[key]["bytes"] / 1024:6.1f} KB')
 
-    for src, name, target_h, fill, keep_ink in SINGLES:
+    for row in SINGLES:
+        src, name, target_h, fill, keep_ink = row[:5]
+        want_spine = row[5] if len(row) > 5 else False
         img = prepare(src, target_h)
         if fill == 'contour':
             recontour(img)
@@ -755,8 +1022,17 @@ def main() -> None:
             name.startswith(('zoo-', 'sector-', 'hedgehog-')) or name in ('andean-hat.png', 'carrier-octopus.png', 'home-octopus.png')
         ):
             recontour(final)
+        # `sample_spine` reads the SHIPPED file -- the exact array `emit`
+        # crops to its own alpha bbox -- so the manifest's `w`/`h` fractions
+        # match what `assets.ts`'s registry ships, not the pre-crop canvas.
+        spine = None
+        if want_spine:
+            x0, y0, x1, y1 = png.alpha_bbox(final)
+            spine = sample_spine(png.crop(final, x0, y0, x1, y1))
         key = name[:-4]
         manifest[key] = emit(name, final)
+        if spine is not None:
+            manifest[key].update(spine)
         print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
               f'{manifest[key]["bytes"] / 1024:6.1f} KB')
 

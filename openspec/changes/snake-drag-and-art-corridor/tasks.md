@@ -29,38 +29,38 @@ Sampled Into manifest.json". **Non-negotiable, task one**: no literal in
 downstream before 1.3 rebuilds the manifest and 1.4 copies it. 1.1 → 1.2 →
 1.3 → 1.4 → 1.5, strictly sequential.
 
-- [ ] 1.1 In `scripts/art/build_art.py`: implement `sample_spine(img)` per
+- [x] 1.1 In `scripts/art/build_art.py`: implement `sample_spine(img)` per
       design.md §1.1 — spine sampled column by column, `mid`/`halves` fitted
       at 3 interpolation points per half-arch (closed form, no solver),
       `residual`, `thickness`, `traceFrom`/`traceTo` (eye-white threshold
       minus half-thickness), `bodyBrightest`/`bodyDarkest` (excluding
       `x > traceTo`), `headWhite`. Reached through an optional 6th element on
       the three snake `SINGLES` rows.
-- [ ] 1.2 In `scripts/art/build_art.py`: add `('carrito.png', 'zoo-cart.png',
+- [x] 1.2 In `scripts/art/build_art.py`: add `('carrito.png', 'zoo-cart.png',
       256, 'contour', True)` as a `SINGLES` row (pipeline only — no registry
       entry yet, see the resequencing note above). Verify `carrito.png`'s
       `alpha_bbox` for the speckle-defect class (stable 8–200, or add
       `SPECKLED_ALPHA_SOURCES`); add an `AUTHORED_SOURCE_SIZES` entry only if
       its authored canvas measures exactly 1024×1024.
-- [ ] 1.3 Run `python3 scripts/art/build_art.py`. Read the rebuilt
+- [x] 1.3 Run `python3 scripts/art/build_art.py`. Read the rebuilt
       `manifest.json`'s `sector-snake-{small,medium,large}` entries for
       `mid`, `halves`, `residual`, `thickness`, `traceFrom`, `traceTo`,
       `bodyBrightest`, `bodyDarkest`, `headWhite`, and `sector-cart`'s `w`.
-- [ ] 1.4 **Record the measured values into `design.md`**, replacing every
+- [x] 1.4 **Record the measured values into `design.md`**, replacing every
       `[to copy]` placeholder in §1.3, §3.1, and §3.4–§3.5 with the real
       numbers read in 1.3 — the same discipline pasos C and D each recorded.
-- [ ] 1.5 **Verify the residual prediction** (§3.5: `residual ≤ 0.10 ×
+- [x] 1.5 **Verify the residual prediction** (§3.5: `residual ≤ 0.10 ×
       amplitude`) for all three cutouts. If it holds, record the confirmed
       C1 margins in `design.md`. **If it fails**, apply the named fallback in
       this order, no code change: (a) lower `corridorWidth` (C1 is linear in
       it, `MIN_CORRIDOR = 30` leaves `snake4` two units of room); (b) raise
       `s_L` on `snake3` above 0.72; (c) split a half-arch in two in the fit.
       Record which lever, if any, was needed.
-- [ ] 1.6 In `client/src/detective/artManifest.test.ts`: extend the
+- [x] 1.6 In `client/src/detective/artManifest.test.ts`: extend the
       registry↔manifest parity check to the three snakes' new fields; add
       `sector-cart`'s pipeline-row parity (registry entry not yet wired — the
       guard only proves the pipeline emits it).
-- [ ] 1.7 Run `npm test -- detective/artManifest` — green.
+- [x] 1.7 Run `npm test -- detective/artManifest` — green.
 
 ## Phase 2: The Fitted Art Corridor (E2)
 

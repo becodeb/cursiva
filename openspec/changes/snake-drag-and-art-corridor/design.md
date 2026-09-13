@@ -367,14 +367,27 @@ All three sources are 1024×1024 with an `alpha_bbox` **stable from threshold 8 
 `SPECKLED_ALPHA_SOURCES`. The drawn contour is already exactly `#1a1a1a`. Shipped cutouts are
 exactly half the source bbox **[read, `assets.ts:282-284`]**:
 
-| cutout | shipped `w × h` | half-arches | thickness | amplitude | body fill |
+| cutout | shipped `w × h` | half-arches (fitted) | thickness | amplitude (max) | body fill |
 |---|---|---|---|---|---|
-| `snakeSmall` | 480 × 98 | 5 (2.5 waves) | **57.0** | 20.5 | `#7b9b6e` (140.3) |
-| `snakeMedium` | 492 × 114 | 7 (3.5 waves) | **49.5** | 32.25 | `#759268` (132.5) |
-| `snakeLarge` | 500 × 95 | 9 (4.5 waves) | **52.5** | 21.25 | `#67895c` (121.7) |
+| `snakeSmall` | 480 × 98 | 3 | **58.0** | 23.6 | `#7b9b6e` (140.3) |
+| `snakeMedium` | 492 × 114 | 4 | **50.0** | 25.95 | `#7b986f` (132.6) |
+| `snakeLarge` | 500 × 95 | 6 | **53.0** | 17.16 | `#75976a` (121.0) |
 
-All **[measured]** except `w × h` **[read]**; `thickness` and `amplitude` are the session's source
-numbers halved, and `thickness` is **[to copy]** from `manifest.json` before any literal is frozen.
+All **[measured]**, by `build_art.py`'s own `sample_spine()` against the rebuilt `manifest.json`
+(task 1.3), except `w × h` **[read]**. `thickness` is the median opaque-column run length; `amplitude`
+is the largest `|rise|` among the fitted `halves`.
+
+**Corrected against this design's own earlier estimate.** The half-arch count is NOT 5/7/9 (that
+number assumed the wave model covers the FULL cutout, tail tip to head tip). `sample_spine`'s fit
+domain is `[traceFrom, traceTo]` — the traceable span — and only counts a REAL zero crossing of
+`spine − mid` as a half-arch boundary. The columns between each tip and the wave's own first/last
+real crossing are genuine drawn art (the `<image>` still shows them) but are not part of the
+modelled centreline: forcing the wave's `move(x0, mid)` origin onto a tip column the real spine does
+not cross `mid` at was the single largest source of fit error on the first measurement of this data
+(residual as large as the amplitude itself, at both tips) — not fixable by splitting a half, since
+the mismatch sits at the boundary itself, not inside a span a split can bisect. 3/4/6 is what
+remains once those two tapering ends are excluded; nothing downstream asserts a specific half-arch
+count.
 
 **The finding the proposal misses: the shipped widths are 480 / 492 / 500 — equal within 4 %.**
 `docs/referencias/viboras-el-animal-es-el-trazo.png` **[read]** draws three snakes of the SAME
@@ -448,9 +461,11 @@ the rotation are the per-level knobs.
 > **C3/C4**: min centreline separation `= 239.0 − 105.3 = 133.7`, against `2 · 48 = 96` and
 > `2 · 60 = 120` **[derived]** — both clear, the tighter by 13.7.
 
-> **C1**: `thickness_min_vb = 49.5 × 1.3008 = 64.4` **[derived]**. Residual budget per level is
-> `(64.4 − cw)/2` = **8.2 / 11.2 / — / 16.2** units; §3.5's prediction is ≤ 3.2. `snake1` has the
-> least room and still clears by 5.0.
+> **C1 [measured, task 1.5 — corrects this row's own earlier estimate].** The narrowest piece once
+> the rebuilt manifest's real `thickness`/`residual` are used is `snakeSmall`, not `snakeMedium`:
+> `thickness_vb = 58.0 × (span/480)`, `residual_vb = 3.27 × (span/480)`. Margin
+> `thickness_vb − corridorWidth − 2·residual_vb` = **7.74 / 13.74 / — / 23.74** for
+> `snake1`/`snake2`/`snake4` (`snake3` below) — all positive, `snake1` tightest.
 
 > **C2**: required band `cw/2 − 6` = 18 / 15 / — / 10 against the binding 24.9 **[derived]** —
 > margins 6.9 / 9.9 / 14.9.
@@ -460,8 +475,9 @@ the bottom and the head at the top; the `<image>` takes `transform="rotate(−90
 same `placeArtCorridor` result, so the two cannot disagree. Lengths 374 / 461 / 547 occupy y, and
 the drawn widths 76.5 / 106.8 / 104.0 occupy x — three columns totalling 287.3 of a 1000-unit
 sheet **[derived]**, which is why vertical fits where oblique does not. C6 is cleared with enormous
-margin (span ≈ 547). C1 at 0.72: `thickness_min_vb = 46.4`, budget `(46.4 − 36)/2 = 5.2` against a
-predicted residual of `3.2 × 0.72 = 2.3` — the tightest row in the family, and the one §3.5's
+margin (span ≈ 547). C1 at 0.72 **[measured, task 1.5]**: using the real `snakeSmall` thickness/
+residual scaled to `snake3`'s own span (374), margin `thickness_vb − 36 − 2·residual_vb` = **4.14**
+— the tightest row in the family, exactly as this section already predicted, and the one §3.5's
 lever is aimed at.
 
 **Why `snake4` returns to horizontal.** `docs/13` §2's step 4 is *mayor variación de la
@@ -479,18 +495,35 @@ earlier levels trimmed. Arc length is therefore **longest on `snake4`** among th
 C6's span or C4's separation. **Vertical is the branch `docs/13` §2 offers and the only one that
 fits.** [corrected] against the proposal's decision 5, which assumed obliqueness was free.
 
-### 3.5 The prediction the sampling must confirm, and the lever if it does not
+### 3.5 The prediction the sampling confirmed against C1, though not against its own 10% bound
 
-> **Prediction:** `residual ≤ 0.10 × amplitude` for each cutout — ≤ 2.1 / 3.2 / 2.1 shipped px,
-> ≤ 2.3 / 4.2 / 3.2 viewBox units at the §3.4 scales. A cubic that interpolates a hand-drawn
-> half-arch at its two crossings and its extremum has nowhere much left to stray.
+> **Prediction:** `residual ≤ 0.10 × amplitude` for each cutout — ≤ 2.1 / 3.2 / 2.1 shipped px.
 
-Every C1 margin above is stated against the worst of those (3.2 shipped px). If the measured
-residual exceeds the prediction, the lever is **authored data, in this order**: (1) lower
-`corridorWidth` — C1 is linear in it and `MIN_CORRIDOR = 30` leaves `snake4` two units of room;
-(2) raise `s_L` on `snake3`, whose 0.72 is set by the vertical fit and not by C1; (3) split a
-half-arch in two in the fit, which halves the residual and costs two numbers. No code change is on
-that list, which is the point of putting the number in the manifest.
+**[measured, task 1.5]** The rebuilt `manifest.json` reports `residual` **3.27 / 3.36 / 1.70**
+shipped px for small/medium/large — `large` clears its own 10% bound (1.72), but `small` and
+`medium` miss theirs (2.36, 2.60) by roughly one pixel, even after `sample_spine`'s automatic
+"split a half-arch in two" fallback (lever 3, applied wherever a half's own local residual exceeded
+its own 10% bound; it did not close the last ~1px on these two, because that residual sits at the
+tips of the traceable span itself — see §3.1's correction — not inside a span a further split can
+bisect).
+
+**What actually gates the geometry is C1, not the 10% heuristic, and C1 holds for all four levels
+with real margin to spare:**
+
+| level | narrowest margin (`thickness_vb − corridorWidth − 2·residual_vb`) |
+|---|---|
+| `snake1` | **7.74** (small piece) |
+| `snake2` | **13.74** (small piece) |
+| `snake3` | **4.14** (small piece) — the tightest, as §3.4 anticipated |
+| `snake4` | **23.74** (small piece) |
+
+**No lever was needed.** The 10% prediction was a design-time proxy for whether C1 would clear, not
+an independent gate `catalog.test.ts` asserts on its own; C1 itself — computed from the real
+`thickness`/`residual` above, scaled by each piece's own `span/w` — clears on every level with its
+smallest margin at `snake3` (4.14 viewBox units), exactly the row §3.4 flagged as tightest. Levers
+(1) lower `corridorWidth` and (2) raise `snake3`'s `s_L` remain available and untouched if a later
+change narrows this further; recorded here so a later reader does not re-derive the same
+measurement.
 
 ---
 

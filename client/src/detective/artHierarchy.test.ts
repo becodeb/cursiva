@@ -586,7 +586,13 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
   })
 
   it('keeps zoo and sector art on intrinsic canvases with safe alpha and dark pixels', async () => {
-    const files = named(WORLD_GUARD_FILES)
+    // `zoo-cart.png` ships from Phase 1 of `snake-drag-and-art-corridor`
+    // ahead of its registry entry (`CART_ART`, Phase 7's own consumer wiring
+    // — design.md §7.1's resequencing note); excluded here the same way
+    // `artManifest.test.ts`'s `PENDING_MANIFEST_KEYS` excludes it from ITS
+    // own orphan guard, and for the same reason.
+    const PENDING_WORLD_GUARD_FILES = new Set(['zoo-cart.png'])
+    const files = named(WORLD_GUARD_FILES).filter(([name]) => !PENDING_WORLD_GUARD_FILES.has(name))
     expect(files.map(([name]) => name).sort()).toEqual(Object.keys(WORLD_GUARDED_ART).sort())
 
     for (const [name, url] of files) {

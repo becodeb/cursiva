@@ -68,7 +68,27 @@ interface ManifestEntry {
   quiet?: string
   brightest?: string
   corridorRows?: { top: number; bottom: number }
+  // `sample_spine()` fields (design.md §1.1), only on the three snake rows.
+  mid?: number
+  halves?: readonly (readonly [number, number])[]
+  residual?: number
+  thickness?: number
+  traceFrom?: number
+  traceTo?: number
+  bodyBrightest?: string
+  bodyDarkest?: string
+  headWhite?: string
 }
+
+/** Pipeline rows landed ahead of their registry entry, closed in a LATER
+ * phase of this SAME change once their consumer exists. `zoo-cart` is
+ * `carrito.png`'s row (task 1.2): `artManifest.test.ts` normally requires a
+ * pipeline row, a registry entry AND a consumer together, but `carrito`'s
+ * only consumer (`zoo/backpack.ts`) cannot exist before Phase 7 wires the
+ * `arena` sector (design.md §7.1's resequencing note, the same gap paso D
+ * resolved for `cofre`/`piedra`/`hoja`). Phase 7 registers `CART_ART` and
+ * this set goes back to empty. */
+const PENDING_MANIFEST_KEYS = new Set(['zoo-cart'])
 
 const manifest: Record<string, ManifestEntry> = JSON.parse(
   Object.values(
@@ -164,8 +184,39 @@ describe('art registry matches the shipped pipeline manifest', () => {
 
   it('leaves no manifest entry unregistered, so shipped art is never dead weight', () => {
     const registered = new Set(REGISTERED.map(([, art]) => keyOf(art.href)))
-    const orphans = Object.keys(manifest).filter((key) => !registered.has(key))
+    const orphans = Object.keys(manifest).filter(
+      (key) => !registered.has(key) && !PENDING_MANIFEST_KEYS.has(key),
+    )
     expect(orphans, 'the pipeline ships art nothing in the registry can reach').toEqual([])
+  })
+
+  it('ships carrito.png\'s pipeline row ahead of its registry entry (Phase 1; Phase 7 wires CART_ART)', () => {
+    const entry = manifest['zoo-cart']
+    expect(entry, 're-run scripts/art/build_art.py').toBeDefined()
+    expect(ON_DISK.has('zoo-cart'), 'zoo-cart.png must exist on disk').toBe(true)
+  })
+
+  it("carries the three snakes' fitted spine, thickness, traceable span and luma-extreme fields (design.md §1.1)", () => {
+    const HEX = /^#[0-9a-f]{6}$/
+    for (const key of ['sector-snake-small', 'sector-snake-medium', 'sector-snake-large'] as const) {
+      const entry = manifest[key]
+      expect(entry, key).toBeDefined()
+      expect(typeof entry.mid, `${key}.mid`).toBe('number')
+      expect(Array.isArray(entry.halves), `${key}.halves`).toBe(true)
+      expect(entry.halves!.length, `${key}.halves must be non-empty`).toBeGreaterThan(0)
+      for (const [width, rise] of entry.halves!) {
+        expect(width, `${key}: half width must be positive`).toBeGreaterThan(0)
+        expect(typeof rise, `${key}: half rise must be a number`).toBe('number')
+      }
+      expect(entry.residual, `${key}.residual`).toBeGreaterThanOrEqual(0)
+      expect(entry.thickness, `${key}.thickness`).toBeGreaterThan(0)
+      expect(entry.traceFrom, `${key}.traceFrom`).toBeGreaterThanOrEqual(0)
+      expect(entry.traceTo!, `${key}.traceTo > traceFrom`).toBeGreaterThan(entry.traceFrom!)
+      expect(entry.traceTo!, `${key}.traceTo <= 1`).toBeLessThanOrEqual(1)
+      expect(entry.bodyBrightest, `${key}.bodyBrightest`).toMatch(HEX)
+      expect(entry.bodyDarkest, `${key}.bodyDarkest`).toMatch(HEX)
+      expect(entry.headWhite, `${key}.headWhite`).toMatch(HEX)
+    }
   })
 
   it("pairs every clue's earned and drained art as two DIFFERENT files", () => {
