@@ -213,8 +213,23 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
           {/* Fog, per closed sector. Two patches each (design.md §4's
               closed-form construction) — `flip` mirrors the drawn picture
               about its own centre without moving the axis-aligned box the
-              containment proof reasons about. */}
-          {SECTORS.filter((sector) => sector.fog.length > 0).flatMap((sector) =>
+              containment proof reasons about.
+
+              `!isOpen` is load-bearing, and it was NOT before row C. Until
+              montañas every sector was either always-open (`estanque`, whose
+              `fog` is `[]` precisely so it never carries any) or
+              always-closed (static fog, `unlockedWhen` a constant `false`),
+              so filtering on `fog.length > 0` alone happened to agree with
+              openness for every sector that existed. Montañas is the first
+              sector with a CONDITIONAL unlock (`isFiled(records,
+              'duck-trail4')`), and with the old filter its fog stayed
+              painted over a sector the child had just earned — the hit below
+              was live and tappable under a cloud that said "not yet". The
+              two filters now ask the same question, which is the invariant:
+              a sector is fogged exactly when it is not open. */}
+          {SECTORS.filter(
+            (sector) => sector.fog.length > 0 && !isOpen(sector, records),
+          ).flatMap((sector) =>
             sector.fog.map((patch, i) => {
               const art = ZOO_FOG_ART[patch.art]
               const box = placeArt(art, patch.size, { x: patch.x, y: patch.y })

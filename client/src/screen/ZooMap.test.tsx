@@ -92,6 +92,42 @@ describe('ZooMap (layer order)', () => {
     expect([...html.matchAll(/data-fog-sector="/g)]).toHaveLength(declared)
   })
 
+  /* Row C regression, found by reading `capturas/pasoC/`. The fog layer used
+   * to filter on `fog.length > 0` alone, which agreed with openness only
+   * because every sector was either always-open (the estanque, whose `fog` is
+   * `[]` for exactly that reason) or always-closed. Montañas is the first
+   * sector with a CONDITIONAL unlock, so the old filter left its cloud
+   * painted over a sector whose hit was already live and tappable — the map
+   * said "not yet" about something the child had just earned. */
+  it("montañas' fog lifts once duck-trail4 is filed, because its unlock is conditional", () => {
+    const closed = new Set(
+      [...render().matchAll(/data-fog-sector="([^"]+)"/g)].map((m) => m[1]),
+    )
+    expect(closed.has('montanas')).toBe(true)
+
+    const opened = new Set(
+      [...render(filed('duck-trail4')).matchAll(/data-fog-sector="([^"]+)"/g)].map((m) => m[1]),
+    )
+    expect(opened.has('montanas')).toBe(false)
+    // Only montañas moves — every other fogged sector is still closed.
+    expect([...opened].sort()).toEqual([...closed].filter((id) => id !== 'montanas').sort())
+  })
+
+  it('every fogged sector is exactly a closed one, for both inputs', () => {
+    for (const records of [{}, filed('duck-trail4')]) {
+      const html = render(records)
+      const fogged = new Set(
+        [...html.matchAll(/data-fog-sector="([^"]+)"/g)].map((m) => m[1]),
+      )
+      for (const sector of SECTORS) {
+        if (sector.fog.length === 0) continue
+        expect(fogged.has(sector.id), `${sector.id} fog vs open`).toBe(
+          !sector.unlockedWhen(records),
+        )
+      }
+    }
+  })
+
   it('the duck appears only once duck-trail4 is filed', () => {
     expect(render()).not.toContain('/art/animal-pato.png')
     expect(render(filed('duck-trail4'))).toContain('/art/animal-pato.png')
