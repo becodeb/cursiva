@@ -1,9 +1,22 @@
 # Apply progress: snake-drag-and-art-corridor
 
-Branch `sdd/viboras-en-la-arena`. All nine phases implemented, each as its
-own commit slice per design.md §881's seam table. Baseline was 69 test
-files / 1436 tests green, build green; final state is 72 test files / 1553
-tests green, build green.
+Branch `sdd/viboras-en-la-arena`. Ten phases now (the original nine, plus
+Phase 10, a corrective round the coordinator's own rejection required),
+each as its own commit slice. Baseline was 69 test files / 1436 tests
+green, build green; current state is 72 test files / 1555 tests green,
+build green (after Phase 10's corrective work below).
+
+**Correction to this document's own earlier claim.** Phase 8's section
+below originally said the capture pass "found and fixed three defects"
+and closed clean, and Phase 9 reported the change complete on that basis.
+**Neither was true.** A coordinator's own read of the `capturas/pasoE/`
+PNGs found the art-corridor placement genuinely broken on `snake2`/
+`snake3`/`snake4` (the scatter points ran off the sheet on one axis, so
+an unarranged capture looked wrong), and the honest re-measurement of
+`SAND_HOLLOW` and of `snake1`'s HORIZONTAL placement (against the sand
+background's own quiet band) had not actually been done. See "Phase 10"
+below for what was actually wrong, what was fixed, and what remains
+disclosed rather than silently ugly.
 
 ## Phase 1 (E1 — Measure) — `a291a18`
 
@@ -128,7 +141,7 @@ sector wired (`unlockedWhen = isFiled(records,'night4')`, the víbora
 animal, `carrito` backpack entry). Fixed five more collateral tests
 ("arena" transitioning from undeveloped to developed).
 
-## Phase 8 (Screenshots) — human-reviewed, found and fixed THREE real defects
+## Phase 8 (Screenshots), round 1 — human-reviewed, found and fixed THREE real defects, but did not actually ship clean (see Phase 10 below)
 
 Captures live in `capturas/pasoE/`. Reading them (not a test) found:
 
@@ -208,6 +221,11 @@ change except that the víbora now also qualifies for it).
 
 ## Phase 9 (Final Gate)
 
+**Numbers below are Phase 9's own, at the time it ran — this phase is where the (premature) "done"
+report to the coordinator came from. Superseded by Phase 10 below's own `npm test`/`npm run build`
+results (72 files / 1555 tests, green) for the final, truthful state, after the coordinator's own
+review of `capturas/pasoE/` found this phase's "shipped clean" close was wrong.**
+
 - `npm test`: 72 test files / 1553 tests, green (baseline was 69/1436).
 - `npm run build` (`tsc --noEmit && vite build`): green.
 - `git diff main...HEAD` byte-identical check: `useTraceInput.ts`,
@@ -233,3 +251,104 @@ llamas`), producing merge conflicts. Recovered cleanly via `git reset
 the foreign stash was never touched or dropped, and the full suite/build
 were re-verified green immediately after. No committed work was lost;
 recorded here only so the same mistake is not repeated.
+
+## Phase 10 (Coordinator rejection — corrective round) — a coordinator's own read of the captures found real defects round 1 missed
+
+Round 1's captures were reviewed by an agent, not the coordinator, and the "shipped clean" close
+above was wrong. The coordinator read the PNGs directly and reported five things; here is what
+each one actually was, after investigation, in the order they were raised.
+
+**1 & 2 (the real defects — fixed).** `snake2.png`/`snake4.png` showed the three snakes shifted
+diagonally off their own dark hollows, one missing a snake entirely, two clipped off the sheet's
+right edge. Root cause: round 1's own scatter-position fix (task 8.7/8.8, item 2 above) checked
+ONLY the Y axis against the sheet's bottom edge. The X axis was never checked — `large`'s scatter
+box (span 760, 76% of the sheet's 1000-unit width) ran 130 units past the right edge at its
+authored centre (750); `small`'s ran 10 past the left. Fixed by recomputing safe X centres
+(`catalog.ts`'s `snakeHorizontalScatter`/`snakeVerticalScatter`, now 350/620/500 and
+300/500/650) and widening `catalog.test.ts`'s regression test to check BOTH axes against the
+real `target.viewBoxWidth`, not a hardcoded number. `snake3.png`/`snake3-espina.png` looked like
+the art and the corridor were in different places, but the placement MATH was not the bug: the
+`?debug=espina` overlay always draws the FIXED, fully-arranged centreline regardless of arrange
+state, while a plain capture (no `ordenadas` flag — only one `debug=` value fits in a URL) shows
+the pieces at their scatter positions. `snake3-ordenadas3.png`, freshly re-captured, shows all
+three pieces correctly rotated onto their columns. `snake2.png`/`snake4.png` are confirmed NOT
+the same file (`md5sum`: distinct hashes) — they look alike because `snake2`/`snake4` share
+identical piece geometry by design (§3.4), differing only in `corridorWidth`/`minAccuracy`, a
+difference too small to read at screenshot resolution.
+
+**The real gap this exposed, and the test that closes it.** A full green suite of 1553 tests had
+not noticed defects 1/2 because nothing rendered the REAL `<image>` markup and checked it against
+the scored path for the ROTATED case — `catalog.test.ts`'s existing "coincidence" proof (R6)
+compares two internally-generated PATH STRINGS (`target.paths[i]` against `placeArtCorridor`'s own
+`.d`), never the `box`/`rotate` fields `ArtCorridorLayer` actually consumes. Added: a new test in
+`ArtCorridorLayer.test.tsx` that takes `snake3` (the rotated case) through the REAL
+`buildLevelTarget` → REAL `ArtCorridorLayer` → parses the rendered `<image>`'s own
+`x`/`y`/`width`/`height`/`transform` back out of the HTML STRING (never touching the internal
+props directly) → applies an INDEPENDENT rotation from those parsed numbers → compares the result
+against `flattenPathD(target.paths[i])`. It passes now, closing the gap; it would have failed had
+defects 1/2 been placement-math bugs rather than scatter-position ones.
+
+**3 (SAND_HOLLOW, re-measured honestly after 1/2).** The round-2 captures had shown the hollow
+reading as a whole separate "second snake" beside the green one on `snake2`/`snake3`/`snake4`.
+After the fixes above, freshly re-captured `snake1.png`/`snake2.png`/`snake4.png` show the SAME
+thin-sliver-at-the-crests reading round 1 originally disclosed — the "second snake" appearance was
+downstream of defects 1/2 (a scattered/mis-rendered snake body sitting beside its own hollow reads
+as two snakes; a correctly-placed one does not), not of the `corridorWidth`/thickness math itself.
+No further correction was needed here; round 1's own disclosure stands, re-verified rather than
+re-asserted.
+
+**4 (`snake1`'s quiet-band placement — a real, separate defect, fixed with a disclosed trade-off).**
+Confirmed by measuring `art-source/fondo arena.png` directly (`scripts/art/png.py`, luma 601): rows
+204-819 are a perfectly uniform sand tone; the rock/sky/palm rows on either side are not. Mapped to
+viewBox `y ∈ [99.48, 499.87]`, the original `at.y` values (93.2/319.1/531.7) put the small snake's
+box ~59 of its own 106 units over the sky/rocks and the large one's ~99 of its own 144 over the
+lower rocks. Full containment turned out to be in genuine tension with an UNRELATED, already-shipped
+constraint (`catalog.test.ts`'s C3/C4, minimum centreline separation `> 120`): the three boxes'
+heights leave only 1.53 units of slack against the quiet band, but C3/C4 needs roughly 53/28 units
+more room than that bare stack provides. Chose C3/C4 (a scoring-safety constraint) over full
+containment: new `at.y` = 152.7/332.9/507.3 puts the small snake fully inside the quiet band (zero
+overlap, down from ~59) and reduces the large one's overlap to ~74.6 of its own 144.4 units (down
+from ~99, a real reduction, not a fix) — the full arithmetic is in `design.md` §3.6, and both
+numbers are locked in by a new `catalog.test.ts` regression test rather than left to drift.
+
+**5 (the stray snake in the sky — re-confirmed, not a bug).** Round 1 had already diagnosed this
+correctly (see the "exploration dead-end" note at the end of round 1, above) but the coordinator
+re-raised it, so it was re-verified with a sharper method this round: capturing the map with `snake1
+..4` filed but NOT `snake4` (so the víbora is not yet earned) showed no snake anywhere near the top
+of the stage; capturing with the EXACT seed `tasks.md`'s own 8.4 names
+(`?debug=progreso:night4,snake1,snake2,snake3,snake4`) reproduces the original capture faithfully —
+star count reads **7** (matching the original description exactly), the víbora stands correctly
+under the palm — AND a small snake icon appears top-centre, over the fog. Cropped tightly, that
+icon sits in `ZooMap.tsx`'s own `cv-zoo-hud-mid` row (`position: absolute; inset: 0; align-items:
+flex-start` — top-centre of the whole stage), the SAME pre-existing "every recovered animal gets a
+small icon here" mechanic duck/sheep/llama already use, now also showing the víbora. It reads as
+"floating in the sky" because that row sits at the very top of the stage regardless of which
+sector the animal actually belongs to — a coincidental, unrelated-to-`animalSpot` overlap, not a
+duplicate-rendering bug. No code change; `animalPlacements`'s own single `vibora` registry entry
+(`zoo/sectors.ts`) places it correctly, once, at the arena's own `animalSpot` (confirmed under the
+palm in the capture below).
+
+**What changed, concretely.** `client/src/levels/catalog.ts` (scatter X-axis fix, `at.y` fix, both
+with doc comments carrying the arithmetic), `client/src/levels/catalog.test.ts` (widened scatter
+regression test, both-axes; new quiet-band regression test; both re-measured), `client/src/canvas/
+ArtCorridorLayer.test.tsx` (new render-level coincidence test for the rotated case). `npm test`:
+72 files / 1555 tests green (was 72/1553 — two new tests, no regressions). `npm run build`: green.
+
+**Every `capturas/pasoE/` capture re-taken; what changed.** `snake1.png`, `snake1-espina.png`,
+`snake2.png`, `snake3.png`, `snake3-espina.png`, `snake4.png` (all changed — the `at.y`/scatter
+fixes move every pixel of the snake art). `snake2-ordenadas3.png`, `snake3-ordenadas3.png`,
+`snake4-ordenadas3.png` (re-captured under a clean name; the STALE `-ordenadas2`/`-ordenadas3`
+duplicates from round 1, confirmed byte-identical to the unarranged captures via `md5sum` — proof
+the debug flag had never actually been re-captured after round 1's own arrange fix — were deleted).
+`intro-snake.png` (deleted: confirmed via `md5sum` byte-identical to `cierre-snake4-check.png`,
+i.e. a wrong-URL capture that fell through to the same screen, superseded by the already-correct
+`intro-snake1.png`). `arena-after.png` (re-taken with the exact seed `tasks.md`'s own 8.4 names —
+`?debug=progreso:night4,snake1,snake2,snake3,snake4` — reproducing the original capture faithfully
+rather than approximating it: víbora correctly under the palm, cart in the backpack, star count
+reads **7**, matching the original description exactly; the small vibora icon is visible top-centre
+over the fog, confirmed as the `cv-zoo-hud-mid` mechanic in defect 5 below, not a placement bug).
+`arena-before.png`, `cierre-snake4-check.png`,
+`intro-snake1.png`, `llama-peak1-regression.png`, `night1-regression.png` — unchanged, not
+re-captured, since none of them exercise the code paths this round touched (scatter positions,
+`at.y`, and `ArtCorridorLayer`'s render, all `snake`-family-only).
+

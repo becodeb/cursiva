@@ -301,6 +301,15 @@ running at `http://localhost:5173`. Output goes to **`capturas/pasoE/`** —
       found by reading, not by any test.
 - [x] 8.8 Correct and re-capture any defect found in 8.7, with a regression
       test added alongside the fix, not only a re-shot picture.
+      **Reopened once**: the coordinator's own read of `capturas/pasoE/`
+      found this task's first pass incomplete — the arrange scatter fix
+      only checked one axis, leaving `snake2`/`snake4` genuinely broken,
+      and `snake1`'s placement against the sand's own quiet band had not
+      been checked at all. See `apply-progress.md`'s Phase 10 for the full
+      second pass: the scatter fix (both axes), `snake1`'s `at.y` fix (with
+      the C3/C4 trade-off disclosed in `design.md` §3.6), and the new
+      render-level coincidence test in `ArtCorridorLayer.test.tsx` that
+      closes the gap which let the first defect through a green suite.
 
 ## Phase 9: Final Gate
 

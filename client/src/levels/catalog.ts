@@ -142,9 +142,37 @@ function snakeHorizontalPieces(): readonly ArtCorridorPiece[] {
     // shares one `at.x`. 455.66 is the corrected value that lands the
     // union's own centroid exactly on the sheet centre, so `layOutPaths`'s
     // `tx` measures under 0.5 (R6) — found by measuring, not guessed.
-    { art: SECTOR_ADVENTURE_ART.snakeSmall, spine: 'snakeSmall', span: 520, at: { x: 455.66, y: 93.2 } },
-    { art: SECTOR_ADVENTURE_ART.snakeMedium, spine: 'snakeMedium', span: 640, at: { x: 455.66, y: 319.1 } },
-    { art: SECTOR_ADVENTURE_ART.snakeLarge, spine: 'snakeLarge', span: 760, at: { x: 455.66, y: 531.7 } },
+    //
+    // `at.y` was corrected by a reviewer's screenshot (docs/13 §4 decision
+    // 3, design.md §3.6): `93.2`/`319.1`/`531.7` sat the small and large
+    // snakes' boxes well past `fondo arena.png`'s own quiet, uniform sand
+    // band (measured directly off the source PNG: rows 204-819 are luma
+    // 204.4 with ZERO row-to-row variance; the rock/palm bands on either
+    // side are not). Mapped through `xMidYMid slice`'s own crop
+    // (`zoo/backdrops.ts`'s `corridorRows: {top: 51, bottom: 973}`, source
+    // px → viewBox: `(row - 51) * (1000/1536)`), that quiet band is viewBox
+    // y `[99.48, 499.87]` — 400.39 units tall.
+    //
+    // This does NOT fully solve the placement, and design.md §3.6 says so:
+    // the quiet band (400.39 units) and the three boxes' own heights
+    // summed (106.17 + 148.29 + 144.40 = 398.86) leave only 1.53 units of
+    // slack — but C3/C4 (`catalog.test.ts`'s "minimum centreline separation
+    // clears 2·corridorWidth and 2·60") independently requires every pair
+    // of centrelines to stay over 120 apart even at their wave's closest
+    // approach, which a zero-gap stack fails (measured minSep ≈ 83, both
+    // pairs). The two constraints are provably incompatible at this scale
+    // (design.md §3.6's own arithmetic): honouring C3/C4 needs centre-to-
+    // centre gaps of at least ~53/~28 units above the bare sum of half-
+    // heights, which pushes the LARGE snake's box back out past the quiet
+    // band's bottom edge by ~74.6 of its own 144.4 units (down from the
+    // original ~99, a real reduction, not a full fix). The SMALL snake's
+    // box, at the top, does now sit fully inside the quiet band (0
+    // overlap, down from ~59). C3/C4 was chosen over full quiet-band
+    // containment because it is a scoring-safety constraint (two routes
+    // read as one below it), not a visual one.
+    { art: SECTOR_ADVENTURE_ART.snakeSmall, spine: 'snakeSmall', span: 520, at: { x: 455.66, y: 152.7 } },
+    { art: SECTOR_ADVENTURE_ART.snakeMedium, spine: 'snakeMedium', span: 640, at: { x: 455.66, y: 332.9 } },
+    { art: SECTOR_ADVENTURE_ART.snakeLarge, spine: 'snakeLarge', span: 760, at: { x: 455.66, y: 507.3 } },
   ]
 }
 
@@ -186,31 +214,47 @@ function snakeVerticalPieces(): readonly ArtCorridorPiece[] {
  *  shape). */
 const SNAKE_FEEDBACK: LevelFeedback = { tone: true, haptics: true, metronomeBpm: 0, rail: false }
 
-/** Scatter points for `snakeHorizontalPieces()` (task 8.7/8.8's own
- *  correction): the FIRST authored values sat at `y ≈ 560-580`, close
- *  enough to the sheet's own bottom edge that a screenshot caught the
- *  scattered pieces mostly clipped below the visible canvas — only the
- *  empty hollows showed. Each piece's own box height (106/148/144) is
- *  centred well inside `[0, 600]` here instead, at a DIFFERENT `x` than
- *  its home slot (all three of which share `x = 455.66`) so the jumbled
- *  pile reads as distinct from the hollows waiting for it. */
+/** Scatter points for `snakeHorizontalPieces()`. Corrected TWICE now, both
+ *  times by a screenshot, both times because the check that would have
+ *  caught it does not exist (see `catalog.test.ts`'s new "every arrange.from
+ *  scatter point stays fully ON THE SHEET" test, which now checks BOTH axes
+ *  instead of only the one the first correction happened to fix):
+ *
+ *  1. (task 8.7/8.8) The FIRST authored values sat at `y ≈ 560-580`, close
+ *     enough to the sheet's own bottom edge that a capture showed the
+ *     scattered pieces mostly clipped below the canvas.
+ *  2. (this correction) Fixing (1) only checked the Y axis. The X centres
+ *     chosen then (250/500/750) never accounted for each piece's OWN width
+ *     (520/640/760) — `large` alone is 76% of the sheet's default 1000-unit
+ *     width, so centring it at 750 ran its box from 370 to 1130, clipping
+ *     130 units off the RIGHT edge; `small` at 250 clipped 10 units off the
+ *     LEFT. A reviewer's screenshot caught this a second time. The values
+ *     below keep every piece's own full-width box inside `[0, 1000]`, which
+ *     is why `large` sits closest to centre (500): it is the one piece with
+ *     almost no room to move at all (`[120, 880]` is close to its own
+ *     `[0, 1000]` ceiling). */
 function snakeHorizontalScatter(): readonly { x: number; y: number }[] {
   return [
-    { x: 250, y: 200 },
-    { x: 500, y: 320 },
-    { x: 750, y: 450 },
+    { x: 350, y: 200 },
+    { x: 620, y: 320 },
+    { x: 500, y: 450 },
   ]
 }
 
-/** Scatter points for `snakeVerticalPieces()` — same correction, `y = 300`
- *  (matching the columns' own vertical centre, since a vertical piece is
- *  nearly as tall as the sheet itself and any other `y` clips it), at
- *  `x` values distinct from the three home columns (198/498/798). */
+/** Scatter points for `snakeVerticalPieces()`. `y = 300` matches the
+ *  columns' own vertical centre (a vertical piece is nearly as tall as the
+ *  sheet itself; any other `y` clips it — this was checked from the start).
+ *  `x` values are distinct from the three home columns (198/498/798) but,
+ *  per the SAME correction `snakeHorizontalScatter` above needed, chosen to
+ *  keep each piece's own UNROTATED width (`large`'s own span, 547, since a
+ *  scattered piece renders unrotated — `LevelPlay.tsx`'s `arrangeRenderPieces`
+ *  call) fully inside `[0, 1000]`: `large` at the original 700 left only
+ *  26 units of margin on the right (`[426, 974]`); 650 gives 76. */
 function snakeVerticalScatter(): readonly { x: number; y: number }[] {
   return [
     { x: 300, y: 300 },
     { x: 500, y: 300 },
-    { x: 700, y: 300 },
+    { x: 650, y: 300 },
   ]
 }
 

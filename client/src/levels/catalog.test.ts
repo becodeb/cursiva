@@ -1475,20 +1475,64 @@ describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
     }
   })
 
-  it('every arrange.from scatter point sits fully inside the 600-tall sheet (task 8.7/8.8 regression: a screenshot caught the FIRST scatter points clipped near the bottom edge)', () => {
+  it('every arrange.from scatter point sits fully inside the SHIPPED sheet, on BOTH axes (regression: a screenshot caught the scatter points clipped twice — first off the bottom edge, then off the right edge, because the first fix only checked Y)', () => {
     for (const id of ['snake2', 'snake3', 'snake4'] as const) {
       const level = getLevel(id)
+      const target = buildLevelTarget(level)
       const pieces = level.artCorridor!
       const scatter = level.arrange!.from
       expect(scatter.length).toBe(3)
       for (let i = 0; i < scatter.length; i++) {
         const piece = pieces[i]
+        // A scattered (not yet placed) piece always renders UNROTATED
+        // (`levels/arrange.ts`'s `arrangeRenderPieces`), so its on-screen
+        // box uses `span` as its WIDTH regardless of `piece.rotate` — the
+        // exact axis the first correction's test never checked.
+        const width = piece.span
         const height = (piece.span * piece.art.h) / piece.art.w
+        const left = scatter[i].x - width / 2
+        const right = scatter[i].x + width / 2
         const top = scatter[i].y - height / 2
         const bottom = scatter[i].y + height / 2
+        expect(left, `${id} piece ${i} left`).toBeGreaterThanOrEqual(0)
+        expect(right, `${id} piece ${i} right`).toBeLessThanOrEqual(target.viewBoxWidth)
         expect(top, `${id} piece ${i} top`).toBeGreaterThanOrEqual(0)
         expect(bottom, `${id} piece ${i} bottom`).toBeLessThanOrEqual(600)
       }
+    }
+  })
+
+  it("snake1/snake2's horizontal boxes sit as close to fondo arena.png's own quiet sand band as C3/C4 allows — the SMALL snake fully inside it, the LARGE one's remaining rock overlap bounded and disclosed, not silently regressed (docs/13 §4 decision 3, design.md §3.6)", () => {
+    // The quiet band was measured directly off the source PNG (rows 204-819
+    // are luma 204.4 with zero row-to-row variance — the uniform sand; the
+    // rock/palm bands on either side are not) and mapped through
+    // `xMidYMid slice`'s own crop (`zoo/backdrops.ts`'s
+    // `corridorRows: {top: 51, bottom: 973}` for the `snake` row, source
+    // px → viewBox: `(row - 51) * (1000/1536)`). Hand-copied the same way
+    // `DRAWN_SPINE` is: a literal guarded by a regression test, not
+    // recomputed from the PNG at runtime.
+    //
+    // Full containment for every piece is NOT achievable here: the quiet
+    // band is 400.39 units tall, the three boxes' own heights sum to
+    // 398.86 (1.53 units of slack), but C3/C4 (below, in this same
+    // describe block) independently requires bigger gaps than that slack
+    // allows. This test locks in the (C3/C4-compatible) placement design.md
+    // §3.6 chose instead: the small snake fully inside the band, the large
+    // one's overlap reduced (from ~99 to at most 80 units, still a real,
+    // disclosed sliver) rather than eliminated.
+    const QUIET_TOP = 99.48
+    const QUIET_BOTTOM = 499.87
+    for (const id of ['snake1', 'snake2'] as const) {
+      const level = getLevel(id)
+      const [small, , large] = level.artCorridor!
+      const smallHeight = (small.span * small.art.h) / small.art.w
+      const smallTop = small.at.y - DRAWN_SPINE[small.spine].mid * smallHeight
+      expect(smallTop, `${id} small top`).toBeGreaterThanOrEqual(QUIET_TOP)
+      expect(smallTop + smallHeight, `${id} small bottom`).toBeLessThanOrEqual(QUIET_BOTTOM)
+
+      const largeHeight = (large.span * large.art.h) / large.art.w
+      const largeBottom = large.at.y - DRAWN_SPINE[large.spine].mid * largeHeight + largeHeight
+      expect(largeBottom - QUIET_BOTTOM, `${id} large overlap past quiet bottom`).toBeLessThanOrEqual(80)
     }
   })
 

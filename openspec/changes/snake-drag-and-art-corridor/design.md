@@ -470,16 +470,18 @@ both to the identical effective 30 at runtime — already true of every pair at 
 own finding, restated here at the family's tightest end rather than contradicted by it).
 
 **`snake1`/`snake2`/`snake4` — three lying snakes.** Scales 1.0833 / 1.3008 / 1.52; art heights
-106.2 / 148.3 / 144.4; art blocks at `[30, 136.2]`, `[206.8, 355.1]`, `[425.7, 570.1]` with gaps of
-70.6 **[derived]**. Centreline extents `[60.9, 105.3]`, `[239.0, 323.0]`, `[465.6, 530.2]`.
+106.2 / 148.3 / 144.4; art blocks at `[99.5, 205.7]`, `[240.0, 388.3]`, `[430.0, 574.4]`
+**[corrected, §3.6 — a reviewer's screenshot round]**. Centreline extents `[127.1, 178.1]`,
+`[299.2, 358.3]`, `[481.7, 533.4]`.
 
-> **C6, `snake1`**: union `minY = 60.9 < 180` ✓, `maxY = 530.2 > 420` ✓, span `469.3 > 300` ✓;
-> art within `[30, 570.1] ⊂ [0, 600]` ✓ **[derived]**. The proposal's estimate (127 / 473 / 346)
-> is in the same family and clears by less; this layout clears by 119 / 110 / 169.
+> **C6, `snake1`**: union `minY = 127.1 < 180` ✓, `maxY = 533.4 > 420` ✓, span `406.3 > 300` ✓;
+> art within `[99.5, 574.4] ⊂ [0, 600]` ✓ **[derived, corrected]**.
 
-> **C3/C4**: min centreline separation `= 239.0 − 105.3 = 133.7`, against `2 · 38 = 76` and
-> `2 · 60 = 120` **[derived]** — both clear, the tighter by 13.7 (unaffected by the `corridorWidth`
-> correction below: separation depends only on the layout, not the channel width).
+> **C3/C4**: min centreline separation is now the constraint THIS layout was chosen against, not a
+> comfortable margin — `≈ 122.8` (small–medium) and `≈ 124.0` (medium–large), against `2 · 38 = 76`
+> and `2 · 60 = 120` **[measured, §3.6]**. Both still clear, but by only 2.8 / 4.0 units, not the
+> 13.7-unit margin this table originally recorded — see §3.6 for why the margin shrank and what it
+> was traded for.
 
 > **C1 [measured, task 1.5, corrected again in task 8.8 against the MINIMUM-thickness figure —
 > see §3.1].** The narrowest piece is `snakeMedium`, not `snakeSmall`, once the corrected thickness
@@ -566,6 +568,50 @@ drift this document's own header warns a later reader against: trusting a table 
 written but stopped being true once a later phase measured something more carefully.
 measurement.
 
+### 3.6 [Phase 8, round 2] The quiet band and C3/C4 are in genuine tension — the arithmetic
+
+A second reviewer round, AFTER this document's own Phase-8 "shipped clean" close, read the
+`capturas/pasoE/` PNGs directly and found `snake1`'s original `at.y` values (93.2 / 319.1 / 531.7)
+sat the small snake's box mostly over `fondo arena.png`'s own sky-and-rocks strip and the large
+snake's box mostly over its lower rocks — `docs/13` §4 decision 3's own rule ("the corridor goes in
+the band the drawing leaves quiet") was not honoured, only asserted.
+
+**The quiet band, measured, not eyeballed.** Sampling `art-source/fondo arena.png` row by row
+(`scripts/art/png.py`'s hand-rolled decoder, luma 601), rows 204-819 read as a PERFECTLY uniform
+sand tone (zero row-to-row variance); the rock/sky/palm rows on either side do not. Mapped through
+the backdrop's own `xMidYMid slice` crop (`zoo/backdrops.ts`'s `corridorRows: {top: 51, bottom:
+973}`, source px → viewBox: `(row − 51) × (1000/1536)`), that quiet band is viewBox
+`y ∈ [99.48, 499.87]` — 400.39 units tall.
+
+**Full containment is arithmetically almost impossible, and C3/C4 is why "almost" becomes
+"actually impossible".** The three boxes' own heights sum to 106.17 + 148.29 + 144.40 = 398.86,
+leaving 1.53 units of slack against the 400.39-unit band — the three would have to sit stacked
+edge to edge, touching. But `catalog.test.ts`'s existing C3/C4 check (§3.4, §4) independently
+requires every pair of centrelines to stay over `2 · 60 = 120` units apart even at their wave's
+closest approach — a zero-gap stack measures `≈ 83` for both pairs, failing it outright. The two
+constraints are provably incompatible at this scale: honouring C3/C4 needs centre-to-centre gaps
+of roughly 53 (small–medium) and 28 (medium–large) units MORE than the bare sum of half-heights,
+and that extra room has to come from somewhere the quiet band does not have to give.
+
+**The chosen trade-off.** `at.y` moved to 152.7 / 332.9 / 507.3 (from 93.2 / 319.1 / 531.7):
+
+- The SMALL snake's box now sits fully inside the quiet band (`[99.5, 205.7] ⊂ [99.48, 499.87]`,
+  zero overlap — down from ~59 of its own 106 units originally).
+- The LARGE snake's box still overlaps the rocks below the quiet band, by **≈ 74.6** of its own
+  144.4 units (`[430.0, 574.4]`, quiet bottom at 499.87) — reduced from the original ~99, a real
+  27% reduction, but not a fix. Closing it further needs either less separation (C3/C4 fails) or a
+  smaller `span` for `snakeLarge` specifically (out of scope here: `DRAWN_SPINE`/`span` are shared,
+  fixed measurements across the whole family per §1's own architecture, and R1/R7's family-wide
+  orderings assume it).
+- C3/C4's own margin shrank from 13.7 units (§3.4's original table) to 2.8 / 4.0 — thin, but
+  positive, and locked in by `catalog.test.ts`'s new regression test so it cannot silently regress
+  again in either direction.
+
+C3/C4 was kept intact rather than the quiet band, because it is a SCORING-SAFETY constraint (below
+it, two routes read as one to the nearest-neighbour check the whole family's tracing depends on),
+where the quiet band is a visual-fit constraint. Both are now measured and asserted, not assumed;
+neither reader has to take the other's word for where the remaining rock overlap is or how large.
+
 ---
 
 ## 4. [new] The corridor is THREE routes, and `corridorTick` DELEGATES
@@ -588,7 +634,8 @@ export function routeTrackStart(n: number): RouteTrack
  *
  *  Taking the minimum across routes is correct ONLY because the routes are
  *  farther apart than the corridor is wide — `catalog.test.ts`'s C3 asserts
- *  exactly that for the snake family (133.7 against 96). Without C3 a
+ *  exactly that for the snake family (as little as ≈123 against 76, §3.6).
+ *  Without C3 a
  *  fingertip between two arms could be claimed by the wrong one, which is the
  *  same failure the windowed search already exists to prevent WITHIN a route
  *  (`corridorTrack.ts:1-18`'s scar). */
@@ -1007,12 +1054,50 @@ capture pass instead of being claimed as verified.
       nearly its whole length; a thin dark sliver remains visible at the single tightest trough
       (the C1 margin there is only ~1-5 viewBox units, depending on the level). Closing it further
       would need to violate either R1's strict ordering or `snake3`'s already-tight C6 ceiling, so
-      it is accepted and disclosed rather than chased to zero.
+      it is accepted and disclosed rather than chased to zero. **Re-verified after the Phase-8
+      round-2 review** (§3.6): the round-2 captures had shown the hollow reading as a separate
+      "second snake" on `snake2`/`snake3`/`snake4` specifically, which turned out to be downstream
+      of the scatter-clipping and rotation-viewing defects §3.6 fixes, not of this thickness math —
+      freshly re-captured `snake1.png`/`snake2.png`/`snake4.png` (after those fixes) show the SAME
+      thin-sliver-at-the-crests reading this bullet originally disclosed, not a worse one.
+- [x] **RESOLVED — the quiet band and C3/C4 are provably in tension, and the chosen trade-off is
+      arithmetic, not a guess** (§3.6, Phase 8 round 2). `snake1`'s original `at.y` placed the small
+      and large snakes mostly over the rock/sky bands `docs/13` §4 decision 3 says to avoid. Full
+      containment inside the measured quiet band (`y ∈ [99.48, 499.87]`) and C3/C4's own minimum
+      centreline separation cannot both be honoured at this scale (1.53 units of slack against
+      separations that need ~53/~28 more). C3/C4 was kept (a scoring-safety constraint); the small
+      snake's box now sits fully inside the quiet band and the large one's rock overlap is reduced
+      (not eliminated) from ~99 to ~74.6 of its own 144.4 units — disclosed, not silently ugly.
 - [x] **RESOLVED — the chalk-white line reads as a drawn line, not a highlight** (§2.1, task 8.7).
       The `?debug=espina` captures on `snake1`/`snake3` show it tracing the spine clearly against
       the green body.
-- [x] Nothing else is blocking. Every decision above is settled, including the two Phase 8 found and
-      corrected in the apply run — see `apply-progress.md`'s own Phase 8 section for the full story.
+- [x] **RESOLVED — `snake3.png`/`snake3-espina.png` looked like the art and the corridor disagreed;
+      they do not** (Phase 8 round 2). `?debug=espina` always draws the FIXED, fully-arranged
+      centreline regardless of arrange state, but a plain `?nivel=snake3` capture (no `ordenadas`
+      flag) shows the pieces at their SCATTER positions — only one `debug=` value is passable per
+      URL, so espina-plus-arranged cannot be captured in one shot, and the two captures together
+      read as "the snake is not on the line" to a reviewer who does not know that. The placement
+      MATH was never wrong: `snake3-ordenadas3.png` (freshly re-captured) shows all three pieces
+      correctly rotated onto their columns, and a NEW test closes the coverage gap this exposed —
+      `ArtCorridorLayer.test.tsx` now renders `snake3`'s REAL catalog data through the REAL
+      component, parses the `<image>`'s own `x`/`y`/`width`/`height`/`transform` back out of the
+      RENDERED HTML STRING (never the internal `box`/`rotate` fields directly), and checks THAT
+      against `target.paths[i]` — the gap the existing `catalog.test.ts` coincidence proof left:
+      it compared two internally-generated path strings and never touched what `ArtCorridorLayer`
+      actually draws.
+- [x] **RESOLVED — `snake2.png` and `snake4.png` are not the same file** (Phase 8 round 2,
+      confirmed by `md5sum`: distinct hashes). They look alike because `snake2`/`snake4` share the
+      exact same `snakeHorizontalPieces()`/`snakeHorizontalScatter()` geometry by design (only
+      `corridorWidth`/`minAccuracy` differ across the family, per §3.4's own table) — a 6-unit
+      corridor width difference is not visible at screenshot resolution. The actual defect this
+      round found was real, but different: the scatter points' X axis was never checked against
+      the sheet's own width (only Y, in the first Phase-8 round) — `large`'s scatter box ran 130
+      units past the right edge, `small`'s 10 past the left. Fixed in `catalog.ts`'s
+      `snakeHorizontalScatter`/`snakeVerticalScatter`; `catalog.test.ts`'s regression test now
+      checks both axes against the real `viewBoxWidth`, not a hardcoded one.
+- [x] Nothing else is blocking. Every decision above is settled, including Phase 8's own two rounds
+      of screenshot-found-and-corrected defects — see `apply-progress.md`'s Phase 8 section (round
+      1) and its round-2 addendum for the full story.
 
 ---
 
