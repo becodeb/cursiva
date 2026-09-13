@@ -248,6 +248,53 @@ cargado. Se decide cuando lleguen.
      croma cero: un píxel saturado habría clampeado un canal y costado
      luma. Verificar esa condición antes de derivar otro.
 
+7. **Enmendado al implementar el paso E (2026-09-13).** Cinco cosas, y la
+   primera es la más cara de todas las que llevamos:
+   - **Una suite entera en verde no prueba que el arte esté sobre su
+     corredor.** 1.553 tests pasaban mientras, en el nivel vertical, las
+     víboras estaban dibujadas en un lugar y su ruta puntuada en otro.
+     Ninguna aserción tocaba lo que da nombre a la capacidad, porque
+     ninguna renderizaba el `<image>` real y lo comparaba contra el
+     camino. La prueba de coincidencia tiene que **renderizar el marcado
+     y medirlo contra la ruta puntuada, y tiene que cubrir el caso
+     ROTADO**, no solo el plano. La versión que cubre solo el plano pasa
+     igual con el arte corrido.
+   - **El estado sin ordenar no es un defecto.** Una captura de un nivel
+     de arrastre sin `?debug=ordenadas:<k>` muestra las piezas
+     desparramadas, que es como el nivel empieza a propósito. Y
+     `?debug=espina` dibuja siempre la línea fija, ordenada o no: leer
+     esas dos capturas juntas hace pensar que el arte se desprendió de su
+     ruta cuando no pasó nada. Sacar siempre las dos, con y sin
+     `ordenadas`.
+   - **Los lunares que dibujó la autora están sobre la línea media del
+     cuerpo.** La espina cae en píxeles de luma<70 el 12% del largo en la
+     chica, el 30% en la mediana y el 37% en la grande, y `INK_COLOR`
+     contra `#1a1a1a` separa 14: la ley de 55 falla por 41. **Una tinta
+     oscura sobre una víbora es indibujable**, igual que "montañitas
+     bajas" era indibujable como onda. Va tinta clara. Es la segunda vez
+     que la ley acorrala una decisión de dirección de arte, y como en el
+     paso D, cuál claro es de la autora.
+   - **`corridorTick` solo recorría `paths[0]`.** Defecto vivo y
+     preexistente, anticipado por el propio comentario del repo en
+     `LevelPlay.tsx`: el primer nivel multi-camino lo iba a destapar, y
+     lo destapó. Reparado con `multiCorridorTick`, que delega en el
+     `corridorTick` intacto. Cualquier nivel multi-camino futuro (una
+     letra con punto o travesaño) ya está cubierto.
+   - **El paso 4 de la progresión de víboras (§2) NO está cumplido.**
+     "Mayor variación de la ondulación" pide una onda no uniforme, y las
+     tres láminas traen ondas parejas de 2,5 / 3,5 / 4,5 ciclos fijos.
+     `snake4` sube la exigencia por tolerancia y precisión, no por forma.
+     Cerrarlo pide **arte nuevo**, no código: una víbora con ondulación
+     variable. Queda anotado acá y no disimulado en el nivel.
+
+   Y dos cosas menores que conviene no volver a descubrir: la franja
+   tranquila de `fondo arena.png` son las filas 204-824, pero es
+   **incompatible** con la separación mínima entre ejes a lo ancho que
+   piden tres víboras apiladas — la grande sigue pisando la banda de
+   piedras por 74,6 de sus 144,4 unidades, con la aritmética en
+   `design.md` §3.6. Y `capturas/e/` **son las capturas del paso D**; las
+   de este paso están en `capturas/pasoE/`.
+
 ## 5. Estructura de cada aventura (`.docx` §13)
 
 Toda aventura, exista o no todavía, cumple esta secuencia. Los
