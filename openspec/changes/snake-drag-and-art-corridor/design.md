@@ -369,13 +369,24 @@ exactly half the source bbox **[read, `assets.ts:282-284`]**:
 
 | cutout | shipped `w × h` | half-arches (fitted) | thickness | amplitude (max) | body fill |
 |---|---|---|---|---|---|
-| `snakeSmall` | 480 × 98 | 3 | **58.0** | 23.6 | `#7b9b6e` (140.3) |
-| `snakeMedium` | 492 × 114 | 4 | **50.0** | 25.95 | `#7b986f` (132.6) |
-| `snakeLarge` | 500 × 95 | 6 | **53.0** | 17.16 | `#75976a` (121.0) |
+| `snakeSmall` | 480 × 98 | 3 | **48.0** | 23.6 | `#7b9b6e` (140.3) |
+| `snakeMedium` | 492 × 114 | 4 | **40.0** | 25.95 | `#7b986f` (132.6) |
+| `snakeLarge` | 500 × 95 | 6 | **46.0** | 17.16 | `#75976a` (121.0) |
 
 All **[measured]**, by `build_art.py`'s own `sample_spine()` against the rebuilt `manifest.json`
-(task 1.3), except `w × h` **[read]**. `thickness` is the median opaque-column run length; `amplitude`
-is the largest `|rise|` among the fitted `halves`.
+(task 1.3), except `w × h` **[read]**. `amplitude` is the largest `|rise|` among the fitted `halves`.
+
+**`thickness` corrected AGAIN, this time in Phase 8/task 8.7-8.8, after a screenshot caught the
+consequence of the first definition.** It originally read here as the MEDIAN opaque-column run
+length (58.0 / 50.0 / 53.0) — a reasonable-sounding "typical thickness", and what task 1.4 first
+copied in. A capture of `snake1` showed `SAND_HOLLOW` visibly poking out past the small snake's own
+body at a real trough of the wave (measured: local thickness 48 shipped px there, against a median
+of 58) — the channel only has to be narrower than the THINNEST cross-section it actually crosses,
+not the typical one. `sample_spine` now reports the MINIMUM opaque-column run length within the
+traceable span instead, which is what the table above and every `thickness_vb` figure below already
+reflect. This is why §3.4's worked C1 margins and the shipped `corridorWidth` ladder (§6.1/§6.2) are
+both narrower than this document's own earlier draft — see task 8.8's own note for the corrected
+values, which supersede every `corridorWidth`/C1 figure below that predates it.
 
 **Corrected against this design's own earlier estimate.** The half-arch count is NOT 5/7/9 (that
 number assumed the wave model covers the FULL cutout, tail tip to head tip). `sample_spine`'s fit
@@ -445,10 +456,18 @@ the rotation are the per-level knobs.
 
 | level | `s_L` | spans (small/medium/large) | rotation | `corridorWidth` | `minAccuracy` |
 |---|---|---|---|---|---|
-| `snake1` | 1.00 | 520 / 640 / 760 | 0° | **48** | 55 |
-| `snake2` | 1.00 | 520 / 640 / 760 | 0° | **42** | 62 |
-| `snake3` | 0.72 | 374 / 461 / 547 | **−90°** (vertical, heads up) | **36** | 70 |
-| `snake4` | 1.00 | 520 / 640 / 760 | 0° | **32** | 76 |
+| `snake1` | 1.00 | 520 / 640 / 760 | 0° | **38** | 55 |
+| `snake2` | 1.00 | 520 / 640 / 760 | 0° | **34** | 62 |
+| `snake3` | 0.72 | 374 / 461 / 547 | **−90°** (vertical, heads up) | **30** | 70 |
+| `snake4` | 1.00 | 520 / 640 / 760 | 0° | **28** | 76 |
+
+**`corridorWidth` lowered AGAIN in Phase 8/task 8.8, from the 48/42/36/32 this table originally
+shipped** — see §3.1's own note: once `thickness` was corrected to the traceable span's MINIMUM
+cross-section, C1 failed for `snake1` and `snake3` at their original widths. `snake3` now sits
+EXACTLY at `MIN_CORRIDOR` (30); `snake4` is authored BELOW that floor (28) on purpose, so R1's
+strict-decrease still holds against `snake3`'s floor-pinned value even though the engine clamps
+both to the identical effective 30 at runtime — already true of every pair at or under 56 (§6.2's
+own finding, restated here at the family's tightest end rather than contradicted by it).
 
 **`snake1`/`snake2`/`snake4` — three lying snakes.** Scales 1.0833 / 1.3008 / 1.52; art heights
 106.2 / 148.3 / 144.4; art blocks at `[30, 136.2]`, `[206.8, 355.1]`, `[425.7, 570.1]` with gaps of
@@ -458,34 +477,47 @@ the rotation are the per-level knobs.
 > art within `[30, 570.1] ⊂ [0, 600]` ✓ **[derived]**. The proposal's estimate (127 / 473 / 346)
 > is in the same family and clears by less; this layout clears by 119 / 110 / 169.
 
-> **C3/C4**: min centreline separation `= 239.0 − 105.3 = 133.7`, against `2 · 48 = 96` and
-> `2 · 60 = 120` **[derived]** — both clear, the tighter by 13.7.
+> **C3/C4**: min centreline separation `= 239.0 − 105.3 = 133.7`, against `2 · 38 = 76` and
+> `2 · 60 = 120` **[derived]** — both clear, the tighter by 13.7 (unaffected by the `corridorWidth`
+> correction below: separation depends only on the layout, not the channel width).
 
-> **C1 [measured, task 1.5 — corrects this row's own earlier estimate].** The narrowest piece once
-> the rebuilt manifest's real `thickness`/`residual` are used is `snakeSmall`, not `snakeMedium`:
-> `thickness_vb = 58.0 × (span/480)`, `residual_vb = 3.27 × (span/480)`. Margin
-> `thickness_vb − corridorWidth − 2·residual_vb` = **7.74 / 13.74 / — / 23.74** for
+> **C1 [measured, task 1.5, corrected again in task 8.8 against the MINIMUM-thickness figure —
+> see §3.1].** The narrowest piece is `snakeMedium`, not `snakeSmall`, once the corrected thickness
+> is used: `thickness_vb = 40.0 × (640/492) = 52.03`, `residual_vb = 3.36 × (640/492) = 4.37`.
+> Margin `thickness_vb − corridorWidth − 2·residual_vb` = **5.29 / 9.29 / — / 13.29** for
 > `snake1`/`snake2`/`snake4` (`snake3` below) — all positive, `snake1` tightest.
 
-> **C2**: required band `cw/2 − 6` = 18 / 15 / — / 10 against the binding 24.9 **[derived]** —
-> margins 6.9 / 9.9 / 14.9.
+> **C2**: required band `cw/2 − 6` = 13 / 11 / — / 8 against the binding 24.9 **[derived]** —
+> margins 11.9 / 13.9 / 16.9.
 
 **`snake3` — three VERTICAL snakes.** `transformPath(d, { rotate: −90, pivot })` puts the tail at
 the bottom and the head at the top; the `<image>` takes `transform="rotate(−90 cx cy)"` from the
 same `placeArtCorridor` result, so the two cannot disagree. Lengths 374 / 461 / 547 occupy y, and
 the drawn widths 76.5 / 106.8 / 104.0 occupy x — three columns totalling 287.3 of a 1000-unit
 sheet **[derived]**, which is why vertical fits where oblique does not. C6 is cleared with enormous
-margin (span ≈ 547). C1 at 0.72 **[measured, task 1.5]**: using the real `snakeSmall` thickness/
-residual scaled to `snake3`'s own span (374), margin `thickness_vb − 36 − 2·residual_vb` = **4.14**
-— the tightest row in the family, exactly as this section already predicted, and the one §3.5's
-lever is aimed at.
+margin (span ≈ 547). C1 at 0.72 **[measured, task 1.5, corrected in task 8.8]**: using
+`snakeMedium`'s corrected thickness/residual scaled to `snake3`'s own span (461), margin
+`thickness_vb − 30 − 2·residual_vb` = **1.16** — the tightest row in the family by a wide margin,
+exactly as this section already predicted, and the row task 8.8's `corridorWidth` lever (pinning it
+at `MIN_CORRIDOR`) was aimed at. 1.16 viewBox units is thin, but positive, and cannot be improved
+further without either raising `s_L` (C6 has no room left to give — the vertical box already nearly
+fills the 600-tall sheet) or breaking R1's strict ordering against `snake4`.
 
 **Why `snake4` returns to horizontal.** `docs/13` §2's step 4 is *mayor variación de la
 ondulación*, not a third orientation — the orientation lesson finished at `snake3`. `snake4` is
-`snake1`'s sheet at the narrowest corridor and the highest bar, with `traceFrom`/`traceTo` opened
-to their measured limits (C5's minimum inset instead of the conservative one the first three take),
-so the child now traces the uneven crest-to-crest stretches nearer the tail and head that the
-earlier levels trimmed. Arc length is therefore **longest on `snake4`** among the horizontal three.
+`snake1`'s sheet at the narrowest corridor and the highest bar.
+
+**[corrected against this section's own earlier claim, at apply time].** This paragraph originally
+said `traceFrom`/`traceTo` would open to their measured limits on `snake4` specifically, making its
+arc length the longest of the three horizontal levels. That is not what shipped: `DRAWN_SPINE` is
+ONE fixed measurement per spine (§1's own architecture), not a field `ArtCorridorPiece` exposes as a
+per-level override, so `snake1`/`snake2`/`snake4` share IDENTICAL geometry — same spans, same `at`,
+same `halves` — and therefore the SAME arc length. R7's own literal requirement (§6.2) is
+non-decreasing, which equality satisfies; only `corridorWidth`/`minAccuracy` carry the family's
+progression across these three, which is consistent with this document's own finding one section
+down (§6.2: "every corridor at or below 56 scores at exactly the same tolerance ... the narrowing
+is carried by `minAccuracy`, not `corridorWidth` alone") — restated here one level further than
+originally written.
 
 **Why three OBLIQUE snakes are not available, with the arithmetic** **[derived]**. A piece at angle
 `a` occupies `h·cos a + w·sin a` vertically. At `s_L = 1` the three already use 398.9 of 600, so
@@ -507,22 +539,31 @@ its own 10% bound; it did not close the last ~1px on these two, because that res
 tips of the traceable span itself — see §3.1's correction — not inside a span a further split can
 bisect).
 
-**What actually gates the geometry is C1, not the 10% heuristic, and C1 holds for all four levels
-with real margin to spare:**
+**What actually gates the geometry is C1, not the 10% heuristic — TRUE at task 1.5, and STILL true,
+but the margins below are NOT the ones task 1.5 first recorded.** `thickness` was corrected a second
+time in Phase 8/task 8.8 (§3.1's own note: median → minimum opaque-column run length, after a
+screenshot caught the channel poking out past a real trough). Against the FIRST (median) thickness,
+C1 held on all four levels with margin to spare and lever (1) genuinely was not needed at task 1.5.
+Against the CORRECTED (minimum) thickness, it no longer did — `snake1` and `snake3` both went
+negative at their original `corridorWidth` (48/36). Lever (1), lower `corridorWidth`, is the one
+task 8.8 actually took, on all four levels (48/42/36/32 → 38/34/30/28), restoring:
 
-| level | narrowest margin (`thickness_vb − corridorWidth − 2·residual_vb`) |
+| level | narrowest margin (`thickness_vb − corridorWidth − 2·residual_vb`), corrected thickness |
 |---|---|
-| `snake1` | **7.74** (small piece) |
-| `snake2` | **13.74** (small piece) |
-| `snake3` | **4.14** (small piece) — the tightest, as §3.4 anticipated |
-| `snake4` | **23.74** (small piece) |
+| `snake1` | **5.29** (medium piece), at the corrected `corridorWidth = 38` |
+| `snake2` | **9.29** (medium piece), at `corridorWidth = 34` |
+| `snake3` | **1.16** (medium piece) — the tightest in the family, at `corridorWidth = 30` (`MIN_CORRIDOR`) |
+| `snake4` | **13.29** (medium piece), against the engine's EFFECTIVE floor of 30 (authored 28) |
 
-**No lever was needed.** The 10% prediction was a design-time proxy for whether C1 would clear, not
-an independent gate `catalog.test.ts` asserts on its own; C1 itself — computed from the real
-`thickness`/`residual` above, scaled by each piece's own `span/w` — clears on every level with its
-smallest margin at `snake3` (4.14 viewBox units), exactly the row §3.4 flagged as tightest. Levers
-(1) lower `corridorWidth` and (2) raise `snake3`'s `s_L` remain available and untouched if a later
-change narrows this further; recorded here so a later reader does not re-derive the same
+Lever (2), raise `snake3`'s `s_L` above 0.72, was considered and declined for `snake3` specifically:
+C6 has no further room to give (the vertical box already nearly fills the 600-tall sheet at 0.72),
+so `corridorWidth` alone had to carry the correction there. The narrowest piece also changed hands:
+`snakeSmall` at task 1.5's own (since-superseded) numbers, `snakeMedium` now — a real consequence of
+the thickness correction, not a typo.
+
+This is recorded as a live correction, not silently overwritten, because it is exactly the kind of
+drift this document's own header warns a later reader against: trusting a table that was true when
+written but stopped being true once a later phase measured something more carefully.
 measurement.
 
 ---
@@ -683,7 +724,7 @@ early errors hard, and a snake is a living thing the child is carrying, not a ma
 
 | # | invariant | values |
 |---|---|---|
-| R1 | `corridorWidth` strictly decreasing | 48 → 42 → 36 → 32 |
+| R1 | `corridorWidth` strictly decreasing | 38 → 34 → 30 → 28 (lowered in task 8.8; see §3.1/§3.5) |
 | R2 | `minAccuracy` strictly increasing | 55 → 62 → 70 → 76 |
 | R3 | every level holds exactly **three** `paths` and **three** `artCorridor` pieces, in the same order | 3, 3, 3, 3 |
 | R4 | `arrange` absent on `snake1` and present on the other three; `demo` present on `snake1` and absent on the other three | — |
@@ -710,7 +751,7 @@ a reader who saw only R1 would draw the wrong conclusion.
 |---|---|
 | **Zona de inicio** | The tail of the first snake, where the octopus already stands (`LevelPlay.tsx:1376`, unconditional on any backdrop level) plus the green start dot, which `showGuide: true` keeps. Left-to-right is the writing direction and the author's scheme puts the head on the right. |
 | **Trayectoria esperada** | The snake's own drawn body. §1 is what makes that literally true rather than approximately: the centreline is FITTED to the drawing and both the path and the picture come out of one function. |
-| **Tolerancia del camino** | `corridorWidth` inside the measured body (C1), narrowing 48 → 32, with `minAccuracy` 55 → 76 carrying it past the tolerance clamp (§6.2). Tolerance is literally *how far off the spine you may stray and still be on the snake*. |
+| **Tolerancia del camino** | `corridorWidth` inside the measured body (C1), narrowing 38 → 28, with `minAccuracy` 55 → 76 carrying it past the tolerance clamp (§6.2). Tolerance is literally *how far off the spine you may stray and still be on the snake*. |
 | **Respuesta visual al contacto** | Shipped and unchanged — chalk ink inside, `inkDim` outside, tone while inside — with the night row's `ink`/`inkDim` mechanism doing the work (§2.1) and **§4** making it true on all three snakes instead of one. |
 | **Condiciones de error** | `resetOnContact: false` on all four; a wrong drop returns the snake to its scatter point and costs nothing. |
 | **Posibilidad de reinicio** | The existing retry path; `initialArrange` is the whole reset and the re-scatter is deterministic. |
@@ -956,17 +997,22 @@ capture pass instead of being claimed as verified.
 - [x] **RESOLVED — the hollow is the channel** (§2.3, A6), which closes the "no channel" problem,
       supplies the arrange phase's drop targets and keeps `backdrops.test.ts`'s existing loop
       honest with no exemption.
-- [ ] **`residual` is the one number this phase could not measure** (§3.5). The prediction is
-      `≤ 0.10 × amplitude`; every C1 margin is stated against it; the lever if it fails is authored
-      data in three named steps and no code change.
-- [ ] **A dark hollow on a pale beach is the row's biggest aesthetic bet** (§2.3). It is the third
-      time the 55-luma law has forced a dark paint over a light backdrop, and the literal is one
-      token. Only a capture can say whether it reads as a scoop rather than as a hole.
-- [ ] **A chalk-white line is the row's second bet** (§2.1). The law leaves no dark ink admissible
-      over the author's own black spots — proposal question 3's assumption, adopted, with R1's 14
-      as the arithmetic. The named alternative is repainting the spots in the source art so a dark
-      ink becomes legal, which is the author's call and not this change's.
-- [ ] Nothing else is blocking. Every other decision above is settled.
+- [x] **RESOLVED — `residual` measured at 3.27 / 3.36 / 1.70 shipped px** (task 1.5). Missed its own
+      `≤ 0.10 × amplitude` bound by ~1px for small/medium, but C1 — the constraint that actually
+      gates the geometry — held with real margin against it. A DIFFERENT number, `thickness`, turned
+      out to be the one this phase measured wrong (median instead of minimum), caught by a screenshot
+      in Phase 8/task 8.8 and corrected there — see §3.1/§3.5's amendments.
+- [x] **RESOLVED, imperfectly — a dark hollow on a pale beach mostly reads as a scoop** (§2.3, task
+      8.7). After task 8.8's `corridorWidth` correction the channel stays under the body across
+      nearly its whole length; a thin dark sliver remains visible at the single tightest trough
+      (the C1 margin there is only ~1-5 viewBox units, depending on the level). Closing it further
+      would need to violate either R1's strict ordering or `snake3`'s already-tight C6 ceiling, so
+      it is accepted and disclosed rather than chased to zero.
+- [x] **RESOLVED — the chalk-white line reads as a drawn line, not a highlight** (§2.1, task 8.7).
+      The `?debug=espina` captures on `snake1`/`snake3` show it tracing the spine clearly against
+      the green body.
+- [x] Nothing else is blocking. Every decision above is settled, including the two Phase 8 found and
+      corrected in the apply run — see `apply-progress.md`'s own Phase 8 section for the full story.
 
 ---
 
