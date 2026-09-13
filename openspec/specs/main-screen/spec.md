@@ -136,25 +136,32 @@ The screen SHALL render a toggle button labeled verbatim "Mostrar puntos del tra
 
 The screen module SHALL expose a pure `resolveEnterAction(levelId,
 records)`, mirroring `resolveNextAction`'s shape and export, called from
-`App.tsx`'s `ZooMap.onEnter` in place of today's hardcoded `{view:'play',
+`App.tsx`'s `ZooMap.onEnter` in place of a hardcoded `{view:'play',
 levelId}`. It MUST return the `'intro'` `GameView` variant whenever
-`levelId === 'duck-trail1'`, unconditionally — not gated on `records` —
+`levelId` is `levelIds[0]` of ANY registered adventure — `duck-trail1`,
+`sheep-hill1`, or `llama-peak1` — unconditionally, not gated on `records`,
 and MUST return `{type:'play', levelId}` for every other level id,
-unchanged from today's `onEnter` behaviour. `records` stays a required
-parameter for symmetry with `resolveNextAction` and for a later change's
-unlock rules, even though this function does not read it yet.
+including every other sheep/llama level, unchanged from before this
+change. `records` stays a required parameter for symmetry with
+`resolveNextAction` and for a later change's unlock rules.
 
-#### Scenario: Entering duck-trail1 always resolves to the narrative entry
+(Previously: this requirement asserted the `'intro'` routing only for
+`levelId === 'duck-trail1'`, before a second and third adventure existed;
+the underlying resolution was always adventure-generic via
+`introLevel(levelId)`, and this requirement's asserted scope now widens to
+match.)
 
-- GIVEN any `records` value, including empty records and records where
-  every duck level is already filed
-- WHEN `resolveEnterAction('duck-trail1', records)` is called
-- THEN it MUST return the `'intro'` variant, not `{type:'play',
-  levelId:'duck-trail1'}`
+#### Scenario: Entering any adventure's first level resolves to the narrative entry
+
+- GIVEN `records` including empty records, `resolveEnterAction` called with
+  `'duck-trail1'`, `'sheep-hill1'`, and `'llama-peak1'` in turn
+- WHEN each call is evaluated
+- THEN each MUST return the `'intro'` variant for its own level id
 
 #### Scenario: Every other level resolves straight to play
 
-- GIVEN any other catalog level id (e.g. `'duck-trail2'`, `'trail1'`)
+- GIVEN any other catalog level id (e.g. `'sheep-hill2'`, `'llama-peak3'`,
+  `'trail1'`)
 - WHEN `resolveEnterAction` is called with that id
 - THEN it MUST return `{type:'play', levelId}` unchanged
 
@@ -192,34 +199,50 @@ a `GameAction`. `App.tsx`'s `onEnter` MUST route through
 ### Requirement: Narrative Entry Screen Content
 
 The narrative entry screen SHALL render the octopus with its backpack, the
-speech bubble, the duck, and one short phrase through
-`detective/CaptionedArt.tsx` (`label` required, audited by
-`detective/captionAudit.ts`), following the same bubble-plus-phrase
-pairing `ZooMap.tsx:341-360` already uses. No new art asset MAY be
-introduced: every asset used (the backpack octopus, the speech bubble, the
-duck) MUST come from the existing registry (`detective/assets.ts`).
-Advancing past the screen (a tap) MUST lead into `duck-trail1`'s ordinary
-play view.
+speech bubble, and the entering adventure's OWN registered animal — via
+`ZOO_ANIMAL_ART` (`detective-mode` "ZooAnimalId Widens the Zoo's Animal
+Vocabulary") — through `detective/CaptionedArt.tsx` (`label` required,
+audited by `detective/captionAudit.ts`). The duck, sheep, and llama entries
+MUST each render their own adventure's `intro` line and animal art, and no
+new art asset MAY be introduced beyond what `detective/assets.ts` already
+registers. Advancing past the screen (a tap) MUST lead into that
+adventure's OWN first level (`adventure.levelIds[0]`), never a hardcoded
+level id.
 
-#### Scenario: The entry renders every required registered asset
+(Previously: this requirement named only the octopus, the speech bubble,
+and the duck, and asserted advancing led into `duck-trail1` specifically,
+before more than one adventure existed.)
 
-- GIVEN the narrative entry rendered via `renderToString`
+#### Scenario: The sheep adventure's entry renders its own animal and line
+
+- GIVEN the narrative entry rendered for the sheep adventure via
+  `renderToString`
 - WHEN the HTML string is inspected
-- THEN the backpack octopus's, the speech bubble's, and the duck's
-  registered `href`s MUST each appear, and no `href` outside
+- THEN `ZOO_ANIMAL_ART.oveja`'s registered `href` and the sheep adventure's
+  own `intro` text MUST appear, and no `href` outside
   `detective/assets.ts`'s registered set MUST appear
 
-#### Scenario: auditCaptions reports zero uncaptioned words
+#### Scenario: The llama adventure's entry renders its own animal and line
 
-- GIVEN the narrative entry rendered via `renderToString`
+- GIVEN the narrative entry rendered for the llama adventure via
+  `renderToString`
+- WHEN the HTML string is inspected
+- THEN `ZOO_ANIMAL_ART.llama`'s registered `href` and the llama adventure's
+  own `intro` text MUST appear
+
+#### Scenario: auditCaptions reports zero uncaptioned words for both new entries
+
+- GIVEN either new narrative entry rendered via `renderToString`
 - WHEN `auditCaptions` runs on the resulting HTML string
 - THEN `uncaptioned` MUST be `[]`
 
-#### Scenario: Tapping through reaches duck-trail1's play view
+#### Scenario: Tapping through reaches each adventure's own first level
 
-- GIVEN the narrative entry's advance control invoked
-- WHEN the resulting view is inspected
-- THEN it MUST equal `{view:'play', levelId:'duck-trail1'}`
+- GIVEN the sheep entry's and the llama entry's advance controls invoked in
+  turn
+- WHEN the resulting views are inspected
+- THEN they MUST equal `{view:'play', levelId:'sheep-hill1'}` and
+  `{view:'play', levelId:'llama-peak1'}` respectively
 
 ## Open Values (design phase)
 
