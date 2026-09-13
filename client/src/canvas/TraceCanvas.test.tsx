@@ -1076,3 +1076,62 @@ describe('TraceCanvas inkColor / inkDimColor (the child\'s line is MUD on a trai
     expect(html).toContain('#94a3b8')
   })
 })
+
+describe('TraceCanvas reveal layer (reveal-grid spec: "Reveal Layer Renders as Plain Rects Between Backdrop and Ink")', () => {
+  const backdrop = { href: '/art/sector-aquarium-background.png', quiet: '#9bb6c5' }
+  const reveal = {
+    fill: '#64726b',
+    tiles: [
+      { x: 0, y: 0, w: 100, h: 100, opacity: 1 },
+      { x: 100, y: 0, w: 100, h: 100, opacity: 0.5 },
+    ],
+    art: [{ href: '/art/sector-chest.png', w: 200, h: 180, size: 96, x: 500, y: 300 }],
+  }
+
+  it('sits between the backdrop image and the guide/ink paths in document order', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} reveal={reveal} guide="M 0 300 L 1000 300" />)
+    const backdropIdx = html.indexOf(`href="${backdrop.href}"`)
+    const revealIdx = html.indexOf(`fill="${reveal.fill}"`)
+    const guideIdx = html.indexOf('M 0 300 L 1000 300')
+    expect(backdropIdx).toBeGreaterThanOrEqual(0)
+    expect(revealIdx).toBeGreaterThan(backdropIdx)
+    expect(guideIdx).toBeGreaterThan(revealIdx)
+  })
+
+  it('renders no reveal-layer rect with no reveal prop', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} />)
+    expect(html).not.toContain(`fill="${reveal.fill}"`)
+  })
+
+  it('introduces no forbidden fragment reference', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} reveal={reveal} />)
+    expect(html).not.toContain('url(#')
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<defs')
+  })
+
+  it('a lagoon backdrop, a ground maze and a plain maze render byte-identical to before this change', () => {
+    const corridor = { paths: ['M 100 300 L 900 300'], width: 110 }
+    const lagoon = { href: '/art/sector-lagoon-background.png', quiet: '#b4c5d0' }
+    const art = [{ href: '/art/ground-grass-1.png', w: 118, h: 81 }]
+    const mudArt = [{ href: '/art/ground-mud-1.png', w: 128, h: 99 }]
+    const ground = {
+      grass: { marks: [{ x: 120, y: 80, art: 0, size: 44, angle: -3 }], art },
+      mud: { marks: [{ x: 400, y: 302, art: 0, size: 20, angle: 200 }], art: mudArt },
+    }
+
+    const plainMaze = renderToString(<TraceCanvas corridor={corridor} maze />)
+    expect(plainMaze).toContain('#e2e8f0')
+    expect(plainMaze).not.toContain(reveal.fill)
+
+    const groundMaze = renderToString(<TraceCanvas corridor={corridor} maze ground={ground} />)
+    expect(groundMaze).toContain('fill="#c9d7bd"')
+    expect(groundMaze).not.toContain(reveal.fill)
+
+    const lagoonMaze = renderToString(<TraceCanvas corridor={corridor} maze backdrop={lagoon} />)
+    expect(lagoonMaze).toContain(`href="${lagoon.href}"`)
+    expect(lagoonMaze).not.toContain(reveal.fill)
+  })
+})

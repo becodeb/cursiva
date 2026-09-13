@@ -22,9 +22,11 @@ import TraceCanvas, {
   type TraceCorridor,
   type TraceGround,
   type TraceHazards,
+  type TraceReveal,
   type TraceVertexArt,
 } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
+import { EMPTY_REVEAL, revealTick, revealTiles } from '../levels/revealGrid'
 import { grassScatter, mudScatter } from '../canvas/groundScatter'
 import type { TracePoint } from '../canvas/useTraceInput'
 import { contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnContact'
@@ -732,6 +734,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // the same tick, and filing must not depend on that race.
   const reachedEndRef = useRef(false)
   const [trailLampOn, setTrailLampOn] = useState(false)
+  // The reveal grid's live fold (`reveal-grid` capability, design.md §4.2) —
+  // the erase set / light latch for THIS attempt. Reset wherever a run
+  // starts over, exactly like `corridorTrackRef` above.
+  const [revealState, setRevealState] = useState(EMPTY_REVEAL)
 
   const resetSurface = useCallback((): void => {
     setAttempt(null)
@@ -745,6 +751,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setTrailLampOn(false)
     setRestarted(false)
     setClearSignal((n) => n + 1)
+    setRevealState(EMPTY_REVEAL)
   }, [])
 
   // A new level starts its own flow: demo first when the level asks for one AND
@@ -873,6 +880,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     toneRef.current?.setActive(false)
     setResetSignal((n) => n + 1)
     setRestarted(true)
+    setRevealState(EMPTY_REVEAL)
     // The route itself is starting over, so any clue marks lit during the
     // abandoned pass go with it — the child will pass them again on the way
     // back through. The FILED rail clue is untouched: filing only ever
@@ -908,6 +916,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           offPathRef.current = false
           setOffPath(false)
         }
+        // The reveal grid's fold also rides this sample: the finger lifting
+        // is what turns the torch off (design.md §4.2's "the light goes out
+        // when the finger lifts", one line above the tone's own version of
+        // the same sentence).
+        if (level.reveal) {
+          setRevealState((prev) => revealTick(prev, points, false, level.reveal!, target.viewBoxWidth))
+        }
         return
       }
       // The surface's own frame clock, so the hazard hit test below asks about
@@ -942,6 +957,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         if (feedback.haptics) pulseOnLeaving(offPathRef.current, out)
         offPathRef.current = out
         setOffPath(out)
+      }
+      // The reveal grid's live fold rides this SAME sample too (design.md
+      // §4.2, docs/02 §7.2) — no second cloud scan. Monotone; a still
+      // finger costs a no-op setState (design.md §1.4's REVEAL_EPSILON).
+      if (level.reveal) {
+        setRevealState((prev) => revealTick(prev, points, drawing, level.reveal!, target.viewBoxWidth))
       }
       // Detective mode's clue marks ride this SAME sample (design.md "The rAF
       // loop is not touched"; spec "Clue Collection State Machine") — no
@@ -995,6 +1016,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       trailClueMarks,
       isCase,
       level.corridorWidth,
+      level.reveal,
     ],
   )
 
@@ -1130,10 +1152,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // design.md §3.4). `backdropFor` resolves through the level's ADVENTURE,
   // not through its sector directly — see that function's own header — so
   // this stays correct once the medusa's four levels get a row of their own.
+  // Kept as the RAW registry row (not only the `TraceBackdrop`-shaped prop
+  // below) so the reveal grid can read `tile`/`ink`/`inkDim` — fields
+  // `TraceBackdrop` deliberately does not carry (design.md §2.5, §4.1).
+  const backdropEntry = useMemo(() => backdropFor(level.id), [level.id])
   const backdrop = useMemo<TraceBackdrop | undefined>(() => {
-    const b = backdropFor(level.id)
+    const b = backdropEntry
     return b ? { href: b.art.href, quiet: b.quiet, channel: b.channel } : undefined
-  }, [level.id])
+  }, [backdropEntry])
 
   // The level is drawn in a PLACE — a sector's backdrop or the detective
   // world's ground — so the engine's own marker colours, all chosen against
@@ -1172,6 +1198,28 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       },
     }
   }, [inWorld, corridor, backdrop, level.taper, target.polyline, target.viewBoxWidth])
+
+  // The reveal grid's covering layer (`reveal-grid` capability, design.md
+  // §4.1-4.2): a pure projection from `revealState` + `level.reveal`, plus
+  // the backdrop's own veil paint and the hidden objects' art, if any.
+  const reveal = useMemo<TraceReveal | undefined>(() => {
+    if (!level.reveal) return undefined
+    const tiles = revealTiles(level.reveal, revealState, target.viewBoxWidth)
+    const art =
+      level.reveal.mode === 'light'
+        ? level.reveal.objects.map((o) => ({
+            href: o.art.href,
+            w: o.art.w,
+            h: o.art.h,
+            size: o.size,
+            x: o.x,
+            y: o.y,
+          }))
+        : undefined
+    // Every reveal-grid level ships a backdrop declaring `tile` (design.md
+    // §2.5); the fallback only guards a level authored without one.
+    return { fill: backdropEntry?.tile ?? SHEET_PAPER, tiles, art }
+  }, [level.reveal, revealState, target.viewBoxWidth, backdropEntry])
 
   // The rail's slot data. This slice only has visibility into the CURRENT
   // trail — the other three trails' persisted state is wired once the
@@ -1336,8 +1384,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // The child's own line is MUD in the world (see `MUD_INK`). Only the
         // trace changes substance: the carrier, the hazards and the silhouetted
         // markers above all stay ink, because they are the world.
-        inkColor={inWorld ? MUD_INK : undefined}
-        inkDimColor={inWorld ? MUD_INK_DIM : undefined}
+        //
+        // Widened for the night backdrop's own ink (design.md §2.4): a slate
+        // line does not clear `NIGHT_VEIL`, so the backdrop declares its own
+        // `ink`/`inkDim`. Byte-identical today — no shipped backdrop
+        // declares `ink` yet (`backdrops.ts`'s `PENDING_ENTRANCE_BACKDROP`
+        // is not wired into `ADVENTURE_BACKDROP` in this apply run).
+        inkColor={inWorld ? MUD_INK : backdropEntry?.ink}
+        inkDimColor={inWorld ? MUD_INK_DIM : backdropEntry?.inkDim}
         // Any bump restarts the run (docs/01 principle 2).
         resetSignal={resetOnContact ? resetSignal : undefined}
         // Clue marks (design unit 4/6). Absent on every level without a
@@ -1352,6 +1406,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // Static art standing at the route's own peaks (design.md §3.3).
         // Absent for every level that predates `LevelConfig.vertexArt`.
         vertexArt={vertexArt}
+        // The reveal grid's covering layer (`reveal-grid` capability).
+        // Absent on every level without a `reveal` config.
+        reveal={reveal}
         onStart={onStart}
         onFrame={onFrame}
         onRelease={onRelease}

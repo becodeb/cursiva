@@ -37,12 +37,38 @@ vi.mock('../canvas/TraceCanvas', async (importOriginal) => ({
   },
 }))
 
+// A night-shaped backdrop for ONE synthetic level id, so `inkColor`'s
+// resolution against `backdrop?.ink` (design.md §2.4) is testable before
+// Phase 5 wires `PENDING_ENTRANCE_BACKDROP` into the real `ADVENTURE_BACKDROP`
+// registry (`zoo/backdrops.ts`'s own docblock; `apply-progress.md`). Every
+// other level id resolves through the REAL `backdropFor`, unchanged.
+vi.mock('../zoo/backdrops', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../zoo/backdrops')>()
+  return {
+    ...actual,
+    backdropFor: (levelId: string) =>
+      levelId === 'night-fixture'
+        ? {
+            art: actual.ADVENTURE_BACKDROP.duck!.art,
+            quiet: '#394459',
+            brightest: '#526084',
+            corridorRows: { top: 51, bottom: 973 },
+            tile: actual.NIGHT_VEIL,
+            ink: actual.TORCH_CHALK,
+            inkDim: actual.TORCH_CHALK_DIM,
+          }
+        : actual.backdropFor(levelId),
+  }
+})
+
 import LevelPlay, { drawingBand, shouldFileClue, shouldTickClue } from './LevelPlay'
 import { CARRIER_LENS_ART, CLUE_ART, LAMP_ART, OCTOPUS_ART, SECTOR_BACKGROUND_ART } from '../detective/assets'
 import { auditCaptions } from '../detective/captionAudit'
 import { INK_COLOR } from '../canvas/TraceCanvas'
+import { TORCH_CHALK } from '../zoo/backdrops'
 import { PRINT } from '../detective/palette'
 import { getLevel } from '../levels/catalog'
+import type { RevealConfig } from '../levels/types'
 
 function makeLevel(over: Partial<LevelConfig> = {}): LevelConfig {
   return {
@@ -83,6 +109,15 @@ function makeDetectiveLevel(over: Partial<LevelConfig> = {}): LevelConfig {
  * no shipped level uses it yet (design.md §1, tasks.md 1.7). */
 function makeWorldOnlyLevel(over: Partial<LevelConfig> = {}): LevelConfig {
   return makeLevel({ detectiveWorld: true, clue: undefined, ...over })
+}
+
+/** A reveal-grid-shaped level (`reveal-grid` capability): `free`/`blank`,
+ *  no path, `reveal` set. `id` defaults to a plain string so it resolves
+ *  through the REAL `backdropFor` (no backdrop, no ink override) unless the
+ *  caller passes `id: 'night-fixture'`, which the mock above resolves to a
+ *  night-shaped backdrop. */
+function makeRevealLevel(reveal: RevealConfig, over: Partial<LevelConfig> = {}): LevelConfig {
+  return makeLevel({ kind: 'free', surface: 'blank', paths: [], reveal, ...over })
 }
 
 const noop = (): void => undefined
@@ -907,5 +942,114 @@ describe('LevelPlay makes the trail line MUD, and only the line', () => {
     )
     expect(traceCanvasProbe.current?.inkColor).toBeUndefined()
     expect(traceCanvasProbe.current?.inkDimColor).toBeUndefined()
+  })
+})
+
+describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)', () => {
+  const erase: RevealConfig = { mode: 'erase', cols: 10, rows: 6, radius: 110 }
+  const light: RevealConfig = {
+    mode: 'light',
+    cols: 15,
+    rows: 9,
+    radius: 200,
+    objects: [{ art: CARRIER_LENS_ART, size: 96, x: 500, y: 300 }],
+  }
+
+  it('sends a reveal prop whose tiles cover the whole grid before any stroke (EMPTY_REVEAL)', () => {
+    const level = makeRevealLevel(erase)
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const reveal = traceCanvasProbe.current?.reveal as { tiles: unknown[]; fill: string; art?: unknown[] }
+    expect(reveal).toBeTruthy()
+    expect(reveal.tiles.length).toBe(erase.cols * erase.rows) // nothing cleared yet
+    expect(reveal.art).toBeUndefined() // erase mode has no hidden objects
+  })
+
+  it('sends a reveal prop with the hidden-object art for a light level', () => {
+    const level = makeRevealLevel(light)
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const reveal = traceCanvasProbe.current?.reveal as { tiles: unknown[]; art?: unknown[] }
+    expect(reveal.tiles.length).toBe(light.cols * light.rows)
+    expect(reveal.art).toHaveLength(1)
+  })
+
+  it('sends no reveal prop for a level with no reveal field', () => {
+    renderToString(
+      <LevelPlay level={makeLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current?.reveal).toBeUndefined()
+  })
+
+  // The harness cannot re-render after `renderToString` returns (this file's
+  // own header comment), so `onFrame`'s effect on `revealState` is not
+  // observable through a second render — only that the wiring RUNS, the
+  // same constraint every other `onFrame` wiring test above already accepts.
+  it('advances the reveal fold on onFrame without throwing, for both erase and light', () => {
+    for (const reveal of [erase, light]) {
+      const level = makeRevealLevel(reveal)
+      renderToString(
+        <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      const onFrame = traceCanvasProbe.current?.onFrame as (
+        points: TracePoint[],
+        drawing: boolean,
+        timeMs: number,
+      ) => void
+      expect(typeof onFrame).toBe('function')
+      expect(() => onFrame([{ x: 500, y: 300 }], true, 200)).not.toThrow()
+      expect(() => onFrame([{ x: 500, y: 300 }, { x: 520, y: 320 }], true, 400)).not.toThrow()
+      // Finger up: the same branch that resets `seen`/`point` for the reveal
+      // fold (design.md §4.2, "the light goes out when the finger lifts").
+      expect(() => onFrame([], false, 500)).not.toThrow()
+    }
+  })
+
+  it('restartRun\'s reveal reset does not throw when a contact resets a reveal-bearing run', () => {
+    // Synthetic only: no shipped reveal-grid level sets `resetOnContact`
+    // (design.md §5.2's `resetOnContact: false` on all twelve) — this
+    // fixture exercises `onFrame`'s `restartRun()` branch, which resets
+    // `revealState` to `EMPTY_REVEAL` alongside everything else it resets.
+    const level = makeRevealLevel(erase, { resetOnContact: true, corridorWidth: 40 })
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const onFrame = traceCanvasProbe.current?.onFrame as (
+      points: TracePoint[],
+      drawing: boolean,
+      timeMs: number,
+    ) => void
+    // Two throttled samples so `contactTick`'s own debounce has a chance to
+    // latch a reset — the exact threshold is `resetOnContact.ts`'s own
+    // contract; this only proves the reveal-aware branch runs without error.
+    expect(() => {
+      onFrame([{ x: 500, y: 300 }], true, 200)
+      onFrame([{ x: 500, y: 300 }], true, 400)
+      onFrame([{ x: 500, y: 300 }], true, 600)
+    }).not.toThrow()
+  })
+
+  it("resolves inkColor to the night backdrop's own TORCH_CHALK", () => {
+    const level = makeRevealLevel(
+      { mode: 'light', cols: 15, rows: 9, radius: 200, objects: [] },
+      { id: 'night-fixture' },
+    )
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current?.inkColor).toBe(TORCH_CHALK)
+  })
+
+  it('resolves inkColor to undefined (MUD_INK/INK_COLOR default) for a reveal level with no backdrop ink', () => {
+    const level = makeRevealLevel(erase)
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    // `test-level` (this fixture's id) resolves to no adventure/backdrop at
+    // all through the REAL `backdropFor`, so `inkColor` is `undefined` —
+    // exactly the byte-identical default every non-world level already had.
+    expect(traceCanvasProbe.current?.inkColor).toBeUndefined()
   })
 })

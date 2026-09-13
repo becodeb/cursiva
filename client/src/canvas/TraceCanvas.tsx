@@ -43,6 +43,7 @@ import type { ScatterMark } from './groundScatter'
 import { useTraceInput, type TracePoint } from './useTraceInput'
 import { isDevMode } from './devMode'
 import { clampArtBox, placeArt, STANDING_GRIP } from './placeArt'
+import { RevealLayer } from './RevealLayer'
 import { devCheckpointState, type DevCheckpointState } from './devCheckpointState'
 import { DevCheckpointOverlay } from './devCheckpointOverlay'
 import type { LetterCheckpoint } from '../letters/types'
@@ -405,6 +406,39 @@ export interface TraceStandingArt {
   size: number
 }
 
+/**
+ * One tile of the reveal grid's covering layer (`reveal-grid` capability,
+ * design.md §4.1). Structural, no import from `levels/`/`zoo/` — the same
+ * convention {@link TraceBackdrop} and {@link TraceVertexArt} follow.
+ */
+export interface TraceRevealTile {
+  x: number
+  y: number
+  w: number
+  h: number
+  /** 0.25 | 0.5 | 0.75 | 1 — five steps, and a tile at 0 is simply absent
+   *  from `TraceReveal.tiles` (design.md §1.5): the levels layer's
+   *  `revealTiles` projection excludes it entirely. Emitted as an `opacity`
+   *  attribute only when `< 1`, so an untouched veil is the cheapest
+   *  possible markup. */
+  opacity: number
+}
+
+/**
+ * The reveal grid's whole render contract: one plain `<rect>` per tile and,
+ * for a `light` level, the hidden objects lying UNDER them. No `<mask>`,
+ * `<pattern>`, `<clipPath>`, `<defs>`, `useId`, or `url(#…)` reference is
+ * ever introduced by this layer — the same ban {@link MAZE_WALL}'s own
+ * header documents.
+ */
+export interface TraceReveal {
+  /** The veil's own paint — a reveal level's `backdrop?.tile`. */
+  fill: string
+  tiles: readonly TraceRevealTile[]
+  /** Hidden objects, drawn UNDER the tiles so the veil covers them. */
+  art?: readonly { href: string; w: number; h: number; size: number; x: number; y: number }[]
+}
+
 /** How long the abandoned ink takes to fade on a reset. Long enough to be seen
  * as a departure rather than a glitch, short enough that the child is not kept
  * waiting to start again. */
@@ -579,6 +613,11 @@ export interface TraceCanvasProps {
    * §3.3). Absent = no vertex-art layer, byte-identical to before this prop
    * existed. See {@link TraceVertexArt}. */
   vertexArt?: TraceVertexArt
+  /** The reveal grid's covering layer (`reveal-grid` capability), rendered
+   * above the backdrop and below every ink layer. Absent = no reveal layer
+   * at all, byte-identical to before this prop existed. See
+   * {@link TraceReveal}. */
+  reveal?: TraceReveal
   /** Any CHANGE of this value RESTARTS THE RUN (`LevelConfig.resetOnContact`):
    * the stroke in progress is abandoned, both buffers are emptied, and the ink
    * that was on the sheet FADES rather than vanishing.
@@ -633,6 +672,7 @@ export default function TraceCanvas({
   ground,
   backdrop,
   vertexArt,
+  reveal,
   resetSignal,
 }: TraceCanvasProps) {
   // `contain` letterboxes inside its box, so the CSS background would paint the
@@ -941,6 +981,16 @@ export default function TraceCanvas({
             preserveAspectRatio="xMidYMid slice"
           />
         </g>
+      )}
+      {reveal && (
+        // The reveal grid's covering layer (`reveal-grid` capability,
+        // design.md §4.1-4.2): immediately after the backdrop group and
+        // before the maze/corridor block — a reveal level has no corridor
+        // and no ground, so on the twelve entrance/night levels this is the
+        // only thing between the backdrop and the guides. Plain `<rect>`s,
+        // this file's own scar (above): no `<mask>`, `<pattern>`,
+        // `<clipPath>`, `<defs>`, `useId`, no `url(#…)`.
+        <RevealLayer reveal={reveal} sheetBounds={sheetBounds} />
       )}
       {corridor && (mazeOn || ground || !!backdrop) && (
         // MAZE (docs/01 fase 1: "senderos y laberintos … sin tocar los
