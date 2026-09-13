@@ -132,38 +132,38 @@ Spec traceability: `object-arrange/spec.md` (all requirements);
 `guided-trace-mode/spec.md` (Completion Handoff). Depends on Phase 2. 4.1 →
 4.2 → 4.4.
 
-- [ ] 4.1 In `client/src/levels/types.ts`: add `LevelConfig.arrange?: {
+- [x] 4.1 In `client/src/levels/types.ts`: add `LevelConfig.arrange?: {
       readonly from: readonly Point[]; readonly snapRadius: number }`.
-- [ ] 4.2 Create `client/src/levels/arrange.ts`: `ArrangeState`,
+- [x] 4.2 Create `client/src/levels/arrange.ts`: `ArrangeState`,
       `initialArrange`, `grabPiece` (topmost containing box), `arrangeTick`
       (same-reference no-op contract; snap-within-radius-or-return-to-scatter
       drop resolution; never a swap), `isArranged` (`placed[i] === i` for
       all i), `debugArrange(cfg, k)`.
-- [ ] 4.3 Create `client/src/levels/arrange.test.ts`: grab picks the topmost
+- [x] 4.3 Create `client/src/levels/arrange.test.ts`: grab picks the topmost
       overlapping box; a drop within `snapRadius` of a free slot occupies it;
       a drop outside `snapRadius` or nearest an occupied slot returns the
       piece to `from[i]` with no displacement; `isArranged` iff every
       `placed[i] === i` (false on a swap or a partial fill); same reference
       when nothing changes; `debugArrange(cfg, k)` places exactly the first
       `k`; every export runs with no DOM.
-- [ ] 4.4 In `client/src/screen/LevelPlay.tsx`: add `arrangeState`;
+- [x] 4.4 In `client/src/screen/LevelPlay.tsx`: add `arrangeState`;
       `arrangeOpen = !!level.arrange && !isArranged(arrangeState)`; inside
       `onFrame`, redirect to `arrangeTick` and return early while
       `arrangeOpen` (no wall/clue/reveal fold runs); `onRelease` returns
       early while `arrangeOpen` (no ink, no attempt, no score);
       `restartRun`/`clearAttempt` reset to `initialArrange`.
-- [ ] 4.5 In `client/src/canvas/TraceCanvas.tsx`: add `inkHidden?: boolean` —
+- [x] 4.5 In `client/src/canvas/TraceCanvas.tsx`: add `inkHidden?: boolean` —
       suppresses guide/demo/user-stroke/`endArt` only, leaving pointer
       capture, backdrop, and channel untouched. Wire
       `inkHidden={arrangeOpen}` from `LevelPlay`.
-- [ ] 4.6 In `client/src/canvas/TraceCanvas.test.tsx`: `inkHidden: true`
+- [x] 4.6 In `client/src/canvas/TraceCanvas.test.tsx`: `inkHidden: true`
       renders no ink but backdrop/channel/corridor unaffected; absent/`false`
       is byte-identical to before this change.
-- [ ] 4.7 In `client/src/screen/LevelPlay.test.tsx`: a synthetic
+- [x] 4.7 In `client/src/screen/LevelPlay.test.tsx`: a synthetic
       `arrange`-bearing fixture with `isArranged` false suppresses ink and
       blocks completion on release; once `isArranged` true, tracing and
       scoring resume exactly as a no-`arrange` level.
-- [ ] 4.8 Run `npm test -- levels/arrange screen/LevelPlay canvas/TraceCanvas`
+- [x] 4.8 Run `npm test -- levels/arrange screen/LevelPlay canvas/TraceCanvas`
       — green.
 
 ## Phase 5: Render the Corridor as Plain Images (E5)

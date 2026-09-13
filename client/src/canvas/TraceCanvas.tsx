@@ -599,6 +599,17 @@ export interface TraceCanvasProps {
    * these; it never asserted these do not RENDER, which was the half that
    * mattered. */
   inkOnly?: boolean
+  /** Suppresses every INK layer (`guide`, `demo`, settled strokes, `endArt`)
+   * while the object-arrange phase is open (`docs/13` §8 row E, design.md
+   * §5.2) — leaving pointer capture, the backdrop, the channel, and the
+   * `artCorridor` layer entirely unaffected. Deliberately NOT applied to
+   * the live current-stroke `<path>`: its rAF loop is also what drives the
+   * `onFrame` callback (the caller's whole game loop, arrange fold
+   * included), so unmounting it would silence `onFrame` itself. That path
+   * carries no `d` in SSR either way (only the client-side rAF loop ever
+   * sets one), so this is a no-op for the static markup a test can see.
+   * Absent or `false` renders exactly as before this change. */
+  inkHidden?: boolean
   /** Clue marks (`detective-mode`), rendered as their own `<g>` layer UNDER
    * the ink — see `TraceClueMark`. Absent = no clue layer. */
   clues?: TraceClues
@@ -668,6 +679,7 @@ export default function TraceCanvas({
   carrier,
   carrierArt,
   inkOnly = false,
+  inkHidden = false,
   clues,
   ground,
   backdrop,
@@ -1155,7 +1167,7 @@ export default function TraceCanvas({
           <line x1={0} y1={ROOTS_GUIDE_Y} x2={viewBoxWidth} y2={ROOTS_GUIDE_Y} stroke="#64748b" strokeWidth={2.5} strokeDasharray="18 8" opacity={0.7} />
         </g>
       )}
-      {guideD && (
+      {guideD && !inkHidden && (
         <path
           d={guideD}
           fill="#334155"
@@ -1164,7 +1176,7 @@ export default function TraceCanvas({
           pointerEvents="none" // the guide never intercepts pointer input
         />
       )}
-      {guide && (
+      {guide && !inkHidden && (
         <g>
           {(Array.isArray(guide) ? guide : [guide]).map((gd, idx) => (
             <path
@@ -1183,7 +1195,7 @@ export default function TraceCanvas({
           ))}
         </g>
       )}
-      {demo && (
+      {demo && !inkHidden && (
         <g>
           {(Array.isArray(demo) ? demo : [demo]).map((d, idx) => (
             <motion.path
@@ -1245,7 +1257,7 @@ export default function TraceCanvas({
           ))}
         </g>
       )}
-      {endMarker && endArt && (
+      {endMarker && endArt && !inkHidden && (
         // Registry art standing where the route ends (`TraceStandingArt`),
         // in place of the diamonds below. Its origin is its FEET
         // (`STANDING_GRIP`) so it stands ON the end of the route instead of
@@ -1335,7 +1347,7 @@ export default function TraceCanvas({
           pointerEvents="none"
         />
       )}
-      {settledDs.length > 0 && (
+      {settledDs.length > 0 && !inkHidden && (
         // Settled ink of the strokes already released in this attempt.
         <g pointerEvents="none">
           {settledDs.map((d, idx) => (

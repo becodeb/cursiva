@@ -62,7 +62,14 @@ vi.mock('../zoo/backdrops', async (importOriginal) => {
 })
 
 import LevelPlay, { drawingBand, shouldFileClue, shouldTickClue } from './LevelPlay'
-import { CARRIER_LENS_ART, CLUE_ART, LAMP_ART, OCTOPUS_ART, SECTOR_BACKGROUND_ART } from '../detective/assets'
+import {
+  CARRIER_LENS_ART,
+  CLUE_ART,
+  LAMP_ART,
+  OCTOPUS_ART,
+  SECTOR_ADVENTURE_ART,
+  SECTOR_BACKGROUND_ART,
+} from '../detective/assets'
 import { auditCaptions } from '../detective/captionAudit'
 import { INK_COLOR } from '../canvas/TraceCanvas'
 import { TORCH_CHALK } from '../zoo/backdrops'
@@ -663,6 +670,80 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
       ).not.toThrow()
     },
   )
+
+  it('an arrange-bearing level with isArranged false suppresses ink and blocks completion on release (object-arrange spec)', () => {
+    const onAttempt = vi.fn<(a: LevelAttempt) => void>()
+    const level = makeLevel({
+      arrange: { from: [{ x: 150, y: 500 }], snapRadius: 50 },
+      artCorridor: [
+        {
+          art: SECTOR_ADVENTURE_ART.snakeMedium,
+          spine: 'snakeMedium',
+          span: 200,
+          at: { x: 500, y: 300 },
+        },
+      ],
+    })
+    renderToString(
+      <LevelPlay
+        level={level}
+        record={EMPTY_RECORD}
+        onAttempt={onAttempt}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    const props = traceCanvasProbe.current
+    // Nothing is placed yet — the arrange phase is open from the first
+    // render, and TraceCanvas is told to suppress ink.
+    expect(props?.inkHidden).toBe(true)
+
+    const onRelease = props?.onRelease as (
+      points: TracePoint[],
+      pointerType: string,
+      all: TracePoint[][],
+    ) => void
+    const stroke: TracePoint[] = [
+      { x: 100, y: 300 },
+      { x: 900, y: 300 },
+    ]
+    onRelease(stroke, 'touch', [stroke])
+    expect(onAttempt).not.toHaveBeenCalled()
+  })
+
+  it('an arrange-bearing level with isArranged already true (zero pieces) resumes tracing and scoring exactly as a no-arrange level', () => {
+    const onAttempt = vi.fn<(a: LevelAttempt) => void>()
+    const level = makeLevel({
+      arrange: { from: [], snapRadius: 50 },
+      artCorridor: [],
+      rules: { mustBeContinuous: false, enforceOrder: false, minFluency: 0, minAccuracy: 0 },
+    })
+    renderToString(
+      <LevelPlay
+        level={level}
+        record={EMPTY_RECORD}
+        onAttempt={onAttempt}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    const props = traceCanvasProbe.current
+    // Vacuously arranged (no pieces to place): the gate never opens.
+    expect(props?.inkHidden).toBe(false)
+
+    const onRelease = props?.onRelease as (
+      points: TracePoint[],
+      pointerType: string,
+      all: TracePoint[][],
+    ) => void
+    const stroke: TracePoint[] = [
+      { x: 100, y: 300 },
+      { x: 900, y: 300 },
+    ]
+    onRelease(stroke, 'touch', [stroke])
+    expect(onAttempt).toHaveBeenCalledTimes(1)
+    expect(onAttempt.mock.calls[0][0].approved).toBe(true)
+  })
 
   it('passes a `clues` prop with the trail\'s marks to TraceCanvas, absent on an ordinary level', () => {
     const detective = makeDetectiveLevel()

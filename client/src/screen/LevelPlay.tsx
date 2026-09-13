@@ -41,6 +41,13 @@ import { createTraceTone, playBeatTick, type TraceTone } from '../canvas/traceTo
 import { pulseOnLeaving } from '../canvas/haptics'
 import { railFade, railPull } from '../canvas/rail'
 import { multiCorridorTick, routeTrackStart, type RouteTrack } from './corridorTrack'
+import {
+  arrangeTick,
+  initialArrange,
+  isArranged,
+  type ArrangeConfig,
+  type ArrangeState,
+} from '../levels/arrange'
 import { directionArrowOf } from './directionArrow'
 import { goalMarkerOf } from './goalMarker'
 import type { LevelConfig } from '../levels/types'
@@ -82,6 +89,10 @@ const DEMO_STEP_S = 1.7
  * grace window to ~66ms.
  */
 const OFF_PATH_PERIOD_MS = 33
+/** The arrange fold's own config when `level.arrange` is absent — never
+ *  actually consulted, since `arrangeOpen` is `false` whenever
+ *  `level.arrange` itself is absent. */
+const EMPTY_ARRANGE_CONFIG: ArrangeConfig = { from: [], snapRadius: 0 }
 /** How long the visual metronome stays swollen after a beat. Short enough to
  * read as a pulse, long enough to see at 60 BPM on a slow panel. */
 const BEAT_FLASH_MS = 140
@@ -744,6 +755,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // demo replay) and `restartRun` (contact reset) both send it back to the
   // start of the route, exactly like `contactRef` above.
   const corridorTrackRef = useRef<RouteTrack>(routeTrackStart(target.routes.length))
+  // Before the tracing opens, the child drags this level's art-corridor
+  // pieces into their own hollows, smallest to largest (`object-arrange`
+  // spec, design.md §5.2). Absent `level.arrange` = no arrange phase, the
+  // dummy config below is never consulted for real gating since
+  // `arrangeOpen` is `false` whenever `level.arrange` itself is absent.
+  const arrangeConfig = level.arrange ?? EMPTY_ARRANGE_CONFIG
+  const [arrangeState, setArrangeState] = useState<ArrangeState>(() => initialArrange(arrangeConfig))
+  const arrangeOpen = !!level.arrange && !isArranged(arrangeState)
   // A trail's marks lit so far this run (drained → earned, `clueTick`), and
   // whether its ONE clue has been filed into the rail. Filing rides
   // `onRelease`'s existing approval signal — never the marks alone (spec
@@ -791,7 +810,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setRestarted(false)
     setClearSignal((n) => n + 1)
     setRevealState(initialRevealState(level.reveal, debugSearch))
-  }, [level.reveal, debugSearch, target.routes.length])
+    // The arrangement resets to its deterministic scatter with the run —
+    // `docs/13` §6's "posibilidad de reinicio", free (object-arrange spec).
+    setArrangeState(initialArrange(arrangeConfig))
+  }, [level.reveal, debugSearch, target.routes.length, arrangeConfig])
 
   // A new level starts its own flow: demo first when the level asks for one AND
   // the child is still in the full-guide band. A trail's clue state and filed
@@ -916,6 +938,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setOffPath(false)
     setAttempt(null)
     setStrokes([])
+    setArrangeState(initialArrange(arrangeConfig))
     toneRef.current?.setActive(false)
     setResetSignal((n) => n + 1)
     setRestarted(true)
@@ -929,7 +952,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     // `false → true` forces exactly one pulse through the same edge rule the
     // off-path channel uses, so a restart can never turn into a buzzing nag.
     if (feedback.haptics) pulseOnLeaving(false, true)
-  }, [feedback.haptics, clueDef, trailClueMarks.length, target.routes.length])
+  }, [feedback.haptics, clueDef, trailClueMarks.length, target.routes.length, arrangeConfig])
 
   // The cue is a passing line, not a state the child has to dismiss.
   useEffect(() => {
@@ -948,6 +971,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // the cloud again.
   const onFrame = useCallback(
     (points: TracePoint[], drawing: boolean, timeMs: number) => {
+      // The arrange phase (object-arrange spec) redirects the SAME per-frame
+      // sample instead of adding a second pointer-capture mechanism: no
+      // wall/clue/reveal fold runs while a level's pieces are not yet home.
+      if (arrangeOpen) {
+        const head = points[points.length - 1] ?? { x: 0, y: 0 }
+        const boxes = (target.artCorridor ?? []).map((piece) => piece.box)
+        setArrangeState((prev) => arrangeTick(prev, boxes, head, drawing, arrangeConfig))
+        return
+      }
       if (!drawing) {
         toneRef.current?.setActive(false) // finger up: the light goes out
         contactRef.current = NO_CONTACT // a finished stroke owes nothing
@@ -1063,6 +1095,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       level.corridorWidth,
       level.reveal,
       debugLightPoint,
+      arrangeOpen,
+      arrangeConfig,
     ],
   )
 
@@ -1071,6 +1105,11 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // the child keeps adding strokes and sees the set re-scored each time.
   const onRelease = useCallback(
     (_points: TracePoint[], pointerType: string, all: TracePoint[][]) => {
+      // While the arrange phase is open, a release is never evaluated: no
+      // ink is captured as a stroke, no attempt is recorded, no score moves
+      // (object-arrange spec, "The Arrange Phase Gates Completion by
+      // Sequencing, Not by a Second Score").
+      if (arrangeOpen) return
       const snapshot = all.map((s) => s.slice())
       setStrokes(snapshot)
       setOffPath(false)
@@ -1091,7 +1130,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       if (shouldFileClue(!!clueDef, reachedEndRef.current)) setClueFiled(true)
       onAttempt(result)
     },
-    [target, onAttempt, clueDef],
+    [target, onAttempt, clueDef, arrangeOpen],
   )
 
   const replayDemo = (): void => {
@@ -1438,6 +1477,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // is not wired into `ADVENTURE_BACKDROP` in this apply run).
         inkColor={inWorld ? MUD_INK : backdropEntry?.ink}
         inkDimColor={inWorld ? MUD_INK_DIM : backdropEntry?.inkDim}
+        inkHidden={arrangeOpen}
         // Any bump restarts the run (docs/01 principle 2).
         resetSignal={resetOnContact ? resetSignal : undefined}
         // Clue marks (design unit 4/6). Absent on every level without a

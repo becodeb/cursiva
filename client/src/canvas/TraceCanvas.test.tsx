@@ -1077,6 +1077,64 @@ describe('TraceCanvas inkColor / inkDimColor (the child\'s line is MUD on a trai
   })
 })
 
+describe('TraceCanvas inkHidden (object-arrange spec: suppresses ink while the arrange phase is open)', () => {
+  const strokes = [
+    [
+      { x: 100, y: 300 },
+      { x: 200, y: 320 },
+    ],
+  ]
+  const backdrop = { href: '/art/sector-sand-background.png', quiet: '#d6cbba', channel: '#3b332b' }
+  const corridor = { paths: ['M 100 300 L 900 300'], width: 60 }
+
+  it('renders no guide, demo, settled ink, or endArt while inkHidden — backdrop/channel/corridor stroke unaffected', () => {
+    const html = renderToString(
+      <TraceCanvas
+        guide="M 0 0 L 100 100"
+        demo={{ d: 'M 0 0 L 50 50', strokeWidth: 6, delay: 0, duration: 1 }}
+        completedStrokes={strokes}
+        endMarker={{ x: 900, y: 300 }}
+        endArt={{ href: '/art/lamp-off.png', w: 181, h: 192, size: 40 }}
+        backdrop={backdrop}
+        corridor={corridor}
+        inkHidden
+      />,
+    )
+    expect(html).not.toContain('M 0 0 L 100 100') // guide
+    expect(html).not.toContain('M 0 0 L 50 50') // demo
+    expect(html).not.toContain('/art/lamp-off.png') // endArt
+    // The settled stroke's own `d` string must not appear (only the empty
+    // live-ink `<path>` remains, which carries no `d` in SSR either way).
+    expect(html).not.toMatch(/d="M 100 300 L 200 320/)
+    // The backdrop and its channel stroke are entirely unaffected.
+    expect(html).toContain('/art/sector-sand-background.png')
+    expect(html).toContain('#3b332b')
+  })
+
+  it('absent or false renders ink exactly as before this change', () => {
+    const withoutProp = renderToString(
+      <TraceCanvas
+        guide="M 0 0 L 100 100"
+        completedStrokes={strokes}
+        endMarker={{ x: 900, y: 300 }}
+        endArt={{ href: '/art/lamp-off.png', w: 181, h: 192, size: 40 }}
+      />,
+    )
+    const explicitFalse = renderToString(
+      <TraceCanvas
+        guide="M 0 0 L 100 100"
+        completedStrokes={strokes}
+        endMarker={{ x: 900, y: 300 }}
+        endArt={{ href: '/art/lamp-off.png', w: 181, h: 192, size: 40 }}
+        inkHidden={false}
+      />,
+    )
+    expect(withoutProp).toBe(explicitFalse)
+    expect(withoutProp).toContain('M 0 0 L 100 100')
+    expect(withoutProp).toContain('/art/lamp-off.png')
+  })
+})
+
 describe('TraceCanvas reveal layer (reveal-grid spec: "Reveal Layer Renders as Plain Rects Between Backdrop and Ink")', () => {
   const backdrop = { href: '/art/sector-aquarium-background.png', quiet: '#9bb6c5' }
   const reveal = {
