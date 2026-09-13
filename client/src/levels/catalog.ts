@@ -22,6 +22,7 @@ import {
   hills,
   loops,
   peakRidge,
+  spineWave,
   spiral,
   squareWave,
   straight,
@@ -32,6 +33,7 @@ import {
   wave,
   waveVaried,
 } from './paths'
+import { DRAWN_SPINE, type ArtCorridorPiece } from './artCorridor'
 import type { LevelConfig, LevelFeedback, LevelRules, Phase } from './types'
 
 /** Phase headings, as named in docs/08 section 5. */
@@ -95,6 +97,94 @@ function rules(
 function pathsOf(config: LetterConfig): string[] {
   return config.pathDefinition.segments ?? [config.pathDefinition.d]
 }
+
+/**
+ * `docs/13` §8 row E — the drawn snake's own centreline, authored from the
+ * SAME `ArtCorridorPiece` its art corridor uses, but through a DIFFERENT
+ * code path than `placeArtCorridor`'s own internal one (path string →
+ * `transformPathD` → `flattenPathD`, versus spine parameters →
+ * `placeArtCorridor` → box) — which is what makes `artCorridor.test.ts`'s
+ * coincidence a real proof rather than a tautology (design.md §1.4). No
+ * `tx` here: `layOutPaths` applies the SAME centring translation to this
+ * path string and to `placeArtCorridor`'s own derivation afterward, so the
+ * two can never disagree about where the level sits.
+ */
+function snakePathD(piece: ArtCorridorPiece): string {
+  const spine = DRAWN_SPINE[piece.spine]
+  const height = (piece.span * piece.art.h) / piece.art.w
+  const boxX = piece.at.x - piece.span / 2
+  const boxY = piece.at.y - spine.mid * height
+  const pivot = { x: boxX + piece.span / 2, y: boxY + height / 2 }
+  const x0 = boxX + spine.traceFrom * piece.span
+  const y = boxY + spine.mid * height
+  const halves = spine.halves.map(([widthFrac, riseFrac]) => ({
+    width: widthFrac * piece.span,
+    rise: riseFrac * height,
+  }))
+  const localD = spineWave({ x0, y, halves })
+  return transformPath(localD, { rotate: piece.rotate ?? 0, pivot })
+}
+
+/**
+ * The three snake pieces shared by `snake1`, `snake2` and `snake4`
+ * (design.md §3.4: "Per-snake spans are fixed across the family (they ARE
+ * the seriation); the level scale `s_L` and the rotation are the per-level
+ * knobs" — all three of these levels share `s_L = 1`, `rotate = 0`).
+ * Smallest first, matching `DRAWN_SPINE`'s own seriation and
+ * `enforceOrder`'s numbering.
+ */
+function snakeHorizontalPieces(): readonly ArtCorridorPiece[] {
+  return [
+    // `at.x` is 455.66, not 500: `traceFrom`/`traceTo` are not symmetric
+    // about a piece's own box centre (each snake's traceable span is
+    // measured off the drawing, not authored), so the DRAWN centreline's
+    // own bounding box sits off-centre from the box even when every piece
+    // shares one `at.x`. 455.66 is the corrected value that lands the
+    // union's own centroid exactly on the sheet centre, so `layOutPaths`'s
+    // `tx` measures under 0.5 (R6) — found by measuring, not guessed.
+    { art: SECTOR_ADVENTURE_ART.snakeSmall, spine: 'snakeSmall', span: 520, at: { x: 455.66, y: 93.2 } },
+    { art: SECTOR_ADVENTURE_ART.snakeMedium, spine: 'snakeMedium', span: 640, at: { x: 455.66, y: 319.1 } },
+    { art: SECTOR_ADVENTURE_ART.snakeLarge, spine: 'snakeLarge', span: 760, at: { x: 455.66, y: 531.7 } },
+  ]
+}
+
+/** `snake3`'s three VERTICAL pieces, at `s_L = 0.72` (design.md §3.4: three
+ *  oblique snakes fit the sheet at no scale that also clears the phase-1
+ *  span guard; three vertical ones fit comfortably at 0.72). `rotate: -90`
+ *  puts the tail at the bottom and the head at the top. */
+function snakeVerticalPieces(): readonly ArtCorridorPiece[] {
+  return [
+    // Column x's are 197.95/497.95/797.95, not 200/500/800: the same
+    // traceFrom/traceTo asymmetry that shifts the horizontal levels' `at.x`
+    // (see `snakeHorizontalPieces`) shifts these columns too, once rotated
+    // — corrected by measuring so `layOutPaths`'s `tx` clears R6's 0.5 bound.
+    {
+      art: SECTOR_ADVENTURE_ART.snakeSmall,
+      spine: 'snakeSmall',
+      span: 374.4,
+      at: { x: 197.95, y: 300 },
+      rotate: -90,
+    },
+    {
+      art: SECTOR_ADVENTURE_ART.snakeMedium,
+      spine: 'snakeMedium',
+      span: 460.8,
+      at: { x: 497.95, y: 300 },
+      rotate: -90,
+    },
+    {
+      art: SECTOR_ADVENTURE_ART.snakeLarge,
+      spine: 'snakeLarge',
+      span: 547.2,
+      at: { x: 797.95, y: 300 },
+      rotate: -90,
+    },
+  ]
+}
+
+/** Live feedback shared by all four snake levels (design.md §6.1's frozen
+ *  shape). */
+const SNAKE_FEEDBACK: LevelFeedback = { tone: true, haptics: true, metronomeBpm: 0, rail: false }
 
 /** Level ids that fell back to a degraded path at import time (diagnostics). */
 const degraded: string[] = []
@@ -902,6 +992,111 @@ const PHASE_1: LevelConfig[] = [
         { art: SECTOR_ADVENTURE_ART.chest, size: 96, x: 520, y: 120 },
         { art: SECTOR_ADVENTURE_ART.stone, size: 72, x: 880, y: 380 },
       ],
+    },
+  },
+  // Víboras en la arena (`docs/13` §8 row E, `snake-drag-and-art-corridor`).
+  // The arena sector's own four levels: the art corridor IS the drawn
+  // snake, fitted at build time (design.md §1), and `snake2..4` gate
+  // tracing behind arranging the three pieces smallest to largest first
+  // (`object-arrange` capability). `enforceOrder: true` on all four is the
+  // only rule that requires every one of the three snakes to be traced —
+  // accuracy alone is scored as nearest-neighbour distance to the UNION of
+  // the three bands (design.md §0 A3).
+  {
+    id: 'snake1',
+    phase: 1,
+    title: 'Tres víboras en la arena',
+    hint: 'Mirá cómo se mueven las tres víboras y después seguilas vos.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: SNAKE_FEEDBACK,
+    paths: snakeHorizontalPieces().map(snakePathD),
+    corridorWidth: 48,
+    rules: { ...rules(1, false, true, 0), minAccuracy: 55 },
+    showGuide: true,
+    letters: [],
+    demo: true,
+    artCorridor: snakeHorizontalPieces(),
+  },
+  {
+    id: 'snake2',
+    phase: 1,
+    title: 'Ordená y seguí',
+    hint: 'Arrastrá cada víbora a su lugar, de la más chica a la más grande.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: SNAKE_FEEDBACK,
+    paths: snakeHorizontalPieces().map(snakePathD),
+    corridorWidth: 42,
+    rules: { ...rules(1, false, true, 0), minAccuracy: 62 },
+    showGuide: true,
+    letters: [],
+    artCorridor: snakeHorizontalPieces(),
+    arrange: {
+      from: [
+        { x: 150, y: 560 },
+        { x: 500, y: 580 },
+        { x: 850, y: 560 },
+      ],
+      snapRadius: 60,
+    },
+  },
+  {
+    id: 'snake3',
+    phase: 1,
+    title: 'Víboras paradas',
+    hint: 'Las víboras están de pie. Ordenalas y después seguilas de abajo hacia arriba.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: SNAKE_FEEDBACK,
+    paths: snakeVerticalPieces().map(snakePathD),
+    corridorWidth: 36,
+    rules: { ...rules(1, false, true, 0), minAccuracy: 70 },
+    showGuide: true,
+    letters: [],
+    artCorridor: snakeVerticalPieces(),
+    arrange: {
+      from: [
+        { x: 200, y: 560 },
+        { x: 500, y: 560 },
+        { x: 800, y: 560 },
+      ],
+      snapRadius: 60,
+    },
+  },
+  {
+    id: 'snake4',
+    phase: 1,
+    title: 'El desierto angosto',
+    hint: 'El camino es más angosto ahora. Ordená y seguí con mucho cuidado.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: SNAKE_FEEDBACK,
+    paths: snakeHorizontalPieces().map(snakePathD),
+    corridorWidth: 32,
+    rules: { ...rules(1, false, true, 0), minAccuracy: 76 },
+    showGuide: true,
+    letters: [],
+    artCorridor: snakeHorizontalPieces(),
+    arrange: {
+      from: [
+        { x: 150, y: 560 },
+        { x: 500, y: 580 },
+        { x: 850, y: 560 },
+      ],
+      snapRadius: 60,
     },
   },
 ]

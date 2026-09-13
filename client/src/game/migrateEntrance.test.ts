@@ -168,7 +168,7 @@ describe('migrateEntrance — protects the real catalog\'s successor chains (des
     expect(store.isUnlocked('f1-libre')).toBe(true)
   })
 
-  it("keeps f2-guirnalda unlocked once llama-peak4 already met APPROVALS_TO_UNLOCK", () => {
+  it("keeps snake1 unlocked once llama-peak4 already met APPROVALS_TO_UNLOCK (snake-drag-and-art-corridor shifted f2-guirnalda's own predecessor to snake4)", () => {
     const storage = fakeStorage()
     const store = new LevelProgressStore(storage)
     store.save('llama-peak4', makeRecord({ approvals: APPROVALS_TO_UNLOCK }))
@@ -176,10 +176,19 @@ describe('migrateEntrance — protects the real catalog\'s successor chains (des
     const changed = migrateEntrance(store.all())
     for (const [id, r] of Object.entries(changed)) store.save(id, r)
 
-    // f2-guirnalda's new positional predecessor is night4, and this is "the
-    // level that used to follow llama-peak4" the spec scenario names —
-    // checked against the REAL, post-Phase-4 catalog.
-    expect(store.isUnlocked('f2-guirnalda')).toBe(true)
+    // This migration seeds `night4` (design.md §8.1's own `NIGHT_UNLOCK_ID`,
+    // unchanged and byte-identical here). Before this change that unlocked
+    // `f2-guirnalda` directly — its positional predecessor WAS `night4`.
+    // `snake1..4` now append AFTER `night4` and BEFORE `f2-guirnalda`
+    // (design.md §0 A1), so the seeded `night4` record now unlocks `snake1`
+    // instead — one hop earlier than it used to, never fewer levels
+    // reachable, exactly A1's "only ever WIDENS access". `f2-guirnalda`
+    // itself now requires `snake4`, which this migration never claimed to
+    // seed and does not need to: `isUnlocked` is `LevelMap.tsx`'s dev-only
+    // display (A1), never the zoo map's real `nextAdventure`/`isFiled`
+    // routing, so a returning child's actual progression is unaffected.
+    expect(store.isUnlocked('snake1')).toBe(true)
+    expect(store.isUnlocked('f2-guirnalda')).toBe(false)
   })
 })
 

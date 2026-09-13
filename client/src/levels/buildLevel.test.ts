@@ -459,7 +459,22 @@ describe('buildLevelTarget — pushBand containment on wave crests (design.md §
       // discretization error (< 0.1 unit, measured) separates the two
       // representations of the same curve — the mathematical bound itself is
       // exact against the continuous centreline (design.md §2).
-      expect(maxBandOffset(target.ideal, target.polyline), level.id).toBeLessThanOrEqual(band + 0.1)
+      //
+      // A level with MORE THAN ONE route (the snake family) pushes a band
+      // per path onto the SAME `target.ideal` array, so a point belonging to
+      // one route is never near `target.polyline` alone (`paths[0]`) — it is
+      // near its OWN route. Measured against the NEAREST of the level's own
+      // `routes` (never a phantom segment bridging two disjoint routes,
+      // since each route's own polyline is tested separately and only the
+      // minimum kept), which degrades to the single-polyline check exactly
+      // for every level with one route.
+      const polylines = target.routes.length > 0 ? target.routes.map((r) => r.polyline as Point[]) : [target.polyline]
+      let worst = 0
+      for (const [x, y] of target.ideal) {
+        const nearest = Math.min(...polylines.map((poly) => distToPolyline({ x, y }, poly)))
+        if (nearest > worst) worst = nearest
+      }
+      expect(worst, level.id).toBeLessThanOrEqual(band + 0.1)
     }
   })
 

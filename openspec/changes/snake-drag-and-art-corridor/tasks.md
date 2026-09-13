@@ -212,17 +212,17 @@ length within orientation group, docs checklist). Depends on Phase 3
 (`multiCorridorTick` already fixed — the levels must not ship on top of the
 known wall-feedback defect), Phase 4 (arrange), Phase 5 (render).
 
-- [ ] 6.1 In `client/src/levels/catalog.ts`: insert `snake1..4` immediately
+- [x] 6.1 In `client/src/levels/catalog.ts`: insert `snake1..4` immediately
       after `night4` and before `f2-guirnalda`, per design.md §3.4/§6.1's
       frozen shape and worked literals (spans, rotations, `corridorWidth`,
       `minAccuracy`, `enforceOrder: true` on all four, `demo: true` on
       `snake1` only, `arrange` on `snake2..4` only, `resetOnContact: false`).
-- [ ] 6.2 In `client/src/levels/catalog.test.ts`: extend `EXPECTED_IDS` with
+- [x] 6.2 In `client/src/levels/catalog.test.ts`: extend `EXPECTED_IDS` with
       `snake1..4` between `night4` and `f2-guirnalda`. Add C1–C6 (§3.2) and
       R1–R7 (§6.2) as one new `describe`, asserted directly over the
       authored literals. Confirm the pre-existing span-guard and
       "keeps every phase-1 route on paper" tests need no edit and stay green.
-- [ ] 6.3 Run `npm test -- levels/catalog` — green. The four levels exist in
+- [x] 6.3 Run `npm test -- levels/catalog` — green. The four levels exist in
       `LEVELS` but are unreachable from the map until Phase 7 wires `arena`.
 
 ## Phase 7: The Zoo — Backdrop, Sector, Animal, Backpack (E7)

@@ -35,7 +35,9 @@ import {
   peakRidgeCorridorLimit,
   spiral,
   uTurnRadius,
+  waveCrestRadius,
 } from './paths'
+import { DRAWN_SPINE } from './artCorridor'
 import type { Phase } from './types'
 
 // docs/08 section 5 tables, after the detective-mode retheme and the reveal
@@ -73,6 +75,10 @@ const EXPECTED_IDS = [
   'night2',
   'night3',
   'night4',
+  'snake1',
+  'snake2',
+  'snake3',
+  'snake4',
   'f2-guirnalda',
   'f2-agua2',
   'f2-agua3',
@@ -144,6 +150,10 @@ describe('LEVELS — authored values match the doc tables', () => {
     'night2': 0,
     'night3': 0,
     'night4': 0,
+    'snake1': 48,
+    'snake2': 42,
+    'snake3': 36,
+    'snake4': 32,
     'f1-libre': 0,
     'duck-trail1': 100,
     'duck-trail2': 90,
@@ -192,6 +202,10 @@ describe('LEVELS — authored values match the doc tables', () => {
     'night2': 0,
     'night3': 0,
     'night4': 0,
+    'snake1': 0,
+    'snake2': 0,
+    'snake3': 0,
+    'snake4': 0,
     'f1-libre': 0,
     'duck-trail1': 0,
     'duck-trail2': 0,
@@ -234,13 +248,16 @@ describe('LEVELS — authored values match the doc tables', () => {
     for (const level of LEVELS) expect(level.rules.minFluency).toBe(FLUENCY[level.id])
   })
 
-  it('scales minAccuracy by phase: 55 / 60 / 65, except the twelve reveal-grid levels', () => {
+  it('scales minAccuracy by phase: 55 / 60 / 65, except the twelve reveal-grid levels and the snake family', () => {
     // The reveal-grid levels deliberately OVERRIDE the phase default with
     // their own authored, per-adventure-rising `minAccuracy` (design.md
     // §5.2/§5.3's R1) — their own progression is asserted separately below
-    // ("LEVELS — the reveal grid's twelve authored levels").
+    // ("LEVELS — the reveal grid's twelve authored levels"). The snake
+    // family does the same (55/62/70/76, `snake-drag-and-art-corridor`
+    // design.md §6.2 R2) — asserted in its own describe block below.
     for (const level of LEVELS) {
       if (level.reveal) continue
+      if (level.artCorridor) continue
       const expected = level.phase === 1 ? 55 : level.phase === 2 ? 60 : 65
       expect(level.rules.minAccuracy).toBe(expected)
     }
@@ -323,8 +340,15 @@ describe('LEVELS — surface, kind and feedback', () => {
 
   it('renders only the phase-1 routes as real mazes', () => {
     // "Laberinto" means walls knocked out of a solid field. A phase-2 garland
-    // is a movement, not a maze, so it stays a soft corridor.
+    // is a movement, not a maze, so it stays a soft corridor. The snake
+    // family is the one NAMED exception (design.md §6.1): its corridor is a
+    // drawn cutout over a sand hollow, not a wall knocked out of a field —
+    // `maze: false` on all four is deliberate, not an oversight.
     for (const level of LEVELS) {
+      if (level.artCorridor) {
+        expect(level.maze, level.id).toBe(false)
+        continue
+      }
       expect(level.maze).toBe(level.phase === 1 && level.kind === 'path')
     }
   })
@@ -703,6 +727,10 @@ describe('levelsByPhase', () => {
       'night2',
       'night3',
       'night4',
+      'snake1',
+      'snake2',
+      'snake3',
+      'snake4',
     ])
     expect(levelsByPhase(4).map((l) => l.id)).toEqual(['f4-la', 'f4-ma'])
     expect(levelsByPhase(5)).toHaveLength(2)
@@ -764,6 +792,10 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
       'night2',
       'night3',
       'night4',
+      'snake1',
+      'snake2',
+      'snake3',
+      'snake4',
     ])
     for (const removed of REMOVED_IDS) expect(phase1Ids).not.toContain(removed)
   })
@@ -1222,10 +1254,10 @@ describe('LEVELS — the reveal grid, twelve authored levels (design.md §5, ame
     expect(LEVELS.slice(0, 9).map((l) => l.id)).toEqual([...GLASS_IDS, ...SAND_IDS, 'f1-libre'])
   })
 
-  it('night1..4 sit between llama-peak4 and f2-guirnalda, in order', () => {
+  it('night1..4 sit between llama-peak4 and snake1 (snake-drag-and-art-corridor design.md §7.1), in order', () => {
     const idx = LEVELS.findIndex((l) => l.id === 'llama-peak4')
     expect(LEVELS.slice(idx + 1, idx + 5).map((l) => l.id)).toEqual(NIGHT_IDS)
-    expect(LEVELS[idx + 5]?.id).toBe('f2-guirnalda')
+    expect(LEVELS[idx + 5]?.id).toBe('snake1')
   })
 
   it('configures no path on any of the twelve', () => {
@@ -1258,5 +1290,193 @@ describe('LEVELS — the reveal grid, twelve authored levels (design.md §5, ame
         ).toContain(obj.art)
       }
     }
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The snake family (`snake-drag-and-art-corridor`, design.md §3.2/§6.2). C1-C6
+// and R1-R7, asserted directly over the authored literals so the geometry can
+// be retuned without this file — or design.md — going stale.
+// ─────────────────────────────────────────────────────────────────────────────
+const SNAKE_IDS = ['snake1', 'snake2', 'snake3', 'snake4'] as const
+const BAND_INSET_C2 = 6
+
+function minPairDistance(a: readonly { x: number; y: number }[], b: readonly { x: number; y: number }[]): number {
+  let best = Infinity
+  for (const pa of a) {
+    for (const pb of b) {
+      const d = Math.hypot(pa.x - pb.x, pa.y - pb.y)
+      if (d < best) best = d
+    }
+  }
+  return best
+}
+
+describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
+  it('R1: corridorWidth is strictly decreasing across snake1..4', () => {
+    const widths = SNAKE_IDS.map((id) => getLevel(id).corridorWidth)
+    for (let i = 1; i < widths.length; i++) expect(widths[i]).toBeLessThan(widths[i - 1])
+  })
+
+  it('R2: minAccuracy is strictly increasing across snake1..4', () => {
+    const accuracies = SNAKE_IDS.map((id) => getLevel(id).rules.minAccuracy)
+    for (let i = 1; i < accuracies.length; i++) expect(accuracies[i]).toBeGreaterThan(accuracies[i - 1])
+  })
+
+  it('R3: every level holds exactly 3 paths and 3 artCorridor pieces, smallest to largest', () => {
+    for (const id of SNAKE_IDS) {
+      const level = getLevel(id)
+      expect(level.paths.length, id).toBe(3)
+      expect(level.artCorridor?.length, id).toBe(3)
+      expect(level.artCorridor?.map((p) => p.spine), id).toEqual([
+        'snakeSmall',
+        'snakeMedium',
+        'snakeLarge',
+      ])
+    }
+  })
+
+  it('R4: arrange is absent on snake1 and present on snake2..4; demo is present on snake1 only', () => {
+    expect(getLevel('snake1').arrange).toBeUndefined()
+    expect(getLevel('snake1').demo).toBe(true)
+    for (const id of ['snake2', 'snake3', 'snake4'] as const) {
+      const level = getLevel(id)
+      expect(level.arrange, id).toBeDefined()
+      expect(level.arrange?.from.length, id).toBe(3)
+      expect(level.arrange?.snapRadius, id).toBeGreaterThan(0)
+      expect(level.demo, id).toBeUndefined()
+    }
+  })
+
+  it('resetOnContact stays false on all four (a snake is carried, not a wall)', () => {
+    for (const id of SNAKE_IDS) expect(getLevel(id).resetOnContact, id).toBe(false)
+  })
+
+  it('enforceOrder is true on all four (design.md §0 A3)', () => {
+    for (const id of SNAKE_IDS) expect(getLevel(id).rules.enforceOrder, id).toBe(true)
+  })
+
+  it('every corridor width sits at or below the tolerance clamp floor (56)', () => {
+    for (const id of SNAKE_IDS) expect(getLevel(id).corridorWidth, id).toBeLessThanOrEqual(56)
+  })
+
+  describe('C1-C6 over the authored literals', () => {
+    for (const id of SNAKE_IDS) {
+      it(`${id}: C1 — corridorWidth + 2·residual ≤ thickness for the narrowest piece`, () => {
+        const level = getLevel(id)
+        const pieces = level.artCorridor!
+        let minMargin = Infinity
+        for (const piece of pieces) {
+          const spine = DRAWN_SPINE[piece.spine]
+          const height = (piece.span * piece.art.h) / piece.art.w
+          const thicknessVb = spine.thickness * height
+          const residualVb = (spine.residual * piece.span) / piece.art.w
+          const margin = thicknessVb - level.corridorWidth - 2 * residualVb
+          if (margin < minMargin) minMargin = margin
+        }
+        expect(minMargin, `${id}: C1 margin`).toBeGreaterThan(0)
+      })
+
+      it(`${id}: C2 — every piece's wave-crest radius clears corridorWidth/2 - BAND_INSET`, () => {
+        const level = getLevel(id)
+        const pieces = level.artCorridor!
+        const required = level.corridorWidth / 2 - BAND_INSET_C2
+        for (const piece of pieces) {
+          const spine = DRAWN_SPINE[piece.spine]
+          const height = (piece.span * piece.art.h) / piece.art.w
+          for (const [widthFrac, riseFrac] of spine.halves) {
+            const halfWidth = widthFrac * piece.span
+            const amplitude = Math.abs(riseFrac) * height
+            expect(waveCrestRadius(halfWidth, amplitude), `${id}/${piece.spine}`).toBeGreaterThan(
+              required,
+            )
+          }
+        }
+      })
+
+      it(`${id}: C3/C4 — minimum centreline separation clears 2·corridorWidth and 2·60`, () => {
+        const target = buildLevelTarget(getLevel(id))
+        const polylines = target.routes.map((r) => r.polyline)
+        let minSep = Infinity
+        for (let i = 0; i < polylines.length; i++) {
+          for (let j = i + 1; j < polylines.length; j++) {
+            const sep = minPairDistance(polylines[i], polylines[j])
+            if (sep < minSep) minSep = sep
+          }
+        }
+        expect(minSep, `${id}: C3`).toBeGreaterThan(2 * target.corridorWidth)
+        expect(minSep, `${id}: C4`).toBeGreaterThan(2 * 60)
+      })
+
+      it(`${id}: C5 — the traceable span insets at least half the body thickness on both ends`, () => {
+        const level = getLevel(id)
+        for (const piece of level.artCorridor!) {
+          const spine = DRAWN_SPINE[piece.spine]
+          expect(spine.traceFrom, `${id}/${piece.spine} traceFrom`).toBeGreaterThanOrEqual(
+            spine.thickness / (2 * piece.art.w),
+          )
+          expect(spine.traceTo, `${id}/${piece.spine} traceTo`).toBeLessThanOrEqual(1)
+          expect(spine.traceTo, `${id}/${piece.spine} traceTo > traceFrom`).toBeGreaterThan(
+            spine.traceFrom,
+          )
+        }
+      })
+
+      it(`${id}: C6 — every image box stays inside [0, 600] and clears the phase-1 span guards`, () => {
+        const target = buildLevelTarget(getLevel(id))
+        for (const placement of target.artCorridor ?? []) {
+          expect(placement.box.y, id).toBeGreaterThanOrEqual(0)
+          expect(placement.box.y + placement.box.height, id).toBeLessThanOrEqual(600)
+        }
+      })
+    }
+  })
+
+  describe('R6: the coincidence — the fitted centreline matches the scored path within 0.5 units', () => {
+    const SPINE_PROBES = 33
+    for (const id of SNAKE_IDS) {
+      it(`${id}: every probe lies within 0.5 viewBox units, and |tx| < 0.5`, () => {
+        const level = getLevel(id)
+        const target = buildLevelTarget(level)
+        const placements = target.artCorridor!
+        expect(placements.length).toBe(3)
+        for (let i = 0; i < placements.length; i++) {
+          const generated = flattenPathD(target.paths[i]).points
+          const derived = flattenPathD(placements[i].d).points
+          let worst = 0
+          for (let p = 0; p < SPINE_PROBES; p++) {
+            const f = p / (SPINE_PROBES - 1)
+            const a = generated[Math.round(f * (generated.length - 1))]
+            const b = derived[Math.round(f * (derived.length - 1))]
+            const dist = Math.hypot(a.x - b.x, a.y - b.y)
+            if (dist > worst) worst = dist
+          }
+          expect(worst, `${id} piece ${i}`).toBeLessThan(0.5)
+        }
+        // |tx| < 0.5: `box0.x = at.x - span/2` is the UN-translated box (what
+        // `placeArtCorridor` computes before `layOutPaths`'s own centring
+        // shift); `placements[i].box.x` is the SAME box AFTER that shift.
+        // Their difference IS `tx`, and it must be tiny — the authored
+        // coordinates are already the shipped ones.
+        const configPieces = level.artCorridor!
+        for (let i = 0; i < placements.length; i++) {
+          const box0X = configPieces[i].at.x - configPieces[i].span / 2
+          const tx = placements[i].box.x - box0X
+          expect(Math.abs(tx), `${id} piece ${i}: |tx|`).toBeLessThan(0.5)
+        }
+      })
+    }
+  })
+
+  it('R7: arc length is non-decreasing within the horizontal group (snake1 <= snake2 <= snake4); snake3 is not compared', () => {
+    const arcOf = (id: string): number =>
+      buildLevelTarget(getLevel(id)).routes.reduce((sum, r) => sum + r.length, 0)
+    const snake1Arc = arcOf('snake1')
+    const snake2Arc = arcOf('snake2')
+    const snake4Arc = arcOf('snake4')
+    expect(snake2Arc).toBeGreaterThanOrEqual(snake1Arc)
+    expect(snake4Arc).toBeGreaterThanOrEqual(snake2Arc)
+    // snake3 is the vertical outlier and is asserted nowhere against the
+    // other three's arc length (design.md §0 A7).
   })
 })
