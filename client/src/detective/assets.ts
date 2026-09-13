@@ -280,7 +280,7 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   // Row C (docs/13 §8): the sheep standing on the sheep-hill ridge peaks.
   // `w` is measured off `manifest.json`'s `sector-sheep` entry (`h`, 448, is
   // the pipeline's target height, held fixed by `build_art.py`'s `SINGLES`).
-  sheep: { href: '/art/sector-sheep.png', w: 409, h: 448 },
+  sheep: { href: '/art/sector-sheep.png', w: 420, h: 448 },
   bee: { href: '/art/sector-bee.png', w: 256, h: 230 },
   flower: { href: '/art/sector-flower.png', w: 256, h: 245 },
   honeycomb: { href: '/art/sector-honeycomb.png', w: 181, h: 256 },

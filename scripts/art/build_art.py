@@ -253,9 +253,29 @@ def emit_opaque_canvas(name: str, img: png.Image, expected_w: int, expected_h: i
     }
 
 
+# Sources whose alpha channel carries a DITHER across the whole canvas, not a
+# clean cutout. `oveja.png` came back from its export with 4,374 evenly-spaced
+# opaque specks of 240px each scattered over the transparent field, alongside
+# the one real 632,576px sheep. That is invisible in the source thumbnail and
+# fatal downstream: `alpha_bbox` sees opaque pixels in every corner, so it
+# crops NOTHING, and the whole 1198x1313 lamina ships scaled down. Composited
+# over the mountains' dark `CHANNEL_STONE` corridor each sheep wore a light
+# box -- the exact "un bounding box no es una forma" failure
+# `docs/09_GUIA_DE_ESTILO_VISUAL.md` section 7 already warns about, arrived at
+# from a new direction.
+#
+# Opt-in by name rather than blanket: every other shipped source has a genuine
+# cutout, and silently blob-filtering all of them would let a real two-part
+# asset (a dotted letter, a pair of footprints) lose its smaller half without
+# anyone noticing. `llama.png`, drawn in the same round, is clean.
+SPECKLED_ALPHA_SOURCES = {'oveja.png'}
+
+
 def prepare(src_name: str, target_h: int) -> png.Image:
     """Crop to content and downscale so the taller side lands on `2*target_h`."""
     img = png.read_png(os.path.join(SRC, src_name))
+    if src_name in SPECKLED_ALPHA_SOURCES:
+        img = keep_largest_blob(img)
     x0, y0, x1, y1 = png.alpha_bbox(img)
     img = png.crop(img, x0, y0, x1, y1)
     work = target_h * 2

@@ -372,10 +372,10 @@
     "w": 1536
   },
   "sector-sheep": {
-    "bytes": 225083,
+    "bytes": 83158,
     "file": "art/sector-sheep.png",
     "h": 448,
-    "w": 409
+    "w": 420
   },
   "sector-slope-background": {
     "brightest": "#9da396",

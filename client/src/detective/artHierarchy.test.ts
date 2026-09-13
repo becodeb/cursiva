@@ -620,4 +620,64 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
       ).toBe(0)
     }
   })
+
+  /** Regression for the sheep-hill boxed-sheep defect. `oveja.png` was
+   * exported with an OPAQUE near-white background instead of transparency
+   * (`#fefefe`/`#ffffff`/`#fdfdfd`, all four corners at alpha 255), so
+   * `prepare()`'s alpha-bbox crop found no transparent margin to crop to and
+   * the whole canvas shipped, compositing as a light-grey box over the dark
+   * corridor -- visible in `capturas/pasoC/sheep-hill1.png` and
+   * `sheep-hill3.png`. `scripts/art/build_art.py`'s
+   * `key_out_border_background()` fixes the pipeline; this asserts the
+   * SHIPPED file, the same way every other check in this describe block does.
+   *
+   * Two checks, because either alone is not enough:
+   *
+   *  - Every corner must be fully transparent. A background box necessarily
+   *    reaches all four corners opaque; a genuine cutout's alpha-bbox crop
+   *    hugs the silhouette, and a blob-shaped animal's extreme-x and
+   *    extreme-y points essentially never coincide at the same corner.
+   *    Measured across every sibling cutout this file already knows about
+   *    (llama, dolphin, snail, bee, the four deduction animals, the
+   *    hedgehog poses), all four corners sit at alpha 0.
+   *  - The near-fully-opaque pixel fraction alone is NOT a reliable box
+   *    detector in this pipeline: a tightly-cropped, bulky silhouette
+   *    legitimately fills most of its own bounding box. Measured on the
+   *    files this pipeline already ships, real cutouts span roughly 44%
+   *    (`sector-dolphin`) to 73% (`sector-snail`), while a genuine
+   *    full-canvas background (`zoo-map`, every `sector-*-background`) sits
+   *    at 100% with opaque corners. 85% sits with real headroom above every
+   *    shipped cutout and real headroom below an actual box, so it catches a
+   *    box recurring without being tripped by an ordinary bulky animal.
+   *    (Alpha >= 250, not === 255: cascaded `box_resize` area-averaging
+   *    rounds some interior pixels a shade under 255 even for wholly opaque
+   *    source regions -- measured on `sector-llama.png`, which never reaches
+   *    255 at all.)
+   */
+  it('keeps sector-sheep.png a genuine cutout, not the opaque near-white background it once shipped with', async () => {
+    const sheepUrl = named(WORLD_GUARD_FILES).find(([name]) => name === 'sector-sheep.png')?.[1]
+    expect(sheepUrl, 'sector-sheep.png not found among the shipped world/sector art').toBeDefined()
+    const art = await decodePng(base64ToBytes(sheepUrl!.split(',')[1]))
+
+    const alphaAt = (x: number, y: number) => art.px[(y * art.w + x) * 4 + 3]
+    for (const [label, x, y] of [
+      ['top-left', 0, 0],
+      ['top-right', art.w - 1, 0],
+      ['bottom-left', 0, art.h - 1],
+      ['bottom-right', art.w - 1, art.h - 1],
+    ] as const) {
+      expect(alphaAt(x, y), `sector-sheep.png ${label} corner must be transparent`).toBe(0)
+    }
+
+    let nearOpaque = 0
+    for (let i = 3; i < art.px.length; i += 4) {
+      if (art.px[i] >= 250) nearOpaque += 1
+    }
+    const nearOpaqueFraction = nearOpaque / (art.w * art.h)
+    expect(
+      nearOpaqueFraction,
+      `sector-sheep.png is ${(nearOpaqueFraction * 100).toFixed(1)}% near-fully-opaque -- reads ` +
+        'as a background box, not a cutout',
+    ).toBeLessThan(0.85)
+  })
 })
