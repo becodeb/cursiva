@@ -152,6 +152,14 @@ export interface LevelConfig {
   /** Draw this level's hazards as this picture instead of the plain circle
    * (`TraceHazards.art`). Absent = the shipped circle. */
   hazardArt?: ArtImage
+  /** Static art STANDING at this route's own peaks: the sheep on the humps,
+   * the llamas on the summits (`docs/13` §2). NOT a clue — no `ClueKind`, no
+   * `PistasRail` entry, no case membership, and it does not put the level in
+   * the detective world. Placement is DERIVED from the built route via
+   * `levels/vertexArt.ts`'s `routeApexes`, never authored as coordinates.
+   * Additive, absent on every level that predates it — the same convention
+   * `goalArt` established. */
+  vertexArt?: { art: ArtImage; size: number }
 }
 
 /** Runtime target derived from a LevelConfig at load time. */

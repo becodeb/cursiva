@@ -27,7 +27,13 @@ import {
   nextLevelId,
 } from './catalog'
 import { hazardGapFraction } from './obstacles'
-import { armClearance, cornerClearance, spiral, uTurnRadius } from './paths'
+import {
+  armClearance,
+  cornerClearance,
+  peakRidgeCorridorLimit,
+  spiral,
+  uTurnRadius,
+} from './paths'
 import type { Phase } from './types'
 
 // docs/08 section 5 tables, after the detective-mode retheme: 1 libre + 4
@@ -43,6 +49,14 @@ const EXPECTED_IDS = [
   'trail2',
   'trail3',
   'trail4',
+  'sheep-hill1',
+  'sheep-hill2',
+  'sheep-hill3',
+  'sheep-hill4',
+  'llama-peak1',
+  'llama-peak2',
+  'llama-peak3',
+  'llama-peak4',
   'f2-guirnalda',
   'f2-agua2',
   'f2-agua3',
@@ -108,6 +122,14 @@ describe('LEVELS — authored values match the doc tables', () => {
     trail2: 70,
     trail3: 90,
     trail4: 70,
+    'sheep-hill1': 100,
+    'sheep-hill2': 90,
+    'sheep-hill3': 80,
+    'sheep-hill4': 60,
+    'llama-peak1': 90,
+    'llama-peak2': 80,
+    'llama-peak3': 70,
+    'llama-peak4': 60,
     'f2-guirnalda': 100,
     'f2-agua2': 80,
     'f2-agua3': 68,
@@ -134,6 +156,14 @@ describe('LEVELS — authored values match the doc tables', () => {
     trail2: 0,
     trail3: 0,
     trail4: 0,
+    'sheep-hill1': 0,
+    'sheep-hill2': 0,
+    'sheep-hill3': 0,
+    'sheep-hill4': 0,
+    'llama-peak1': 0,
+    'llama-peak2': 0,
+    'llama-peak3': 0,
+    'llama-peak4': 0,
     'f2-guirnalda': 35,
     'f2-agua2': 38,
     'f2-agua3': 40,
@@ -274,7 +304,7 @@ describe('LEVELS — surface, kind and feedback', () => {
     // the first routed level of phase 1 (the duck case precedes `trail1`), so
     // it inherits the role `f1-travesia`/`trail1` used to carry.
     const railed = LEVELS.filter((l) => l.feedback.rail).map((l) => l.id)
-    expect(railed).toEqual(['duck-trail1', 'f3-l'])
+    expect(railed).toEqual(['duck-trail1', 'sheep-hill1', 'f3-l'])
     expect(levelsByPhase(1).filter((l) => l.kind === 'path')[0].id).toBe('duck-trail1')
     expect(levelsByPhase(3)[0].id).toBe('f3-l')
   })
@@ -289,7 +319,13 @@ describe('LEVELS — surface, kind and feedback', () => {
 
   it('narrows duck-trail4, trail 1 and trail 4, and never in a direction that widens', () => {
     const tapered = LEVELS.filter((l) => l.taper)
-    expect(tapered.map((l) => l.id)).toEqual(['duck-trail4', 'trail1', 'trail4'])
+    expect(tapered.map((l) => l.id)).toEqual([
+      'duck-trail4',
+      'trail1',
+      'trail4',
+      'sheep-hill4',
+      'llama-peak4',
+    ])
     for (const level of tapered) {
       expect(level.taper?.from).toBeGreaterThan(level.taper?.to ?? Infinity)
     }
@@ -312,6 +348,14 @@ describe('LEVELS — hazards and reset', () => {
       'trail2',
       'trail3',
       'trail4',
+      'sheep-hill1',
+      'sheep-hill2',
+      'sheep-hill3',
+      'sheep-hill4',
+      'llama-peak1',
+      'llama-peak2',
+      'llama-peak3',
+      'llama-peak4',
       'f2-agua4',
     ])
   })
@@ -567,6 +611,14 @@ describe('levelsByPhase', () => {
       'trail2',
       'trail3',
       'trail4',
+      'sheep-hill1',
+      'sheep-hill2',
+      'sheep-hill3',
+      'sheep-hill4',
+      'llama-peak1',
+      'llama-peak2',
+      'llama-peak3',
+      'llama-peak4',
     ])
     expect(levelsByPhase(4).map((l) => l.id)).toEqual(['f4-la', 'f4-ma'])
     expect(levelsByPhase(5)).toHaveLength(2)
@@ -601,7 +653,19 @@ describe('nextLevelId', () => {
 describe('detective-mode — four trails replace the six corridor levels', () => {
   it('lists exactly the four trail ids in LEVELS, none of the six removed ones', () => {
     const phase1Ids = levelsByPhase(1).map((l) => l.id)
-    expect(phase1Ids).toEqual(['f1-libre', ...DUCK_TRAIL_IDS, ...DETECTIVE_TRAIL_IDS])
+    expect(phase1Ids).toEqual([
+      'f1-libre',
+      ...DUCK_TRAIL_IDS,
+      ...DETECTIVE_TRAIL_IDS,
+      'sheep-hill1',
+      'sheep-hill2',
+      'sheep-hill3',
+      'sheep-hill4',
+      'llama-peak1',
+      'llama-peak2',
+      'llama-peak3',
+      'llama-peak4',
+    ])
     for (const removed of REMOVED_IDS) expect(phase1Ids).not.toContain(removed)
   })
 
@@ -691,6 +755,110 @@ describe('detective-mode — total arc length does not regress', () => {
     )
     const removedTotal = LEGACY_PHASE_1.reduce((sum, l) => sum + buildLevelTarget(l).length, 0)
     expect(trailTotal).toBeGreaterThanOrEqual(removedTotal)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Row C (level-engine spec "Sheep vs Llama Height, Slope and Corner
+// Invariants"): I1-I4, I6, I7 restated directly over the eight authored
+// literals — design.md §1.5, replacing the proposal's unsatisfiable
+// per-matched-step mean-slope ordering (design.md §1.5's rationale).
+// ─────────────────────────────────────────────────────────────────────────────
+describe('LEVELS — the mountain family is one ridge pair', () => {
+  const SHEEP_IDS = ['sheep-hill1', 'sheep-hill2', 'sheep-hill3', 'sheep-hill4']
+  const LLAMA_IDS = ['llama-peak1', 'llama-peak2', 'llama-peak3', 'llama-peak4']
+
+  // The eight authored height lists, restated directly (not re-derived from
+  // geometry) — design.md §1.4's table. `x0`/`x1` (90/910) are frozen for all
+  // eight, so the run `r = (x1-x0)/(2*n)` is derivable straight from each
+  // list's own length, the same way `peakRidgeCorridorLimit` derives it.
+  const HEIGHTS_BY_ID: Record<string, readonly number[]> = {
+    'sheep-hill1': [320, 320],
+    'sheep-hill2': [320, 320, 320],
+    'sheep-hill3': [320, 170, 320],
+    'sheep-hill4': [320, 170, 320, 170],
+    'llama-peak1': [360],
+    'llama-peak2': [360, 180],
+    'llama-peak3': [360, 360, 360],
+    'llama-peak4': [360, 360, 360, 360],
+  }
+
+  /** Every (height, run) pair actually authored across a family's four levels. */
+  function legsOf(ids: readonly string[]): ReadonlyArray<{ h: number; r: number }> {
+    const legs: { h: number; r: number }[] = []
+    for (const id of ids) {
+      const heights = HEIGHTS_BY_ID[id]
+      const r = (910 - 90) / (2 * heights.length)
+      for (const h of heights) legs.push({ h, r })
+    }
+    return legs
+  }
+
+  it('I1: every sheep peak height is shorter than every llama peak height (320,170 < 360,180)', () => {
+    // The directive's two distinct heights per family — tall vs tall, short
+    // vs short (design.md §1.5's own "320,170 < 360,180" reading, not a full
+    // cross product: the sheep's TALL peak (320) is not shorter than the
+    // llama's SHORT one (180), and that is not what I1 claims).
+    const sheepHeights = [...new Set(SHEEP_IDS.flatMap((id) => HEIGHTS_BY_ID[id]))].sort(
+      (a, b) => a - b,
+    )
+    const llamaHeights = [...new Set(LLAMA_IDS.flatMap((id) => HEIGHTS_BY_ID[id]))].sort(
+      (a, b) => a - b,
+    )
+    expect(sheepHeights).toEqual([170, 320])
+    expect(llamaHeights).toEqual([180, 360])
+    for (let i = 0; i < sheepHeights.length; i++) {
+      expect(sheepHeights[i]).toBeLessThan(llamaHeights[i])
+    }
+  })
+
+  it('I2: the steepest sheep leg slope is gentler than the steepest llama leg slope (3.122 < 3.512)', () => {
+    const steepest = (ids: readonly string[]): number =>
+      Math.max(...legsOf(ids).map(({ h, r }) => h / r))
+    const sheepSteepest = steepest(SHEEP_IDS)
+    const llamaSteepest = steepest(LLAMA_IDS)
+    expect(sheepSteepest).toBeCloseTo(3.122, 2)
+    expect(llamaSteepest).toBeCloseTo(3.512, 2)
+    expect(sheepSteepest).toBeLessThan(llamaSteepest)
+  })
+
+  it('I3: the sharpest sheep corner angle is blunter than the sharpest llama corner angle (35.52° > 31.78°)', () => {
+    const sharpestAngleDeg = (ids: readonly string[]): number =>
+      Math.min(...legsOf(ids).map(({ h, r }) => (2 * Math.atan(r / h) * 180) / Math.PI))
+    const sheepSharpest = sharpestAngleDeg(SHEEP_IDS)
+    const llamaSharpest = sharpestAngleDeg(LLAMA_IDS)
+    expect(sheepSharpest).toBeCloseTo(35.52, 1)
+    expect(llamaSharpest).toBeCloseTo(31.78, 1)
+    expect(sheepSharpest).toBeGreaterThan(llamaSharpest)
+  })
+
+  it('I4: from sheep-hill3 onward, at least one vertex is <= 0.55x that level\'s own tallest (170/320 = 0.531)', () => {
+    for (const id of ['sheep-hill3', 'sheep-hill4']) {
+      const heights = HEIGHTS_BY_ID[id]
+      const tallest = Math.max(...heights)
+      expect(Math.min(...heights) / tallest).toBeLessThanOrEqual(0.55)
+    }
+  })
+
+  it('I5: corridorWidth strictly decreases within each adventure (100/90/80/60, 90/80/70/60)', () => {
+    expect(SHEEP_IDS.map((id) => getLevel(id).corridorWidth)).toEqual([100, 90, 80, 60])
+    expect(LLAMA_IDS.map((id) => getLevel(id).corridorWidth)).toEqual([90, 80, 70, 60])
+  })
+
+  it('I6: llama heights are uniform except llama-peak2, which is [tall, tall/2]', () => {
+    expect(HEIGHTS_BY_ID['llama-peak1'].every((h) => h === 360)).toBe(true)
+    expect(HEIGHTS_BY_ID['llama-peak2']).toEqual([360, 180])
+    expect(HEIGHTS_BY_ID['llama-peak3'].every((h) => h === 360)).toBe(true)
+    expect(HEIGHTS_BY_ID['llama-peak4'].every((h) => h === 360)).toBe(true)
+  })
+
+  it('I7: peakRidgeCorridorLimit >= corridorWidth * max(taper.from, 1) on all eight', () => {
+    for (const id of [...SHEEP_IDS, ...LLAMA_IDS]) {
+      const level = getLevel(id)
+      const limit = peakRidgeCorridorLimit({ x0: 90, x1: 910, heights: HEIGHTS_BY_ID[id] })
+      const taperFrom = level.taper?.from ?? 1
+      expect(limit, id).toBeGreaterThanOrEqual(level.corridorWidth * Math.max(taperFrom, 1))
+    }
   })
 })
 

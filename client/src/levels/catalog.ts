@@ -11,7 +11,7 @@
 // `buildWord` throw. That must NEVER blank the app, so the failure degrades to
 // the first letter's own path and warns. A level always exists; at worst it is
 // easier than authored.
-import { GOAL_MEDUSA_ART, HAZARD_STARFISH_ART } from '../detective/assets'
+import { GOAL_MEDUSA_ART, HAZARD_STARFISH_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
 import { buildWord } from '../letters/combinations'
 import { LETTER_REGISTRY } from '../letters/registry'
 import type { LetterConfig } from '../letters/types'
@@ -21,6 +21,7 @@ import {
   garlandVaried,
   hills,
   loops,
+  peakRidge,
   spiral,
   squareWave,
   straight,
@@ -447,6 +448,172 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     demo: true,
     clue: { kind: 'feather', spacing: 60 },
+  },
+  // ───────────────────────────────────────────────────────────────────────
+  // Row C (`docs/13` §8): the sheep and llama ridge families. Appended to
+  // the END of PHASE_1 (design.md §4.5) — `f2-guirnalda`'s dev-only
+  // `LevelMap` predecessor moves from `duck-trail4` to `sheep-hill4`, an
+  // accepted test-mode-only cost, not a defect to migrate away.
+  //
+  // Sheep — `montañitas cortas`, ladera (docs/13 §2: amplias → más
+  // repeticiones → alternancia → reducción del ancho). Llamas — `picos
+  // altos y empinados`, cumbre (un pico claro → pico alto y pico bajo →
+  // varios picos → mayor precisión). Both share a base at y=480; the sheep
+  // rise 320 (peak y 160), the llamas 360 (peak y 120) — `docs/13` §3's
+  // "misma montaña, dos alturas", drawn (design.md §1.4).
+  //
+  // Not in the detective world (design.md §3.1: MUD_INK against the stone
+  // channel clears the luma law by only 12, and the window that would admit
+  // it is empty) — `carrier: false`, no `clue`, no `detectiveWorld`. Not a
+  // case (`docs/13` §4 decision 1: row C is caretaker content).
+  // ───────────────────────────────────────────────────────────────────────
+  {
+    id: 'sheep-hill1',
+    phase: 1,
+    title: 'Las dos lomas',
+    hint: 'Seguí el lomo de las dos ovejas, de punta a punta.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: false,
+    feedback: feedback(0, true),
+    paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [320, 320] })],
+    corridorWidth: 100,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+  },
+  {
+    id: 'sheep-hill2',
+    phase: 1,
+    title: 'Tres lomas seguidas',
+    hint: 'Seguí las tres lomas seguidas sin salirte.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: false,
+    feedback: feedback(0, false),
+    paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [320, 320, 320] })],
+    corridorWidth: 90,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+  },
+  {
+    id: 'sheep-hill3',
+    phase: 1,
+    title: 'Una alta y una bajita',
+    hint: 'Subí alto, después una lomita más baja.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: false,
+    feedback: feedback(0, false),
+    paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [320, 170, 320] })],
+    corridorWidth: 80,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+  },
+  {
+    id: 'sheep-hill4',
+    phase: 1,
+    title: 'La ladera angosta',
+    hint: 'La ladera se angosta: seguí despacito.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    taper: { from: 1, to: 0.85 },
+    resetOnContact: true,
+    carrier: false,
+    feedback: feedback(0, false),
+    paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [320, 170, 320, 170] })],
+    corridorWidth: 60,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+  },
+  {
+    id: 'llama-peak1',
+    phase: 1,
+    title: 'El pico de la llama',
+    hint: 'Subí hasta la punta del pico y bajá.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: false,
+    feedback: feedback(0, false),
+    paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [360] })],
+    corridorWidth: 90,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+  },
+  {
+    id: 'llama-peak2',
+    phase: 1,
+    title: 'Pico alto y pico bajo',
+    hint: 'Un pico bien alto, después uno más bajo.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: false,
+    feedback: feedback(0, false),
+    paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [360, 180] })],
+    corridorWidth: 80,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+  },
+  {
+    id: 'llama-peak3',
+    phase: 1,
+    title: 'Tres picos seguidos',
+    hint: 'Seguí los tres picos, uno tras otro.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: false,
+    feedback: feedback(0, false),
+    paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [360, 360, 360] })],
+    corridorWidth: 70,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+  },
+  {
+    id: 'llama-peak4',
+    phase: 1,
+    title: 'La cumbre angosta',
+    hint: 'La cumbre se angosta: caminá con cuidado.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    taper: { from: 1, to: 0.85 },
+    resetOnContact: true,
+    carrier: false,
+    feedback: feedback(0, false),
+    paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [360, 360, 360, 360] })],
+    corridorWidth: 60,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
   },
 ]
 
