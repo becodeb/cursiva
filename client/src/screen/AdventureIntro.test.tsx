@@ -5,7 +5,7 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import AdventureIntro from './AdventureIntro'
 import { auditCaptions } from '../detective/captionAudit'
-import { ANIMAL_ART, ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import { ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
 import { ADVENTURES } from '../zoo/adventures'
 
 const adventure = ADVENTURES[0] // the duck
@@ -15,7 +15,7 @@ describe('AdventureIntro (main-screen spec "Narrative Entry Screen Content")', (
     const html = renderToString(<AdventureIntro adventure={adventure} onStart={() => {}} />)
     expect(html).toContain(`src="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
     expect(html).toContain(`src="${ZOO_SPEECH_BUBBLE_ART.href}"`)
-    expect(html).toContain(`href="${ANIMAL_ART[adventure.animal].href}"`)
+    expect(html).toContain(`href="${ZOO_ANIMAL_ART[adventure.animal].href}"`)
   })
 
   it('renders the intro line exactly once', () => {

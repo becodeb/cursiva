@@ -431,6 +431,12 @@ only a capture can answer. Sequential — capture, read, correct if needed,
 re-capture. Depends on all of Phases 1-6 landing (this is the only surface
 where backdrop, channel, vertex art and registries are all live together).
 
+**Deliberately left unstarted by `sdd-apply`.** The maintainer's explicit
+instruction for this apply session: "Do NOT take screenshots — I do that
+myself at the end." All of 7.1-7.7 are therefore reported `blocked` by that
+instruction, not skipped silently — everything Phases 1-6 landed is ready
+for the maintainer's own capture pass whenever they run it.
+
 - [ ] 7.1 Start the dev server: `npm run dev -- --host 0.0.0.0` (port 5173).
 - [ ] 7.2 Capture all eight levels via `scripts/shot.sh` into `capturas/`
       (gitignored): `?nivel=sheep-hill1..4` and `?nivel=llama-peak1..4`,
@@ -462,22 +468,35 @@ where backdrop, channel, vertex art and registries are all live together).
 
 ## Phase 8: Final Gate
 
-- [ ] 8.1 Run `npm test` (full suite) — green. Baseline: **63 test files /
+- [x] 8.1 Run `npm test` (full suite) — green. Baseline: **63 test files /
       1223 tests**. Report the actual new totals (this change nets: +2 files
       from `vertexArt.ts`+test; the seven other `.test.ts` files listed above
       grow in place, no new files) — the change must not drop a test outside
       any deliberate, named removal (none are named here).
-- [ ] 8.2 Run `npm run build` — green.
-- [ ] 8.3 Confirm byte-identical-to-`main`: `cases.ts`, `Deduction.tsx`,
+      **Actual: 65 test files / 1282 tests, all green** — the +2 files are
+      `levels/vertexArt.test.ts` (new) and `zoo/backpack.test.ts` (new, since
+      no test file existed for the empty pre-change registry); every other
+      touched `.test.ts` grew in place.
+- [x] 8.2 Run `npm run build` — green. **One fix needed to get there**:
+      `AdventureIntro.test.tsx` indexed the narrower `ANIMAL_ART` (typed
+      `Record<AnimalId, ArtImage>`) with a `ZooAnimalId`-typed
+      `adventure.animal`, which `tsc --noEmit` (not `vitest`) caught — fixed
+      by indexing `ZOO_ANIMAL_ART` instead and dropping the now-unused
+      `ANIMAL_ART` import.
+- [x] 8.3 Confirm byte-identical-to-`main`: `cases.ts`, `Deduction.tsx`,
       `AnimalId`, `ClueKind`, the four duck levels, the four medusa levels,
-      `trail1..4`, `palette.ts`'s existing exports.
-- [ ] 8.4 Confirm zero new `url(#` occurrences (`rg 'url\(#' client/src`
+      `trail1..4`, `palette.ts`'s existing exports. **Confirmed** via
+      `git diff main...HEAD` — none of these files/lines appear in the diff.
+- [x] 8.4 Confirm zero new `url(#` occurrences (`rg 'url\(#' client/src`
       shows no hits beyond whatever pre-existed, which is none per
-      `TraceCanvas.tsx:70-84`'s ban).
-- [ ] 8.5 **Scope stop.** Confirm no row D-H content was started (entrance
+      `TraceCanvas.tsx:70-84`'s ban). **Confirmed** — every hit is a
+      pre-existing comment or test assertion; no new occurrence.
+- [x] 8.5 **Scope stop.** Confirm no row D-H content was started (entrance
       screen beyond this row's own narrative entry, night sector,
       flashlight, snakes, bees, dolphins, hedgehog, the snail, mazes-and-
       clues); no edit to `cases.ts`/`Deduction`/the pistas machinery.
+      **Confirmed** via the same diff — 26 code files touched, all named in
+      the File Changes table above; no D-H surface appears.
 
 ---
 
