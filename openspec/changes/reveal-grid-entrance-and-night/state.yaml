@@ -1,0 +1,110 @@
+change: reveal-grid-entrance-and-night
+branch: sdd/entrada-y-linterna
+scope: docs/13_AVENTURAS_POR_ANIMAL.md §8 row D
+execution_mode: auto
+artifact_store: openspec
+delivery_strategy: exception-ok
+review_budget_lines: 800
+
+phases:
+  explore: skipped
+  propose: done
+  spec: done
+  design: done
+  tasks: pending
+  apply: pending
+  verify: pending
+  archive: pending
+
+artifacts:
+  proposal: openspec/changes/reveal-grid-entrance-and-night/proposal.md
+  design: openspec/changes/reveal-grid-entrance-and-night/design.md
+  specs:
+    - openspec/changes/reveal-grid-entrance-and-night/specs/reveal-grid/spec.md
+    - openspec/changes/reveal-grid-entrance-and-night/specs/level-engine/spec.md
+    - openspec/changes/reveal-grid-entrance-and-night/specs/free-trace-mode/spec.md
+    - openspec/changes/reveal-grid-entrance-and-night/specs/trace-canvas/spec.md
+    - openspec/changes/reveal-grid-entrance-and-night/specs/zoo-map/spec.md
+    - openspec/changes/reveal-grid-entrance-and-night/specs/main-screen/spec.md
+
+next_recommended:
+  - sdd-tasks
+
+notes: |
+  READ design.md §0 FIRST. It is a four-row table (A1-A4) of ratified
+  amendments that SUPERSEDE proposal.md. Every downstream phase reads the
+  corrected contract, not the superseded one:
+
+    A1  LEVELS[0].id is `glass1`, not `f1-libre`. The proposal's decisions
+        1 and 9 contradicted each other; decision 9 wins because the
+        insertion, migrateEntrance and isUnlocked's `index === 0` branch
+        all depend on it. Both the design and the spec phases found this
+        contradiction independently.
+    A2  No cross-adventure radius ordering between night1 and sand4. An
+        erase radius accumulates and a light radius does not, so the two
+        are not comparable quantities. Within-adventure monotonicity only.
+    A3  nightfall()'s luma constraint is a FLOOR (>= 77), not a cap. A cap
+        alone is satisfied by a black rectangle, which fails the 55-luma
+        law outright.
+    A4  migrateEntrance seeds TWO records (sand4, night4), not twelve, and
+        PROPOSAL QUESTION 4 IS RETIRED: the returning child keeps every
+        unlock AND still meets the opening, because the zoo map routes
+        through nextAdventure/isFiled and never asks isUnlocked. The real
+        stake is the pond -- estanque.unlockedWhen stops being alwaysOpen
+        in this change, so without the migration a returning child loses
+        the estanque outright.
+
+  design.md §7.2 (recentlyDiscovered is a preference layered in front of
+  the pre-existing fallback, never regressing to "no sector" while
+  unfinished work remains) is ratified on the same footing as A1-A4.
+
+  CORRECTED capability contract: ONE new (reveal-grid) and FIVE modified
+  (level-engine, free-trace-mode, trace-canvas, zoo-map, main-screen).
+  `progress-store` is NOT in this change. Its shipped Purpose is per-letter
+  progress percentages, while migrateEntrance touches LevelProgressStore /
+  `cursiva.levels.v1`, which lives entirely in level-engine -- verified by
+  grep, matching the paso B/C precedent. The migration requirements were
+  folded into the level-engine delta and the progress-store delta deleted.
+  Widening a capability to fit one misfiled requirement is how a capability
+  stops meaning anything.
+
+  LUMA IS MEASURED, not predicted. Sampled with
+  `sample_corridor_band(img, 51, 973)` against the real sources:
+
+    fondo pecera.png   quiet #9bb6c5 (175)   brightest #c7d9e0 (212)
+    fondo arena.png    quiet #d6cbba (204)   brightest #dad0c0 (209)
+    fondo bosque.png   quiet #949b8c (151)   brightest #f5f5f5 (245)
+
+  The admissible tile-paint window `T in [95, B-55]` is therefore
+  [95, 157] for the aquarium and [95, 154] for the sand; both tile paints
+  are pinned at luma 109. The proposal's three fallbacks and its scope
+  lever are NOT taken. The LIGHT branch is measurably empty -- a white
+  "vaho" misses the law by 40 on the tank and 43 on the sand -- which the
+  trace-canvas delta keeps as a falsifiability scenario.
+
+  bosque's brightest is r=g=b, chroma 0, which is exactly the precondition
+  nightfall()'s normalize-onto-NIGHT_PEAK needs: a saturated brightest
+  pixel would clamp a channel and cost luma.
+
+  Residual, and it is real: those are SOURCE-PNG measurements. The
+  ADVENTURE_BACKDROP literals must still be copied from the emitted
+  manifest.json after build_art.py runs with the new corridor_rows tuples,
+  exactly as paso C did. That copy is task one.
+
+  Second hard ordering constraint, unchanged: migrateEntrance.ts must land
+  before the twelve level configs are inserted ahead of f1-libre, the same
+  gating migratePhase1 / migrateDuckCase / migrateNivel3 each required.
+
+  Forecast: ~2,630 authored code lines plus ~1,400 SDD artifact lines
+  against an 800-line budget. Decision needed before apply: Yes.
+  Chained PRs recommended: Yes. 800-line budget risk: High.
+  `size:exception` was accepted by the user at session start, up front.
+  Six slices: D1 art / D2 mechanic / D3 render / D4 levels+migration /
+  D5 zoo registries / D6 narrative+debug flags.
+
+  Five product questions remain open in proposal.md's "Proposal question
+  round" (question 4 is retired by A4), each with a stated working
+  assumption. They are assumptions made without the author, which is the
+  precedent paso C set: flag them explicitly rather than bury them.
+
+  Baseline to preserve: 65 test files / 1286 tests green, build green.
