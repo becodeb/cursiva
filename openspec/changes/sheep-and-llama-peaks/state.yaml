@@ -1,0 +1,41 @@
+change: sheep-and-llama-peaks
+branch: sdd/ovejas-y-llamas
+scope: docs/13_AVENTURAS_POR_ANIMAL.md §8 row C
+execution_mode: auto
+artifact_store: openspec
+delivery_strategy: single-pr
+review_budget_lines: 800
+
+phases:
+  explore: skipped
+  propose: done
+  spec: pending
+  design: pending
+  tasks: pending
+  apply: pending
+  verify: pending
+  archive: pending
+
+artifacts:
+  proposal: openspec/changes/sheep-and-llama-peaks/proposal.md
+
+next_recommended:
+  - sdd-spec
+  - sdd-design
+
+notes: |
+  sdd-spec and sdd-design can run in parallel. Both must read
+  proposal.md's seven numbered decisions; the spec contract is the
+  "Capabilities" section (no new capabilities; five modified:
+  level-engine, trace-canvas, zoo-map, main-screen, detective-mode).
+
+  Hard ordering constraint for tasks/apply: sampling `corridor_rows`
+  for `fondo ladera.png` and `fondo cordillera.png` is task one. No
+  level geometry can be frozen before the admissible corridor band and
+  its `brightest` luma are measured.
+
+  Forecast: ~850 authored code lines plus ~1180 SDD artifact lines,
+  against a 800-line budget. Decision needed before apply: Yes.
+  Chained PRs recommended: Yes. 800-line budget risk: High.
+  A four-slice seam (C1 geometry / C2 art+backdrop / C3 levels /
+  C4 registries+vertex art) is proposed in the proposal.
