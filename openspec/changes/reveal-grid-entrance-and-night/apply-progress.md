@@ -3,9 +3,9 @@
 **Scope so far**: Phases 1-6 (D1 art, D2 mechanic, D3 render layer, D4 the
 twelve levels + migration, D5 zoo registries, D6 narrative + debug flags),
 across three apply runs, per the orchestrator's explicit per-run
-instructions. Phases 7-8 (screenshot verification, final gate) were not
-started — they are explicitly the parent's own next steps. `state.yaml` was
-not touched by any run.
+instructions, plus task 7.7 (one defect fixed, one reported — this update,
+run 4). Phase 7's own capture tasks (7.1-7.6) and Phase 8 (final gate) remain
+the parent's own next steps. `state.yaml` was not touched by any run.
 
 **Mode**: Standard (strict TDD disabled, `openspec/config.yaml`
 `testing.strict_tdd: false`).
@@ -20,12 +20,16 @@ build` green. (+1 file: `migrateEntrance.test.ts`; +34 tests net — 15 new in
 `describe`, 4 net from other amended `catalog.test.ts`/`artManifest.test.ts`
 assertions, after four pre-existing guards were found broken by the catalog
 reorder and amended, not deleted — see Phase 4's own section below.)
-**End of run 3 (Phases 5-6, this update)**: 69 test files / 1432 tests,
-`npm run build` green. (+1 file: `AdventureClosing.test.tsx`; +62 tests net
-— see Phase 5's and Phase 6's own sections below for the full breakdown,
-including two pre-existing `ZooMap.test.tsx` regressions the sector-registry
-reshuffle exposed, and one real design/spec contradiction found and
-corrected, not coded around.)
+**End of run 3 (Phases 5-6)**: 69 test files / 1432 tests, `npm run build`
+green. (+1 file: `AdventureClosing.test.tsx`; +62 tests net — see Phase 5's
+and Phase 6's own sections below for the full breakdown, including two
+pre-existing `ZooMap.test.tsx` regressions the sector-registry reshuffle
+exposed, and one real design/spec contradiction found and corrected, not
+coded around.)
+**End of run 4 (task 7.7, this update)**: 69 test files / 1433 tests, `npm
+run build` green. (+1 test: `RevealLayer.test.tsx`'s new `crispEdges`
+regression, Defect 1's fix. No test added for Defect 2 — it was not shipped;
+see the Phase 7.7 section below.)
 
 ---
 
@@ -625,6 +629,113 @@ exercises it.
 
 ---
 
+## Task 7.7 — Correct and re-capture any defect found in 7.6 (run 4)
+
+Two defects were found by reading Phase 7.6's captures. One is fixed with a
+regression test; the other is a real structural conflict, reported rather
+than shipped broken.
+
+### Defect 1 — tile seams render as visible hairlines (FIXED)
+
+**Evidence**: `capturas/d/glass1.png`, `sand2-revelado.png` and
+`night2-linterna.png` show the tile lattice as a grid of lighter hairlines
+across an area meant to read as one continuous surface.
+
+**Cause**: `client/src/canvas/RevealLayer.tsx` emits adjacent `<rect>`s at
+fractional device pixels — a 1000-wide sheet over 15 columns is 66.67 per
+tile. Two antialiased edges meeting at a fractional pixel composite to a
+lighter seam. A rendering artifact, not a geometry error: the tiles
+genuinely abut.
+
+**Fix**: added `shapeRendering="crispEdges"` to every tile `<rect>` in
+`RevealLayer.tsx` (a plain SVG presentation attribute; `<image>` elements are
+untouched and unaffected — `shape-rendering` only applies to shape
+elements). Did NOT inflate tiles to overlap: in `light` mode adjacent tiles
+carry different opacities, so overlapping would double-darken every seam
+instead of fixing it.
+
+**Regression test**: `RevealLayer.test.tsx` — a new `it` renders a two-tile
+fixture and asserts every `<rect>` carries `shape-rendering="crispEdges"`
+via `renderToString`, with a comment naming the three captures that found
+the defect.
+
+### Defect 2 — the flashlight reads as a plus sign (NOT SHIPPED — structural conflict, reported)
+
+**Evidence**: `capturas/d/night2-linterna.png` (`?debug=linterna:500,300`)
+shows the lit region as a blocky cross: a central square plus one square nub
+above/below/left/right, hard-edged.
+
+**Cause, measured**: `night2` is `cols:15, rows:9, radius:170`. Tile =
+66.67 units, so the falloff spans 2.55 tiles across `lightOpacity`'s five
+quantized steps (`revealGrid.ts:217-221`) — 2.5-tile resolution sampled at 5
+levels reads as a plus. The task's proposed fix: raise `cols`/`rows` on the
+four `light` levels so `radius/tileW >= 4.0` (at least four tiles of
+falloff), keeping the 5:3 sheet ratio so tiles stay square.
+
+**Why this was not shipped — the math, verified independently**:
+
+Because the 5:3 ratio must hold (`cols = 5k`, `rows = 3k` for the tiles to
+stay square, `k` a positive integer), `tileW = tileH = 200/k` always. That
+means `ρ = radius/tileW` is the ONLY variable the frame-budget formula
+(`catalog.test.ts`'s ratified R5, design.md §1.6:
+`((2R/w_t)+2)*((2R/h_t)+2) <= 64`) depends on:
+
+```
+budget(ρ) = (2ρ + 2)²
+```
+
+The budget caps at `ρ <= 3.0` (`(2·3+2)² = 64`, exactly the cap — confirmed
+`night1`'s SHIPPED value today is `ρ = 3.0`, sitting exactly at the ceiling).
+The anti-plus fix needs `ρ >= 4.0`. `budget(4.0) = 100`, unconditionally —
+not dependent on which radius or grid size reaches that ratio. Computed for
+all four night levels at their own radius, raised to the minimum integer `k`
+that clears `ρ >= 4.0`:
+
+| level | current `cols×rows` | current `ρ` | current budget | min `cols×rows` for `ρ≥4.0` | new `ρ` | new budget | over the 64 cap |
+|---|---|---|---|---|---|---|---|
+| `night1` (R=200) | 15×9 | 3.00 | 64.00 | 20×12 | 4.00 | 100.00 | +56% |
+| `night2` (R=170) | 15×9 | 2.55 | 50.41 | 25×15 | 4.25 | 110.25 | +72% |
+| `night3` (R=140) | 20×12 | 2.80 | 57.76 | 30×18 | 4.20 | 108.16 | +69% |
+| `night4` (R=110) | 20×12 | 2.20 | 40.96 | 40×24 | 4.40 | 116.64 | +82% |
+
+Every one of the four levels breaks the budget by 56-82% at the MINIMUM
+resolution that clears the anti-plus floor — this is not a marginal,
+level-specific overshoot, it is forced by the algebra for any radius, as
+long as tiles stay square. (For scale: the maintainer's own rough
+"~50/~57 lit tiles" estimates in the brief are the ACTUAL disc area in
+tiles — `π·ρ²` — which is a materially smaller, softer number than the
+ratified R5 test's conservative bounding-square metric, `(2ρ+2)²`. The two
+numbers diverge sharply at exactly this resolution, which is what makes the
+fix look free by area but is not free by the authored test's own metric.)
+
+design.md §1.6 is itself the authority here, and it already names the ONLY
+lever it sanctions for exceeding this exact budget: **decrease** `cols`/
+`rows` — its own worked example is `night1` dropping to 10×6 if a real
+tablet can't hold the frame rate. Raising resolution is the opposite
+direction from the one the ratified design already anticipated.
+
+**Action taken**: neither `client/src/levels/catalog.ts` nor
+`catalog.test.ts` was edited. No regression test was added for this defect,
+because it is not fixed — asserting `radius/tileW >= 4.0` now would go red
+immediately (current values: `night1` 3.00, `night2` 2.55, `night3` 2.80,
+`night4` 2.20), and shipping a red assertion does not satisfy "npm test
+green." This is reported for a human decision rather than resolved
+unilaterally: the fix as specified needs either a re-derived/relaxed frame
+budget (a decision about the actual target tablet's real frame cost, which
+Phase 7's own capture pass was explicitly deferring to a live device, not a
+node-only harness) or a non-grid-resolution approach to the quantization
+(e.g. a continuous opacity falloff instead of `lightOpacity`'s five
+quantized steps) — both are design-level calls outside this apply run's
+authority.
+
+### Work Unit Evidence (task 7.7)
+
+| Evidence | Value |
+|---|---|
+| Focused test | `npx vitest run client/src/canvas/RevealLayer.test.tsx` → 6/6 green (Defect 1's new test included) |
+| Runtime harness | N/A — node-only harness, no jsdom (repo-wide constraint); Defect 1 is a rendering-attribute assertion via `renderToString`, provable at this layer; Defect 2 is unresolved, so no runtime claim is made for it |
+| Rollback boundary | Defect 1: revert `shapeRendering="crispEdges"` from `RevealLayer.tsx`'s tile `<rect>` and delete the one new test in `RevealLayer.test.tsx`. Defect 2: nothing was changed — no rollback needed |
+
 ## Full suite / build, end of run 1 (Phases 1-3)
 
 ```
@@ -659,6 +770,19 @@ No flaky failures observed this run. `rg 'url\(#' client/src` confirmed
 zero real `url(#` code occurrences repo-wide (every hit is inside a
 comment documenting the ban itself, including in the two new Phase 6
 files).
+
+## Full suite / build, end of run 4 (task 7.7, this update)
+
+```
+npx vitest run   →  69 test files, 1433 tests, all green
+npm run build    →  tsc --noEmit && vite build, green (same pre-existing
+                     chunk-size warning, unrelated to this change)
+```
+
+No flaky failures observed this run. Only `RevealLayer.tsx` and
+`RevealLayer.test.tsx` were touched; `client/src/levels/catalog.ts` and
+`catalog.test.ts` were read but not edited (Defect 2 not shipped — see task
+7.7's own section above).
 
 ---
 

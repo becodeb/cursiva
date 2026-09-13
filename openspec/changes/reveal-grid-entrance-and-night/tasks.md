@@ -671,8 +671,42 @@ measurable this way, use an iframe harness instead.
       land after `sand4` as a beat rather than an interruption. Record any
       defect found by reading, not by any test — paso C's Phase 7.7
       precedent found three this way.
-- [ ] 7.7 Correct and re-capture any defect found in 7.6, with a regression
+- [~] 7.7 Correct and re-capture any defect found in 7.6, with a regression
       test added alongside the fix, not only a re-shot picture.
+      **Partial — one defect fixed, one blocked by a structural conflict, not
+      shipped broken. See `apply-progress.md`'s Phase 7.7 section for full
+      evidence.**
+      - **Defect 1 (tile seams read as hairlines) — FIXED.** `RevealLayer.tsx`
+        emits adjacent `<rect>`s at fractional device pixels (1000/15 columns
+        = 66.67 per tile); two antialiased edges compositing at a fractional
+        pixel read as a lighter hairline across what should be one continuous
+        surface. Added `shapeRendering="crispEdges"` to every tile `<rect>` —
+        a plain presentation attribute, not `url(#…)`. Regression test in
+        `RevealLayer.test.tsx` asserts every rendered `<rect>` carries
+        `shape-rendering="crispEdges"` via `renderToString`.
+      - **Defect 2 (flashlight reads as a plus sign) — NOT SHIPPED, reported
+        instead.** Raising `night1..4`'s `cols`/`rows` enough to clear
+        `radius/tileW >= 4.0` (the floor that stops five-step opacity
+        quantization from reading as a plus) mathematically forces
+        `catalog.test.ts`'s ratified R5 frame-budget assertion
+        (`((2R/w_t)+2)*((2R/h_t)+2) <= 64`, design.md §1.6) over its cap for
+        ALL FOUR night levels — not marginally: 100.00/110.25/108.16/116.64
+        against the 64 cap (56-82% over), because keeping the required 5:3
+        square-tile ratio pins `tileW = tileH`, which makes the budget a pure
+        function of `radius/tileW` alone (`budget = (2·ρ+2)²`): the budget
+        caps `ρ <= 3.0` while the anti-plus fix needs `ρ >= 4.0` — mutually
+        exclusive for every level, by construction, not by a specific radius
+        choice. design.md §1.6 itself is the authority naming the ONLY lever
+        it sanctions for exceeding this budget: DECREASE `cols`/`rows` (its
+        own worked example drops `night1` to 10×6), never increase — the
+        opposite of what Defect 2's fix direction requires. Neither
+        `catalog.ts` nor `catalog.test.ts` was touched; no regression test
+        was added for this defect since it is not fixed (a red assertion
+        would not satisfy "npm test green"). Flagged for a human decision:
+        the fix as specified needs either a relaxed/re-derived frame budget
+        or a non-grid-resolution approach (e.g. a continuous falloff instead
+        of five quantized rect-opacity steps) — out of this apply run's
+        authority to decide unilaterally.
 
 ## Phase 8: Final Gate
 
