@@ -621,15 +621,22 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
     }
   })
 
-  /** Regression for the sheep-hill boxed-sheep defect. `oveja.png` was
-   * exported with an OPAQUE near-white background instead of transparency
-   * (`#fefefe`/`#ffffff`/`#fdfdfd`, all four corners at alpha 255), so
-   * `prepare()`'s alpha-bbox crop found no transparent margin to crop to and
-   * the whole canvas shipped, compositing as a light-grey box over the dark
-   * corridor -- visible in `capturas/pasoC/sheep-hill1.png` and
-   * `sheep-hill3.png`. `scripts/art/build_art.py`'s
-   * `key_out_border_background()` fixes the pipeline; this asserts the
-   * SHIPPED file, the same way every other check in this describe block does.
+  /** Regression for the sheep-hill boxed-sheep defect. `oveja.png` carries an
+   * alpha DITHER across the whole canvas -- 4,374 evenly spaced opaque specks
+   * of 240px each, alongside the one real 632,576px sheep -- so `prepare()`'s
+   * `alpha_bbox` found opaque pixels in every corner, cropped NOTHING, and
+   * shipped the entire 1198x1313 lamina scaled down. Over the mountains' dark
+   * `CHANNEL_STONE` corridor that composited as a light box around each
+   * sheep, visible in `capturas/pasoC/sheep-hill1.png` and `sheep-hill3.png`.
+   *
+   * Fixed in `scripts/art/build_art.py` by listing the source in
+   * `SPECKLED_ALPHA_SOURCES`, which routes it through the pipeline's own
+   * pre-existing `keep_largest_blob()` before the crop -- the sheep is one
+   * connected region and every speck is its own. The shipped file went
+   * 409x448/225 KB to 420x448/83 KB, and exactly one manifest entry moved.
+   *
+   * This asserts the SHIPPED file, the same way every other check in this
+   * describe block does.
    *
    * Two checks, because either alone is not enough:
    *
