@@ -11,18 +11,20 @@
 // records to render the home; the game shell needs the store itself), so they
 // live here instead.
 //
-// `migrateDuckCase` (design.md §6) and `migrateNivel3` (design.md §7) run the
-// same way, alongside `migratePhase1`: order is irrelevant, since the three
-// migrations share no id.
+// `migrateDuckCase` (design.md §6), `migrateNivel3` (design.md §7) and
+// `migrateEntrance` (design.md §8) run the same way, alongside
+// `migratePhase1`: order is irrelevant, since the four migrations share no
+// id.
 import { LevelProgressStore } from './LevelProgressStore'
 import { migratePhase1 } from './migratePhase1'
 import { migrateDuckCase } from './migrateDuckCase'
 import { migrateNivel3 } from './migrateNivel3'
+import { migrateEntrance } from './migrateEntrance'
 
 /**
  * A freshly-loaded store, migrated.
  *
- * All three migrations are idempotent by construction — a destination id
+ * All four migrations are idempotent by construction — a destination id
  * that already carries a record is never touched again — so calling this on
  * every visit to the home costs one storage read and changes nothing on
  * later calls.
@@ -33,6 +35,7 @@ export function openProgressStore(): LevelProgressStore {
     migratePhase1(store.all()),
     migrateDuckCase(store.all()),
     migrateNivel3(store.all()),
+    migrateEntrance(store.all()),
   ]) {
     for (const [levelId, record] of Object.entries(migrated)) {
       store.save(levelId, record)

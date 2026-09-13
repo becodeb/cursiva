@@ -177,7 +177,177 @@ function wordPaths(id: string, chars: string[]): string[] {
 // missing while the suite stayed green, held there by a test that asserted
 // the gap. If a trail ever reads `carrier: false` again, the glass is gone.
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// The entrance (`docs/12` §1, design.md §5): eight reveal-grid levels, the
+// app's OPENING (`LEVELS[0]` is `glass1`, design.md §5.1, ratified amendment
+// A1) — inserted ahead of `f1-libre`, which is what `game/migrateEntrance.ts`
+// exists to protect (design.md §8.1). Two `mode: 'erase'` families, one per
+// backdrop (`glass`/`sand`), each following `docs/13` §2's own progression:
+// wide, forgiving passes first, then narrower and more demanding ones
+// (`radius` non-increasing, `minAccuracy` non-decreasing, `cols*rows`
+// non-decreasing — R1-R3, `catalog.test.ts`).
+//
+// No path, no corridor, no wall to reset from — `haptics: true` stays ON
+// even though `kind: 'free'` has no corridor, because a tile clearing under
+// the finger IS the contact worth feeling here (design.md §5.2); every other
+// `feedback` switch matches `f1-libre`'s own shape. Backdrops resolve
+// per-ADVENTURE, not per-level (`zoo/backdrops.ts`'s `ADVENTURE_BACKDROP`/
+// `PENDING_ENTRANCE_BACKDROP`, wired by Phase 5), so no level here names its
+// own art.
+// ─────────────────────────────────────────────────────────────────────────────
+const ENTRANCE: LevelConfig[] = [
+  {
+    id: 'glass1',
+    phase: 1,
+    title: 'El vidrio sucio',
+    hint: 'Pasá el dedo por el vidrio para limpiarlo todo.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 55 },
+    showGuide: false,
+    letters: [],
+    reveal: { mode: 'erase', cols: 10, rows: 6, radius: 110 },
+  },
+  {
+    id: 'glass2',
+    phase: 1,
+    title: 'Todo el vidrio',
+    hint: 'Ahora limpiá cada rincón del vidrio.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 68 },
+    showGuide: false,
+    letters: [],
+    reveal: { mode: 'erase', cols: 10, rows: 6, radius: 110 },
+  },
+  {
+    id: 'glass3',
+    phase: 1,
+    title: 'Los rincones',
+    hint: 'Buscá los rincones que todavía están sucios.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 76 },
+    showGuide: false,
+    letters: [],
+    reveal: { mode: 'erase', cols: 15, rows: 9, radius: 110 },
+  },
+  {
+    id: 'glass4',
+    phase: 1,
+    title: 'Sin dejar marcas',
+    hint: 'Limpiá bien fuerte, sin dejar ni una mancha.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 82 },
+    showGuide: false,
+    letters: [],
+    reveal: { mode: 'erase', cols: 15, rows: 9, radius: 80 },
+  },
+  // sand1 restarts wide on purpose: a new surface is a new first challenge
+  // (`docs/13` §5 item 3, the same licence the llamas took) — no ordering is
+  // required or asserted against `glass4` (design.md §5.4, ratified
+  // amendment A2).
+  {
+    id: 'sand1',
+    phase: 1,
+    title: 'Barrer la arena',
+    hint: 'Barré la arena de la entrada con el dedo.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 60 },
+    showGuide: false,
+    letters: [],
+    reveal: { mode: 'erase', cols: 10, rows: 6, radius: 110 },
+  },
+  {
+    id: 'sand2',
+    phase: 1,
+    title: 'Toda la entrada',
+    hint: 'Barré toda la entrada, de punta a punta.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 70 },
+    showGuide: false,
+    letters: [],
+    reveal: { mode: 'erase', cols: 15, rows: 9, radius: 110 },
+  },
+  {
+    id: 'sand3',
+    phase: 1,
+    title: 'La arena fina',
+    hint: 'La arena es más fina: barré con cuidado.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 78 },
+    showGuide: false,
+    letters: [],
+    reveal: { mode: 'erase', cols: 20, rows: 12, radius: 90 },
+  },
+  {
+    id: 'sand4',
+    phase: 1,
+    title: 'La última pasada',
+    hint: 'Dale la última pasada a toda la arena.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 85 },
+    showGuide: false,
+    letters: [],
+    reveal: { mode: 'erase', cols: 20, rows: 12, radius: 70 },
+  },
+]
+
 const PHASE_1: LevelConfig[] = [
+  ...ENTRANCE,
   {
     id: 'f1-libre',
     phase: 1,
@@ -614,6 +784,125 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+  },
+  // ───────────────────────────────────────────────────────────────────────
+  // The night sector (`docs/12`, design.md §5): four `mode: 'light'`
+  // reveal-grid levels, the last four entries of phase 1 — `docs/13` §2's
+  // "búsqueda más intencional" step, expressed as a rising hidden-object
+  // count (1, 2, 3, 3 — R4) rather than a widening area. No ordering is
+  // required or asserted against `sand4` (design.md §5.4, ratified amendment
+  // A2: an erase radius accumulates cleared area across an attempt, a light
+  // radius does not persist anything, so the two are not comparable
+  // quantities). Objects reference `SECTOR_ADVENTURE_ART.chest/.stone/.leaf`
+  // (design.md §3.4) — their only consumer, landed in the same commit as
+  // their `SINGLES` row and registry entry (task 4.4-4.6).
+  // ───────────────────────────────────────────────────────────────────────
+  {
+    id: 'night1',
+    phase: 1,
+    title: 'Una luz en la noche',
+    hint: 'Movete con la linterna y encontrá lo que brilla.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
+    showGuide: false,
+    letters: [],
+    reveal: {
+      mode: 'light',
+      cols: 15,
+      rows: 9,
+      radius: 200,
+      objects: [{ art: SECTOR_ADVENTURE_ART.chest, size: 96, x: 500, y: 300 }],
+    },
+  },
+  {
+    id: 'night2',
+    phase: 1,
+    title: 'Dos cosas perdidas',
+    hint: 'Alumbrá despacio: hay dos cosas escondidas.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
+    showGuide: false,
+    letters: [],
+    reveal: {
+      mode: 'light',
+      cols: 15,
+      rows: 9,
+      radius: 170,
+      objects: [
+        { art: SECTOR_ADVENTURE_ART.stone, size: 72, x: 260, y: 180 },
+        { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 740, y: 420 },
+      ],
+    },
+  },
+  {
+    id: 'night3',
+    phase: 1,
+    title: 'Tres en la oscuridad',
+    hint: 'Buscá las tres cosas escondidas en la oscuridad.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
+    showGuide: false,
+    letters: [],
+    reveal: {
+      mode: 'light',
+      cols: 20,
+      rows: 12,
+      radius: 140,
+      objects: [
+        { art: SECTOR_ADVENTURE_ART.chest, size: 96, x: 200, y: 140 },
+        { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 500, y: 440 },
+        { art: SECTOR_ADVENTURE_ART.stone, size: 72, x: 820, y: 200 },
+      ],
+    },
+  },
+  {
+    id: 'night4',
+    phase: 1,
+    title: 'La linterna chiquita',
+    hint: 'La luz es más chica: buscá bien de cerca.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
+    showGuide: false,
+    letters: [],
+    reveal: {
+      mode: 'light',
+      cols: 20,
+      rows: 12,
+      radius: 110,
+      objects: [
+        { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 140, y: 480 },
+        { art: SECTOR_ADVENTURE_ART.chest, size: 96, x: 520, y: 120 },
+        { art: SECTOR_ADVENTURE_ART.stone, size: 72, x: 880, y: 380 },
+      ],
+    },
   },
 ]
 

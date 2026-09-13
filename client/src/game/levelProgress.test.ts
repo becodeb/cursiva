@@ -103,9 +103,15 @@ describe('LevelProgressStore — defensiveness', () => {
   })
 
   it('works entirely in memory when there is no storage', () => {
+    // Uses `FIRST`/`SECOND` (`LEVELS[0]`/`LEVELS[1]`), not a hardcoded
+    // `'f1-libre'` — this test's own pre-existing deviation from every other
+    // test in this file's convention, exposed once the reveal grid stopped
+    // `f1-libre` from being `LEVELS[0]` (design.md §5.1, ratified amendment
+    // A1): the literal saved approvals onto the WRONG level's predecessor
+    // once `LEVELS[0]` became `glass1`, so `SECOND` never unlocked.
     const store = new LevelProgressStore(null)
-    store.save('f1-libre', record({ approvals: 2 }))
-    expect(store.get('f1-libre').approvals).toBe(2)
+    store.save(FIRST, record({ approvals: 2 }))
+    expect(store.get(FIRST).approvals).toBe(2)
     expect(store.isUnlocked(SECOND)).toBe(true)
   })
 

@@ -9,6 +9,7 @@
 // configs live on as the unwired, exported `LEGACY_PHASE_1`.
 import { describe, expect, it } from 'vitest'
 import { flattenPathD } from '../letters/svgLetter'
+import { SECTOR_ADVENTURE_ART } from '../detective/assets'
 import { LevelProgressStore } from '../game/LevelProgressStore'
 import type { StorageLike } from '../game/LevelProgressStore'
 import { migratePhase1 } from '../game/migratePhase1'
@@ -36,10 +37,20 @@ import {
 } from './paths'
 import type { Phase } from './types'
 
-// docs/08 section 5 tables, after the detective-mode retheme: 1 libre + 4
-// rastros del pato + 4 detective trails + 4 patrones + 3 desafíos del agua +
-// 4 grafemas + 2 enlaces + 2 palabras.
+// docs/08 section 5 tables, after the detective-mode retheme and the reveal
+// grid (design.md §5.1, ratified amendment A1): 8 entrance reveal levels
+// (glass + sand) + 1 libre + 4 rastros del pato + 4 detective trails +
+// 4 patrones + 4 night reveal levels + 3 desafíos del agua + 4 grafemas +
+// 2 enlaces + 2 palabras. `LEVELS[0]` is `glass1`, not `f1-libre`.
 const EXPECTED_IDS = [
+  'glass1',
+  'glass2',
+  'glass3',
+  'glass4',
+  'sand1',
+  'sand2',
+  'sand3',
+  'sand4',
   'f1-libre',
   'duck-trail1',
   'duck-trail2',
@@ -57,6 +68,10 @@ const EXPECTED_IDS = [
   'llama-peak2',
   'llama-peak3',
   'llama-peak4',
+  'night1',
+  'night2',
+  'night3',
+  'night4',
   'f2-guirnalda',
   'f2-agua2',
   'f2-agua3',
@@ -113,6 +128,21 @@ describe('LEVELS — catalog shape', () => {
 
 describe('LEVELS — authored values match the doc tables', () => {
   const CORRIDORS: Record<string, number> = {
+    // The twelve reveal-grid levels have no corridor at all (design.md §5.2:
+    // f1-libre's exact shape but for haptics) — `corridorWidth: 0` on every
+    // one, same as f1-libre.
+    'glass1': 0,
+    'glass2': 0,
+    'glass3': 0,
+    'glass4': 0,
+    'sand1': 0,
+    'sand2': 0,
+    'sand3': 0,
+    'sand4': 0,
+    'night1': 0,
+    'night2': 0,
+    'night3': 0,
+    'night4': 0,
     'f1-libre': 0,
     'duck-trail1': 100,
     'duck-trail2': 90,
@@ -147,6 +177,20 @@ describe('LEVELS — authored values match the doc tables', () => {
     'f5-mama': 40,
   }
   const FLUENCY: Record<string, number> = {
+    // The twelve reveal-grid levels carry no fluency bar either — `rules(1,
+    // false, false, 0)`'s own `minFluency: 0`, same as f1-libre.
+    'glass1': 0,
+    'glass2': 0,
+    'glass3': 0,
+    'glass4': 0,
+    'sand1': 0,
+    'sand2': 0,
+    'sand3': 0,
+    'sand4': 0,
+    'night1': 0,
+    'night2': 0,
+    'night3': 0,
+    'night4': 0,
     'f1-libre': 0,
     'duck-trail1': 0,
     'duck-trail2': 0,
@@ -189,8 +233,13 @@ describe('LEVELS — authored values match the doc tables', () => {
     for (const level of LEVELS) expect(level.rules.minFluency).toBe(FLUENCY[level.id])
   })
 
-  it('scales minAccuracy by phase: 55 / 60 / 65', () => {
+  it('scales minAccuracy by phase: 55 / 60 / 65, except the twelve reveal-grid levels', () => {
+    // The reveal-grid levels deliberately OVERRIDE the phase default with
+    // their own authored, per-adventure-rising `minAccuracy` (design.md
+    // §5.2/§5.3's R1) — their own progression is asserted separately below
+    // ("LEVELS — the reveal grid's twelve authored levels").
     for (const level of LEVELS) {
+      if (level.reveal) continue
       const expected = level.phase === 1 ? 55 : level.phase === 2 ? 60 : 65
       expect(level.rules.minAccuracy).toBe(expected)
     }
@@ -223,10 +272,11 @@ describe('LEVELS — authored values match the doc tables', () => {
     }
   })
 
-  it('hides the guide on f5-mama (the real motor-memory exam) and on the free level', () => {
+  it('hides the guide on f5-mama (the real motor-memory exam) and on every free level', () => {
     for (const level of LEVELS) {
-      // `f1-libre` has nothing to show; `f5-mama` has something and hides it.
-      expect(level.showGuide).toBe(level.id !== 'f5-mama' && level.id !== 'f1-libre')
+      // `f1-libre` and the twelve reveal-grid levels have nothing to show
+      // (`kind: 'free'`, no path); `f5-mama` has something and hides it.
+      expect(level.showGuide).toBe(level.id !== 'f5-mama' && level.kind !== 'free')
     }
   })
 
@@ -250,12 +300,20 @@ describe('LEVELS — surface, kind and feedback', () => {
     }
   })
 
-  it('has exactly one free level, and it is the very first thing the child does', () => {
+  it('has exactly one free level with no reveal grid, and the catalog opens with the entrance', () => {
+    // Amended, not deleted (design.md §5.1, ratified amendment A1): before
+    // the reveal grid, `kind: 'free'` meant "the warm-up," and `f1-libre` was
+    // both the only free level AND `LEVELS[0]`. Now thirteen levels are
+    // `kind: 'free'` (level-engine spec "`kind: 'free'` Means 'No Route,'
+    // Not 'The Warm-Up'"): `f1-libre`, still with no `reveal` field, and the
+    // twelve reveal-grid levels, each with one. The catalog's first entry is
+    // `glass1`, the app's real opening.
     const free = LEVELS.filter((l) => l.kind === 'free')
-    expect(free.map((l) => l.id)).toEqual(['f1-libre'])
-    expect(LEVELS[0].id).toBe('f1-libre')
-    expect(free[0].paths).toEqual([])
-    expect(free[0].phase).toBe(1)
+    expect(free.filter((l) => !l.reveal).map((l) => l.id)).toEqual(['f1-libre'])
+    expect(free).toHaveLength(13)
+    expect(LEVELS[0].id).toBe('glass1')
+    for (const l of free) expect(l.paths, l.id).toEqual([])
+    for (const l of free) expect(l.phase, l.id).toBe(1)
   })
 
   it('renders only the phase-1 routes as real mazes', () => {
@@ -309,11 +367,17 @@ describe('LEVELS — surface, kind and feedback', () => {
     expect(levelsByPhase(3)[0].id).toBe('f3-l')
   })
 
-  it('sounds and buzzes on every level with a corridor, and on none without one', () => {
+  it('sounds and buzzes on every level with a corridor — and buzzes without one on the reveal grid', () => {
+    // A found gap in this guard, not called out by tasks.md's own reveal-grid
+    // task list: the twelve reveal-grid levels are `kind: 'free'` (no
+    // corridor) but deliberately keep `haptics: true` (design.md §5.2 — "a
+    // tile clearing under the finger is a contact worth feeling"). Amended,
+    // not deleted: `tone` still tracks having a corridor exactly as before;
+    // `haptics` is now `hasCorridor OR reveal-bearing`.
     for (const level of LEVELS) {
       const hasCorridor = level.kind === 'path'
       expect(level.feedback.tone).toBe(hasCorridor)
-      expect(level.feedback.haptics).toBe(hasCorridor)
+      expect(level.feedback.haptics).toBe(hasCorridor || !!level.reveal)
     }
   })
 
@@ -601,7 +665,18 @@ describe('getLevel', () => {
 
 describe('levelsByPhase', () => {
   it('groups the catalog by phase', () => {
+    // Amended for the reveal grid (design.md §5.1): eight entrance levels
+    // (glass + sand) open phase 1, four night levels close it — a gap this
+    // check's own exact-order assertion would otherwise miss silently.
     expect(levelsByPhase(1).map((l) => l.id)).toEqual([
+      'glass1',
+      'glass2',
+      'glass3',
+      'glass4',
+      'sand1',
+      'sand2',
+      'sand3',
+      'sand4',
       'f1-libre',
       'duck-trail1',
       'duck-trail2',
@@ -619,6 +694,10 @@ describe('levelsByPhase', () => {
       'llama-peak2',
       'llama-peak3',
       'llama-peak4',
+      'night1',
+      'night2',
+      'night3',
+      'night4',
     ])
     expect(levelsByPhase(4).map((l) => l.id)).toEqual(['f4-la', 'f4-ma'])
     expect(levelsByPhase(5)).toHaveLength(2)
@@ -652,8 +731,19 @@ describe('nextLevelId', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('detective-mode — four trails replace the six corridor levels', () => {
   it('lists exactly the four trail ids in LEVELS, none of the six removed ones', () => {
+    // Amended for the reveal grid (design.md §5.1): the eight entrance levels
+    // now open phase 1 and the four night levels close it, ahead of/after
+    // this describe block's own detective-mode content.
     const phase1Ids = levelsByPhase(1).map((l) => l.id)
     expect(phase1Ids).toEqual([
+      'glass1',
+      'glass2',
+      'glass3',
+      'glass4',
+      'sand1',
+      'sand2',
+      'sand3',
+      'sand4',
       'f1-libre',
       ...DUCK_TRAIL_IDS,
       ...DETECTIVE_TRAIL_IDS,
@@ -665,6 +755,10 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
       'llama-peak2',
       'llama-peak3',
       'llama-peak4',
+      'night1',
+      'night2',
+      'night3',
+      'night4',
     ])
     for (const removed of REMOVED_IDS) expect(phase1Ids).not.toContain(removed)
   })
@@ -708,10 +802,18 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
     for (const id of DETECTIVE_TRAIL_IDS) expect(getLevel(id).demo).toBe(true)
   })
 
-  it('keeps f1-libre at index 0, unchanged mechanically (kind free, no corridor)', () => {
-    expect(LEVELS[0].id).toBe('f1-libre')
-    expect(LEVELS[0].kind).toBe('free')
-    expect(LEVELS[0].paths).toEqual([])
+  it('opens the catalog with glass1, and keeps f1-libre mechanically unchanged (kind free, no corridor, no reveal)', () => {
+    // Amended, not deleted (design.md §5.1, ratified amendment A1): a second
+    // pre-existing guard this exact assertion, distinct from
+    // `catalog.test.ts`'s own "has exactly one free level" check above — a
+    // found gap tasks.md's own reveal-grid task list did not call out.
+    // `LEVELS[0]` is now `glass1`, the app's real opening; `f1-libre` itself
+    // is untouched.
+    expect(LEVELS[0].id).toBe('glass1')
+    const libre = getLevel('f1-libre')
+    expect(libre.kind).toBe('free')
+    expect(libre.paths).toEqual([])
+    expect(libre.reveal).toBeUndefined()
   })
 })
 
@@ -996,6 +1098,160 @@ describe('detective-mode — progress migration reaches a mid-campaign child wit
     }
     for (const id of DETECTIVE_TRAIL_IDS) {
       expect(store.isUnlocked(id)).toBe(true)
+    }
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The reveal grid (design.md §5, level-engine spec "Twelve Reveal-Grid Levels
+// Occupy Fixed Catalog Positions" / "Pedagogical Progression Invariant Per
+// Adventure" / "No Demo on Any of the Twelve" / "Docs §6/§14 Checklist
+// Coverage for the Twelve Reveal-Grid Levels"). R1-R8 restated directly over
+// the twelve authored literals (design.md §5.3), the same style §5.3's own
+// table uses for the sheep/llama family above.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('LEVELS — the reveal grid, twelve authored levels (design.md §5, amendments A1/A2)', () => {
+  const GLASS_IDS = ['glass1', 'glass2', 'glass3', 'glass4']
+  const SAND_IDS = ['sand1', 'sand2', 'sand3', 'sand4']
+  const NIGHT_IDS = ['night1', 'night2', 'night3', 'night4']
+  const ALL_REVEAL_IDS = [...GLASS_IDS, ...SAND_IDS, ...NIGHT_IDS]
+  const ADVENTURE_FAMILIES = [GLASS_IDS, SAND_IDS, NIGHT_IDS]
+
+  function revealOf(id: string) {
+    const level = getLevel(id)
+    if (!level.reveal) throw new Error(`${id}: expected a reveal field`)
+    return level.reveal
+  }
+
+  it('R1: minAccuracy is non-decreasing within each adventure', () => {
+    for (const ids of ADVENTURE_FAMILIES) {
+      const values = ids.map((id) => getLevel(id).rules.minAccuracy)
+      for (let i = 1; i < values.length; i++) {
+        expect(values[i], ids[i]).toBeGreaterThanOrEqual(values[i - 1])
+      }
+    }
+    expect(GLASS_IDS.map((id) => getLevel(id).rules.minAccuracy)).toEqual([55, 68, 76, 82])
+    expect(SAND_IDS.map((id) => getLevel(id).rules.minAccuracy)).toEqual([60, 70, 78, 85])
+    expect(NIGHT_IDS.map((id) => getLevel(id).rules.minAccuracy)).toEqual([100, 100, 100, 100])
+  })
+
+  it('R2: radius is non-increasing within each adventure', () => {
+    for (const ids of ADVENTURE_FAMILIES) {
+      const values = ids.map((id) => revealOf(id).radius)
+      for (let i = 1; i < values.length; i++) {
+        expect(values[i], ids[i]).toBeLessThanOrEqual(values[i - 1])
+      }
+    }
+    expect(GLASS_IDS.map((id) => revealOf(id).radius)).toEqual([110, 110, 110, 80])
+    expect(SAND_IDS.map((id) => revealOf(id).radius)).toEqual([110, 110, 90, 70])
+    expect(NIGHT_IDS.map((id) => revealOf(id).radius)).toEqual([200, 170, 140, 110])
+  })
+
+  it('R3: cols*rows is non-decreasing within each adventure', () => {
+    for (const ids of ADVENTURE_FAMILIES) {
+      const values = ids.map((id) => {
+        const r = revealOf(id)
+        return r.cols * r.rows
+      })
+      for (let i = 1; i < values.length; i++) {
+        expect(values[i], ids[i]).toBeGreaterThanOrEqual(values[i - 1])
+      }
+    }
+  })
+
+  it('R4: the night family object count is non-decreasing (1, 2, 3, 3)', () => {
+    const counts = NIGHT_IDS.map((id) => {
+      const r = revealOf(id)
+      if (r.mode !== 'light') throw new Error(`${id}: expected mode 'light'`)
+      return r.objects.length
+    })
+    expect(counts).toEqual([1, 2, 3, 3])
+    for (let i = 1; i < counts.length; i++) expect(counts[i]).toBeGreaterThanOrEqual(counts[i - 1])
+  })
+
+  it('drops the cross-adventure radius ordering — no comparison between sand1/glass4 or night1/sand4', () => {
+    // design.md §5.4, ratified amendment A2: an erase radius accumulates
+    // cleared area across an attempt, a light radius does not persist
+    // anything, so the two are not comparable quantities. Restated as data,
+    // not as an assertion that would compare them.
+    expect(revealOf('sand1').radius).toBe(110)
+    expect(revealOf('glass4').radius).toBe(80)
+    expect(revealOf('night1').radius).toBe(200)
+    expect(revealOf('sand4').radius).toBe(70)
+  })
+
+  it('R5: every level clears the frame budget — ((2R/w_t)+2)*((2R/h_t)+2) <= 64', () => {
+    for (const id of ALL_REVEAL_IDS) {
+      const r = revealOf(id)
+      const tileW = 1000 / r.cols
+      const tileH = 600 / r.rows
+      const changedTiles = (2 * r.radius / tileW + 2) * (2 * r.radius / tileH + 2)
+      expect(changedTiles, id).toBeLessThanOrEqual(64)
+    }
+  })
+
+  it('R6: none of the twelve sets demo', () => {
+    for (const id of ALL_REVEAL_IDS) expect(getLevel(id).demo, id).toBeFalsy()
+  })
+
+  it('R7: every light object sits at least size/2+20 inside the sheet', () => {
+    for (const id of NIGHT_IDS) {
+      const r = revealOf(id)
+      if (r.mode !== 'light') throw new Error(`${id}: expected mode 'light'`)
+      for (const obj of r.objects) {
+        const floor = obj.size / 2 + 20
+        expect(Math.min(obj.x, 1000 - obj.x), `${id}: x margin`).toBeGreaterThanOrEqual(floor)
+        expect(Math.min(obj.y, 600 - obj.y), `${id}: y margin`).toBeGreaterThanOrEqual(floor)
+      }
+    }
+  })
+
+  it('R8: every grid is 5:3, so every tile is square', () => {
+    for (const id of ALL_REVEAL_IDS) {
+      const r = revealOf(id)
+      expect(1000 / r.cols, id).toBeCloseTo(600 / r.rows, 10)
+    }
+  })
+
+  it('the catalog opens with glass1..4 immediately followed by sand1..4, then f1-libre', () => {
+    expect(LEVELS.slice(0, 9).map((l) => l.id)).toEqual([...GLASS_IDS, ...SAND_IDS, 'f1-libre'])
+  })
+
+  it('night1..4 sit between llama-peak4 and f2-guirnalda, in order', () => {
+    const idx = LEVELS.findIndex((l) => l.id === 'llama-peak4')
+    expect(LEVELS.slice(idx + 1, idx + 5).map((l) => l.id)).toEqual(NIGHT_IDS)
+    expect(LEVELS[idx + 5]?.id).toBe('f2-guirnalda')
+  })
+
+  it('configures no path on any of the twelve', () => {
+    for (const id of ALL_REVEAL_IDS) expect(getLevel(id).paths, id).toEqual([])
+  })
+
+  it('resetOnContact stays off on every one of the twelve — no wall to reset from', () => {
+    for (const id of ALL_REVEAL_IDS) expect(getLevel(id).resetOnContact, id).toBe(false)
+  })
+
+  it('every reveal-grid LevelConfig answers the engine-owned checklist items (docs/13 §6, docs/14 §14)', () => {
+    for (const id of ALL_REVEAL_IDS) {
+      const r = revealOf(id)
+      expect(r.cols, id).toBeGreaterThan(0)
+      expect(r.rows, id).toBeGreaterThan(0)
+      expect(r.radius, id).toBeGreaterThan(0)
+      expect(getLevel(id).rules.minAccuracy, id).toBeGreaterThan(0)
+      if (r.mode === 'light') expect(r.objects.length, id).toBeGreaterThan(0)
+    }
+  })
+
+  it("night's hidden objects reference the registered chest/stone/leaf art, not re-typed literals", () => {
+    for (const id of NIGHT_IDS) {
+      const r = revealOf(id)
+      if (r.mode !== 'light') throw new Error(`${id}: expected mode 'light'`)
+      for (const obj of r.objects) {
+        expect(
+          [SECTOR_ADVENTURE_ART.chest, SECTOR_ADVENTURE_ART.stone, SECTOR_ADVENTURE_ART.leaf],
+          `${id}: object art must be one of the registered chest/stone/leaf`,
+        ).toContain(obj.art)
+      }
     }
   })
 })

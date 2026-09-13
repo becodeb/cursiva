@@ -273,7 +273,10 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   | 'honeycomb'
   | 'dolphin'
   | 'snail'
-  | 'flashlight',
+  | 'flashlight'
+  | 'chest'
+  | 'stone'
+  | 'leaf',
   ArtImage
 >> = {
   snakeSmall: { href: '/art/sector-snake-small.png', w: 480, h: 98 },
@@ -290,6 +293,14 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   dolphin: { href: '/art/sector-dolphin.png', w: 448, h: 418 },
   snail: { href: '/art/sector-snail.png', w: 448, h: 321 },
   flashlight: { href: '/art/sector-flashlight.png', w: 256, h: 234 },
+  // The entrance's night findable objects (design.md §3.4). `chest`/`stone`
+  // are landscape (`w`, 256, is the pipeline's target for the wider side),
+  // `leaf` is near-square with `h` the fixed 256 — all three measured off
+  // the rebuilt `manifest.json`'s own `sector-chest`/`sector-stone`/
+  // `sector-leaf` entries, never guessed.
+  chest: { href: '/art/sector-chest.png', w: 256, h: 200 },
+  stone: { href: '/art/sector-stone.png', w: 256, h: 170 },
+  leaf: { href: '/art/sector-leaf.png', w: 242, h: 256 },
 }
 
 /** `ZOO_ANIMAL_ART` resolves every {@link ZooAnimalId} — spreading

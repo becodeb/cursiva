@@ -345,7 +345,16 @@ def emit_opaque_canvas(name: str, img: png.Image, expected_w: int, expected_h: i
 # cutout, and silently blob-filtering all of them would let a real two-part
 # asset (a dotted letter, a pair of footprints) lose its smaller half without
 # anyone noticing. `llama.png`, drawn in the same round, is clean.
-SPECKLED_ALPHA_SOURCES = {'oveja.png'}
+#
+# `piedra.png` (design.md §3.4, the entrance's night findable objects) joined
+# this set after checking, not guessing: `alpha_bbox` returned the FULL
+# 1313x1198 canvas -- the exact "crops nothing" symptom -- and a blob scan
+# found 4,200 separate opaque regions, one real 572,352px stone and 4,199
+# scattered specks totalling 390,851px, the same defect class as `oveja.png`
+# (4,374 specks) down to the shape of the finding. `cofre.png` and
+# `hoja.png`, checked the same way, are each a single clean blob and need no
+# entry here.
+SPECKLED_ALPHA_SOURCES = {'oveja.png', 'piedra.png'}
 
 
 def prepare(src_name: str, target_h: int) -> png.Image:
@@ -467,6 +476,20 @@ SINGLES = [
     # matches the llama's own row since both are drawn-world props that stand
     # beside the child's ink, not reward-coloured clue marks.
     ('oveja.png',              'sector-sheep.png',          448, 'contour',    True),
+    # The entrance's night findable objects (design.md §3.4): drawn-world
+    # props standing beside the child's own ink, not reward-coloured clue
+    # marks, so `fill='contour'` matches every sibling `sector-*` row rather
+    # than a flat recolour. `piedra.png` needs `SPECKLED_ALPHA_SOURCES`
+    # (above) before `prepare()` ever reaches its `alpha_bbox` call; `cofre.png`
+    # and `hoja.png` do not. None of the three takes an `AUTHORED_SOURCE_SIZES`
+    # entry (design.md §3.4): `cofre.png` (1314x1197) and `piedra.png`
+    # (1313x1198) are both landscape, ~1.10 aspect, and `hoja.png` (1238x1271,
+    # aspect 0.974) is close but confirmed NOT exactly square by reading it
+    # with `png.py` -- an entry that does not match fails
+    # `validate_authored_source_sizes` for every asset in the build.
+    ('cofre.png',              'sector-chest.png',          256, 'contour',    True),
+    ('piedra.png',             'sector-stone.png',          256, 'contour',    True),
+    ('hoja.png',               'sector-leaf.png',           256, 'contour',    True),
 ]
 
 # Full-canvas scenes are already authored at final dimensions. They bypass the

@@ -151,12 +151,13 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // 14 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
     // + 1 goal (medusa) + 1 hazard (estrella de mar) + 9 zoo journey
     // + 7 sector backgrounds (this change adds `night`, derived by
-    // `nightfall()`) + 11 sector adventure cutouts (row C adds the sheep)
-    // + 2 hedgehog poses + 1 Andean hat + 12 grass + 8 mud.
+    // `nightfall()`) + 14 sector adventure cutouts (row C adds the sheep;
+    // this change adds the entrance's three night findable objects — chest,
+    // stone, leaf) + 2 hedgehog poses + 1 Andean hat + 12 grass + 8 mud.
     // Grass carries MORE variants than mud on purpose: it covers the whole
     // field at full size, where a repeated silhouette is obvious, while mud
     // sits small inside the corridor and half-covered by the child's own line.
-    expect(REGISTERED.length).toBe(76)
+    expect(REGISTERED.length).toBe(79)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -207,6 +208,23 @@ describe('art registry matches the shipped pipeline manifest', () => {
     const entry = manifest['sector-sheep']
     expect(SECTOR_ADVENTURE_ART.sheep.w).toBe(entry.w)
     expect(SECTOR_ADVENTURE_ART.sheep.h).toBe(entry.h)
+  })
+
+  it("matches SECTOR_ADVENTURE_ART.chest/.stone/.leaf's w/h against the pipeline's manifest (design.md §3.4)", () => {
+    // `cofre.png`/`piedra.png` are landscape and `hoja.png` is near-square —
+    // none of the three is exactly 1024x1024, so none takes an
+    // `AUTHORED_SOURCE_SIZES` entry (design.md §3.4's own decision, not an
+    // oversight); the parity below is what still keeps their hand-copied
+    // `w`/`h` honest.
+    const chest = manifest['sector-chest']
+    const stone = manifest['sector-stone']
+    const leaf = manifest['sector-leaf']
+    expect(SECTOR_ADVENTURE_ART.chest.w).toBe(chest.w)
+    expect(SECTOR_ADVENTURE_ART.chest.h).toBe(chest.h)
+    expect(SECTOR_ADVENTURE_ART.stone.w).toBe(stone.w)
+    expect(SECTOR_ADVENTURE_ART.stone.h).toBe(stone.h)
+    expect(SECTOR_ADVENTURE_ART.leaf.w).toBe(leaf.w)
+    expect(SECTOR_ADVENTURE_ART.leaf.h).toBe(leaf.h)
   })
 
   it("matches the entrance and night backdrops' quiet/brightest/corridorRows against the rebuilt manifest (design.md §2.3, §3.2)", () => {

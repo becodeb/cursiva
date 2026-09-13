@@ -311,6 +311,12 @@
     "h": 230,
     "w": 256
   },
+  "sector-chest": {
+    "bytes": 34003,
+    "file": "art/sector-chest.png",
+    "h": 200,
+    "w": 256
+  },
   "sector-dolphin": {
     "bytes": 27980,
     "file": "art/sector-dolphin.png",
@@ -352,6 +358,12 @@
     "h": 1024,
     "quiet": "#b4c5d0",
     "w": 1536
+  },
+  "sector-leaf": {
+    "bytes": 32586,
+    "file": "art/sector-leaf.png",
+    "h": 256,
+    "w": 242
   },
   "sector-llama": {
     "bytes": 32311,
@@ -436,6 +448,12 @@
     "file": "art/sector-snake-small.png",
     "h": 98,
     "w": 480
+  },
+  "sector-stone": {
+    "bytes": 26111,
+    "file": "art/sector-stone.png",
+    "h": 170,
+    "w": 256
   },
   "zoo-backpack": {
     "bytes": 7232,
