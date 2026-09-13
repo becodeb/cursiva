@@ -848,6 +848,63 @@ export function peakRidgeCorridorLimit(
 }
 
 /**
+ * `docs/13` §8 row E — one HALF period of a {@link spineWave}: a crest OR a
+ * trough. `width` is this half's own horizontal span, viewBox units.
+ * `rise` is the SIGNED offset of this half's extremum from the centreline —
+ * NEGATIVE is UP (y grows downward), matching {@link alternatingArches}'s own
+ * sign convention. Unlike {@link waveVaried}'s {@link WaveCycle} (one
+ * amplitude per FULL cycle, symmetric crest/trough), each half here carries
+ * its OWN independent width and rise, because it is FITTED to a hand-drawn
+ * spine's real, asymmetric wiggle rather than authored.
+ */
+export interface SpineHalf {
+  /** Horizontal span of this HALF period, viewBox units. */
+  width: number
+  /** Signed offset of this half's extremum from the centreline. NEGATIVE is
+   *  UP (y grows downward), matching `alternatingArches`'s own sign. */
+  rise: number
+}
+
+/**
+ * `docs/13` §8 row E — a wave whose every HALF period carries its own width
+ * and its own signed rise, because it is FITTED to a hand-drawn snake rather
+ * than authored. The per-half sibling of {@link waveVaried}, which is itself
+ * the per-cycle sibling of {@link wave}: same accumulate-`x` loop, same
+ * `M`/`C`-only alphabet, same cubic. A `halves` list that alternates
+ * `-arm, +arm` at a uniform width reproduces `waveVaried`'s `d` string BYTE
+ * FOR BYTE, and `waveVaried`'s uniform list reproduces `wave`'s — the same
+ * three-generation proof `garlandVaried` already carries (`paths.test.ts`).
+ *
+ * Consecutive halves of differing rise meet at a real kink (C1 continuity
+ * holds only within a half). On a fitted spine that kink is the DRAWING's,
+ * not the generator's, which is the whole point of fitting.
+ */
+export function spineWave(
+  o: { x0?: number; y?: number; halves?: readonly SpineHalf[] } = {},
+): string {
+  const x0 = o.x0 ?? 120
+  const y = o.y ?? 300
+  const halves = o.halves?.length
+    ? o.halves
+    : [
+        { width: 190, rise: -170 },
+        { width: 190, rise: 170 },
+      ]
+  let x = x0
+  let d = move(x, y)
+  for (const h of halves) {
+    const w = Math.max(1, h.width)
+    // `alternatingArches`'s own closed form restated per half: `off = 4A/3`
+    // for a signed rise A gives `y(t) = y + 3·off·t(1−t)`, exactly `y` at
+    // `t = 0, 1` and exactly `y + rise` at `t = ½` — no overshoot possible.
+    const off = (h.rise * 4) / 3
+    d += cubic(x + w / 3, y + off, x + (2 * w) / 3, y + off, x + w, y)
+    x += w
+  }
+  return d
+}
+
+/**
  * Fase 2 `f2-crestas` — large waves spanning the FULL ruled height: the same
  * alternating-arch construction as {@link wave}, centred on the midpoint of
  * `[yTop, yBottom]` with amplitude `(yBottom − yTop)/2`, so the crests land

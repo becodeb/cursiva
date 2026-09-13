@@ -17,6 +17,7 @@ import {
   peakRidge,
   peakRidgeCorridorLimit,
   spiral,
+  spineWave,
   squareWave,
   straight,
   sweep,
@@ -27,6 +28,7 @@ import {
   wave,
   waveCrestRadius,
   waveVaried,
+  type SpineHalf,
 } from './paths'
 
 /** Flatten a generated `d` and fail loudly if it degenerates to nothing. */
@@ -616,6 +618,70 @@ describe('waveVaried', () => {
   it('starts its first extremum ABOVE y (writing direction, matching wave)', () => {
     const points = poly(waveVaried({ x0: 90, y: 300, cycles: [{ width: 470, amplitude: 155 }] }))
     expect(points[3].y).toBeLessThan(points[0].y)
+  })
+})
+
+describe('spineWave', () => {
+  it('emits only M and C (art-corridor spec: spineWave emits only M/C)', () => {
+    const halves: SpineHalf[] = [
+      { width: 100, rise: -50 },
+      { width: 120, rise: 60 },
+      { width: 90, rise: -40 },
+    ]
+    const commands = new Set(spineWave({ halves }).match(/[A-Za-z]/g))
+    expect(commands).toEqual(new Set(['M', 'C']))
+  })
+
+  it("reproduces waveVaried's exact d string for a uniform alternating halves list", () => {
+    const cycles = [
+      { width: 380, amplitude: 170 },
+      { width: 300, amplitude: 120 },
+    ]
+    const halves: SpineHalf[] = cycles.flatMap((c) => [
+      { width: c.width / 2, rise: -c.amplitude },
+      { width: c.width / 2, rise: c.amplitude },
+    ])
+    expect(spineWave({ x0: 120, y: 300, halves })).toBe(waveVaried({ x0: 120, y: 300, cycles }))
+  })
+
+  it("reproduces wave's exact d string transitively, through waveVaried's own uniform proof", () => {
+    // wave({x0:120,x1:880,y:300,amplitude:170,cycles:2}) === waveVaried's
+    // uniform 2-cycle list === spineWave's uniform 4-half list — the same
+    // three-generation byte-identity proof garlandVaried already carries.
+    const halves: SpineHalf[] = [
+      { width: 190, rise: -170 },
+      { width: 190, rise: 170 },
+      { width: 190, rise: -170 },
+      { width: 190, rise: 170 },
+    ]
+    expect(spineWave({ x0: 120, y: 300, halves })).toBe(wave())
+  })
+
+  it('composes with transformPath at -90° (snake3\'s vertical orientation) without throwing', () => {
+    const d = spineWave({
+      halves: [
+        { width: 190, rise: -170 },
+        { width: 190, rise: 170 },
+      ],
+    })
+    expect(() => transformPath(d, { rotate: -90, pivot: { x: 500, y: 300 } })).not.toThrow()
+    const rotated = transformPath(d, { rotate: -90, pivot: { x: 500, y: 300 } })
+    expect(rotated.length).toBeGreaterThan(0)
+  })
+
+  it('lands each half\'s extremum exactly at y + rise, never overshooting it', () => {
+    const halves: SpineHalf[] = [
+      { width: 240, rise: -90 },
+      { width: 160, rise: 55 },
+    ]
+    const points = poly(spineWave({ x0: 90, y: 300, halves }))
+    const first = points.filter((p) => p.x <= 90 + 240 + 1e-6)
+    const second = points.filter((p) => p.x >= 90 + 240 - 1e-6)
+    expect(Math.min(...first.map((p) => p.y))).toBeCloseTo(300 - 90, 1)
+    expect(Math.max(...second.map((p) => p.y))).toBeCloseTo(300 + 55, 1)
+    // No point of either half strays past its own declared extremum.
+    expect(Math.min(...points.map((p) => p.y))).toBeGreaterThanOrEqual(300 - 90 - 0.5)
+    expect(Math.max(...points.map((p) => p.y))).toBeLessThanOrEqual(300 + 55 + 0.5)
   })
 })
 

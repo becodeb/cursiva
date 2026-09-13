@@ -105,6 +105,39 @@ describe('buildLevelTarget — polyline and length', () => {
   })
 })
 
+describe('buildLevelTarget — routes (level-engine spec)', () => {
+  it("routes[0] is the SAME polyline/length objects as the top-level fields, not copies", () => {
+    const target = buildLevelTarget(makeConfig({ paths: [wave(), straight({ y: 120 })] }))
+    expect(target.routes[0].polyline).toBe(target.polyline)
+    expect(target.routes[0].length).toBe(target.length)
+  })
+
+  it('derives one route per path entry, in order', () => {
+    const target = buildLevelTarget(
+      makeConfig({ paths: [wave(), straight({ y: 120 }), straight({ y: 200 })] }),
+    )
+    expect(target.routes.length).toBe(3)
+    for (const route of target.routes) {
+      expect(route.polyline.length).toBeGreaterThan(1)
+      expect(route.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('a free level has an empty routes array', () => {
+    const target = buildLevelTarget(makeConfig({ kind: 'free', paths: [] }))
+    expect(target.routes).toEqual([])
+  })
+
+  it('every shipped level keeps its routes[0] identical to polyline/length', () => {
+    for (const config of LEVELS) {
+      const target = buildLevelTarget(config)
+      if (target.paths.length === 0) continue
+      expect(target.routes[0].polyline).toBe(target.polyline)
+      expect(target.routes[0].length).toBe(target.length)
+    }
+  })
+})
+
 describe('buildLevelTarget — checkpoints', () => {
   it('numbers a single-path level strictly 1..N', () => {
     const { checkpoints } = buildLevelTarget(makeConfig({ paths: [wave()] }))

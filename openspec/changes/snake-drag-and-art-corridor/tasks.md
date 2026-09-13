@@ -68,33 +68,33 @@ Spec traceability: `art-corridor/spec.md` (spineWave, DRAWN_SPINE,
 placeArtCorridor, coincidence); `level-engine/spec.md` (routes/artCorridor
 derivation). Depends on Phase 1's manifest. 2.1 → 2.3 → 2.4 → 2.5.
 
-- [ ] 2.1 In `client/src/levels/paths.ts`: add `SpineHalf` and
+- [x] 2.1 In `client/src/levels/paths.ts`: add `SpineHalf` and
       `spineWave(o)` per design.md §1.2.
-- [ ] 2.2 In `client/src/levels/paths.test.ts`: `spineWave` emits only `M`/
+- [x] 2.2 In `client/src/levels/paths.test.ts`: `spineWave` emits only `M`/
       `C`; a uniform alternating `halves` list reproduces `waveVaried`'s `d`
       byte for byte, and `waveVaried`'s uniform list reproduces `wave`'s
       (`garlandVaried`'s own three-generation proof); composes with
       `transformPath` at −90° without throwing; no half overshoots its
       `rise`.
-- [ ] 2.3 Create `client/src/levels/artCorridor.ts`: `DrawnSpine`,
+- [x] 2.3 Create `client/src/levels/artCorridor.ts`: `DrawnSpine`,
       `DRAWN_SPINE` (hand-copied from 1.4's recorded values),
       `ArtCorridorPiece`, `ArtCorridorPlacement`, `placeArtCorridor(piece,
       tx)` per design.md §1.3.
-- [ ] 2.4 In `client/src/levels/types.ts`: add `LevelConfig.artCorridor?`,
+- [x] 2.4 In `client/src/levels/types.ts`: add `LevelConfig.artCorridor?`,
       `LevelTarget.routes`, `LevelTarget.artCorridor?`.
-- [ ] 2.5 In `client/src/levels/buildLevel.ts`: `layOutPaths` returns `tx`;
+- [x] 2.5 In `client/src/levels/buildLevel.ts`: `layOutPaths` returns `tx`;
       derive `routes` (`routes[0]` IS `polyline`/`length`, same objects) and
       `artCorridor` (via `placeArtCorridor`) AFTER the centring translation,
       through that same `tx`.
-- [ ] 2.6 In `client/src/levels/buildLevel.test.ts`: every shipped level's
+- [x] 2.6 In `client/src/levels/buildLevel.test.ts`: every shipped level's
       `target` unchanged; `routes[0] === {polyline, length}` by reference.
-- [ ] 2.7 Create `client/src/levels/artCorridor.test.ts`: box aspect equals
+- [x] 2.7 Create `client/src/levels/artCorridor.test.ts`: box aspect equals
       the cutout's; fitted `mid` lands on `at.y`; `tx` shifts box and pivot
       together; rotation is an isometry; **the coincidence** — 33 probes
       within 0.5 viewBox units of `flattenPathD` against a fixture level,
       through `placeArtCorridor` only; a shifted centreline fails (sensitivity
       proof).
-- [ ] 2.8 Run `npm test -- levels/paths levels/artCorridor levels/buildLevel`
+- [x] 2.8 Run `npm test -- levels/paths levels/artCorridor levels/buildLevel`
       — green.
 
 ## Phase 3: Fix the Multi-Route Wall Check (E3) — regression before repair

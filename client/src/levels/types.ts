@@ -2,8 +2,9 @@
 // pedagogical phases: a maze path, a pre-cursive pattern, a single letter and
 // a whole word are the same thing to the engine — a target path, a corridor
 // width and a set of rules.
-import type { LetterCheckpoint } from '../letters/types'
+import type { LetterCheckpoint, Point } from '../letters/types'
 import type { ArtImage, ClueKind } from '../detective/assets'
+import type { ArtCorridorPiece, ArtCorridorPlacement } from './artCorridor'
 
 export type Phase = 1 | 2 | 3 | 4 | 5
 
@@ -173,6 +174,16 @@ export interface LevelConfig {
    *  and `CaptionedArt`'s required `label` already use. Additive and absent
    *  everywhere else — the convention `goalArt`/`vertexArt` established. */
   reveal?: RevealConfig
+  /** Before the tracing opens, the child DRAGS this level's art-corridor
+   *  pieces into their hollows, smallest to largest (`docs/13` §2). The
+   *  SLOTS are the pieces' own homes — `artCorridor`'s own placements — so
+   *  there is no second table to author. Absent = no arrange phase, which is
+   *  every level that predates this field. */
+  arrange?: { readonly from: readonly Point[]; readonly snapRadius: number }
+  /** This level's drawn-cutout corridor pieces (`object-arrange`/
+   *  `art-corridor` capabilities). Additive and absent on every level that
+   *  predates it — every existing level keeps painting its corridor. */
+  artCorridor?: readonly ArtCorridorPiece[]
 }
 
 /** A covering layer over a routeless level's backdrop (`levels/revealGrid.ts`
@@ -220,4 +231,24 @@ export interface LevelTarget {
   polyline: Array<{ x: number; y: number }>
   /** Total arc length of the main path. */
   length: number
+  /** Every path's own polyline and arc length. `routes[0]` IS `polyline`/
+   *  `length` — the SAME objects, never copies (level-engine spec). One
+   *  entry per `config.paths` entry, in the same order. Consumed by
+   *  `screen/corridorTrack.ts`'s `multiCorridorTick` so the live wall-contact
+   *  check can walk every route, not `paths[0]` alone. */
+  routes: readonly RouteSegment[]
+  /** One placement per `config.artCorridor` entry, derived AFTER the layout
+   *  and therefore through the SAME `tx` the paths took. Absent when the
+   *  level authors none, which is every level that predates this field. */
+  artCorridor?: readonly ArtCorridorPlacement[]
+}
+
+/** One route's own polyline and arc length (level-engine spec, "Optional Art
+ *  Corridor Field, and the Derived Routes..."). Defined here rather than in
+ *  `screen/corridorTrack.ts` (which imports it) because it is a property of
+ *  the LEVEL TARGET, and `screen/` already depends on `levels/`, never the
+ *  reverse. */
+export interface RouteSegment {
+  readonly polyline: readonly Point[]
+  readonly length: number
 }

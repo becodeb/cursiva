@@ -20,7 +20,8 @@ import {
   transformPathD,
 } from '../letters/svgLetter'
 import type { LetterCheckpoint, Point } from '../letters/types'
-import type { LevelConfig, LevelTarget, Taper } from './types'
+import type { LevelConfig, LevelTarget, RouteSegment, Taper } from './types'
+import { placeArtCorridor } from './artCorridor'
 
 /** Narrowest / widest corridor the engine will ever score against, in viewBox px. */
 export const MIN_CORRIDOR = 30
@@ -113,7 +114,7 @@ const VIEWBOX_MARGIN = 80
  * untouched: there is no bounding box to centre, and the derivation downstream
  * already degrades safely.
  */
-function layOutPaths(paths: string[]): { paths: string[]; viewBoxWidth: number } {
+function layOutPaths(paths: string[]): { paths: string[]; viewBoxWidth: number; tx: number } {
   let minX = Infinity
   let maxX = -Infinity
   for (const d of paths) {
@@ -123,14 +124,14 @@ function layOutPaths(paths: string[]): { paths: string[]; viewBoxWidth: number }
     }
   }
   if (!Number.isFinite(minX) || !Number.isFinite(maxX)) {
-    return { paths, viewBoxWidth: MIN_VIEWBOX_WIDTH }
+    return { paths, viewBoxWidth: MIN_VIEWBOX_WIDTH, tx: 0 }
   }
   const viewBoxWidth = Math.max(
     MIN_VIEWBOX_WIDTH,
     Math.ceil(maxX - minX + 2 * VIEWBOX_MARGIN),
   )
   const tx = viewBoxWidth / 2 - (minX + maxX) / 2
-  return { paths: paths.map((d) => transformPathD(d, 1, 1, tx, 0)), viewBoxWidth }
+  return { paths: paths.map((d) => transformPathD(d, 1, 1, tx, 0)), viewBoxWidth, tx }
 }
 
 /**
@@ -174,12 +175,24 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
       checkpoints: [],
       polyline: [],
       length: 0,
+      routes: [],
     }
   }
 
-  const { paths, viewBoxWidth } = layOutPaths(config.paths)
+  const { paths, viewBoxWidth, tx } = layOutPaths(config.paths)
   const polyline = flattenPathD(paths[0] ?? '').points
   const length = polylineLength(polyline)
+
+  // Every path's own route, `routes[0]` the SAME `polyline`/`length` objects
+  // above — never copies (level-engine spec). Derived through the SAME `tx`
+  // every other field below comes from, since `paths` is already centred.
+  const routes: RouteSegment[] = paths.map((d, i) => {
+    if (i === 0) return { polyline, length }
+    const points = flattenPathD(d).points
+    return { polyline: points, length: polylineLength(points) }
+  })
+
+  const artCorridor = config.artCorridor?.map((piece) => placeArtCorridor(piece, tx))
 
   // Main checkpoints, uniform in ARC LENGTH over the resampled centreline.
   const checkpoints: LetterCheckpoint[] =
@@ -214,5 +227,16 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
     }
   }
 
-  return { config, paths, viewBoxWidth, corridorWidth, ideal, checkpoints, polyline, length }
+  return {
+    config,
+    paths,
+    viewBoxWidth,
+    corridorWidth,
+    ideal,
+    checkpoints,
+    polyline,
+    length,
+    routes,
+    artCorridor,
+  }
 }
