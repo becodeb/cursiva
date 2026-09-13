@@ -173,6 +173,83 @@ def mute(img: png.Image, target, sat: float = 0.30,
         px[i:i + 3] = got
 
 
+NIGHT_PEAK = 96      # the brightest pixel the derived night is allowed to have
+NIGHT_SHADOW = 0.22  # the darkest, as a fraction of the peak -> luma 21
+NIGHT_TINT = (0.858, 1.000, 1.370)   # moonlight, NORMALIZED to luma 1.0
+NIGHT_SAT = 0.45     # desaturation toward luma, mute()'s own shape
+
+
+def nightfall(img: png.Image) -> None:
+    """Derive a night scene from a daylight one (design.md §3.2).
+
+    HOW TO SWAP IN THE AUTHORED ART, when `fondo nocturno.png` arrives.
+    Two edits, no third:
+
+        ('fondo bosque.png',   'sector-night-background.png', 1536, 1024,
+         (51, 973), nightfall)
+      ->
+        ('fondo nocturno.png', 'sector-night-background.png', 1536, 1024,
+         (51, 973))
+
+    ...and delete this function. Nothing else mentions `bosque`: no registry
+    entry, no level config, no test, no consumer -- they all name the BUILT
+    file `sector-night-background.png`.
+
+    WHAT THE REPLACEMENT MUST STILL SATISFY, and it is asserted, not hoped:
+    its sampled `brightest` over rows (51, 973) must land in [77, 110].
+    The floor is `docs/09:158`'s 55-luma law against `NIGHT_VEIL` (luma 22);
+    the ceiling is the only machine-checkable part of "it has to read as
+    night". `client/src/zoo/backdrops.test.ts` asserts both, so swap day
+    fails loudly and immediately instead of silently shipping a grey wood.
+
+    WHY THIS NORMALIZES instead of scaling. An affine luma map would make the
+    output's brightest a function of the SOURCE's brightest, so the law would
+    depend on a pixel nobody has measured. This maps the source's own maximum
+    onto `NIGHT_PEAK`, so the output's brightest is `NIGHT_PEAK` BY
+    CONSTRUCTION, whatever the source is. Order matters: desaturate, tint,
+    THEN force the target luma per pixel -- doing the luma step last is what
+    makes it exact rather than approximate, because the tint is applied to a
+    pixel that still carries chroma.
+
+    No alpha is touched: `emit_opaque_canvas` rejects any non-255 alpha, and
+    a background has none.
+    """
+    px = img.px
+    src_max = 0
+    for i in range(0, len(px), 4):
+        if px[i + 3] == 0:
+            continue
+        level = luma(px[i], px[i + 1], px[i + 2])
+        if level > src_max:
+            src_max = level
+    if src_max == 0:
+        return
+
+    cache: dict[bytes, bytes] = {}
+    for i in range(0, len(px), 4):
+        if px[i + 3] == 0:
+            continue
+        key = bytes(px[i:i + 3])
+        got = cache.get(key)
+        if got is None:
+            r, g, b = key
+            lum = luma(r, g, b)
+            target = NIGHT_PEAK * (NIGHT_SHADOW + (1 - NIGHT_SHADOW) * lum / src_max)
+            channels = []
+            for c_i, c in enumerate((r, g, b)):
+                v = lum + (c - lum) * NIGHT_SAT
+                v *= NIGHT_TINT[c_i]
+                channels.append(v)
+            cur_luma = (channels[0] * 299 + channels[1] * 587 + channels[2] * 114) / 1000
+            factor = target / cur_luma if cur_luma > 0 else 0.0
+            out = bytearray(3)
+            for c_i, v in enumerate(channels):
+                out[c_i] = max(0, min(255, round(v * factor)))
+            got = bytes(out)
+            cache[key] = got
+        px[i:i + 3] = got
+
+
 def recontour(img: png.Image):
     """Send only the CONTOUR to INK, leaving every fill exactly as authored.
 
@@ -403,14 +480,24 @@ SINGLES = [
 # manifest entry -- the two fields `client/src/zoo/backdrops.ts`'s
 # `SECTOR_BACKDROP` hand-copies and `artManifest.test.ts` guards against
 # drift. `None` for every entry with no drawn corridor yet.
+#
+# An optional SIXTH element is a transform `(img) -> None`, applied to the
+# source IN PLACE before the corridor sampling and the opaque-canvas emit --
+# the same shape `mute`/`recolour`/`recontour` already use. This is how the
+# night backdrop is DERIVED from `fondo bosque.png` instead of authored
+# (`nightfall`, design.md §3.2): the row below runs the daylight forest
+# through it and emits the result under its own name, while the untouched
+# `fondo bosque.png -> sector-forest-background.png` row (paso F's own) keeps
+# shipping the daylight scene unmodified.
 PASSTHROUGHS = [
     ('mapa zoologico.png', 'zoo-map.png', 1536, 1024, None),
     ('fondo laguna.png', 'sector-lagoon-background.png', 1536, 1024, (135, 889)),
-    ('fondo arena.png', 'sector-sand-background.png', 1536, 1024, None),
+    ('fondo arena.png', 'sector-sand-background.png', 1536, 1024, (51, 973)),
     ('fondo ladera.png', 'sector-slope-background.png', 1536, 1024, (220, 866)),
     ('fondo cordillera.png', 'sector-range-background.png', 1536, 1024, (166, 858)),
     ('fondo bosque.png', 'sector-forest-background.png', 1536, 1024, None),
-    ('fondo pecera.png', 'sector-aquarium-background.png', 1536, 1024, None),
+    ('fondo pecera.png', 'sector-aquarium-background.png', 1536, 1024, (51, 973)),
+    ('fondo bosque.png', 'sector-night-background.png', 1536, 1024, (51, 973), nightfall),
 ]
 
 
@@ -615,8 +702,12 @@ def main() -> None:
     validate_authored_source_sizes()
     manifest: dict[str, dict] = {}
 
-    for src, name, expected_w, expected_h, corridor_rows in PASSTHROUGHS:
+    for row in PASSTHROUGHS:
+        src, name, expected_w, expected_h, corridor_rows = row[:5]
+        transform = row[5] if len(row) > 5 else None
         img = png.read_png(os.path.join(SRC, src))
+        if transform is not None:
+            transform(img)  # in place, like mute/recolour/recontour
         key = name[:-4]
         manifest[key] = emit_opaque_canvas(name, img, expected_w, expected_h)
         if corridor_rows is not None:

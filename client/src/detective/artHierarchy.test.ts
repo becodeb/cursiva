@@ -300,6 +300,20 @@ const FULL_CANVAS_ART = new Set([
   ...Object.values(SECTOR_BACKGROUND_ART).map((art) => art.href.split('/').pop()!),
 ])
 
+/** Full-canvas art whose near-black pixels are a deliberate COLOUR GRADE
+ *  rather than a drawn contour line, so the achromatic-dark-pixel rule below
+ *  does not apply to it. Every other full-canvas background in this guard is
+ *  either flat or muted enough that a near-black pixel really is an
+ *  authored contour; `nightfall()` (`scripts/art/build_art.py`, design.md
+ *  §3.2) is different in kind, not degree: it tints EVERY opaque pixel of a
+ *  daylight scene toward moonlight (`NIGHT_TINT = (0.858, 1.000, 1.370)`),
+ *  including the scene's own shadows, so the derived night backdrop's
+ *  darkest pixels are blue-tinted BY CONSTRUCTION — the whole point of the
+ *  transform, not an accidental chromatic outline slipping through. Adding
+ *  an achromatic constraint to `nightfall()` itself would fight the one
+ *  thing design.md §3.2 asks it to do. */
+const COLOUR_GRADED_FULL_CANVAS = new Set(['sector-night-background.png'])
+
 /** Authoring canvases are a separate contract from compact shipped assets:
  * backgrounds retain their final 3:2 coordinate system, while cutouts retain
  * a square transparent workspace before `build_art.py` crops them. */
@@ -614,10 +628,12 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
         expect(transparent, `${name}: cutout has no transparent background`).toBeGreaterThan(0)
         expect(partial, `${name}: cutout lost its antialiased alpha edge`).toBeGreaterThan(0)
       }
-      expect(
-        darkChromatic,
-        `${name}: dark pixels must be achromatic within ${ZOO_DARK_CHROMA_TOLERANCE} channels`,
-      ).toBe(0)
+      if (!COLOUR_GRADED_FULL_CANVAS.has(name)) {
+        expect(
+          darkChromatic,
+          `${name}: dark pixels must be achromatic within ${ZOO_DARK_CHROMA_TOLERANCE} channels`,
+        ).toBe(0)
+      }
     }
   })
 

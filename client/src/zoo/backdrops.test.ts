@@ -6,15 +6,80 @@
 import { describe, expect, it } from 'vitest'
 import { luma } from '../detective/palette'
 import { viewBoxToImage } from './sectors'
-import { ADVENTURE_BACKDROP, CHANNEL_STONE, backdropFor } from './backdrops'
+import {
+  ADVENTURE_BACKDROP,
+  CHANNEL_STONE,
+  NIGHT_VEIL,
+  PENDING_ENTRANCE_BACKDROP,
+  backdropFor,
+} from './backdrops'
 
 /** The channel paint's shipped defaults, mirrored as literals rather than
  * imported — the same convention `palette.test.ts` follows: pulling the
  * component in would drag React into a pure data test. */
 const SHEET_PAPER = '#fdfcf7'
 const CORRIDOR_EARTH = '#d9c3ae'
+/** `TraceCanvas.tsx`'s default ink, mirrored for the same reason. */
+const INK_COLOR = '#1e293b'
 
 const MIN_BACKDROP_CONTRAST = 55 // docs/09:158
+
+/**
+ * Task 1.5 exercises `PENDING_ENTRANCE_BACKDROP` rather than
+ * `ADVENTURE_BACKDROP.glass/.sand/.night`: those three rows are not wired
+ * into `ADVENTURE_BACKDROP` yet (`backdrops.ts`'s own docblock on
+ * `PENDING_ENTRANCE_BACKDROP` — `AdventureId` is only widened in Phase 5,
+ * out of scope for this apply run). All six rows this suite reasons about,
+ * shipped and pending together:
+ */
+const ALL_BACKDROPS = { ...ADVENTURE_BACKDROP, ...PENDING_ENTRANCE_BACKDROP }
+
+describe('PENDING_ENTRANCE_BACKDROP luma law (docs/09:158, design.md §2.5)', () => {
+  it('separates the reveal veil paint from the lightest thing it covers, for all six backdrops', () => {
+    for (const [id, b] of Object.entries(ALL_BACKDROPS)) {
+      expect(
+        Math.abs(luma(b!.tile ?? b!.channel ?? SHEET_PAPER) - luma(b!.brightest)),
+        id,
+      ).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
+    }
+  })
+
+  it("clears the child's own ink against the veil, for the three reveal-grid rows", () => {
+    for (const [id, b] of Object.entries(PENDING_ENTRANCE_BACKDROP)) {
+      expect(Math.abs(luma(b.tile!) - luma(b.ink ?? INK_COLOR)), id).toBeGreaterThanOrEqual(
+        MIN_BACKDROP_CONTRAST,
+      )
+    }
+  })
+
+  it("the night backdrop's brightest clears NIGHT_VEIL by the law's floor, not merely reads low (amendment A3)", () => {
+    expect(luma(PENDING_ENTRANCE_BACKDROP.night.brightest)).toBeGreaterThanOrEqual(
+      luma(NIGHT_VEIL) + MIN_BACKDROP_CONTRAST,
+    )
+  })
+
+  // Falsifiability (paso C Phase 6's own discipline): these three MUST go
+  // RED, encoding design.md §2.2/§2.3's "no admissible light paint" argument
+  // as a measured fact rather than an expectation. Confirmed sensitive by
+  // construction: each compares a DIFFERENT paint than the one the registry
+  // actually declares, so none can accidentally pass alongside the rows
+  // above.
+  it('goes red for SHEET_PAPER against the aquarium — no admissible light paint (design.md §2.2, §2.3)', () => {
+    expect(
+      Math.abs(luma(SHEET_PAPER) - luma(PENDING_ENTRANCE_BACKDROP.glass.brightest)),
+    ).toBeLessThan(MIN_BACKDROP_CONTRAST)
+  })
+
+  it('goes red for SHEET_PAPER against the sand — no admissible light paint (design.md §2.2, §2.3)', () => {
+    expect(
+      Math.abs(luma(SHEET_PAPER) - luma(PENDING_ENTRANCE_BACKDROP.sand.brightest)),
+    ).toBeLessThan(MIN_BACKDROP_CONTRAST)
+  })
+
+  it("goes red for INK_COLOR against NIGHT_VEIL — the slate line does not clear the veil (design.md §2.4)", () => {
+    expect(Math.abs(luma(INK_COLOR) - luma(NIGHT_VEIL))).toBeLessThan(MIN_BACKDROP_CONTRAST)
+  })
+})
 
 describe('ADVENTURE_BACKDROP luma law (docs/09:158)', () => {
   it('separates the corridor paint from the lightest thing it is painted over, for all three backdrops', () => {

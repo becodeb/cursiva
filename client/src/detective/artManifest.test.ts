@@ -48,8 +48,8 @@ import {
   ZOO_STAR_ART,
   type ArtImage,
 } from './assets'
-import { ART_OUTLINE } from './palette'
-import { ADVENTURE_BACKDROP } from '../zoo/backdrops'
+import { ART_OUTLINE, luma } from './palette'
+import { ADVENTURE_BACKDROP, PENDING_ENTRANCE_BACKDROP } from '../zoo/backdrops'
 
 /** Every PNG actually present in `public/art/`, keyed by bare name. The glob
  * is evaluated against the filesystem at transform time, so a file named in
@@ -150,12 +150,13 @@ describe('art registry matches the shipped pipeline manifest', () => {
   it('registers every clue kind in both states, and never the same file twice', () => {
     // 14 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
     // + 1 goal (medusa) + 1 hazard (estrella de mar) + 9 zoo journey
-    // + 6 sector backgrounds + 11 sector adventure cutouts (row C adds the
-    // sheep) + 2 hedgehog poses + 1 Andean hat + 12 grass + 8 mud.
+    // + 7 sector backgrounds (this change adds `night`, derived by
+    // `nightfall()`) + 11 sector adventure cutouts (row C adds the sheep)
+    // + 2 hedgehog poses + 1 Andean hat + 12 grass + 8 mud.
     // Grass carries MORE variants than mud on purpose: it covers the whole
     // field at full size, where a repeated silhouette is obvious, while mud
     // sits small inside the corridor and half-covered by the child's own line.
-    expect(REGISTERED.length).toBe(75)
+    expect(REGISTERED.length).toBe(76)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -206,6 +207,38 @@ describe('art registry matches the shipped pipeline manifest', () => {
     const entry = manifest['sector-sheep']
     expect(SECTOR_ADVENTURE_ART.sheep.w).toBe(entry.w)
     expect(SECTOR_ADVENTURE_ART.sheep.h).toBe(entry.h)
+  })
+
+  it("matches the entrance and night backdrops' quiet/brightest/corridorRows against the rebuilt manifest (design.md §2.3, §3.2)", () => {
+    // `ADVENTURE_BACKDROP.glass/.sand/.night` do not exist yet — these three
+    // rows are `PENDING_ENTRANCE_BACKDROP` until Phase 5 widens `AdventureId`
+    // and wires them in (`zoo/backdrops.ts`'s own docblock on that export).
+    // The parity this test guards is unaffected by where the row LIVES.
+    const aquarium = manifest['sector-aquarium-background']
+    const sand = manifest['sector-sand-background']
+    const night = manifest['sector-night-background']
+    const glass = PENDING_ENTRANCE_BACKDROP.glass
+    const pendingSand = PENDING_ENTRANCE_BACKDROP.sand
+    const pendingNight = PENDING_ENTRANCE_BACKDROP.night
+
+    expect(aquarium.quiet).toBe(glass.quiet)
+    expect(aquarium.brightest).toBe(glass.brightest)
+    expect(aquarium.corridorRows).toEqual(glass.corridorRows)
+    expect(glass.quiet).toBe('#9bb6c5')
+    expect(glass.brightest).toBe('#c7d9e0')
+
+    expect(sand.quiet).toBe(pendingSand.quiet)
+    expect(sand.brightest).toBe(pendingSand.brightest)
+    expect(sand.corridorRows).toEqual(pendingSand.corridorRows)
+    expect(pendingSand.quiet).toBe('#d6cbba')
+    expect(pendingSand.brightest).toBe('#dad0c0')
+
+    expect(night.quiet).toBe(pendingNight.quiet)
+    expect(night.brightest).toBe(pendingNight.brightest)
+    expect(night.corridorRows).toEqual(pendingNight.corridorRows)
+    // nightfall()'s swap-day gate (design.md §3.2): brightest in [77, 110].
+    expect(luma(pendingNight.brightest)).toBeGreaterThanOrEqual(77)
+    expect(luma(pendingNight.brightest)).toBeLessThanOrEqual(110)
   })
 
   it("mirrors scripts/art/build_art.py's INK constant against the real TypeScript token", () => {

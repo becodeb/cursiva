@@ -246,7 +246,7 @@ export const ZOO_SPEECH_BUBBLE_ART: ArtImage = {
  * 3:2 intrinsic coordinate system and leave the quiet centre free for a
  * finger-drawn route. */
 export const SECTOR_BACKGROUND_ART: Readonly<Record<
-  'lagoon' | 'sand' | 'slope' | 'range' | 'forest' | 'aquarium',
+  'lagoon' | 'sand' | 'slope' | 'range' | 'forest' | 'aquarium' | 'night',
   ArtImage
 >> = {
   lagoon: { href: '/art/sector-lagoon-background.png', w: 1536, h: 1024 },
@@ -255,6 +255,9 @@ export const SECTOR_BACKGROUND_ART: Readonly<Record<
   range: { href: '/art/sector-range-background.png', w: 1536, h: 1024 },
   forest: { href: '/art/sector-forest-background.png', w: 1536, h: 1024 },
   aquarium: { href: '/art/sector-aquarium-background.png', w: 1536, h: 1024 },
+  // Derived from `fondo bosque.png` by `nightfall()` (design.md §3.2) — a
+  // full-canvas opaque scene like every other row here, same 1536x1024.
+  night: { href: '/art/sector-night-background.png', w: 1536, h: 1024 },
 }
 
 /** Props used by the sector adventures. Each file is a transparent cutout;

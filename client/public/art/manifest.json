@@ -294,9 +294,15 @@
     "w": 181
   },
   "sector-aquarium-background": {
+    "brightest": "#c7d9e0",
     "bytes": 26778,
+    "corridorRows": {
+      "bottom": 973,
+      "top": 51
+    },
     "file": "art/sector-aquarium-background.png",
     "h": 1024,
+    "quiet": "#9bb6c5",
     "w": 1536
   },
   "sector-bee": {
@@ -353,6 +359,18 @@
     "h": 448,
     "w": 299
   },
+  "sector-night-background": {
+    "brightest": "#526084",
+    "bytes": 35770,
+    "corridorRows": {
+      "bottom": 973,
+      "top": 51
+    },
+    "file": "art/sector-night-background.png",
+    "h": 1024,
+    "quiet": "#394459",
+    "w": 1536
+  },
   "sector-range-background": {
     "brightest": "#f5f5f5",
     "bytes": 46390,
@@ -366,9 +384,15 @@
     "w": 1536
   },
   "sector-sand-background": {
+    "brightest": "#dad0c0",
     "bytes": 55641,
+    "corridorRows": {
+      "bottom": 973,
+      "top": 51
+    },
     "file": "art/sector-sand-background.png",
     "h": 1024,
+    "quiet": "#d6cbba",
     "w": 1536
   },
   "sector-sheep": {
