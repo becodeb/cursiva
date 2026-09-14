@@ -18,6 +18,7 @@ import TraceCanvas, {
   SHEET_PAPER,
   type DrawDemo,
   type TraceBackdrop,
+  type TraceCamera,
   type TraceClueMark,
   type TraceCorridor,
   type TraceGround,
@@ -30,11 +31,13 @@ import { backdropFor, TORCH_CHALK } from '../zoo/backdrops'
 import { debugClearedTiles, EMPTY_REVEAL, revealTick, revealTiles, type RevealState } from '../levels/revealGrid'
 import {
   arrangeDebugCount,
+  cameraDebugOrigin,
   isSpineDebug,
   lightDebugPoint,
   revealDebugFraction,
   waypointDebugCount,
 } from '../canvas/devMode'
+import { seedCameraOrigin } from '../canvas/camera'
 import {
   EMPTY_WAYPOINTS,
   debugCarrier,
@@ -905,6 +908,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // receive anyway.
   const waypointPin = !!level.waypoints && waypointDebugCount(debugSearch) !== null
 
+  // The camera's own world x-origin (`scrolling-camera` capability). ONE
+  // initialiser, `seedCameraOrigin`, called from mount (this `useState`
+  // initializer) AND from every reset site inside `resetSurface` below —
+  // `seedArrangeState`'s own scar, where a reset site calling the raw
+  // initialiser directly silently wiped the screenshot seed. Absent
+  // `level.camera` = 0 always, and the camera code path below never renders
+  // a `camera` prop at all.
+  const [cameraOriginX, setCameraOriginX] = useState<number>(() =>
+    level.camera
+      ? seedCameraOrigin(cameraDebugOrigin(debugSearch), target.viewWidth, target.viewBoxWidth)
+      : 0,
+  )
+
   const resetSurface = useCallback((): void => {
     setAttempt(null)
     setStrokes([])
@@ -930,7 +946,26 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     // mount effect's own call silently wipes `?debug=ordenadas:<k>` the
     // instant it fires (task 8.7/8.8's own regression).
     setArrangeState(seedArrangeState())
-  }, [level.reveal, level.waypoints, debugSearch, target.routes.length, arrangeConfig, seedArrangeState])
+    // The camera resets to its seeded origin with the run, through the SAME
+    // initialiser the mount `useState` above uses (`scrolling-camera` §2.4:
+    // "otherwise the child restarts with the world parked at the route's
+    // end and the green start dot off-screen").
+    setCameraOriginX(
+      level.camera
+        ? seedCameraOrigin(cameraDebugOrigin(debugSearch), target.viewWidth, target.viewBoxWidth)
+        : 0,
+    )
+  }, [
+    level.reveal,
+    level.waypoints,
+    level.camera,
+    debugSearch,
+    target.routes.length,
+    target.viewWidth,
+    target.viewBoxWidth,
+    arrangeConfig,
+    seedArrangeState,
+  ])
 
   // A new level starts its own flow: demo first when the level asks for one AND
   // the child is still in the full-guide band. A trail's clue state and filed
@@ -1056,6 +1091,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setAttempt(null)
     setStrokes([])
     setArrangeState(seedArrangeState())
+    // `restartRun` does NOT call `resetSurface` — it duplicates a subset of
+    // its resets inline — so the camera's own reseed (design.md §2.4: "back
+    // to the SAME seeded origin, through the SAME initialiser") must be
+    // repeated here too, or a contact reset would leave the world parked
+    // mid-route while the ink vanished (§2.4's own stated failure mode).
+    setCameraOriginX(
+      level.camera
+        ? seedCameraOrigin(cameraDebugOrigin(debugSearch), target.viewWidth, target.viewBoxWidth)
+        : 0,
+    )
     toneRef.current?.setActive(false)
     setResetSignal((n) => n + 1)
     setRestarted(true)
@@ -1071,7 +1116,17 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     // `false → true` forces exactly one pulse through the same edge rule the
     // off-path channel uses, so a restart can never turn into a buzzing nag.
     if (feedback.haptics) pulseOnLeaving(false, true)
-  }, [feedback.haptics, clueDef, trailClueMarks.length, target.routes.length, seedArrangeState])
+  }, [
+    feedback.haptics,
+    clueDef,
+    trailClueMarks.length,
+    target.routes.length,
+    seedArrangeState,
+    level.camera,
+    debugSearch,
+    target.viewWidth,
+    target.viewBoxWidth,
+  ])
 
   // The cue is a passing line, not a state the child has to dismiss.
   useEffect(() => {
@@ -1409,6 +1464,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // a place without being the world (design.md §3.2).
   const drawnPlace = inWorld || !!backdrop
 
+  // The window, when this level authors one (`scrolling-camera` capability).
+  // Absent `level.camera` = no `camera` prop at all, so `TraceCanvas` renders
+  // the shipped byte-identical expression. `viewWidth` comes from the
+  // TARGET (already clamped by `buildLevel.ts`'s `Math.min`), never the raw
+  // `level.camera.viewWidth`, so a camera window authored wider than its own
+  // world can never reach the screen.
+  const traceCamera: TraceCamera | undefined = level.camera
+    ? { viewWidth: target.viewWidth, lead: level.camera.lead, originX: cameraOriginX }
+    : undefined
+
   // Static art standing at the route's own peaks (design.md §3.3) — derived
   // from the BUILT route, never authored as coordinates, so no literal can
   // drift from a re-tuned generator call.
@@ -1609,6 +1674,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         }
         // A long word gets a wider sheet, never smaller letters (docs/02 §3).
         viewBoxWidth={target.viewBoxWidth}
+        // The window, narrower than the world, on the two levels that author
+        // one (`scrolling-camera` capability). Absent on every other level.
+        camera={traceCamera}
         // Crop the dead margin and fill the flex area in both axes, so the
         // sheet is as large as BOTH limits allow (docs/02 §3, docs/04 §3.3).
         viewBoxY={band.y}

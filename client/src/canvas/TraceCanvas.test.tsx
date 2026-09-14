@@ -12,6 +12,7 @@ import { buildLevelTarget } from '../levels/buildLevel'
 import { obstacleAt } from '../levels/obstacles'
 import { luma } from '../detective/palette'
 import { CHANNEL_STONE } from '../zoo/backdrops'
+import { seedCameraOrigin } from './camera'
 
 function demo(over: Partial<DrawDemo> = {}): DrawDemo {
   return { d: 'M 1 2 L 3 4 L 5 4', delay: 1, duration: 1, strokeWidth: 14, ...over }
@@ -62,6 +63,55 @@ describe('TraceCanvas ruled guides (trace-canvas "Viewport and Ruled Lines", T7.
     for (const y of ['180', '300', '420', '540']) expect(html).toContain(`y1="${y}"`)
   })
 })
+describe('TraceCanvas camera prop — the rendered viewBox attribute (scrolling-camera spec §6.1, fixture config)', () => {
+  // A fixture camera config, independent of any catalog level — the real
+  // dolphin catalog does not exist until Phase 5, and design.md §2.7 says
+  // this test is required BEFORE the levels that exercise it. Re-pointed at
+  // the real catalog in Phase 5.5.
+  const WORLD = 1560
+
+  it('V1: no debug — the initial viewBox reports origin 0 and the window width', () => {
+    const html = renderToString(
+      <TraceCanvas viewBoxWidth={WORLD} camera={{ viewWidth: 1000, lead: 0.5, originX: 0 }} />,
+    )
+    expect(html).toContain('viewBox="0 0 1000 600"')
+  })
+
+  it('V2: a ?debug=camara:280-style seed reflects in the initial viewBox', () => {
+    const originX = seedCameraOrigin(280, 1000, WORLD)
+    const html = renderToString(
+      <TraceCanvas viewBoxWidth={WORLD} camera={{ viewWidth: 1000, lead: 0.5, originX }} />,
+    )
+    expect(html).toContain('viewBox="280 0 1000 600"')
+  })
+
+  it('V3: a seed past the extent clamps at sheetWidth - viewWidth', () => {
+    const originX = seedCameraOrigin(9999, 1000, WORLD)
+    const html = renderToString(
+      <TraceCanvas viewBoxWidth={WORLD} camera={{ viewWidth: 1000, lead: 0.5, originX }} />,
+    )
+    expect(html).toContain(`viewBox="${WORLD - 1000} 0 1000 600"`)
+  })
+
+  it('V4: a negative seed floors at 0', () => {
+    const originX = seedCameraOrigin(-50, 1000, WORLD)
+    const html = renderToString(
+      <TraceCanvas viewBoxWidth={WORLD} camera={{ viewWidth: 1000, lead: 0.5, originX }} />,
+    )
+    expect(html).toContain('viewBox="0 0 1000 600"')
+  })
+
+  it('V5: a seed does nothing on a fixture with no camera field', () => {
+    const html = renderToString(<TraceCanvas viewBoxWidth={1000} />)
+    expect(html).toContain('viewBox="0 0 1000 600"')
+  })
+
+  it('V6: a fixture with no camera field renders `0 {viewBoxY} {viewBoxWidth} {viewBoxHeight}` byte-identically', () => {
+    const html = renderToString(<TraceCanvas viewBoxY={140} viewBoxHeight={440} viewBoxWidth={1148} />)
+    expect(html).toContain('viewBox="0 140 1148 440"')
+  })
+})
+
 describe('TraceCanvas viewBox band override (docs/02 §3: crop margin, never rescale)', () => {
   it('defaults to the whole 0…600 sheet', () => {
     expect(renderToString(<TraceCanvas />)).toContain('viewBox="0 0 1000 600"')

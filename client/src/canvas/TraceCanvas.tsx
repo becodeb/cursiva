@@ -42,6 +42,7 @@ import { taperedCorridor, type CorridorSegment } from './corridorTaper'
 import type { ScatterMark } from './groundScatter'
 import { useTraceInput, type TracePoint } from './useTraceInput'
 import { isDevMode } from './devMode'
+import { cameraOrigin } from './camera'
 import { clampArtBox, placeArt, STANDING_GRIP, type ArtBox } from './placeArt'
 import { RevealLayer } from './RevealLayer'
 import { ArtCorridorLayer } from './ArtCorridorLayer'
@@ -494,6 +495,22 @@ export interface TraceWaypoints {
   ringStroke?: string
 }
 
+/** The WINDOW, when it is narrower than the world (`scrolling-camera`
+ *  capability, design.md §2.1). Absent = the window IS the world and the
+ *  `viewBox` attribute is the shipped expression, character for character.
+ *  Structural, no import from `levels/` — the same convention
+ *  {@link TraceBackdrop}/{@link TraceVertexArt} follow. */
+export interface TraceCamera {
+  viewWidth: number
+  lead: number
+  /** Where the attempt starts. Seeded by `?debug=camara:<x>` through
+   *  `seedCameraOrigin`, so the FIRST PAINT, the server render, a screenshot
+   *  taken before the first frame, and the rAF loop's monotone floor are all
+   *  the same number — they cannot tell different stories. Same reason
+   *  `hazardHome` exists above. */
+  originX: number
+}
+
 /** How long the abandoned ink takes to fade on a reset. Long enough to be seen
  * as a departure rather than a glitch, short enough that the child is not kept
  * waiting to start again. */
@@ -695,6 +712,12 @@ export interface TraceCanvasProps {
    * the backdrop and the ink. Absent = no waypoint layer at all,
    * byte-identical to before this prop existed. See {@link TraceWaypoints}. */
   waypoints?: TraceWaypoints
+  /** The WINDOW, narrower than the world, when this level declares one
+   * (`scrolling-camera` capability). Absent = the window IS the world:
+   * `camera?.originX ?? 0` and `camera?.viewWidth ?? viewBoxWidth` fall back
+   * to the shipped expression, byte-identical to before this prop existed.
+   * See {@link TraceCamera}. */
+  camera?: TraceCamera
   /** Any CHANGE of this value RESTARTS THE RUN (`LevelConfig.resetOnContact`):
    * the stroke in progress is abandoned, both buffers are emptied, and the ink
    * that was on the sheet FADES rather than vanishing.
@@ -753,6 +776,7 @@ export default function TraceCanvas({
   vertexArt,
   reveal,
   waypoints,
+  camera,
   resetSignal,
 }: TraceCanvasProps) {
   // `contain` letterboxes inside its box, so the CSS background would paint the
@@ -822,6 +846,28 @@ export default function TraceCanvas({
   const carrierEl = useRef<SVGGElement | null>(null)
   const carrierRef = useRef(carrier)
   carrierRef.current = carrier
+  // The camera, mirrored the identical way: read by the rAF loop, never
+  // through props. `cameraRef`/`viewBoxWidthRef` are reassigned every render,
+  // exactly like `hazardsRef`/`carrierRef` above, because the loop only ever
+  // reads the CURRENT `viewWidth`/`lead`/world-width from them.
+  //
+  // `cameraXRef` is different: it is the loop's OWN monotone floor, mutated
+  // imperatively frame to frame, so it must NOT be reassigned on every
+  // render (an unrelated re-render — e.g. the throttled dev-overlay state —
+  // would otherwise snap a mid-attempt camera straight back to its seed).
+  // It is seeded once via `useRef`'s lazy initializer and re-seeded ONLY
+  // when `camera.originX` itself changes value, which happens exactly at
+  // mount and at every reset site (`LevelPlay`'s one `seedCameraOrigin`
+  // initialiser) — never merely because the component re-rendered.
+  const cameraRef = useRef(camera)
+  cameraRef.current = camera
+  const viewBoxWidthRef = useRef(viewBoxWidth)
+  viewBoxWidthRef.current = viewBoxWidth
+  const cameraXRef = useRef(camera?.originX ?? 0)
+  const cameraOriginSeed = camera?.originX
+  useEffect(() => {
+    cameraXRef.current = cameraOriginSeed ?? 0
+  }, [cameraOriginSeed])
   // Hazards are placed at t=0 in the markup so the FIRST paint (and the server
   // render, and a screenshot taken before the first frame) already shows them
   // on the route instead of at the origin.
@@ -921,6 +967,25 @@ export default function TraceCanvas({
         )
       }
 
+      // The world advances with the trace (`docs/13` §8 row G). Written from
+      // the SAME `rendered` array, in the SAME callback, one statement after
+      // the carrier — so the ink, the carried character and the world can
+      // never disagree about where the finger is (design.md §2.3).
+      const cam = cameraRef.current
+      const svg = svgRef.current
+      if (cam && svg) {
+        const head = drawingRef.current ? rendered[rendered.length - 1] : undefined
+        const next = cameraOrigin(cameraXRef.current, head?.x, {
+          viewWidth: cam.viewWidth,
+          lead: cam.lead,
+          sheetWidth: viewBoxWidthRef.current,
+        })
+        if (next !== cameraXRef.current) {
+          cameraXRef.current = next
+          svg.setAttribute('viewBox', `${next} ${viewBoxY} ${cam.viewWidth} ${viewBoxHeight}`)
+        }
+      }
+
       if (devOnRef.current && devCPRef.current && devIdealRef.current) {
         if (points.length !== lastLenRef.current || now - lastTimeRef.current >= 100) {
           lastLenRef.current = points.length
@@ -1000,7 +1065,10 @@ export default function TraceCanvas({
   return (
     <svg
       ref={svgRef}
-      viewBox={`0 ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`}
+      // The WINDOW, not the world. Without a camera this is the shipped
+      // expression exactly: `camera` is absent, so the origin is 0 and the
+      // width is `viewBoxWidth` (`scrolling-camera` capability).
+      viewBox={`${camera?.originX ?? 0} ${viewBoxY} ${camera?.viewWidth ?? viewBoxWidth} ${viewBoxHeight}`}
       width="100%"
       height={contain ? '100%' : undefined}
       // The SVG default, spelled out: `contain` depends on it to scale the

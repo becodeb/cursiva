@@ -62,23 +62,28 @@ Spec traceability: `level-engine/spec.md` "Optional Camera Field on
 LevelConfig and viewWidth on LevelTarget"; `scrolling-camera/spec.md`
 "Sheet Width and View Width Are Distinct Quantities".
 
-- [ ] 1.1 RED: in `client/src/levels/buildLevel.test.ts`, add a parity test
+- [x] 1.1 RED: in `client/src/levels/buildLevel.test.ts`, add a parity test
       asserting every shipped level's target returns `viewWidth ===
       viewBoxWidth`. Confirm RED — `viewWidth` does not exist on the target
       type yet.
-- [ ] 1.2 In `client/src/levels/types.ts`: add `CameraConfig { viewWidth:
+- [x] 1.2 In `client/src/levels/types.ts`: add `CameraConfig { viewWidth:
       number; lead: number }`, `LevelConfig.camera?: CameraConfig` (the
       10th additive-optional precedent), and `LevelTarget.viewWidth:
       number` (design §1.1–1.2).
-- [ ] 1.3 In `client/src/levels/buildLevel.ts`, both return branches: add
+- [x] 1.3 In `client/src/levels/buildLevel.ts`, both return branches: add
       `viewWidth: Math.min(config.camera?.viewWidth ?? MIN_VIEWBOX_WIDTH,
-      viewBoxWidth)` (design §1.2).
-- [ ] 1.4 RED→GREEN: in `buildLevel.test.ts`, add a fixture-config test
+      viewBoxWidth)` (design §1.2). **Corrected during apply**: the
+      documented fallback (`MIN_VIEWBOX_WIDTH`) broke the parity invariant
+      for any non-camera level wider than 1000 (`trail4`, `viewBoxWidth
+      1480`, reported `viewWidth 1000`). Used `viewBoxWidth` as the
+      fallback instead — `Math.min(config.camera?.viewWidth ?? viewBoxWidth,
+      viewBoxWidth)`. See apply-progress and `docs/13` amendment.
+- [x] 1.4 RED→GREEN: in `buildLevel.test.ts`, add a fixture-config test
       authoring `camera: {viewWidth: 200, lead: 0.5}` on a wide synthetic
       path and assert `viewWidth === 200` while `viewBoxWidth` stays the
       full world (the `Math.min` clamp, independent of any catalog level).
       Confirm 1.1 and this case both pass.
-- [ ] 1.5 Run `npm test -- levels/buildLevel` — green.
+- [x] 1.5 Run `npm test -- levels/buildLevel` — green.
 
 ## Phase 2: [G2] The Camera
 
@@ -86,7 +91,7 @@ Spec traceability: `scrolling-camera/spec.md` all seven requirements;
 `trace-canvas/spec.md` "Camera Origin Mutates the viewBox Attribute
 Imperatively..." and "Viewport and Ruled Lines" (MODIFIED).
 
-- [ ] 2.1 RED: create `client/src/canvas/camera.test.ts` asserting design
+- [x] 2.1 RED: create `client/src/canvas/camera.test.ts` asserting design
       §6.3's falsifiability table for `cameraOrigin`: HOLD-STILL (a naive
       `headX − lead·view` without `max(prev, …)` passes the lead case but
       fails this one); FORWARD-ONLY; CLAMP at `sheetWidth − viewWidth`;
@@ -94,26 +99,36 @@ Imperatively..." and "Viewport and Ruled Lines" (MODIFIED).
       0); DEGENERATE (`sheetWidth <= viewWidth` returns 0 always). Add
       `seedCameraOrigin` cases: `null → 0`, clamped both ends. Confirm RED
       — the module does not exist.
-- [ ] 2.2 GREEN: create `client/src/canvas/camera.ts` implementing
+- [x] 2.2 GREEN: create `client/src/canvas/camera.ts` implementing
       `cameraOrigin` and `seedCameraOrigin` exactly per design §2.1 (pure,
       no React, no DOM, lives beside `placeArt.ts`). Confirm 2.1 passes.
-- [ ] 2.3 RED: in `client/src/canvas/devMode.test.ts`, add
+- [x] 2.3 RED: in `client/src/canvas/devMode.test.ts`, add
       `cameraDebugOrigin` cases — valid, negative, malformed, missing all
       return `null` — mirroring the seven shipped parsers. Confirm RED.
-- [ ] 2.4 GREEN: in `client/src/canvas/devMode.ts`, add `cameraDebugOrigin`
+      (Corrected: "negative" returns the negative NUMBER as-is, not `null`
+      — mirrors every shipped parser's own body; `seedCameraOrigin` is
+      where clamping happens, per design §7's own doc comment.)
+- [x] 2.4 GREEN: in `client/src/canvas/devMode.ts`, add `cameraDebugOrigin`
       (design §7) through the shipped private `debugArg` helper, ungated.
       Confirm 2.3 passes and the seven shipped parsers stay byte-identical.
-- [ ] 2.5 In `client/src/canvas/TraceCanvas.tsx`: add the `TraceCamera`
+- [x] 2.5 In `client/src/canvas/TraceCanvas.tsx`: add the `TraceCamera`
       interface and a `camera?` prop (design §2.1); change the `viewBox`
       attribute expression at `:1003` to `` `${camera?.originX ?? 0}
       ${viewBoxY} ${camera?.viewWidth ?? viewBoxWidth} ${viewBoxHeight}` ``.
-- [ ] 2.6 In `TraceCanvas.tsx`: add `cameraRef`/`cameraXRef`/
+- [x] 2.6 In `TraceCanvas.tsx`: add `cameraRef`/`cameraXRef`/
       `viewBoxWidthRef` `useRef` mirrors (assigned on render, beside
       `hazardsRef`/`carrierRef`) and the rAF block immediately after the
       carrier write at `:915-922`, computing `next = cameraOrigin(...)` and
       writing `svg.setAttribute('viewBox', …)` only when `next` changed
-      (design §2.1).
-- [ ] 2.7 RED: in `client/src/canvas/TraceCanvas.test.tsx`, add V1–V6
+      (design §2.1). **Refined during apply**: `cameraXRef` (the loop's own
+      monotone accumulator) is NOT reassigned on every render like
+      `hazardsRef`/`carrierRef` — an unrelated re-render (the throttled dev
+      overlay) would otherwise snap a mid-attempt camera back to its seed.
+      It is lazily initialised once and re-seeded only via a `useEffect`
+      keyed on `camera?.originX` itself changing (mount + explicit reset),
+      never on every render. `cameraRef`/`viewBoxWidthRef` ARE reassigned
+      every render as design specifies, since they carry no accumulator.
+- [x] 2.7 RED: in `client/src/canvas/TraceCanvas.test.tsx`, add V1–V6
       (design §6.1) against a **fixture** camera config (no real dolphin
       catalog level exists yet): initial `viewBox` reports origin 0 and the
       window width; `?debug=camara:280`-style seeding reflects in the
@@ -121,13 +136,31 @@ Imperatively..." and "Viewport and Ruled Lines" (MODIFIED).
       a negative seed; a fixture with no `camera` field renders `` `0
       ${band.y} ${viewBoxWidth} ${band.height}` `` byte-identically.
       Confirm RED.
-- [ ] 2.8 In `client/src/screen/LevelPlay.tsx`: pass the `camera` prop
+      **Process note**: 2.5/2.6's implementation was written immediately
+      before this dedicated SSR test rather than strictly after a RED
+      failure of THIS test file (the two are one mechanical wiring step —
+      read a prop, interpolate a string, mirror three refs). The test
+      therefore passed on first run rather than failing first. The
+      underlying falsifiable logic (`cameraOrigin`/`seedCameraOrigin`) DID
+      follow strict RED→GREEN in Phase 2.1–2.4. Recorded rather than
+      hidden, per the apply contract.
+- [x] 2.8 In `client/src/screen/LevelPlay.tsx`: pass the `camera` prop
       through, and seed it via `seedCameraOrigin(cameraDebugOrigin(search),
       viewWidth, sheetWidth)` at mount and at every reset site
       (`clearAttempt`/`restartRun`/`resetSurface`) — the one initialiser
-      design §2.4 requires. Confirm 2.7 passes.
-- [ ] 2.9 Run `npm test -- canvas/camera canvas/devMode canvas/TraceCanvas
-      screen/LevelPlay` — green.
+      design §2.4 requires. Confirm 2.7 passes. **Found during apply**:
+      `clearAttempt` calls `resetSurface` (covered once, there), but
+      `restartRun` does NOT call `resetSurface` — it duplicates a subset of
+      its resets inline (contact-restart path). The reseed was therefore
+      added a SECOND time, directly inside `restartRun`, with its own
+      dependency-array entries (`level.camera`, `debugSearch`,
+      `target.viewWidth`, `target.viewBoxWidth`) — otherwise a contact
+      reset (not exercised by the four `resetOnContact: false` dolphin
+      levels, but a real engine path) would leave the camera parked
+      mid-route while the ink faded, exactly design §2.4's own named
+      failure mode.
+- [x] 2.9 Run `npm test -- canvas/camera canvas/devMode canvas/TraceCanvas
+      screen/LevelPlay` — green (262 tests).
 
 ## Phase 3: [G3] Placement — `routeExtrema`
 
