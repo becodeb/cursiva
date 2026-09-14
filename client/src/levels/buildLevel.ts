@@ -190,6 +190,10 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
       config,
       paths: [],
       viewBoxWidth: MIN_VIEWBOX_WIDTH,
+      // (a `free`/empty-path level authors no `camera`, so this always
+      // resolves to `MIN_VIEWBOX_WIDTH` — same expression as the real branch
+      // below, so both stay one line each)
+      viewWidth: Math.min(config.camera?.viewWidth ?? MIN_VIEWBOX_WIDTH, MIN_VIEWBOX_WIDTH),
       corridorWidth,
       ideal: [],
       checkpoints: [],
@@ -252,6 +256,17 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
     config,
     paths,
     viewBoxWidth,
+    // The fallback is `viewBoxWidth`, NOT `MIN_VIEWBOX_WIDTH` — a level with
+    // no `camera` must report `viewWidth === viewBoxWidth` even when its own
+    // world is wider than the 1000-unit default (a long word level, e.g.
+    // `f5-mama`/`trail4`). `Math.min` still guards a camera level that
+    // authors a window WIDER than its own world, which would otherwise
+    // produce a negative pannable extent the camera's own clamp
+    // (`canvas/camera.ts`) could never be safely handed (design.md §1.2,
+    // corrected during apply: the design's literal fallback was
+    // `MIN_VIEWBOX_WIDTH`, which broke this exact invariant for any
+    // non-camera level wider than 1000 — see `docs/13` §4 amendment).
+    viewWidth: Math.min(config.camera?.viewWidth ?? viewBoxWidth, viewBoxWidth),
     corridorWidth,
     ideal,
     checkpoints,

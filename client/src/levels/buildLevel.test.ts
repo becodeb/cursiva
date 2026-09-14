@@ -334,6 +334,28 @@ describe('buildLevelTarget — sheet width', () => {
   })
 })
 
+describe('buildLevelTarget — viewWidth (scrolling-camera spec, "Sheet Width and View Width Are Distinct Quantities")', () => {
+  it('every shipped level reports viewWidth === viewBoxWidth — no level authors a camera yet', () => {
+    for (const level of [...LEVELS, ...LEGACY_PHASE_1]) {
+      const target = buildLevelTarget(level)
+      expect(target.viewWidth, level.id).toBe(target.viewBoxWidth)
+    }
+  })
+
+  it('a level authoring a narrower camera window reports viewWidth < viewBoxWidth, while viewBoxWidth stays the full world', () => {
+    // A wide synthetic path (span 1400 → world 1560) with a camera window of
+    // 200 — independent of any catalog level, per design.md §1.2's `Math.min`
+    // clamp: `viewWidth = Math.min(config.camera?.viewWidth ?? MIN_VIEWBOX_WIDTH, viewBoxWidth)`.
+    const config = makeConfig({
+      paths: [straight({ x0: 0, x1: 1400 })],
+      camera: { viewWidth: 200, lead: 0.5 },
+    })
+    const target = buildLevelTarget(config)
+    expect(target.viewBoxWidth).toBeGreaterThan(1400)
+    expect(target.viewWidth).toBe(200)
+  })
+})
+
 describe('buildLevelTarget — purity', () => {
   it('is deterministic for the same input', () => {
     const config = makeConfig({ paths: [wave()] })

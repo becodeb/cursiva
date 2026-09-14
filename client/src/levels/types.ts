@@ -209,6 +209,46 @@ export interface LevelConfig {
    *  handle margin, not for a cutout that fills its own box. Absent = the
    *  shipped hard-wire, byte-for-byte. */
   carrierArt?: { art: ArtImage; size: number }
+  /** A WINDOW narrower than the world (`docs/13` §8 row G,
+   *  "desplazamiento de pantalla — viewBox que avanza con el trazo").
+   *
+   *  The field's REASON TO EXIST: `LevelTarget.viewBoxWidth` is the paper the
+   *  level is laid out on, and until this field existed it was ALSO how much
+   *  of that paper you could see, because `LevelPlay` renders `fit="contain"`
+   *  (`:1616`) and `preserveAspectRatio="xMidYMid meet"` shrinks a wider
+   *  sheet to fit. A longer route therefore shipped a SMALLER movement —
+   *  the exact opposite of `docs/13` §2's "sostener el movimiento". This
+   *  field splits the two numbers apart, and only for the levels that ask.
+   *
+   *  Absent = `viewWidth === viewBoxWidth`, the camera code path is
+   *  unreachable, and the rendered markup is byte-identical to `main`. Absent
+   *  on every level that predates it, including `f4-la` and `f5-mama`, whose
+   *  wide-sheet `fit="contain"` behaviour is what `layOutPaths` was written
+   *  for and must not move by a unit. */
+  camera?: CameraConfig
+}
+
+/** The camera's own authored parameters (`scrolling-camera` capability).
+ *  Additive and optional on `LevelConfig`; absent everywhere it predates
+ *  this field. */
+export interface CameraConfig {
+  /** How wide the WINDOW is, in the same viewBox units the world is in.
+   *  Every camera level ships `MIN_VIEWBOX_WIDTH` (1000) and
+   *  `catalog.test.ts` asserts it: that single equality IS the pedagogical
+   *  claim of this whole change — the stroke on `dolphin3` is drawn at the
+   *  identical visual scale as the stroke on `dolphin1`, on `duck-trail1`,
+   *  and on every other level in the app. The field is a number rather than
+   *  the constant so a future row can widen its window without a new field,
+   *  but nothing here does. */
+  readonly viewWidth: number
+  /** Where the finger sits inside the window once the world is moving, as a
+   *  FRACTION of `viewWidth`. This is the lead window, and it is the whole
+   *  defence against the central trap: a camera that simply centres on the
+   *  finger self-scrolls, because a stationary finger on a moving view is
+   *  moving in WORLD coordinates, so the world runs away and drags the child
+   *  off a corridor they never left. See `canvas/camera.ts` for the algebra
+   *  that makes a held-still finger a fixed point. */
+  readonly lead: number
 }
 
 /** A covering layer over a routeless level's backdrop (`levels/revealGrid.ts`
@@ -246,6 +286,11 @@ export interface LevelTarget {
    * 600 — the ruled zones never move.
    */
   viewBoxWidth: number
+  /** Width of the WINDOW — what the `viewBox` ATTRIBUTE is wide. Equal to
+   *  `viewBoxWidth` unless the level authors a camera, which is every level
+   *  that predates this field. Consumed by exactly one expression in the
+   *  whole repo: the `viewBox` attribute in `canvas/TraceCanvas.tsx`. */
+  viewWidth: number
   /** Effective corridor width after adaptive tolerance. */
   corridorWidth: number
   /** Dense point band around the path — the accuracy scoring cloud. */
