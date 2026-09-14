@@ -121,16 +121,15 @@ export function waypointTick(
   const window = points.slice(from)
   if (window.length === 0) return prev
 
-  let lit = prev.lit
+  let lit: ReadonlySet<number> = prev.lit
   let latched = false
   for (let i = 0; i < cfg.stops.length; i++) {
     if (lit.has(i)) continue
     if (trailPasses(cfg.stops[i], window)) {
-      if (!latched) {
-        lit = new Set(lit)
-        latched = true
-      }
-      lit.add(i)
+      const next = new Set(lit)
+      next.add(i)
+      lit = next
+      latched = true
     }
   }
   const home = prev.home || trailPasses(cfg.goal, window)
