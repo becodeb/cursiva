@@ -24,10 +24,11 @@ import TraceCanvas, {
   type TraceGround,
   type TraceHazards,
   type TraceReveal,
+  type TraceSpines,
   type TraceVertexArt,
   type TraceWaypoints,
 } from '../canvas/TraceCanvas'
-import { backdropFor, TORCH_CHALK } from '../zoo/backdrops'
+import { backdropFor, TORCH_CHALK, TORCH_CHALK_DIM } from '../zoo/backdrops'
 import { debugClearedTiles, EMPTY_REVEAL, revealTick, revealTiles, type RevealState } from '../levels/revealGrid'
 import {
   arrangeDebugCount,
@@ -35,6 +36,7 @@ import {
   isSpineDebug,
   lightDebugPoint,
   revealDebugFraction,
+  spineDebugCount,
   waypointDebugCount,
 } from '../canvas/devMode'
 import { seedCameraOrigin } from '../canvas/camera'
@@ -48,6 +50,17 @@ import {
   waypointTick,
   type WaypointState,
 } from '../levels/waypoints'
+import {
+  EMPTY_SPINES,
+  SPINE_MARK_R,
+  seedSpines,
+  spineAim,
+  spineBody,
+  spineMarks,
+  spineRings,
+  spineSettle,
+  type SpineState,
+} from '../levels/spines'
 import { grassScatter, mudScatter } from '../canvas/groundScatter'
 import type { TracePoint } from '../canvas/useTraceInput'
 import { contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnContact'
@@ -310,6 +323,24 @@ export function initialWaypointState(
 ): WaypointState {
   if (!waypoints) return EMPTY_WAYPOINTS
   return seedWaypoints(waypoints, waypointDebugCount(search))
+}
+
+/**
+ * The spine fold's INITIAL state (`radial-spines` capability, design.md
+ * §6/§7): `EMPTY_SPINES`, or the `?debug=espinas:<k>` seed —
+ * `scripts/shot.sh` cannot draw a finger, so this flag pre-fills `k`
+ * anchors before the very first render, no live interaction required.
+ * `initialWaypointState`'s own convention, restated: the ONE function
+ * every reset site must call, never the bare `EMPTY_SPINES` constant
+ * directly (`levels/arrange.ts`'s `seedArrange` doc comment names the
+ * exact bug that reintroduces).
+ */
+export function initialSpineState(
+  spines: LevelConfig['spines'],
+  search: string,
+): SpineState {
+  if (!spines) return EMPTY_SPINES
+  return seedSpines(spines, spineDebugCount(search))
 }
 
 /**
@@ -821,20 +852,24 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   )
 
   // One demonstration per sub-path, played in sequence (docs/08 §5).
-  // `target.paths` throughout, never `level.paths`: the target is the CENTRED
-  // copy the engine scores against, so demo, corridor and guide all sit exactly
-  // where the ideal cloud is (buildLevel `centreHorizontally`).
+  // `target.demoPaths`, never `target.paths`/`level.paths`: for every
+  // routed level this is the SAME array reference as `paths` (the target
+  // is the CENTRED copy the engine scores against, so demo, corridor and
+  // guide all sit exactly where the ideal cloud is — `buildLevel
+  // centreHorizontally`); for a routeless `spines` level with `demo: true`
+  // it is the generator's own first-k anchor→tip segments (the demo
+  // repair, `radial-spines` capability, design.md §2 D3).
   const demos = useMemo<DrawDemo[]>(
     () =>
-      target.paths.map((d, idx) => ({
+      target.demoPaths.map((d, idx) => ({
         d,
         delay: idx * DEMO_STEP_S,
         duration: DEMO_DURATION_S,
         strokeWidth: 12,
       })),
-    [target.paths],
+    [target.demoPaths],
   )
-  const demoMs = target.paths.length * DEMO_STEP_S * 1000 + 300
+  const demoMs = target.demoPaths.length * DEMO_STEP_S * 1000 + 300
 
   // docs/03 §3. Everything the surface shows is a function of this, so it is
   // computed once and read all the way down.
@@ -965,6 +1000,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // receive anyway.
   const waypointPin = !!level.waypoints && waypointDebugCount(debugSearch) !== null
 
+  // The spine fold's live latch (`radial-spines` capability, design.md §6)
+  // — `spineRef`'s own shape mirrors `waypointRef` above exactly, for the
+  // same reason: `spineSettle`'s recount needs a before/after comparison
+  // for the one-shot haptic edge, and a `setState` updater must stay pure.
+  // Seeded from `initialSpineState`, never the bare `EMPTY_SPINES`
+  // constant.
+  const spineRef = useRef<SpineState>(initialSpineState(level.spines, debugSearch))
+  const [spineState, setSpineState] = useState<SpineState>(spineRef.current)
+  // `?debug=espinas:<k>` REPLACES live pointer input for the spine fold —
+  // the same contract `waypointPin`/`debugLightPoint` carry: the seeded
+  // state survives untouched regardless of any live sample.
+  const spinePin = !!level.spines && spineDebugCount(debugSearch) !== null
+
   // The camera's own world x-origin (`scrolling-camera` capability). ONE
   // initialiser, `seedCameraFor`, called from mount (this `useState`
   // initializer), `resetSurface` below, AND `restartRun` — `seedArrangeState`'s
@@ -994,6 +1042,11 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     // is never bypassed either.
     waypointRef.current = initialWaypointState(level.waypoints, debugSearch)
     setWaypointState(waypointRef.current)
+    // The spine latch resets with the run too, THROUGH `initialSpineState`,
+    // never the bare `EMPTY_SPINES` — `initialWaypointState`'s own reason
+    // above, restated (`radial-spines` capability, design.md §6).
+    spineRef.current = initialSpineState(level.spines, debugSearch)
+    setSpineState(spineRef.current)
     // The arrangement resets to its deterministic scatter with the run —
     // `docs/13` §6's "posibilidad de reinicio", free (object-arrange spec).
     // THROUGH `seedArrangeState`, never `initialArrange` directly, or this
@@ -1008,6 +1061,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   }, [
     level.reveal,
     level.waypoints,
+    level.spines,
     level.camera,
     debugSearch,
     target.routes.length,
@@ -1151,8 +1205,22 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setResetSignal((n) => n + 1)
     setRestarted(true)
     setRevealState(EMPTY_REVEAL)
+    // A FOUND, LATENT DEFECT, recorded rather than silently fixed here
+    // (`radial-spines` design.md §6/§9 item 5): this resets the waypoint
+    // fold with the BARE `EMPTY_WAYPOINTS` constant, exactly the shipped-bug
+    // shape `arrange.ts`'s own `seedArrange` doc comment warns about — it
+    // would wipe a `?debug=estela:<k>` seed instead of reseeding through
+    // `initialWaypointState`. It is unreachable today (only
+    // `resetOnContact: true` reaches `restartRun`, and no free level sets
+    // it), so a neighbouring capability's bug is not repaired in passing
+    // here; it stays exactly as it was before this change.
     waypointRef.current = EMPTY_WAYPOINTS
     setWaypointState(EMPTY_WAYPOINTS)
+    // The spine latch resets the SAME way `resetSurface` does — THROUGH
+    // `initialSpineState`, never a bare constant, so this new field does
+    // not repeat the waypoint fold's own bug the moment it is born.
+    spineRef.current = initialSpineState(level.spines, debugSearch)
+    setSpineState(spineRef.current)
     // The route itself is starting over, so any clue marks lit during the
     // abandoned pass go with it — the child will pass them again on the way
     // back through. The FILED rail clue is untouched: filing only ever
@@ -1169,6 +1237,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     target.routes.length,
     seedArrangeState,
     level.camera,
+    level.spines,
     debugSearch,
     target.viewWidth,
     target.viewBoxWidth,
@@ -1222,6 +1291,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           // `haptics: true` needs a real site — a flower opening or the hive
           // being reached. The shipped one-shot edge, restated.
           if (opened && feedback.haptics) pulseOnLeaving(false, true)
+        }
+      }
+      // The spine fold's live half rides this SAME sample (`radial-spines`
+      // capability, design.md §2 D1) — `aiming` only, never scoreable, so
+      // no haptic fires here: a spine is a spine only once it ends, and
+      // the one-shot edge lives at RELEASE (`onRelease`'s recount below).
+      // `!spinePin` mirrors the shipped `!waypointPin`/`!debugLightPoint`
+      // guard: the flag REPLACES live input rather than racing it.
+      if (level.spines && !spinePin) {
+        const next = spineAim(spineRef.current, points, drawing, level.spines)
+        if (next !== spineRef.current) {
+          spineRef.current = next
+          setSpineState(next)
         }
       }
       if (!drawing) {
@@ -1341,8 +1423,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       level.corridorWidth,
       level.reveal,
       level.waypoints,
+      level.spines,
       debugLightPoint,
       waypointPin,
+      spinePin,
       arrangeOpen,
       arrangeConfig,
     ],
@@ -1363,6 +1447,22 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       setOffPath(false)
       offPathRef.current = false
       toneRef.current?.setActive(false)
+      // The spine fold's AUTHORITATIVE recount (`radial-spines` capability,
+      // design.md §2 D1) — the live fold never feeds the score, so the
+      // settled `filled` set is recomputed here, from the SAME snapshot
+      // `evaluateLevel` below scores, at RELEASE only: a spine is a spine
+      // only once it ends. The one-shot haptic edge fires here, mirroring
+      // the waypoint fold's own `opened` edge in `onFrame` above, but at
+      // release rather than mid-stroke.
+      if (level.spines && !spinePin) {
+        const next = spineSettle(spineRef.current, snapshot, level.spines)
+        if (next !== spineRef.current) {
+          const grew = next.filled.size > spineRef.current.filled.size
+          spineRef.current = next
+          setSpineState(next)
+          if (grew && feedback.haptics) pulseOnLeaving(false, true)
+        }
+      }
       // RAW points, always. `snapshot` is the captured stroke, never the
       // rail-warped copy the canvas draws — scoring the assist would make
       // accuracy a measurement of the rail instead of the child (see `rail.ts`).
@@ -1378,7 +1478,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       if (shouldFileClue(!!clueDef, reachedEndRef.current)) setClueFiled(true)
       onAttempt(result)
     },
-    [target, onAttempt, clueDef, arrangeOpen],
+    [target, onAttempt, clueDef, arrangeOpen, level.spines, spinePin, feedback.haptics],
   )
 
   const replayDemo = (): void => {
@@ -1598,6 +1698,27 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       ringStroke: TORCH_CHALK,
     }
   }, [level.waypoints, waypointState, waypointDebugK])
+
+  // The spine fold's render projection (`radial-spines` capability,
+  // design.md §5/§6): the body `<image>` plus every anchor mark, and —
+  // only under `?debug=espinas:<k>` — the baseRadius rings. `dim`/`earned`
+  // are resolved HERE, never inside `SpineLayer` itself (`TraceClueMark`'s
+  // own convention): `TORCH_CHALK_DIM` for unfilled, `TORCH_CHALK` for
+  // earned (design.md §2 D4's ink algebra).
+  const spineDebugK = level.spines ? spineDebugCount(debugSearch) : null
+  const spines = useMemo<TraceSpines | undefined>(() => {
+    if (!level.spines) return undefined
+    const { href, box } = spineBody(level.spines)
+    return {
+      body: { href, x: box.x, y: box.y, width: box.width, height: box.height },
+      marks: spineMarks(level.spines, spineState),
+      markRadius: SPINE_MARK_R,
+      dim: TORCH_CHALK_DIM,
+      earned: TORCH_CHALK,
+      rings: spineDebugK !== null ? spineRings(level.spines) : undefined,
+      ringStroke: TORCH_CHALK,
+    }
+  }, [level.spines, spineState, spineDebugK])
 
   // `?debug=estela:<k>`'s implied trail: `start`, the first `k` flowers, the
   // hive once `k` exceeds the stop count — the very picture the touch rings
@@ -1843,6 +1964,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // The waypoint fold's render projection (`free-trail-waypoints`
         // capability). Absent on every level without a `waypoints` config.
         waypoints={waypoints}
+        // The spine fold's render projection (`radial-spines` capability).
+        // Absent on every level without a `spines` config.
+        spines={spines}
         onStart={onStart}
         onFrame={onFrame}
         onRelease={onRelease}
