@@ -37,6 +37,7 @@ import {
 } from '../canvas/devMode'
 import {
   EMPTY_WAYPOINTS,
+  debugCarrier,
   debugTrail,
   seedWaypoints,
   waypointArt,
@@ -1488,6 +1489,21 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     return debugTrail(level.waypoints, waypointDebugK)
   }, [level.waypoints, waypointDebugK])
 
+  // Where `?debug=estela:<k>` parks the bee. A4's argument is that ONE number
+  // drives every render fact the flag produces, so a still frame cannot tell
+  // two stories at once — and `debugCarrier` was written and tested for
+  // exactly that. It was not wired, and the captures showed the cost: the
+  // trail ran to the second flower while the bee sat at the start, which
+  // reads as "she did not follow" — the opposite of the sentence this whole
+  // family exists to teach (`docs/14` §10, "la abeja lo sigue inmediatamente").
+  // A green test on an unreachable function is precisely paso E's own lesson
+  // (`docs/13` §4 decision 7), so the assertion below this one reaches the
+  // SCREEN's prop, not the helper.
+  const waypointDebugCarrier = useMemo(() => {
+    if (!level.waypoints || waypointDebugK === null) return null
+    return debugCarrier(level.waypoints, waypointDebugK)
+  }, [level.waypoints, waypointDebugK])
+
   // The rail's slot data. This slice only has visibility into the CURRENT
   // trail — the other three trails' persisted state is wired once the
   // catalog and `LevelProgressStore` are in scope (a later slice; see the
@@ -1644,11 +1660,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // swallowed (see `GLASS_REST_DX`). While drawing, the canvas puts it on
         // the fingertip and this offset plays no part.
         carrier={
-          level.carrier && startMarker
+          waypointDebugCarrier ??
+          (level.carrier && startMarker
             ? inWorld
               ? { x: startMarker.x + GLASS_REST_DX, y: startMarker.y + GLASS_REST_DY }
               : startMarker
-            : undefined
+            : undefined)
         }
         // The magnifying glass. It belongs to the world, not to the reward:
         // colour in this mode only ever means a clue was earned, so the art

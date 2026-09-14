@@ -1308,3 +1308,66 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     expect(traceCanvasProbe.current?.inkColor).toBeUndefined()
   })
 })
+
+// The `?debug=estela:<k>` flag is the ONLY way to see this family's mechanic
+// in a still frame — no screenshot can draw a finger path. A4's argument is
+// that one number drives every render fact the flag produces, so a capture
+// cannot tell two stories at once. `debugCarrier` was written and unit-tested
+// for exactly that and then never called: the captures showed the trail
+// running to the second flower while the bee sat at the start, which reads as
+// "she did not follow" — the opposite of the sentence the family teaches
+// (`docs/14` §10, "la abeja lo sigue inmediatamente"). A green test on an
+// unreachable function is paso E's own lesson (`docs/13` §4 decision 7), so
+// these assertions reach the SCREEN's prop, never the helper.
+describe('LevelPlay ?debug=estela:<k> parks the bee on the trail it draws (A4)', () => {
+  function renderWithSearch(levelId: string, search: string) {
+    vi.stubGlobal('window', { location: { search } })
+    try {
+      renderToString(
+        <LevelPlay
+          level={getLevel(levelId)}
+          record={EMPTY_RECORD}
+          onAttempt={noop}
+          onNext={noop}
+          onBack={noop}
+        />,
+      )
+      return traceCanvasProbe.current
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  }
+
+  it('puts the bee on the LAST point of the trail the same k draws, for every k', () => {
+    const bee4 = getLevel('bee4')
+    const stops = bee4.waypoints!.stops
+    for (let k = 0; k <= stops.length + 1; k++) {
+      const probe = renderWithSearch('bee4', `?debug=estela:${k}`)
+      const trail = probe?.completedStrokes as readonly (readonly { x: number; y: number }[])[]
+      const drawn = trail[trail.length - 1]
+      expect(
+        probe?.carrier,
+        `estela:${k} drew a trail the bee is not standing on — the capture would read as "she did not follow"`,
+      ).toEqual(drawn[drawn.length - 1])
+    }
+  })
+
+  it('leaves the bee at the authored start when k is 0, so the untouched frame is honest', () => {
+    const bee4 = getLevel('bee4')
+    expect(renderWithSearch('bee4', '?debug=estela:0')?.carrier).toEqual(bee4.waypoints!.start)
+  })
+
+  it('moves the bee to a DIFFERENT point once k passes a flower — the assertion is not vacuous', () => {
+    const bee4 = getLevel('bee4')
+    const at0 = renderWithSearch('bee4', '?debug=estela:0')?.carrier
+    const at2 = renderWithSearch('bee4', '?debug=estela:2')?.carrier
+    expect(at2).not.toEqual(at0)
+    expect(at2).toEqual({ x: bee4.waypoints!.stops[1].x, y: bee4.waypoints!.stops[1].y })
+  })
+
+  it('leaves the carrier on its own resting start with no flag, so shipped behaviour is untouched', () => {
+    const bee4 = getLevel('bee4')
+    expect(renderWithSearch('bee4', '')?.carrier).toEqual(bee4.waypoints!.start)
+    expect(renderWithSearch('duck-trail2', '')?.carrier).toBeTruthy()
+  })
+})
