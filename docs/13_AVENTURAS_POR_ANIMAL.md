@@ -590,6 +590,61 @@ cargado. Se decide cuando lleguen.
       fórmula del círculo describe POR QUÉ hay un techo; la distancia real
       entre anclas vecinas es la que hay que afirmar en el test.
 
+    Y dos cosas que **sólo aparecieron al mirar las capturas**, otra vez, y
+    la primera es la lección del paso F repetida dentro del archivo que la
+    cuenta:
+
+    - **La bandera de depuración manejaba DOS de los tres hechos de render,
+      y el tercero es el que importaba.** `?debug=espinas:<k>` encendía las
+      marcas de las anclas y dibujaba los anillos de tolerancia, pero no la
+      tinta — porque en esta mecánica **no existe una "espina" que el motor
+      dibuje: la espina ES el trazo del chico**, un `completedStrokes` más.
+      Así que la captura sembrada mostraba cinco anclas ganadas sobre un
+      erizo **pelado**: un cuadro que el juego real no puede producir nunca,
+      y justo el que no sirve para contestar la única pregunta visual de
+      todo el paso. Lo notable es dónde estaba escrita la respuesta: en el
+      comentario de `LevelPlay.tsx` que la abeja ya tenía encima —"ONE
+      number drives every render fact the flag produces, so a still frame
+      cannot tell two stories at once"—, tres renglones arriba del lugar
+      donde había que agregar la línea. La abeja cumplía su propia regla;
+      el erizo, en el mismo archivo, no. Reparado extrayendo la geometría
+      ancla→punta a una sola función privada que `spineDemoPaths` y
+      `debugSpineStrokes` proyectan de dos maneras, para que no puedan
+      divergir, y confirmado en rojo desconectando la prop: la aserción de
+      pantalla cae de +3 trazos a +0 mientras **las pruebas unitarias
+      siguen verdes**, que es exactamente por qué la aserción tiene que
+      tocar la prop del `TraceCanvas` y no el valor de retorno del ayudante.
+    - **En `hedgehog1` las espinas no se leen como espinas: se leen como
+      antenas, y la aritmética dice que no es un descuido.** Con
+      `height: 260` y una banda de `220-290`, la punta de la demostración
+      cae a 255 unidades: **cada espina mide lo mismo que el animal entero**
+      (razón 0,98, cuando un erizo real anda por 0,25). Los otros tres
+      niveles bajan la razón a 0,70 / 0,375 / 0,275 y sí se leen bien —
+      `hedgehog3` es el mejor cuadro de los cuatro y `hedgehog4` cae justo
+      sobre la proporción real. Barriendo `lenMin` contra las cuatro
+      aserciones del guard de fase 1 sobre la geometría REAL de las anclas,
+      el mínimo admisible es **180, no 220**, y quien manda es la cláusula
+      HORIZONTAL (`spanX > 600`, que recién se cumple en 180; la vertical
+      ya se cumple en 170 y `minY < 180` en 140). O sea: hay **40 unidades
+      de holgura** que nadie está usando, y bajar la banda a 180-230 llevaría
+      la razón de 0,98 a 0,79. Pero **no alcanza para arreglarlo**, y ese es
+      el hallazgo: el guard obliga a `L ≥ 180 = 0,69·H`, y una espina de
+      proporción creíble pediría `≈0,25·H = 65`. Son incompatibles por un
+      factor de 2,8, y agrandar el cuerpo hasta compensarlo pediría unas 740
+      unidades de alto en una hoja de 600. **Es la quinta vez que dos
+      requisitos de esta directiva no pueden valer los dos** — después de
+      "montañitas bajas" (paso C), la tinta oscura sobre la víbora (paso E)
+      y "recorrido corto" contra el guard de amplitud (paso F, que es casi
+      el mismo choque). El paso F lo resolvió al revés: puso los números del
+      guard en `bee3`/`bee4` y afirmó `bee1`/`bee2` estrictamente más
+      chicos. Acá el diseño eligió lo contrario a propósito, porque la etapa
+      1 del erizo ES el movimiento de brazo entero (`docs/14`: "trazos
+      grandes y libres... usando todo el brazo"). **Cuál de los dos cede es
+      decisión de la autora**, y se deja anotado en vez de disimulado: o
+      `hedgehog1` enseña el movimiento amplio y parece una antena, o parece
+      un erizo y deja de enseñarlo. La holgura de 40 unidades es la mejora
+      más barata disponible y no resuelve el fondo.
+
     Las capturas de este paso quedan en `capturas/pasoH/` (dos por nivel,
     control y con la semilla de depuración, más el mapa antes/después de
     archivar `hedgehog4`) — leídas juntas, no una por una, siguiendo la
