@@ -465,7 +465,7 @@ Output goes to `capturas/pasoH/`.
 
 ## Phase 14: docs/13 §4 Amendment 10 (Spanish)
 
-- [ ] 14.1 Write, in Spanish (neutral register, matching amendments 5-9's
+- [x] 14.1 Write, in Spanish (neutral register, matching amendments 5-9's
       style), **amendment 10** to `docs/13_AVENTURAS_POR_ANIMAL.md` §4,
       recording at minimum: the two-branch ink algebra and why the
       no-body-crossing rule is DERIVED rather than chosen; that the ellipse
@@ -475,7 +475,7 @@ Output goes to `capturas/pasoH/`.
       well as at the source (`target.paths`); and whatever Phases 1-13
       found that nobody anticipated (mirroring pasos C-G's own
       "found-during-apply" sections).
-- [ ] 14.2 Flip `docs/13` §8's hedgehog status row from pending to shipped.
+- [x] 14.2 Flip `docs/13` §8's hedgehog status row from pending to shipped.
 
 ---
 
