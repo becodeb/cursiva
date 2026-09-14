@@ -383,36 +383,36 @@ things it drives — lit set, bee position, implied trail, ring overlay —
 cannot disagree with each other. That does not excuse reading a capture
 alone: every pair below is read TOGETHER, never singly.
 
-- [ ] 8.1 Confirm the dev server at `http://localhost:5173` answers before
+- [x] 8.1 Confirm the dev server at `http://localhost:5173` answers before
       capturing.
-- [ ] 8.2 For each of `bee1..bee4`, capture the pair together: **control**
+- [x] 8.2 For each of `bee1..bee4`, capture the pair together: **control**
       `scripts/shot.sh http://localhost:5173/?nivel=beeN
       capturas/pasoF/beeN-control.png` (every flower dormant, bee at
       `start`, no rings, no trail) and **instrumented**
       `scripts/shot.sh "http://localhost:5173/?nivel=beeN&debug=estela:K"
       capturas/pasoF/beeN-estela.png` with `K=1` for `bee1` and `K=2` for
       `bee2`/`bee3`/`bee4` (every capture shows both flower states at once).
-- [ ] 8.3 Capture `scripts/shot.sh
+- [x] 8.3 Capture `scripts/shot.sh
       "http://localhost:5173/?nivel=bee4&debug=estela:0"
       capturas/pasoF/bee4-estela-0.png` — nothing flown, all four rings
       drawn, the only frame that photographs the precision rung's actual
       tolerance.
-- [ ] 8.4 Capture the map/backpack before and after via
+- [x] 8.4 Capture the map/backpack before and after via
       `scripts/shot.sh "http://localhost:5173/?debug=progreso:snake4"
       capturas/pasoF/zoo-before.png` and
       `scripts/shot.sh "http://localhost:5173/?debug=progreso:snake4,bee1,bee2,bee3,bee4"
       capturas/pasoF/zoo-after.png`.
-- [ ] 8.5 Capture `scripts/shot.sh
+- [x] 8.5 Capture `scripts/shot.sh
       "http://localhost:5173/?nivel=intro-bee&dev"
       capturas/pasoF/bee-intro.png`.
-- [ ] 8.6 **Read every capture pair together, not singly.** Answer
+- [x] 8.6 **Read every capture pair together, not singly.** Answer
       explicitly: does `#d2d2d2` read as an unvisited flower or a broken
       one; does the reward read when only chroma moves and luma barely
       does; does the 76-unit bee cover the 64-unit flower on arrival; does
       the forest read as a place with nothing drawn on it; do the twelve
       reveal levels look better after A1. Record the answers, not just the
       fact that captures were taken.
-- [ ] 8.7 Correct and re-capture any defect found in 8.6, with a regression
+- [x] 8.7 Correct and re-capture any defect found in 8.6, with a regression
       test added alongside the fix — not only a re-shot picture.
 
 ## Phase 9: Final Gate
@@ -458,7 +458,7 @@ alone: every pair below is read TOGETHER, never singly.
       file, a `migrate*.ts` file's own doc-comment, or exactly one real
       call site — `client/src/screen/LevelMap.tsx:81`. No migration is
       needed; matches design.md's own prediction exactly.
-- [ ] 9.6 Confirm every task in this file is closed (`[x]`), none left
+- [x] 9.6 Confirm every task in this file is closed (`[x]`), none left
       `[~]`. **Genuinely NOT closed, stated plainly rather than disguised**:
       Phase 8's seven tasks (8.1–8.7, the screenshot capture and its human
       read-back) remain `[ ]`. This is by explicit instruction for this
@@ -539,3 +539,34 @@ jsdom, no testing-library — this repo has no runtime harness), which is
 exactly why the dormant-flower colour bet and the bee-over-flower coverage
 question are routed to slice 8's capture pass instead of being claimed as
 verified by the unit suite.
+
+## Phase 8 read-back — the answers, not just the fact that captures were taken
+
+Run by the orchestrator against `capturas/pasoF/`, every pair read together.
+Three findings are recorded in full in `docs/13` §4 decision 8.
+
+- **Does `#d2d2d2` read as an unvisited flower or a broken one?** As an
+  unvisited flower — but it also reads as *the same white daisy the backdrop
+  already paints into its tree bands*, and it loses to them: 58.8 of luma
+  separation against their 93.8. Measured, algebraically unfixable in the
+  literal, and handed to the author. **This is the one open art finding.**
+- **Does the reward read when only chroma moves and luma barely does?** Yes.
+  The lit petal wins chroma 45 against the band's 15, and the `#1a1a1a`
+  outline at Δ125.2 does the reading work — exactly what `docs/09` §4 means
+  by "ganar una pista es ganar TONO".
+- **Does the 76-unit bee cover the 64-unit flower she arrives at?** Yes,
+  almost entirely: 1.3% of petal left visible. Transient in play, total in a
+  still. Not touched — resizing either is art direction.
+- **Does the forest read as a place with nothing drawn on it?** Yes. The
+  quiet band is a single flat colour across 736 source rows and the sector
+  reads as a clearing, not as a diagram. No channel was needed — the first
+  backdrop in the project that did not need one.
+- **Do the twelve reveal levels look better after A1?** **Unanswerable from a
+  capture, and the capture that claimed to answer it was deleted rather than
+  kept.** The A1 repair changes the colour of the LIVE ink while the finger
+  is down; a static screenshot never draws. A1 is proven by test only
+  (`backdrops.test.ts`, `LevelPlay.test.tsx`), and saying otherwise would
+  have been false evidence.
+- **The route in task 8.5 was wrong.** `?nivel=intro-bee` does not resolve;
+  `initialView` takes `intro-<levelId>`, so the intro is `?nivel=intro-bee1&dev`.
+  The first capture silently fell through to the map.
