@@ -18,6 +18,7 @@ import { fluencyScore } from '../canvas/validation/fluency'
 import { score } from '../canvas/validation/score'
 import type { TracePoint } from '../canvas/useTraceInput'
 import { revealScore } from '../levels/revealGrid'
+import { spineScore } from '../levels/spines'
 import { waypointScore } from '../levels/waypoints'
 import type { LevelTarget } from '../levels/types'
 import type { LevelAttempt } from './types'
@@ -118,13 +119,16 @@ export function evaluateLevel(
   // failing a child for it would be inventing an error the level does not
   // have (docs/01 principle 2).
   if (target.config.kind === 'free') {
-    // A bee level's own errand-shaped scorer, when it authors one
-    // (`free-trail-waypoints` capability); `revealScore` stays the
-    // bit-identical fallback for every level that predates this field —
-    // `f1-libre` and the twelve reveal-grid levels alike.
-    const accuracy = target.config.waypoints
-      ? waypointScore(strokes, target.config.waypoints)
-      : revealScore(strokes, target.config, target.viewBoxWidth)
+    // A hedgehog level's own per-stroke scorer (`radial-spines`
+    // capability), ahead of the bee family's errand-shaped scorer
+    // (`free-trail-waypoints`); `revealScore` stays the bit-identical
+    // fallback for every level that predates either field — `f1-libre` and
+    // the twelve reveal-grid levels alike.
+    const accuracy = target.config.spines
+      ? spineScore(strokes, target.config.spines)
+      : target.config.waypoints
+        ? waypointScore(strokes, target.config.waypoints)
+        : revealScore(strokes, target.config, target.viewBoxWidth)
     const { fluency, extraLifts } = fluencyScore(strokes, allowedStrokes)
     const accuracyOk = accuracy >= rules.minAccuracy
     const fluencyOk = fluency >= rules.minFluency

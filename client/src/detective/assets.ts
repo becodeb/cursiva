@@ -52,7 +52,7 @@ export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
  * (`snake-drag-and-art-corridor` design.md §7.1, proposal decision 7), and
  * `'abeja'` for the forest's own (`free-trail-waypoints` design.md §9;
  * `docs/13` §7 lists `abeja.png` among the ANIMALS, not the UI icons). */
-export type ZooAnimalId = AnimalId | 'oveja' | 'llama' | 'vibora' | 'abeja' | 'delfin'
+export type ZooAnimalId = AnimalId | 'oveja' | 'llama' | 'vibora' | 'abeja' | 'delfin' | 'erizo'
 
 /** A derived raster from `client/public/art/`, with its intrinsic pixel size
  * so a caller can hold aspect while scaling to a target height.
@@ -334,6 +334,16 @@ export const FLOWER_ART: Readonly<Record<'dormant' | 'lit', ArtImage>> = {
   lit: SECTOR_ADVENTURE_ART.flower,
 }
 
+/** Hedgehog drawing activities: the two poses stay separate so the child can
+ * draw spikes on a side-on body or recognise the same animal curled up.
+ * Declared BEFORE `ZOO_ANIMAL_ART` so its `erizo` row (below) can reference
+ * `HEDGEHOG_ART.profile` directly, module-init order — moved up from its
+ * original position (Phase 1) for exactly this reason. */
+export const HEDGEHOG_ART: Readonly<Record<'profile' | 'curled', ArtImage>> = {
+  profile: { href: '/art/hedgehog-profile.png', w: 448, h: 306 },
+  curled: { href: '/art/hedgehog-curled.png', w: 412, h: 407 },
+}
+
 /** `ZOO_ANIMAL_ART` resolves every {@link ZooAnimalId} — spreading
  * `ANIMAL_ART` preserves referential identity for every existing entry, so
  * `mapBubble`'s art-reference comparisons keep working for the duck. */
@@ -350,13 +360,54 @@ export const ZOO_ANIMAL_ART: Readonly<Record<ZooAnimalId, ArtImage>> = {
   // `artHierarchy.test.ts`'s coverage guard. Verify, don't rebuild
   // (design.md §8, task 6.7).
   delfin: SECTOR_ADVENTURE_ART.dolphin,
+  // `radial-spines` design.md §5, §9 item 2: both shipped PNGs are
+  // SPINELESS by design (`docs/13` §7), so the animal standing on the map
+  // after `hedgehog4` is a hedgehog with no spines — a real art gap, flagged
+  // to the author rather than silently accepted. Closing it needs a third
+  // drawing (`erizo con espinas.png`), which is art, not code.
+  erizo: HEDGEHOG_ART.profile,
 }
 
-/** Hedgehog drawing activities: the two poses stay separate so the child can
- * draw spikes on a side-on body or recognise the same animal curled up. */
-export const HEDGEHOG_ART: Readonly<Record<'profile' | 'curled', ArtImage>> = {
-  profile: { href: '/art/hedgehog-profile.png', w: 448, h: 306 },
-  curled: { href: '/art/hedgehog-curled.png', w: 412, h: 407 },
+/** One pose's measured silhouette, in the image's OWN normalised space
+ * (`radial-spines` capability, design.md §3.3's `SilhouetteProfile` shape,
+ * restated structurally here rather than imported — `detective/` imports
+ * nothing from `levels/`, the same leaf-module convention every other
+ * `ArtImage` export in this file already follows). */
+export interface HedgehogSilhouette {
+  /** Opaque-pixel centroid, as a fraction of the image box (x/W, y/H). */
+  readonly centroid: readonly [number, number]
+  /** Outer silhouette extent along 24 equally spaced rays from the
+   *  centroid, starting at 0° (+x) and increasing CLOCKWISE (SVG
+   *  convention, y is down), as a fraction of the image WIDTH. */
+  readonly radii: readonly number[]
+}
+
+/** Measured once with `scripts/art/png.py` at 0.25px marching resolution,
+ * alpha ≥ 128, 24 rays (design.md §10 — transcribed VERBATIM, never
+ * re-derived here). `radii` is the `r/W` column, normalised by WIDTH on
+ * both axes on purpose: the `<image>` preserves aspect, so one uniform
+ * scale carries both axes and a radius can never be stretched
+ * (`levels/spines.ts`'s `spineBody`/`spineAnchors` read this table for the
+ * body box and every anchor alike, so the art and the scored geometry
+ * agree by construction — design.md §2 D2). `assets.test.ts` guards this
+ * literal against a future silent retune, ray for ray. */
+export const HEDGEHOG_SILHOUETTE: Readonly<Record<'profile' | 'curled', HedgehogSilhouette>> = {
+  profile: {
+    centroid: [0.5416, 0.5107],
+    radii: [
+      0.45491, 0.45938, 0.42455, 0.45089, 0.37388, 0.27277, 0.26563, 0.27277, 0.38438, 0.43929,
+      0.42009, 0.50625, 0.45536, 0.40893, 0.39174, 0.3683, 0.35491, 0.34375, 0.34554, 0.35491,
+      0.37054, 0.4, 0.41853, 0.43862,
+    ],
+  },
+  curled: {
+    centroid: [0.5002, 0.5029],
+    radii: [
+      0.4932, 0.48835, 0.54248, 0.50728, 0.49515, 0.48908, 0.48738, 0.48908, 0.49515, 0.49951,
+      0.5, 0.49636, 0.50121, 0.49879, 0.49563, 0.49806, 0.50728, 0.50243, 0.49515, 0.49272,
+      0.49223, 0.49223, 0.49393, 0.4932,
+    ],
+  },
 }
 
 /** A front-facing Andean wool hat icon for the mountain activity. */

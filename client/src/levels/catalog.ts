@@ -1425,6 +1425,118 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE, place: 'extrema', clear: DOLPHIN_CLEAR },
   },
+  // ───────────────────────────────────────────────────────────────────────
+  // The hedgehog family (`docs/13` §8 row H, "erizo en la zona nocturna —
+  // trazos sueltos radiales", design.md §8): the first RADIAL, loose-stroke
+  // movement in the whole progression — many short independent strokes,
+  // each leaving the body and pointing outward, none of them a path. Every
+  // literal below is solved against the MEASURED silhouette tables
+  // (design.md §10), not against the ellipse the first draft used. The
+  // profile arc (200° → 380°) is IDENTICAL on hedgehog1..3 — it is a
+  // property of the pose, not a ladder rung; the ladder narrows through
+  // `tolDeg`, `straightness`, the length band and the anchor count instead.
+  // Appended at the END of the phase-1 block, after `dolphin4` and before
+  // `f2-guirnalda` — NOT at the end of `LEVELS` (`catalog.test.ts:121-127`
+  // requires ascending phases; design.md §2 D6).
+  {
+    id: 'hedgehog1',
+    phase: 1,
+    title: 'Las primeras espinas',
+    hint: 'Dibujá palitos largos desde el lomo hacia afuera.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 70 },
+    showGuide: false,
+    letters: [],
+    // The movement is new exactly once (`docs/13` §5 item 2) — `demo: true`
+    // on hedgehog1 alone.
+    demo: true,
+    spines: {
+      pose: 'profile',
+      body: { centre: { x: 440, y: 440 }, height: 260 },
+      arc: { from: 200, to: 380 },
+      count: 5,
+      rules: { baseRadius: 38, tolDeg: 40, straightness: 0.8, lenMin: 220, lenMax: 290 },
+    },
+  },
+  {
+    id: 'hedgehog2',
+    phase: 1,
+    title: 'Más espinas',
+    hint: 'Salen más espinas. Empezá en cada marca y tirá para afuera.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 80 },
+    showGuide: false,
+    letters: [],
+    spines: {
+      pose: 'profile',
+      body: { centre: { x: 450, y: 400 }, height: 270 },
+      arc: { from: 200, to: 380 },
+      count: 7,
+      rules: { baseRadius: 28, tolDeg: 34, straightness: 0.84, lenMin: 150, lenMax: 230 },
+    },
+  },
+  {
+    id: 'hedgehog3',
+    phase: 1,
+    title: 'Espinas cortas',
+    hint: 'Espinas más cortas y más juntas: una en cada marca.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 90 },
+    showGuide: false,
+    letters: [],
+    spines: {
+      pose: 'profile',
+      body: { centre: { x: 460, y: 380 }, height: 340 },
+      arc: { from: 200, to: 380 },
+      count: 10,
+      rules: { baseRadius: 26, tolDeg: 28, straightness: 0.88, lenMin: 95, lenMax: 160 },
+    },
+  },
+  {
+    id: 'hedgehog4',
+    phase: 1,
+    title: 'El erizo enroscado',
+    hint: 'Se hizo una bola. Dibujá espinas chiquitas alrededor.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
+    showGuide: false,
+    letters: [],
+    spines: {
+      pose: 'curled',
+      body: { centre: { x: 500, y: 300 }, height: 300 },
+      arc: { from: 65, to: 365 },
+      count: 14,
+      rules: { baseRadius: 26, tolDeg: 22, straightness: 0.92, lenMin: 60, lenMax: 105 },
+    },
+  },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────

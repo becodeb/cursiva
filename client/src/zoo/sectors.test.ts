@@ -242,7 +242,20 @@ describe('Registry↔Catalog Structural Consistency', () => {
   })
 
   it('nocturna stays fogged until llama-peak4 is filed (zoo-map spec)', () => {
-    expect(nocturna.adventureIds).toEqual(['night1', 'night2', 'night3', 'night4'])
+    // `radial-spines` design.md §8.2 extends this to eight ids: night1..4
+    // then hedgehog1..4, its second adventure. `unlockedWhen` is UNCHANGED
+    // (zoo-map spec, "nocturna's unlock condition is unchanged") — a second
+    // adventure joining an already-open sector never moves when it opens.
+    expect(nocturna.adventureIds).toEqual([
+      'night1',
+      'night2',
+      'night3',
+      'night4',
+      'hedgehog1',
+      'hedgehog2',
+      'hedgehog3',
+      'hedgehog4',
+    ])
     expect(nocturna.unlockedWhen({})).toBe(false)
     expect(nocturna.unlockedWhen(filed('sheep-hill4'))).toBe(false)
     expect(nocturna.unlockedWhen(filed('llama-peak4'))).toBe(true)

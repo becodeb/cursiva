@@ -31,6 +31,7 @@ export type AdventureId =
   | 'snake'
   | 'bee'
   | 'dolphin'
+  | 'hedgehog'
 
 interface AdventureBase {
   id: AdventureId
@@ -191,6 +192,23 @@ export const ADVENTURES: readonly Adventure[] = [
     // and `mapBubble`'s `.at(-1)` needs `dolphin` only to come AFTER `duck`
     // in array order for filing `dolphin4` to surface its own closing line
     // over the duck's, which appending trivially satisfies.
+  },
+  {
+    id: 'hedgehog',
+    levelIds: ['hedgehog1', 'hedgehog2', 'hedgehog3', 'hedgehog4'],
+    sector: 'nocturna',
+    animal: 'erizo',
+    intro: 'Al erizo le faltan las espinas. ¿Se las dibujamos?',
+    closing: '¡El erizo tiene todas sus espinas!',
+    // No `closingBeat` — the snake/bee/dolphin rows' own reasoning,
+    // restated: `mapBubble`'s filter is `a.animal !== undefined`, so an
+    // animal-recovering adventure already carries `docs/13` §5 item 6
+    // through the shipped map bubble the moment its animal is placed. The
+    // once-per-story closing screen stays reserved for the entrance's sand
+    // adventure, which recovers no animal. Appended at the END of the
+    // registry (amendment 9's rule for `ADVENTURES` — only relative order
+    // matters here, unlike `catalog.ts`'s real ascending-phase ordering
+    // constraint, design.md §2 D6).
   },
 ]
 

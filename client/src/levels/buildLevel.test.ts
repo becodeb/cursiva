@@ -5,7 +5,9 @@ import { MAX_CORRIDOR, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget, levelS
 import { LEGACY_PHASE_1, LEVELS, getLevel } from './catalog'
 import { flattenPathD } from '../letters/svgLetter'
 import { straight, wave, waveCrestRadius } from './paths'
+import { DEMO_SPINES, spineDemoPaths, spineOrigin, type SpineConfig } from './spines'
 import type { LevelConfig } from './types'
+import { demoPlays, type GuideLevel } from '../screen/LevelPlay'
 
 /**
  * Looks up an id in the active `LEVELS` catalog first, falling back to
@@ -448,9 +450,154 @@ describe('levelStart — the routeless carrier-visibility repair', () => {
       if (level.waypoints) {
         expect(target.start, level.id).toEqual(level.waypoints.start)
         expect(target.polyline[0], level.id).toBeUndefined()
+      } else if (level.spines) {
+        expect(target.start, level.id).toEqual(spineOrigin(level.spines))
+        expect(target.polyline[0], level.id).toBeUndefined()
       } else {
         expect(target.start, level.id).toEqual(target.polyline[0])
       }
+    }
+  })
+})
+
+// [radial-spines, Phase 5] `levelStart`'s THIRD source (design.md §4): a
+// routeless spine level begins at its first anchor, derived from the same
+// generator the scorer and the layer read.
+describe("levelStart — the spines source (radial-spines capability)", () => {
+  const spines: SpineConfig = {
+    pose: 'profile',
+    body: { centre: { x: 440, y: 440 }, height: 260 },
+    arc: { from: 200, to: 380 },
+    count: 5,
+    rules: { baseRadius: 38, tolDeg: 40, straightness: 0.8, lenMin: 220, lenMax: 290 },
+  }
+
+  it('resolves a spines level start to spineOrigin(cfg) when the polyline is empty', () => {
+    expect(levelStart(makeConfig({ kind: 'free', paths: [], spines }), [])).toEqual(
+      spineOrigin(spines),
+    )
+  })
+
+  it('a routed level still wins on polyline[0], regardless of spines', () => {
+    const polyline: Point[] = [{ x: 12, y: 34 }, { x: 56, y: 78 }]
+    expect(levelStart(makeConfig({ spines }), polyline)).toEqual({ x: 12, y: 34 })
+  })
+
+  it('levels using the other two sources are unaffected by the third existing', () => {
+    const start = { x: 250, y: 400 }
+    expect(
+      levelStart(makeConfig({ waypoints: { start } as unknown as LevelConfig['waypoints'] }), []),
+    ).toEqual(start)
+    expect(levelStart(makeConfig({ kind: 'free', paths: [] }), [])).toBeUndefined()
+  })
+})
+
+// [radial-spines, Phase 5] The demo repair (design.md §2 D3) — TWO
+// independent blockers, both confirmed red against `main` before their own
+// repair landed (§11.1 item 5).
+describe('buildLevelTarget — demoPaths (the demo repair, half 1: target.paths → demoPaths)', () => {
+  const spines: SpineConfig = {
+    pose: 'profile',
+    body: { centre: { x: 440, y: 440 }, height: 260 },
+    arc: { from: 200, to: 380 },
+    count: 5,
+    rules: { baseRadius: 38, tolDeg: 40, straightness: 0.8, lenMin: 220, lenMax: 290 },
+  }
+
+  it('a routeless spines level with demo:true emits at least one demo segment — the repair this test guards', () => {
+    const target = buildLevelTarget(makeConfig({ kind: 'free', paths: [], demo: true, spines }))
+    expect(target.demoPaths.length).toBeGreaterThanOrEqual(1)
+    expect(target.demoPaths).toEqual(spineDemoPaths(spines, DEMO_SPINES))
+  })
+
+  it('a routeless level with demo:true and NO spines still emits zero segments — byte-identical to before this change', () => {
+    const target = buildLevelTarget(makeConfig({ kind: 'free', paths: [], demo: true }))
+    expect(target.demoPaths).toEqual([])
+  })
+
+  it('demoPaths === paths BY REFERENCE for every shipped level without spines (routed or empty free alike)', () => {
+    for (const level of [...LEVELS, ...LEGACY_PHASE_1]) {
+      if (level.spines) continue
+      const target = buildLevelTarget(level)
+      expect(target.demoPaths, level.id).toBe(target.paths)
+    }
+  })
+
+  it("a routed level's demoPaths is the SAME array reference as paths, not a copy", () => {
+    const target = buildLevelTarget(makeConfig({ paths: [wave()] }))
+    expect(target.demoPaths).toBe(target.paths)
+  })
+})
+
+// [radial-spines, Phase 5] `demoPlays` — the second, unnamed demo blocker.
+//
+// **A found defect in design.md §2 D3, resolved rather than followed
+// blindly**: the design states `demoPlays`'s formula as UNCHANGED from the
+// old `playDemo` (`!!level.demo && guide === 'full'`) and separately
+// requires (§11.1 item 5) `demoPlays(level, 'none') === true` for a
+// routeless `spines` level with `demo: true`. Those two cannot both hold —
+// every hedgehog config carries `showGuide: false` (design.md §8), so
+// `guideLevelFor` can only ever return `'none'` for it, and the unchanged
+// formula would leave the demo permanently unreachable despite the rename.
+// The resolution implemented in `LevelPlay.tsx` (see `demoPlays`'s own doc
+// comment there for the full reasoning): a `spines` level bypasses the
+// guide-band gate entirely (`!!level.demo`, unconditional on `guide`),
+// because such a level authors no guide ladder to withdraw from in the
+// first place; every other level keeps the exact old formula.
+describe('buildLevelTarget — demoPaths (the demo repair, half 2: the demoPlays gate)', () => {
+  it("demoPlays(level,'none') === true for a demo:true, spines-bearing free level — the second, unnamed blocker", () => {
+    // Confirmed red against `main` before the rename landed: `main`'s
+    // inline `playDemo = !!level.demo && guideLevel === 'full'` requires
+    // `guideLevel === 'full'`, which a `showGuide: false` spines level can
+    // never reach — this assertion is the repair.
+    expect(demoPlays({ demo: true, spines: {} as unknown as SpineConfig }, 'none')).toBe(true)
+  })
+
+  it('a demo:true, spines-bearing level plays regardless of the guide band', () => {
+    const guideLevels: readonly GuideLevel[] = ['full', 'dotted', 'minimal', 'none']
+    for (const g of guideLevels) {
+      expect(demoPlays({ demo: true, spines: {} as unknown as SpineConfig }, g)).toBe(true)
+    }
+  })
+
+  it('a spines-bearing level with demo:false never plays, for any guide band', () => {
+    const guideLevels: readonly GuideLevel[] = ['full', 'dotted', 'minimal', 'none']
+    for (const g of guideLevels) {
+      expect(demoPlays({ demo: false, spines: {} as unknown as SpineConfig }, g)).toBe(false)
+    }
+  })
+
+  // Split in two once `hedgehog1..4` land (Phase 9): the whole-catalog
+  // invariant no longer holds UNCONDITIONALLY, because `hedgehog1` carries
+  // both `spines` and `demo: true`, which the second half below covers on
+  // its own terms — the pattern the two `spines`-fixture tests directly
+  // above this one already established.
+  it('demoPlays(l, g) === (!!l.demo && g === \'full\') for every shipped level WITHOUT spines, every GuideLevel', () => {
+    const guideLevels: readonly GuideLevel[] = ['full', 'dotted', 'minimal', 'none']
+    for (const level of [...LEVELS, ...LEGACY_PHASE_1]) {
+      if (level.spines) continue
+      for (const g of guideLevels) {
+        expect(demoPlays(level, g), `${level.id}/${g}`).toBe(!!level.demo && g === 'full')
+      }
+    }
+  })
+
+  it('demoPlays(l, g) === !!l.demo, UNCONDITIONAL on g, for every shipped level WITH spines', () => {
+    const guideLevels: readonly GuideLevel[] = ['full', 'dotted', 'minimal', 'none']
+    const spinesLevels = [...LEVELS, ...LEGACY_PHASE_1].filter((l) => l.spines)
+    // `hedgehog1..4` — confirms the split is exercising a REAL, non-empty
+    // set, not vacuously passing over zero levels.
+    expect(spinesLevels.length).toBeGreaterThan(0)
+    for (const level of spinesLevels) {
+      for (const g of guideLevels) {
+        expect(demoPlays(level, g), `${level.id}/${g}`).toBe(!!level.demo)
+      }
+    }
+  })
+
+  it('no shipped kind:\'free\' level declares demo — the new branch is unreachable without spines', () => {
+    for (const level of [...LEVELS, ...LEGACY_PHASE_1]) {
+      if (level.kind === 'free' && !level.spines) expect(level.demo).toBeFalsy()
     }
   })
 })

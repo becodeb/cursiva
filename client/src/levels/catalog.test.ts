@@ -41,6 +41,9 @@ import {
 } from './paths'
 import { DRAWN_SPINE } from './artCorridor'
 import type { Phase } from './types'
+import { HEDGEHOG_SILHOUETTE } from '../detective/assets'
+import { spineAnchors } from './spines'
+import { TolTouch as TOL_TOUCH } from '../canvas/validation/constants'
 
 // docs/08 section 5 tables, after the detective-mode retheme and the reveal
 // grid (design.md §5.1, ratified amendment A1): 8 entrance reveal levels
@@ -89,6 +92,10 @@ const EXPECTED_IDS = [
   'dolphin2',
   'dolphin3',
   'dolphin4',
+  'hedgehog1',
+  'hedgehog2',
+  'hedgehog3',
+  'hedgehog4',
   'f2-guirnalda',
   'f2-agua2',
   'f2-agua3',
@@ -174,6 +181,13 @@ describe('LEVELS — authored values match the doc tables', () => {
     'dolphin2': 100,
     'dolphin3': 96,
     'dolphin4': 84,
+    // The hedgehog family draws no corridor at all — the reveal-grid/bee
+    // convention: a routeless, per-stroke mechanic has nothing to be inside
+    // of (design.md §8).
+    'hedgehog1': 0,
+    'hedgehog2': 0,
+    'hedgehog3': 0,
+    'hedgehog4': 0,
     'f1-libre': 0,
     'duck-trail1': 100,
     'duck-trail2': 90,
@@ -236,6 +250,11 @@ describe('LEVELS — authored values match the doc tables', () => {
     'dolphin2': 0,
     'dolphin3': 0,
     'dolphin4': 0,
+    // No fluency bar either — same routeless convention.
+    'hedgehog1': 0,
+    'hedgehog2': 0,
+    'hedgehog3': 0,
+    'hedgehog4': 0,
     'f1-libre': 0,
     'duck-trail1': 0,
     'duck-trail2': 0,
@@ -294,6 +313,10 @@ describe('LEVELS — authored values match the doc tables', () => {
       // separately below ("LEVELS — the snake family" has its own sibling;
       // the bee family's own describe block covers R5).
       if (level.waypoints) continue
+      // The hedgehog family also authors its own minAccuracy (70/80/90/100,
+      // `radial-spines` design.md §8) — the same per-family override
+      // precedent `reveal`/`artCorridor`/`waypoints` set.
+      if (level.spines) continue
       const expected = level.phase === 1 ? 55 : level.phase === 2 ? 60 : 65
       expect(level.rules.minAccuracy).toBe(expected)
     }
@@ -362,11 +385,14 @@ describe('LEVELS — surface, kind and feedback', () => {
     // (level-engine spec "`kind: 'free'` Means 'No Route,' Not 'The
     // Warm-Up'"): `f1-libre`, still with neither `reveal` nor `waypoints`;
     // the twelve reveal-grid levels, each with a `reveal`; and the four bee
-    // levels, each with `waypoints`. The catalog's first entry is `glass1`,
-    // the app's real opening.
+    // levels, each with `waypoints`. Now twenty-one (`radial-spines` design.md
+    // §8 adds the four hedgehog levels, each with `spines`); the catalog's
+    // first entry is `glass1`, the app's real opening.
     const free = LEVELS.filter((l) => l.kind === 'free')
-    expect(free.filter((l) => !l.reveal && !l.waypoints).map((l) => l.id)).toEqual(['f1-libre'])
-    expect(free).toHaveLength(17)
+    expect(free.filter((l) => !l.reveal && !l.waypoints && !l.spines).map((l) => l.id)).toEqual([
+      'f1-libre',
+    ])
+    expect(free).toHaveLength(21)
     expect(LEVELS[0].id).toBe('glass1')
     // Closes the forward reference task 4.8 named (`AdventureId`/`ADVENTURES`
     // only gained a `'glass'` row in Phase 5's task 5.1) — design.md §5.1's
@@ -443,11 +469,15 @@ describe('LEVELS — surface, kind and feedback', () => {
     // `haptics` is now `hasCorridor OR reveal-bearing OR waypoint-bearing` —
     // the bee family has neither a corridor nor a `reveal` field, but a
     // flower opening or the hive being reached is its own contact worth
-    // feeling (`free-trail-waypoints` design.md §2.3).
+    // feeling (`free-trail-waypoints` design.md §2.3). The hedgehog family
+    // joins the same list: a spine landing is a contact worth feeling too
+    // (`radial-spines` design.md §2 D4, docs/13 §6).
     for (const level of LEVELS) {
       const hasCorridor = level.kind === 'path'
       expect(level.feedback.tone).toBe(hasCorridor)
-      expect(level.feedback.haptics).toBe(hasCorridor || !!level.reveal || !!level.waypoints)
+      expect(level.feedback.haptics).toBe(
+        hasCorridor || !!level.reveal || !!level.waypoints || !!level.spines,
+      )
     }
   })
 
@@ -733,6 +763,143 @@ describe('getLevel', () => {
   })
 })
 
+describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11)', () => {
+  const HEDGEHOG_IDS = ['hedgehog1', 'hedgehog2', 'hedgehog3', 'hedgehog4'] as const
+
+  it('clears its own baseRadius ceiling by the recorded margin, and never dips under TolTouch', () => {
+    // Ceiling (design.md §2 D5, "computed from the real anchor chords"):
+    // half the smallest chord between two REAL, adjacent generated anchors —
+    // not the circle approximation `2·r_min·sinΔθ/2` would give, since the
+    // profile's per-anchor radii vary along the arc. Margins recorded in
+    // design.md §8: 3.5 / 2.9 / 1.1 / 1.5.
+    const margins: Record<string, number> = {
+      hedgehog1: 3.5,
+      hedgehog2: 2.9,
+      hedgehog3: 1.1,
+      hedgehog4: 1.5,
+    }
+    for (const id of HEDGEHOG_IDS) {
+      const cfg = getLevel(id).spines!
+      const anchors = spineAnchors(cfg)
+      let minChord = Infinity
+      for (let i = 1; i < anchors.length; i++) {
+        const d = Math.hypot(anchors[i].x - anchors[i - 1].x, anchors[i].y - anchors[i - 1].y)
+        if (d < minChord) minChord = d
+      }
+      const ceiling = minChord / 2
+      expect(cfg.rules.baseRadius, id).toBeLessThanOrEqual(ceiling)
+      // Design.md §8's own ceilings are rounded to one decimal; the real
+      // geometry's own margin is asserted to the nearest half-unit of that
+      // rounding, not to floating-point precision.
+      expect(ceiling - cfg.rules.baseRadius, id).toBeCloseTo(margins[id], 0)
+      expect(cfg.rules.baseRadius, id).toBeGreaterThanOrEqual(TOL_TOUCH)
+    }
+  })
+
+  it('lands no anchor on a foot or a belly — every profile anchor sits in [200, 380], the same arc on all three', () => {
+    for (const id of ['hedgehog1', 'hedgehog2', 'hedgehog3'] as const) {
+      const cfg = getLevel(id).spines!
+      expect(cfg.arc, id).toEqual({ from: 200, to: 380 })
+      const anchors = spineAnchors(cfg)
+      for (const a of anchors) {
+        expect(a.deg, `${id} anchor at ${a.deg}`).toBeGreaterThanOrEqual(200)
+        expect(a.deg, `${id} anchor at ${a.deg}`).toBeLessThanOrEqual(380)
+      }
+    }
+  })
+
+  it('confirms the curled pose really is round — max/min − 1 ≤ 0.041 over its own spine arc', () => {
+    const cfg = getLevel('hedgehog4').spines!
+    const { radii } = HEDGEHOG_SILHOUETTE.curled
+    const step = 360 / radii.length
+    const inArc = (deg: number): boolean => {
+      const d = ((deg % 360) + 360) % 360
+      const from = ((cfg.arc.from % 360) + 360) % 360
+      // hedgehog4's arc (65 → 365) wraps the whole circle, so every measured
+      // ray is inside it — this is the admissibility check §11 asks for.
+      return cfg.arc.to - cfg.arc.from >= 360 || d >= from
+    }
+    const spanRadii = radii.filter((_, i) => inArc(i * step))
+    const max = Math.max(...spanRadii)
+    const min = Math.min(...spanRadii)
+    expect(max / min - 1).toBeLessThanOrEqual(0.041)
+  })
+
+  it('confirms the profile table is not an ellipse — the measured radius at 90° is ≥20% below 0.5·H', () => {
+    const { radii } = HEDGEHOG_SILHOUETTE.profile
+    const step = 360 / radii.length
+    const idx90 = Math.round(90 / step) % radii.length
+    const r90 = radii[idx90]
+    // radii are normalised by WIDTH (r/W); an ellipse fit at 90° would read
+    // close to 0.5·H/W. Any of the profile's own measured aspect keeps this
+    // well under 0.8 · (0.5), so this assertion is sensitive by construction.
+    expect(r90).toBeLessThan(0.5 * 0.8)
+  })
+
+  it('checks the ladder rather than adjectives: every tolerance parameter moves the same way, every level', () => {
+    const cfgs = HEDGEHOG_IDS.map((id) => getLevel(id).spines!)
+    for (let i = 1; i < cfgs.length; i++) {
+      expect(cfgs[i].rules.baseRadius, HEDGEHOG_IDS[i]).toBeLessThanOrEqual(cfgs[i - 1].rules.baseRadius)
+      expect(cfgs[i].rules.tolDeg, HEDGEHOG_IDS[i]).toBeLessThan(cfgs[i - 1].rules.tolDeg)
+      expect(cfgs[i].rules.straightness, HEDGEHOG_IDS[i]).toBeGreaterThan(cfgs[i - 1].rules.straightness)
+      expect(cfgs[i].count, HEDGEHOG_IDS[i]).toBeGreaterThan(cfgs[i - 1].count)
+      expect(cfgs[i].rules.baseRadius, HEDGEHOG_IDS[i]).toBeGreaterThanOrEqual(TOL_TOUCH)
+    }
+    // Length bands strictly decrease from hedgehog2 to hedgehog4 (level-engine
+    // spec, "Length bands strictly decrease from hedgehog2 to hedgehog4").
+    for (let i = 2; i < cfgs.length; i++) {
+      expect(cfgs[i].rules.lenMin, HEDGEHOG_IDS[i]).toBeLessThan(cfgs[i - 1].rules.lenMin)
+      expect(cfgs[i].rules.lenMax, HEDGEHOG_IDS[i]).toBeLessThan(cfgs[i - 1].rules.lenMax)
+    }
+    expect(HEDGEHOG_IDS.map((id) => getLevel(id).rules.minAccuracy)).toEqual([70, 80, 90, 100])
+    for (const id of HEDGEHOG_IDS) {
+      expect(getLevel(id).rules.mustBeContinuous, id).toBe(false)
+      expect(getLevel(id).rules.minFluency, id).toBe(0)
+    }
+  })
+
+  it('clears the phase-1 amplitude guard on hedgehog1 by assertion, on the REAL measured radii', () => {
+    // The guard's own code path (`kind !== 'path'`) exempts every free level,
+    // hedgehog1 included; this asserts the guard's SPIRIT anyway, the way the
+    // bee family did, over the real anchor geometry rather than the retired
+    // ellipse estimate (design.md §8.1).
+    const cfg = getLevel('hedgehog1').spines!
+    const anchors = spineAnchors(cfg)
+    const { lenMin } = cfg.rules
+    const tipsAtLenMin = anchors.map((a) => ({ x: a.x + a.nx * lenMin, y: a.y + a.ny * lenMin }))
+    const minY = Math.min(...tipsAtLenMin.map((p) => p.y))
+    const maxY = Math.max(...tipsAtLenMin.map((p) => p.y))
+    const minX = Math.min(...tipsAtLenMin.map((p) => p.x))
+    const maxX = Math.max(...tipsAtLenMin.map((p) => p.x))
+    expect(maxY - minY).toBeGreaterThan(300)
+    expect(minY).toBeLessThan(180)
+    expect(maxY).toBeGreaterThan(420)
+    expect(maxX - minX).toBeGreaterThan(600)
+  })
+
+  it('never asks hedgehog2-4 for a stroke it would then refuse — the longest admissible spine stays on the paper', () => {
+    for (const id of HEDGEHOG_IDS) {
+      const cfg = getLevel(id).spines!
+      const anchors = spineAnchors(cfg)
+      const { lenMax } = cfg.rules
+      for (const a of anchors) {
+        const tip = { x: a.x + a.nx * lenMax, y: a.y + a.ny * lenMax }
+        expect(tip.x, id).toBeGreaterThanOrEqual(0)
+        expect(tip.x, id).toBeLessThanOrEqual(1000)
+        expect(tip.y, id).toBeGreaterThanOrEqual(0)
+        expect(tip.y, id).toBeLessThanOrEqual(600)
+      }
+    }
+  })
+
+  it('places hedgehog4 alone on the curled pose, the other three on the profile pose', () => {
+    expect(getLevel('hedgehog1').spines!.pose).toBe('profile')
+    expect(getLevel('hedgehog2').spines!.pose).toBe('profile')
+    expect(getLevel('hedgehog3').spines!.pose).toBe('profile')
+    expect(getLevel('hedgehog4').spines!.pose).toBe('curled')
+  })
+})
+
 describe('levelsByPhase', () => {
   it('groups the catalog by phase', () => {
     // Amended for the reveal grid (design.md §5.1): eight entrance levels
@@ -780,6 +947,10 @@ describe('levelsByPhase', () => {
       'dolphin2',
       'dolphin3',
       'dolphin4',
+      'hedgehog1',
+      'hedgehog2',
+      'hedgehog3',
+      'hedgehog4',
     ])
     expect(levelsByPhase(4).map((l) => l.id)).toEqual(['f4-la', 'f4-ma'])
     expect(levelsByPhase(5)).toHaveLength(2)
@@ -853,6 +1024,10 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
       'dolphin2',
       'dolphin3',
       'dolphin4',
+      'hedgehog1',
+      'hedgehog2',
+      'hedgehog3',
+      'hedgehog4',
     ])
     for (const removed of REMOVED_IDS) expect(phase1Ids).not.toContain(removed)
   })

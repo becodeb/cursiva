@@ -22,6 +22,7 @@ import {
 import type { LetterCheckpoint, Point } from '../letters/types'
 import type { LevelConfig, LevelTarget, RouteSegment, Taper } from './types'
 import { placeArtCorridor } from './artCorridor'
+import { DEMO_SPINES, spineDemoPaths, spineOrigin } from './spines'
 
 /** Narrowest / widest corridor the engine will ever score against, in viewBox px. */
 export const MIN_CORRIDOR = 30
@@ -65,7 +66,14 @@ function round1(n: number): number {
  */
 export function levelStart(config: LevelConfig, polyline: readonly Point[]): Point | undefined {
   if (polyline.length > 0) return polyline[0]
-  return config.waypoints?.start
+  if (config.waypoints) return config.waypoints.start
+  // A routeless SPINE level begins at its first anchor — derived from the
+  // same generator the scorer and the layer read, so there is no second
+  // literal to drift (`radial-spines` capability, design.md §4). This is
+  // the third plug into the ONE place this function's own header reserved
+  // for it.
+  if (config.spines) return spineOrigin(config.spines)
+  return undefined
 }
 
 /**
@@ -186,9 +194,18 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
   // it on coverage instead of accuracy. Returning early is what keeps every
   // derivation below free of "if there is a path" branches.
   if (config.kind === 'free' || config.paths.length === 0) {
+    // Bound so `demoPaths === paths` is provable by REFERENCE for every
+    // level with neither field — the demo repair's own invariant
+    // (`level-engine` spec, design.md §2 D3).
+    const noPaths: string[] = []
     return {
       config,
-      paths: [],
+      paths: noPaths,
+      // A routeless level with `spines` supplies its own demo segments —
+      // the first `DEMO_SPINES` anchor→tip lines the generator already
+      // emits. Every other free/empty level keeps the SAME empty array
+      // `paths` is, so `demoPaths === paths` holds by reference.
+      demoPaths: config.spines ? spineDemoPaths(config.spines, DEMO_SPINES) : noPaths,
       viewBoxWidth: MIN_VIEWBOX_WIDTH,
       // (a `free`/empty-path level authors no `camera`, so this always
       // resolves to `MIN_VIEWBOX_WIDTH` — same expression as the real branch
@@ -255,6 +272,9 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
   return {
     config,
     paths,
+    // A routed level's demo IS its route — the SAME array reference as
+    // `paths`, never a copy (design.md §2 D3).
+    demoPaths: paths,
     viewBoxWidth,
     // The fallback is `viewBoxWidth`, NOT `MIN_VIEWBOX_WIDTH` — a level with
     // no `camera` must report `viewWidth === viewBoxWidth` even when its own

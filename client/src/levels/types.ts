@@ -9,6 +9,11 @@ import type { ArtCorridorPiece, ArtCorridorPlacement } from './artCorridor'
 // erases this at compile time, so `types.ts` (touched first, Phase 2) never
 // depends on `levels/waypoints.ts` (created later, Phase 4) at runtime.
 import type { WaypointConfig } from './waypoints'
+// [radial-spines, Phase 5] `import type` only — the same reason
+// `WaypointConfig` above is a type-only import: `verbatimModuleSyntax`
+// erases this at compile time, so `types.ts` never depends on
+// `levels/spines.ts` at runtime.
+import type { SpineConfig } from './spines'
 
 export type Phase = 1 | 2 | 3 | 4 | 5
 
@@ -239,6 +244,15 @@ export interface LevelConfig {
    *  wide-sheet `fit="contain"` behaviour is what `layOutPaths` was written
    *  for and must not move by a unit. */
   camera?: CameraConfig
+  /** A routeless level scored PER STROKE (`docs/13` §8 row H, "trazos
+   *  sueltos radiales"). The field's REASON TO EXIST is `docs/13` §6's
+   *  "trayectoria esperada": this family authors none and never will —
+   *  each spine is its own short journey out of the body — so an anchor,
+   *  an outward normal and a length band are what replaces it. Only legal
+   *  on `kind: 'free'`; absent on every level that predates it, which
+   *  keeps `f1-libre`, the twelve reveal levels and the four bee levels
+   *  bit-identical. */
+  spines?: SpineConfig
 }
 
 /** The camera's own authored parameters (`scrolling-camera` capability).
@@ -293,6 +307,13 @@ export interface LevelTarget {
    * score against.
    */
   paths: string[]
+  /** The strokes the DEMONSTRATION animates. `paths` for every routed
+   *  level — the SAME array reference, not a copy — so the demo, the
+   *  corridor and the guide keep coming from one place. A routeless level
+   *  with `spines` supplies its own (the first `DEMO_SPINES` anchor→tip
+   *  segments); every other routeless level gets the same empty array
+   *  `paths` is (the demo repair, `level-engine` spec). */
+  demoPaths: readonly string[]
   /**
    * Width of the normalized viewBox for this level: 1000, or wider when the
    * level's own path needs more paper (docs/02 section 3). The HEIGHT is always

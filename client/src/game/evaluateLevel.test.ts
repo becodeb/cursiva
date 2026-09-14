@@ -10,6 +10,7 @@ import { coverageScore } from '../levels/coverage'
 import type { LevelConfig, LevelTarget } from '../levels/types'
 import { TolPen, TolTouch } from '../canvas/validation/constants'
 import { evaluateLevel, toleranceFor } from './evaluateLevel'
+import { spineAnchors, spineScore, type SpineConfig } from '../levels/spines'
 import { waypointScore, type WaypointConfig } from '../levels/waypoints'
 
 /**
@@ -331,6 +332,50 @@ describe('evaluateLevel — a bee fixture routes through waypointScore, not reve
     ]
     for (const strokes of cases) {
       expect(evaluateLevel(strokes, beeLike, 'touch').accuracy).toBe(waypointScore(strokes, waypoints))
+    }
+  })
+})
+
+describe('evaluateLevel — a hedgehog fixture routes through spineScore, ahead of waypointScore/revealScore (radial-spines capability)', () => {
+  const spines: SpineConfig = {
+    pose: 'curled',
+    body: { centre: { x: 500, y: 300 }, height: 300 },
+    arc: { from: 65, to: 365 },
+    count: 8,
+    rules: { baseRadius: 30, tolDeg: 30, straightness: 0.85, lenMin: 80, lenMax: 160 },
+  }
+  const hedgehogLike: LevelTarget = {
+    ...buildLevelTarget(getLevel('f1-libre')),
+    config: { ...getLevel('f1-libre'), spines },
+  }
+
+  /** A straight two-point stroke from `anchor`, outward along its own
+   *  normal — the same fixture helper `spines.test.ts` uses. */
+  function idealStroke(i: number, len: number) {
+    const a = spineAnchors(spines)[i]
+    return [
+      { x: a.x, y: a.y, t: 0 },
+      { x: a.x + a.nx * len, y: a.y + a.ny * len, t: 100 },
+    ]
+  }
+
+  it('scores accuracy as spineScore, not waypointScore/revealScore, when the level authors spines', () => {
+    const len = (spines.rules.lenMin + spines.rules.lenMax) / 2
+    const strokes = [idealStroke(0, len)]
+    const attempt = evaluateLevel(strokes, hedgehogLike, 'touch')
+    expect(attempt.accuracy).toBe(spineScore(strokes, spines))
+    expect(attempt.accuracy).toBe(Math.round(100 / spines.count))
+  })
+
+  it('reports the same accuracy spineScore itself computes, across a growing fill count', () => {
+    const len = (spines.rules.lenMin + spines.rules.lenMax) / 2
+    const cases: ReadonlyArray<ReadonlyArray<ReadonlyArray<TracePoint>>> = [
+      [],
+      [idealStroke(0, len)],
+      [idealStroke(0, len), idealStroke(1, len), idealStroke(2, len)],
+    ]
+    for (const strokes of cases) {
+      expect(evaluateLevel(strokes, hedgehogLike, 'touch').accuracy).toBe(spineScore(strokes, spines))
     }
   })
 })

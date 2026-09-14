@@ -46,6 +46,7 @@ import { cameraOrigin } from './camera'
 import { clampArtBox, placeArt, STANDING_GRIP, type ArtBox } from './placeArt'
 import { RevealLayer } from './RevealLayer'
 import { ArtCorridorLayer } from './ArtCorridorLayer'
+import { SpineLayer } from './SpineLayer'
 import { WaypointLayer } from './WaypointLayer'
 import { devCheckpointState, type DevCheckpointState } from './devCheckpointState'
 import { DevCheckpointOverlay } from './devCheckpointOverlay'
@@ -495,6 +496,37 @@ export interface TraceWaypoints {
   ringStroke?: string
 }
 
+/** One anchor's render-ready mark (`radial-spines` capability, design.md
+ *  §5). Structural, no import from `levels/`/`detective/` — the same
+ *  convention {@link TraceWaypointArt}/{@link TraceBackdrop} follow. */
+export interface TraceSpineMark {
+  x: number
+  y: number
+  filled: boolean
+}
+
+/**
+ * The spine fold's whole render contract: one plain `<image>` for the
+ * body, one plain `<circle>` per anchor mark (filled vs unfilled is a
+ * `fill` swap on the identical shape), and — only under
+ * `?debug=espinas:<k>` — one debug ring per anchor. No `<mask>`,
+ * `<pattern>`, `<clipPath>`, `<defs>`, `useId`, or `url(#…)` reference is
+ * ever introduced by this layer.
+ */
+export interface TraceSpines {
+  body: { href: string; x: number; y: number; width: number; height: number }
+  marks: readonly TraceSpineMark[]
+  markRadius: number
+  /** Resolved by the CALLER, never inside the layer — `TraceClueMark`'s own
+   *  convention. `TORCH_CHALK_DIM` / `TORCH_CHALK`. */
+  dim: string
+  earned: string
+  /** `?debug=espinas:<k>` ONLY. Absent = no overlay, which is every frame a
+   *  child ever sees. */
+  rings?: readonly { x: number; y: number; radius: number }[]
+  ringStroke?: string
+}
+
 /** The WINDOW, when it is narrower than the world (`scrolling-camera`
  *  capability, design.md §2.1). Absent = the window IS the world and the
  *  `viewBox` attribute is the shipped expression, character for character.
@@ -712,6 +744,12 @@ export interface TraceCanvasProps {
    * the backdrop and the ink. Absent = no waypoint layer at all,
    * byte-identical to before this prop existed. See {@link TraceWaypoints}. */
   waypoints?: TraceWaypoints
+  /** The spine fold's render projection (`radial-spines` capability),
+   *  rendered in the SAME slot as `reveal`/`waypoints` — a hedgehog level
+   *  has no corridor, no ground and no reveal, so this is the only thing
+   *  between the backdrop and the ink. Absent = no spine layer at all,
+   *  byte-identical to before this prop existed. See {@link TraceSpines}. */
+  spines?: TraceSpines
   /** The WINDOW, narrower than the world, when this level declares one
    * (`scrolling-camera` capability). Absent = the window IS the world:
    * `camera?.originX ?? 0` and `camera?.viewWidth ?? viewBoxWidth` fall back
@@ -776,6 +814,7 @@ export default function TraceCanvas({
   vertexArt,
   reveal,
   waypoints,
+  spines,
   camera,
   resetSignal,
 }: TraceCanvasProps) {
@@ -1167,6 +1206,16 @@ export default function TraceCanvas({
         // `<mask>`, `<pattern>`, `<clipPath>`, `<defs>`, `useId`, no
         // `url(#…)`.
         <WaypointLayer waypoints={waypoints} sheetBounds={sheetBounds} />
+      )}
+      {spines && (
+        // The spine fold's render projection (`radial-spines` capability,
+        // design.md §5): the SAME slot as `reveal`/`waypoints` above — a
+        // hedgehog level has no corridor, no ground and no reveal, so this
+        // is the only thing between the backdrop and the ink. Plain
+        // `<image>` and plain `<circle>`s — this file's own scar (above):
+        // no `<mask>`, `<pattern>`, `<clipPath>`, `<defs>`, `useId`, no
+        // `url(#…)`.
+        <SpineLayer spines={spines} sheetBounds={sheetBounds} />
       )}
       {corridor && (mazeOn || ground || !!backdrop) && (
         // MAZE (docs/01 fase 1: "senderos y laberintos … sin tocar los

@@ -161,7 +161,7 @@ cargado. Se decide cuando lleguen.
 | Víboras | **Hecha** (`snake1..4`) | Nada. Arrastre de objetos (ordenar de la más chica a la más grande) y corredor-arte: el cuerpo de la víbora, ajustado por medición al momento de compilar, es el camino. |
 | Ovejas | **Hecha** (`sheep-hill1..4`) | Nada. Cresta sobre línea de suelo con altura por vértice (`peakRidge`), ovejas paradas en los picos (`vertexArt`), fondo de ladera. |
 | Llamas | **Hecha** (`llama-peak1..4`) | Nada. Picos altos y empinados sobre la misma cresta, fondo de cordillera, gorro andino a la mochila. |
-| Erizo | **No existe.** | Mecánica nueva: **trazos sueltos** evaluados uno por uno como segmentos rectos que salen del cuerpo hacia afuera, con un contador de espinas; no es corredor. |
+| Erizo | **Hecha** (`hedgehog1..4`) | Nada. Trazos sueltos evaluados uno por uno como segmentos rectos que salen del cuerpo hacia afuera, con un contador de espinas; no es corredor. |
 | Medusa | **Hecha** (`f2-guirnalda`, `f2-agua2..4`) | Nada. Se engancha al sector estanque. |
 | Caracol | Generador de espiral existe (`trail2`, `f1-espiral`) | Consigna pendiente. No se implementa hasta cerrarla. |
 | Abejas | **Hecha** (`bee1..4`) | Nada. Trazo libre con puntos de paso (flores) y meta (panal); el `carrier` que sigue el dedo ya seguía, ahora tiene dónde pararse. |
@@ -517,6 +517,138 @@ cargado. Se decide cuando lleguen.
    autora, así que la salida es del arte: recortar la orilla detrás de
    cada delfín, o aceptar la lectura de "delfines saltando sobre la
    orilla" como intencional.
+10. **Enmendado al implementar el paso H (2026-09-14).** El erizo es la
+    primera mecánica RADIAL de toda la progresión — muchos trazos sueltos,
+    cada uno saliendo del cuerpo hacia afuera, ninguno un camino — y trae
+    su propia álgebra de tinta y su propio hallazgo de medición:
+    - **La regla de "no cruzar el cuerpo" no se ELIGE, se DERIVA de la ley
+      de 55 de luma.** `docs/09` §4 tiene dos ramas: una tinta oscura sobre
+      la banda nocturna (luma 67,1/95,9) separa apenas 27,3 — corta por
+      27,7 — y `TORCH_CHALK` (239) sobre el propio cuerpo del erizo (su
+      píxel más claro, 213,3) separa 25,7 — corta por 29,3. Las dos ramas
+      se cierran entre sí: ninguna tinta es legible en las dos superficies
+      a la vez. La salida no es de arte sino de geometría, y ya la traía
+      la propia pedagogía (`docs/14`: "trazos medianos que salen desde el
+      centro hacia afuera"): si la espina nunca pisa el cuerpo, sólo pinta
+      sobre la banda nocturna, donde `TORCH_CHALK` sí separa 172 y 143. La
+      medida 5 (ninguna muestra del trazo dentro de `r(θ)` salvo dentro de
+      su propio radio base) es esa regla convertida en condición puntuada,
+      no una preferencia de estilo.
+    - **La aproximación por elipse sirve para una pose y es una ficción
+      para la otra.** Medido rayo por rayo (`scripts/art/png.py`, 0,25 px):
+      el perfil separa un 8,8% en promedio de la elipse y hasta 28,6%, con
+      el error concentrado en la panza cóncava entre las patas (34% de
+      variación a lo largo del propio arco de espinas, de 154,0 a 205,8
+      px). La pose enroscada, en cambio, es redonda de verdad — separa
+      apenas 1,2% en promedio y 2,0% sobre su arco de espinas —, así que
+      el radio constante que usa `hedgehog4` es una afirmación medida, no
+      un atajo. La tabla es la que carga el peso en una pose y una
+      formalidad en la otra, y el diseño las trata distinto por esa razón
+      medida, no por prolijidad.
+    - **La demostración estaba bloqueada en dos lugares, no en uno, y
+      reparar sólo el primero habría enviado una demo vacía que pasaba su
+      propio test.** `target.paths` es `[]` en todo nivel sin ruta, así
+      que `demos = target.paths.map(...)` nunca tenía nada que animar —
+      ese es el bloqueo que nombraba la propuesta. Pero `playDemo = !!
+      level.demo && guideLevel === 'full'` es un SEGUNDO bloqueo, anterior
+      al primero en la cadena: `guideLevelFor` devuelve `'none'` para todo
+      nivel con `showGuide: false`, que es TODA la familia del erizo. Un
+      nivel puede emitir sus propios segmentos de demo (`target.demoPaths`
+      con contenido real) y el guion seguir sin reproducirlos nunca, porque
+      el portón que decide SI se reproduce nunca se abre. Las dos mitades
+      se confirmaron en rojo contra `main`, por separado, antes de repararse
+      cada una — la segunda es la que la propuesta no había nombrado.
+    - **El diseño mismo se contradecía en un punto, y la contradicción se
+      resolvió por la única lectura que no vacía la reparación.** El
+      documento de diseño afirmaba, en dos lugares distintos, que
+      `demoPlays` queda IGUAL a la fórmula vieja (`!!level.demo && guide
+      === 'full'`) y, por separado, que un nivel de espinas sin ruta con
+      `demo: true` debe reproducir su demo aun con `guide === 'none'`.
+      Las dos no pueden ser ciertas juntas, porque todo `SpineConfig`
+      lleva `showGuide: false` y por lo tanto `guide` nunca puede ser
+      distinto de `'none'` en esta familia — la fórmula vieja dejaría la
+      demo bloqueada PARA SIEMPRE, que es exactamente lo que la reparación
+      dice resolver. Se adopta la lectura que hace cierto lo que la
+      reparación promete: un nivel de espinas se salta la condición de la
+      banda de guía por completo (no autoriza ninguna escalera de guía de
+      la que "retirarse"), y todo nivel que no es de espinas conserva la
+      fórmula vieja sin ningún cambio — afirmado sobre el catálogo entero,
+      no sólo sobre los cuatro niveles nuevos.
+    - **El techo de `baseRadius` que de verdad manda no es el de la
+      fórmula del círculo, y sólo se nota calculándolo dos veces.**
+      `baseRadius ≤ r_min·sin(Δθ/2)` (§2 D5) es la fórmula que asume un
+      círculo de radio constante, pero el perfil no lo es: dos anclas
+      vecinas pueden estar a radios distintos entre sí. Calculando el
+      techo con el radio mínimo CONTINUO del arco de espinas (154,0 px,
+      medido) la cuenta da márgenes distintos de los que el propio diseño
+      declara (2,4-2,5 en vez de 3,5 para `hedgehog1`, por ejemplo).
+      Calculando en cambio la distancia real entre cada par de anclas
+      generadas VECINAS (que es lo que la restricción realmente necesita:
+      la ambigüedad de "el ancla más cercana" depende de esa distancia, no
+      del radio hipotético de un círculo) los cuatro márgenes reproducen
+      los que el diseño declaró — 3,5/2,9/1,1/1,5 — casi exactos. La
+      fórmula del círculo describe POR QUÉ hay un techo; la distancia real
+      entre anclas vecinas es la que hay que afirmar en el test.
+
+    Y dos cosas que **sólo aparecieron al mirar las capturas**, otra vez, y
+    la primera es la lección del paso F repetida dentro del archivo que la
+    cuenta:
+
+    - **La bandera de depuración manejaba DOS de los tres hechos de render,
+      y el tercero es el que importaba.** `?debug=espinas:<k>` encendía las
+      marcas de las anclas y dibujaba los anillos de tolerancia, pero no la
+      tinta — porque en esta mecánica **no existe una "espina" que el motor
+      dibuje: la espina ES el trazo del chico**, un `completedStrokes` más.
+      Así que la captura sembrada mostraba cinco anclas ganadas sobre un
+      erizo **pelado**: un cuadro que el juego real no puede producir nunca,
+      y justo el que no sirve para contestar la única pregunta visual de
+      todo el paso. Lo notable es dónde estaba escrita la respuesta: en el
+      comentario de `LevelPlay.tsx` que la abeja ya tenía encima —"ONE
+      number drives every render fact the flag produces, so a still frame
+      cannot tell two stories at once"—, tres renglones arriba del lugar
+      donde había que agregar la línea. La abeja cumplía su propia regla;
+      el erizo, en el mismo archivo, no. Reparado extrayendo la geometría
+      ancla→punta a una sola función privada que `spineDemoPaths` y
+      `debugSpineStrokes` proyectan de dos maneras, para que no puedan
+      divergir, y confirmado en rojo desconectando la prop: la aserción de
+      pantalla cae de +3 trazos a +0 mientras **las pruebas unitarias
+      siguen verdes**, que es exactamente por qué la aserción tiene que
+      tocar la prop del `TraceCanvas` y no el valor de retorno del ayudante.
+    - **En `hedgehog1` las espinas no se leen como espinas: se leen como
+      antenas, y la aritmética dice que no es un descuido.** Con
+      `height: 260` y una banda de `220-290`, la punta de la demostración
+      cae a 255 unidades: **cada espina mide lo mismo que el animal entero**
+      (razón 0,98, cuando un erizo real anda por 0,25). Los otros tres
+      niveles bajan la razón a 0,70 / 0,375 / 0,275 y sí se leen bien —
+      `hedgehog3` es el mejor cuadro de los cuatro y `hedgehog4` cae justo
+      sobre la proporción real. Barriendo `lenMin` contra las cuatro
+      aserciones del guard de fase 1 sobre la geometría REAL de las anclas,
+      el mínimo admisible es **180, no 220**, y quien manda es la cláusula
+      HORIZONTAL (`spanX > 600`, que recién se cumple en 180; la vertical
+      ya se cumple en 170 y `minY < 180` en 140). O sea: hay **40 unidades
+      de holgura** que nadie está usando, y bajar la banda a 180-230 llevaría
+      la razón de 0,98 a 0,79. Pero **no alcanza para arreglarlo**, y ese es
+      el hallazgo: el guard obliga a `L ≥ 180 = 0,69·H`, y una espina de
+      proporción creíble pediría `≈0,25·H = 65`. Son incompatibles por un
+      factor de 2,8, y agrandar el cuerpo hasta compensarlo pediría unas 740
+      unidades de alto en una hoja de 600. **Es la quinta vez que dos
+      requisitos de esta directiva no pueden valer los dos** — después de
+      "montañitas bajas" (paso C), la tinta oscura sobre la víbora (paso E)
+      y "recorrido corto" contra el guard de amplitud (paso F, que es casi
+      el mismo choque). El paso F lo resolvió al revés: puso los números del
+      guard en `bee3`/`bee4` y afirmó `bee1`/`bee2` estrictamente más
+      chicos. Acá el diseño eligió lo contrario a propósito, porque la etapa
+      1 del erizo ES el movimiento de brazo entero (`docs/14`: "trazos
+      grandes y libres... usando todo el brazo"). **Cuál de los dos cede es
+      decisión de la autora**, y se deja anotado en vez de disimulado: o
+      `hedgehog1` enseña el movimiento amplio y parece una antena, o parece
+      un erizo y deja de enseñarlo. La holgura de 40 unidades es la mejora
+      más barata disponible y no resuelve el fondo.
+
+    Las capturas de este paso quedan en `capturas/pasoH/` (dos por nivel,
+    control y con la semilla de depuración, más el mapa antes/después de
+    archivar `hedgehog4`) — leídas juntas, no una por una, siguiendo la
+    lección del paso E.
 
 ## 5. Estructura de cada aventura (`.docx` §13)
 

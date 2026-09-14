@@ -211,6 +211,22 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
     brightest: '#949b8c',
     corridorRows: { top: 191, bottom: 926 },
   },
+  // The hedgehog adventure (`radial-spines` design.md §8.2): paints on the
+  // SAME night backdrop the `night` adventure already paints on — the
+  // night row's own `art`/`quiet`/`brightest`/`corridorRows`, reused rather
+  // than re-measured (`zoo-map` spec, "reusing the night sector's shipped
+  // art"). No `tile` — a spines level draws no reveal veil at all — and no
+  // `channel` — it draws no corridor either, the bee row's own precedent.
+  // `ink`/`inkDim` reuse the night row's own two fields: the 55-luma law is
+  // one law over one backdrop, asserted once (design.md §2 D4, docs/09 §4).
+  hedgehog: {
+    art: SECTOR_BACKGROUND_ART.night,
+    quiet: '#394459',
+    brightest: '#526084',
+    corridorRows: { top: 51, bottom: 973 },
+    ink: TORCH_CHALK,
+    inkDim: TORCH_CHALK_DIM,
+  },
 }
 
 /** The bee row alone, kept split from the three groups above by
@@ -221,6 +237,15 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
  *  two-sided over `bee.brightest`: the dormant flower must be findable
  *  AND the child's own trail (after A1's repair) must be legible. */
 export const WAYPOINT_BACKDROPS = { bee: ADVENTURE_BACKDROP.bee! }
+
+/** The hedgehog row alone, split out for the same reason `WAYPOINT_BACKDROPS`
+ *  is: `backdrops.test.ts`'s completeness guard loop would otherwise fall
+ *  back to the vacuous `tile ?? channel ?? SHEET_PAPER` check — no paper is
+ *  painted on a backdrop level with neither. This group asserts the
+ *  SUBSTANTIVE ink law instead (design.md §11.1 item 6): `TORCH_CHALK`
+ *  against `quiet`/`brightest`, both anchor mark states, and the
+ *  body-crossing undrawability. */
+export const SPINE_BACKDROPS = { hedgehog: ADVENTURE_BACKDROP.hedgehog! }
 
 /** The backdrop a LEVEL is drawn on: its adventure's backdrop, or
  *  `undefined`.
