@@ -431,19 +431,62 @@ cargado. Se decide cuando lleguen.
      (los cuatro llevan `resetOnContact: false`), pero es un hueco real
      del motor para cualquier familia futura que combine cámara y
      contacto.
-   - **El fondo de la laguna paneada NO muestra sólo agua — lee mejor de
-     lo que el diseño temía.** El diseño calculó que a 1,56× y 2,12× la
-     franja visible cae entera dentro de la banda "tranquila" medida y
-     escribió que "la orilla y los juncos se recortan del todo... el chico
-     ve un campo casi sin rasgos". Las capturas de `capturas/pasoG/`
-     muestran lo contrario: los juncos y el pasto de la orilla son
-     claramente visibles arriba y abajo del corredor en `dolphin3` y
-     `dolphin4`, exactamente igual que en `dolphin1`/`dolphin2` sin
-     cámara. La banda "tranquila" que mide el luma no es lo mismo que
-     "sin textura visible" — el junco puede compartir luma con el agua sin
-     dejar de leerse como junco. La cámara panorámica no necesita el
-     respaldo fijo a la ventana que el diseño dejó nombrado como salida:
-     el fondo se deja tal cual, apoyado en el mundo completo.
+   - **El fondo de la laguna paneada SÍ muestra sólo agua — el diseño
+     tenía razón, y la primera lectura de las capturas al implementar fue
+     un error.** El diseño calculó que a 1,56× y 2,12× la franja visible
+     cae entera dentro de la banda "tranquila" medida y escribió que "la
+     orilla y los juncos se recortan del todo... el chico ve un campo
+     casi sin rasgos". La primera lectura de `capturas/pasoG/`, hecha al
+     implementar, afirmó lo contrario — que los juncos y el pasto de la
+     orilla eran "claramente visibles" en `dolphin3` y `dolphin4` —, pero
+     una relectura directa de los mismos cuatro archivos
+     (`dolphin3-control.png`, `dolphin3-debug280.png`,
+     `dolphin4-control.png`, `dolphin4-debug9999-clamp.png`) durante la
+     verificación posterior muestra un fondo plano, celeste grisáceo y
+     sin textura, sin junco ni pasto en ninguna de las dos bandas,
+     mientras que `dolphin1`/`dolphin2` (sin cámara, el mismo mundo de
+     1000 que el pato) sí los muestran con claridad. Este repositorio deja
+     constancia de su propio error de lectura en vez de ocultarlo.
+     **Decisión que sigue de esto: se adopta el respaldo que el diseño ya
+     había nombrado como salida.** El fondo `<image>` ahora se fija a la
+     VENTANA (`x` = origen de la cámara, `width` = `viewWidth`), no al
+     mundo, en los niveles con cámara — la misma pareja de valores que ya
+     lleva el atributo `viewBox` del `<svg>`, un renglón más arriba en el
+     mismo render. Así la laguna completa (orillas, juncos) queda siempre
+     en cuadro mientras el corredor y los delfines se desplazan por
+     debajo, en vez de panear una porción ya recortada de agua abierta.
+     La razón es la misma que ya deja escrita `docs/13` §4 decisión 3
+     ("cada sector tiene un fondo dibujado entero... es un lugar
+     dibujado"): un fondo que sólo muestra agua abierta deja de sostener
+     esa afirmación. `backdrops.test.ts` cambia con la decisión: la
+     comprobación de filas de canal para la fila delfín ahora usa el
+     ancho de VENTANA (1000) — el mismo rango muestreado (135, 889) que
+     ya usa la fila del pato —, no el ancho del mundo (1560/2120), porque
+     el fondo ya no se estira nunca a esos anchos.
+   - **Cuatro listas de ids fijas a mano, encontradas al correr la
+     batería completa, no al diseñar.** Además del `viewWidth` corregido
+     arriba, la implementación encontró y corrigió cuatro guardas más que
+     enumeraban a mano los niveles de la fase 1 o del modo detective:
+     `levelsByPhase` y la lista de recorrido del modo detective en
+     `catalog.test.ts`, y las pruebas "Registro↔Catálogo, consistencia
+     estructural" y "Resolución de nextAdventure" en `sectors.test.ts`.
+     Ninguna anticipaba una familia nueva de cuatro niveles. La lección
+     es la misma que ya dejaron los pasos anteriores: agregar al FINAL de
+     un registro ordenado cuando sólo importa el orden relativo, nunca
+     insertar en el medio — insertar la fila `dolphin` justo después de
+     la del pato corrió los índices posicionales de varias pruebas;
+     agregarla al final de `ADVENTURES` no.
+   - **El reseed de `restartRun` ya tiene una prueba de regresión
+     propia.** El hueco de motor que el bullet de arriba sobre
+     `restartRun` nombra —"ningún delfín lo ejercita"— quedaba sin
+     ninguna prueba que lo cubriera en la capa donde el reinicio
+     realmente ocurre. Se extrajo el reseed compartido a una función
+     pura y exportada (`seedCameraFor`, en `LevelPlay.tsx`) y se
+     agregaron dos pruebas: una sobre su propia semántica, y una guarda
+     de lectura de fuente que cuenta las tres invocaciones por nombre
+     (montaje, `resetSurface`, `restartRun`). Se confirmó en rojo
+     quitando temporalmente la llamada dentro de `restartRun` — la
+     cuenta cae de 3 a 2 — y se restauró después.
 
    Y dos cosas menores que conviene no volver a descubrir: **ningún test
    de este repo puede ver la cámara moverse** — vitest corre en `node`,
@@ -453,6 +496,14 @@ cargado. Se decide cuando lleguen.
    los ~140 de `docs/09` §3**: el techo real en el primer peldaño es 77,
    con amplitud 160 y corredor 110. Es la cuarta vez que una ley medida
    acorrala un número de dirección de arte.
+
+   Y lo que una captura estática todavía no puede contestar, ni antes ni
+   después de esta corrección: si un mundo que se queda quieto 420
+   unidades, se mueve 560 y se queda quieto otra vez se lee como un solo
+   movimiento continuo o como tres; y si el pulpo que viaja en la punta
+   del dedo tapa al delfín que va pasando — ninguna captura muestra un
+   trazo en vivo a mitad de recorrido, sólo el estado de reposo previo al
+   trazo.
 
 ## 5. Estructura de cada aventura (`.docx` §13)
 

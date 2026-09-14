@@ -604,3 +604,29 @@ prior-paso lessons as their own tasks, the screenshot pairing rule, the
 docs amendment content, the commit plan, four author-bound exclusions) that
 do not fit a checklist under 530 words without deleting the traceability
 those requirements ask for.
+
+## Remediation after verify
+
+Closes the two CRITICAL and two WARNING findings from `verify-report.md`
+(FAIL, 2026-09-14). Does not reopen any of the 56 tasks above.
+
+- [x] R1 — extracted the shared camera reseed (mount/`resetSurface`/
+      `restartRun`) into one exported `seedCameraFor` helper in
+      `LevelPlay.tsx`; added a semantics test and a source-reading guard
+      test counting all three call sites by name; confirmed RED by
+      temporarily removing the `restartRun` call (count 3 → 2), restored.
+- [x] R2 — re-inspected the cited captures, confirmed the amendment's
+      "reeds visible" finding was wrong and design.md §3.3's original
+      prediction was right; adopted design's own named window-pinned
+      fallback (backdrop `<image>` `x`/`width` follow the camera origin/
+      `viewWidth`, mirroring the `<svg>` `viewBox` expression); updated
+      `scrolling-camera`/`trace-canvas` specs and appended design.md §3.5;
+      re-captured and read back all five dolphin3/dolphin4 captures —
+      banks and reeds are now clearly visible at both magnifications.
+- [x] R3 — rewrote `docs/13` §4 item 9 to record the corrected finding,
+      the window-pinned decision and its reason, and the four hardcoded
+      id-list test fixes the amendment had omitted.
+- [x] R4 — the R2 parity test already asserts the base-rect width on
+      `dolphin3`; guide lines stay untestable on the shipped dolphin
+      config (`surface: 'blank'` never renders them), noted rather than
+      forced.
