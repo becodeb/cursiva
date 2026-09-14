@@ -167,33 +167,41 @@ Imperatively..." and "Viewport and Ruled Lines" (MODIFIED).
 Spec traceability: `level-engine/spec.md` "The Existing wave Generator Is
 Reused, and a Trough-Aware Extrema Sibling Is Added".
 
-- [ ] 3.1 RED: create `client/src/levels/dolphinExtrema.test.ts` with the
+- [x] 3.1 RED: create `client/src/levels/dolphinExtrema.test.ts` with the
       superset proof (design §5.1, A2): `routeExtrema(p).filter(e =>
       e.side === 'crest')` must equal `routeApexes(p)` on all eight shipped
       `sheep-hill*`/`llama-peak*` polylines; and `routeApexes(dolphinPoly)`
       returns `[]` (the row that names A2). Confirm RED — the module does
-      not exist.
-- [ ] 3.2 GREEN: create `client/src/levels/dolphinExtrema.ts` implementing
+      not exist. (`dolphinPoly` built from a synthetic `wave()`-based
+      config, since no real dolphin level exists yet.)
+- [x] 3.2 GREEN: create `client/src/levels/dolphinExtrema.ts` implementing
       `RouteExtremum`, `routeExtrema` (monotone-run scan, NOT a three-point
       scan — design §5.1) and `vertexArtPoints` (crest/trough offset
       formulas). Confirm 3.1 passes.
-- [ ] 3.3 RED: extend `dolphinExtrema.test.ts` — on a synthetic
+- [x] 3.3 RED: extend `dolphinExtrema.test.ts` — on a synthetic
       `wave`-shaped polyline, `routeExtrema` returns alternating
       crest/trough entries at `x` within 0.5 of `x0 + (i+0.5)·w` and `y`
       within 0.5 of `300 ∓ 160`; `vertexArtPoints` falsifiability: fed
       `target.corridorWidth` at `MAX_WIDTH_FACTOR` instead of the authored
       width, `dolphin1`'s crest picture overlaps the channel by 47 units
-      (`clues.test.ts:306`'s discipline). Confirm RED.
-- [ ] 3.4 GREEN: confirm 3.3 passes against 3.2's implementation with no
+      (`clues.test.ts:306`'s discipline). Confirm RED. (Two assertions
+      added: the exact 47-unit overlap using dolphin1's own literals
+      against a `MAX_WIDTH_FACTOR`-widened channel — design §5.3's own
+      worked number, reproduced within 0.5 units since the crest sample
+      comes off a densely-sampled cubic, not an analytic extremum — plus a
+      direct call-site falsifiability check that feeding the widened width
+      INTO `vertexArtPoints` itself moves the picture.)
+- [x] 3.4 GREEN: confirm 3.3 passes against 3.2's implementation with no
       retuning of `routeApexes`.
-- [ ] 3.5 In `client/src/levels/types.ts`: add `vertexArt.place?: 'apexes'
+- [x] 3.5 In `client/src/levels/types.ts`: add `vertexArt.place?: 'apexes'
       | 'extrema'` and `vertexArt.clear?: number` (design §5.4).
-- [ ] 3.6 In `client/src/screen/LevelPlay.tsx:1415-1420`: branch on
+- [x] 3.6 In `client/src/screen/LevelPlay.tsx`: branch on
       `level.vertexArt.place` — `'extrema'` calls `vertexArtPoints(
       routeExtrema(target.polyline), {corridorWidth: level.corridorWidth`
       **(the AUTHORED width, never `target.corridorWidth`)**`, size, clear:
       clear ?? 8})`; absent falls back to `routeApexes` unchanged.
-- [ ] 3.7 Run `npm test -- levels/dolphinExtrema screen/LevelPlay` — green.
+- [x] 3.7 Run `npm test -- levels/dolphinExtrema screen/LevelPlay` — green
+      (81 tests). Full suite 76 files / 1695 tests, build green.
 
 ## Phase 4: [G4] The Sheet-Width Parameter
 

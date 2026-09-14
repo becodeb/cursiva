@@ -54,6 +54,7 @@ import { contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnCo
 import { buildLevelTarget } from '../levels/buildLevel'
 import { hitObstacle, obstacleAt } from '../levels/obstacles'
 import { routeApexes } from '../levels/vertexArt'
+import { routeExtrema, vertexArtPoints } from '../levels/dolphinExtrema'
 import { evaluateLevel } from '../game/evaluateLevel'
 import { coachMessage } from '../game/adaptiveTolerance'
 import { playApprovalTone } from '../modes/tone'
@@ -1479,10 +1480,20 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // drift from a re-tuned generator call.
   const vertexArt = useMemo<TraceVertexArt | undefined>(() => {
     if (!level.vertexArt) return undefined
-    const at = routeApexes(target.polyline)
+    const at =
+      level.vertexArt.place === 'extrema'
+        ? vertexArtPoints(routeExtrema(target.polyline), {
+            // The AUTHORED width, never `target.corridorWidth` — the picture
+            // must not move when adaptive tolerance widens the channel
+            // (design.md §5.1, §5.3).
+            corridorWidth: level.corridorWidth,
+            size: level.vertexArt.size,
+            clear: level.vertexArt.clear ?? 8,
+          })
+        : routeApexes(target.polyline)
     if (at.length === 0) return undefined
     return { ...level.vertexArt.art, size: level.vertexArt.size, at }
-  }, [level.vertexArt, target.polyline])
+  }, [level.vertexArt, level.corridorWidth, target.polyline])
 
   const ground = useMemo<TraceGround | undefined>(() => {
     // A backdrop retires the scattered ground (docs/13 §4 decision 3): the

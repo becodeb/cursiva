@@ -164,7 +164,20 @@ export interface LevelConfig {
    * `levels/vertexArt.ts`'s `routeApexes`, never authored as coordinates.
    * Additive, absent on every level that predates it — the same convention
    * `goalArt` established. */
-  vertexArt?: { art: ArtImage; size: number }
+  vertexArt?: {
+    art: ArtImage
+    size: number
+    /** WHERE on the route the art stands. Absent = `routeApexes`, i.e. the
+     *  crests only, standing ON the line — the shipped sheep and llama
+     *  behaviour, byte for byte. `'extrema'` = crests AND troughs, pushed
+     *  OUTWARD clear of the channel (`levels/dolphinExtrema.ts`). The mode
+     *  lives on the LEVEL, not inside `routeApexes`, so the function two
+     *  families depend on gains no branch. */
+    place?: 'apexes' | 'extrema'
+    /** `'extrema'` only: how far the picture clears the channel wall.
+     *  Defaulted at the call site so `'apexes'` never reads it. */
+    clear?: number
+  }
   /** A covering layer of independent tiles over this level's backdrop
    *  (`docs/13` §4, "superficie tapada por una grilla de piezas que se borran
    *  al tocarlas"). The field's REASON TO EXIST is `docs/13` §6's "trayectoria
