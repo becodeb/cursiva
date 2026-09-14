@@ -508,6 +508,34 @@ const ENTRANCE: LevelConfig[] = [
   },
 ]
 
+/** How tall a dolphin is drawn, in viewBox units.
+ *
+ *  `docs/09` §3 sizes animals at ~140, and 140 DOES NOT FIT. The band between
+ *  the corridor's outer wall and the edge of the sheet is
+ *  `300 − amplitude − corridorWidth/2 − clear`; the phase-1 guard forces
+ *  amplitude > 150, so at this family's authored 160 and `dolphin1`'s
+ *  110-wide channel the ceiling is 140 − 55 − 8 = 77 (design.md A3, §5.2).
+ *  The proposal estimated 80–90 by omitting the clearance; the real ceiling
+ *  is 77.
+ *
+ *  64 spends 83% of that ceiling and keeps 13 units between the picture and
+ *  the edge of the sheet at the tightest rung, which is what stops
+ *  `clampArtBox` from being anything but the identity (design.md §5.4). This
+ *  is the fourth time a measured law has cornered an art-direction number
+ *  (`docs/13` §4 items 5, 6, 7, 8); the exact value inside the ceiling is
+ *  the author's, and `catalog.test.ts` asserts the CONSTRAINT, never this
+ *  literal. */
+const DOLPHIN_SIZE = 64
+/** How far the dolphin's picture clears the channel wall.
+ *
+ *  Strictly greater than `BAND_INSET` (6, `buildLevel.ts`) — the slack the
+ *  SCORER forgives, "a trace exactly on the wall still reads as inside". A
+ *  picture that clears the wall by less than that slack could be visibly
+ *  touched by a trace the engine counts as clean, and *"pasa entre ellos sin
+ *  tocarlos"* would then be false on the screen while true in the score. 8
+ *  is the smallest integer that is not (design.md §5.2). */
+const DOLPHIN_CLEAR = 8
+
 const PHASE_1: LevelConfig[] = [
   ...ENTRANCE,
   {
@@ -1310,6 +1338,92 @@ const PHASE_1: LevelConfig[] = [
       goalArt: SECTOR_ADVENTURE_ART.honeycomb,
       goalSize: 96,
     },
+  },
+  {
+    id: 'dolphin1',
+    phase: 1,
+    title: 'Los primeros delfines',
+    hint: 'Seguí el camino entre los delfines, de punta a punta.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: false,
+    carrier: true,
+    feedback: feedback(0, false),
+    // §2 step 1 — pocos delfines y separación amplia: 2 cycles, the widest
+    // channel and the widest half-period in the family (design.md §4.2).
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 160, cycles: 2 })],
+    corridorWidth: 110,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    vertexArt: { art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE, place: 'extrema', clear: DOLPHIN_CLEAR },
+  },
+  {
+    id: 'dolphin2',
+    phase: 1,
+    title: 'Más delfines en el agua',
+    hint: 'Ahora hay más delfines. Seguí el camino sin salirte.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: false,
+    carrier: true,
+    feedback: feedback(0, false),
+    // §2 step 2 — más delfines: 3 cycles, same view, same corridor family
+    // pace, narrower channel than step 1.
+    paths: [wave({ x0: 80, x1: 920, y: 300, amplitude: 160, cycles: 3 })],
+    corridorWidth: 100,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    vertexArt: { art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE, place: 'extrema', clear: DOLPHIN_CLEAR },
+  },
+  {
+    id: 'dolphin3',
+    phase: 1,
+    title: 'Un estanque más grande',
+    hint: 'El camino sigue más allá de lo que ves. Continuá sin salirte.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: false,
+    carrier: true,
+    feedback: feedback(0, false),
+    // §2 step 3 — recorrido desplazable: the new mechanic enters here. 5
+    // cycles across a sheet wider than the window (design.md §4.2, §1).
+    paths: [wave({ x0: 80, x1: 1480, y: 300, amplitude: 160, cycles: 5 })],
+    corridorWidth: 96,
+    // `viewWidth` matches `MIN_VIEWBOX_WIDTH` on purpose: the stroke on this
+    // level is drawn at the identical visual scale as on `dolphin1` and on
+    // every other level in the app (design.md §1.1).
+    camera: { viewWidth: 1000, lead: 0.5 },
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    vertexArt: { art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE, place: 'extrema', clear: DOLPHIN_CLEAR },
+  },
+  {
+    id: 'dolphin4',
+    phase: 1,
+    title: 'El recorrido más largo',
+    hint: 'Sostené el mismo camino durante todo el recorrido.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: false,
+    carrier: true,
+    feedback: feedback(0, false),
+    // §2 step 4 — sostener el patrón más tiempo: the most cycles AND the
+    // narrowest channel in the family (design.md §4.2).
+    paths: [wave({ x0: 80, x1: 2040, y: 300, amplitude: 160, cycles: 7 })],
+    corridorWidth: 84,
+    camera: { viewWidth: 1000, lead: 0.5 },
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    vertexArt: { art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE, place: 'extrema', clear: DOLPHIN_CLEAR },
   },
 ]
 

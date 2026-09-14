@@ -16,7 +16,8 @@ import { migratePhase1 } from '../game/migratePhase1'
 import { DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
 import type { LevelRecord } from '../game/types'
 import { migrateDuckCase } from '../game/migrateDuckCase'
-import { BAND_INSET, MIN_CORRIDOR, buildLevelTarget } from './buildLevel'
+import { BAND_INSET, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget } from './buildLevel'
+import { routeExtrema, vertexArtPoints } from './dolphinExtrema'
 import { clueCountFor } from '../detective/clues'
 import {
   DEGRADED_LEVEL_IDS,
@@ -84,6 +85,10 @@ const EXPECTED_IDS = [
   'bee2',
   'bee3',
   'bee4',
+  'dolphin1',
+  'dolphin2',
+  'dolphin3',
+  'dolphin4',
   'f2-guirnalda',
   'f2-agua2',
   'f2-agua3',
@@ -165,6 +170,10 @@ describe('LEVELS — authored values match the doc tables', () => {
     'bee2': 0,
     'bee3': 0,
     'bee4': 0,
+    'dolphin1': 110,
+    'dolphin2': 100,
+    'dolphin3': 96,
+    'dolphin4': 84,
     'f1-libre': 0,
     'duck-trail1': 100,
     'duck-trail2': 90,
@@ -223,6 +232,10 @@ describe('LEVELS — authored values match the doc tables', () => {
     'bee2': 0,
     'bee3': 0,
     'bee4': 0,
+    'dolphin1': 0,
+    'dolphin2': 0,
+    'dolphin3': 0,
+    'dolphin4': 0,
     'f1-libre': 0,
     'duck-trail1': 0,
     'duck-trail2': 0,
@@ -763,6 +776,10 @@ describe('levelsByPhase', () => {
       'bee2',
       'bee3',
       'bee4',
+      'dolphin1',
+      'dolphin2',
+      'dolphin3',
+      'dolphin4',
     ])
     expect(levelsByPhase(4).map((l) => l.id)).toEqual(['f4-la', 'f4-ma'])
     expect(levelsByPhase(5)).toHaveLength(2)
@@ -832,6 +849,10 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
       'bee2',
       'bee3',
       'bee4',
+      'dolphin1',
+      'dolphin2',
+      'dolphin3',
+      'dolphin4',
     ])
     for (const removed of REMOVED_IDS) expect(phase1Ids).not.toContain(removed)
   })
@@ -1762,5 +1783,93 @@ describe('the bee family — C1-C6 and R1-R5 (design.md §4.2/§6.2)', () => {
     const positions = BEE_IDS.map((id) => EXPECTED_IDS.indexOf(id))
     expect(positions.every((p) => p >= 0)).toBe(true)
     expect(positions).toEqual([...positions].sort((a, b) => a - b))
+  })
+})
+
+describe('the dolphin family — one rung per docs/13 §2 step, amplitude guard satisfied at full amplitude (design.md §4.2, §5.2)', () => {
+  const DOLPHIN_IDS = ['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4'] as const
+
+  it('the ladder is monotone: period count rises (4<6<10<14), corridor width falls (110>100>96>84)', () => {
+    const periods = DOLPHIN_IDS.map((id) => routeExtrema(buildLevelTarget(getLevel(id)).polyline).length)
+    expect(periods).toEqual([4, 6, 10, 14])
+    for (let i = 1; i < periods.length; i++) expect(periods[i]).toBeGreaterThan(periods[i - 1])
+
+    const widths = DOLPHIN_IDS.map((id) => getLevel(id).corridorWidth)
+    expect(widths).toEqual([110, 100, 96, 84])
+    for (let i = 1; i < widths.length; i++) expect(widths[i]).toBeLessThan(widths[i - 1])
+  })
+
+  it('clears the phase-1 amplitude guard at full amplitude (A=160>150) on all four', () => {
+    for (const id of DOLPHIN_IDS) {
+      const { paths } = getLevel(id)
+      let minY = Infinity
+      let maxY = -Infinity
+      for (const d of paths) {
+        for (const p of flattenPathD(d).points) {
+          if (p.y < minY) minY = p.y
+          if (p.y > maxY) maxY = p.y
+        }
+      }
+      expect(maxY - minY, id).toBeGreaterThan(300)
+      expect(minY, id).toBeLessThan(180)
+      expect(maxY, id).toBeGreaterThan(420)
+      // The amplitude itself clears the guard's own derived threshold (design
+      // §4.2: for a sine centred at y=300, minY<180/maxY>420 reduce to A>150).
+      expect(300 - minY, id).toBeGreaterThan(150)
+    }
+  })
+
+  it('a camera is present ONLY on dolphin3/dolphin4, with viewWidth === MIN_VIEWBOX_WIDTH', () => {
+    expect(getLevel('dolphin1').camera).toBeUndefined()
+    expect(getLevel('dolphin2').camera).toBeUndefined()
+    expect(getLevel('dolphin3').camera?.viewWidth).toBe(MIN_VIEWBOX_WIDTH)
+    expect(getLevel('dolphin4').camera?.viewWidth).toBe(MIN_VIEWBOX_WIDTH)
+  })
+
+  it('demo is true ONLY on dolphin1; resetOnContact is false and no clue is authored on all four', () => {
+    expect(getLevel('dolphin1').demo).toBe(true)
+    for (const id of ['dolphin2', 'dolphin3', 'dolphin4']) expect(getLevel(id).demo, id).not.toBe(true)
+    for (const id of DOLPHIN_IDS) {
+      expect(getLevel(id).resetOnContact, id).toBe(false)
+      expect(getLevel(id).clue, id).toBeUndefined()
+      expect(getLevel(id).obstacles, id).toBeUndefined()
+    }
+  })
+
+  it('the crest/trough box table (design.md §5.2, derived from vertexArtPoints)', () => {
+    const BOXES: Record<string, { crest: [number, number]; trough: [number, number] }> = {
+      dolphin1: { crest: [13, 77], trough: [523, 587] },
+      dolphin2: { crest: [18, 82], trough: [518, 582] },
+      dolphin3: { crest: [20, 84], trough: [516, 580] },
+      dolphin4: { crest: [26, 90], trough: [510, 574] },
+    }
+    for (const id of DOLPHIN_IDS) {
+      const level = getLevel(id)
+      const extrema = routeExtrema(buildLevelTarget(level).polyline)
+      const at = vertexArtPoints(extrema, {
+        corridorWidth: level.corridorWidth,
+        size: level.vertexArt!.size,
+        clear: level.vertexArt!.clear ?? 8,
+      })
+      const crestBottom = at.find((_, i) => extrema[i].side === 'crest')!.y
+      const troughBottom = at.find((_, i) => extrema[i].side === 'trough')!.y
+      const [crestTop, crestExpectedBottom] = BOXES[id].crest
+      const [troughTop, troughExpectedBottom] = BOXES[id].trough
+      expect(crestBottom, `${id} crest bottom`).toBeCloseTo(crestExpectedBottom, 0)
+      expect(crestBottom - level.vertexArt!.size, `${id} crest top`).toBeCloseTo(crestTop, 0)
+      expect(troughBottom, `${id} trough bottom`).toBeCloseTo(troughExpectedBottom, 0)
+      expect(troughBottom - level.vertexArt!.size, `${id} trough top`).toBeCloseTo(troughTop, 0)
+    }
+  })
+
+  it('every dolphin uses vertexArt.place "extrema" with the shipped dolphin art, size 64, clear 8', () => {
+    for (const id of DOLPHIN_IDS) {
+      const va = getLevel(id).vertexArt
+      expect(va, id).toBeDefined()
+      expect(va?.place, id).toBe('extrema')
+      expect(va?.size, id).toBe(64)
+      expect(va?.clear, id).toBe(8)
+      expect(va?.art, id).toBe(SECTOR_ADVENTURE_ART.dolphin)
+    }
   })
 })
