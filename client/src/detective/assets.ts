@@ -359,6 +359,48 @@ export const HEDGEHOG_ART: Readonly<Record<'profile' | 'curled', ArtImage>> = {
   curled: { href: '/art/hedgehog-curled.png', w: 412, h: 407 },
 }
 
+/** One pose's measured silhouette, in the image's OWN normalised space
+ * (`radial-spines` capability, design.md §3.3's `SilhouetteProfile` shape,
+ * restated structurally here rather than imported — `detective/` imports
+ * nothing from `levels/`, the same leaf-module convention every other
+ * `ArtImage` export in this file already follows). */
+export interface HedgehogSilhouette {
+  /** Opaque-pixel centroid, as a fraction of the image box (x/W, y/H). */
+  readonly centroid: readonly [number, number]
+  /** Outer silhouette extent along 24 equally spaced rays from the
+   *  centroid, starting at 0° (+x) and increasing CLOCKWISE (SVG
+   *  convention, y is down), as a fraction of the image WIDTH. */
+  readonly radii: readonly number[]
+}
+
+/** Measured once with `scripts/art/png.py` at 0.25px marching resolution,
+ * alpha ≥ 128, 24 rays (design.md §10 — transcribed VERBATIM, never
+ * re-derived here). `radii` is the `r/W` column, normalised by WIDTH on
+ * both axes on purpose: the `<image>` preserves aspect, so one uniform
+ * scale carries both axes and a radius can never be stretched
+ * (`levels/spines.ts`'s `spineBody`/`spineAnchors` read this table for the
+ * body box and every anchor alike, so the art and the scored geometry
+ * agree by construction — design.md §2 D2). `assets.test.ts` guards this
+ * literal against a future silent retune, ray for ray. */
+export const HEDGEHOG_SILHOUETTE: Readonly<Record<'profile' | 'curled', HedgehogSilhouette>> = {
+  profile: {
+    centroid: [0.5416, 0.5107],
+    radii: [
+      0.45491, 0.45938, 0.42455, 0.45089, 0.37388, 0.27277, 0.26563, 0.27277, 0.38438, 0.43929,
+      0.42009, 0.50625, 0.45536, 0.40893, 0.39174, 0.3683, 0.35491, 0.34375, 0.34554, 0.35491,
+      0.37054, 0.4, 0.41853, 0.43862,
+    ],
+  },
+  curled: {
+    centroid: [0.5002, 0.5029],
+    radii: [
+      0.4932, 0.48835, 0.54248, 0.50728, 0.49515, 0.48908, 0.48738, 0.48908, 0.49515, 0.49951,
+      0.5, 0.49636, 0.50121, 0.49879, 0.49563, 0.49806, 0.50728, 0.50243, 0.49515, 0.49272,
+      0.49223, 0.49223, 0.49393, 0.4932,
+    ],
+  },
+}
+
 /** A front-facing Andean wool hat icon for the mountain activity. */
 export const ANDEAN_HAT_ART: ArtImage = {
   href: '/art/andean-hat.png',
