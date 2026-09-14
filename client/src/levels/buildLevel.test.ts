@@ -335,10 +335,24 @@ describe('buildLevelTarget — sheet width', () => {
 })
 
 describe('buildLevelTarget — viewWidth (scrolling-camera spec, "Sheet Width and View Width Are Distinct Quantities")', () => {
-  it('every shipped level reports viewWidth === viewBoxWidth — no level authors a camera yet', () => {
+  it('every shipped level with no camera field reports viewWidth === viewBoxWidth', () => {
+    // `dolphin3`/`dolphin4` are the only two shipped levels that opt into a
+    // camera (`level-engine` spec, "Optional Camera Field..."); every other
+    // shipped level, including every level that predates this capability,
+    // MUST keep the parity — asserted separately below for the two that do
+    // opt in.
     for (const level of [...LEVELS, ...LEGACY_PHASE_1]) {
+      if (level.camera) continue
       const target = buildLevelTarget(level)
       expect(target.viewWidth, level.id).toBe(target.viewBoxWidth)
+    }
+  })
+
+  it('dolphin3/dolphin4 are the two shipped levels whose sheet is wider than their view', () => {
+    for (const id of ['dolphin3', 'dolphin4']) {
+      const target = buildLevelTarget(getLevel(id))
+      expect(target.viewBoxWidth, id).toBeGreaterThan(target.viewWidth)
+      expect(target.viewWidth, id).toBe(MIN_VIEWBOX_WIDTH)
     }
   })
 

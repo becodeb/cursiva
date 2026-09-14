@@ -13,6 +13,7 @@ import { obstacleAt } from '../levels/obstacles'
 import { luma } from '../detective/palette'
 import { CHANNEL_STONE } from '../zoo/backdrops'
 import { seedCameraOrigin } from './camera'
+import { routeExtrema, vertexArtPoints } from '../levels/dolphinExtrema'
 
 function demo(over: Partial<DrawDemo> = {}): DrawDemo {
   return { d: 'M 1 2 L 3 4 L 5 4', delay: 1, duration: 1, strokeWidth: 14, ...over }
@@ -63,52 +64,200 @@ describe('TraceCanvas ruled guides (trace-canvas "Viewport and Ruled Lines", T7.
     for (const y of ['180', '300', '420', '540']) expect(html).toContain(`y1="${y}"`)
   })
 })
-describe('TraceCanvas camera prop — the rendered viewBox attribute (scrolling-camera spec §6.1, fixture config)', () => {
-  // A fixture camera config, independent of any catalog level — the real
-  // dolphin catalog does not exist until Phase 5, and design.md §2.7 says
-  // this test is required BEFORE the levels that exercise it. Re-pointed at
-  // the real catalog in Phase 5.5.
-  const WORLD = 1560
+describe('TraceCanvas camera prop — the rendered viewBox attribute, against the REAL catalog (scrolling-camera spec §6.1, design.md §6.1 V1-V6, re-pointed in Phase 5.5)', () => {
+  // A camera prop built the same way LevelPlay builds it: viewWidth/world
+  // from the real target, originX from seedCameraOrigin(cameraDebugOrigin(...)).
+  function cameraFor(
+    levelId: string,
+    debugX: number | null,
+  ): { target: ReturnType<typeof buildLevelTarget>; camera?: { viewWidth: number; lead: number; originX: number } } {
+    const level = getLevel(levelId)
+    const target = buildLevelTarget(level)
+    if (!level.camera) return { target, camera: undefined }
+    const originX = seedCameraOrigin(debugX, target.viewWidth, target.viewBoxWidth)
+    return { target, camera: { viewWidth: target.viewWidth, lead: level.camera.lead, originX } }
+  }
 
-  it('V1: no debug — the initial viewBox reports origin 0 and the window width', () => {
-    const html = renderToString(
-      <TraceCanvas viewBoxWidth={WORLD} camera={{ viewWidth: 1000, lead: 0.5, originX: 0 }} />,
-    )
+  it('V1: dolphin3, no debug — viewBox="0 0 1000 600"', () => {
+    const { target, camera } = cameraFor('dolphin3', null)
+    const html = renderToString(<TraceCanvas viewBoxWidth={target.viewBoxWidth} camera={camera} />)
     expect(html).toContain('viewBox="0 0 1000 600"')
   })
 
-  it('V2: a ?debug=camara:280-style seed reflects in the initial viewBox', () => {
-    const originX = seedCameraOrigin(280, 1000, WORLD)
-    const html = renderToString(
-      <TraceCanvas viewBoxWidth={WORLD} camera={{ viewWidth: 1000, lead: 0.5, originX }} />,
-    )
+  it('V2: dolphin3, ?debug=camara:280 — viewBox="280 0 1000 600"', () => {
+    const { target, camera } = cameraFor('dolphin3', 280)
+    const html = renderToString(<TraceCanvas viewBoxWidth={target.viewBoxWidth} camera={camera} />)
     expect(html).toContain('viewBox="280 0 1000 600"')
   })
 
-  it('V3: a seed past the extent clamps at sheetWidth - viewWidth', () => {
-    const originX = seedCameraOrigin(9999, 1000, WORLD)
-    const html = renderToString(
-      <TraceCanvas viewBoxWidth={WORLD} camera={{ viewWidth: 1000, lead: 0.5, originX }} />,
-    )
-    expect(html).toContain(`viewBox="${WORLD - 1000} 0 1000 600"`)
+  it('V3: dolphin4, ?debug=camara:9999 — the clamp, viewBox="1120 0 1000 600"', () => {
+    const { target, camera } = cameraFor('dolphin4', 9999)
+    const html = renderToString(<TraceCanvas viewBoxWidth={target.viewBoxWidth} camera={camera} />)
+    expect(html).toContain('viewBox="1120 0 1000 600"')
   })
 
-  it('V4: a negative seed floors at 0', () => {
-    const originX = seedCameraOrigin(-50, 1000, WORLD)
-    const html = renderToString(
-      <TraceCanvas viewBoxWidth={WORLD} camera={{ viewWidth: 1000, lead: 0.5, originX }} />,
-    )
+  it('V4: dolphin4, ?debug=camara:-50 — the floor, viewBox="0 0 1000 600"', () => {
+    const { target, camera } = cameraFor('dolphin4', -50)
+    const html = renderToString(<TraceCanvas viewBoxWidth={target.viewBoxWidth} camera={camera} />)
     expect(html).toContain('viewBox="0 0 1000 600"')
   })
 
-  it('V5: a seed does nothing on a fixture with no camera field', () => {
-    const html = renderToString(<TraceCanvas viewBoxWidth={1000} />)
+  it('V5: dolphin1, ?debug=camara:400 — no effect, no camera on this level', () => {
+    const { target, camera } = cameraFor('dolphin1', 400)
+    expect(camera).toBeUndefined()
+    const html = renderToString(<TraceCanvas viewBoxWidth={target.viewBoxWidth} camera={camera} />)
     expect(html).toContain('viewBox="0 0 1000 600"')
   })
 
-  it('V6: a fixture with no camera field renders `0 {viewBoxY} {viewBoxWidth} {viewBoxHeight}` byte-identically', () => {
-    const html = renderToString(<TraceCanvas viewBoxY={140} viewBoxHeight={440} viewBoxWidth={1148} />)
-    expect(html).toContain('viewBox="0 140 1148 440"')
+  it('V6: the parity list stays byte-identical — no camera prop renders the shipped expression exactly', () => {
+    for (const id of [
+      'f4-la',
+      'f5-mama',
+      'duck-trail1',
+      'duck-trail2',
+      'duck-trail3',
+      'duck-trail4',
+      'sheep-hill1',
+      'snake3',
+      'bee1',
+      'night2',
+      'glass1',
+    ]) {
+      const target = buildLevelTarget(getLevel(id))
+      const html = renderToString(<TraceCanvas viewBoxWidth={target.viewBoxWidth} />)
+      expect(html, id).toContain(`viewBox="0 0 ${target.viewBoxWidth} 600"`)
+    }
+  })
+})
+
+/** Parse every `<image x y width height href>` out of the HTML STRING — never
+ *  the internal box objects (paso E's own gap; design.md §6.3's "markup →
+ *  geometry" discipline, `WaypointLayer.test.tsx`'s own helper, restated). */
+function parseImages(html: string): Array<{ x: number; y: number; width: number; height: number; href: string }> {
+  const tags = html.match(/<image[^>]*>/g) ?? []
+  return tags.map((tag) => {
+    const num = (attr: string): number => {
+      const m = tag.match(new RegExp(`${attr}="(-?[0-9.]+)"`))
+      if (!m) throw new Error(`${attr} not found in ${tag}`)
+      return Number(m[1])
+    }
+    const hrefMatch = tag.match(/href="([^"]+)"/)
+    if (!hrefMatch) throw new Error(`href not found in ${tag}`)
+    return { x: num('x'), y: num('y'), width: num('width'), height: num('height'), href: hrefMatch[1] }
+  })
+}
+
+describe('TraceCanvas — the dolphin coincidence test, markup → geometry (design.md §5.1/§6.3, real catalog)', () => {
+  const DOLPHIN_IDS = ['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4'] as const
+  const EXPECTED_COUNT: Record<string, number> = { dolphin1: 4, dolphin2: 6, dolphin3: 10, dolphin4: 14 }
+
+  function dolphinImages(id: string) {
+    const level = getLevel(id)
+    const target = buildLevelTarget(level)
+    const extrema = routeExtrema(target.polyline)
+    const at = vertexArtPoints(extrema, {
+      corridorWidth: level.corridorWidth,
+      size: level.vertexArt!.size,
+      clear: level.vertexArt!.clear ?? 8,
+    })
+    const html = renderToString(
+      <TraceCanvas
+        viewBoxWidth={target.viewBoxWidth}
+        vertexArt={{ ...level.vertexArt!.art, size: level.vertexArt!.size, at }}
+      />,
+    )
+    const images = parseImages(html).filter((img) => img.href === '/art/sector-dolphin.png')
+    return { level, target, extrema, images }
+  }
+
+  it('counts are 4/6/10/14, half crest half trough', () => {
+    for (const id of DOLPHIN_IDS) {
+      const { images } = dolphinImages(id)
+      expect(images, id).toHaveLength(EXPECTED_COUNT[id])
+      expect(images.length % 2, id).toBe(0)
+    }
+  })
+
+  it('every box is disjoint from the channel band 300 ± (160 + cw/2) at the AUTHORED width', () => {
+    for (const id of DOLPHIN_IDS) {
+      const { level, images } = dolphinImages(id)
+      const channelTop = 300 - (160 + level.corridorWidth / 2)
+      const channelBottom = 300 + (160 + level.corridorWidth / 2)
+      for (const img of images) {
+        const disjoint = img.y + img.height <= channelTop || img.y >= channelBottom
+        expect(disjoint, `${id} box [${img.y}, ${img.y + img.height}] vs channel [${channelTop}, ${channelBottom}]`).toBe(true)
+      }
+    }
+  })
+
+  it("every box's x-centre equals its extremum's x within 0.5", () => {
+    for (const id of DOLPHIN_IDS) {
+      const { extrema, images } = dolphinImages(id)
+      images.forEach((img, i) => {
+        expect(img.x + img.width / 2, `${id}[${i}]`).toBeCloseTo(extrema[i].x, 0)
+      })
+    }
+  })
+
+  it('every box lies inside [0, W] x [0, 600] — clampArtBox is the identity', () => {
+    for (const id of DOLPHIN_IDS) {
+      const { target, images } = dolphinImages(id)
+      for (const img of images) {
+        expect(img.x, id).toBeGreaterThanOrEqual(0)
+        expect(img.x + img.width, id).toBeLessThanOrEqual(target.viewBoxWidth)
+        expect(img.y, id).toBeGreaterThanOrEqual(0)
+        expect(img.y + img.height, id).toBeLessThanOrEqual(600)
+      }
+    }
+  })
+
+  it('falsifiability: with clear=0 and size=140 (docs/09 §3), disjointness AND the [0,W]x[0,600] containment both fail', () => {
+    const level = getLevel('dolphin1')
+    const target = buildLevelTarget(level)
+    const extrema = routeExtrema(target.polyline)
+    const at = vertexArtPoints(extrema, { corridorWidth: level.corridorWidth, size: 140, clear: 0 })
+    const html = renderToString(
+      <TraceCanvas
+        viewBoxWidth={target.viewBoxWidth}
+        vertexArt={{ ...level.vertexArt!.art, size: 140, at }}
+      />,
+    )
+    const images = parseImages(html).filter((img) => img.href === '/art/sector-dolphin.png')
+    const channelTop = 300 - (160 + level.corridorWidth / 2)
+    const channelBottom = 300 + (160 + level.corridorWidth / 2)
+    const anyOverlapsChannel = images.some(
+      (img) => !(img.y + img.height <= channelTop || img.y >= channelBottom),
+    )
+    const anyOutsideSheet = images.some((img) => img.y < 0 || img.y + img.height > 600)
+    expect(anyOverlapsChannel || anyOutsideSheet).toBe(true)
+  })
+})
+
+describe('TraceCanvas — insurance: sheetBounds anchored to the WINDOW is asserted BROKEN (design.md §1.3 row 1, §6.3)', () => {
+  it("dolphin3's dolphin boxes COLLIDE at the window's right edge when sheetBounds is forced to viewWidth (1000) instead of the world (1560)", () => {
+    const level = getLevel('dolphin3')
+    const target = buildLevelTarget(level)
+    const extrema = routeExtrema(target.polyline)
+    const at = vertexArtPoints(extrema, {
+      corridorWidth: level.corridorWidth,
+      size: level.vertexArt!.size,
+      clear: level.vertexArt!.clear ?? 8,
+    })
+    // Forcing the WINDOW width (1000) as `viewBoxWidth` — the broken version
+    // §1.3 row 1 warns against — clamps every box past x=931.4 back to the
+    // window's right edge via `clampArtBox`, instead of the correct world
+    // (1560).
+    const html = renderToString(
+      <TraceCanvas
+        viewBoxWidth={target.viewWidth}
+        vertexArt={{ ...level.vertexArt!.art, size: level.vertexArt!.size, at }}
+      />,
+    )
+    const images = parseImages(html).filter((img) => img.href === '/art/sector-dolphin.png')
+    // At least two distinct extrema collapse onto the SAME clamped x once the
+    // window (not the world) is what boxes are clamped against.
+    const rightEdgeXs = images.filter((img) => img.x + img.width >= target.viewWidth - 0.5)
+    expect(rightEdgeXs.length).toBeGreaterThanOrEqual(2)
   })
 })
 

@@ -233,41 +233,49 @@ Spec traceability: `level-engine/spec.md` "Dolphin Level Set...",
 "catalog.test.ts's Existing Guards Recognize the Dolphin Family", "Docs
 §6/§14 Checklist Coverage for the Dolphin Family". Depends on Phases 1–4.
 
-- [ ] 5.1 In `client/src/levels/catalog.ts`: add `DOLPHIN_SIZE = 64` and
+- [x] 5.1 In `client/src/levels/catalog.ts`: add `DOLPHIN_SIZE = 64` and
       `DOLPHIN_CLEAR = 8` with doc comments citing the 77-unit ceiling
       derivation (design §5.2, A3).
-- [ ] 5.2 In `client/src/levels/catalog.ts`: insert `dolphin1..4` after
+- [x] 5.2 In `client/src/levels/catalog.ts`: insert `dolphin1..4` after
       `bee4` per design §4.2–4.3's worked literals — `wave` x0/x1/cycles
       per level, `corridorWidth` ladder `110 > 100 > 96 > 84`, `camera:
       {viewWidth: 1000, lead: 0.5}` on `dolphin3`/`dolphin4` only,
       `vertexArt: {art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE,
       place: 'extrema', clear: DOLPHIN_CLEAR}`, `demo: true` on `dolphin1`
       only, `resetOnContact: false`, no `clue`, `feedback(0, false)`,
-      `rules(1, false, true, 0)`.
-- [ ] 5.3 In `client/src/levels/catalog.test.ts`: extend `EXPECTED_IDS`
+      `rules(1, false, true, 0)`. Titles/hints authored (Spanish, neutral,
+      matching sibling-family style) — not one of the four author-bound
+      items this change explicitly defers.
+- [x] 5.3 In `client/src/levels/catalog.test.ts`: extend `EXPECTED_IDS`
       with the four dolphin ids after `bee4`; extend `CORRIDORS`/`FLUENCY`
       (four rows each); extend the `minAccuracy`-by-phase exemption and the
       tone/haptics clause at `:427-437` if the dolphin family needs it (it
       should not — same `kind: 'path'` shape as every corridor family).
       Confirm `:289, :297, :352` and the amplitude guard `:580-590` stay
       unedited and green; confirm the `kind === 'path'` sites `:312, 377,
-      420, 435` require no change.
-- [ ] 5.4 In `catalog.test.ts`: add a dolphin-family `describe` asserting
+      420, 435` require no change. **Two more hardcoded phase-1 id lists
+      found** (not named by design/tasks): `levelsByPhase` "groups the
+      catalog by phase" and `detective-mode` "lists exactly the four trail
+      ids" both hardcode the full phase-1 order and needed the four
+      dolphin ids appended too — found by running the suite, not by
+      re-reading design.
+- [x] 5.4 In `catalog.test.ts`: add a dolphin-family `describe` asserting
       the ladder monotone (period count `4<6<10<14`, `corridorWidth`
       `110>100>96>84`), the amplitude guard (`A=160>150`, span/minY/maxY
       per design §4.2) on all four, `camera` present only on
       `dolphin3`/`dolphin4` with `viewWidth === MIN_VIEWBOX_WIDTH`, `demo`
       true only on `dolphin1`, `resetOnContact` false and no `clue` on all
-      four, and design §5.2's crest/trough box table.
-- [ ] 5.5 Re-point §6.1's V1–V6 rendered-`viewBox` test (Phase 2.7's
+      four, and design §5.2's crest/trough box table. All pass unmodified
+      against the implementation.
+- [x] 5.5 Re-point §6.1's V1–V6 rendered-`viewBox` test (Phase 2.7's
       fixture version) at the **real catalog**: `dolphin3` no-debug ⇒
       `viewBox="0 0 1000 600"`; `?debug=camara:280` ⇒ `"280 0 1000 600"`;
       `dolphin4` `?debug=camara:9999` ⇒ the clamp `"1120 0 1000 600"`;
       `?debug=camara:-50` ⇒ the floor; `dolphin1` `?debug=camara:400` ⇒ no
       effect (no camera); and V6's parity list (`f4-la`, `f5-mama`,
       `duck-trail1..4`, `sheep-hill1`, `snake3`, `bee1`, `night2`,
-      `glass1`) stays byte-identical.
-- [ ] 5.6 Paso E's lesson (hard requirement): create the coincidence test
+      `glass1`) stays byte-identical. All pass unmodified.
+- [x] 5.6 Paso E's lesson (hard requirement): create the coincidence test
       (design §6.3 "markup → geometry") — `renderToString` each dolphin
       level's real `TraceCanvas` with the real catalog config; parse every
       `<image href="/art/sector-dolphin.png">`'s `x/y/width/height` **out
@@ -280,12 +288,21 @@ Spec traceability: `level-engine/spec.md` "Dolphin Level Set...",
       (`docs/09` §3's literal), (i) and (iii) both fail. This must pass
       given Phases 3 and 5.1–5.2's wiring; if it fails, fix the wiring, not
       the test.
-- [ ] 5.7 Insurance test: render `dolphin3` with `sheetBounds.width` forced
+- [x] 5.7 Insurance test: render `dolphin3` with `sheetBounds.width` forced
       to `1000` (the window) instead of `1560` (the world) and assert the
       dolphin boxes COLLIDE at the window's right edge — §1.3 row 1's
-      broken version, asserted broken (design §6.3).
-- [ ] 5.8 Run `npm test -- levels/catalog canvas/TraceCanvas
-      screen/LevelPlay` — green.
+      broken version, asserted broken (design §6.3). (Forced via
+      `viewBoxWidth={target.viewWidth}` — `TraceCanvas`'s own `sheetBounds`
+      is derived directly from its `viewBoxWidth` prop, so this is the same
+      broken wiring §1.3 row 1 warns against.)
+- [x] 5.8 Run `npm test -- levels/catalog canvas/TraceCanvas
+      screen/LevelPlay` — green (343 tests). **Regression found and fixed**:
+      Phase 1's own `buildLevel.test.ts` parity test ("every shipped level
+      reports viewWidth === viewBoxWidth") now legitimately fails for
+      `dolphin3`/`dolphin4`, which DO opt into a camera — split into "every
+      shipped level with NO camera field" (unchanged claim) plus a new
+      assertion that `dolphin3`/`dolphin4` are the two exceptions. Full
+      suite 76 files / 1713 tests, `tsc --noEmit` clean, build green.
 
 ## Phase 6: [G6] The Zoo
 
