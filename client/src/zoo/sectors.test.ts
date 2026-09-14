@@ -542,3 +542,45 @@ describe('viewBoxToImage (the exact inverse of imageToViewBox)', () => {
     }
   })
 })
+
+describe('imageToViewBox/viewBoxToImage — optional stageWidth parameter (zoo-map spec, design.md §3.2/§3.4)', () => {
+  it('defaults to STAGE_W (1000) — every existing caller stays byte-identical with no argument', () => {
+    for (const [x, y] of [[0, 0], [1536, 1024], [768, 512], [136, 90], [527, 360]] as const) {
+      expect(imageToViewBox(x, y, 1000)).toEqual(imageToViewBox(x, y))
+    }
+    for (const [vbX, vbY] of [[0, 0], [1000, 600], [500, 300], [90, 135], [910, 505]] as const) {
+      expect(viewBoxToImage(vbX, vbY, 1000)).toEqual(viewBoxToImage(vbX, vbY))
+    }
+  })
+
+  it('W = 1560 (dolphin3): the channel row table (design.md §3.2)', () => {
+    // scale = max(1560/1536, 600/1024) = 1.015625.
+    expect(viewBoxToImage(0, 92, 1560).y).toBeCloseTo(307.2, 1)
+    expect(viewBoxToImage(0, 508, 1560).y).toBeCloseTo(716.8, 1)
+  })
+
+  it('W = 2120 (dolphin4): the channel row table (design.md §3.2)', () => {
+    // scale = max(2120/1536, 600/1024) = 1.380208.
+    expect(viewBoxToImage(0, 98, 2120).y).toBeCloseTo(365.6, 1)
+    expect(viewBoxToImage(0, 502, 2120).y).toBeCloseTo(658.4, 1)
+  })
+
+  it('the 161-row lie: the default-width transform validates rows the render never shows at a wide sheet', () => {
+    const atDefault = viewBoxToImage(0, 98, 1000).y
+    const atDolphin4Width = viewBoxToImage(0, 98, 2120).y
+    // The same viewBox row maps to a wildly different source row once the
+    // sheet is actually 2120 wide — the whole reason the parameter exists:
+    // `backdrops.test.ts` must validate the row the render ACTUALLY shows,
+    // not the row a hardcoded 1000-wide transform reports.
+    expect(Math.abs(atDolphin4Width - atDefault)).toBeGreaterThan(150)
+  })
+
+  it('a wider explicit sheet round-trips exactly like the default one does', () => {
+    for (const [vbX, vbY] of [[0, 0], [1560, 600], [780, 300]] as const) {
+      const img = viewBoxToImage(vbX, vbY, 1560)
+      const back = imageToViewBox(img.x, img.y, 1560)
+      expect(back.x).toBeCloseTo(vbX, 6)
+      expect(back.y).toBeCloseTo(vbY, 6)
+    }
+  })
+})

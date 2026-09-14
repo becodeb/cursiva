@@ -147,12 +147,25 @@ const STAGE_H = 600
  * PNG — they should push their samples through the function this change's
  * numbers came from, not re-derive the factor and get 0.65 or forget the
  * crop.
+ *
+ * `stageWidth` (`scrolling-camera`/`zoo-map` capability, design.md §3.4)
+ * defaults to `STAGE_W` (1000), so all fifteen existing callers — every one
+ * of them in this file's own test suite, passing no argument — stay
+ * byte-identical. A caller measuring a WIDER sheet (a panned dolphin level's
+ * own backdrop) passes its actual sheet width explicitly, or it validates
+ * rows the render never shows at that width — a certain, not merely likely,
+ * defect (design.md §3.2's "161-row lie"). This is the STAGE width, never
+ * the SOURCE size: both functions are named and built for the zoo map's own
+ * `1536 × 1024` pixels, and they work for a backdrop only because every
+ * sector background ships at that same resolution. A future source at
+ * another size needs its own transform, not a third parameter on this one.
  */
 export function imageToViewBox(
   imgX: number,
   imgY: number,
+  stageWidth: number = STAGE_W,
 ): { x: number; y: number } {
-  const scale = Math.max(STAGE_W / MAP_IMG_W, STAGE_H / MAP_IMG_H)
+  const scale = Math.max(stageWidth / MAP_IMG_W, STAGE_H / MAP_IMG_H)
   return {
     x: imgX * scale,
     y: imgY * scale - (MAP_IMG_H * scale - STAGE_H) / 2,
@@ -165,9 +178,16 @@ export function imageToViewBox(
  * corridor's viewBox extent falls inside a sector backdrop's own sampled
  * `corridorRows` — pushed through the SAME factor `imageToViewBox`'s numbers
  * came from, not re-derived (this function's own header).
+ *
+ * `stageWidth` — same contract as {@link imageToViewBox}'s own parameter,
+ * defaulting to `STAGE_W`.
  */
-export function viewBoxToImage(vbX: number, vbY: number): { x: number; y: number } {
-  const scale = Math.max(STAGE_W / MAP_IMG_W, STAGE_H / MAP_IMG_H)
+export function viewBoxToImage(
+  vbX: number,
+  vbY: number,
+  stageWidth: number = STAGE_W,
+): { x: number; y: number } {
+  const scale = Math.max(stageWidth / MAP_IMG_W, STAGE_H / MAP_IMG_H)
   return {
     x: vbX / scale,
     y: (vbY + (MAP_IMG_H * scale - STAGE_H) / 2) / scale,

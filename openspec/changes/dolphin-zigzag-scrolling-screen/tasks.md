@@ -208,17 +208,24 @@ Reused, and a Trough-Aware Extrema Sibling Is Added".
 Spec traceability: `zoo-map/spec.md` "Image-to-ViewBox Transform and
 Background" (MODIFIED).
 
-- [ ] 4.1 RED: in `client/src/zoo/sectors.test.ts`, add explicit-width
+- [x] 4.1 RED: in `client/src/zoo/sectors.test.ts`, add explicit-width
       cases for `viewBoxToImage`/`imageToViewBox` at `W = 1560` and `W =
       2120` reproducing design §3.2's channel-row table, and the "161-row
       lie" case (the 1000-wide transform reports 204.8 where the correct
       answer at `W=2120` is 365.6). Confirm RED — the parameter does not
-      exist.
-- [ ] 4.2 GREEN: in `client/src/zoo/sectors.ts:151-175`, add `stageWidth:
+      exist. **Minor design imprecision found**: design's own prose example
+      compares `y=100` at the default width (204.8, exact) against `y=98`
+      at `W=2120` (365.6, from the precise per-level table) — two different
+      source rows, not one. The test uses `y=98` consistently on both sides
+      (the exact per-level table value), which still shows a >150-row
+      divergence — the underlying claim holds; only the illustrative prose
+      pairing was imprecise. Noted for the `docs/13` amendment.
+- [x] 4.2 GREEN: in `client/src/zoo/sectors.ts`, add `stageWidth:
       number = STAGE_W` to both `imageToViewBox` and `viewBoxToImage`
       (design §3.4). Confirm 4.1 passes and add the fifteen-existing-caller
       parity proof (byte-identical at the default).
-- [ ] 4.3 Run `npm test -- zoo/sectors` — green.
+- [x] 4.3 Run `npm test -- zoo/sectors` — green (54 tests). Full suite 76
+      files / 1700 tests, build green.
 
 ## Phase 5: [G5] The Four Dolphin Levels
 
