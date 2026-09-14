@@ -53,6 +53,7 @@ import {
 import {
   EMPTY_SPINES,
   SPINE_MARK_R,
+  debugSpineStrokes,
   seedSpines,
   spineAim,
   spineBody,
@@ -1720,6 +1721,23 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     }
   }, [level.spines, spineState, spineDebugK])
 
+  // The spines themselves. There is no "spine" shape anywhere in
+  // `SpineLayer` — the spine the child sees IS their own settled ink, drawn
+  // by `TraceCanvas` from `completedStrokes`. So a flag that lights k marks
+  // and draws no ink produces a frame the real game can never make: five
+  // earned anchors on a bare hedgehog. That is amendment 8's failure exactly
+  // (`docs/13` §4): ONE number must drive every render fact the flag
+  // produces, or a still frame tells two stories at once and cannot answer
+  // the one question it exists to answer ("do the spines look right?").
+  // Each spine is its own stroke, so these ride as k EXTRA entries —
+  // render-only, never in `strokes` (which `onRelease` overwrites from the
+  // canvas's own captured list regardless), so never scored and never
+  // persisted.
+  const spineDebugStrokes = useMemo(() => {
+    if (!level.spines || spineDebugK === null) return null
+    return debugSpineStrokes(level.spines, spineDebugK)
+  }, [level.spines, spineDebugK])
+
   // `?debug=estela:<k>`'s implied trail: `start`, the first `k` flowers, the
   // hive once `k` exceeds the stop count — the very picture the touch rings
   // above measure against, so the two cannot tell inconsistent stories (A4).
@@ -1886,11 +1904,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // is no character at the start, so the arrow stays the only thing
         // carrying direction.
         directionArrow={showMarkers && !drawnPlace ? directionArrow : undefined}
-        // `?debug=estela:<k>`'s implied trail rides as an EXTRA entry here —
-        // render-only, never in `strokes`, never scored, never persisted
+        // `?debug=estela:<k>`'s implied trail rides as ONE extra entry here,
+        // and `?debug=espinas:<k>`'s spines as k extra entries (one per
+        // spine — a spine is a loose stroke, not a leg of a polyline). Both
+        // are render-only: never in `strokes`, never scored, never persisted
         // (design.md §8). Absent on every ordinary frame a child ever sees.
         completedStrokes={
-          waypointDebugStrokes ? [...shownStrokes, waypointDebugStrokes] : shownStrokes
+          waypointDebugStrokes || spineDebugStrokes
+            ? [
+                ...shownStrokes,
+                ...(waypointDebugStrokes ? [waypointDebugStrokes] : []),
+                ...(spineDebugStrokes ?? []),
+              ]
+            : shownStrokes
         }
         offPath={offPath}
         clearSignal={clearSignal}

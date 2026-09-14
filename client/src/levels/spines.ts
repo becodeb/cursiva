@@ -366,25 +366,56 @@ export function spineRings(cfg: SpineConfig): readonly { x: number; y: number; r
 }
 
 /**
- * The demonstration's own source (the demo repair, design.md §2 D3): the
- * first `k` anchor→tip line segments, one per anchor in generator order, as
- * SVG path `d` strings (the same shape `LevelTarget.paths` already is). The
- * tip sits at the length band's own midpoint outward along the anchor's
+ * The ONE anchor→tip computation. Both renderings of "the first `k` spines"
+ * — the demonstration's SVG `d` strings and `?debug=espinas:<k>`'s ink —
+ * are projections of this list, so they cannot drift apart: two functions
+ * independently deciding where a tip sits is exactly how a still frame ends
+ * up telling two stories at once (`docs/13` §4 amendment 8, the bee's own
+ * lesson).
+ *
+ * The tip sits at the length band's own midpoint outward along the anchor's
  * normal — a plausible spine, neither the shortest nor the longest
- * admissible stroke.
+ * admissible stroke. `Math.trunc` makes the clamp literally the one
+ * `debugSpines` uses, so the same `k` can never fill a different number of
+ * anchors than it draws strokes for; it is a no-op on the integer `k` every
+ * caller passes, so `spineDemoPaths` below is unchanged.
  */
-export function spineDemoPaths(cfg: SpineConfig, k: number): readonly string[] {
+function spineSegments(cfg: SpineConfig, k: number): readonly (readonly [Point, Point])[] {
   const anchors = spineAnchors(cfg)
-  const n = Math.max(0, Math.min(k, anchors.length))
+  const n = Math.max(0, Math.min(Math.trunc(k), anchors.length))
   const len = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
-  const paths: string[] = []
+  const segments: (readonly [Point, Point])[] = []
   for (let i = 0; i < n; i++) {
     const a = anchors[i]
-    const tipX = a.x + a.nx * len
-    const tipY = a.y + a.ny * len
-    paths.push(`M ${a.x} ${a.y} L ${tipX} ${tipY}`)
+    segments.push([
+      { x: a.x, y: a.y },
+      { x: a.x + a.nx * len, y: a.y + a.ny * len },
+    ])
   }
-  return paths
+  return segments
+}
+
+/**
+ * The demonstration's own source (the demo repair, design.md §2 D3): the
+ * first `k` anchor→tip line segments, one per anchor in generator order, as
+ * SVG path `d` strings (the same shape `LevelTarget.paths` already is).
+ */
+export function spineDemoPaths(cfg: SpineConfig, k: number): readonly string[] {
+  return spineSegments(cfg, k).map(([base, tip]) => `M ${base.x} ${base.y} L ${tip.x} ${tip.y}`)
+}
+
+/**
+ * The ink `?debug=espinas:<k>` paints: the first `k` anchor→tip strokes, one
+ * two-point list per spine, in the SAME generator order `debugSpines` fills.
+ * Each spine is its own stroke — the child draws k separate loose strokes,
+ * never one polyline — so this returns k lists, not one.
+ *
+ * Render-only: never scored, never persisted. Derived from `spineSegments`
+ * alongside `spineDemoPaths`, so the demonstration and the debug frame can
+ * never show the spine in two different places.
+ */
+export function debugSpineStrokes(cfg: SpineConfig, k: number): readonly (readonly Point[])[] {
+  return spineSegments(cfg, k).map(([base, tip]) => [base, tip])
 }
 
 /** `?debug=espinas:<k>` — the first `k` anchors (by generator order) already

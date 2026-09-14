@@ -82,6 +82,7 @@ import { TORCH_CHALK } from '../zoo/backdrops'
 import { PRINT } from '../detective/palette'
 import { getLevel } from '../levels/catalog'
 import { buildLevelTarget } from '../levels/buildLevel'
+import { spineAnchors } from '../levels/spines'
 import type { RevealConfig } from '../levels/types'
 
 function makeLevel(over: Partial<LevelConfig> = {}): LevelConfig {
@@ -1525,5 +1526,66 @@ describe('LevelPlay ?debug=espinas:<k> reaches the SCREEN\'s spines prop (radial
     const level = makeLevel()
     const probe = renderWithSearch(level, '?debug=espinas:2')
     expect(probe?.spines).toBeUndefined()
+  })
+
+  // The defect the first captures showed: the flag lit k marks as earned and
+  // drew NO ink, so `hedgehog1-debug.png` was a hedgehog with five glowing
+  // anchors and zero spines — a frame the real game can never produce, and
+  // useless for the one question the capture exists to answer. There is no
+  // "spine" shape in `SpineLayer`; the spine IS the child's settled ink, so
+  // the flag must reach `completedStrokes` too. Amendment 8 again
+  // (`docs/13` §4): one number, every render fact. These assertions reach
+  // the SCREEN's prop, never `debugSpineStrokes`'s return value — a green
+  // test on an unreachable helper is exactly how `debugCarrier` shipped.
+  const strokesOf = (probe: Record<string, unknown> | null) =>
+    (probe?.completedStrokes ?? []) as readonly (readonly { x: number; y: number }[])[]
+
+  it('adds exactly k extra strokes to probe.completedStrokes on a hedgehog level', () => {
+    const level = getLevel('hedgehog1')
+    const without = strokesOf(renderWithSearch(level, '')).length
+    expect(strokesOf(renderWithSearch(level, '?debug=espinas:3')).length - without).toBe(3)
+    expect(strokesOf(renderWithSearch(level, '?debug=espinas:0')).length - without).toBe(0)
+    expect(
+      strokesOf(renderWithSearch(level, '?debug=espinas:999')).length - without,
+      'k past the anchor count clamps to the anchor count, the same way the marks do',
+    ).toBe(level.spines!.count)
+  })
+
+  it('starts every drawn spine on the very anchor the same k marks as filled', () => {
+    const level = getLevel('hedgehog1')
+    const anchors = spineAnchors(level.spines!)
+    for (let k = 0; k <= level.spines!.count; k++) {
+      const probe = renderWithSearch(level, `?debug=espinas:${k}`)
+      const all = strokesOf(probe)
+      const drawn = all.slice(all.length - k)
+      const marks = (probe?.spines as { marks: readonly { filled: boolean }[] }).marks
+      const filled = marks.flatMap((m, i) => (m.filled ? [i] : []))
+      expect(filled, `espinas:${k} lit the wrong number of marks`).toHaveLength(k)
+      expect(
+        drawn,
+        `espinas:${k} lit ${k} marks but reached TraceCanvas with ${all.length} strokes — the ink never arrived`,
+      ).toHaveLength(k)
+      filled.forEach((anchorIndex, n) => {
+        const stroke = drawn[n]
+        expect(stroke).toHaveLength(2)
+        expect(
+          stroke[0],
+          `espinas:${k} drew a spine that does not start on the anchor it lit — the capture would tell two stories`,
+        ).toEqual({ x: anchors[anchorIndex].x, y: anchors[anchorIndex].y })
+        // And it must actually leave the body, or the "spine" is a dot.
+        expect(Math.hypot(stroke[1].x - stroke[0].x, stroke[1].y - stroke[0].y)).toBeGreaterThan(0)
+      })
+    }
+  })
+
+  it('leaves completedStrokes untouched with no flag, so shipped behaviour is unchanged', () => {
+    for (const id of ['hedgehog1', 'hedgehog4']) {
+      expect(strokesOf(renderWithSearch(getLevel(id), '')), id).toHaveLength(0)
+    }
+  })
+
+  it('adds no spine strokes to a level that has no spines field', () => {
+    const level = makeLevel({ kind: 'free', paths: [] })
+    expect(strokesOf(renderWithSearch(level, '?debug=espinas:3'))).toHaveLength(0)
   })
 })

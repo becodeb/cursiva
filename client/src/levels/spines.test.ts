@@ -7,6 +7,7 @@ import {
   DEMO_SPINES,
   EMPTY_SPINES,
   SPINE_MARK_R,
+  debugSpineStrokes,
   debugSpines,
   seedSpines,
   spineAim,
@@ -449,6 +450,53 @@ describe('spineDemoPaths — the demo repair\'s own source (design.md §2 D3)', 
   })
 })
 
+describe('debugSpineStrokes — the ink `?debug=espinas:<k>` paints (drift guard)', () => {
+  it('emits k two-point strokes, each starting at its own anchor', () => {
+    const cfg = makeConfig({ count: 6 })
+    const anchors = spineAnchors(cfg)
+    const strokes = debugSpineStrokes(cfg, 4)
+    expect(strokes).toHaveLength(4)
+    strokes.forEach((stroke, i) => {
+      expect(stroke).toHaveLength(2)
+      expect(stroke[0]).toEqual({ x: anchors[i].x, y: anchors[i].y })
+    })
+  })
+
+  it('puts the tip at the length band midpoint along the anchor normal', () => {
+    const cfg = makeConfig({ count: 5 })
+    const anchors = spineAnchors(cfg)
+    const len = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+    const [base, tip] = debugSpineStrokes(cfg, 1)[0]
+    expect(Math.hypot(tip.x - base.x, tip.y - base.y)).toBeCloseTo(len, 6)
+    expect(tip.x).toBeCloseTo(anchors[0].x + anchors[0].nx * len, 9)
+    expect(tip.y).toBeCloseTo(anchors[0].y + anchors[0].ny * len, 9)
+  })
+
+  it('clamps k the SAME way debugSpines fills — one number, never two stories', () => {
+    const cfg = makeConfig({ count: 4 })
+    expect(debugSpineStrokes(cfg, 999)).toHaveLength(4)
+    expect(debugSpineStrokes(cfg, 0)).toHaveLength(0)
+    expect(debugSpineStrokes(cfg, -3)).toHaveLength(0)
+    for (let k = 0; k <= 4; k++) {
+      expect(debugSpineStrokes(cfg, k), `k=${k}`).toHaveLength(debugSpines(cfg, k).filled.size)
+    }
+  })
+
+  // The whole point of factoring the anchor→tip computation: two functions
+  // independently deciding where a tip sits is how a still frame ends up
+  // contradicting the demonstration the child was just shown.
+  it('agrees with spineDemoPaths on every tip, for every k', () => {
+    for (const cfg of [makeConfig({ count: 6 }), makeConfig({ pose: 'profile', count: 5 })]) {
+      for (let k = 0; k <= 7; k++) {
+        const fromStrokes = debugSpineStrokes(cfg, k).map(
+          ([base, tip]) => `M ${base.x} ${base.y} L ${tip.x} ${tip.y}`,
+        )
+        expect(fromStrokes, `k=${k}`).toEqual(spineDemoPaths(cfg, k))
+      }
+    }
+  })
+})
+
 describe('every export runs with no DOM — no jsdom, no testing-library, no component render', () => {
   it('spineTick-equivalents (spineAim, spineSettle), spineScore, debugSpines, seedSpines all execute in plain node', () => {
     const cfg = makeConfig()
@@ -461,6 +509,7 @@ describe('every export runs with no DOM — no jsdom, no testing-library, no com
     expect(() => spineMarks(cfg, EMPTY_SPINES)).not.toThrow()
     expect(() => spineRings(cfg)).not.toThrow()
     expect(() => spineDemoPaths(cfg, 2)).not.toThrow()
+    expect(() => debugSpineStrokes(cfg, 2)).not.toThrow()
     expect(() => debugSpines(cfg, 2)).not.toThrow()
     expect(() => seedSpines(cfg, null)).not.toThrow()
   })
