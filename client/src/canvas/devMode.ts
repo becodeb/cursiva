@@ -155,6 +155,30 @@ export function arrangeDebugCount(search: string): number | null {
 }
 
 /**
+ * `?debug=espinas:<k>` (`radial-spines` spec: "The Debug Flag Reaches the
+ * Screen's Rendered Output..."; design.md §7). NOT dev-gated — the same
+ * reason `arrangeDebugCount`/`waypointDebugCount` above are not: it paints
+ * render state (the first k anchors already filled, and the baseRadius
+ * rings), adds no control and persists nothing, and must work against the
+ * EXACT build being screenshotted. `arrangeDebugCount`'s body, verbatim.
+ * Malformed input, a missing flag, or a non-numeric count all return
+ * `null`, never throw.
+ *
+ * **No collision with the shipped `?debug=espina`** (the snake family's
+ * own debug overlay, `isSpineDebug` above): `isSpineDebug` compares the
+ * WHOLE value for exact equality with `'espina'`, and `debugArg` requires
+ * a colon and an exact prefix match, so `?debug=espinas:3` reaches only
+ * this parser and `?debug=espina` reaches only `isSpineDebug`.
+ */
+export function spineDebugCount(search: string): number | null {
+  const arg = debugArg(search, 'espinas')
+  if (arg === null) return null
+  const k = Number(arg)
+  if (!Number.isFinite(k)) return null
+  return k
+}
+
+/**
  * `?debug=estela:<k>` (`free-trail-waypoints` spec: "Screenshot Seeding
  * Flags for the Waypoint Fold"; design.md §8, amendment A4). NOT dev-gated —
  * the same reason `arrangeDebugCount` above is not: it paints render state

@@ -13,6 +13,7 @@ import {
   revealDebugFraction,
   seededProgressIds,
   shouldSeedRecoveredDuck,
+  spineDebugCount,
   waypointDebugCount,
 } from './devMode'
 
@@ -194,7 +195,7 @@ describe('waypointDebugCount (free-trail-waypoints spec "Screenshot Seeding Flag
   })
 })
 
-describe('the seven shipped parsers stay byte-identical alongside cameraDebugOrigin', () => {
+describe('the seven shipped parsers stay byte-identical alongside cameraDebugOrigin and spineDebugCount', () => {
   it('every shipped parser still resolves exactly as before', () => {
     expect(isSectorDebug('?debug=sectores')).toBe(true)
     expect(shouldSeedRecoveredDuck('?debug=pato-recuperado')).toBe(true)
@@ -204,6 +205,34 @@ describe('the seven shipped parsers stay byte-identical alongside cameraDebugOri
     expect(isSpineDebug('?debug=espina')).toBe(true)
     expect(arrangeDebugCount('?debug=ordenadas:2')).toBe(2)
     expect(waypointDebugCount('?debug=estela:2')).toBe(2)
+  })
+})
+
+describe("spineDebugCount (radial-spines spec: 'The Debug Flag Reaches the Screen's Rendered Output...'; design.md §7)", () => {
+  it('?debug=espinas:3 returns 3', () => {
+    expect(spineDebugCount('?debug=espinas:3')).toBe(3)
+  })
+
+  it('is null for an unrelated or absent query string', () => {
+    expect(spineDebugCount('?debug=sectores')).toBeNull()
+    expect(spineDebugCount('')).toBeNull()
+  })
+
+  it('requires no window/component context', () => {
+    expect(spineDebugCount('?debug=espinas:0')).toBe(0)
+  })
+
+  it('never throws on a malformed query string, and returns null', () => {
+    expect(() => spineDebugCount('%')).not.toThrow()
+    expect(spineDebugCount('%')).toBeNull()
+    expect(spineDebugCount('?debug=espinas:noesunnumero')).toBeNull()
+  })
+
+  it("does not collide with the shipped ?debug=espina (exact-value compare, not a prefix match)", () => {
+    expect(isSpineDebug('?debug=espina')).toBe(true)
+    expect(spineDebugCount('?debug=espina')).toBeNull()
+    expect(isSpineDebug('?debug=espinas:3')).toBe(false)
+    expect(spineDebugCount('?debug=espinas:3')).toBe(3)
   })
 })
 
