@@ -338,11 +338,7 @@ describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
 // `target.polyline[0]`, always `undefined` on a routeless level, so the
 // carrier's own gate (`level.carrier && startMarker`) never opened. Written
 // FIRST per design.md §7.2 and confirmed RED on the pre-fix tree (`target
-// .polyline[0]` with no fallback). `waypoints` is not yet a typed
-// `LevelConfig` field at this point in the apply order (Phase 4 adds it) —
-// the fixture is cast so this test compiles ahead of that field landing;
-// `npm run build`'s final gate is what proves the whole tree agrees once
-// every phase has landed.
+// .polyline[0]` with no fallback).
 function makeWaypointCarrierLevel(start: { x: number; y: number }): LevelConfig {
   return makeLevel({
     kind: 'free',
@@ -350,7 +346,15 @@ function makeWaypointCarrierLevel(start: { x: number; y: number }): LevelConfig 
     paths: [],
     carrier: true,
     carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 },
-    waypoints: { start } as unknown as LevelConfig['waypoints'],
+    waypoints: {
+      start,
+      stops: [{ x: 500, y: 265, radius: 110 }],
+      stopArt: { dormant: SECTOR_ADVENTURE_ART.flowerDormant, lit: SECTOR_ADVENTURE_ART.flower },
+      stopSize: 64,
+      goal: { x: 750, y: 385, radius: 96 },
+      goalArt: SECTOR_ADVENTURE_ART.honeycomb,
+      goalSize: 96,
+    },
   })
 }
 
@@ -383,7 +387,15 @@ describe('LevelPlay carrier-presence regression (§7.2: carrier:true + kind:"fre
           surface: 'blank',
           paths: [],
           carrier: true,
-          waypoints: { start } as unknown as LevelConfig['waypoints'],
+          waypoints: {
+            start,
+            stops: [{ x: 500, y: 265, radius: 110 }],
+            stopArt: { dormant: SECTOR_ADVENTURE_ART.flowerDormant, lit: SECTOR_ADVENTURE_ART.flower },
+            stopSize: 64,
+            goal: { x: 750, y: 385, radius: 96 },
+            goalArt: SECTOR_ADVENTURE_ART.honeycomb,
+            goalSize: 96,
+          },
         })}
         record={EMPTY_RECORD}
         onAttempt={noop}
@@ -395,6 +407,20 @@ describe('LevelPlay carrier-presence regression (§7.2: carrier:true + kind:"fre
     // Not `inWorld` (no `clue`, no `detectiveWorld`), so the shipped default
     // is `undefined` — the hard-wired lens is only for the detective world.
     expect(traceCanvasProbe.current?.carrierArt).toBeUndefined()
+  })
+
+  it('bee1 (the real catalog level) renders the bee at its authored start, with its own carrierArt and no CARRIER_LENS_ART', () => {
+    const bee1 = getLevel('bee1')
+    renderToString(
+      <LevelPlay level={bee1} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current?.carrier).toEqual(bee1.waypoints!.start)
+    const art = traceCanvasProbe.current?.carrierArt as { href: string } | undefined
+    expect(art?.href).toBe(SECTOR_ADVENTURE_ART.bee.href)
+    expect(art?.href).not.toBe(CARRIER_LENS_ART.href)
+    // The waypoint layer's render projection reaches the canvas too.
+    const waypoints = traceCanvasProbe.current?.waypoints as { art: unknown[] } | undefined
+    expect(waypoints?.art).toHaveLength(bee1.waypoints!.stops.length + 1)
   })
 })
 

@@ -191,3 +191,70 @@ describe('WaypointLayer — the coincidence proof (stage 1, fixture config)', ()
     expect(html).not.toContain('<circle')
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STAGE 2 (task 6.4): the same coincidence proof, re-pointed at the REAL
+// catalog — `bee1..4`'s authored `waypoints`, not a fixture. Paso E's own
+// lesson: the fixture proof alone would have missed a level authored with
+// the WRONG literal (a copy-paste error in `catalog.ts`), because the
+// fixture's own numbers can never disagree with themselves.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('WaypointLayer × the real catalog — the coincidence proof, stage 2 (bee1..4)', () => {
+  const BEE_IDS = ['bee1', 'bee2', 'bee3', 'bee4'] as const
+
+  it.each(BEE_IDS)('%s: every rendered <image> centre equals the authored coordinate, in both states', async (id) => {
+    const { getLevel } = await import('../levels/catalog')
+    const cfg = getLevel(id).waypoints!
+
+    const dormantHtml = renderToString(
+      <WaypointLayer waypoints={{ art: waypointArt(cfg, EMPTY_WAYPOINTS) }} sheetBounds={SHEET_BOUNDS} />,
+    )
+    const dormantImages = parseImages(dormantHtml)
+    expect(dormantImages).toHaveLength(cfg.stops.length + 1)
+    for (let i = 0; i < cfg.stops.length; i++) {
+      const centre = centreOf(dormantImages[i])
+      expect(centre.x, `${id} stop ${i}`).toBeCloseTo(cfg.stops[i].x, 1)
+      expect(centre.y, `${id} stop ${i}`).toBeCloseTo(cfg.stops[i].y, 1)
+    }
+    const hiveCentre = centreOf(dormantImages[cfg.stops.length])
+    expect(hiveCentre.x, `${id} hive`).toBeCloseTo(cfg.goal.x, 1)
+    expect(hiveCentre.y, `${id} hive`).toBeCloseTo(cfg.goal.y, 1)
+
+    // The lit state: identical boxes, different hrefs (stops only — the
+    // hive's own art never swaps).
+    const litState = { lit: new Set(cfg.stops.map((_, i) => i)), home: true, seen: 0 }
+    const litHtml = renderToString(
+      <WaypointLayer waypoints={{ art: waypointArt(cfg, litState) }} sheetBounds={SHEET_BOUNDS} />,
+    )
+    const litImages = parseImages(litHtml)
+    for (let i = 0; i < cfg.stops.length; i++) {
+      expect(litImages[i].x, `${id} stop ${i}`).toBeCloseTo(dormantImages[i].x, 1)
+      expect(litImages[i].y, `${id} stop ${i}`).toBeCloseTo(dormantImages[i].y, 1)
+      expect(litImages[i].width, `${id} stop ${i}`).toBeCloseTo(dormantImages[i].width, 1)
+      expect(litImages[i].height, `${id} stop ${i}`).toBeCloseTo(dormantImages[i].height, 1)
+      expect(litImages[i].href, `${id} stop ${i}`).not.toBe(dormantImages[i].href)
+    }
+    expect(litImages[cfg.stops.length].href).toBe(dormantImages[cfg.stops.length].href)
+  })
+
+  it.each(BEE_IDS)(
+    '%s: HEADLINE — a stroke built from the PARSED coordinates scores 100, and a far-shifted copy scores below 100',
+    async (id) => {
+      const { getLevel } = await import('../levels/catalog')
+      const cfg = getLevel(id).waypoints!
+      const html = renderToString(
+        <WaypointLayer waypoints={{ art: waypointArt(cfg, EMPTY_WAYPOINTS) }} sheetBounds={SHEET_BOUNDS} />,
+      )
+      const images = parseImages(html)
+      const parsedTrail = [cfg.start, ...images.map(centreOf)]
+      expect(waypointScore([parsedTrail], cfg), id).toBe(100)
+
+      // FALSIFIABILITY: a fixed, large +x shift clears every real level's
+      // own coordinates and radii regardless of its individual geometry —
+      // stage 1's own gotcha (a shift only as large as one radius is not
+      // always enough on an undulating shape).
+      const shifted = parsedTrail.map((p) => ({ x: p.x + 5000, y: p.y }))
+      expect(waypointScore([shifted], cfg), id).toBeLessThan(100)
+    },
+  )
+})

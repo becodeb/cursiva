@@ -262,13 +262,13 @@ Spec traceability: `level-engine/spec.md` "Bee Waypoint Level Set...",
 §6/§14 Checklist Coverage...". Depends on Phases 3 (art), 4 (fold), 5
 (render).
 
-- [ ] 6.1 In `client/src/levels/catalog.ts`: insert `bee1..bee4` immediately
+- [x] 6.1 In `client/src/levels/catalog.ts`: insert `bee1..bee4` immediately
       after `snake4` and before `f2-guirnalda`, per design §4.4's worked
       `start`/`stops`/radii/`goal` literals and §6.1's frozen shape:
       `phase:1`, `kind:'free'`, `surface:'blank'`, `carrier:true`,
       `carrierArt:{art:SECTOR_ADVENTURE_ART.bee, size:76}`, `minAccuracy:
       100`, `haptics:true`, no `demo` (A2), `resetOnContact:false`.
-- [ ] 6.2 In `client/src/screen/LevelPlay.tsx`: wire the waypoint fold into
+- [x] 6.2 In `client/src/screen/LevelPlay.tsx`: wire the waypoint fold into
       the existing single `onFrame` (a `waypointRef` mirror, same shape as
       `corridorTrackRef`, plus `setWaypointState`; fire the haptic pulse
       only when a flower opens or the hive is reached, per §2.3); route
@@ -276,29 +276,44 @@ Spec traceability: `level-engine/spec.md` "Bee Waypoint Level Set...",
       `initialWaypointState(level.waypoints, debugSearch)`; add the debug
       trail onto `completedStrokes` (render-only — never in `strokes`,
       never scored, never persisted).
-- [ ] 6.3 In `client/src/levels/catalog.test.ts`: `EXPECTED_IDS` (`:48-97`)
+- [x] 6.3 In `client/src/levels/catalog.test.ts`: `EXPECTED_IDS` (`:48-97`)
       gains the four bee ids in play order; `CORRIDORS`/`FLUENCY` tables
       gain four `0` rows each; the minAccuracy-by-phase exemption
       (`:251-264`) gains `level.waypoints` as a third `continue` case
       beside `reveal`/`artCorridor`; the tone/haptics clause (`:399-411`)
-      gains `|| !!level.waypoints`; add one new `describe` asserting R1–R7
-      (§6.2) and C1–C6 (§4.2) directly over the authored literals. Confirm
-      `:297` (`showGuide`), `:289` (`enforceOrder`), and `:538-561`
+      gains `|| !!level.waypoints`; add one new `describe` asserting R1–R5
+      and C1–C6 directly over the authored literals (R6 lives in
+      `WaypointLayer.test.tsx`'s stage 2; R7 is deferred to Phase 7's
+      `zoo/adventures.test.ts`/`zoo/sectors.test.ts`, since
+      `ADVENTURES.bee`/`bosque.adventureIds` do not exist until then).
+      Confirm `:297` (`showGuide`), `:289` (`enforceOrder`), and `:538-561`
       (`CORRIDORS`/`FLUENCY` completeness, unedited per §4.3) stay green
-      with no edit.
-- [ ] 6.4 **Re-point §7.1's coincidence proof at the REAL catalog** (a new
+      with no edit. **Two more shipped guards also needed the bee ids**,
+      beyond the three named ones: "has exactly one free level with no
+      reveal grid" (also excludes `!!level.waypoints` now, `toHaveLength`
+      13→17) and TWO exact full phase-1-id-list assertions
+      (`levelsByPhase(1)` and "four trails replace six corridor levels")
+      — found by running the suite, not anticipated by the task list.
+- [x] 6.4 **Re-point §7.1's coincidence proof at the REAL catalog** (a new
       test, or an extension of `WaypointLayer.test.tsx`): for each of
       `bee1..bee4`, read `getLevel('beeN').waypoints`, and repeat every
       assertion from 5.4 — centre equality, identical boxes/different
       `href`s across states, the headline `waypointScore === 100` over the
       PARSED trail, and the `radius + 1` falsifiability case — against the
-      real level configs instead of the fixture.
-- [ ] 6.5 In `client/src/screen/LevelPlay.test.tsx`: `bee1` renders the bee
+      real level configs instead of the fixture. Used a fixed +5000 shift
+      (not `radius + 1`) for the same reason stage 1 needed 600 — a real
+      level's own segments can sweep back near a neighbouring target.
+- [x] 6.5 In `client/src/screen/LevelPlay.test.tsx`: `bee1` renders the bee
       at its authored `start`. Re-run 1.4's cross-check that `night2`/
       `glass1`/`duck-trail2` still differ from pre-A1 markup in exactly one
-      attribute.
-- [ ] 6.6 Run `npm test -- levels/catalog canvas/WaypointLayer
-      screen/LevelPlay` — green.
+      attribute — confirmed still green, unedited.
+- [x] 6.6 Run `npm test -- levels/catalog canvas/WaypointLayer
+      screen/LevelPlay` — green. Also found and fixed a Phase-2 regression:
+      `buildLevel.test.ts`'s "every shipped level's target.start is
+      byte-identical" claim needed the bee-family exception (their
+      `target.start` now legitimately equals `waypoints.start`, not
+      `undefined`) — the CORRECT first exercise of the repair, not a
+      regression. Full suite re-run green: 74 files / 1638 tests.
 
 ## Phase 7: The Zoo
 

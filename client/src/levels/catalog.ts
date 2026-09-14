@@ -11,7 +11,7 @@
 // `buildWord` throw. That must NEVER blank the app, so the failure degrades to
 // the first letter's own path and warns. A level always exists; at worst it is
 // easier than authored.
-import { GOAL_MEDUSA_ART, HAZARD_STARFISH_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
+import { FLOWER_ART, GOAL_MEDUSA_ART, HAZARD_STARFISH_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
 import { buildWord } from '../letters/combinations'
 import { LETTER_REGISTRY } from '../letters/registry'
 import type { LetterConfig } from '../letters/types'
@@ -1175,6 +1175,140 @@ const PHASE_1: LevelConfig[] = [
     arrange: {
       from: snakeHorizontalScatter(),
       snapRadius: 60,
+    },
+  },
+  // Las abejas en el bosque (`docs/13` §8 row F, `free-trail-waypoints`).
+  // The forest's own four levels: no route at all — the child invents the
+  // trail, the bee follows it immediately, and the errand is "pass through
+  // the flowers and reach the hive" (`levels/waypoints.ts`). The frozen
+  // shape below is forced by shipped guards, not chosen: `showGuide: false`
+  // by `catalog.test.ts`'s own `kind !== 'free'` rule, `enforceOrder: false`
+  // by the same rule, `tone: false` by the phase-1 corridor tables (no
+  // corridor at all), `corridorWidth: 0` / `minFluency: 0` by the
+  // routeless-level convention the reveal grid already established. No
+  // `demo` (amendment A2 — the engine's demo animates `target.paths`, which
+  // is empty on every free level). `minAccuracy: 100` matches the four
+  // `night*` light-mode levels' own completion criterion: every authored
+  // object found. Ladder: 1 → 3 → 3 (longer) → 3 (tighter), radii strictly
+  // decreasing 110 → 84 → 62 → 38 (design.md §4.4's worked instantiation).
+  {
+    id: 'bee1',
+    phase: 1,
+    title: 'La primera flor',
+    hint: 'Dibujá un camino desde la abeja hasta la flor, y despues hasta el panal.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: true,
+    carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 },
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
+    showGuide: false,
+    letters: [],
+    waypoints: {
+      start: { x: 250, y: 400 },
+      stops: [{ x: 500, y: 265, radius: 110 }],
+      stopArt: FLOWER_ART,
+      stopSize: 64,
+      goal: { x: 750, y: 385, radius: 96 },
+      goalArt: SECTOR_ADVENTURE_ART.honeycomb,
+      goalSize: 96,
+    },
+  },
+  {
+    id: 'bee2',
+    phase: 1,
+    title: 'Varias flores',
+    hint: 'Pasá por las tres flores y llevá a la abeja hasta el panal.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: true,
+    carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 },
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
+    showGuide: false,
+    letters: [],
+    waypoints: {
+      start: { x: 250, y: 400 },
+      stops: [
+        { x: 380, y: 280, radius: 84 },
+        { x: 520, y: 395, radius: 84 },
+        { x: 660, y: 275, radius: 84 },
+      ],
+      stopArt: FLOWER_ART,
+      stopSize: 64,
+      goal: { x: 750, y: 390, radius: 88 },
+      goalArt: SECTOR_ADVENTURE_ART.honeycomb,
+      goalSize: 96,
+    },
+  },
+  {
+    id: 'bee3',
+    phase: 1,
+    title: 'El trayecto más largo',
+    hint: 'El panal está lejos. Pasá por las flores y llevá a la abeja hasta llegar.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: true,
+    carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 },
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
+    showGuide: false,
+    letters: [],
+    waypoints: {
+      start: { x: 90, y: 420 },
+      stops: [
+        { x: 300, y: 145, radius: 62 },
+        { x: 560, y: 455, radius: 62 },
+        { x: 800, y: 160, radius: 62 },
+      ],
+      stopArt: FLOWER_ART,
+      stopSize: 64,
+      goal: { x: 930, y: 305, radius: 80 },
+      goalArt: SECTOR_ADVENTURE_ART.honeycomb,
+      goalSize: 96,
+    },
+  },
+  {
+    id: 'bee4',
+    phase: 1,
+    title: 'Mayor precisión',
+    hint: 'Las flores son más chicas ahora. Con cuidado, llevá a la abeja hasta el panal.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: true,
+    carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 },
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
+    showGuide: false,
+    letters: [],
+    waypoints: {
+      start: { x: 95, y: 175 },
+      stops: [
+        { x: 320, y: 440, radius: 38 },
+        { x: 555, y: 142, radius: 38 },
+        { x: 790, y: 445, radius: 38 },
+      ],
+      stopArt: FLOWER_ART,
+      stopSize: 64,
+      goal: { x: 930, y: 230, radius: 72 },
+      goalArt: SECTOR_ADVENTURE_ART.honeycomb,
+      goalSize: 96,
     },
   },
 ]

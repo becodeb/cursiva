@@ -401,10 +401,20 @@ describe('levelStart — the routeless carrier-visibility repair', () => {
     expect(levelStart(makeConfig({ kind: 'free', paths: [] }), [])).toBeUndefined()
   })
 
-  it("every shipped level's target.start is byte-identical to its old target.polyline[0] (undefined stays undefined)", () => {
+  it("every shipped level's target.start is byte-identical to its old target.polyline[0] (undefined stays undefined) — except the bee family, which now authors its own", () => {
+    // The four bee levels are the ONLY shipped levels with a `waypoints`
+    // field (`free-trail-waypoints`), and `target.start` falling back to
+    // their authored `waypoints.start` instead of staying `undefined` is
+    // the whole repair this describe block is named for — not a regression
+    // of this claim, its first real exercise.
     for (const level of [...LEVELS, ...LEGACY_PHASE_1]) {
       const target = buildLevelTarget(level)
-      expect(target.start, level.id).toEqual(target.polyline[0])
+      if (level.waypoints) {
+        expect(target.start, level.id).toEqual(level.waypoints.start)
+        expect(target.polyline[0], level.id).toBeUndefined()
+      } else {
+        expect(target.start, level.id).toEqual(target.polyline[0])
+      }
     }
   })
 })

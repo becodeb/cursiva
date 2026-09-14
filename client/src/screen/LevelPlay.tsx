@@ -24,10 +24,26 @@ import TraceCanvas, {
   type TraceHazards,
   type TraceReveal,
   type TraceVertexArt,
+  type TraceWaypoints,
 } from '../canvas/TraceCanvas'
 import { backdropFor, TORCH_CHALK } from '../zoo/backdrops'
 import { debugClearedTiles, EMPTY_REVEAL, revealTick, revealTiles, type RevealState } from '../levels/revealGrid'
-import { arrangeDebugCount, isSpineDebug, lightDebugPoint, revealDebugFraction } from '../canvas/devMode'
+import {
+  arrangeDebugCount,
+  isSpineDebug,
+  lightDebugPoint,
+  revealDebugFraction,
+  waypointDebugCount,
+} from '../canvas/devMode'
+import {
+  EMPTY_WAYPOINTS,
+  debugTrail,
+  seedWaypoints,
+  waypointArt,
+  waypointRings,
+  waypointTick,
+  type WaypointState,
+} from '../levels/waypoints'
 import { grassScatter, mudScatter } from '../canvas/groundScatter'
 import type { TracePoint } from '../canvas/useTraceInput'
 import { contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnContact'
@@ -270,6 +286,25 @@ export function initialRevealState(reveal: LevelConfig['reveal'], search: string
   const point = lightDebugPoint(search)
   if (point === null) return EMPTY_REVEAL
   return { ...EMPTY_REVEAL, point }
+}
+
+/**
+ * The waypoint fold's INITIAL state (`free-trail-waypoints` capability,
+ * design.md §8): `EMPTY_WAYPOINTS`, or the `?debug=estela:<k>` seed —
+ * `scripts/shot.sh` cannot draw a finger, so this flag pre-lights `k`
+ * flowers (and the hive, once `k` exceeds the stop count) before the very
+ * first render, no live interaction required. The ONE function every reset
+ * site must call (`levels/arrange.ts`'s `seedArrange` doc comment names the
+ * exact bug a raw `EMPTY_WAYPOINTS` at a reset site would reintroduce: the
+ * debug seed applied once at mount, then silently wiped by the mount
+ * effect's own unconditional reset).
+ */
+export function initialWaypointState(
+  waypoints: LevelConfig['waypoints'],
+  search: string,
+): WaypointState {
+  if (!waypoints) return EMPTY_WAYPOINTS
+  return seedWaypoints(waypoints, waypointDebugCount(search))
 }
 
 /**
@@ -853,6 +888,22 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   const debugLightPoint =
     level.reveal?.mode === 'light' ? lightDebugPoint(debugSearch) : null
 
+  // The waypoint fold's live latch (`free-trail-waypoints` capability,
+  // design.md §2.3) — the lit-flower / home set for THIS attempt. `waypointRef`
+  // mirrors the same shape `corridorTrackRef` already uses: the pulse needs a
+  // before/after comparison and a `setState` updater must stay pure, so the
+  // fold is folded into a ref first and mirrored into state for rendering.
+  // Seeded from `initialWaypointState`, the same reason `revealState` reads
+  // `initialRevealState` rather than the bare `EMPTY_WAYPOINTS` constant.
+  const waypointRef = useRef<WaypointState>(initialWaypointState(level.waypoints, debugSearch))
+  const [waypointState, setWaypointState] = useState<WaypointState>(waypointRef.current)
+  // `?debug=estela:<k>` REPLACES live pointer input for the waypoint fold —
+  // the same contract `debugLightPoint` carries for a light-mode reveal
+  // level: the seeded state survives untouched regardless of any live
+  // sample, so a screenshot is never fighting a real onFrame call it cannot
+  // receive anyway.
+  const waypointPin = !!level.waypoints && waypointDebugCount(debugSearch) !== null
+
   const resetSurface = useCallback((): void => {
     setAttempt(null)
     setStrokes([])
@@ -866,13 +917,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setRestarted(false)
     setClearSignal((n) => n + 1)
     setRevealState(initialRevealState(level.reveal, debugSearch))
+    // The waypoint latch resets with the run too — `docs/13` §6's
+    // "posibilidad de reinicio" — THROUGH `initialWaypointState`, never the
+    // bare `EMPTY_WAYPOINTS`, for the exact reason `seedArrangeState` above
+    // is never bypassed either.
+    waypointRef.current = initialWaypointState(level.waypoints, debugSearch)
+    setWaypointState(waypointRef.current)
     // The arrangement resets to its deterministic scatter with the run —
     // `docs/13` §6's "posibilidad de reinicio", free (object-arrange spec).
     // THROUGH `seedArrangeState`, never `initialArrange` directly, or this
     // mount effect's own call silently wipes `?debug=ordenadas:<k>` the
     // instant it fires (task 8.7/8.8's own regression).
     setArrangeState(seedArrangeState())
-  }, [level.reveal, debugSearch, target.routes.length, arrangeConfig, seedArrangeState])
+  }, [level.reveal, level.waypoints, debugSearch, target.routes.length, arrangeConfig, seedArrangeState])
 
   // A new level starts its own flow: demo first when the level asks for one AND
   // the child is still in the full-guide band. A trail's clue state and filed
@@ -1002,6 +1059,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setResetSignal((n) => n + 1)
     setRestarted(true)
     setRevealState(EMPTY_REVEAL)
+    waypointRef.current = EMPTY_WAYPOINTS
+    setWaypointState(EMPTY_WAYPOINTS)
     // The route itself is starting over, so any clue marks lit during the
     // abandoned pass go with it — the child will pass them again on the way
     // back through. The FILED rail clue is untouched: filing only ever
@@ -1038,6 +1097,30 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         const boxes = (target.artCorridor ?? []).map((piece) => piece.box)
         setArrangeState((prev) => arrangeTick(prev, boxes, head, drawing, arrangeConfig))
         return
+      }
+      // The waypoint fold rides this SAME sample (`free-trail-waypoints`
+      // capability, design.md §2.3) — no second pointer-capture mechanism
+      // and no second per-frame sample. `waypointTick` reads `drawing`
+      // itself, so this runs on every sample, drawing or not, exactly like
+      // `revealTick`'s own two call sites below. Folded into a REF first
+      // (`waypointRef`, the shape `corridorTrackRef` already uses) rather
+      // than only a `setState` updater, because the haptic pulse needs a
+      // before/after comparison and a state updater must stay pure.
+      // `!waypointPin` mirrors the shipped `!debugLightPoint` guard: the
+      // flag REPLACES live input rather than racing it.
+      if (level.waypoints && !waypointPin) {
+        const next = waypointTick(waypointRef.current, points, drawing, level.waypoints)
+        if (next !== waypointRef.current) {
+          const opened =
+            next.lit.size > waypointRef.current.lit.size || (next.home && !waypointRef.current.home)
+          waypointRef.current = next
+          setWaypointState(next)
+          // The contact worth feeling here: with A1's repair `pulseOnLeaving`
+          // never fires on a bee level (there is no route to leave), so
+          // `haptics: true` needs a real site — a flower opening or the hive
+          // being reached. The shipped one-shot edge, restated.
+          if (opened && feedback.haptics) pulseOnLeaving(false, true)
+        }
       }
       if (!drawing) {
         toneRef.current?.setActive(false) // finger up: the light goes out
@@ -1155,7 +1238,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       isCase,
       level.corridorWidth,
       level.reveal,
+      level.waypoints,
       debugLightPoint,
+      waypointPin,
       arrangeOpen,
       arrangeConfig,
     ],
@@ -1376,6 +1461,33 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     return { fill: backdropEntry?.tile ?? SHEET_PAPER, tiles, art }
   }, [level.reveal, revealState, target.viewBoxWidth, backdropEntry])
 
+  // The waypoint fold's render projection (`free-trail-waypoints`
+  // capability, design.md §5): N images (the flowers, then the hive), plus
+  // — only under `?debug=estela:<k>` — their touch radii as debug rings.
+  // `TORCH_CHALK` is this file's own shipped debug-overlay colour
+  // (`?debug=espina`'s spine, above); the ring stroke is resolved HERE,
+  // never inside `WaypointLayer` itself (`TraceClueMark`'s own convention).
+  const waypointDebugK = level.waypoints ? waypointDebugCount(debugSearch) : null
+  const waypoints = useMemo<TraceWaypoints | undefined>(() => {
+    if (!level.waypoints) return undefined
+    return {
+      art: waypointArt(level.waypoints, waypointState),
+      rings: waypointDebugK !== null ? waypointRings(level.waypoints) : undefined,
+      ringStroke: TORCH_CHALK,
+    }
+  }, [level.waypoints, waypointState, waypointDebugK])
+
+  // `?debug=estela:<k>`'s implied trail: `start`, the first `k` flowers, the
+  // hive once `k` exceeds the stop count — the very picture the touch rings
+  // above measure against, so the two cannot tell inconsistent stories (A4).
+  // Render-only: passed as an EXTRA entry on `completedStrokes`, never in
+  // `strokes` (which `onRelease` overwrites from the canvas's own captured
+  // list regardless), so it is never scored and never persisted.
+  const waypointDebugStrokes = useMemo(() => {
+    if (!level.waypoints || waypointDebugK === null) return null
+    return debugTrail(level.waypoints, waypointDebugK)
+  }, [level.waypoints, waypointDebugK])
+
   // The rail's slot data. This slice only has visibility into the CURRENT
   // trail — the other three trails' persisted state is wired once the
   // catalog and `LevelProgressStore` are in scope (a later slice; see the
@@ -1513,7 +1625,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // is no character at the start, so the arrow stays the only thing
         // carrying direction.
         directionArrow={showMarkers && !drawnPlace ? directionArrow : undefined}
-        completedStrokes={shownStrokes}
+        // `?debug=estela:<k>`'s implied trail rides as an EXTRA entry here —
+        // render-only, never in `strokes`, never scored, never persisted
+        // (design.md §8). Absent on every ordinary frame a child ever sees.
+        completedStrokes={
+          waypointDebugStrokes ? [...shownStrokes, waypointDebugStrokes] : shownStrokes
+        }
         offPath={offPath}
         clearSignal={clearSignal}
         // Timed hazards (docs/08). Absent on every level that does not author
@@ -1582,6 +1699,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // The reveal grid's covering layer (`reveal-grid` capability).
         // Absent on every level without a `reveal` config.
         reveal={reveal}
+        // The waypoint fold's render projection (`free-trail-waypoints`
+        // capability). Absent on every level without a `waypoints` config.
+        waypoints={waypoints}
         onStart={onStart}
         onFrame={onFrame}
         onRelease={onRelease}

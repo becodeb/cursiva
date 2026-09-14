@@ -79,6 +79,10 @@ const EXPECTED_IDS = [
   'snake2',
   'snake3',
   'snake4',
+  'bee1',
+  'bee2',
+  'bee3',
+  'bee4',
   'f2-guirnalda',
   'f2-agua2',
   'f2-agua3',
@@ -154,6 +158,12 @@ describe('LEVELS — authored values match the doc tables', () => {
     'snake2': 34,
     'snake3': 30,
     'snake4': 28,
+    // The bee family draws no corridor at all — same convention as the
+    // twelve reveal-grid levels above (design.md §6.1).
+    'bee1': 0,
+    'bee2': 0,
+    'bee3': 0,
+    'bee4': 0,
     'f1-libre': 0,
     'duck-trail1': 100,
     'duck-trail2': 90,
@@ -206,6 +216,12 @@ describe('LEVELS — authored values match the doc tables', () => {
     'snake2': 0,
     'snake3': 0,
     'snake4': 0,
+    // The bee family carries no fluency bar either — the same routeless
+    // convention every reveal-grid level above uses.
+    'bee1': 0,
+    'bee2': 0,
+    'bee3': 0,
+    'bee4': 0,
     'f1-libre': 0,
     'duck-trail1': 0,
     'duck-trail2': 0,
@@ -258,6 +274,12 @@ describe('LEVELS — authored values match the doc tables', () => {
     for (const level of LEVELS) {
       if (level.reveal) continue
       if (level.artCorridor) continue
+      // The bee family also authors its own minAccuracy (100 — every flower
+      // and the hive, `free-trail-waypoints` design.md §6.1), the same
+      // per-family override precedent `reveal`/`artCorridor` set. Asserted
+      // separately below ("LEVELS — the snake family" has its own sibling;
+      // the bee family's own describe block covers R5).
+      if (level.waypoints) continue
       const expected = level.phase === 1 ? 55 : level.phase === 2 ? 60 : 65
       expect(level.rules.minAccuracy).toBe(expected)
     }
@@ -318,17 +340,19 @@ describe('LEVELS — surface, kind and feedback', () => {
     }
   })
 
-  it('has exactly one free level with no reveal grid, and the catalog opens with the entrance', () => {
-    // Amended, not deleted (design.md §5.1, ratified amendment A1): before
-    // the reveal grid, `kind: 'free'` meant "the warm-up," and `f1-libre` was
-    // both the only free level AND `LEVELS[0]`. Now thirteen levels are
-    // `kind: 'free'` (level-engine spec "`kind: 'free'` Means 'No Route,'
-    // Not 'The Warm-Up'"): `f1-libre`, still with no `reveal` field, and the
-    // twelve reveal-grid levels, each with one. The catalog's first entry is
-    // `glass1`, the app's real opening.
+  it('has exactly one free level with no reveal grid and no waypoints, and the catalog opens with the entrance', () => {
+    // Amended, not deleted (design.md §5.1, ratified amendment A1; extended
+    // again by `free-trail-waypoints`): before the reveal grid, `kind:
+    // 'free'` meant "the warm-up," and `f1-libre` was both the only free
+    // level AND `LEVELS[0]`. Now seventeen levels are `kind: 'free'`
+    // (level-engine spec "`kind: 'free'` Means 'No Route,' Not 'The
+    // Warm-Up'"): `f1-libre`, still with neither `reveal` nor `waypoints`;
+    // the twelve reveal-grid levels, each with a `reveal`; and the four bee
+    // levels, each with `waypoints`. The catalog's first entry is `glass1`,
+    // the app's real opening.
     const free = LEVELS.filter((l) => l.kind === 'free')
-    expect(free.filter((l) => !l.reveal).map((l) => l.id)).toEqual(['f1-libre'])
-    expect(free).toHaveLength(13)
+    expect(free.filter((l) => !l.reveal && !l.waypoints).map((l) => l.id)).toEqual(['f1-libre'])
+    expect(free).toHaveLength(17)
     expect(LEVELS[0].id).toBe('glass1')
     // Closes the forward reference task 4.8 named (`AdventureId`/`ADVENTURES`
     // only gained a `'glass'` row in Phase 5's task 5.1) — design.md §5.1's
@@ -396,17 +420,20 @@ describe('LEVELS — surface, kind and feedback', () => {
     expect(levelsByPhase(3)[0].id).toBe('f3-l')
   })
 
-  it('sounds and buzzes on every level with a corridor — and buzzes without one on the reveal grid', () => {
+  it('sounds and buzzes on every level with a corridor — and buzzes without one on the reveal grid and the bee family', () => {
     // A found gap in this guard, not called out by tasks.md's own reveal-grid
     // task list: the twelve reveal-grid levels are `kind: 'free'` (no
     // corridor) but deliberately keep `haptics: true` (design.md §5.2 — "a
     // tile clearing under the finger is a contact worth feeling"). Amended,
     // not deleted: `tone` still tracks having a corridor exactly as before;
-    // `haptics` is now `hasCorridor OR reveal-bearing`.
+    // `haptics` is now `hasCorridor OR reveal-bearing OR waypoint-bearing` —
+    // the bee family has neither a corridor nor a `reveal` field, but a
+    // flower opening or the hive being reached is its own contact worth
+    // feeling (`free-trail-waypoints` design.md §2.3).
     for (const level of LEVELS) {
       const hasCorridor = level.kind === 'path'
       expect(level.feedback.tone).toBe(hasCorridor)
-      expect(level.feedback.haptics).toBe(hasCorridor || !!level.reveal)
+      expect(level.feedback.haptics).toBe(hasCorridor || !!level.reveal || !!level.waypoints)
     }
   })
 
@@ -731,6 +758,10 @@ describe('levelsByPhase', () => {
       'snake2',
       'snake3',
       'snake4',
+      'bee1',
+      'bee2',
+      'bee3',
+      'bee4',
     ])
     expect(levelsByPhase(4).map((l) => l.id)).toEqual(['f4-la', 'f4-ma'])
     expect(levelsByPhase(5)).toHaveLength(2)
@@ -796,6 +827,10 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
       'snake2',
       'snake3',
       'snake4',
+      'bee1',
+      'bee2',
+      'bee3',
+      'bee4',
     ])
     for (const removed of REMOVED_IDS) expect(phase1Ids).not.toContain(removed)
   })
@@ -1546,5 +1581,176 @@ describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
     expect(snake4Arc).toBeGreaterThanOrEqual(snake2Arc)
     // snake3 is the vertical outlier and is asserted nowhere against the
     // other three's arc length (design.md §0 A7).
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The bee family (`free-trail-waypoints`, design.md §4.2/§6.2). C1-C6 and
+// R1-R5, asserted directly over the authored literals — R7 (registry
+// cross-checks against `ADVENTURES.bee`/`bosque.adventureIds`) lives in
+// `zoo/adventures.test.ts`/`zoo/sectors.test.ts` once those rows exist
+// (Phase 7); R6 (the rendered-markup coincidence) lives in
+// `canvas/WaypointLayer.test.tsx`, re-pointed at this real catalog.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('the bee family — C1-C6 and R1-R5 (design.md §4.2/§6.2)', () => {
+  const BEE_IDS = ['bee1', 'bee2', 'bee3', 'bee4'] as const
+
+  function polylineLength(points: ReadonlyArray<{ x: number; y: number }>): number {
+    let sum = 0
+    for (let i = 1; i < points.length; i++) {
+      sum += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
+    }
+    return sum
+  }
+
+  /** `start → stops (authored order) → goal`: the minimum route length a
+   *  child must travel, since the route itself is invented. */
+  function minimumRoute(id: string): ReadonlyArray<{ x: number; y: number }> {
+    const w = getLevel(id).waypoints!
+    return [w.start, ...w.stops, w.goal]
+  }
+
+  /** The art box a waypoint renders at — `placeArt`'s own DEFAULT_GRIP
+   *  (centred), the same grip `WaypointLayer` uses since neither the flower
+   *  nor the honeycomb art declares one. */
+  function artBox(
+    point: { x: number; y: number },
+    size: number,
+    art: { w: number; h: number },
+  ): { minX: number; maxX: number; minY: number; maxY: number } {
+    const width = (size * art.w) / art.h
+    return {
+      minX: point.x - width / 2,
+      maxX: point.x + width / 2,
+      minY: point.y - size / 2,
+      maxY: point.y + size / 2,
+    }
+  }
+
+  it('R1: stop radius strictly decreases (110 → 84 → 62 → 38)', () => {
+    const radii = BEE_IDS.map((id) => getLevel(id).waypoints!.stops[0].radius)
+    expect(radii).toEqual([110, 84, 62, 38])
+    for (let i = 1; i < radii.length; i++) expect(radii[i]).toBeLessThan(radii[i - 1])
+  })
+
+  it('R2: goal radius strictly decreases (96 → 88 → 80 → 72)', () => {
+    const radii = BEE_IDS.map((id) => getLevel(id).waypoints!.goal.radius)
+    expect(radii).toEqual([96, 88, 80, 72])
+    for (let i = 1; i < radii.length; i++) expect(radii[i]).toBeLessThan(radii[i - 1])
+  })
+
+  it('R3: stop counts are 1, 3, 3, 3 — bee1 carries exactly one flower (the author\'s resolved decision)', () => {
+    expect(BEE_IDS.map((id) => getLevel(id).waypoints!.stops.length)).toEqual([1, 3, 3, 3])
+  })
+
+  it('R5: minAccuracy 100, demo absent, carrier true with its own carrierArt, on all four', () => {
+    for (const id of BEE_IDS) {
+      const level = getLevel(id)
+      expect(level.rules.minAccuracy, id).toBe(100)
+      expect(level.demo, id).toBeUndefined()
+      expect(level.carrier, id).toBe(true)
+      expect(level.carrierArt?.art.href, id).toBe(SECTOR_ADVENTURE_ART.bee.href)
+    }
+  })
+
+  it('C1: every waypoint art box lies inside y ∈ [100, 499] and at least 20 units inside x ∈ [0, 1000]', () => {
+    for (const id of BEE_IDS) {
+      const w = getLevel(id).waypoints!
+      for (const stop of w.stops) {
+        const box = artBox(stop, w.stopSize, SECTOR_ADVENTURE_ART.flower)
+        expect(box.minY, `${id} stop`).toBeGreaterThanOrEqual(100)
+        expect(box.maxY, `${id} stop`).toBeLessThanOrEqual(499)
+        expect(box.minX, `${id} stop`).toBeGreaterThanOrEqual(20)
+        expect(box.maxX, `${id} stop`).toBeLessThanOrEqual(980)
+      }
+      const goalBox = artBox(w.goal, w.goalSize, SECTOR_ADVENTURE_ART.honeycomb)
+      expect(goalBox.minY, `${id} goal`).toBeGreaterThanOrEqual(100)
+      expect(goalBox.maxY, `${id} goal`).toBeLessThanOrEqual(499)
+      expect(goalBox.minX, `${id} goal`).toBeGreaterThanOrEqual(20)
+      expect(goalBox.maxX, `${id} goal`).toBeLessThanOrEqual(980)
+    }
+  })
+
+  it('C2: every stop and goal radius is at least half the rendered picture\'s larger dimension — the target is never smaller than the art', () => {
+    for (const id of BEE_IDS) {
+      const w = getLevel(id).waypoints!
+      for (const stop of w.stops) {
+        const artW = (w.stopSize * SECTOR_ADVENTURE_ART.flower.w) / SECTOR_ADVENTURE_ART.flower.h
+        expect(stop.radius, id).toBeGreaterThanOrEqual(Math.max(artW, w.stopSize) / 2)
+      }
+      const artW = (w.goalSize * SECTOR_ADVENTURE_ART.honeycomb.w) / SECTOR_ADVENTURE_ART.honeycomb.h
+      expect(w.goal.radius, id).toBeGreaterThanOrEqual(Math.max(artW, w.goalSize) / 2)
+    }
+  })
+
+  it('C3: the carrier\'s own box at start lies fully inside the sheet (no clampArtBox on the carrier group)', () => {
+    const BEE_SIZE = 76
+    for (const id of BEE_IDS) {
+      const start = getLevel(id).waypoints!.start
+      const width = (BEE_SIZE * SECTOR_ADVENTURE_ART.bee.w) / SECTOR_ADVENTURE_ART.bee.h
+      expect(start.x - width / 2, id).toBeGreaterThanOrEqual(0)
+      expect(start.x + width / 2, id).toBeLessThanOrEqual(1000)
+      expect(start.y - BEE_SIZE / 2, id).toBeGreaterThanOrEqual(0)
+      expect(start.y + BEE_SIZE / 2, id).toBeLessThanOrEqual(600)
+    }
+  })
+
+  it('C4: bee3/bee4 use the whole arm — span > 300 vertically, minY < 180, maxY > 420, span > 600 horizontally', () => {
+    for (const id of ['bee3', 'bee4']) {
+      const points = minimumRoute(id)
+      const xs = points.map((p) => p.x)
+      const ys = points.map((p) => p.y)
+      const minY = Math.min(...ys)
+      const maxY = Math.max(...ys)
+      expect(maxY - minY, id).toBeGreaterThan(300)
+      expect(minY, id).toBeLessThan(180)
+      expect(maxY, id).toBeGreaterThan(420)
+      expect(Math.max(...xs) - Math.min(...xs), id).toBeGreaterThan(600)
+    }
+  })
+
+  it("C5: bee1/bee2's travel envelope is strictly smaller than bee3's on BOTH axes — 'corto' is a checked claim", () => {
+    const envelope = (id: string) => {
+      const points = minimumRoute(id)
+      const xs = points.map((p) => p.x)
+      const ys = points.map((p) => p.y)
+      return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) }
+    }
+    const bee3 = envelope('bee3')
+    for (const id of ['bee1', 'bee2']) {
+      const e = envelope(id)
+      expect(e.w, id).toBeLessThan(bee3.w)
+      expect(e.h, id).toBeLessThan(bee3.h)
+    }
+  })
+
+  it('C6: minimum-route length strictly increases bee1 < bee2 < bee3; bee4 is within ±5% of bee3', () => {
+    const lengths = BEE_IDS.map((id) => polylineLength(minimumRoute(id)))
+    expect(lengths[0]).toBeLessThan(lengths[1])
+    expect(lengths[1]).toBeLessThan(lengths[2])
+    const ratio = lengths[3] / lengths[2]
+    expect(ratio).toBeGreaterThanOrEqual(0.95)
+    expect(ratio).toBeLessThanOrEqual(1.05)
+  })
+
+  it('every bee level is phase 1, kind free, blank surface, no maze, no resetOnContact, showGuide false, enforceOrder false', () => {
+    for (const id of BEE_IDS) {
+      const level = getLevel(id)
+      expect(level.phase, id).toBe(1)
+      expect(level.kind, id).toBe('free')
+      expect(level.surface, id).toBe('blank')
+      expect(level.maze, id).toBe(false)
+      expect(level.resetOnContact, id).toBe(false)
+      expect(level.showGuide, id).toBe(false)
+      expect(level.rules.enforceOrder, id).toBe(false)
+      expect(level.feedback.tone, id).toBe(false)
+      expect(level.feedback.haptics, id).toBe(true)
+      expect(level.feedback.metronomeBpm, id).toBe(0)
+      expect(level.feedback.rail, id).toBe(false)
+      expect(level.corridorWidth, id).toBe(0)
+      expect(level.rules.minFluency, id).toBe(0)
+      expect(level.paths, id).toEqual([])
+      expect(level.letters, id).toEqual([])
+    }
   })
 })
