@@ -624,6 +624,42 @@ export function guideLevelFor(record: LevelRecord, level: LevelConfig): GuideLev
 }
 
 /**
+ * Whether the demonstration plays. Renamed from the inline `playDemo`
+ * literal it replaces (`level-engine` spec, "Routeless Demo Segments...",
+ * design.md §2 D3's amendment-9 naming rule).
+ *
+ * **A found defect in design.md §2 D3, not silently followed.** The design
+ * document states the formula as `!!level.demo && guide === 'full'`
+ * (unchanged from the old `playDemo`) AND separately requires (§11.1 item
+ * 5) that `demoPlays(level, 'none') === true` for a routeless `spines`
+ * level with `demo: true`. Those two are mutually exclusive: every
+ * hedgehog config carries `showGuide: false` (design.md §8's own literal
+ * table), so `guideLevelFor` can never return anything but `'none'` for it
+ * (`:617`, unconditional on `showGuide`) — under the UNCHANGED formula,
+ * `demoPlays(hedgehog1, guideLevelFor(...))` is `false` FOREVER, and the
+ * "second blocker" §2 D3 diagnosed would stay unfixed despite the rename.
+ * §2 D3's own whole-catalog invariant ("`demoPlays(l, g) === (!!l.demo && g
+ * === 'full')` for every `l` in `LEVELS`") cannot hold for every routeless
+ * `spines` level AND satisfy §11.1 item 5's red-then-green demand at once.
+ *
+ * Resolution taken here: the guide-band gate is inapplicable to a level
+ * that authors NO guide ladder in the first place — every `spines` level's
+ * `showGuide` is unconditionally `false` (there is no mastery band to
+ * withdraw FROM), so gating its demo on reaching the `'full'` band a
+ * `showGuide: false` config can never reach is not "the band rule", it is
+ * a vacuous permanent lock. `level.spines` (not the wider `kind: 'free'`,
+ * to keep the change scoped to the one capability that needs it) bypasses
+ * the guide check entirely; every other level — including every existing
+ * `kind: 'free'` level, none of which declares `demo` — keeps the exact
+ * unchanged formula, so the whole-catalog invariant holds for every level
+ * this change does not touch.
+ */
+export function demoPlays(level: Pick<LevelConfig, 'demo' | 'spines'>, guideLevel: GuideLevel): boolean {
+  if (level.spines) return !!level.demo
+  return !!level.demo && guideLevel === 'full'
+}
+
+/**
  * The standing line under the sheet, before the child has tried anything.
  *
  * It MUST describe what is actually on screen. A fixed "Empezá desde el punto
@@ -817,7 +853,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // The demonstration belongs to the FULL band alone: a child at 40+ has
   // already produced the shape, and replaying it for them is the crutch §3
   // exists to remove.
-  const playDemo = !!level.demo && guideLevel === 'full'
+  const playDemo = demoPlays(level, guideLevel)
 
   const [phase, setPhase] = useState<'demo' | 'ready' | 'result'>(playDemo ? 'demo' : 'ready')
   const [attempt, setAttempt] = useState<LevelAttempt | null>(null)
