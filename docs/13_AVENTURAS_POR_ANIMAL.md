@@ -329,6 +329,46 @@ cargado. Se decide cuando lleguen.
      se afirman **estrictamente más chicos** que `bee3` en los dos ejes.
      "Corto" pasa a ser una afirmación verificada y no un adjetivo.
 
+   Y tres cosas más que **sólo aparecieron al mirar las capturas**, que es
+   exactamente para lo que el paso E dijo que servían:
+   - **La lección del paso E volvió en su forma más pura: una función
+     escrita, testeada, en verde, y que no llamaba nadie.** `debugCarrier`
+     existía con el comentario correcto encima —"el mismo número maneja los
+     tres hechos de render, así que no pueden contradecirse"— y la pantalla
+     nunca la invocaba. La suite probaba que calculaba bien un punto que no
+     llegaba a ningún lado. En la captura se veía: con `estela:2` la estela
+     llegaba a la segunda flor y la abeja seguía parada en el inicio, que
+     es la frase contraria a la que esta familia enseña. Una aserción sobre
+     el ayudante no prueba nada sobre la pantalla; la reparación trae
+     cuatro que tocan la prop del `TraceCanvas`, y se confirmaron rojas.
+   - **La decoración del fondo le gana a la flor que hay que juntar, y no
+     tiene arreglo por color.** La flor dormida `#d2d2d2` separa 58,8 de la
+     banda; las flores blancas **pintadas adentro de** `fondo bosque.png`
+     son `#f5f5f5` y separan **93,8**. Es al pie de la letra el defecto que
+     `docs/09` §4 documenta del 2026-09-12: se le pide al chico buscar lo
+     menos visible de la pantalla. La decisión 3 no eliminó la decoración,
+     la **mudó adentro del dibujo**, y `artHierarchy.test.ts` sólo mira los
+     PNG de suelo disperso, así que quedó vacuo por construcción mientras la
+     sustancia de la regla se violaba. Y no se arregla moviendo el literal:
+     para ganarle a 93,8 hace falta luma ≥245 —que es el color exacto de las
+     decorativas, se vuelven indistinguibles— o ≤57,4, que separa 17,6 de la
+     tinta del chico y falla la ley por 37,4, con el agravante de que la
+     estela **atraviesa** la flor. Las dos ramas están cerradas: el conflicto
+     es con el fondo pintado, no con el token. **La salida es del arte**
+     —apagar las flores blancas de las bandas de árboles— y es de la autora.
+     Lo que sí se cumple es la otra mitad de la regla: la flor objetivo mide
+     76×72 contra 57×37 y 62×32 de las decorativas, o sea 1,3 veces más
+     ancha y el doble de alta. Se distingue por tamaño y por estar sola en
+     la banda limpia, no por luma.
+   - **La abeja tapa la flor a la que llega.** Medido sobre las capturas:
+     en el momento en que se para encima queda **1,3%** del pétalo visible.
+     Es el mismo defecto que `docs/09` §2 ya resolvió una vez —por eso el
+     pulpo se separó de la lupa, porque "tapa también las pistas que se
+     están encendiendo"— y vuelve porque acá el personaje y el cursor son
+     el mismo objeto por diseño. En juego la oclusión es pasajera: el dedo
+     sigue y la abeja sale de encima. En la captura es total. No se tocó:
+     achicar la abeja o agrandar la flor es dirección de arte.
+
    Y dos cosas menores que conviene no volver a descubrir: la franja de
    `fondo bosque.png` que un test embarcado ya prueba plana son las filas
    **204-818** (viewBox `[99,5, 499,2]`), más angosta que las 191-926
