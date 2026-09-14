@@ -15,6 +15,7 @@ import {
   NIGHT_VEIL,
   SAND_DRIFT,
   SAND_HOLLOW,
+  SPINE_BACKDROPS,
   TORCH_CHALK,
   WAYPOINT_BACKDROPS,
   backdropFor,
@@ -89,12 +90,13 @@ describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
     }
   })
 
-  it('the union of the four groups equals every registered backdrop (registry-completeness guard)', () => {
+  it('the union of the five groups equals every registered backdrop (registry-completeness guard)', () => {
     const grouped = new Set([
       ...Object.keys(CHANNEL_BACKDROPS),
       ...Object.keys(REVEAL_BACKDROPS),
       ...Object.keys(ART_CORRIDOR_BACKDROPS),
       ...Object.keys(WAYPOINT_BACKDROPS),
+      ...Object.keys(SPINE_BACKDROPS),
     ])
     expect([...grouped].sort()).toEqual(Object.keys(ADVENTURE_BACKDROP).sort())
   })
@@ -105,6 +107,7 @@ describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
       ...Object.keys(REVEAL_BACKDROPS),
       ...Object.keys(ART_CORRIDOR_BACKDROPS),
       ...Object.keys(WAYPOINT_BACKDROPS),
+      ...Object.keys(SPINE_BACKDROPS),
     ])
     const registryKeysWithHypothetical = [...Object.keys(ADVENTURE_BACKDROP), 'hypothetical']
     expect([...grouped].sort()).not.toEqual(registryKeysWithHypothetical.sort())
@@ -410,6 +413,83 @@ describe('WAYPOINT_BACKDROPS luma law (design.md §3.4)', () => {
   })
 })
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SPINE_BACKDROPS: split from CHANNEL/REVEAL/ART_CORRIDOR/WAYPOINT above for
+// the same reason WAYPOINT_BACKDROPS is (design.md §11.1 item 6): the
+// registry-completeness guard's inherited `tile ?? channel ?? SHEET_PAPER`
+// law would be VACUOUS for `hedgehog` — a backdrop level with neither paints
+// no veil and draws no corridor, so there is no channel/tile claim to
+// falsify. This group asserts the SUBSTANTIVE law instead: the ink itself
+// (`radial-spines` design.md §2 D4) against the night band AND against the
+// hedgehog body's own brightest opaque pixel — the derived undrawability
+// measure 5 encodes.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('SPINE_BACKDROPS ink law (radial-spines design.md §2 D1(a)/D4, §8.2)', () => {
+  const hedgehog = SPINE_BACKDROPS.hedgehog
+  // TraceCanvas.tsx's night-dim ink (private there), mirrored for the same
+  // reason the file's own `TORCH_CHALK_DIM` above is.
+  const dimInk = '#989896'
+  // Both hedgehog PNGs' measured brightest opaque pixel (design.md §2 D1(b),
+  // §10) — the pale belly/snout, present on both poses. Not a registry
+  // field: no code looks it up at runtime, so it is mirrored here as the
+  // literal the design measured, the same convention `FLOWER_DORMANT`/
+  // `CLUE_DRAINED` above use for values that live only in a test's own
+  // argument.
+  const BODY_BRIGHTEST = '#d5d5d5' // luma 213 (design.md's measured 213.3, rounded)
+
+  it('the hedgehog row declares no new ink token — TORCH_CHALK/TORCH_CHALK_DIM verbatim from the night row', () => {
+    expect(hedgehog.ink).toBe(TORCH_CHALK)
+    expect(hedgehog.inkDim).toBe(dimInk)
+    expect(hedgehog.ink).toBe(ADVENTURE_BACKDROP.night!.ink)
+    expect(hedgehog.inkDim).toBe(ADVENTURE_BACKDROP.night!.inkDim)
+  })
+
+  it('the row reuses the night row\'s art and quiet/brightest/corridorRows verbatim — no new measurement', () => {
+    const night = ADVENTURE_BACKDROP.night!
+    expect(hedgehog.art).toBe(night.art)
+    expect(hedgehog.quiet).toBe(night.quiet)
+    expect(hedgehog.brightest).toBe(night.brightest)
+    expect(hedgehog.corridorRows).toEqual(night.corridorRows)
+  })
+
+  it('TORCH_CHALK (the earned mark, and the child\'s own line) clears the night band by >=55, both quiet and brightest', () => {
+    const vsQuiet = Math.abs(luma(TORCH_CHALK) - luma(hedgehog.quiet))
+    const vsBrightest = Math.abs(luma(TORCH_CHALK) - luma(hedgehog.brightest))
+    expect(vsQuiet).toBeGreaterThanOrEqual(55)
+    expect(vsBrightest).toBeGreaterThanOrEqual(55)
+    expect(vsQuiet).toBeCloseTo(171.9, 0)
+    expect(vsBrightest).toBeCloseTo(143.1, 0)
+  })
+
+  it('the unfilled mark (TORCH_CHALK_DIM) clears the night band too — brightest by only 0.8, recorded as a risk', () => {
+    const vsQuiet = Math.abs(luma(dimInk) - luma(hedgehog.quiet))
+    const vsBrightest = Math.abs(luma(dimInk) - luma(hedgehog.brightest))
+    expect(vsQuiet).toBeGreaterThanOrEqual(55)
+    expect(vsBrightest).toBeGreaterThanOrEqual(55)
+    expect(vsBrightest).toBeCloseTo(55.8, 0)
+  })
+
+  it('goes red for INK_COLOR against the night band — no dark ink is admissible (falsifiability, docs/09 §4)', () => {
+    const INK_COLOR = '#1e293b'
+    expect(Math.abs(luma(INK_COLOR) - luma(hedgehog.quiet))).toBeLessThan(55)
+  })
+
+  it('TORCH_CHALK FAILS the body\'s brightest by 29.3 — chalk over the body is undrawable, which is WHY measure 5 excludes it', () => {
+    const gap = Math.abs(luma(TORCH_CHALK) - luma(BODY_BRIGHTEST))
+    expect(gap).toBeLessThan(55)
+    expect(gap).toBeCloseTo(25.7, 0)
+  })
+
+  it('the floor is exact — a hypothetical body brightest of 184.0 or below would clear the law', () => {
+    // luma(#b8b8b8) = 184.0 exactly (R=G=B, so luma = the channel value).
+    const HYPOTHETICAL_FLOOR = '#b8b8b8'
+    expect(Math.abs(luma(TORCH_CHALK) - luma(HYPOTHETICAL_FLOOR))).toBeGreaterThanOrEqual(55)
+    // And today's real measured value (213.3) sits ABOVE that floor — the
+    // law is still failing, as the test above already confirmed.
+    expect(luma(BODY_BRIGHTEST)).toBeGreaterThan(184.0)
+  })
+})
+
 describe('backdropFor', () => {
   it('is defined for every duck trail', () => {
     for (const id of ['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4']) {
@@ -454,6 +534,12 @@ describe('backdropFor', () => {
   it('resolves the bee adventure to the forest backdrop', () => {
     for (const id of ['bee1', 'bee2', 'bee3', 'bee4']) {
       expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.bee)
+    }
+  })
+
+  it('resolves the hedgehog adventure to the hedgehog backdrop (zoo-map spec, "Hedgehog Backdrop Resolves...")', () => {
+    for (const id of ['hedgehog1', 'hedgehog2', 'hedgehog3', 'hedgehog4']) {
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.hedgehog)
     }
   })
 

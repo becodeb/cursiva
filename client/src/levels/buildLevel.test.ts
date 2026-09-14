@@ -567,12 +567,30 @@ describe('buildLevelTarget — demoPaths (the demo repair, half 2: the demoPlays
     }
   })
 
-  it('demoPlays(l, g) === (!!l.demo && g === \'full\') for every shipped level (none of which carries spines) and every GuideLevel', () => {
+  // Split in two once `hedgehog1..4` land (Phase 9): the whole-catalog
+  // invariant no longer holds UNCONDITIONALLY, because `hedgehog1` carries
+  // both `spines` and `demo: true`, which the second half below covers on
+  // its own terms — the pattern the two `spines`-fixture tests directly
+  // above this one already established.
+  it('demoPlays(l, g) === (!!l.demo && g === \'full\') for every shipped level WITHOUT spines, every GuideLevel', () => {
     const guideLevels: readonly GuideLevel[] = ['full', 'dotted', 'minimal', 'none']
     for (const level of [...LEVELS, ...LEGACY_PHASE_1]) {
-      expect(level.spines, level.id).toBeUndefined()
+      if (level.spines) continue
       for (const g of guideLevels) {
         expect(demoPlays(level, g), `${level.id}/${g}`).toBe(!!level.demo && g === 'full')
+      }
+    }
+  })
+
+  it('demoPlays(l, g) === !!l.demo, UNCONDITIONAL on g, for every shipped level WITH spines', () => {
+    const guideLevels: readonly GuideLevel[] = ['full', 'dotted', 'minimal', 'none']
+    const spinesLevels = [...LEVELS, ...LEGACY_PHASE_1].filter((l) => l.spines)
+    // `hedgehog1..4` — confirms the split is exercising a REAL, non-empty
+    // set, not vacuously passing over zero levels.
+    expect(spinesLevels.length).toBeGreaterThan(0)
+    for (const level of spinesLevels) {
+      for (const g of guideLevels) {
+        expect(demoPlays(level, g), `${level.id}/${g}`).toBe(!!level.demo)
       }
     }
   })

@@ -452,8 +452,16 @@ export const SECTORS: readonly ZooSector[] = [
     // aspect ≥ 250/(2.12×190) = 0.62 → art 2 clears it.
     fog: closedFog(NOCTURNA_HIT, 1),
     animalSpot: hitCentre(NOCTURNA_HIT),
-    animals: [],
-    adventureIds: ['night1', 'night2', 'night3', 'night4'],
+    // The sector's first recovered animal (`radial-spines` design.md §8.2):
+    // the erizo, at the existing `animalSpot`, once `hedgehog4` is filed —
+    // the same shape every other recovered animal uses (`vibora` above).
+    animals: [{ id: 'erizo', dx: 0, dy: 0, size: 90, appearsWhen: ['hedgehog4'] }],
+    // A second adventure joins an already-open sector (design.md §8.2,
+    // amendment 9's precedent: `entrada` — glass then sand; `montañas` —
+    // sheep then llama). `unlockedWhen` below is UNCHANGED: adding an
+    // adventure to an open sector does not change when the sector itself
+    // opens.
+    adventureIds: ['night1', 'night2', 'night3', 'night4', 'hedgehog1', 'hedgehog2', 'hedgehog3', 'hedgehog4'],
     // Opens once the mountains are done (design.md §7.1) — the night
     // sector is the row's own last stop, after glass/sand/duck/sheep/llama.
     unlockedWhen: (records) => isFiled(records, 'llama-peak4'),

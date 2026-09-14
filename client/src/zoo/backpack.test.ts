@@ -77,4 +77,9 @@ describe('earnedItems', () => {
     ).not.toContainEqual(expect.objectContaining({ grantedBy: 'estanque' }))
     expect(BACKPACK_ITEMS.some((item) => item.grantedBy === 'estanque')).toBe(false)
   })
+
+  it("filing hedgehog4 grants no second nocturna item — one object per SECTOR, not per adventure (radial-spines design.md §9 item 4, zoo-map spec)", () => {
+    expect(earnedItems(filed('hedgehog4'))).toEqual(earnedItems({}))
+    expect(BACKPACK_ITEMS.filter((item) => item.grantedBy === 'nocturna')).toHaveLength(1)
+  })
 })

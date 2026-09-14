@@ -52,7 +52,7 @@ export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
  * (`snake-drag-and-art-corridor` design.md §7.1, proposal decision 7), and
  * `'abeja'` for the forest's own (`free-trail-waypoints` design.md §9;
  * `docs/13` §7 lists `abeja.png` among the ANIMALS, not the UI icons). */
-export type ZooAnimalId = AnimalId | 'oveja' | 'llama' | 'vibora' | 'abeja' | 'delfin'
+export type ZooAnimalId = AnimalId | 'oveja' | 'llama' | 'vibora' | 'abeja' | 'delfin' | 'erizo'
 
 /** A derived raster from `client/public/art/`, with its intrinsic pixel size
  * so a caller can hold aspect while scaling to a target height.
@@ -334,6 +334,16 @@ export const FLOWER_ART: Readonly<Record<'dormant' | 'lit', ArtImage>> = {
   lit: SECTOR_ADVENTURE_ART.flower,
 }
 
+/** Hedgehog drawing activities: the two poses stay separate so the child can
+ * draw spikes on a side-on body or recognise the same animal curled up.
+ * Declared BEFORE `ZOO_ANIMAL_ART` so its `erizo` row (below) can reference
+ * `HEDGEHOG_ART.profile` directly, module-init order — moved up from its
+ * original position (Phase 1) for exactly this reason. */
+export const HEDGEHOG_ART: Readonly<Record<'profile' | 'curled', ArtImage>> = {
+  profile: { href: '/art/hedgehog-profile.png', w: 448, h: 306 },
+  curled: { href: '/art/hedgehog-curled.png', w: 412, h: 407 },
+}
+
 /** `ZOO_ANIMAL_ART` resolves every {@link ZooAnimalId} — spreading
  * `ANIMAL_ART` preserves referential identity for every existing entry, so
  * `mapBubble`'s art-reference comparisons keep working for the duck. */
@@ -350,13 +360,12 @@ export const ZOO_ANIMAL_ART: Readonly<Record<ZooAnimalId, ArtImage>> = {
   // `artHierarchy.test.ts`'s coverage guard. Verify, don't rebuild
   // (design.md §8, task 6.7).
   delfin: SECTOR_ADVENTURE_ART.dolphin,
-}
-
-/** Hedgehog drawing activities: the two poses stay separate so the child can
- * draw spikes on a side-on body or recognise the same animal curled up. */
-export const HEDGEHOG_ART: Readonly<Record<'profile' | 'curled', ArtImage>> = {
-  profile: { href: '/art/hedgehog-profile.png', w: 448, h: 306 },
-  curled: { href: '/art/hedgehog-curled.png', w: 412, h: 407 },
+  // `radial-spines` design.md §5, §9 item 2: both shipped PNGs are
+  // SPINELESS by design (`docs/13` §7), so the animal standing on the map
+  // after `hedgehog4` is a hedgehog with no spines — a real art gap, flagged
+  // to the author rather than silently accepted. Closing it needs a third
+  // drawing (`erizo con espinas.png`), which is art, not code.
+  erizo: HEDGEHOG_ART.profile,
 }
 
 /** One pose's measured silhouette, in the image's OWN normalised space

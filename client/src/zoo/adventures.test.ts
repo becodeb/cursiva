@@ -20,8 +20,8 @@ const estanque = SECTORS.find((s) => s.id === 'estanque')!
 const montanas = SECTORS.find((s) => s.id === 'montanas')!
 
 describe('ADVENTURES', () => {
-  it("declares nine rows: duck/sheep/llama, the entrance's glass/sand, the night sector, the arena's snake, the forest's bee, and the pond's dolphin (design.md §5, §6.1; free-trail-waypoints design.md §9; this change's §8)", () => {
-    expect(ADVENTURES).toHaveLength(9)
+  it("declares ten rows: duck/sheep/llama, the entrance's glass/sand, the night sector, the arena's snake, the forest's bee, the pond's dolphin, and the night sector's second adventure — the hedgehog (design.md §5, §6.1; free-trail-waypoints design.md §9; this change's §8; radial-spines design.md §8.2)", () => {
+    expect(ADVENTURES).toHaveLength(10)
     expect(ADVENTURES.map((a) => a.id)).toEqual([
       'duck',
       'sheep',
@@ -32,6 +32,7 @@ describe('ADVENTURES', () => {
       'snake',
       'bee',
       'dolphin',
+      'hedgehog',
     ])
 
     const duck = ADVENTURES[0]
@@ -274,5 +275,27 @@ describe('the dolphin adventure (this change, design.md §8)', () => {
   it('carries the four dolphin levels, in order, in the estanque sector', () => {
     expect(dolphin.levelIds).toEqual(['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4'])
     expect(dolphin.sector).toBe('estanque')
+  })
+})
+
+describe('the hedgehog adventure (radial-spines, design.md §8.2)', () => {
+  const hedgehog = ADVENTURES.find((a) => a.id === 'hedgehog')!
+
+  it('declares animal:"erizo" and no closingBeat', () => {
+    expect(hedgehog.animal).toBe('erizo')
+    expect(hedgehog.closingBeat).toBeUndefined()
+  })
+
+  it('carries the four hedgehog levels, in order, in the nocturna sector', () => {
+    expect(hedgehog.levelIds).toEqual(['hedgehog1', 'hedgehog2', 'hedgehog3', 'hedgehog4'])
+    expect(hedgehog.sector).toBe('nocturna')
+  })
+
+  it('closes with the HEDGEHOG\'s own line, not night\'s, once hedgehog4 is filed', () => {
+    const nocturna = SECTORS.find((s) => s.id === 'nocturna')!
+    expect(mapBubble(nocturna, filed('hedgehog4'))).toEqual({
+      art: ZOO_ANIMAL_ART.erizo,
+      label: '¡El erizo tiene todas sus espinas!',
+    })
   })
 })

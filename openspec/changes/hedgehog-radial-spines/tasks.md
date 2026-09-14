@@ -336,43 +336,43 @@ Spec traceability: `zoo-map/spec.md` (all five ADDED requirements);
 `trace-canvas/spec.md` "The Hedgehog Row Inherits TORCH_CHALK...", "The Body
 Interior Is Undrawable...". Design §8.2, §2 D1(a)/(b)/D4.
 
-- [ ] 10.1 `zoo/adventures.ts:24-33`: `AdventureId | 'hedgehog'`. `:74-195`:
+- [x] 10.1 `zoo/adventures.ts:24-33`: `AdventureId | 'hedgehog'`. `:74-195`:
       one row APPENDED AT THE END (amendment 9) — `sector:'nocturna'`,
       `animal:'erizo'`, no `closingBeat`, intro "Al erizo le faltan las
       espinas. ¿Se las dibujamos?", closing "¡El erizo tiene todas sus
       espinas!" (§8.2 verbatim).
-- [ ] 10.2 `zoo/sectors.ts:455-456`: `nocturna.animals` gains `{id:'erizo',
+- [x] 10.2 `zoo/sectors.ts:455-456`: `nocturna.animals` gains `{id:'erizo',
       dx:0, dy:0, size:90, appearsWhen:['hedgehog4']}` at the existing
       `animalSpot`; `nocturna.adventureIds` becomes eight (`night1..4,
       hedgehog1..4`); `unlockedWhen` UNCHANGED.
-- [ ] 10.3 `zoo/backdrops.ts:105+`: `hedgehog` row — `art:
+- [x] 10.3 `zoo/backdrops.ts:105+`: `hedgehog` row — `art:
       SECTOR_BACKGROUND_ART.night`, night's `quiet`/`brightest`/
       `corridorRows` verbatim, `ink: TORCH_CHALK`, `inkDim:
       TORCH_CHALK_DIM`, no `tile`, no `channel`. `:223` sibling:
       `SPINE_BACKDROPS = {hedgehog}`.
-- [ ] 10.4 `detective/assets.ts:55`: `ZooAnimalId | 'erizo'`. `:340-353`:
+- [x] 10.4 `detective/assets.ts:55`: `ZooAnimalId | 'erizo'`. `:340-353`:
       `ZOO_ANIMAL_ART.erizo = HEDGEHOG_ART.profile` — flag the art gap (§9
       item 2) in a comment, do NOT resolve it.
-- [ ] 10.5 [TEST] `sectors.test.ts:244-249` — `nocturna.adventureIds`
+- [x] 10.5 [TEST] `sectors.test.ts:244-249` — `nocturna.adventureIds`
       EXACTLY equals the eight ids in order; `arena.unlockedWhen` still
       `isFiled(records,'night4')`, unaffected.
-- [ ] 10.6 [TEST] `backdrops.test.ts:92-111` — completeness guard picks up
+- [x] 10.6 [TEST] `backdrops.test.ts:92-111` — completeness guard picks up
       `SPINE_BACKDROPS`, asserting the substantive INK law (both mark
       states + `quiet`/`brightest`) rather than the vacuous `SHEET_PAPER`
       fallback (design §11.1 item 6).
-- [ ] 10.7 [TEST] `TORCH_CHALK` clears `night.quiet`(67.1)/`brightest`(95.9)
+- [x] 10.7 [TEST] `TORCH_CHALK` clears `night.quiet`(67.1)/`brightest`(95.9)
       by ≥55; `INK_COLOR` fails the same gap (falsifiability).
-- [ ] 10.8 [TEST] the undrawability — `TORCH_CHALK` FAILS the body's
+- [x] 10.8 [TEST] the undrawability — `TORCH_CHALK` FAILS the body's
       `brightest`(213.3) by 29.3 (<55); the floor is exact (a hypothetical
       `brightest ≤184.0` would pass).
-- [ ] 10.9 [TEST] the unfilled/earned mark states clear `night.quiet`/
+- [x] 10.9 [TEST] the unfilled/earned mark states clear `night.quiet`/
       `brightest` — unfilled clears `brightest` by only 0.8, recorded as a
       risk, not smoothed over (§2 D4).
-- [ ] 10.10 [TEST] no new backpack item — `earnedItems(records)` unaffected
+- [x] 10.10 [TEST] no new backpack item — `earnedItems(records)` unaffected
       by `hedgehog4` filed.
-- [ ] 10.11 [TEST] filing `hedgehog4` flips `mapBubble('nocturna',…)` to
+- [x] 10.11 [TEST] filing `hedgehog4` flips `mapBubble('nocturna',…)` to
       the hedgehog's own closing line.
-- [ ] 10.12 Run `npm test -- zoo/ detective/assets` — green.
+- [x] 10.12 Run `npm test -- zoo/ detective/assets` — green.
 
 ## Phase 11: The Six RED Confirmations (design §11.1) — Break, Record, Restore
 
