@@ -434,32 +434,32 @@ Spec traceability: design §13, proposal Decision 6.
 Non-negotiable per `docs/12` §4. Dev server: `npm run dev`, port 5173.
 Output goes to `capturas/pasoH/`.
 
-- [ ] 13.1 Run `npm test` (full suite) — baseline **76 files / 1730
+- [x] 13.1 Run `npm test` (full suite) — baseline **76 files / 1730
       tests**. Report actual new totals. If a single test reports red,
       RE-RUN before attributing it to this change (see the flake note at
       the top of this file).
-- [ ] 13.2 Run `npm run build` (`tsc --noEmit && vite build` — there is NO
+- [x] 13.2 Run `npm run build` (`tsc --noEmit && vite build` — there is NO
       lint script; this IS the gate) — green.
-- [ ] 13.3 Confirm zero new `url(#` occurrences beyond what pre-existed
+- [x] 13.3 Confirm zero new `url(#` occurrences beyond what pre-existed
       (`rg 'url\(#' client/src`).
-- [ ] 13.4 Confirm every task in this file is closed (`[x]`), none left
+- [x] 13.4 Confirm every task in this file is closed (`[x]`), none left
       `[~]`.
-- [ ] 13.5 Confirm the dev server answers at `http://localhost:5173` before
+- [x] 13.5 Confirm the dev server answers at `http://localhost:5173` before
       capturing.
-- [ ] 13.6 For each of `hedgehog1..4`, capture the pair TOGETHER into
+- [x] 13.6 For each of `hedgehog1..4`, capture the pair TOGETHER into
       `capturas/pasoH/`: **control** (`?nivel=hedgehogN`) and
       **instrumented** (`?nivel=hedgehogN&debug=espinas:K`, `K` chosen per
       level's own anchor count) — reading one without the other makes
       correct art look detached (§13, paso E's lesson).
-- [ ] 13.7 Capture the map before/after via `?debug=progreso:...` with and
+- [x] 13.7 Capture the map before/after via `?debug=progreso:...` with and
       without `hedgehog1..4` filed.
-- [ ] 13.8 Read every capture pair TOGETHER, not singly. Answer explicitly:
+- [x] 13.8 Read every capture pair TOGETHER, not singly. Answer explicitly:
       does the unfilled mark read against `night.brightest` given its
       measured 0.8-unit margin; does the earned mark's luma jump read as a
       reward; does the body's night backdrop still read as a place; does
       the demo's first-k segments read as a plausible hint. Record the
       answers, not just the fact that captures were taken.
-- [ ] 13.9 Correct and re-capture any defect found in 13.8, with a
+- [x] 13.9 Correct and re-capture any defect found in 13.8, with a
       regression test added alongside the fix — not only a re-shot
       picture.
 
