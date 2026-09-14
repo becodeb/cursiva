@@ -417,26 +417,56 @@ alone: every pair below is read TOGETHER, never singly.
 
 ## Phase 9: Final Gate
 
-- [ ] 9.1 Run `npm test` (full suite) — green. Baseline: 72 files / 1555
+- [x] 9.1 Run `npm test` (full suite) — green. Baseline: 72 files / 1555
       tests. Report actual new totals; new test files expected:
       `waypoints.test.ts`, `WaypointLayer.test.tsx`. **`artHierarchy.test.ts`
       is flaky under parallel load on this machine — a red there is
-      re-run before being believed, not diagnosed.**
-- [ ] 9.2 Run `npm run build` — green (`tsc --noEmit && vite build`; never a
-      bare `tsc --noEmit`).
-- [ ] 9.3 Confirm byte-identical to `main` via `git diff main...HEAD`:
+      re-run before being believed, not diagnosed.** **Result: 74 files /
+      1652 tests, all green, no flakiness observed on this run.** New
+      totals: +2 files (`levels/waypoints.test.ts`,
+      `canvas/WaypointLayer.test.tsx`, as expected), +97 tests.
+- [x] 9.2 Run `npm run build` — green (`tsc --noEmit && vite build`; never a
+      bare `tsc --noEmit`). **Found and fixed one real `tsc` error on the
+      first run**, invisible to every `npm test` invocation in this apply
+      because vitest's esbuild transform does not type-check: `levels/
+      waypoints.ts`'s `waypointTick` had `let lit = prev.lit` (inferred
+      `ReadonlySet<number>`) and later called `lit.add(i)` after
+      reassigning to a fresh `Set`. Fixed by building the new `Set` into
+      its own binding and reassigning `lit` in one step. `npm run build`
+      is green after the fix.
+- [x] 9.3 Confirm byte-identical to `main` via `git diff main...HEAD`:
       `useTraceInput.ts`, `revealGrid.ts`, `coverage.ts`, `arrange.ts`,
       `artCorridor.ts`, `corridorTrack.ts`, `cases.ts`, `Deduction.tsx`,
-      `migrate*.ts`.
-- [ ] 9.4 Confirm zero new `url(#` occurrences beyond what pre-existed
-      (`rg 'url\(#' client/src`).
-- [ ] 9.5 **Re-grep `isUnlocked` and state the result**, the way paso E did:
+      `migrate*.ts`. **Confirmed: `git diff main...HEAD --stat` over all
+      nine names (four `migrate*.ts` files resolved) returns empty — zero
+      changes, byte-identical.**
+- [x] 9.4 Confirm zero new `url(#` occurrences beyond what pre-existed
+      (`rg 'url\(#' client/src`). **Confirmed**: every match in the current
+      tree and in `git diff main...HEAD` is either a doc-comment describing
+      the ban (including three new ones, in `WaypointLayer.tsx`,
+      `TraceCanvas.tsx`, `TraceCanvas.tsx`'s waypoint-slot comment) or a
+      test assertion of the form `expect(html).not.toContain('url(#')`
+      (including two new ones, in `WaypointLayer.test.tsx` and
+      `AdventureIntro`-adjacent... — no functional `url(#...)` reference
+      exists anywhere in the diff.
+- [x] 9.5 **Re-grep `isUnlocked` and state the result**, the way paso E did:
       confirm its only non-test, non-migration consumer stays the dev-only
       `LevelMap.tsx`, so `bee1..4` inserted between `snake4` and
       `f2-guirnalda` needs no migration. Record the finding, do not assume
-      it.
+      it. **Confirmed by re-grep**: every occurrence is either
+      `LevelProgressStore.ts:123` (the method's own definition), a test
+      file, a `migrate*.ts` file's own doc-comment, or exactly one real
+      call site — `client/src/screen/LevelMap.tsx:81`. No migration is
+      needed; matches design.md's own prediction exactly.
 - [ ] 9.6 Confirm every task in this file is closed (`[x]`), none left
-      `[~]`.
+      `[~]`. **Genuinely NOT closed, stated plainly rather than disguised**:
+      Phase 8's seven tasks (8.1–8.7, the screenshot capture and its human
+      read-back) remain `[ ]`. This is by explicit instruction for this
+      apply run — screenshots are the orchestrator's job, not this
+      executor's — and is not a gap in the work itself: every phase 1–7
+      code change is committed, tested and (per 9.2) type-checks and
+      builds. Phases 1–7 plus 9.1–9.5 are closed; 9.6 itself cannot honestly
+      close until phase 8 does.
 
 ---
 
