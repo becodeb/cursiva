@@ -6,6 +6,8 @@
 import { describe, expect, it } from 'vitest'
 import { FLOWER_DORMANT, luma } from '../detective/palette'
 import { viewBoxToImage } from './sectors'
+import { getLevel } from '../levels/catalog'
+import { buildLevelTarget } from '../levels/buildLevel'
 import {
   ADVENTURE_BACKDROP,
   CHANNEL_STONE,
@@ -59,6 +61,9 @@ const REVEAL_BACKDROPS = {
  * meaningful for each group on its own terms. */
 const CHANNEL_BACKDROPS = {
   duck: ADVENTURE_BACKDROP.duck!,
+  // The dolphin row shares the duck row's own literals verbatim (design.md
+  // §3.1) — same group, same reasoning, no `channel` of its own.
+  dolphin: ADVENTURE_BACKDROP.dolphin!,
   sheep: ADVENTURE_BACKDROP.sheep!,
   llama: ADVENTURE_BACKDROP.llama!,
 }
@@ -299,6 +304,46 @@ describe('ADVENTURE_BACKDROP.corridorRows coverage', () => {
       const bottomImg = viewBoxToImage(0, bottom).y
       expect(topImg, id).toBeGreaterThanOrEqual(corridorRows.top)
       expect(bottomImg, id).toBeLessThanOrEqual(corridorRows.bottom)
+    }
+  })
+})
+
+describe('ADVENTURE_BACKDROP.dolphin (design.md §3.1/§3.2, this change)', () => {
+  it("the dolphin row's values equal the duck row's, verbatim", () => {
+    const dolphin = ADVENTURE_BACKDROP.dolphin!
+    const duck = ADVENTURE_BACKDROP.duck!
+    expect(dolphin.art).toBe(duck.art)
+    expect(dolphin.quiet).toBe(duck.quiet)
+    expect(dolphin.brightest).toBe(duck.brightest)
+    expect(dolphin.corridorRows).toEqual(duck.corridorRows)
+    expect(dolphin.channel).toBeUndefined()
+  })
+
+  it('the visible source rows fall inside (135, 889) at the two camera worlds W=1560 and W=2120', () => {
+    const { corridorRows } = ADVENTURE_BACKDROP.dolphin!
+    for (const W of [1560, 2120]) {
+      // `xMidYMid slice`'s own crop: the visible sheet is the whole 0..600
+      // band, pushed back to source pixels through the SAME transform
+      // `viewBoxToImage` uses, at this world's own stage width.
+      const topSrc = viewBoxToImage(0, 0, W).y
+      const bottomSrc = viewBoxToImage(0, 600, W).y
+      expect(topSrc, `W=${W}`).toBeGreaterThanOrEqual(corridorRows.top)
+      expect(bottomSrc, `W=${W}`).toBeLessThanOrEqual(corridorRows.bottom)
+    }
+  })
+
+  it("each dolphin level's own channel rows, pushed back through Phase 4's stageWidth param, fall inside (135, 889)", () => {
+    const { corridorRows } = ADVENTURE_BACKDROP.dolphin!
+    for (const id of ['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4']) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const A = 160
+      const top = 300 - (A + level.corridorWidth / 2)
+      const bottom = 300 + (A + level.corridorWidth / 2)
+      const topSrc = viewBoxToImage(0, top, target.viewBoxWidth).y
+      const bottomSrc = viewBoxToImage(0, bottom, target.viewBoxWidth).y
+      expect(topSrc, id).toBeGreaterThanOrEqual(corridorRows.top)
+      expect(bottomSrc, id).toBeLessThanOrEqual(corridorRows.bottom)
     }
   })
 })

@@ -20,8 +20,8 @@ const estanque = SECTORS.find((s) => s.id === 'estanque')!
 const montanas = SECTORS.find((s) => s.id === 'montanas')!
 
 describe('ADVENTURES', () => {
-  it("declares eight rows: duck/sheep/llama, the entrance's glass/sand, the night sector, the arena's snake, and the forest's bee (design.md §5, §6.1; free-trail-waypoints design.md §9)", () => {
-    expect(ADVENTURES).toHaveLength(8)
+  it("declares nine rows: duck/sheep/llama, the entrance's glass/sand, the night sector, the arena's snake, the forest's bee, and the pond's dolphin (design.md §5, §6.1; free-trail-waypoints design.md §9; this change's §8)", () => {
+    expect(ADVENTURES).toHaveLength(9)
     expect(ADVENTURES.map((a) => a.id)).toEqual([
       'duck',
       'sheep',
@@ -31,6 +31,7 @@ describe('ADVENTURES', () => {
       'night',
       'snake',
       'bee',
+      'dolphin',
     ])
 
     const duck = ADVENTURES[0]
@@ -252,5 +253,26 @@ describe('mapBubble', () => {
       art: ZOO_OCTOPUS_PRINT_ART,
       label: '¡Mirá! Las huellas van hacia allá. ¿Vamos?',
     })
+  })
+
+  it("closes with the DOLPHIN's own line, not the duck's, once dolphin4 (and duck-trail4) are filed (this change's §8)", () => {
+    expect(mapBubble(estanque, filed('duck-trail4', 'dolphin4'))).toEqual({
+      art: ZOO_ANIMAL_ART.delfin,
+      label: '¡Pasamos entre los delfines! Ya están tranquilos en el estanque.',
+    })
+  })
+})
+
+describe('the dolphin adventure (this change, design.md §8)', () => {
+  const dolphin = ADVENTURES.find((a) => a.id === 'dolphin')!
+
+  it('declares animal:"delfin" and no closingBeat', () => {
+    expect(dolphin.animal).toBe('delfin')
+    expect(dolphin.closingBeat).toBeUndefined()
+  })
+
+  it('carries the four dolphin levels, in order, in the estanque sector', () => {
+    expect(dolphin.levelIds).toEqual(['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4'])
+    expect(dolphin.sector).toBe('estanque')
   })
 })

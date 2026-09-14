@@ -308,46 +308,63 @@ Spec traceability: `level-engine/spec.md` "Dolphin Level Set...",
 
 Spec traceability: `zoo-map/spec.md` all MODIFIED and ADDED requirements.
 
-- [ ] 6.1 In `client/src/zoo/backdrops.ts`: add the `dolphin` row after
+- [x] 6.1 In `client/src/zoo/backdrops.ts`: add the `dolphin` row after
       `duck` — `art: SECTOR_BACKGROUND_ART.lagoon`, `quiet`/`brightest`
       copied verbatim from `duck` (`'#b4c5d0'`), `corridorRows: {top: 135,
       bottom: 889}`, no `channel` (design §3.1).
-- [ ] 6.2 In `client/src/zoo/backdrops.test.ts`: assert the dolphin row's
+- [x] 6.2 In `client/src/zoo/backdrops.test.ts`: assert the dolphin row's
       values equal the duck row's; assert the visible-source-rows
       containment inside `(135, 889)` at `W = 1560` and `W = 2120`; assert
       the channel's own rows (via Phase 4's `stageWidth` param at each
       level's own sheet width) fall inside `(135, 889)` for all four
-      dolphin levels (design §3.2).
-- [ ] 6.3 In `client/src/zoo/adventures.ts`: `AdventureId | 'dolphin'`; the
+      dolphin levels (design §3.2). All three pass, cross-validating both
+      design §3.1's visible-source-rows numbers and Phase 4's `stageWidth`
+      parameter against the exact per-level table in §3.2.
+- [x] 6.3 In `client/src/zoo/adventures.ts`: `AdventureId | 'dolphin'`; the
       `ADVENTURES.dolphin` row — `levelIds: dolphin1..4`, `sector:
       'estanque'`, `animal: 'delfin'`, intro/closing text per design §8, no
       `closingBeat` (the `mapBubble` filter at `adventures.ts:224`, doc
       comment `:147`, already covers an animal-recovering adventure).
-- [ ] 6.4 In `client/src/zoo/adventures.test.ts`: row count; `animal ===
+      **Placed at the END of `ADVENTURES`** (after `bee`), not right after
+      `duck` as first tried: inserting right after `duck` shifted every
+      later row's array INDEX, breaking several unrelated
+      `ADVENTURES[1]`/`ADVENTURES[2]` positional assertions elsewhere
+      (`adventures.test.ts`, `AdventureIntro.test.tsx`) — found by running
+      the suite. Appending preserves every existing index and still
+      satisfies `mapBubble`'s `.at(-1)` correctness, which only needs
+      `dolphin` to come AFTER `duck` in array order, not immediately after.
+- [x] 6.4 In `client/src/zoo/adventures.test.ts`: row count; `animal ===
       'delfin'` and `closingBeat` absent; filing `dolphin4` flips
-      `mapBubble('estanque', …)` to the dolphin's closing line.
-- [ ] 6.5 In `client/src/zoo/sectors.ts`: `estanque.adventureIds` 8 → 12
+      `mapBubble('estanque', …)` to the dolphin's closing line. (Row count
+      corrected to nine, the eight shipped rows plus dolphin.)
+- [x] 6.5 In `client/src/zoo/sectors.ts`: `estanque.adventureIds` 8 → 12
       (append `dolphin1..4`); `estanque.animals += {id: 'delfin', dx: 105,
       dy: 60, size: 72, appearsWhen: ['dolphin4']}`; `unlockedWhen`
       unchanged.
-- [ ] 6.6 In `client/src/zoo/sectors.test.ts`: `estanque.adventureIds`
+- [x] 6.6 In `client/src/zoo/sectors.test.ts`: `estanque.adventureIds`
       equals the twelve ids in order; `unlockedWhen` returns the same
       value as before for inputs that already returned `true`; the Z1
       disjointness assertion — the `delfin` box (via `STANDING_GRIP` off
       `animalSpot`) is inside `ESTANQUE_HIT`, clear of the reed island, and
       disjoint from the duck's box computed from the real `ANIMAL_ART.pato`
-      dimensions (design §8).
-- [ ] 6.7 In `client/src/detective/assets.ts`: `ZooAnimalId | 'delfin'`;
+      dimensions (design §8). **Two more hardcoded id lists found**
+      (mirroring Phase 5.3's finding): `Registry↔Catalog Structural
+      Consistency`'s own "eight adventures in exact order" test and
+      `nextAdventure Resolution`'s "returns the LAST adventure once every
+      one is filed" test both needed the four dolphin ids appended.
+- [x] 6.7 In `client/src/detective/assets.ts`: `ZooAnimalId | 'delfin'`;
       `ZOO_ANIMAL_ART.delfin = SECTOR_ADVENTURE_ART.dolphin` — already
       registered at `assets.ts:315`, already passing
-      `artHierarchy.test.ts:670-677`. **Verify, do not rebuild.**
-- [ ] 6.8 In `client/src/zoo/backpack.test.ts` (or equivalent): assert
+      `artHierarchy.test.ts:670-677`. **Verify, do not rebuild.** Confirmed:
+      no change needed to `artHierarchy.test.ts` itself.
+- [x] 6.8 In `client/src/zoo/backpack.test.ts` (or equivalent): assert
       `earnedItems(records)` never returns an entry with `grantedBy ===
       'estanque'` for any `records`, including `dolphin4` filed — the
       explicit no-backpack-item decision (`zoo-map/spec.md` "No Backpack
       Item Is Granted by the Dolphin Adventure"), recorded rather than
-      invented.
-- [ ] 6.9 Run `npm test -- zoo/ detective/assets` — green.
+      invented. Confirmed `BACKPACK_ITEMS` itself needs no `estanque` row.
+- [x] 6.9 Run `npm test -- zoo/ detective/assets` — green (146 tests). Full
+      suite 76 files / 1722 tests, `tsc --noEmit` clean, build green.
 
 ## Phase 7: `docs/13` Amendment
 

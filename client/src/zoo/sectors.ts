@@ -369,9 +369,16 @@ export const SECTORS: readonly ZooSector[] = [
       // The duck appears once ITS OWN trail is filed, not when the whole
       // sector is (design.md §3) — `appearsWhen` is per-animal on purpose.
       { id: 'pato', dx: 0, dy: 0, size: 96, appearsWhen: ['duck-trail4'] },
+      // The dolphin, once `dolphin4` is filed (design.md §8). Z1, asserted
+      // rather than eyeballed: with `STANDING_GRIP` off this sector's own
+      // `animalSpot` {735, 200}, the box is x ∈ [801.4, 878.6], y ∈ [188,
+      // 260] — inside `ESTANQUE_HIT`, clear of the reed island, and
+      // disjoint from the duck's own box.
+      { id: 'delfin', dx: 105, dy: 60, size: 72, appearsWhen: ['dolphin4'] },
     ],
-    // The exact eight-id order docs/13 §3 assigns to the estanque: the
-    // duck's four trails, then the medusa's four (design.md §3).
+    // The exact order docs/13 §3 assigns to the estanque: the duck's four
+    // trails, then the medusa's four, then the dolphin's four (design.md §3,
+    // §8 — patos → medusa → delfines).
     adventureIds: [
       'duck-trail1',
       'duck-trail2',
@@ -381,6 +388,10 @@ export const SECTORS: readonly ZooSector[] = [
       'f2-agua2',
       'f2-agua3',
       'f2-agua4',
+      'dolphin1',
+      'dolphin2',
+      'dolphin3',
+      'dolphin4',
     ],
     // No longer `alwaysOpen` (amendment A4, design.md §7.1): the real stake
     // of `migrateEntrance` is right here — without that migration a

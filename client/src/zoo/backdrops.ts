@@ -111,6 +111,20 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
     // No `channel` — the lagoon keeps `SHEET_PAPER`, byte-identical to
     // before this change.
   },
+  // The dolphin adventure — the duck row's own literals, reused rather than
+  // re-sampled (design.md §3.1): at the two camera worlds (1560, 2120) the
+  // visible source rows are a strict SUBSET of (135, 889), so `brightest`
+  // over what actually renders cannot exceed the value measured over this
+  // wider band. `backdrops.test.ts` asserts the containment at both widths,
+  // so the claim is checked rather than assumed. No new `PASSTHROUGHS` row,
+  // no `build_art.py` re-run, no new manifest literal.
+  dolphin: {
+    art: SECTOR_BACKGROUND_ART.lagoon,
+    quiet: '#b4c5d0',
+    brightest: '#b4c5d0',
+    corridorRows: { top: 135, bottom: 889 },
+    // No `channel` — the lagoon keeps `SHEET_PAPER`, exactly as the ducks do.
+  },
   sheep: {
     art: SECTOR_BACKGROUND_ART.slope,
     quiet: '#9da396',

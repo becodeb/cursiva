@@ -52,7 +52,7 @@ export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
  * (`snake-drag-and-art-corridor` design.md §7.1, proposal decision 7), and
  * `'abeja'` for the forest's own (`free-trail-waypoints` design.md §9;
  * `docs/13` §7 lists `abeja.png` among the ANIMALS, not the UI icons). */
-export type ZooAnimalId = AnimalId | 'oveja' | 'llama' | 'vibora' | 'abeja'
+export type ZooAnimalId = AnimalId | 'oveja' | 'llama' | 'vibora' | 'abeja' | 'delfin'
 
 /** A derived raster from `client/public/art/`, with its intrinsic pixel size
  * so a caller can hold aspect while scaling to a target height.
@@ -345,6 +345,11 @@ export const ZOO_ANIMAL_ART: Readonly<Record<ZooAnimalId, ArtImage>> = {
   // size, neither the smallest nor the largest of the three.
   vibora: SECTOR_ADVENTURE_ART.snakeMedium,
   abeja: SECTOR_ADVENTURE_ART.bee,
+  // Already built and registered (`SECTOR_ADVENTURE_ART.dolphin`, this
+  // file's own `'dolphin'` row above) and already passing
+  // `artHierarchy.test.ts`'s coverage guard. Verify, don't rebuild
+  // (design.md §8, task 6.7).
+  delfin: SECTOR_ADVENTURE_ART.dolphin,
 }
 
 /** Hedgehog drawing activities: the two poses stay separate so the child can

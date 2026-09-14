@@ -21,7 +21,16 @@ import { animalPlacements, type Records, type SectorId, type ZooSector } from '.
  *  carried at most one. `glass`/`sand`/`night` are the entrance and the
  *  night sector (design.md §5, §6.1) — none of the three recovers an
  *  animal, which is what `AdventureSubject` below exists to represent. */
-export type AdventureId = 'duck' | 'sheep' | 'llama' | 'glass' | 'sand' | 'night' | 'snake' | 'bee'
+export type AdventureId =
+  | 'duck'
+  | 'sheep'
+  | 'llama'
+  | 'glass'
+  | 'sand'
+  | 'night'
+  | 'snake'
+  | 'bee'
+  | 'dolphin'
 
 interface AdventureBase {
   id: AdventureId
@@ -164,6 +173,24 @@ export const ADVENTURES: readonly Adventure[] = [
     // through the shipped map bubble the moment its animal is placed. The
     // once-per-story closing screen stays reserved for the entrance's sand
     // adventure, which recovers no animal.
+  },
+  {
+    id: 'dolphin',
+    levelIds: ['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4'],
+    sector: 'estanque',
+    animal: 'delfin',
+    intro: 'Los delfines saltan en fila. ¿Pasamos entre ellos sin tocarlos?',
+    closing: '¡Pasamos entre los delfines! Ya están tranquilos en el estanque.',
+    // No `closingBeat` — the snake/bee rows' own reasoning, restated:
+    // `mapBubble`'s filter is `a.animal !== undefined`, so an
+    // animal-recovering adventure already carries `docs/13` §5 item 6
+    // through the shipped map bubble the moment its animal is placed. The
+    // once-per-story closing screen stays reserved for the entrance's sand
+    // adventure, which recovers no animal. Appended at the END of the
+    // registry, matching every prior row (C-H each added one entry here) —
+    // and `mapBubble`'s `.at(-1)` needs `dolphin` only to come AFTER `duck`
+    // in array order for filing `dolphin4` to surface its own closing line
+    // over the duck's, which appending trivially satisfies.
   },
 ]
 

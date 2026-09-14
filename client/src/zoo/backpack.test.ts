@@ -65,4 +65,16 @@ describe('earnedItems', () => {
     const items = earnedItems(filed('llama-peak4', 'sand4', 'night4', 'snake4', 'bee4'))
     expect(items.map((i) => i.id).sort()).toEqual(['andean-hat', 'carrito', 'flor', 'linterna', 'lupa'])
   })
+
+  it("never returns an entry with grantedBy === 'estanque' — the pond grants no backpack item (zoo-map spec, this change)", () => {
+    // Explicit author decision, recorded rather than invented: the duck row
+    // shipped without one, and this change grants none either.
+    expect(earnedItems(filed('duck-trail4'))).not.toContainEqual(
+      expect.objectContaining({ grantedBy: 'estanque' }),
+    )
+    expect(
+      earnedItems(filed('duck-trail4', 'dolphin1', 'dolphin2', 'dolphin3', 'dolphin4')),
+    ).not.toContainEqual(expect.objectContaining({ grantedBy: 'estanque' }))
+    expect(BACKPACK_ITEMS.some((item) => item.grantedBy === 'estanque')).toBe(false)
+  })
 })

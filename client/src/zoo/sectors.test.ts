@@ -202,7 +202,7 @@ describe('Fog Containment Invariant', () => {
 describe('Registry↔Catalog Structural Consistency', () => {
   const catalogIds = new Set(LEVELS.map((l) => l.id))
 
-  it("estanque's eight adventures are in the exact documented order", () => {
+  it("estanque's twelve adventures are in the exact documented order (patos → medusa → delfines)", () => {
     expect(estanque.adventureIds).toEqual([
       'duck-trail1',
       'duck-trail2',
@@ -212,6 +212,10 @@ describe('Registry↔Catalog Structural Consistency', () => {
       'f2-agua2',
       'f2-agua3',
       'f2-agua4',
+      'dolphin1',
+      'dolphin2',
+      'dolphin3',
+      'dolphin4',
     ])
   })
 
@@ -363,7 +367,7 @@ describe('nextAdventure Resolution (OD2)', () => {
 
   it('returns the LAST adventure once every one is filed', () => {
     const records = filed(...estanque.adventureIds)
-    expect(nextAdventure(estanque, records)).toBe('f2-agua4')
+    expect(nextAdventure(estanque, records)).toBe('dolphin4')
   })
 
   it('returns null for a sector with no adventures', () => {
@@ -458,6 +462,43 @@ describe('Recovered Animal Placement', () => {
   it('placement uses the standing grip: the box bottom edge sits on animalSpot.y', () => {
     const [placed] = animalPlacements(estanque, filed('duck-trail4'))
     expect(placed.box.y + placed.box.height).toBeCloseTo(estanque.animalSpot.y, 6)
+  })
+
+  it('the dolphin is absent before dolphin4 is filed, and appears alongside the duck once it is', () => {
+    expect(animalPlacements(estanque, filed('duck-trail4', 'dolphin1', 'dolphin2', 'dolphin3'))).toEqual(
+      animalPlacements(estanque, filed('duck-trail4')),
+    )
+    expect(animalPlacements(estanque, filed('duck-trail4', 'dolphin4'))).toHaveLength(2)
+  })
+
+  it("Z1 (design.md §8): the delfin's box is inside ESTANQUE_HIT, clear of the reed island, and disjoint from the duck's own box", () => {
+    const [duck, delfin] = animalPlacements(estanque, filed('duck-trail4', 'dolphin4'))
+    // `ESTANQUE_HIT`, read off the sector's own registered `hit` rect.
+    const hit = estanque.hit!
+    const insideHit = (box: { x: number; y: number; width: number; height: number }): boolean =>
+      box.x >= hit.x && box.y >= hit.y && box.x + box.width <= hit.x + hit.w && box.y + box.height <= hit.y + hit.h
+    expect(insideHit(delfin.box)).toBe(true)
+
+    // The reed island, `estanque.animalSpot`'s own measured neighbour
+    // (design.md §1): x ∈ [768, 833], y ∈ [130, 182].
+    const reed = { x: 768, y: 130, w: 833 - 768, h: 182 - 130 }
+    const disjointFrom = (
+      box: { x: number; y: number; width: number; height: number },
+      r: { x: number; y: number; w: number; h: number },
+    ): boolean =>
+      box.x + box.width <= r.x || box.x >= r.x + r.w || box.y + box.height <= r.y || box.y >= r.y + r.h
+    expect(disjointFrom(delfin.box, reed)).toBe(true)
+
+    // Disjoint from the duck's own box, computed from the REAL
+    // `ANIMAL_ART.pato` dimensions — the literal is retunable, the
+    // constraint is not.
+    expect(
+      delfin.box.x + delfin.box.width <= duck.box.x ||
+        delfin.box.x >= duck.box.x + duck.box.width ||
+        delfin.box.y + delfin.box.height <= duck.box.y ||
+        delfin.box.y >= duck.box.y + duck.box.height,
+    ).toBe(true)
+    expect(delfin.art).toBe(ZOO_ANIMAL_ART.delfin)
   })
 })
 
