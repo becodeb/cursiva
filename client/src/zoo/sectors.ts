@@ -320,9 +320,16 @@ export const SECTORS: readonly ZooSector[] = [
     // aspect ≥ 300/(2.12×300) = 0.47 → art 1 clears it.
     fog: closedFog(BOSQUE_HIT, 2),
     animalSpot: hitCentre(BOSQUE_HIT),
-    animals: [],
-    adventureIds: [],
-    unlockedWhen: alwaysClosed,
+    // `size` is a HEIGHT (`placeArt.ts`): the bee's aspect is 1.113, so 48
+    // renders 53×48 — half the duck's 96, the right sentence about a bee,
+    // and it sits comfortably inside `BOSQUE_HIT`'s 300×300
+    // (`free-trail-waypoints` design.md §9).
+    animals: [{ id: 'abeja', dx: 0, dy: 0, size: 48, appearsWhen: ['bee4'] }],
+    adventureIds: ['bee1', 'bee2', 'bee3', 'bee4'],
+    // The ladder's new last rung: entrada → estanque ← sand4 → montañas ←
+    // duck-trail4 → nocturna ← llama-peak4 → arena ← night4 → bosque ←
+    // snake4 (`free-trail-waypoints` design.md §9). Only ever WIDENS access.
+    unlockedWhen: (records) => isFiled(records, 'snake4'),
   },
   {
     id: 'estanque',

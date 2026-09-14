@@ -49,8 +49,10 @@ export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
  * the deduction screen's exhaustive answer set and is NOT widened here
  * (`docs/13` §4 decision 1: the deduction is paused, not revived). Widened
  * with `'vibora'` for the arena's own recovered animal
- * (`snake-drag-and-art-corridor` design.md §7.1, proposal decision 7). */
-export type ZooAnimalId = AnimalId | 'oveja' | 'llama' | 'vibora'
+ * (`snake-drag-and-art-corridor` design.md §7.1, proposal decision 7), and
+ * `'abeja'` for the forest's own (`free-trail-waypoints` design.md §9;
+ * `docs/13` §7 lists `abeja.png` among the ANIMALS, not the UI icons). */
+export type ZooAnimalId = AnimalId | 'oveja' | 'llama' | 'vibora' | 'abeja'
 
 /** A derived raster from `client/public/art/`, with its intrinsic pixel size
  * so a caller can hold aspect while scaling to a target height.
@@ -342,6 +344,7 @@ export const ZOO_ANIMAL_ART: Readonly<Record<ZooAnimalId, ArtImage>> = {
   // The one a child would draw if asked to draw "a snake" — the middle
   // size, neither the smallest nor the largest of the three.
   vibora: SECTOR_ADVENTURE_ART.snakeMedium,
+  abeja: SECTOR_ADVENTURE_ART.bee,
 }
 
 /** Hedgehog drawing activities: the two poses stay separate so the child can

@@ -164,7 +164,7 @@ cargado. Se decide cuando lleguen.
 | Erizo | **No existe.** | Mecánica nueva: **trazos sueltos** evaluados uno por uno como segmentos rectos que salen del cuerpo hacia afuera, con un contador de espinas; no es corredor. |
 | Medusa | **Hecha** (`f2-guirnalda`, `f2-agua2..4`) | Nada. Se engancha al sector estanque. |
 | Caracol | Generador de espiral existe (`trail2`, `f1-espiral`) | Consigna pendiente. No se implementa hasta cerrarla. |
-| Abejas | Parcial: el **carrier** que sigue el dedo ya existe | Nivel de trazo **libre con puntos de paso** (flores) y meta (panal). |
+| Abejas | **Hecha** (`bee1..4`) | Nada. Trazo libre con puntos de paso (flores) y meta (panal); el `carrier` que sigue el dedo ya seguía, ahora tiene dónde pararse. |
 | Delfines | **No existe.** | **Desplazamiento de pantalla** (viewBox que avanza con el trazo). La animación previa ya existe como `demo`. |
 
 ### Decisiones que se toman con esta directiva
@@ -294,6 +294,47 @@ cargado. Se decide cuando lleguen.
    piedras por 74,6 de sus 144,4 unidades, con la aritmética en
    `design.md` §3.6. Y `capturas/e/` **son las capturas del paso D**; las
    de este paso están en `capturas/pasoE/`.
+
+8. **Enmendado al implementar el paso F (2026-09-14).** Cuatro cosas, y la
+   primera es la más cara de todas las que llevamos:
+   - **Un nivel sin ruta venía dibujando la tinta del chico en el color "te
+     saliste".** `offPath` sale de comparar la distancia al corredor, y
+     `multiCorridorTick` devuelve `Infinity` cuando no hay rutas — que es
+     todo nivel `kind: 'free'`. Doce niveles embarcados (vidrio, arena,
+     linterna) vienen pintando la línea viva en `inkDim` desde que existe el
+     campo, y en vidrio y arena ese gris separa 52 del velo, tres por debajo
+     de la ley que el propio `backdrops.test.ts` afirma sobre `ink`. En el
+     bosque habría separado **10**. Reparado en una línea, con una fila roja
+     de falsabilidad que lo deja medido y no opinado.
+   - **En un nivel sin ruta se apaga todo lo que se deriva de la ruta, no
+     sólo el corredor.** El carrier, el punto de inicio, el pulpo parado, la
+     flecha, la meta y el `demo` salen todos de
+     `target.polyline`/`target.paths`, que vienen vacíos. La reparación
+     general es **autorizar un inicio**: `levelStart` es el único lugar
+     donde una mecánica sin ruta enchufa el suyo. La mitad del FINAL queda
+     anotada y sin reparar — su único consumidor sería el panal, y el panal
+     necesita su coordenada y su radio en el mismo objeto.
+   - **La rama PÁLIDA se abrió por primera vez, y la abre el fondo, no el
+     arte.** La banda tranquila del bosque está en el MEDIO (luma 151), así
+     que existen las dos ramas acromáticas — ≤96 y ≥206 — y la clara es
+     mucho mejor: separa 166 de la tinta del chico contra los 56 de la
+     oscura, que queda a un luma del piso de la ley. Es la tercera vez que
+     `docs/09` §4 acorrala una decisión de dirección de arte, y como en los
+     pasos D y E, **cuál claro es de la autora**.
+   - **"Recorrido corto" y el guard de amplitud de fase 1 no pueden valer
+     los dos en el primer nivel de una familia.** Son incompatibles por
+     aritmética, no por descuido. Se resolvió afirmando las dos mitades de
+     la escalera: `bee3`/`bee4` cumplen los tres números del guard más una
+     cláusula horizontal que el guard embarcado no tiene, y `bee1`/`bee2`
+     se afirman **estrictamente más chicos** que `bee3` en los dos ejes.
+     "Corto" pasa a ser una afirmación verificada y no un adjetivo.
+
+   Y dos cosas menores que conviene no volver a descubrir: la franja de
+   `fondo bosque.png` que un test embarcado ya prueba plana son las filas
+   **204-818** (viewBox `[99,5, 499,2]`), más angosta que las 191-926
+   medidas — se autoriza contra la angosta. Y las capturas de este paso
+   están en `capturas/pasoF/`, siempre de a dos por nivel: la de control y
+   la de `?debug=estela:<k>`.
 
 ## 5. Estructura de cada aventura (`.docx` §13)
 

@@ -185,7 +185,28 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
     // #f5f5f5 (the eye, luma 245 — R3's `TORCH_CHALK` gap of 6).
     corridorArt: { brightest: '#7b9b6e', darkest: '#1a1a1a', headWhite: '#f5f5f5' },
   },
+  // The forest — paso F's own row (`free-trail-waypoints`, design.md §3.1).
+  // The first backdrop that needs no channel (a bee level draws no corridor
+  // at all — `docs/13` §4 decision 3) and no veil (no `reveal` field
+  // either): `quiet`/`brightest` are hand-copied from the rebuilt
+  // `manifest.json` and are EQUAL — the band is flat over the whole range
+  // (`artManifest.test.ts` guards the parity).
+  bee: {
+    art: SECTOR_BACKGROUND_ART.forest,
+    quiet: '#949b8c',
+    brightest: '#949b8c',
+    corridorRows: { top: 191, bottom: 926 },
+  },
 }
+
+/** The bee row alone, kept split from the three groups above by
+ *  `backdrops.test.ts`'s law loop: the inherited `tile ?? channel ??
+ *  SHEET_PAPER` assertion is VACUOUS for it — a waypoint level passes no
+ *  `corridor` prop at all and paints no veil, so there is no channel/tile
+ *  claim to make. The group's own real law (W1-W3, design.md §3.4) is
+ *  two-sided over `bee.brightest`: the dormant flower must be findable
+ *  AND the child's own trail (after A1's repair) must be legible. */
+export const WAYPOINT_BACKDROPS = { bee: ADVENTURE_BACKDROP.bee! }
 
 /** The backdrop a LEVEL is drawn on: its adventure's backdrop, or
  *  `undefined`.

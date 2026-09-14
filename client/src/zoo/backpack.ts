@@ -56,6 +56,17 @@ export const BACKPACK_ITEMS: readonly BackpackItem[] = [
     grantedBy: 'arena',
     earnedWhen: ['snake4'],
   },
+  // The forest's own reward (`free-trail-waypoints`, design.md §9): a
+  // flower kept from the bosque — the hive would be narratively wrong
+  // (the bee needs it), and the flower reuses shipped art (`docs/13` §8:
+  // "one object per closed sector", every shipped item reuses existing
+  // art). Still the author's to override.
+  {
+    id: 'flor',
+    art: SECTOR_ADVENTURE_ART.flower,
+    grantedBy: 'bosque',
+    earnedWhen: ['bee4'],
+  },
 ]
 
 export function earnedItems(records: Records): readonly BackpackItem[] {

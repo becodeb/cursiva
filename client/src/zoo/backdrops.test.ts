@@ -4,7 +4,7 @@
 // inDetectiveWorld, Not on the Clue" — the medusa regression guard). Node
 // environment, no DOM.
 import { describe, expect, it } from 'vitest'
-import { luma } from '../detective/palette'
+import { FLOWER_DORMANT, luma } from '../detective/palette'
 import { viewBoxToImage } from './sectors'
 import {
   ADVENTURE_BACKDROP,
@@ -14,8 +14,22 @@ import {
   SAND_DRIFT,
   SAND_HOLLOW,
   TORCH_CHALK,
+  WAYPOINT_BACKDROPS,
   backdropFor,
 } from './backdrops'
+
+/** `TraceCanvas.tsx`'s night-dim ink (private there), mirrored for the same
+ * reason `OFF_PATH_INK` above is. */
+const TORCH_CHALK_DIM = '#989896'
+
+/** Chroma, 0-255 — the same simple `max - min` measure
+ * `artHierarchy.test.ts`'s `CONTOUR_CHROMA_TOLERANCE` uses. */
+function chroma(hex: string): number {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return Math.max(r, g, b) - Math.min(r, g, b)
+}
 
 /** The channel paint's shipped defaults, mirrored as literals rather than
  * imported — the same convention `palette.test.ts` follows: pulling the
@@ -51,7 +65,7 @@ const CHANNEL_BACKDROPS = {
 /** The one art-corridor row: its channel is the HOLLOW the snake lies in,
  * not a painted band (design.md §2.3) — kept in its own group so the
  * registry-completeness guard below can prove every row belongs to
- * EXACTLY one of the three groups. */
+ * EXACTLY one of the four groups. */
 const ART_CORRIDOR_BACKDROPS = {
   snake: ADVENTURE_BACKDROP.snake!,
 }
@@ -70,11 +84,12 @@ describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
     }
   })
 
-  it('the union of the three groups equals every registered backdrop (registry-completeness guard)', () => {
+  it('the union of the four groups equals every registered backdrop (registry-completeness guard)', () => {
     const grouped = new Set([
       ...Object.keys(CHANNEL_BACKDROPS),
       ...Object.keys(REVEAL_BACKDROPS),
       ...Object.keys(ART_CORRIDOR_BACKDROPS),
+      ...Object.keys(WAYPOINT_BACKDROPS),
     ])
     expect([...grouped].sort()).toEqual(Object.keys(ADVENTURE_BACKDROP).sort())
   })
@@ -84,6 +99,7 @@ describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
       ...Object.keys(CHANNEL_BACKDROPS),
       ...Object.keys(REVEAL_BACKDROPS),
       ...Object.keys(ART_CORRIDOR_BACKDROPS),
+      ...Object.keys(WAYPOINT_BACKDROPS),
     ])
     const registryKeysWithHypothetical = [...Object.keys(ADVENTURE_BACKDROP), 'hypothetical']
     expect([...grouped].sort()).not.toEqual(registryKeysWithHypothetical.sort())
@@ -287,6 +303,66 @@ describe('ADVENTURE_BACKDROP.corridorRows coverage', () => {
   })
 })
 
+// ─────────────────────────────────────────────────────────────────────────────
+// The bee row's own law (`free-trail-waypoints` design.md §3.4). A FOURTH
+// group, kept separate from the three above: the inherited `tile ?? channel
+// ?? SHEET_PAPER` assertion is VACUOUS for it (a waypoint level passes no
+// `corridor` prop and paints no veil), so the group's real law is stated
+// here instead, over `bee.brightest` directly.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('WAYPOINT_BACKDROPS luma law (design.md §3.4)', () => {
+  const bee = WAYPOINT_BACKDROPS.bee
+
+  it('W1: the dormant flower separates from the forest band by at least 55 luma — findable', () => {
+    const gap = Math.abs(luma(FLOWER_DORMANT) - luma(bee.brightest))
+    expect(gap).toBeGreaterThanOrEqual(55)
+    expect(gap).toBeCloseTo(59, 0)
+  })
+
+  it("W2: the child's own trail (INK_COLOR, after A1's repair) separates from the forest band by at least 55 luma", () => {
+    const INK_COLOR = '#1e293b'
+    const gap = Math.abs(luma(INK_COLOR) - luma(bee.brightest))
+    expect(gap).toBeGreaterThanOrEqual(55)
+    expect(gap).toBeCloseTo(111, 0)
+  })
+
+  it('W3: the dormant flower is achromatic — chroma <= 12, the tolerance that lets the author pick a near-grey', () => {
+    expect(chroma(FLOWER_DORMANT)).toBeLessThanOrEqual(12)
+    expect(chroma(FLOWER_DORMANT)).toBe(0)
+  })
+
+  // Falsifiability (paso D's discipline): each of these MUST go RED, encoding
+  // an ARGUMENT rather than only its conclusion. None can pass alongside
+  // W1/W2 above, by construction — each compares a DIFFERENT paint.
+  it('F1: the shipped dormant grey (CLUE_DRAINED) is unusable in this sector — without it FLOWER_DORMANT looks like a taste call', () => {
+    const CLUE_DRAINED = '#838383'
+    expect(Math.abs(luma(CLUE_DRAINED) - luma(bee.brightest))).toBeLessThan(55)
+  })
+
+  it("F2: the night's own dim (TORCH_CHALK_DIM) is not reusable here, at any tint", () => {
+    expect(Math.abs(luma(TORCH_CHALK_DIM) - luma(bee.brightest))).toBeLessThan(55)
+  })
+
+  it("F3: OFF_PATH_INK is A1's defect, as a number — the one row a future reader must not delete", () => {
+    const OFF_PATH_INK = '#94a3b8'
+    const gap = Math.abs(luma(OFF_PATH_INK) - luma(bee.brightest))
+    expect(gap).toBeLessThan(55)
+    expect(gap).toBeCloseTo(10, 0)
+  })
+
+  it('F4: no earth channel (CORRIDOR_EARTH) is admissible either, so "no channel" is a finding and not an omission', () => {
+    const CORRIDOR_EARTH = '#d9c3ae'
+    expect(Math.abs(luma(CORRIDOR_EARTH) - luma(bee.brightest))).toBeLessThan(55)
+  })
+
+  it('declares no channel, no tile, and no ink/inkDim — the vacuous-inheritance claim', () => {
+    expect(bee.channel).toBeUndefined()
+    expect(bee.tile).toBeUndefined()
+    expect(bee.ink).toBeUndefined()
+    expect(bee.inkDim).toBeUndefined()
+  })
+})
+
 describe('backdropFor', () => {
   it('is defined for every duck trail', () => {
     for (const id of ['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4']) {
@@ -325,6 +401,12 @@ describe('backdropFor', () => {
   it('resolves the night adventure to the night backdrop', () => {
     for (const id of ['night1', 'night2', 'night3', 'night4']) {
       expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.night)
+    }
+  })
+
+  it('resolves the bee adventure to the forest backdrop', () => {
+    for (const id of ['bee1', 'bee2', 'bee3', 'bee4']) {
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.bee)
     }
   })
 

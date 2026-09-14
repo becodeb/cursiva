@@ -29,6 +29,7 @@ import {
 } from './catalog'
 import { hazardGapFraction } from './obstacles'
 import { ADVENTURES } from '../zoo/adventures'
+import { SECTORS } from '../zoo/sectors'
 import {
   armClearance,
   cornerClearance,
@@ -1752,5 +1753,14 @@ describe('the bee family — C1-C6 and R1-R5 (design.md §4.2/§6.2)', () => {
       expect(level.paths, id).toEqual([])
       expect(level.letters, id).toEqual([])
     }
+  })
+
+  it('R7: every bee id appears in ADVENTURES.bee.levelIds, bosque.adventureIds and EXPECTED_IDS, in the same order', () => {
+    expect(ADVENTURES.find((a) => a.id === 'bee')!.levelIds).toEqual(BEE_IDS)
+    const bosque = SECTORS.find((s) => s.id === 'bosque')!
+    expect(bosque.adventureIds).toEqual(BEE_IDS)
+    const positions = BEE_IDS.map((id) => EXPECTED_IDS.indexOf(id))
+    expect(positions.every((p) => p >= 0)).toBe(true)
+    expect(positions).toEqual([...positions].sort((a, b) => a - b))
   })
 })

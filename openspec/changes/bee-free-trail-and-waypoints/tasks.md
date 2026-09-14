@@ -319,13 +319,13 @@ Spec traceability: `level-engine/spec.md` "Bee Waypoint Level Set...",
 
 Spec traceability: `zoo-map/spec.md` (all four ADDED requirements).
 
-- [ ] 7.1 In `client/src/zoo/backdrops.ts`: add the `bee` row (`art:
+- [x] 7.1 In `client/src/zoo/backdrops.ts`: add the `bee` row (`art:
       SECTOR_BACKGROUND_ART.forest`, `quiet`/`brightest` from 3.6,
       `corridorRows: (191, 926)`) — no `channel`, no `tile`, no `ink`/
       `inkDim`. Add `WAYPOINT_BACKDROPS = { bee }` as a fourth law group,
       kept separate because the inherited `tile ?? channel ?? SHEET_PAPER`
       assertion is vacuous for it.
-- [ ] 7.2 In `client/src/zoo/backdrops.test.ts`: assert W1
+- [x] 7.2 In `client/src/zoo/backdrops.test.ts`: assert W1
       (`|luma(FLOWER_DORMANT) − luma(brightest)| >= 55`, value **59**), W2
       (`|luma(INK_COLOR) − luma(brightest)| >= 55`, value **111** — "A1 is
       what makes this true in fact, not only in the registry"), W3
@@ -335,27 +335,36 @@ Spec traceability: `zoo-map/spec.md` (all four ADDED requirements).
       delete", it is A1's defect as a number), F4 (`CORRIDOR_EARTH`,
       **48**). Extend the group-completeness guard to pick up
       `WAYPOINT_BACKDROPS`.
-- [ ] 7.3 In `client/src/zoo/adventures.ts` (+`.test.ts`): `AdventureId |
+- [x] 7.3 In `client/src/zoo/adventures.ts` (+`.test.ts`): `AdventureId |
       'bee'`; the `ADVENTURES.bee` row — `levelIds: bee1..4`, `sector:
       'bosque'`, `animal: 'abeja'`, intro/closing text per design §9, no
       `closingBeat`.
-- [ ] 7.4 In `client/src/zoo/sectors.ts` (+`.test.ts`): `bosque.unlockedWhen
+- [x] 7.4 In `client/src/zoo/sectors.ts` (+`.test.ts`): `bosque.unlockedWhen
       = (records) => isFiled(records, 'snake4')`; `bosque.adventureIds =
       bee1..4`; `bosque.animals = [{id:'abeja', dx:0, dy:0, size:48,
       appearsWhen:['bee4']}]`; narrow the "undeveloped sectors stay fogged"
-      test set from `{bosque, sendero}` to `{sendero}`.
-- [ ] 7.5 In `client/src/zoo/backpack.ts` (+`.test.ts`): add `{id:'flor',
+      test set from `{bosque, sendero}` to `{sendero}`. **Two more tests
+      needed fixing beyond that narrowing**, found by running the suite:
+      "bosque remains empty and fogged for every input" (bosque now legally
+      opens on `snake4`) and `nextAdventure`'s "returns null for a sector
+      with no adventures" (bosque is no longer such a sector) — both
+      rewritten as real bee-opening assertions instead of deleted.
+- [x] 7.5 In `client/src/zoo/backpack.ts` (+`.test.ts`): add `{id:'flor',
       art: SECTOR_ADVENTURE_ART.flower, grantedBy:'bosque',
       earnedWhen:['bee4']}` as the fifth entry.
-- [ ] 7.6 In `client/src/detective/assets.ts`: `ZooAnimalId | 'abeja'`;
+- [x] 7.6 In `client/src/detective/assets.ts`: `ZooAnimalId | 'abeja'`;
       `ZOO_ANIMAL_ART.abeja = SECTOR_ADVENTURE_ART.bee`.
-- [ ] 7.7 In `docs/13_AVENTURAS_POR_ANIMAL.md` (Spanish — stays Spanish):
+- [x] 7.7 In `docs/13_AVENTURAS_POR_ANIMAL.md` (Spanish — stays Spanish):
       update §4's *Abejas* status row from pending to shipped; write
       **decision 8** verbatim from design.md §11 (four bullets, matching
       decisions 5–7's measured, honest style — including bullet 4's naming
       of what stayed unfulfilled: the span-guard tension and its resolution
       by asserting both halves rather than one).
-- [ ] 7.8 Run `npm test -- zoo/ detective/artManifest` — green.
+- [x] 7.8 Run `npm test -- zoo/ detective/artManifest` — green (228 tests,
+      6 files). Also added R7 (`ADVENTURES.bee.levelIds` /
+      `bosque.adventureIds` / `EXPECTED_IDS`, same order) to `catalog.test
+      .ts`'s bee-family block now that the registries exist. Full suite
+      re-run green: 74 files / 1652 tests.
 
 ## Phase 8: Screenshot Verification (last, human-reviewed, not optional)
 

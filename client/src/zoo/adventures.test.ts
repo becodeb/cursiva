@@ -20,8 +20,8 @@ const estanque = SECTORS.find((s) => s.id === 'estanque')!
 const montanas = SECTORS.find((s) => s.id === 'montanas')!
 
 describe('ADVENTURES', () => {
-  it('declares seven rows: duck/sheep/llama, the entrance\'s glass/sand, the night sector, and the arena\'s snake (design.md §5, §6.1)', () => {
-    expect(ADVENTURES).toHaveLength(7)
+  it("declares eight rows: duck/sheep/llama, the entrance's glass/sand, the night sector, the arena's snake, and the forest's bee (design.md §5, §6.1; free-trail-waypoints design.md §9)", () => {
+    expect(ADVENTURES).toHaveLength(8)
     expect(ADVENTURES.map((a) => a.id)).toEqual([
       'duck',
       'sheep',
@@ -30,6 +30,7 @@ describe('ADVENTURES', () => {
       'sand',
       'night',
       'snake',
+      'bee',
     ])
 
     const duck = ADVENTURES[0]
@@ -67,6 +68,14 @@ describe('ADVENTURES', () => {
     expect(night.sector).toBe('nocturna')
     expect(night.animal).toBeUndefined()
     expect(night.icon).toBe(SECTOR_ADVENTURE_ART.flashlight)
+  })
+
+  it("the bee row declares animal:'abeja' and no closingBeat (free-trail-waypoints design.md §9)", () => {
+    const bee = ADVENTURES.find((a) => a.id === 'bee')!
+    expect(bee.levelIds).toEqual(['bee1', 'bee2', 'bee3', 'bee4'])
+    expect(bee.sector).toBe('bosque')
+    expect(bee.animal).toBe('abeja')
+    expect(bee.closingBeat).toBeUndefined()
   })
 })
 

@@ -21,7 +21,7 @@ import { animalPlacements, type Records, type SectorId, type ZooSector } from '.
  *  carried at most one. `glass`/`sand`/`night` are the entrance and the
  *  night sector (design.md §5, §6.1) — none of the three recovers an
  *  animal, which is what `AdventureSubject` below exists to represent. */
-export type AdventureId = 'duck' | 'sheep' | 'llama' | 'glass' | 'sand' | 'night' | 'snake'
+export type AdventureId = 'duck' | 'sheep' | 'llama' | 'glass' | 'sand' | 'night' | 'snake' | 'bee'
 
 interface AdventureBase {
   id: AdventureId
@@ -151,6 +151,19 @@ export const ADVENTURES: readonly Adventure[] = [
     // the sheep and the llama do — none of which carries a `closingBeat`
     // either. The once-per-story closing screen stays reserved for the
     // entrance's sand adventure, which recovers no animal.
+  },
+  {
+    id: 'bee',
+    levelIds: ['bee1', 'bee2', 'bee3', 'bee4'],
+    sector: 'bosque',
+    animal: 'abeja',
+    intro: 'La abeja se perdió entre las flores. ¿La ayudamos a volver al panal?',
+    closing: '¡La abeja volvió a su panal!',
+    // No `closingBeat` — the snake row's own reasoning, restated: any
+    // adventure that recovers an animal already carries `docs/13` §5 item 6
+    // through the shipped map bubble the moment its animal is placed. The
+    // once-per-story closing screen stays reserved for the entrance's sand
+    // adventure, which recovers no animal.
   },
 ]
 

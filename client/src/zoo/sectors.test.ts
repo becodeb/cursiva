@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import { LEVELS } from '../levels/catalog'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
+import { ZOO_ANIMAL_ART } from '../detective/assets'
 import {
   PLAZA,
   PLAZA_CENTRE,
@@ -52,6 +53,7 @@ const nocturna = SECTORS.find((s) => s.id === 'nocturna')!
 const sendero = SECTORS.find((s) => s.id === 'sendero')!
 const montanas = SECTORS.find((s) => s.id === 'montanas')!
 const arena = SECTORS.find((s) => s.id === 'arena')!
+const bosque = SECTORS.find((s) => s.id === 'bosque')!
 const withHit = SECTORS.filter((s) => s.hit)
 // "Closed" per the spec means `unlockedWhen` is not unconditionally true AND
 // the sector carries a `hit` — the sendero has neither an unlock rule worth
@@ -242,12 +244,22 @@ describe('Registry↔Catalog Structural Consistency', () => {
     expect(nocturna.unlockedWhen(filed('llama-peak4'))).toBe(true)
   })
 
-  it('bosque remains empty and fogged for every input (zoo-map spec; arena was promoted out by snake-drag-and-art-corridor)', () => {
-    const bosque = SECTORS.find((s) => s.id === 'bosque')!
-    expect(bosque.adventureIds).toEqual([])
+  it('bosque stays fogged until snake4 is filed, then opens with bee1..4 (free-trail-waypoints design.md §9)', () => {
+    // `bosque` was promoted OUT of the "stays fogged for every input" set by
+    // `free-trail-waypoints` — the forest's new last rung of the ladder.
+    expect(bosque.adventureIds).toEqual(['bee1', 'bee2', 'bee3', 'bee4'])
     for (const records of [{}, filed('sand4', 'night4', 'llama-peak4')]) {
       expect(bosque.unlockedWhen(records)).toBe(false)
     }
+    expect(bosque.unlockedWhen(filed('snake4'))).toBe(true)
+  })
+
+  it('the bee appears once bee4 is filed, and is absent before', () => {
+    const before = animalPlacements(bosque, filed('snake4'))
+    expect(before).toEqual([])
+    const after = animalPlacements(bosque, filed('snake4', 'bee4'))
+    expect(after).toHaveLength(1)
+    expect(after[0].art).toBe(ZOO_ANIMAL_ART.abeja)
   })
 
   it('arena stays fogged until night4 is filed, then opens with snake1..4', () => {
@@ -277,16 +289,19 @@ describe('Registry↔Catalog Structural Consistency', () => {
     }
   })
 
-  it('bosque and the scenery-only sendero carry no adventures and stay fogged for any input', () => {
+  it('the scenery-only sendero carries no adventures and stays fogged for any input', () => {
     // `montañas` was promoted OUT of this set by row C (`docs/13` §8),
     // `entrada`/`nocturna` are promoted out by row D (zoo-map spec
-    // "Sector-to-Adventure Mapping"), and `arena` is promoted out by
-    // `snake-drag-and-art-corridor` (design.md §7.1) — only `bosque` and
-    // the scenery-only `sendero` remain undeveloped.
-    for (const sector of SECTORS.filter((s) => s.id === 'bosque' || s.id === 'sendero')) {
+    // "Sector-to-Adventure Mapping"), `arena` is promoted out by
+    // `snake-drag-and-art-corridor` (design.md §7.1), and `bosque` is
+    // promoted out by `free-trail-waypoints` (design.md §9) — only the
+    // scenery-only `sendero` remains undeveloped.
+    for (const sector of SECTORS.filter((s) => s.id === 'sendero')) {
       expect(sector.adventureIds, sector.id).toEqual([])
       expect(
-        sector.unlockedWhen(filed('duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4', 'sand4', 'night4')),
+        sector.unlockedWhen(
+          filed('duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4', 'sand4', 'night4', 'snake4'),
+        ),
         sector.id,
       ).toBe(false)
     }
@@ -352,9 +367,17 @@ describe('nextAdventure Resolution (OD2)', () => {
   })
 
   it('returns null for a sector with no adventures', () => {
+    // `bosque` used to be this fixture's second example (zero adventures);
+    // `free-trail-waypoints` gave it the bee family, so `sendero` — the
+    // scenery-only sector that carries none by construction — is now the
+    // ONLY sector this claim can be checked against.
     expect(nextAdventure(sendero, {})).toBeNull()
-    const fogged1 = SECTORS.find((s) => s.id === 'bosque')!
-    expect(nextAdventure(fogged1, {})).toBeNull()
+  })
+
+  it('returns the first unfiled bee adventure, and the last once bosque is done', () => {
+    expect(nextAdventure(bosque, filed('snake4'))).toBe('bee1')
+    expect(nextAdventure(bosque, filed('snake4', 'bee1', 'bee2'))).toBe('bee3')
+    expect(nextAdventure(bosque, filed('snake4', ...bosque.adventureIds))).toBe('bee4')
   })
 })
 
@@ -394,9 +417,10 @@ describe('recentlyDiscovered (design.md §7.2: preference layered in front of th
     // Filing entrada's own eight ids opens the estanque (`sand4`); filing
     // the estanque's `duck-trail4` opens `montañas`; filing `montañas`'
     // `llama-peak4` opens `nocturna`; filing `nocturna`'s `night4` opens
-    // `arena` (`snake-drag-and-art-corridor` design.md §0 A1) — every
-    // sector this chain reaches is fully filed, so there is genuinely no
-    // unfinished work left anywhere.
+    // `arena` (`snake-drag-and-art-corridor` design.md §0 A1); filing
+    // `arena`'s `snake4` opens `bosque` (`free-trail-waypoints` design.md
+    // §9) — every sector this chain reaches is fully filed, so there is
+    // genuinely no unfinished work left anywhere.
     expect(
       recentlyDiscovered(
         filed(
@@ -405,6 +429,7 @@ describe('recentlyDiscovered (design.md §7.2: preference layered in front of th
           ...montanas.adventureIds,
           ...nocturna.adventureIds,
           ...arena.adventureIds,
+          ...bosque.adventureIds,
         ),
       ),
     ).toBeNull()

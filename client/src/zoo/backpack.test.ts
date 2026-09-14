@@ -13,19 +13,20 @@ function filed(...ids: readonly string[]): Records {
 }
 
 describe('BACKPACK_ITEMS', () => {
-  it('holds exactly four entries: the Andean hat, the lupa, the linterna and the carrito (zoo-map spec "Backpack Registry")', () => {
-    expect(BACKPACK_ITEMS).toHaveLength(4)
+  it('holds exactly five entries: the Andean hat, the lupa, the linterna, the carrito and the flor (zoo-map spec "Backpack Registry"; free-trail-waypoints design.md §9)', () => {
+    expect(BACKPACK_ITEMS).toHaveLength(5)
     expect(BACKPACK_ITEMS).toEqual([
       { id: 'andean-hat', art: ANDEAN_HAT_ART, grantedBy: 'montanas', earnedWhen: ['llama-peak4'] },
       { id: 'lupa', art: CARRIER_LENS_ART, grantedBy: 'entrada', earnedWhen: ['sand4'] },
       { id: 'linterna', art: SECTOR_ADVENTURE_ART.flashlight, grantedBy: 'nocturna', earnedWhen: ['night4'] },
       { id: 'carrito', art: CART_ART, grantedBy: 'arena', earnedWhen: ['snake4'] },
+      { id: 'flor', art: SECTOR_ADVENTURE_ART.flower, grantedBy: 'bosque', earnedWhen: ['bee4'] },
     ])
   })
 })
 
 describe('earnedItems', () => {
-  it('returns [] while none of llama-peak4/sand4/night4/snake4 is filed', () => {
+  it('returns [] while none of llama-peak4/sand4/night4/snake4/bee4 is filed', () => {
     expect(earnedItems({})).toEqual([])
     expect(earnedItems(filed('sheep-hill4', 'glass4'))).toEqual([])
   })
@@ -48,14 +49,20 @@ describe('earnedItems', () => {
     expect(items[0].id).toBe('linterna')
   })
 
-  it('includes the carrito once snake4 is filed, and none of the other three (snake-drag-and-art-corridor)', () => {
+  it('includes the carrito once snake4 is filed, and none of the other four (snake-drag-and-art-corridor)', () => {
     const items = earnedItems(filed('snake4'))
     expect(items).toHaveLength(1)
     expect(items[0].id).toBe('carrito')
   })
 
-  it('includes all four once every earnedWhen id is filed', () => {
-    const items = earnedItems(filed('llama-peak4', 'sand4', 'night4', 'snake4'))
-    expect(items.map((i) => i.id).sort()).toEqual(['andean-hat', 'carrito', 'linterna', 'lupa'])
+  it('includes the flor once bee4 is filed, and none of the other four (free-trail-waypoints)', () => {
+    const items = earnedItems(filed('bee4'))
+    expect(items).toHaveLength(1)
+    expect(items[0].id).toBe('flor')
+  })
+
+  it('includes all five once every earnedWhen id is filed', () => {
+    const items = earnedItems(filed('llama-peak4', 'sand4', 'night4', 'snake4', 'bee4'))
+    expect(items.map((i) => i.id).sort()).toEqual(['andean-hat', 'carrito', 'flor', 'linterna', 'lupa'])
   })
 })
