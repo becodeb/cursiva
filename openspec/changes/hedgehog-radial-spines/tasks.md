@@ -287,7 +287,7 @@ Catalog Positions", "Tolerance and Length-Band Progression...", "minAccuracy
 Rises 70→80→90→100...", "catalog.test.ts's Existing Guards Recognize...".
 Design §8, §11.2.
 
-- [ ] 9.1 In `catalog.ts`: insert `hedgehog1..4` per §8's table. Placement:
+- [x] 9.1 In `catalog.ts`: insert `hedgehog1..4` per §8's table. Placement:
       appended at the END of the PHASE-1 BLOCK, after `dolphin4` and before
       `f2-guirnalda` — NOT at the end of `LEVELS` (`catalog.test.ts:121-127`
       requires ascending phases). Titles/hints copied VERBATIM (Spanish):
@@ -296,39 +296,39 @@ Design §8, §11.2.
       tirá para afuera."; *Espinas cortas* / "Espinas más cortas y más
       juntas: una en cada marca."; *El erizo enroscado* / "Se hizo una
       bola. Dibujá espinas chiquitas alrededor."
-- [ ] 9.2 [TEST] the anchor-spacing invariant and per-level `baseRadius`
+- [x] 9.2 [TEST] the anchor-spacing invariant and per-level `baseRadius`
       ceiling (41.5/30.9/27.1/27.5) against the real levels, each clearing
       its literal by the recorded margin (3.5/2.9/1.1/1.5).
-- [ ] 9.3 [TEST] no anchor on a foot or belly — every profile anchor's ray
+- [x] 9.3 [TEST] no anchor on a foot or belly — every profile anchor's ray
       in `[200,380]`, identical arc on `hedgehog1..3`.
-- [ ] 9.4 [TEST] the curled pose is round — `max/min − 1 ≤ 0.041` over its
+- [x] 9.4 [TEST] the curled pose is round — `max/min − 1 ≤ 0.041` over its
       spine arc.
-- [ ] 9.5 [TEST] the table is not an ellipse — the profile's radius at 90°
+- [x] 9.5 [TEST] the table is not an ellipse — the profile's radius at 90°
       is ≥20% below `0.5·H`.
-- [ ] 9.6 [TEST] the ladder is checkable — `lenMin`/`lenMax` strictly
+- [x] 9.6 [TEST] the ladder is checkable — `lenMin`/`lenMax` strictly
       decreasing, `tolDeg` strictly decreasing, `straightness` strictly
       increasing, `count` strictly increasing, `baseRadius` non-increasing
       and never under `TolTouch`; `minAccuracy` 70/80/90/100.
-- [ ] 9.7 `catalog.test.ts:50-107` `EXPECTED_IDS` — four ids after
+- [x] 9.7 `catalog.test.ts:50-107` `EXPECTED_IDS` — four ids after
       `dolphin4`.
-- [ ] 9.8 `catalog.test.ts:147-209` `CORRIDORS` and `:210-271` `FLUENCY` —
+- [x] 9.8 `catalog.test.ts:147-209` `CORRIDORS` and `:210-271` `FLUENCY` —
       four `0` rows each.
-- [ ] 9.9 `catalog.test.ts:281-299` minAccuracy-by-phase — add `if
+- [x] 9.9 `catalog.test.ts:281-299` minAccuracy-by-phase — add `if
       (level.spines) continue`, joining `reveal`/`artCorridor`/`waypoints`.
-- [ ] 9.10 `catalog.test.ts:329-335` `showGuide` — satisfied by
+- [x] 9.10 `catalog.test.ts:329-335` `showGuide` — satisfied by
       `showGuide:false`; re-run, confirm green, NO edit.
-- [ ] 9.11 `catalog.test.ts:357-377` the free-level census 17→**21**; the
+- [x] 9.11 `catalog.test.ts:357-377` the free-level census 17→**21**; the
       "no reveal and no waypoints" filter learns `spines`; `f1-libre`
       stays alone.
-- [ ] 9.12 `catalog.test.ts:437-452` tone/haptics — `haptics` becomes
+- [x] 9.12 `catalog.test.ts:437-452` tone/haptics — `haptics` becomes
       `hasCorridor || reveal || waypoints || spines`.
-- [ ] 9.13 `catalog.test.ts:593-612` phase-1 amplitude/on-paper guards — NO
+- [x] 9.13 `catalog.test.ts:593-612` phase-1 amplitude/on-paper guards — NO
       edit (`kind !== 'path'` skips); the hedgehog block asserts
       `hedgehog1`'s own numbers (span>300, minY<180, maxY>420, horizontal
       span>600) as its own assertion.
-- [ ] 9.14 `catalog.test.ts:750-783` `levelsByPhase(1)` and `:820-856` the
+- [x] 9.14 `catalog.test.ts:750-783` `levelsByPhase(1)` and `:820-856` the
       phase-1 detective list — both gain the four ids.
-- [ ] 9.15 Run `npm test -- levels/catalog` — green.
+- [x] 9.15 Run `npm test -- levels/catalog` — green.
 
 ## Phase 10: Zoo Registries and the Ink Law
 
