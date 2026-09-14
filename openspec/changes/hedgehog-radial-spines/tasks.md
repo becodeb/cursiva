@@ -380,7 +380,7 @@ Each is broken on purpose against the FINISHED implementation (Phases
 1-10), the red recorded, the break reverted. None of these introduce a net
 diff.
 
-- [ ] 11.1 Rendered-markup coincidence, all four levels/both poses: parse
+- [x] 11.1 Rendered-markup coincidence, all four levels/both poses: parse
       `<image>` from the HTML STRING (never the internal box), assert box
       == `spineBody(cfg).box`, every anchor lies on that box's silhouette,
       every mark centre == `A_i + SPINE_MARK_R·n̂_i`. **The break must be
@@ -389,23 +389,23 @@ diff.
       breaks: (a) push `body.centre` off the sheet until `clampArtBox`
       clamps the `<image>` while anchors stay put; (b) add a constant
       offset inside `SpineLayer`'s own placement. Restore both.
-- [ ] 11.2 The debug flag reaches the SCREEN: assert `probe.spines.marks`
+- [x] 11.2 The debug flag reaches the SCREEN: assert `probe.spines.marks`
       filled-count per `k` through `LevelPlay`. Break by temporarily
       unwiring 8.9's render prop; confirm RED; restore.
-- [ ] 11.3 Reset coverage by source-read count — already executed at 8.10;
+- [x] 11.3 Reset coverage by source-read count — already executed at 8.10;
       confirm it is STILL restored, not left broken.
-- [ ] 11.4 The ink law as undrawability — already executed at 10.8; confirm
+- [x] 11.4 The ink law as undrawability — already executed at 10.8; confirm
       the assertion fails when `brightest` is temporarily lowered below
       184.0 IN THE TEST ONLY; restore.
-- [ ] 11.5 The demo is not empty — already executed at 5.4/5.6 (BOTH halves
+- [x] 11.5 The demo is not empty — already executed at 5.4/5.6 (BOTH halves
       confirmed red against `main` before 5.3/5.5 landed). Re-confirm both
       stay green now, and record that BOTH were red, not just the one the
       proposal named.
-- [ ] 11.6 The backdrop group is substantive, not vacuous — already
+- [x] 11.6 The backdrop group is substantive, not vacuous — already
       executed at 10.6; confirm removing `ink`/`inkDim` from the
       `hedgehog` row (temporarily, in the test) falls back to the vacuous
       `SHEET_PAPER` check; restore.
-- [ ] 11.7 Run the full suite once more after every break is restored —
+- [x] 11.7 Run the full suite once more after every break is restored —
       `npm test` green, zero uncommitted breaks left in the tree.
 
 ## Phase 12: isUnlocked Re-grep, Orphan Sweep, Open-Questions Guard

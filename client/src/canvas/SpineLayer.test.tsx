@@ -23,6 +23,8 @@ import {
   spineRings,
   type SpineConfig,
 } from '../levels/spines'
+import { LEVELS } from '../levels/catalog'
+import { HEDGEHOG_SILHOUETTE } from '../detective/assets'
 
 const CFG: SpineConfig = {
   pose: 'profile',
@@ -167,5 +169,66 @@ describe('SpineLayer — the coincidence proof (stage 1, fixture config)', () =>
     expect(html).not.toContain('<pattern')
     expect(html).not.toContain('<clipPath')
     expect(html).not.toContain('<defs')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stage 2 (design.md §11.1 item 1, radial-spines spec: "Rendered Body Box
+// and Scored Anchors Agree" / "A Moved Body Fails the Coincidence
+// Assertion"): the REAL catalog, all four levels, both poses. Everything is
+// parsed OUT OF THE HTML STRING, never the internal `box`/anchor objects —
+// paso E's exact gap.
+//
+// The second assertion below recovers the body's centre/scale from the
+// RENDERED box alone (placeArt's own inverse: `centre = box.pos +
+// grip·size`) and re-derives the "implied" anchors from that recovered
+// geometry, then compares them to the real `spineAnchors(cfg)` the scorer
+// reads. When `clampArtBox` is a no-op (every shipped level), the two are
+// identical; if the rendered box ever moved independently of the anchors —
+// paso E's failure class — they would disagree.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('SpineLayer — the coincidence proof (stage 2, the real catalog, both poses)', () => {
+  const HEDGEHOG_IDS = ['hedgehog1', 'hedgehog2', 'hedgehog3', 'hedgehog4'] as const
+
+  function renderAndParse(cfg: SpineConfig, sheetBounds: ArtBox = SHEET_BOUNDS) {
+    const html = renderToString(<SpineLayer spines={traceSpinesFor(cfg)} sheetBounds={sheetBounds} />)
+    return { images: parseImages(html), circles: parseCircles(html) }
+  }
+
+  it('the rendered body box equals spineBody(cfg).box, and every mark centre equals A_i + SPINE_MARK_R·n̂_i, for all four levels', () => {
+    for (const id of HEDGEHOG_IDS) {
+      const cfg = LEVELS.find((l) => l.id === id)!.spines!
+      const { box } = spineBody(cfg)
+      const { images, circles } = renderAndParse(cfg)
+      expect(images, id).toHaveLength(1)
+      expect(images[0].x, id).toBeCloseTo(box.x, 3)
+      expect(images[0].y, id).toBeCloseTo(box.y, 3)
+      expect(images[0].width, id).toBeCloseTo(box.width, 3)
+      expect(images[0].height, id).toBeCloseTo(box.height, 3)
+
+      const anchors = spineAnchors(cfg)
+      expect(circles, id).toHaveLength(anchors.length)
+      anchors.forEach((a, i) => {
+        expect(circles[i].cx, `${id}[${i}]`).toBeCloseTo(a.x + SPINE_MARK_R * a.nx, 3)
+        expect(circles[i].cy, `${id}[${i}]`).toBeCloseTo(a.y + SPINE_MARK_R * a.ny, 3)
+      })
+    }
+  })
+
+  it('every anchor lies on the silhouette IMPLIED by the rendered box — geometry recovered from the box itself, not from cfg', () => {
+    for (const id of HEDGEHOG_IDS) {
+      const cfg = LEVELS.find((l) => l.id === id)!.spines!
+      const { images } = renderAndParse(cfg)
+      const box = images[0]
+      const [gx, gy] = HEDGEHOG_SILHOUETTE[cfg.pose].centroid
+      const recoveredCentre = { x: box.x + gx * box.width, y: box.y + gy * box.height }
+      const recoveredCfg: SpineConfig = { ...cfg, body: { centre: recoveredCentre, height: box.height } }
+      const implied = spineAnchors(recoveredCfg)
+      const real = spineAnchors(cfg)
+      implied.forEach((a, i) => {
+        expect(a.x, `${id}[${i}]`).toBeCloseTo(real[i].x, 3)
+        expect(a.y, `${id}[${i}]`).toBeCloseTo(real[i].y, 3)
+      })
+    }
   })
 })
