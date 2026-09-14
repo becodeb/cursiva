@@ -12,6 +12,7 @@ import {
   revealDebugFraction,
   seededProgressIds,
   shouldSeedRecoveredDuck,
+  waypointDebugCount,
 } from './devMode'
 
 describe('isSectorDebug (zoo-map spec "Sector Debug Overlay")', () => {
@@ -171,12 +172,35 @@ describe('arrangeDebugCount (object-arrange spec, "debugArrange Seeds the First 
   })
 })
 
-describe('the four shipped parsers stay byte-identical alongside the two new ones', () => {
+describe('waypointDebugCount (free-trail-waypoints spec "Screenshot Seeding Flags for the Waypoint Fold", A4: one flag drives all four render facts)', () => {
+  it('?debug=estela:2 returns 2', () => {
+    expect(waypointDebugCount('?debug=estela:2')).toBe(2)
+  })
+
+  it('is null for an unrelated or absent query string', () => {
+    expect(waypointDebugCount('?debug=sectores')).toBeNull()
+    expect(waypointDebugCount('')).toBeNull()
+  })
+
+  it('requires no window/component context', () => {
+    expect(waypointDebugCount('?debug=estela:0')).toBe(0)
+  })
+
+  it('never throws on a malformed query string, and returns null', () => {
+    expect(() => waypointDebugCount('%')).not.toThrow()
+    expect(waypointDebugCount('%')).toBeNull()
+    expect(waypointDebugCount('?debug=estela:noesunnumero')).toBeNull()
+  })
+})
+
+describe('the six shipped parsers stay byte-identical alongside waypointDebugCount', () => {
   it('every shipped parser still resolves exactly as before', () => {
     expect(isSectorDebug('?debug=sectores')).toBe(true)
     expect(shouldSeedRecoveredDuck('?debug=pato-recuperado')).toBe(true)
     expect(seededProgressIds('?debug=progreso:sand4,night2')).toEqual(['sand4', 'night2'])
     expect(revealDebugFraction('?debug=revelado:60')).toBe(0.6)
     expect(lightDebugPoint('?debug=linterna:500,300')).toEqual({ x: 500, y: 300 })
+    expect(isSpineDebug('?debug=espina')).toBe(true)
+    expect(arrangeDebugCount('?debug=ordenadas:2')).toBe(2)
   })
 })

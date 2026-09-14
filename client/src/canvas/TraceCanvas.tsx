@@ -45,6 +45,7 @@ import { isDevMode } from './devMode'
 import { clampArtBox, placeArt, STANDING_GRIP, type ArtBox } from './placeArt'
 import { RevealLayer } from './RevealLayer'
 import { ArtCorridorLayer } from './ArtCorridorLayer'
+import { WaypointLayer } from './WaypointLayer'
 import { devCheckpointState, type DevCheckpointState } from './devCheckpointState'
 import { DevCheckpointOverlay } from './devCheckpointOverlay'
 import type { LetterCheckpoint } from '../letters/types'
@@ -460,6 +461,39 @@ export interface TraceArtCorridorPiece {
 
 export type TraceArtCorridor = readonly TraceArtCorridorPiece[]
 
+/** One waypoint's render-ready picture (`free-trail-waypoints` capability,
+ *  design.md §5). Structural, no import from `levels/`/`detective/` — the
+ *  same convention {@link TraceBackdrop}/{@link TraceVertexArt} follow. */
+export interface TraceWaypointArt {
+  href: string
+  w: number
+  h: number
+  size: number
+  x: number
+  y: number
+}
+
+/** One touch-radius overlay ring, `?debug=estela:<k>` only. */
+export interface TraceWaypointRing {
+  x: number
+  y: number
+  radius: number
+}
+
+/**
+ * The waypoint fold's whole render contract: N plain `<image>`s (the
+ * flowers, then the hive) and, only under `?debug=estela:<k>`, their touch
+ * radii as plain `<circle>`s. No `<mask>`, `<pattern>`, `<clipPath>`,
+ * `<defs>`, `useId`, or `url(#…)` reference is ever introduced by this layer.
+ */
+export interface TraceWaypoints {
+  art: readonly TraceWaypointArt[]
+  /** `?debug=estela:<k>` ONLY. Absent = no overlay, which is every frame a
+   *  child ever sees. */
+  rings?: readonly TraceWaypointRing[]
+  ringStroke?: string
+}
+
 /** How long the abandoned ink takes to fade on a reset. Long enough to be seen
  * as a departure rather than a glitch, short enough that the child is not kept
  * waiting to start again. */
@@ -655,6 +689,12 @@ export interface TraceCanvasProps {
    * at all, byte-identical to before this prop existed. See
    * {@link TraceReveal}. */
   reveal?: TraceReveal
+  /** The waypoint fold's render projection (`free-trail-waypoints`
+   * capability), rendered in the SAME slot as `reveal` — a bee level has no
+   * corridor, no ground and no reveal, so this is the only thing between
+   * the backdrop and the ink. Absent = no waypoint layer at all,
+   * byte-identical to before this prop existed. See {@link TraceWaypoints}. */
+  waypoints?: TraceWaypoints
   /** Any CHANGE of this value RESTARTS THE RUN (`LevelConfig.resetOnContact`):
    * the stroke in progress is abandoned, both buffers are emptied, and the ink
    * that was on the sheet FADES rather than vanishing.
@@ -712,6 +752,7 @@ export default function TraceCanvas({
   backdrop,
   vertexArt,
   reveal,
+  waypoints,
   resetSignal,
 }: TraceCanvasProps) {
   // `contain` letterboxes inside its box, so the CSS background would paint the
@@ -1030,6 +1071,16 @@ export default function TraceCanvas({
         // this file's own scar (above): no `<mask>`, `<pattern>`,
         // `<clipPath>`, `<defs>`, `useId`, no `url(#…)`.
         <RevealLayer reveal={reveal} sheetBounds={sheetBounds} />
+      )}
+      {waypoints && (
+        // The waypoint fold's render projection (`free-trail-waypoints`
+        // capability, design.md §5): the SAME slot as `reveal` above — a bee
+        // level has no corridor, no ground and no reveal, so this is the
+        // only thing between the backdrop and the ink. Plain `<image>`s and,
+        // debug-only, plain `<circle>`s — this file's own scar (above): no
+        // `<mask>`, `<pattern>`, `<clipPath>`, `<defs>`, `useId`, no
+        // `url(#…)`.
+        <WaypointLayer waypoints={waypoints} sheetBounds={sheetBounds} />
       )}
       {corridor && (mazeOn || ground || !!backdrop) && (
         // MAZE (docs/01 fase 1: "senderos y laberintos … sin tocar los

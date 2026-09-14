@@ -153,3 +153,24 @@ export function arrangeDebugCount(search: string): number | null {
   if (!Number.isFinite(k)) return null
   return k
 }
+
+/**
+ * `?debug=estela:<k>` (`free-trail-waypoints` spec: "Screenshot Seeding
+ * Flags for the Waypoint Fold"; design.md §8, amendment A4). NOT dev-gated —
+ * the same reason `arrangeDebugCount` above is not: it paints render state
+ * (which flowers are lit, where the bee sits, the trail that got her there,
+ * the touch-radius rings), adds no control and persists nothing, and must
+ * work against the exact build being screenshotted. ONE flag drives all four
+ * of those facts from the SAME number, which is what stops them from ever
+ * disagreeing with each other (A4's whole argument, replacing the
+ * proposal's two independent flags). `arrangeDebugCount`'s body, verbatim.
+ * Malformed input, a missing flag, or a non-numeric count all return
+ * `null`, never throw.
+ */
+export function waypointDebugCount(search: string): number | null {
+  const arg = debugArg(search, 'estela')
+  if (arg === null) return null
+  const k = Number(arg)
+  if (!Number.isFinite(k)) return null
+  return k
+}

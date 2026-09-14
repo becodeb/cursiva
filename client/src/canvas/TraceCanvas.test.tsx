@@ -1281,3 +1281,74 @@ describe('TraceCanvas reveal layer (reveal-grid spec: "Reveal Layer Renders as P
     expect(lagoonMaze).not.toContain(reveal.fill)
   })
 })
+
+describe('TraceCanvas waypoint layer (free-trail-waypoints spec: "Waypoint Layer Renders as Plain Images With No Fragment Reference")', () => {
+  const backdrop = { href: '/art/sector-forest-background.png', quiet: '#949b8c' }
+  const waypoints = {
+    art: [
+      { href: '/art/sector-flower-dormant.png', w: 256, h: 245, size: 64, x: 500, y: 265 },
+      { href: '/art/sector-honeycomb.png', w: 181, h: 256, size: 96, x: 750, y: 385 },
+    ],
+    rings: [{ x: 500, y: 265, radius: 110 }, { x: 750, y: 385, radius: 96 }],
+    ringStroke: '#f2efe6',
+  }
+
+  it('sits between the backdrop image and the guide/ink paths in document order', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} waypoints={waypoints} guide="M 0 300 L 1000 300" />)
+    const backdropIdx = html.indexOf(`href="${backdrop.href}"`)
+    const waypointIdx = html.indexOf(`href="${waypoints.art[0].href}"`)
+    const guideIdx = html.indexOf('M 0 300 L 1000 300')
+    expect(backdropIdx).toBeGreaterThanOrEqual(0)
+    expect(waypointIdx).toBeGreaterThan(backdropIdx)
+    expect(guideIdx).toBeGreaterThan(waypointIdx)
+  })
+
+  it('renders exactly one <image> per art entry, plus one <circle> per ring', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} waypoints={waypoints} />)
+    const images = (html.match(/href="\/art\/(sector-flower-dormant|sector-honeycomb)\.png"/g) ?? []).length
+    expect(images).toBe(2)
+    expect((html.match(/<circle/g) ?? []).length).toBe(2)
+    expect(html).toContain(`stroke="${waypoints.ringStroke}"`)
+  })
+
+  it('renders no waypoint-layer image or ring with no waypoints prop', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} />)
+    expect(html).not.toContain(waypoints.art[0].href)
+    expect(html).not.toContain(waypoints.art[1].href)
+  })
+
+  it('renders no rings when waypoints.rings is absent (the ordinary, non-debug frame)', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} waypoints={{ art: waypoints.art }} />)
+    expect(html).not.toContain('<circle')
+  })
+
+  it('introduces no forbidden fragment reference', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} waypoints={waypoints} />)
+    expect(html).not.toContain('url(#')
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<defs')
+  })
+
+  it('a lagoon backdrop, a ground maze and a plain maze render byte-identical to today (no waypoints prop passed)', () => {
+    const corridor = { paths: ['M 100 300 L 900 300'], width: 110 }
+    const lagoon = { href: '/art/sector-lagoon-background.png', quiet: '#b4c5d0' }
+    const groundArt = [{ href: '/art/ground-grass-1.png', w: 118, h: 81 }]
+    const mudArt = [{ href: '/art/ground-mud-1.png', w: 128, h: 99 }]
+    const ground = {
+      grass: { marks: [{ x: 120, y: 80, art: 0, size: 44, angle: -3 }], art: groundArt },
+      mud: { marks: [{ x: 400, y: 302, art: 0, size: 20, angle: 200 }], art: mudArt },
+    }
+
+    const plainMaze = renderToString(<TraceCanvas corridor={corridor} maze />)
+    expect(plainMaze).not.toContain(waypoints.art[0].href)
+
+    const groundMaze = renderToString(<TraceCanvas corridor={corridor} maze ground={ground} />)
+    expect(groundMaze).not.toContain(waypoints.art[0].href)
+
+    const lagoonMaze = renderToString(<TraceCanvas corridor={corridor} maze backdrop={lagoon} />)
+    expect(lagoonMaze).toContain(`href="${lagoon.href}"`)
+    expect(lagoonMaze).not.toContain(waypoints.art[0].href)
+  })
+})

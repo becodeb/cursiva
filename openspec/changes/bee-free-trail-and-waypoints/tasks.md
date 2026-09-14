@@ -212,21 +212,21 @@ Hive Coincide...", "No Fragment Reference Anywhere...", "Screenshot Seeding
 Flags..."; `trace-canvas/spec.md` "Waypoint Layer Renders as Plain Images
 With No Fragment Reference".
 
-- [ ] 5.1 Create `client/src/canvas/WaypointLayer.tsx` per design §5: N
+- [x] 5.1 Create `client/src/canvas/WaypointLayer.tsx` per design §5: N
       `<image>`s via `placeArt`+`clampArtBox` inside one `<g
       pointerEvents="none">`, plus optional debug `<circle>` rings whose
       stroke colour is resolved by the CALLER; zero `<mask>`, `<pattern>`,
       `<clipPath>`, `<defs>`, `useId`, `url(#…)`.
-- [ ] 5.2 In `client/src/canvas/TraceCanvas.tsx`: add
+- [x] 5.2 In `client/src/canvas/TraceCanvas.tsx`: add
       `TraceWaypointArt`/`TraceWaypointRing`/`TraceWaypoints` types; a
       `waypoints?` prop; render `<WaypointLayer>` in the same slot as the
       existing `{reveal && …}` block (after the backdrop group, before the
       maze/corridor block).
-- [ ] 5.3 In `client/src/canvas/devMode.ts`: add `waypointDebugCount`
+- [x] 5.3 In `client/src/canvas/devMode.ts`: add `waypointDebugCount`
       parsing `?debug=estela:<k>` through the shipped private `debugArg`
       helper — **ONE flag** per A4, not two. Confirm the six shipped parsers
       stay byte-identical.
-- [ ] 5.4 Create `client/src/canvas/WaypointLayer.test.tsx` — **§7.1's
+- [x] 5.4 Create `client/src/canvas/WaypointLayer.test.tsx` — **§7.1's
       coincidence proof, stage 1, against a FIXTURE config** (not the real
       catalog yet): render via `renderToString`; parse every `<image
       x y width height href>` OUT OF THE HTML STRING, never the internal box
@@ -237,17 +237,23 @@ With No Fragment Reference".
       stroke from the PARSED coordinates and feed it to the real
       `waypointScore` — must equal 100. **Falsifiability**: the same trail
       translated by `radius + 1` in `+x` MUST score below 100.
-      `expect(html).not.toContain('url(#')`.
-- [ ] 5.5 In `client/src/canvas/TraceCanvas.test.tsx`: with `waypoints` set,
+      `expect(html).not.toContain('url(#')`. **Gotcha found**: a shift of
+      only `radius + 1` was NOT enough on this undulating fixture — a
+      segment between two shifted points swept back within the goal's own
+      radius of its ORIGINAL coordinate. Shifted the whole trail by 600 (past
+      every original x plus the widest radius) to guarantee no segment can
+      reach any original target.
+- [x] 5.5 In `client/src/canvas/TraceCanvas.test.tsx`: with `waypoints` set,
       the layer sits after the backdrop and before the corridor block;
       without it, markup is byte-identical to today for a lagoon backdrop, a
       `ground` maze, and a plain maze — the five existing `url(#` guards
       stay green, unedited.
-- [ ] 5.6 In `client/src/canvas/devMode.test.ts`: `waypointDebugCount`
+- [x] 5.6 In `client/src/canvas/devMode.test.ts`: `waypointDebugCount`
       round-trips, rejects malformed input, needs no `window`; the six
       shipped parsers stay byte-identical.
-- [ ] 5.7 Run `npm test -- canvas/WaypointLayer canvas/TraceCanvas
-      canvas/devMode` — green.
+- [x] 5.7 Run `npm test -- canvas/WaypointLayer canvas/TraceCanvas
+      canvas/devMode` — green. Full suite also re-run green: 74 files /
+      1618 tests.
 
 ## Phase 6: The Four Levels
 
