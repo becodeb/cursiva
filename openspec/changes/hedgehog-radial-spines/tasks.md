@@ -69,21 +69,21 @@ Build-Time-Measured Silhouette, Never Hand-Authored Coordinates". Design
 §10's tables were already measured at 0.25 px/ray; this phase hand-copies
 them, it does not re-derive them.
 
-- [ ] 1.1 In `client/src/detective/assets.ts:357-360`: transcribe design
+- [x] 1.1 In `client/src/detective/assets.ts:357-360`: transcribe design
       §10's `hedgehog-profile.png` table (24 rays, centroid (0.5416,
       0.5107)) VERBATIM into `HEDGEHOG_SILHOUETTE.profile` (`radii` as the
       `r/W` column, not `r_px`).
-- [ ] 1.2 Transcribe the `hedgehog-curled.png` table (centroid (0.5002,
+- [x] 1.2 Transcribe the `hedgehog-curled.png` table (centroid (0.5002,
       0.5029)) into `HEDGEHOG_SILHOUETTE.curled`.
-- [ ] 1.3 [TEST] Assert both `radii` arrays have exactly 24 entries, each
+- [x] 1.3 [TEST] Assert both `radii` arrays have exactly 24 entries, each
       centroid lies inside `(0,1)²`, and every value equals §10's table ray
       for ray (floating tolerance) — the guard against a future silent
       retune (design §11.2's `HEDGEHOG_SILHOUETTE` checklist item).
-- [ ] 1.4 [TEST] Re-run `artManifest.test.ts:109,175` and
+- [x] 1.4 [TEST] Re-run `artManifest.test.ts:109,175` and
       `artHierarchy.test.ts:286-287` — confirm both poses are ALREADY
       covered; verify only, no rebuild, no edit expected (design §13: "no
       `build_art.py` re-run").
-- [ ] 1.5 Run `npm test -- detective/assets detective/artManifest
+- [x] 1.5 Run `npm test -- detective/assets detective/artManifest
       detective/artHierarchy` — green.
 
 ## Phase 2: The Pure Fold Module I — Types and Derived Geometry
@@ -91,22 +91,22 @@ them, it does not re-derive them.
 Spec traceability: `radial-spines/spec.md` "SpineConfig Shape...", "Anchors
 Are Derived...".
 
-- [ ] 2.1 Create `client/src/levels/spines.ts`: export `HedgehogPose`,
+- [x] 2.1 Create `client/src/levels/spines.ts`: export `HedgehogPose`,
       `SilhouetteProfile`, `SpineConfig`, `SpineRules`, `SpineAnchor`,
       `SpineState`, `EMPTY_SPINES`, `DEMO_SPINES`, `SPINE_MARK_R`,
       `BODY_STEP` per design §3.3 — pure, no React, no DOM.
-- [ ] 2.2 Implement `spineBody(cfg)`: call the shipped `placeArt` with the
+- [x] 2.2 Implement `spineBody(cfg)`: call the shipped `placeArt` with the
       measured centroid as grip, per §3.4's box/scale arithmetic.
-- [ ] 2.3 Implement `spineAnchors(cfg)`: midpoint sampling (`deg_i`,
+- [x] 2.3 Implement `spineAnchors(cfg)`: midpoint sampling (`deg_i`,
       linear-interpolated `r_i`, `A_i`, `n̂_i`) exactly per §3.4.
-- [ ] 2.4 Implement `spineOrigin(cfg) = A_0` — derived, never authored.
-- [ ] 2.5 [TEST] `levels/spines.test.ts`: `spineAnchors` called twice on the
+- [x] 2.4 Implement `spineOrigin(cfg) = A_0` — derived, never authored.
+- [x] 2.5 [TEST] `levels/spines.test.ts`: `spineAnchors` called twice on the
       same config is deep-equal; exactly `cfg.count` anchors, evenly spaced
       across `cfg.arc`.
-- [ ] 2.6 [TEST] the anchor-spacing invariant shape: `2·baseRadius ≤ min
+- [x] 2.6 [TEST] the anchor-spacing invariant shape: `2·baseRadius ≤ min
       neighbour chord` and `baseRadius ≥ TolTouch (26)`, written against a
       fixture now — the real per-level numbers land in Phase 9.
-- [ ] 2.7 Run `npm test -- levels/spines` — green.
+- [x] 2.7 Run `npm test -- levels/spines` — green.
 
 ## Phase 3: The Pure Fold Module II — The Five Measures, spineSettle, spineScore, spineAim
 
@@ -115,58 +115,58 @@ Must Hold Jointly", "spineScore Recomputes Purely...", "A Filled Anchor
 Never Unfills...", "A Stroke That Fills No Anchor Is Not Punished". Design
 §2 D1 (live/settled split).
 
-- [ ] 3.1 [TEST] measure 1 — nearest-unfilled anchor wins within
+- [x] 3.1 [TEST] measure 1 — nearest-unfilled anchor wins within
       `baseRadius`; outside every anchor's radius fills nothing; an
       already-filled anchor is never reassigned.
-- [ ] 3.2 [TEST] measure 2 — a stroke within `tolDeg` of the outward normal
+- [x] 3.2 [TEST] measure 2 — a stroke within `tolDeg` of the outward normal
       fills; aimed inward (toward centroid) fails on direction alone.
-- [ ] 3.3 [TEST] measure 3 — chord/arclength ≥ `straightness` fills; a
+- [x] 3.3 [TEST] measure 3 — chord/arclength ≥ `straightness` fills; a
       wobbly stroke fails on straightness alone.
-- [ ] 3.4 [TEST] measure 4 — chord inside `[lenMin,lenMax]` fills; outside
+- [x] 3.4 [TEST] measure 4 — chord inside `[lenMin,lenMax]` fills; outside
       the band fails on length alone (CHORD, not arclength).
-- [ ] 3.5 [TEST] measure 5 — no sample inside `r(θ)` of the centroid beyond
+- [x] 3.5 [TEST] measure 5 — no sample inside `r(θ)` of the centroid beyond
       the anchor's own radius fills; a body-crossing stroke fails on the
       crossing rule alone.
-- [ ] 3.6 [TEST] joint measures — any four of five passing still fills
+- [x] 3.6 [TEST] joint measures — any four of five passing still fills
       nothing; all five passing fills the anchor (no partial credit).
-- [ ] 3.7 Implement `spineSettle(prev, strokes, cfg)`: greedy
+- [x] 3.7 Implement `spineSettle(prev, strokes, cfg)`: greedy
       nearest-unfilled assignment in settlement order, all five measures
       per §3.4's table; monotone.
-- [ ] 3.8 [TEST] monotonicity — appending a stroke never shrinks `filled`;
+- [x] 3.8 [TEST] monotonicity — appending a stroke never shrinks `filled`;
       `spineScore` over the full stroke list reproduces the live fold's own
       final result; unaffected by what the live buffer held mid-drawing.
-- [ ] 3.9 Implement `spineScore(strokes, cfg) = round(100·filled.size /
+- [x] 3.9 Implement `spineScore(strokes, cfg) = round(100·filled.size /
       anchors.length)`, purely from settled strokes.
-- [ ] 3.10 Implement `spineAim(prev, points, drawing, cfg)`: live `aiming`
+- [x] 3.10 Implement `spineAim(prev, points, drawing, cfg)`: live `aiming`
       only, never scoreable; same reference when nothing flips.
-- [ ] 3.11 [TEST] no-op reference contract — `spineAim` returns the SAME
+- [x] 3.11 [TEST] no-op reference contract — `spineAim` returns the SAME
       reference when nothing latches.
-- [ ] 3.12 [TEST] a rejected stroke leaves the sheet unreset, no hazard, and
+- [x] 3.12 [TEST] a rejected stroke leaves the sheet unreset, no hazard, and
       does not lower the score below what filled anchors already earned.
-- [ ] 3.13 Run `npm test -- levels/spines` — green.
+- [x] 3.13 Run `npm test -- levels/spines` — green.
 
 ## Phase 4: The Pure Fold Module III — Render Projections, Demo Segments, Debug Seed
 
 Spec traceability: `radial-spines/spec.md` "The Debug Flag Reaches the
 Screen's Rendered Output...". Design §2 D4, §7.
 
-- [ ] 4.1 Implement `spineMarks(cfg,state)`: mark centre = `A_i +
+- [x] 4.1 Implement `spineMarks(cfg,state)`: mark centre = `A_i +
       SPINE_MARK_R·n̂_i` (D4's tangency resolution); filled/unfilled from
       `state.filled`.
-- [ ] 4.2 Implement `spineRings(cfg)`: one debug ring per anchor at
+- [x] 4.2 Implement `spineRings(cfg)`: one debug ring per anchor at
       `baseRadius`.
-- [ ] 4.3 Implement `spineDemoPaths(cfg,k)`: first `k` anchor→tip line
+- [x] 4.3 Implement `spineDemoPaths(cfg,k)`: first `k` anchor→tip line
       segments (the demo repair's own source, D3).
-- [ ] 4.4 Implement `debugSpines(cfg,k)` and `seedSpines(cfg,
+- [x] 4.4 Implement `debugSpines(cfg,k)` and `seedSpines(cfg,
       debugCount)`: ONE number drives both the filled-seed and the ring
       overlay, so a capture cannot tell two stories (§7).
-- [ ] 4.5 [TEST] `spineMarks`' centre formula equals `A_i +
+- [x] 4.5 [TEST] `spineMarks`' centre formula equals `A_i +
       SPINE_MARK_R·n̂_i` exactly, both mark states.
-- [ ] 4.6 [TEST] `debugSpines(cfg,k)` seeds exactly the first `k` anchors
+- [x] 4.6 [TEST] `debugSpines(cfg,k)` seeds exactly the first `k` anchors
       (by generator order) filled, the rest unfilled.
-- [ ] 4.7 [TEST] every export runs with no DOM — no jsdom, no
+- [x] 4.7 [TEST] every export runs with no DOM — no jsdom, no
       testing-library, no component render.
-- [ ] 4.8 Run `npm test -- levels/spines` — green (full module).
+- [x] 4.8 Run `npm test -- levels/spines` — green (full module).
 
 ## Phase 5: Engine Repairs — levelStart, the Demo Split (D3), evaluateLevel
 
@@ -174,111 +174,111 @@ Spec traceability: `level-engine/spec.md` "Optional spines Field...",
 "levelStart Learns spines.origin...", "Routeless Demo Segments...". Design
 §4, §2 D3.
 
-- [ ] 5.1 Implement `levelStart`'s third source (`buildLevel.ts:66-69`): `if
+- [x] 5.1 Implement `levelStart`'s third source (`buildLevel.ts:66-69`): `if
       (config.spines) return spineOrigin(config.spines)`, after the
       waypoints source. Byte-identical for every level with neither field.
-- [ ] 5.2 [TEST] a spines level's start resolves to `spineOrigin(cfg)`;
+- [x] 5.2 [TEST] a spines level's start resolves to `spineOrigin(cfg)`;
       levels using the other two sources are unaffected.
-- [ ] 5.3 Add `demoPaths: readonly string[]` to `LevelTarget`. In the
+- [x] 5.3 Add `demoPaths: readonly string[]` to `LevelTarget`. In the
       free/empty return, `demoPaths: config.spines ? spineDemoPaths(...) :
       noPaths` (SAME reference `noPaths`); in the routed return, `demoPaths:
       paths`.
-- [ ] 5.4 [RED, confirmed red against `main` today] write the assertion that
+- [x] 5.4 [RED, confirmed red against `main` today] write the assertion that
       a `kind:'free'`, `demo:true`, `spines`-bearing level emits
       `demoPaths.length ≥ 1`. Confirm it fails BEFORE 5.3 lands.
-- [ ] 5.5 Rename `playDemo` → `demoPlays(level, guide) = !!level.demo &&
+- [x] 5.5 Rename `playDemo` → `demoPlays(level, guide) = !!level.demo &&
       guide === 'full'`; call it at `LevelPlay.tsx:820`.
-- [ ] 5.6 [RED, confirmed red against `main` today — the second, unnamed
+- [x] 5.6 [RED, confirmed red against `main` today — the second, unnamed
       blocker] write the assertion that `demoPlays(level,'none') === true`
       for the same fixture (since `showGuide:false` forces `guideLevel:
       'none'` on every free level, `catalog.test.ts:329-335`). Confirm it
       fails BEFORE 5.5 lands, then confirm GREEN after.
-- [ ] 5.7 [TEST] the whole-catalog invariant (§2 D3): for every `l` in
+- [x] 5.7 [TEST] the whole-catalog invariant (§2 D3): for every `l` in
       `LEVELS`/`LEGACY_PHASE_1` WITHOUT `spines`, `buildLevelTarget(l).
       demoPaths === buildLevelTarget(l).paths` by REFERENCE; `demoPlays(l,g)
       === (!!l.demo && g==='full')` for every `l` and every `GuideLevel`.
-- [ ] 5.8 In `evaluateLevel.ts`'s free branch (`:120-128`): add the
+- [x] 5.8 In `evaluateLevel.ts`'s free branch (`:120-128`): add the
       `config.spines ? spineScore(...) : config.waypoints ?
       waypointScore(...) : revealScore(...)` ternary.
-- [ ] 5.9 [TEST] a pre-existing `kind:'free'` level scores byte-identically
+- [x] 5.9 [TEST] a pre-existing `kind:'free'` level scores byte-identically
       before/after this change; a hedgehog fixture's accuracy equals
       `spineScore`'s result; `LevelKind` stays two-valued.
-- [ ] 5.10 Run `npm test -- levels/buildLevel game/evaluateLevel` — green.
+- [x] 5.10 Run `npm test -- levels/buildLevel game/evaluateLevel` — green.
 
 ## Phase 6: The Render Layer — SpineLayer and TraceCanvas
 
 Spec traceability: `trace-canvas/spec.md` "Spine Layer Renders as Plain
 Images...". Design §5.
 
-- [ ] 6.1 Create `client/src/canvas/SpineLayer.tsx`, modelled on
+- [x] 6.1 Create `client/src/canvas/SpineLayer.tsx`, modelled on
       `WaypointLayer.tsx` (51 lines): one `<g pointerEvents="none">`, one
       `<image>` for the body (through `clampArtBox`), one `<circle>` per
       mark, then debug rings. No `<mask>`, `<pattern>`, `<clipPath>`,
       `<defs>`, `useId`, `url(#…)`.
-- [ ] 6.2 In `TraceCanvas.tsx`: add `TraceSpineMark`/`TraceSpines` types
+- [x] 6.2 In `TraceCanvas.tsx`: add `TraceSpineMark`/`TraceSpines` types
       (design §5) and a `spines?` prop; render `<SpineLayer>` in the
       reveal/waypoints slot (`:1161-1170`), between the backdrop and every
       ink layer.
-- [ ] 6.3 [TEST] `SpineLayer.test.tsx`: `renderToString`, parse `<image>`/
+- [x] 6.3 [TEST] `SpineLayer.test.tsx`: `renderToString`, parse `<image>`/
       `<circle>` from the HTML STRING, assert no `url(#`, no `<mask`, no
       `<defs`.
-- [ ] 6.4 [TEST] `TraceCanvas.test.tsx`: with `spines` set, the layer sits
+- [x] 6.4 [TEST] `TraceCanvas.test.tsx`: with `spines` set, the layer sits
       after the backdrop and before the ink; without it, no spine-layer
       element renders and markup is byte-identical to today.
-- [ ] 6.5 Run `npm test -- canvas/SpineLayer canvas/TraceCanvas` — green.
+- [x] 6.5 Run `npm test -- canvas/SpineLayer canvas/TraceCanvas` — green.
 
 ## Phase 7: The Debug Flag — devMode.ts
 
 Spec traceability: `radial-spines/spec.md` "The Debug Flag Reaches the
 Screen...". Design §7.
 
-- [ ] 7.1 [RED] `devMode.test.ts`: `spineDebugCount('?debug=espinas:3')`
+- [x] 7.1 [RED] `devMode.test.ts`: `spineDebugCount('?debug=espinas:3')`
       returns `3`; malformed/missing returns `null`. Confirm RED (function
       does not exist).
-- [ ] 7.2 Implement `spineDebugCount(search)`, appended after
+- [x] 7.2 Implement `spineDebugCount(search)`, appended after
       `arrangeDebugCount` (`:149-155`), body verbatim per §7 — ungated, no
       `isDevMode()` check.
-- [ ] 7.3 [TEST] no collision with the shipped `?debug=espina` (exact-value
+- [x] 7.3 [TEST] no collision with the shipped `?debug=espina` (exact-value
       compare in `isSpineDebug`); the shipped parsers stay byte-identical.
-- [ ] 7.4 Run `npm test -- canvas/devMode` — green.
+- [x] 7.4 Run `npm test -- canvas/devMode` — green.
 
 ## Phase 8: LevelPlay Wiring
 
 Spec traceability: `radial-spines/spec.md` "Reset Reseeds Through
 seedSpines...". Design §6 (the wiring table) and its "found defect".
 
-- [ ] 8.1 Initialiser (`:307-313` sibling): `seedSpines(cfg,
+- [x] 8.1 Initialiser (`:307-313` sibling): `seedSpines(cfg,
       spineDebugCount(search))`; `EMPTY_SPINES` when no `spines` field.
-- [ ] 8.2 Demo source (`:791-801`): `target.demoPaths.map(...)`; `demoMs`
+- [x] 8.2 Demo source (`:791-801`): `target.demoPaths.map(...)`; `demoMs`
       reads `target.demoPaths.length`.
-- [ ] 8.3 Demo gate (`:820`): `const playDemo = demoPlays(level,
+- [x] 8.3 Demo gate (`:820`): `const playDemo = demoPlays(level,
       guideLevel)`.
-- [ ] 8.4 Refs (`:923-930` sibling): add `spineRef`, `spineState`,
+- [x] 8.4 Refs (`:923-930` sibling): add `spineRef`, `spineState`,
       `spinePin` — the flag REPLACES live input (`!debugLightPoint`'s
       shipped contract).
-- [ ] 8.5 Live fold (`:1177` sibling): `if (level.spines && !spinePin)` →
+- [x] 8.5 Live fold (`:1177` sibling): `if (level.spines && !spinePin)` →
       `spineAim`, ref first then `setSpineState`, no haptics here.
-- [ ] 8.6 Recount (`:1318-1346`): `if (level.spines && !spinePin)` →
+- [x] 8.6 Recount (`:1318-1346`): `if (level.spines && !spinePin)` →
       `spineSettle(spineRef.current, snapshot, level.spines)`; a grown
       `filled` fires the shipped one-shot haptic edge, at RELEASE only (§2
       D1).
-- [ ] 8.7 Reset A (`resetSurface`, `:942-981`): through `initialSpineState`,
+- [x] 8.7 Reset A (`resetSurface`, `:942-981`): through `initialSpineState`,
       NEVER bare `EMPTY_SPINES`; add `level.spines` to the dep array.
-- [ ] 8.8 Reset B (`restartRun`, `:1095-1139`): the same two lines again —
+- [x] 8.8 Reset B (`restartRun`, `:1095-1139`): the same two lines again —
       does NOT call `resetSurface`.
-- [ ] 8.9 Render prop (`:1557` sibling, `:1809`): `spines` memo from
+- [x] 8.9 Render prop (`:1557` sibling, `:1809`): `spines` memo from
       `spineBody`/`spineMarks`/`spineRings`; `dim: TORCH_CHALK_DIM`,
       `earned: TORCH_CHALK`.
-- [ ] 8.10 [RED, confirmed red] source-read count: `initialSpineState(`
+- [x] 8.10 [RED, confirmed red] source-read count: `initialSpineState(`
       appears at exactly 3 call sites. Write the guard, then delete the
       `restartRun` call, confirm the count falls 3→2, then RESTORE it.
-- [ ] 8.11 [TEST] `LevelPlay.test.tsx` `traceCanvasProbe`: the debug flag
+- [x] 8.11 [TEST] `LevelPlay.test.tsx` `traceCanvasProbe`: the debug flag
       reaches `TraceCanvas`'s `spines` prop, not only `debugSpines`'s
       return value.
-- [ ] 8.12 Record, do not fix: `restartRun:1118-1119` resets the waypoint
+- [x] 8.12 Record, do not fix: `restartRun:1118-1119` resets the waypoint
       fold with bare `EMPTY_WAYPOINTS` — a real, latent, unreachable-today
       bug (§9 item 5). Add a comment naming it; no repair here.
-- [ ] 8.13 Run `npm test -- screen/LevelPlay` — green.
+- [x] 8.13 Run `npm test -- screen/LevelPlay` — green.
 
 ## Phase 9: The Four Levels and Catalog Guards
 
