@@ -519,25 +519,39 @@ no `localStorage`, so every seeded capture goes through the dev server URL.
 
 ## Phase 10: Final Gate
 
-- [ ] 10.1 Run `npm test` (repo root or `client/` — same workspace script).
-      Baseline at `main`: 74 files / 1656 tests. Report the actual new
-      totals; expected new files: `canvas/camera.test.ts`,
-      `levels/dolphinExtrema.test.ts`, plus extended existing files.
-- [ ] 10.2 Run `npm run build` (`tsc --noEmit && vite build`) — green.
-- [ ] 10.3 Re-grep `isUnlocked` and state the result (paso E/F precedent):
+- [x] 10.1 Run `npm test` (repo root or `client/` — same workspace script).
+      Baseline at `main`: 74 files / 1656 tests. **Result: 76 files / 1722
+      tests, all green.** New files: `client/src/canvas/camera.test.ts`,
+      `client/src/levels/dolphinExtrema.test.ts`; every other new test
+      lives in an extended existing file, per the tasks.md plan.
+- [x] 10.2 Run `npm run build` (`tsc --noEmit && vite build`) — green.
+      **Result: green** — `tsc --noEmit` reports zero errors, `vite build`
+      completes (526 modules transformed).
+- [x] 10.3 Re-grep `isUnlocked` and state the result (paso E/F precedent):
       confirm its only non-test, non-migration consumer stays the dev-only
       `LevelMap.tsx`, so `dolphin1..4` inserted after `bee4` needs no
-      migration.
-- [ ] 10.4 Confirm zero new `url(#` occurrences beyond what pre-existed
+      migration. **Result: confirmed.** Every other hit is either the
+      `LevelProgressStore` method definition, a migration file's own doc
+      comment, or a test call; `LevelMap.tsx:81` is the one real runtime
+      consumer, exactly as before this change.
+- [x] 10.4 Confirm zero new `url(#` occurrences beyond what pre-existed
       (`rg 'url\(#' client/src`); the five shipped guards in
-      `TraceCanvas.test.tsx` stay green, unedited.
-- [ ] 10.5 Confirm byte-identical to `main` via `git diff main...HEAD` for:
+      `TraceCanvas.test.tsx` stay green, unedited. **Result: confirmed.**
+      Every `url(#` hit is either a doc comment stating the ban (including
+      this change's own `dolphinExtrema.ts` comment) or a test assertion
+      guarding against it; zero occurrences in rendered markup. The full
+      suite run above keeps every existing guard green.
+- [x] 10.5 Confirm byte-identical to `main` via `git diff main...HEAD` for:
       `useTraceInput.ts`, `coverage.ts`, `revealGrid.ts`, `corridorTrack.ts`,
       `evaluateLevel.ts`, `vertexArt.ts`, `paths.ts`, `arrange.ts`,
       `artCorridor.ts`, `waypoints.ts`, `cases.ts`, `build_art.py`,
-      `manifest.json`.
-- [ ] 10.6 Confirm every task in this file is closed (`[x]`), none left
-      `[~]`.
+      `manifest.json`. **Result: all thirteen files produce an empty
+      `git diff main...HEAD`** — byte-identical to `main`, confirmed by
+      running the diff on each path individually rather than assumed.
+- [x] 10.6 Confirm every task in this file is closed (`[x]`), none left
+      `[~]`. **Result: confirmed** — only Phase 10's own six tasks were
+      open at the start of this phase; all are now `[x]`, and no `[~]`
+      marker exists anywhere in this file.
 
 ---
 
