@@ -412,17 +412,17 @@ diff.
 
 Spec traceability: design §13, proposal Decision 6.
 
-- [ ] 12.1 Re-grep `isUnlocked` (`LevelProgressStore.ts:123-129`) — state
+- [x] 12.1 Re-grep `isUnlocked` (`LevelProgressStore.ts:123-129`) — state
       the ACTUAL result, do not assume it. Expected: the only non-test,
       non-migration consumer is the dev-only `LevelMap.tsx`; real
       navigation routes through `zoo/sectors.ts`'s `unlockedWhen` (D6).
-- [ ] 12.2 For every new exported symbol (`spineBody`, `spineAnchors`,
+- [x] 12.2 For every new exported symbol (`spineBody`, `spineAnchors`,
       `spineOrigin`, `spineAim`, `spineSettle`, `spineScore`, `spineMarks`,
       `spineRings`, `spineDemoPaths`, `debugSpines`, `seedSpines`,
       `demoPlays`, `spineDebugCount`), `rg` it and confirm at least one
       real caller outside its own definition/test file. An orphan is a
       defect (§7's `debugCarrier` lesson), not done — fix by wiring it in.
-- [ ] 12.3 Confirm the five §9 open questions stay OPEN, untouched by this
+- [x] 12.3 Confirm the five §9 open questions stay OPEN, untouched by this
       apply: (1) luma-jump vs tone-gain earning colour; (2) the erizo
       standing spineless on the map; (3) a darkened-body escape for
       chalk-over-body; (4) no second backpack object; (5) `restartRun`'s
