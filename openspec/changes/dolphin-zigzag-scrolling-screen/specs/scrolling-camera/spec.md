@@ -112,19 +112,43 @@ existed — the camera code path MUST be unreachable for such a level.
 - WHEN the rendered markup is compared
 - THEN it MUST be byte-identical
 
-### Requirement: The Backdrop Spans the World as One Element
+### Requirement: The Backdrop Is Pinned to the View Window on a Camera Level
+
+**Post-verify amendment A4** (this requirement originally read "The
+Backdrop Spans the World as One Element", spanning `viewBoxWidth`; the
+apply phase's own capture read-back was performed incorrectly and the
+verify phase's direct inspection of the same screenshots — `dolphin3-
+control.png`, `dolphin3-debug280.png`, `dolphin4-control.png`, `dolphin4-
+debug9999-clamp.png` — showed a flat, textureless field of open water
+with zero visible reed or bank texture, confirming design.md §3.3's
+original, more pessimistic prediction rather than the amendment that had
+"corrected" it. Design.md §3.3 always named the fallback below; it is
+adopted here.)
 
 A scrolling level's backdrop MUST render as a single `<image>` with
-`preserveAspectRatio="xMidYMid slice"` spanning `viewBoxWidth`, not
-`viewWidth`. No sibling backdrop image, `<pattern>`, or `url(#…)`
-reference MAY be introduced to cover the panned world.
+`preserveAspectRatio="xMidYMid slice"`, its `x` and `width` following the
+SAME window the `<svg>`'s own `viewBox` attribute reports — the camera's
+origin and `viewWidth` — rather than the world (`viewBoxWidth`). This
+keeps the whole lagoon (banks, reeds) in frame at every camera
+magnification while the corridor and the dolphins pan beneath a fixed
+background, instead of panning an already-cropped slice of open water. No
+sibling backdrop image, `<pattern>`, or `url(#…)` reference MAY be
+introduced to cover the panned world.
 
-#### Scenario: Exactly one backdrop image spans the world
+#### Scenario: The backdrop image is pinned to the window, not the world
 
 - GIVEN a scrolling dolphin level rendered via `renderToString`
 - WHEN the backdrop layer is inspected
-- THEN exactly one `<image>` MUST be present, its `width` MUST equal
-  `viewBoxWidth`, and no `<pattern>` or `url(#` MUST appear
+- THEN exactly one `<image>` MUST be present, its `x` MUST equal the
+  camera's origin, its `width` MUST equal `viewWidth` (not
+  `viewBoxWidth`), and no `<pattern>` or `url(#` MUST appear
+
+#### Scenario: A non-camera level's backdrop is unaffected
+
+- GIVEN any level with no `camera` field, where `viewWidth === viewBoxWidth`
+- WHEN the backdrop `<image>` is inspected
+- THEN its `x` MUST equal 0 and its `width` MUST equal `viewBoxWidth`,
+  byte-identical to before this capability existed
 
 ### Requirement: prefers-reduced-motion Does Not Suppress the Camera
 

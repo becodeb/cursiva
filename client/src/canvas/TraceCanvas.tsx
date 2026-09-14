@@ -863,6 +863,13 @@ export default function TraceCanvas({
   cameraRef.current = camera
   const viewBoxWidthRef = useRef(viewBoxWidth)
   viewBoxWidthRef.current = viewBoxWidth
+  // The backdrop `<image>` itself, mutated the SAME way the `<svg>`'s own
+  // `viewBox` is (post-verify amendment A4, design.md §3): pinned to the
+  // WINDOW on a camera level, so the lagoon's banks and reeds stay in frame
+  // at every magnification instead of panning an already-cropped slice of
+  // open water under a fixed window. `null` on every level with no backdrop
+  // — the optional chaining below is the whole guard.
+  const backdropImgRef = useRef<SVGImageElement | null>(null)
   const cameraXRef = useRef(camera?.originX ?? 0)
   const cameraOriginSeed = camera?.originX
   useEffect(() => {
@@ -983,6 +990,10 @@ export default function TraceCanvas({
         if (next !== cameraXRef.current) {
           cameraXRef.current = next
           svg.setAttribute('viewBox', `${next} ${viewBoxY} ${cam.viewWidth} ${viewBoxHeight}`)
+          // The backdrop image's `x` follows the SAME origin, one statement
+          // later, so the lagoon and the window can never disagree about
+          // where the camera is (post-verify amendment A4, design.md §3).
+          backdropImgRef.current?.setAttribute('x', String(next))
         }
       }
 
@@ -1120,11 +1131,18 @@ export default function TraceCanvas({
         // `url(#…)` (this file's own scar, above).
         <g pointerEvents="none">
           <rect x={0} y={viewBoxY} width={viewBoxWidth} height={viewBoxHeight} fill={backdrop.quiet} />
+          {/* Pinned to the WINDOW, not the world, on a camera level
+              (post-verify amendment A4, design.md §3): `x`/`width` mirror the
+              `<svg>`'s own `viewBox` expression above exactly — `camera`
+              absent falls back to `0`/`viewBoxWidth`, so a non-camera level's
+              markup is untouched. The rAF loop mutates `x` imperatively,
+              in step with the `viewBox` write, via `backdropImgRef`. */}
           <image
+            ref={backdropImgRef}
             href={backdrop.href}
-            x={0}
+            x={camera?.originX ?? 0}
             y={viewBoxY}
-            width={viewBoxWidth}
+            width={camera?.viewWidth ?? viewBoxWidth}
             height={viewBoxHeight}
             preserveAspectRatio="xMidYMid slice"
           />

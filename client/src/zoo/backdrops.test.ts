@@ -319,29 +319,31 @@ describe('ADVENTURE_BACKDROP.dolphin (design.md §3.1/§3.2, this change)', () =
     expect(dolphin.channel).toBeUndefined()
   })
 
-  it('the visible source rows fall inside (135, 889) at the two camera worlds W=1560 and W=2120', () => {
-    const { corridorRows } = ADVENTURE_BACKDROP.dolphin!
-    for (const W of [1560, 2120]) {
-      // `xMidYMid slice`'s own crop: the visible sheet is the whole 0..600
-      // band, pushed back to source pixels through the SAME transform
-      // `viewBoxToImage` uses, at this world's own stage width.
-      const topSrc = viewBoxToImage(0, 0, W).y
-      const bottomSrc = viewBoxToImage(0, 600, W).y
-      expect(topSrc, `W=${W}`).toBeGreaterThanOrEqual(corridorRows.top)
-      expect(bottomSrc, `W=${W}`).toBeLessThanOrEqual(corridorRows.bottom)
-    }
-  })
-
-  it("each dolphin level's own channel rows, pushed back through Phase 4's stageWidth param, fall inside (135, 889)", () => {
+  it("each dolphin level's own channel rows, pushed back through the VIEW width (target.viewWidth, always 1000) — post-verify amendment A4, not the world width — fall inside (135, 889)", () => {
+    // Post-verify amendment A4 (`sdd/dolphin-zigzag-scrolling-screen`, R2):
+    // direct capture inspection (`capturas/pasoG/dolphin3-control.png` and
+    // siblings) showed the ORIGINAL prediction (design.md §3.3) was right —
+    // sampling at the world width W=1560/2120 read only open water — so the
+    // backdrop `<image>` is now pinned to `viewWidth` (1000, same scale as
+    // every other camera level, INCLUDING the duck's own) instead of the
+    // world. The two-camera-world sampling this test used to run no longer
+    // has a rendering counterpart: the image is never stretched to 1560/2120
+    // any more, so there is nothing left to sample at those widths. This is
+    // now the exact same per-level channel check `DUCK_CHANNELS` above runs,
+    // at the SAME stage width duck uses.
     const { corridorRows } = ADVENTURE_BACKDROP.dolphin!
     for (const id of ['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4']) {
       const level = getLevel(id)
       const target = buildLevelTarget(level)
+      // Post-verify amendment A4: the backdrop image spans `viewWidth`, not
+      // `viewBoxWidth`, on every dolphin level (camera or not — dolphin1/2
+      // already report `viewWidth === viewBoxWidth === 1000`).
+      expect(target.viewWidth, id).toBe(1000)
       const A = 160
       const top = 300 - (A + level.corridorWidth / 2)
       const bottom = 300 + (A + level.corridorWidth / 2)
-      const topSrc = viewBoxToImage(0, top, target.viewBoxWidth).y
-      const bottomSrc = viewBoxToImage(0, bottom, target.viewBoxWidth).y
+      const topSrc = viewBoxToImage(0, top, target.viewWidth).y
+      const bottomSrc = viewBoxToImage(0, bottom, target.viewWidth).y
       expect(topSrc, id).toBeGreaterThanOrEqual(corridorRows.top)
       expect(bottomSrc, id).toBeLessThanOrEqual(corridorRows.bottom)
     }

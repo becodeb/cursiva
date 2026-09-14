@@ -30,23 +30,37 @@ leave the `viewBox` attribute's x-origin at 0 for the entire attempt.
 
 Every render site that spans `x={0}` and `width={viewBoxWidth}` —
 `sheetBounds` (which `clampArtBox`/`placeArt` clamp against), the
-`contain` base rect, the backdrop quiet rect and backdrop `<image>`, the
-ground image, the maze wall rect, the four guide lines, `LevelPlay`'s
-`groundScatter` viewBox and `buildIdealGrid` bucketing, and
-`coverage.ts`/`revealGrid.ts`'s own `viewBoxWidth` consumers — already
-means the WORLD, both before and after this capability, and MUST continue
-to span `target.viewBoxWidth` unchanged. No site in this list is
-re-anchored, re-pointed, or edited by this change. The ONLY expression in
-the whole render path that means the WINDOW is the `<svg>`'s own rendered
-`viewBox` attribute, which MUST report `target.viewWidth` as its width
-(and the camera origin as its x, per `scrolling-camera`), not
-`target.viewBoxWidth`.
+`contain` base rect, the backdrop quiet rect, the ground image, the maze
+wall rect, the four guide lines, `LevelPlay`'s `groundScatter` viewBox and
+`buildIdealGrid` bucketing, and `coverage.ts`/`revealGrid.ts`'s own
+`viewBoxWidth` consumers — already means the WORLD, both before and after
+this capability, and MUST continue to span `target.viewBoxWidth`
+unchanged. No site in this list is re-anchored, re-pointed, or edited by
+this change. The `<svg>`'s own rendered `viewBox` attribute means the
+WINDOW, reporting `target.viewWidth` as its width and the camera origin as
+its x, per `scrolling-camera` — not `target.viewBoxWidth`.
 
-#### Scenario: The backdrop and base rect span the world on a camera level, unchanged
+**Post-verify amendment A4** carves the backdrop `<image>` OUT of this
+list: it is the one full-sheet render site that now follows the WINDOW,
+not the world, on a camera level — see `scrolling-camera`'s "The Backdrop
+Is Pinned to the View Window on a Camera Level". The backdrop's own quiet
+`<rect>` (painted underneath, as a fallback while the image loads) stays
+world-anchored, unchanged, since only the visible window is ever painted
+over it anyway.
+
+#### Scenario: The base rect spans the world on a camera level, unchanged
 
 - GIVEN `dolphin3` rendered via `renderToString`
-- WHEN the backdrop `<image>` and base `<rect>` widths are read
-- THEN both MUST equal `target.viewBoxWidth`
+- WHEN the base `<rect>` width is read
+- THEN it MUST equal `target.viewBoxWidth`
+
+#### Scenario: The backdrop image is pinned to the window on a camera level
+
+- GIVEN `dolphin3` rendered via `renderToString`
+- WHEN the backdrop `<image>`'s `x` and `width` are read
+- THEN `x` MUST equal the camera's origin and `width` MUST equal
+  `target.viewWidth`, not `target.viewBoxWidth` (`scrolling-camera`'s
+  post-verify amendment A4)
 
 #### Scenario: The rendered viewBox width reports the window, not the world
 

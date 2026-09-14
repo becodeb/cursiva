@@ -512,6 +512,38 @@ because every sector background ships at the same `1536 × 1024`. The parameter 
 STAGE width, never the SOURCE size; a future source at another size needs its own transform, not a
 third parameter on this one. Say so in the doc comment.
 
+### 3.5 Post-verify amendment A4 — window-pinned backdrop
+
+§3.3's own captures answered the question it posed. The apply phase's first read of
+`capturas/pasoG/dolphin3-control.png`, `dolphin3-debug280.png`, `dolphin4-control.png`, and
+`dolphin4-debug9999-clamp.png` was wrong: it reported reeds and shore grass "clearly visible" at
+both camera worlds. A later verification pass looked at the SAME four files again and found the
+opposite — a flat, textureless field of water with zero visible bank or reed texture at either
+1.56× or 2.12×, while `dolphin1`/`dolphin2` (uncamera'd, same 1000-wide world as the ducks) do show
+the texture clearly. §3.3's original, more pessimistic prediction was the correct one all along.
+
+The named fallback above is adopted, not merely re-confirmed: the backdrop `<image>` is now pinned
+to the WINDOW (`x={originX} width={viewWidth}`) rather than the world, on every camera level. The
+`<svg>`'s own `viewBox` attribute already carries exactly this pair of values one line above the
+image in `TraceCanvas.tsx`'s render, so the image's `x`/`width` now mirror that expression verbatim
+— `camera?.originX ?? 0` and `camera?.viewWidth ?? viewBoxWidth` — rather than the unconditional
+`0`/`viewBoxWidth` every other full-sheet site keeps. The rAF loop's existing per-frame `viewBox`
+write gains one more `setAttribute` call, on the image ref, in the same statement block, for the
+same reason the camera and the ink already share one callback: they must never disagree about
+where the camera is.
+
+Cost, paid deliberately rather than discovered later: the world under the lagoon now slides beneath
+a FIXED picture instead of a picture that pans with it, which §3.3 named as reading like "swimming
+in place." That trade is preferred over a corridor whose backdrop only ever shows open water,
+because the water-only rendering fails `docs/13` §4 decision 3's own claim that the sector is a
+drawn PLACE, not a texture. The backdrop's quiet `<rect>` underneath is untouched — it still spans
+the world, since only the visible window is ever painted over it regardless.
+
+`backdrops.test.ts`'s own channel-rows check for the dolphin row changes with it: the two
+"camera-world" sampling widths (1560, 2120) no longer correspond to anything the backdrop image is
+ever rendered at, so the check now samples at the VIEW width (1000) instead — the exact same
+scale, and the exact same (135, 889) sampled range, the duck row's own channels already use.
+
 ---
 
 ## 4. The wave, and the four sheets
@@ -1037,9 +1069,6 @@ close: whether the world moves at all.
 
 ## Open Questions
 
-- [ ] **How magnified the lagoon may become before it stops being a place** (§3.3). The arithmetic is
-      closed; the judgement is art direction. The window-pinned fallback is named and costs two lines
-      at one site, so choosing it after the captures wastes nothing.
 - [ ] **`DOLPHIN_SIZE = 64` is provisional inside a ceiling of 77** (A3, §5.2). The test asserts the
       constraint, never the literal, so changing it is a one-line edit the suite still polices.
 - [ ] **The pond gets no backpack item** (proposal, binding). Hers.
@@ -1051,6 +1080,10 @@ close: whether the world moves at all.
 - [x] **RESOLVED — `routeApexes`' test finds nothing on a smooth wave**, so the sibling is a
       monotone-run scan and its first assertion is the superset proof (A2, §5.1).
 - [x] **RESOLVED — the dolphin's ceiling is 77, not 80–90** (A3, §5.2).
+- [x] **RESOLVED — how magnified the lagoon may become before it stops being a place** (§3.3, §3.5).
+      A first capture read-back misread the lagoon as still recognisable at 1.56×/2.12×; a later
+      verification pass read the same files and found flat, textureless water instead — §3.3's
+      original prediction. The named window-pinned fallback is adopted (A4, §3.5).
 - [x] **RESOLVED — the frame/event ordering risk is measured and closed** (§2.3): the CTM and the
       painted pixels agree for the whole inter-frame interval, the residual is a sub-frame x-only
       error bounded at 19 units, and compensation is REJECTED because inertia would forfeit the

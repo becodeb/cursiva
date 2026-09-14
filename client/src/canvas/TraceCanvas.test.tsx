@@ -11,7 +11,7 @@ import { getLevel } from '../levels/catalog'
 import { buildLevelTarget } from '../levels/buildLevel'
 import { obstacleAt } from '../levels/obstacles'
 import { luma } from '../detective/palette'
-import { CHANNEL_STONE } from '../zoo/backdrops'
+import { backdropFor, CHANNEL_STONE } from '../zoo/backdrops'
 import { seedCameraOrigin } from './camera'
 import { routeExtrema, vertexArtPoints } from '../levels/dolphinExtrema'
 
@@ -127,6 +127,106 @@ describe('TraceCanvas camera prop — the rendered viewBox attribute, against th
       const html = renderToString(<TraceCanvas viewBoxWidth={target.viewBoxWidth} />)
       expect(html, id).toContain(`viewBox="0 0 ${target.viewBoxWidth} 600"`)
     }
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Post-verify amendment A4 (`sdd/dolphin-zigzag-scrolling-screen`, R2): the
+// backdrop `<image>` is pinned to the VIEW WINDOW, not the world, on a camera
+// level. Direct capture inspection (`capturas/pasoG/dolphin3-control.png` and
+// siblings) showed a world-spanning backdrop slice reads as flat, textureless
+// open water at 1.56x/2.12x — design.md §3.3's original pessimistic
+// prediction, not the apply-time amendment's "reeds clearly visible" claim.
+// Pinning `x`/`width` to the same expression the `<svg>`'s own `viewBox`
+// attribute already uses keeps the whole lagoon (banks, reeds) in frame while
+// the corridor and dolphins pan underneath it.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('TraceCanvas backdrop pinned to the window on a camera level (post-verify amendment A4, design.md §3)', () => {
+  // The SAME conversion `LevelPlay.tsx` applies before handing a registry row
+  // to `TraceCanvas` (`backdropEntry` → `TraceBackdrop`): `art.href`, never
+  // the raw `AdventureBackdrop` object, which has no `href` field of its own.
+  function traceBackdrop(id: string) {
+    const entry = backdropFor(id)!
+    return { href: entry.art.href, quiet: entry.quiet, channel: entry.channel }
+  }
+
+  function backdropImage(html: string) {
+    const images = parseImages(html).filter((img) => img.href === traceBackdrop('dolphin3').href)
+    const image = images[images.length - 1] // the backdrop <image>, not a vertex-art dolphin
+    if (!image) throw new Error('no backdrop <image> found')
+    return image
+  }
+
+  it('dolphin3 with no debug seed: backdrop image reports x=0, width=1000 (the window), not 1560 (the world)', () => {
+    const level = getLevel('dolphin3')
+    const target = buildLevelTarget(level)
+    const camera = { viewWidth: target.viewWidth, lead: level.camera!.lead, originX: 0 }
+    const html = renderToString(
+      <TraceCanvas
+        fit="contain"
+        viewBoxWidth={target.viewBoxWidth}
+        backdrop={traceBackdrop('dolphin3')}
+        camera={camera}
+      />,
+    )
+    const image = backdropImage(html)
+    expect(image.x).toBe(0)
+    expect(image.width).toBe(1000)
+    expect(image.width).not.toBe(target.viewBoxWidth)
+    // The base `contain` rect stays world-anchored, unchanged by this
+    // amendment (`trace-canvas` spec, "Full-Sheet Render Sites").
+    expect(html).toContain(`width="${target.viewBoxWidth}"`)
+  })
+
+  it('?debug=camara:280 on dolphin3: the backdrop image x matches the seeded viewBox origin exactly', () => {
+    const level = getLevel('dolphin3')
+    const target = buildLevelTarget(level)
+    const originX = seedCameraOrigin(280, target.viewWidth, target.viewBoxWidth)
+    const camera = { viewWidth: target.viewWidth, lead: level.camera!.lead, originX }
+    const html = renderToString(
+      <TraceCanvas
+        fit="contain"
+        viewBoxWidth={target.viewBoxWidth}
+        backdrop={traceBackdrop('dolphin3')}
+        camera={camera}
+      />,
+    )
+    expect(html).toContain('viewBox="280 0 1000 600"')
+    const image = backdropImage(html)
+    expect(image.x).toBe(280)
+    expect(image.width).toBe(1000)
+  })
+
+  it('?debug=camara:9999 on dolphin4: the backdrop image clamps to the SAME origin the viewBox clamps to', () => {
+    const level = getLevel('dolphin4')
+    const target = buildLevelTarget(level)
+    const originX = seedCameraOrigin(9999, target.viewWidth, target.viewBoxWidth)
+    const camera = { viewWidth: target.viewWidth, lead: level.camera!.lead, originX }
+    const html = renderToString(
+      <TraceCanvas
+        fit="contain"
+        viewBoxWidth={target.viewBoxWidth}
+        backdrop={traceBackdrop('dolphin4')}
+        camera={camera}
+      />,
+    )
+    expect(html).toContain(`viewBox="${target.viewBoxWidth - target.viewWidth} 0 1000 600"`)
+    const image = backdropImage(html)
+    expect(image.x).toBe(target.viewBoxWidth - target.viewWidth)
+    expect(image.width).toBe(1000)
+  })
+
+  it('a non-camera level renders the backdrop image byte-identically to before this amendment: x=0, width=viewBoxWidth', () => {
+    const level = getLevel('dolphin1')
+    expect(level.camera).toBeUndefined()
+    const target = buildLevelTarget(level)
+    const html = renderToString(
+      <TraceCanvas fit="contain" viewBoxWidth={target.viewBoxWidth} backdrop={traceBackdrop('dolphin1')} />,
+    )
+    const image = backdropImage(html)
+    expect(image.x).toBe(0)
+    expect(image.width).toBe(target.viewBoxWidth)
+    expect(image.width).toBe(1000)
   })
 })
 
