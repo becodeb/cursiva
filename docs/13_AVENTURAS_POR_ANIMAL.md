@@ -165,7 +165,7 @@ cargado. Se decide cuando lleguen.
 | Medusa | **Hecha** (`f2-guirnalda`, `f2-agua2..4`) | Nada. Se engancha al sector estanque. |
 | Caracol | Generador de espiral existe (`trail2`, `f1-espiral`) | Consigna pendiente. No se implementa hasta cerrarla. |
 | Abejas | **Hecha** (`bee1..4`) | Nada. Trazo libre con puntos de paso (flores) y meta (panal); el `carrier` que sigue el dedo ya seguía, ahora tiene dónde pararse. |
-| Delfines | **No existe.** | **Desplazamiento de pantalla** (viewBox que avanza con el trazo). La animación previa ya existe como `demo`. |
+| Delfines | **Hecha** (`dolphin1..4`). | Nada. Cámara de avance monótono con ventana de anticipación (`viewBox` que avanza con el trazo) en `dolphin3`/`dolphin4`; delfines parados en las crestas y los valles de la onda (`routeExtrema`), fondo de la laguna reutilizado del pato. |
 
 ### Decisiones que se toman con esta directiva
 
@@ -375,6 +375,84 @@ cargado. Se decide cuando lleguen.
    medidas — se autoriza contra la angosta. Y las capturas de este paso
    están en `capturas/pasoF/`, siempre de a dos por nivel: la de control y
    la de `?debug=estela:<k>`.
+9. **Enmendado al implementar el paso G (2026-09-14).** Cuatro decisiones
+   de diseño, la primera de las cuales paga sola el resto del paso:
+   - **Partir un número en dos se hace eligiendo cuál se queda con el
+     nombre viejo.** `viewBoxWidth` quería decir *el papel* en sus doce
+     consumidores y *la ventana* en uno solo, el atributo `viewBox`.
+     Dejarle el nombre al MUNDO y agregar un `viewWidth` nuevo deja once
+     sitios sin tocar y convierte "todos los demás niveles quedan
+     idénticos" en algo cierto por construcción, no por auditoría. La
+     propuesta pedía re-anclar diez sitios; cambia uno.
+   - **`routeApexes` no encuentra nada en una onda suave, y una copia con
+     valles tampoco.** Mide el ascenso contra los vecinos INMEDIATOS del
+     polyline, y `flattenPathD` samplea una cúbica tan denso que el vecino
+     de la cresta está a una fracción de unidad. Funciona en `peakRidge`
+     porque ese generador emite un punto por pico. El hermano
+     (`routeExtrema`) escanea **tramos monótonos**, no ternas, y su
+     primera aserción es que sus crestas reproducen `routeApexes` en los
+     ocho niveles embarcados de ovejas y llamas.
+   - **La cámara no puede tener inercia, y la razón no es de gusto.** El
+     tope, el amortiguado y el easing acotarían el error de puntería
+     sub-cuadro; los tres romperían la relación 1:1 entre el dedo y el
+     mundo, que es exactamente lo que permite NO suprimir esta cámara bajo
+     `prefers-reduced-motion`. Una cámara con inercia es movimiento que el
+     chico no causó, habría que apagarla, y apagada el nivel no se puede
+     jugar. Se rechaza la compensación acá para poder respetar la regla
+     allá. Y no agrega una clase de retraso nueva: la tinta viva siempre
+     estuvo un cuadro atrás del dedo, y la cámara se escribe en la MISMA
+     llamada desde el MISMO array.
+   - **`resetOnContact` es incompatible con una cámara de avance
+     monótono.** `abortStroke` tira el trazo pero no el intento, así que
+     el mundo quedaría estacionado en la mitad del recorrido con la tinta
+     borrada y el punto de inicio fuera de pantalla. Los cuatro niveles
+     del pato lo llevan en `true`; estos cuatro en `false`, y ahora hay
+     dos razones independientes.
+
+   Y tres cosas que se corrigieron o se encontraron al implementar, no al
+   diseñar:
+   - **La fórmula documentada de `viewWidth` estaba mal para un nivel sin
+     cámara más ancho que 1000.** El diseño proponía
+     `Math.min(config.camera?.viewWidth ?? MIN_VIEWBOX_WIDTH, viewBoxWidth)`;
+     con `trail4` (mundo 1480, sin cámara) esa expresión devuelve 1000, no
+     1480, y rompe la invariante "sin cámara, `viewWidth === viewBoxWidth`"
+     que el propio cambio exige. La solución correcta usa `viewBoxWidth`
+     como retorno por defecto, no la constante:
+     `Math.min(config.camera?.viewWidth ?? viewBoxWidth, viewBoxWidth)`.
+     El test que lo encontró recorre TODA la lista de niveles embarcados,
+     no sólo los cuatro delfines — la misma disciplina que encontró los
+     defectos de los pasos anteriores.
+   - **`restartRun` no llama a `resetSurface`.** El diseño asumía que
+     `clearAttempt`/`restartRun`/`resetSurface` reseedan la cámara por
+     igual porque los tres son "sitios de reinicio", pero `restartRun` (el
+     camino de contacto) duplica un subconjunto de esos reinicios en línea
+     en vez de llamar a `resetSurface`. Se agregó el reseed una segunda
+     vez, directamente en `restartRun`. No lo ejercita ningún delfín
+     (los cuatro llevan `resetOnContact: false`), pero es un hueco real
+     del motor para cualquier familia futura que combine cámara y
+     contacto.
+   - **El fondo de la laguna paneada NO muestra sólo agua — lee mejor de
+     lo que el diseño temía.** El diseño calculó que a 1,56× y 2,12× la
+     franja visible cae entera dentro de la banda "tranquila" medida y
+     escribió que "la orilla y los juncos se recortan del todo... el chico
+     ve un campo casi sin rasgos". Las capturas de `capturas/pasoG/`
+     muestran lo contrario: los juncos y el pasto de la orilla son
+     claramente visibles arriba y abajo del corredor en `dolphin3` y
+     `dolphin4`, exactamente igual que en `dolphin1`/`dolphin2` sin
+     cámara. La banda "tranquila" que mide el luma no es lo mismo que
+     "sin textura visible" — el junco puede compartir luma con el agua sin
+     dejar de leerse como junco. La cámara panorámica no necesita el
+     respaldo fijo a la ventana que el diseño dejó nombrado como salida:
+     el fondo se deja tal cual, apoyado en el mundo completo.
+
+   Y dos cosas menores que conviene no volver a descubrir: **ningún test
+   de este repo puede ver la cámara moverse** — vitest corre en `node`,
+   sin jsdom, sin `requestAnimationFrame` y sin `getScreenCTM` — así que
+   las capturas de `capturas/pasoG/` son la prueba y no el adorno, la
+   misma lección de `debugCarrier` del paso F. Y **el delfín mide 64, no
+   los ~140 de `docs/09` §3**: el techo real en el primer peldaño es 77,
+   con amplitud 160 y corredor 110. Es la cuarta vez que una ley medida
+   acorrala un número de dirección de arte.
 
 ## 5. Estructura de cada aventura (`.docx` §13)
 

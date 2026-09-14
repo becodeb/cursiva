@@ -370,28 +370,60 @@ Spec traceability: `zoo-map/spec.md` all MODIFIED and ADDED requirements.
 
 Spec traceability: proposal item 10; design §10.
 
-- [ ] 7.1 In `docs/13_AVENTURAS_POR_ANIMAL.md` §4's cross table: flip the
+**Executed AFTER Phase 9** (not in file order): the amendment's own text
+depends on what the screenshot read-back found, per the apply contract's
+instruction to write it after the captures rather than before them. Tasks
+7.1–7.3 are ticked in that actual execution order — see Phase 9 above for
+the read-back this amendment quotes.
+
+- [x] 7.1 In `docs/13_AVENTURAS_POR_ANIMAL.md` §4's cross table: flip the
       *Delfines* row from "No existe" to "Hecha".
-- [ ] 7.2 In `docs/13_AVENTURAS_POR_ANIMAL.md` §4: add, in Spanish, neutral
+- [x] 7.2 In `docs/13_AVENTURAS_POR_ANIMAL.md` §4: add, in Spanish, neutral
       register, matching items 5–8's style: **"9. Enmendado al implementar
       el paso G (2026-09-14)."** with the four bullets from design.md §10
       verbatim (the world/window naming choice; the monotone-run scan over
       `routeApexes`; why the camera rejects inertia; `resetOnContact`'s
       incompatibility with a forward-only camera, plus the three minor
       findings — no test can see the camera move, the panned backdrop
-      shows only water, the dolphin ships at 64 not ~140).
-- [ ] 7.3 Confirm `docs/13` §8 is left as-is — no edit (explicit no-op
-      check, stated rather than assumed).
+      shows only water, the dolphin ships at 64 not ~140). **Corrected
+      against the captures, not copied verbatim**: the "panned backdrop
+      shows only water" minor finding is FALSE per Phase 9.4's read-back —
+      reeds and shore grass are clearly visible at both `dolphin3`
+      (1.56×) and `dolphin4` (2.12×), contradicting design §3.3's own
+      pessimistic prediction. The amendment records the corrected finding
+      instead of the wrong one, plus the three apply-time defects/gaps
+      found across Phases 1, 2 and 4 (the `viewWidth` fallback formula,
+      `restartRun`'s missing reseed, and this backdrop correction) as a
+      second bullet group, matching paso F's own two-part shape
+      (design-time decisions, then apply-time/capture-time findings).
+- [x] 7.3 Confirm `docs/13` §8 is left as-is — no edit (explicit no-op
+      check, stated rather than assumed). Confirmed: row G ("Delfines |
+      Pantalla que se desplaza") already reads correctly, unedited.
 
 ## Phase 8: Paso F's Lesson — the Orphan-Export Sweep
 
-- [ ] 8.1 For every new exported symbol in this change — `cameraOrigin`,
+- [x] 8.1 For every new exported symbol in this change — `cameraOrigin`,
       `seedCameraOrigin`, `TraceCamera`, `cameraDebugOrigin`,
       `routeExtrema`, `vertexArtPoints`, `RouteExtremum`, `DOLPHIN_SIZE`,
       `DOLPHIN_CLEAR` — run `rg '<symbol>' client/src` and confirm at least
       one caller outside its own definition and test file. A symbol with
       no real caller is a defect, not done: fix by wiring it in, not by
       deleting its test. Record the grep result per symbol.
+
+      **Result: no orphan found.** All nine have a real caller:
+      - `cameraOrigin` → `TraceCanvas.tsx`'s rAF loop (`:978`).
+      - `seedCameraOrigin` → `LevelPlay.tsx`, THREE sites: the mount
+        `useState` initialiser, `resetSurface`, and `restartRun`.
+      - `TraceCamera` → prop type on `TraceCanvas.tsx`'s `camera?` and the
+        `traceCamera` local in `LevelPlay.tsx`.
+      - `cameraDebugOrigin` → `LevelPlay.tsx`, the same three call sites as
+        `seedCameraOrigin` (always composed together).
+      - `routeExtrema`/`vertexArtPoints` → `LevelPlay.tsx`'s `vertexArt`
+        `useMemo`, the `'extrema'` branch.
+      - `RouteExtremum` → the return type of `routeExtrema`, itself called
+        as above; not a bare unused export.
+      - `DOLPHIN_SIZE`/`DOLPHIN_CLEAR` → `catalog.ts`, all four dolphin
+        levels' `vertexArt` field.
 
 ## Phase 9: Screenshot Verification (last, human-reviewed, not optional)
 
@@ -405,35 +437,85 @@ Invocation: `scripts/shot.sh <url> <out.png> [w] [h]`; `--disable-gpu` is
 handled inside the script; width clamps to a 500px floor; `data:` URLs have
 no `localStorage`, so every seeded capture goes through the dev server URL.
 
-- [ ] 9.1 Confirm the dev server at `http://localhost:5173` answers before
-      capturing.
-- [ ] 9.2 Capture the six pairs from design §7's table into
+- [x] 9.1 Confirm the dev server at `http://localhost:5173` answers before
+      capturing. (Ports 5173-5177 were in use by other sessions; Vite fell
+      forward to `5178`, confirmed answering via `curl` before any capture.)
+- [x] 9.2 Capture the six pairs from design §7's table into
       `capturas/pasoG/`: `dolphin1` control/`?debug=camara:400` (must be
       pixel-identical); `dolphin2` control/`?debug=camara:400`; `dolphin3`
       control (origin 0)/`?debug=camara:280` (half of the 560 extent);
       `dolphin4` control/`?debug=camara:560` (half of the 1120 extent) and
       a third `?debug=camara:9999` (the clamp, route's tail, no blank
-      paper past the right edge).
-- [ ] 9.3 Capture the map before/after:
+      paper past the right edge). All nine files captured; `cmp` confirms
+      `dolphin1`/`dolphin2` pairs are BYTE-IDENTICAL (not just visually
+      similar), exactly as Decision 3(d) requires.
+- [x] 9.3 Capture the map before/after:
       `?debug=progreso:dolphin1,dolphin2,dolphin3,dolphin4` as
       `capturas/pasoG/zoo-before.png` (pre-existing progress only) and
       `capturas/pasoG/zoo-after.png` (with the dolphin's own progress
       flags added), plus the intro/closing screens (`?nivel=intro-dolphin1
       &dev`, the `intro-<levelId>` route paso F's read-back corrected).
-- [ ] 9.4 Read every capture pair together, anchoring on the corridor's
+      **Corrected the URL while capturing**: `?nivel=mapa&dev` routes to
+      the internal DEV-ONLY `LevelMap` (`GameScreen`'s `{view:'map'}`),
+      not the illustrated `ZooMap` the task means — confirmed by reading
+      `initialView`'s own source. The illustrated map is the DEFAULT shell
+      (`initialView` returns `null` for a bare `?debug=...` query, so
+      `App.tsx` falls to `{at:'map'}` → `ZooMap`), so `zoo-before.png` used
+      `?debug=progreso:sand4,duck-trail4` (pond open, duck already home,
+      no dolphins) and `zoo-after.png` added the four dolphin ids to that
+      same baseline. `cmp` confirms the two differ (52 bytes in); the
+      dolphin now stands beside the duck in the reeds in `zoo-after.png`,
+      clear of the reed island, matching the Z1 placement math exactly.
+- [x] 9.4 Read every capture pair together, anchoring on the corridor's
       pixel columns, never the art (the SVG sheet does not fill the
-      window). Answer explicitly and record the answers: does the lagoon
-      at 1.56×/2.12× magnification still read as a pond (§3.3); does a
-      64-unit dolphin read as a dolphin or a smudge; does a world that
-      holds still for 420 units, pans for 560, then holds still again read
-      as one continuous movement or three; does the carrier occlude the
-      dolphin it passes; and — the one thing no test in this repo can
-      see — does the camera visibly move at all between the control and
-      debug captures on `dolphin3`/`dolphin4`.
-- [ ] 9.5 If any answer is bad, apply the named fallback (pin the backdrop
+      window). Answers, recorded:
+      - **Does the lagoon at 1.56×/2.12× still read as a pond (§3.3)?**
+        YES — clearly, on both `dolphin3` and `dolphin4`. Reed/grass
+        texture is visible along the top and bottom bands in every
+        capture, at every world width, not just water. **This corrects
+        design §3.3's own pessimistic prediction** ("the banks, the reeds
+        and everything... crops away entirely, ... a near-featureless
+        field of water") — the captures show the opposite. The named
+        fallback (pinning the backdrop to the window) is NOT needed.
+      - **Does a 64-unit dolphin read as a dolphin or a smudge?** Reads
+        clearly as a dolphin — grey body, white belly, a recognisable fin
+        and leaping posture, at every rung of the family.
+      - **Does the camera visibly move between control and debug on
+        `dolphin3`/`dolphin4`?** YES, confirmed — the start-marker octopus
+        present in every control capture is ABSENT from every debug
+        capture (panned past it), the left/right edge dolphins crop
+        differently between the two, and the clamp capture
+        (`dolphin4`, seed 9999) shows the route's END marker with no
+        blank paper past the right edge, exactly as designed.
+        **Finding**: the chosen seeds (280 for `dolphin3`, 560 for
+        `dolphin4`) are each an exact multiple of that level's own
+        half-period×2 (280 = 2×140 for both), so the panned wave pattern
+        LOOKS deceptively similar to the control at a casual glance — the
+        motion only becomes obvious by checking the edges (the octopus's
+        absence, the differently-cropped dolphins), not by comparing the
+        wave shapes themselves. Worth a note for future capture work:
+        pick a debug seed that is NOT a period multiple when the goal is
+        an at-a-glance-obvious "it moved" screenshot.
+      - **Does a world that holds still for 420 units, pans for 560, then
+        holds still again read as one continuous movement or three?** Not
+        answerable from stills — this is a question about the FEEL of
+        live motion over time, which no static screenshot pair can settle
+        (the same limitation design §6.2 already names for the per-frame
+        mutation itself). Left open, honestly, rather than guessed.
+      - **Does the carrier occlude the dolphin it passes?** Not answerable
+        from these particular captures — every capture here is a
+        pre-stroke rest state (`?debug=camara:<x>` seeds the camera with
+        no live stroke, per design's own §7), so the carrier is never
+        drawn mid-route past a dolphin in any of them. Would need a live
+        interactive session or a driven demo capture to answer.
+- [x] 9.5 If any answer is bad, apply the named fallback (pin the backdrop
       `<image>` to the window instead of the world, design §3.3 — a
       two-line change at `TraceCanvas.tsx`'s backdrop site) or the
       appropriate fix, add a regression test alongside it, and re-capture.
+      **No fix needed.** Every answerable question above came back good;
+      the two open questions (continuous-motion feel, carrier occlusion)
+      are out of a static screenshot's reach by construction, not defects
+      this change can close, and are recorded as such rather than forced.
 
 ## Phase 10: Final Gate
 
