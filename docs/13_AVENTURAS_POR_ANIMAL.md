@@ -505,6 +505,19 @@ cargado. Se decide cuando lleguen.
    trazo en vivo a mitad de recorrido, sólo el estado de reposo previo al
    trazo.
 
+   Y una cosa de arte que quedó ABIERTA, encontrada en la segunda
+   verificación y sólo visible una vez que el fondo dejó de estirarse:
+   **los delfines se dibujan sobre la orilla, entre los juncos**, no
+   sobre el agua, en los cuatro niveles. No es un defecto de código, es
+   aritmética: el guard de fase 1 obliga a `A > 150`, el techo derivado
+   del delfín es 77, y las cajas de cresta y valle (`y ∈ [13, 77]` y
+   `[523, 587]`) caen justo en las filas de la orilla del dibujo cuando
+   el fondo se muestra entero a 1×. Una escalera de amplitud más corta
+   está vedada por el guard y un delfín más chico es decisión de la
+   autora, así que la salida es del arte: recortar la orilla detrás de
+   cada delfín, o aceptar la lectura de "delfines saltando sobre la
+   orilla" como intencional.
+
 ## 5. Estructura de cada aventura (`.docx` §13)
 
 Toda aventura, exista o no todavía, cumple esta secuencia. Los
