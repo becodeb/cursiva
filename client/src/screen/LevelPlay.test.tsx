@@ -61,7 +61,13 @@ vi.mock('../zoo/backdrops', async (importOriginal) => {
   }
 })
 
-import LevelPlay, { drawingBand, isOffPath, shouldFileClue, shouldTickClue } from './LevelPlay'
+import LevelPlay, {
+  drawingBand,
+  isOffPath,
+  seedCameraFor,
+  shouldFileClue,
+  shouldTickClue,
+} from './LevelPlay'
 import {
   CARRIER_LENS_ART,
   CLUE_ART,
@@ -1369,5 +1375,71 @@ describe('LevelPlay ?debug=estela:<k> parks the bee on the trail it draws (A4)',
     const bee4 = getLevel('bee4')
     expect(renderWithSearch('bee4', '')?.carrier).toEqual(bee4.waypoints!.start)
     expect(renderWithSearch('duck-trail2', '')?.carrier).toBeTruthy()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// verify-report R1 (`sdd/dolphin-zigzag-scrolling-screen`): the
+// `scrolling-camera` spec scenario "Restarting resets the origin" had zero
+// covering test at the layer where the reset actually happens. `LevelPlay`
+// wired the reseed at three call sites (mount, `resetSurface`, `restartRun`)
+// with a hand-copied ternary; `restartRun`'s own copy was the one the apply
+// phase found missing and fixed with no regression test. `vitest` runs on
+// `node` — no jsdom, no rAF — so a live restart cannot be driven through a
+// real stroke here (this file's own header comment: state dispatches after
+// a completed `renderToString` call are no-ops on the server). The seam that
+// DOES work on `node`: extract the shared reseed into one pure, exported
+// function (`seedCameraFor`) and prove (a) its own semantics directly, and
+// (b) that exactly three source call sites still invoke it BY NAME — a
+// count that drops from 3 to 2 the instant a future edit removes the
+// `restartRun` call the way the original defect did.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('seedCameraFor (scrolling-camera capability, design.md §2.4; verify-report R1)', () => {
+  it('returns 0 for a level with no camera field, regardless of any debug seed', () => {
+    const level = getLevel('duck-trail2')
+    const target = buildLevelTarget(level)
+    expect(target.viewWidth).toBe(target.viewBoxWidth)
+    expect(seedCameraFor(level, target, '')).toBe(0)
+    expect(seedCameraFor(level, target, '?debug=camara:400')).toBe(0)
+  })
+
+  it('seeds the origin at 0 with no debug flag, on a camera level', () => {
+    const level = getLevel('dolphin3')
+    const target = buildLevelTarget(level)
+    expect(seedCameraFor(level, target, '')).toBe(0)
+  })
+
+  it('seeds the origin from ?debug=camara:<x>, the same clamp the live rAF floor uses', () => {
+    const level = getLevel('dolphin3')
+    const target = buildLevelTarget(level)
+    expect(seedCameraFor(level, target, '?debug=camara:280')).toBe(280)
+  })
+
+  it('clamps a seed past the route extent to viewBoxWidth − viewWidth, never the raw seed', () => {
+    const level = getLevel('dolphin4')
+    const target = buildLevelTarget(level)
+    expect(seedCameraFor(level, target, '?debug=camara:9999')).toBe(target.viewBoxWidth - target.viewWidth)
+  })
+})
+
+describe('LevelPlay camera reseed call-site guard (verify-report R1: restartRun once skipped the reseed)', () => {
+  it('calls seedCameraFor(level, target, debugSearch) at exactly the three reset sites — mount, resetSurface, restartRun', () => {
+    // `?raw` source read, the SAME technique `corridorTrack.test.ts`'s own
+    // "corridorTick's own body is untouched by this change" guard uses: a
+    // future edit that removes ANY of the three call sites (the exact
+    // `restartRun` regression this test exists to catch) fails this
+    // assertion by count, with no live DOM or rAF required.
+    const modules = import.meta.glob('./LevelPlay.tsx', {
+      eager: true,
+      query: '?raw',
+      import: 'default',
+    })
+    const source = Object.values(modules)[0] as string
+    const calls = source.match(/seedCameraFor\(level, target, debugSearch\)/g) ?? []
+    expect(calls).toHaveLength(3)
+    // And the raw hand-copied ternary this helper replaced must be GONE —
+    // proving the extraction actually happened, not merely that a fourth
+    // call was added alongside the old inline copies.
+    expect(source).not.toContain('seedCameraOrigin(cameraDebugOrigin(debugSearch)')
   })
 })

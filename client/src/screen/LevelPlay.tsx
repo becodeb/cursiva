@@ -73,7 +73,7 @@ import {
 import type { TraceArtCorridor } from '../canvas/TraceCanvas'
 import { directionArrowOf } from './directionArrow'
 import { goalMarkerOf } from './goalMarker'
-import type { LevelConfig } from '../levels/types'
+import type { LevelConfig, LevelTarget } from '../levels/types'
 import { isCaseTrail, inDetectiveWorld } from '../levels/world'
 import type { LevelAttempt, LevelRecord } from '../game/types'
 // Detective mode (design unit 6, spec: detective-mode "Clue Collection State
@@ -310,6 +310,26 @@ export function initialWaypointState(
 ): WaypointState {
   if (!waypoints) return EMPTY_WAYPOINTS
   return seedWaypoints(waypoints, waypointDebugCount(search))
+}
+
+/**
+ * The camera's own seeded origin for one reset (`scrolling-camera`
+ * capability, design.md §2.4): 0 when the level has no `camera` field,
+ * otherwise `seedCameraOrigin`'s clamp over `?debug=camara:<x>`'s seed. ONE
+ * function, called from mount, `resetSurface`, AND `restartRun` — the exact
+ * discipline `initialWaypointState` above already states, restated here
+ * because `restartRun` once skipped it: it does not call `resetSurface`, it
+ * duplicates a subset of its resets inline, and the camera reseed was the
+ * one reset that subset first omitted (verify-report R1). A future reset
+ * site that forgets to call this can no longer drift silently — the
+ * `LevelPlay.test.tsx` source guard counts every call site by name.
+ */
+export function seedCameraFor(
+  level: Pick<LevelConfig, 'camera'>,
+  target: Pick<LevelTarget, 'viewWidth' | 'viewBoxWidth'>,
+  search: string,
+): number {
+  return level.camera ? seedCameraOrigin(cameraDebugOrigin(search), target.viewWidth, target.viewBoxWidth) : 0
 }
 
 /**
@@ -910,16 +930,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   const waypointPin = !!level.waypoints && waypointDebugCount(debugSearch) !== null
 
   // The camera's own world x-origin (`scrolling-camera` capability). ONE
-  // initialiser, `seedCameraOrigin`, called from mount (this `useState`
-  // initializer) AND from every reset site inside `resetSurface` below —
-  // `seedArrangeState`'s own scar, where a reset site calling the raw
-  // initialiser directly silently wiped the screenshot seed. Absent
-  // `level.camera` = 0 always, and the camera code path below never renders
-  // a `camera` prop at all.
+  // initialiser, `seedCameraFor`, called from mount (this `useState`
+  // initializer), `resetSurface` below, AND `restartRun` — `seedArrangeState`'s
+  // own scar, where a reset site calling the raw initialiser directly
+  // silently wiped the screenshot seed. Absent `level.camera` = 0 always, and
+  // the camera code path below never renders a `camera` prop at all.
   const [cameraOriginX, setCameraOriginX] = useState<number>(() =>
-    level.camera
-      ? seedCameraOrigin(cameraDebugOrigin(debugSearch), target.viewWidth, target.viewBoxWidth)
-      : 0,
+    seedCameraFor(level, target, debugSearch),
   )
 
   const resetSurface = useCallback((): void => {
@@ -951,11 +968,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     // initialiser the mount `useState` above uses (`scrolling-camera` §2.4:
     // "otherwise the child restarts with the world parked at the route's
     // end and the green start dot off-screen").
-    setCameraOriginX(
-      level.camera
-        ? seedCameraOrigin(cameraDebugOrigin(debugSearch), target.viewWidth, target.viewBoxWidth)
-        : 0,
-    )
+    setCameraOriginX(seedCameraFor(level, target, debugSearch))
   }, [
     level.reveal,
     level.waypoints,
@@ -1097,11 +1110,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     // to the SAME seeded origin, through the SAME initialiser") must be
     // repeated here too, or a contact reset would leave the world parked
     // mid-route while the ink vanished (§2.4's own stated failure mode).
-    setCameraOriginX(
-      level.camera
-        ? seedCameraOrigin(cameraDebugOrigin(debugSearch), target.viewWidth, target.viewBoxWidth)
-        : 0,
-    )
+    setCameraOriginX(seedCameraFor(level, target, debugSearch))
     toneRef.current?.setActive(false)
     setResetSignal((n) => n + 1)
     setRestarted(true)
