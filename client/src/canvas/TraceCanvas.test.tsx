@@ -1651,3 +1651,72 @@ describe('TraceCanvas waypoint layer (free-trail-waypoints spec: "Waypoint Layer
     expect(lagoonMaze).not.toContain(waypoints.art[0].href)
   })
 })
+
+describe('TraceCanvas spine layer (radial-spines spec: "Spine Layer Renders as Plain Images and Marks...")', () => {
+  const backdrop = { href: '/art/sector-night-background.png', quiet: '#394459' }
+  const spines = {
+    body: { href: '/art/hedgehog-profile.png', x: 100, y: 100, width: 300, height: 200 },
+    marks: [
+      { x: 300, y: 200, filled: false },
+      { x: 350, y: 250, filled: true },
+    ],
+    markRadius: 11,
+    dim: '#989896',
+    earned: '#f2efe6',
+    rings: [{ x: 300, y: 200, radius: 38 }, { x: 350, y: 250, radius: 38 }],
+    ringStroke: '#f2efe6',
+  }
+
+  it('sits between the backdrop image and the guide/ink paths in document order', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} spines={spines} guide="M 0 300 L 1000 300" />)
+    const backdropIdx = html.indexOf(`href="${backdrop.href}"`)
+    const spineIdx = html.indexOf(`href="${spines.body.href}"`)
+    const guideIdx = html.indexOf('M 0 300 L 1000 300')
+    expect(backdropIdx).toBeGreaterThanOrEqual(0)
+    expect(spineIdx).toBeGreaterThan(backdropIdx)
+    expect(guideIdx).toBeGreaterThan(spineIdx)
+  })
+
+  it('renders exactly one body <image>, plus one <circle> per mark and one per ring', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} spines={spines} />)
+    const bodyImages = (html.match(new RegExp(`href="${spines.body.href.replace('/', '\\/')}"`, 'g')) ?? []).length
+    expect(bodyImages).toBe(1)
+    expect((html.match(/<circle/g) ?? []).length).toBe(spines.marks.length + spines.rings.length)
+    expect(html).toContain(`fill="${spines.dim}"`)
+    expect(html).toContain(`fill="${spines.earned}"`)
+    expect(html).toContain(`stroke="${spines.ringStroke}"`)
+  })
+
+  it('renders no spine-layer element with no spines prop', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} />)
+    expect(html).not.toContain(spines.body.href)
+  })
+
+  it('renders no rings when spines.rings is absent (the ordinary, non-debug frame)', () => {
+    const withoutRings = { body: spines.body, marks: spines.marks, markRadius: spines.markRadius, dim: spines.dim, earned: spines.earned }
+    const html = renderToString(<TraceCanvas backdrop={backdrop} spines={withoutRings} />)
+    // Only the marks' own circles — none carry a `stroke` attribute.
+    expect((html.match(/<circle[^>]*stroke=/g) ?? []).length).toBe(0)
+  })
+
+  it('introduces no forbidden fragment reference', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} spines={spines} />)
+    expect(html).not.toContain('url(#')
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<defs')
+  })
+
+  it('a plain maze and a lagoon backdrop render byte-identical to today (no spines prop passed)', () => {
+    const corridor = { paths: ['M 100 300 L 900 300'], width: 110 }
+    const lagoon = { href: '/art/sector-lagoon-background.png', quiet: '#b4c5d0' }
+
+    const plainMaze = renderToString(<TraceCanvas corridor={corridor} maze />)
+    expect(plainMaze).not.toContain(spines.body.href)
+
+    const lagoonMaze = renderToString(<TraceCanvas corridor={corridor} maze backdrop={lagoon} />)
+    expect(lagoonMaze).toContain(`href="${lagoon.href}"`)
+    expect(lagoonMaze).not.toContain(spines.body.href)
+  })
+})
