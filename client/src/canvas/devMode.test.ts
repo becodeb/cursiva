@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   arrangeDebugCount,
+  cameraDebugOrigin,
   isSectorDebug,
   isSpineDebug,
   lightDebugPoint,
@@ -193,7 +194,7 @@ describe('waypointDebugCount (free-trail-waypoints spec "Screenshot Seeding Flag
   })
 })
 
-describe('the six shipped parsers stay byte-identical alongside waypointDebugCount', () => {
+describe('the seven shipped parsers stay byte-identical alongside cameraDebugOrigin', () => {
   it('every shipped parser still resolves exactly as before', () => {
     expect(isSectorDebug('?debug=sectores')).toBe(true)
     expect(shouldSeedRecoveredDuck('?debug=pato-recuperado')).toBe(true)
@@ -202,5 +203,31 @@ describe('the six shipped parsers stay byte-identical alongside waypointDebugCou
     expect(lightDebugPoint('?debug=linterna:500,300')).toEqual({ x: 500, y: 300 })
     expect(isSpineDebug('?debug=espina')).toBe(true)
     expect(arrangeDebugCount('?debug=ordenadas:2')).toBe(2)
+    expect(waypointDebugCount('?debug=estela:2')).toBe(2)
+  })
+})
+
+describe('cameraDebugOrigin (scrolling-camera spec; design.md §7)', () => {
+  it('?debug=camara:280 returns 280', () => {
+    expect(cameraDebugOrigin('?debug=camara:280')).toBe(280)
+  })
+
+  it('a negative seed is returned as-is — clamping is seedCameraOrigin\'s job, not the parser\'s', () => {
+    expect(cameraDebugOrigin('?debug=camara:-50')).toBe(-50)
+  })
+
+  it('is null for an unrelated or absent query string', () => {
+    expect(cameraDebugOrigin('?debug=sectores')).toBeNull()
+    expect(cameraDebugOrigin('')).toBeNull()
+  })
+
+  it('requires no window/component context', () => {
+    expect(cameraDebugOrigin('?debug=camara:0')).toBe(0)
+  })
+
+  it('never throws on a malformed query string, and returns null', () => {
+    expect(() => cameraDebugOrigin('%')).not.toThrow()
+    expect(cameraDebugOrigin('%')).toBeNull()
+    expect(cameraDebugOrigin('?debug=camara:noesunnumero')).toBeNull()
   })
 })

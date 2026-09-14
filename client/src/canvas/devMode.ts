@@ -174,3 +174,23 @@ export function waypointDebugCount(search: string): number | null {
   if (!Number.isFinite(k)) return null
   return k
 }
+
+/**
+ * `?debug=camara:<x>` (`scrolling-camera` spec; design.md §7). NOT dev-gated
+ * — the same reason `arrangeDebugCount`/`waypointDebugCount` above are not:
+ * it paints render state (where the window sits over the world), adds no
+ * control, no word and no route, persists nothing, and must work against the
+ * EXACT build a reviewer is screenshotting. `arrangeDebugCount`'s body,
+ * verbatim. Malformed input, a missing flag, or a non-numeric origin all
+ * return `null`, never throw. The returned value is NOT clamped here —
+ * `seedCameraOrigin` (`canvas/camera.ts`) does that, the same clamp the live
+ * rAF loop uses, so a seeded capture and a live stroke cannot tell different
+ * stories.
+ */
+export function cameraDebugOrigin(search: string): number | null {
+  const arg = debugArg(search, 'camara')
+  if (arg === null) return null
+  const x = Number(arg)
+  if (!Number.isFinite(x)) return null
+  return x
+}
