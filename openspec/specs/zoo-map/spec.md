@@ -67,9 +67,48 @@ contain the `hit`. A sector with no `hit` carries no fog obligation.
 ### Requirement: Image-to-ViewBox Transform and Background
 
 The map `<image>` SHALL render inside a `0 0 1000 600` viewBox at
-`preserveAspectRatio="xMidYMid slice"`, mapping the 1536×1024 source PNG by
-`vbX = imgX × 0.651042`, `vbY = imgY × 0.651042 − 33.333`. The document
-background behind the letterboxed SVG MUST be `#76B56A` and MUST NOT be white.
+`preserveAspectRatio="xMidYMid slice"`, mapping the 1536×1024 source PNG
+by `vbX = imgX × 0.651042`, `vbY = imgY × 0.651042 − 33.333`. The
+document background behind the letterboxed SVG MUST be `#76B56A` and MUST
+NOT be white. `imageToViewBox`/`viewBoxToImage` SHALL gain an optional
+sheet-width parameter defaulting to `1000` (the pre-existing `STAGE_W`),
+so every one of the fifteen existing callers, which pass no argument,
+MUST stay byte-identical to before this change. A caller measuring a
+wider sheet (e.g. `backdrops.test.ts`'s dolphin corridor check) MUST pass
+its actual sheet width explicitly.
+
+(Previously: `imageToViewBox`/`viewBoxToImage` took no sheet-width
+parameter and always computed against the hardcoded `STAGE_W = 1000`.)
+
+#### Scenario: Transform matches the measured scale factor
+
+- GIVEN a measured point on the source PNG
+- WHEN it is converted with the two transform lines
+- THEN the result MUST equal the registry's corresponding `hit`
+  coordinate
+
+#### Scenario: Background renders the measured green
+
+- GIVEN the map rendered via `renderToString`
+- WHEN the outer background colour is read
+- THEN it MUST equal `#76B56A`, never white
+
+#### Scenario: Every existing caller stays byte-identical at the default width
+
+- GIVEN each of the fifteen existing `imageToViewBox`/`viewBoxToImage`
+  call sites, invoked with no sheet-width argument, before and after this
+  change
+- WHEN their return values are compared
+- THEN they MUST be identical
+
+#### Scenario: A caller passing a wider sheet gets a different, correct result
+
+- GIVEN `viewBoxToImage` called once at the default width and once at a
+  wider explicit sheet width, for the same viewBox point
+- WHEN the two results are compared
+- THEN they MUST differ, and the wider-sheet result MUST match the row
+  `build_art.py`'s sampling would report for that sheet
+
 
 #### Scenario: Transform matches the measured scale factor
 - GIVEN a measured point on the source PNG

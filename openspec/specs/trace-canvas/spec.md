@@ -8,9 +8,52 @@ The drawing surface: fixed normalized SVG viewBox `0 0 1000 600`, three-zone rul
 
 ### Requirement: Viewport and Ruled Lines
 
-The canvas MUST render as an SVG with `viewBox="0 0 1000 600"` and MUST draw full-width guide lines at Y=180 (upper guide), Y=300 (middle guide), Y=420 (baseline), and Y=540 (descender guide), dividing sky (0–180), grass (180–420), and roots (420–600) zones with the descender line marking the bottom of the roots zone. Rendering SHALL be responsive across touch screen sizes while coordinates stay normalized.
+The canvas MUST render as an SVG whose `viewBox` reports `0 {viewBoxY}
+{viewWidth} 600` for a level with no `camera` field (the pre-existing `0
+0 1000 600` default when `viewWidth` is also 1000), and MUST draw
+full-width guide lines at Y=180 (upper guide), Y=300 (middle guide),
+Y=420 (baseline), and Y=540 (descender guide), each spanning
+`viewBoxWidth` — unchanged from before this capability existed — dividing
+sky (0–180), grass (180–420), and roots (420–600) zones with the
+descender line marking the bottom of the roots zone. On a camera-enabled
+level, the `viewBox` attribute's x-origin MUST advance per the
+`scrolling-camera` capability's rules while its width stays `viewWidth`
+and its y-origin/height stay unchanged. Rendering SHALL be responsive
+across touch screen sizes while coordinates stay normalized.
 
-(Previously: only Y=180 and Y=420 were drawn — the descender line at Y=540 did not exist on the canvas.)
+(Previously: the `viewBox` was asserted as the fixed string `"0 0 1000
+600"` with guide lines spanning that same fixed width; this requirement
+now distinguishes the window's width, `viewWidth` — a new quantity — from
+the world's width, `viewBoxWidth`, which keeps its pre-existing name and
+meaning unchanged, and states that the window's x-origin — fixed at 0
+before this change — may advance on a camera-enabled level.)
+
+#### Scenario: Guides sit on the viewBox grid for a non-camera level
+
+- GIVEN the canvas rendered at any device size with no `camera` field
+- WHEN the SVG is inspected
+- THEN the viewBox MUST be `0 0 1000 600` and the guide lines MUST lie at
+  Y=180, Y=300, Y=420, and Y=540 in viewBox space
+
+#### Scenario: Descender letter visible below the baseline
+
+- GIVEN a `mixta`-zone letter (e.g. `f`) whose stroke descends below the
+  baseline
+- WHEN the canvas renders
+- THEN the stroke MUST be visible below Y=420 and the descender guide
+  MUST render at Y=540
+
+#### Scenario: A camera-enabled level's viewBox x-origin advances while width stays the window
+
+- GIVEN `dolphin3` under active tracing, with the camera origin advanced
+- WHEN the `viewBox` attribute is parsed
+- THEN its x-origin MUST be greater than 0, its width MUST equal
+  `viewWidth`, and its y-origin/height MUST remain unchanged
+
+---
+
+**Accepted deviation:** this spec exceeds the skill's 650-word cap, the
+same deviation this project's other capability specs already record; the
 
 #### Scenario: Guides sit on the viewBox grid
 
