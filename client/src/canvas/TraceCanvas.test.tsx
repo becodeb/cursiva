@@ -1582,7 +1582,12 @@ describe('TraceCanvas reveal layer (reveal-grid spec: "Reveal Layer Renders as P
 })
 
 describe('TraceCanvas waypoint layer (free-trail-waypoints spec: "Waypoint Layer Renders as Plain Images With No Fragment Reference")', () => {
-  const backdrop = { href: '/art/sector-forest-background.png', quiet: '#949b8c' }
+  // Read from the registry rather than a hand-copied literal (`backdropFor`
+  // is already imported above for the camera-backdrop describe block), so
+  // this fixture cannot drift from a forest art regeneration the way a
+  // hardcoded hex did before.
+  const forestBackdrop = backdropFor('bee1')!
+  const backdrop = { href: forestBackdrop.art.href, quiet: forestBackdrop.quiet }
   const waypoints = {
     art: [
       { href: '/art/sector-flower-dormant.png', w: 256, h: 245, size: 64, x: 500, y: 265 },

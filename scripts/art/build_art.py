@@ -466,9 +466,10 @@ PASSTHROUGHS = [
     # all -- the whole play area is the band, per `docs/13` §4 decision 3 --
     # so the range is the widest one a bee level's art boxes actually sit
     # in, pinned at the safe end of the test-proven flat region
-    # (design.md §4.1, §3.1): measured quiet/brightest are BOTH `#949b8c`
-    # over this range, so the two fields below are equal (design.md §3.1's
-    # own prediction, verified by re-running this script).
+    # (design.md §4.1, §3.1): measured quiet/brightest are BOTH `#86a678`
+    # (regenerated forest art, 2026-09-15; `#949b8c` before that) over this
+    # range, so the two fields below are equal (design.md §3.1's own
+    # prediction, verified by re-running this script).
     ('fondo bosque.png', 'sector-forest-background.png', 1536, 1024, (191, 926)),
     ('fondo pecera.png', 'sector-aquarium-background.png', 1536, 1024, (51, 973)),
     ('fondo nocturno.png', 'sector-night-background.png', 1536, 1024, (51, 973)),

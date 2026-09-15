@@ -157,7 +157,7 @@ and its scored route sat at another, because nothing rendered the real
 
 `FLOWER_DORMANT`, the flower's off-state palette token, MUST be achromatic
 (chroma ≤ 12) and MUST separate from the forest backdrop's quiet-band luma
-(`#949b8c`, luma 151.2) by at least 55 luma. The test MUST assert this
+(`#86a678`, luma 151.2) by at least 55 luma. The test MUST assert this
 CONSTRAINT, not the provisional literal (`#d2d2d2`) — the exact light is the
 author's to set, and the assertion MUST continue to hold whatever value she
 picks against this law.

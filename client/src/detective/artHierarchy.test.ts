@@ -717,11 +717,11 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
    * (`zoo-map` capability, decision 3), so `clue-*-drained.png` vs
    * `ground-*.png` has nothing to compare the flower against. This is the
    * honest replacement: an ABSOLUTE measurement against the real referent
-   * (the forest's own sampled `quiet`, `'#949b8c'` — `artManifest.test.ts`
+   * (the forest's own sampled `quiet`, `'#86a678'` — `artManifest.test.ts`
    * guards the literal), proving the PIPELINE actually painted the token
    * onto the shipped pixels rather than mirroring a hex literal by hand.
    *
-   * `'#949b8c'` here is `ADVENTURE_BACKDROP.bee.quiet` — asserted directly
+   * `'#86a678'` here is `ADVENTURE_BACKDROP.bee.quiet` — asserted directly
    * rather than through that import because the `bee` row itself is not
    * created until Phase 7 (design.md §3.1's own value, unchanged either way).
    *
@@ -730,7 +730,7 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
    * against), and a test wired against an empty set is not proof.
    */
   it('separates the dormant flower from the forest band by at least 55 luma (design.md §3.3)', async () => {
-    const FOREST_QUIET = '#949b8c'
+    const FOREST_QUIET = '#86a678'
     const url = named(WORLD_GUARD_FILES).find(([name]) => name === 'sector-flower-dormant.png')?.[1]
     expect(url, 'sector-flower-dormant.png not found among the shipped world/sector art').toBeDefined()
     const art = await decodePng(base64ToBytes(url!.split(',')[1]))
