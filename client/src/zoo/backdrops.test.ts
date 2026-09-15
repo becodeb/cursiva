@@ -457,7 +457,7 @@ describe('SPINE_BACKDROPS ink law (radial-spines design.md §2 D1(a)/D4, §8.2)'
     const vsBrightest = Math.abs(luma(TORCH_CHALK) - luma(hedgehog.brightest))
     expect(vsQuiet).toBeGreaterThanOrEqual(55)
     expect(vsBrightest).toBeGreaterThanOrEqual(55)
-    expect(vsQuiet).toBeCloseTo(166.2, 0)
+    expect(vsQuiet).toBeCloseTo(189, 0)
     expect(vsBrightest).toBeCloseTo(142.7, 0)
   })
 

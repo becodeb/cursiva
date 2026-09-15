@@ -384,15 +384,15 @@
     "w": 299
   },
   "sector-night-background": {
-    "brightest": "#506186",
-    "bytes": 47116,
+    "brightest": "#526083",
+    "bytes": 22289,
     "corridorRows": {
       "bottom": 973,
       "top": 51
     },
     "file": "art/sector-night-background.png",
     "h": 1024,
-    "quiet": "#3b4c5b",
+    "quiet": "#2a3346",
     "w": 1536
   },
   "sector-range-background": {

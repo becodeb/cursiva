@@ -306,21 +306,16 @@ const FULL_CANVAS_ART = new Set([
  *  rather than a drawn contour line, so the achromatic-dark-pixel rule below
  *  does not apply to it. Every other full-canvas background in this guard is
  *  either flat or muted enough that a near-black pixel really is an
- *  authored contour; `nightfall()` (`scripts/art/build_art.py`, design.md
- *  §3.2) is different in kind, not degree: it tints EVERY opaque pixel of a
- *  daylight scene toward moonlight (`NIGHT_TINT = (0.858, 1.000, 1.370)`),
- *  including the scene's own shadows, so the derived night backdrop's
- *  darkest pixels are blue-tinted BY CONSTRUCTION — the whole point of the
- *  transform, not an accidental chromatic outline slipping through. Adding
- *  an achromatic constraint to `nightfall()` itself would fight the one
- *  thing design.md §3.2 asks it to do. */
+ *  authored contour; the authored night backdrop intentionally uses
+ *  blue-tinted dark silhouettes and fills throughout, so its near-black
+ *  pixels are a deliberate colour grade rather than accidental contours. */
 const COLOUR_GRADED_FULL_CANVAS = new Set(['sector-night-background.png'])
 
 /** Authoring canvases are a separate contract from compact shipped assets:
  * backgrounds retain their final 3:2 coordinate system, while cutouts retain
  * a square transparent workspace before `build_art.py` crops them. */
 const SECTOR_SOURCE_FILES = import.meta.glob(
-  '../../../art-source/{fondo laguna,fondo arena,fondo ladera,fondo cordillera,fondo bosque,fondo pecera,vibora chica,vibora mediana,vibora grande,llama,abeja,flor,panal,delfin,caracol,linterna,erizo,erizo enroscado,gorro andino}.png',
+  '../../../art-source/{fondo laguna,fondo arena,fondo ladera,fondo cordillera,fondo bosque,fondo nocturno,fondo pecera,vibora chica,vibora mediana,vibora grande,llama,abeja,flor,panal,delfin,caracol,linterna,erizo,erizo enroscado,gorro andino}.png',
   { eager: true, query: '?inline', import: 'default' },
 ) as Inlined
 
@@ -330,6 +325,7 @@ const SECTOR_SOURCE_CANVASES: Readonly<Record<string, { w: number; h: number; op
   'fondo ladera.png': { w: 1536, h: 1024, opaque: true },
   'fondo cordillera.png': { w: 1536, h: 1024, opaque: true },
   'fondo bosque.png': { w: 1536, h: 1024, opaque: true },
+  'fondo nocturno.png': { w: 1536, h: 1024, opaque: true },
   'fondo pecera.png': { w: 1536, h: 1024, opaque: true },
   'vibora chica.png': { w: 1024, h: 1024, opaque: false },
   'vibora mediana.png': { w: 1024, h: 1024, opaque: false },
@@ -356,6 +352,7 @@ const SECTOR_QUIET_BAND_BASE: Readonly<Record<string, readonly [number, number, 
   'fondo ladera.png': [157, 163, 150],
   'fondo cordillera.png': [200, 211, 216],
   'fondo bosque.png': [134, 166, 120],
+  'fondo nocturno.png': [42, 51, 70],
   'fondo pecera.png': [155, 182, 197],
 }
 
@@ -369,6 +366,7 @@ const SECTOR_SOURCE_TO_EMITTED: Readonly<Record<string, string>> = {
   'fondo ladera.png': 'sector-slope-background.png',
   'fondo cordillera.png': 'sector-range-background.png',
   'fondo bosque.png': 'sector-forest-background.png',
+  'fondo nocturno.png': 'sector-night-background.png',
   'fondo pecera.png': 'sector-aquarium-background.png',
 }
 
@@ -486,7 +484,7 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
         expect(mismatchedBytes, `${name}: emitted art differs from its source`).toBe(0)
       }
     }
-  }, 20_000)
+  }, 40_000)
 
   it('finds the shipped ground and clue art', () => {
     // The half that keeps every assertion below honest. `import.meta.glob`

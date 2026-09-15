@@ -74,9 +74,8 @@ export const GLASS_GRIME = '#64726b'
  *  (209) leaves no admissible light paint either (design.md §2.3). */
 export const SAND_DRIFT = '#7a6a58'
 
-/** The dark itself. Luma 22 — `nightfall`'s derived `brightest` (design.md
- *  §3.2) must clear this by 55 (a FLOOR, not a cap: amendment A3), and it
- *  measures 96 — a 19-luma margin over the floor. */
+/** The dark itself. The authored night backdrop's brightest sampled blue
+ *  clears this by 55 (a FLOOR, not a cap: amendment A3). */
 export const NIGHT_VEIL = '#12161f'
 
 /** The child's own line on the night level. `INK_COLOR`'s slate (luma 40)
@@ -154,7 +153,7 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // `manifest.json` (task 1.2). `quiet`/`brightest` for `glass`/`sand` are
   // the source values unchanged (`emit_opaque_canvas` passes `fondo
   // pecera.png`/`fondo arena.png` through with no resize, no recolour); the
-  // `night` row's are `nightfall`'s derived output (design.md §3.2).
+  // The `night` row is the authored nocturnal forest pass-through.
   glass: {
     art: SECTOR_BACKGROUND_ART.aquarium,
     quiet: '#9bb6c5',
@@ -171,8 +170,8 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   },
   night: {
     art: SECTOR_BACKGROUND_ART.night,
-    quiet: '#3b4c5b',
-    brightest: '#506186',
+    quiet: '#2a3346',
+    brightest: '#526083',
     corridorRows: { top: 51, bottom: 973 },
     tile: NIGHT_VEIL,
     ink: TORCH_CHALK,
@@ -221,8 +220,8 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // one law over one backdrop, asserted once (design.md §2 D4, docs/09 §4).
   hedgehog: {
     art: SECTOR_BACKGROUND_ART.night,
-    quiet: '#3b4c5b',
-    brightest: '#506186',
+    quiet: '#2a3346',
+    brightest: '#526083',
     corridorRows: { top: 51, bottom: 973 },
     ink: TORCH_CHALK,
     inkDim: TORCH_CHALK_DIM,
