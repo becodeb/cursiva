@@ -586,8 +586,9 @@ sand adventure (`sand1..4`) MUST resolve the sand backdrop; the night
 adventure (`night1..4`) MUST resolve the night backdrop — each via
 `backdropFor(levelId)` → `adventureFor(levelId).id`, the same lookup shipped
 for sheep/llama. The night backdrop's registered `brightest` sample MUST be
-`nightfall()`'s derived output measured directly, not `fondo bosque.png`'s
-own unmodified sample. The night backdrop's registry entry MUST reference
+measured directly from its own authored source (`fondo nocturno.png`), not
+`fondo bosque.png`'s (the forest source's) unmodified sample. The night
+backdrop's registry entry MUST reference
 only the built file `sector-night-background.png`, never `bosque` or
 `forest` directly, so that swapping the source PNG in `build_art.py`'s
 `PASSTHROUGHS` table changes no TypeScript file.
@@ -598,12 +599,13 @@ only the built file `sector-night-background.png`, never `bosque` or
 - WHEN `backdropFor` is called for each
 - THEN each MUST return its own registered backdrop
 
-#### Scenario: The night backdrop's brightest reflects the derivation, not the source
+#### Scenario: The night backdrop's brightest reflects its own file, not the forest's
 
-- GIVEN the night backdrop's registered `brightest` and the un-derived
-  forest source's own sampled brightest
+- GIVEN the night backdrop's registered `brightest` and the forest source's
+  own sampled brightest
 - WHEN compared
-- THEN they MUST differ, proving the sample was taken post-transform
+- THEN they MUST differ, proving the sample was taken from the night
+  backdrop's own file
 
 #### Scenario: The night backdrop entry names no source file
 

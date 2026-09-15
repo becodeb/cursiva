@@ -153,7 +153,7 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // `manifest.json` (task 1.2). `quiet`/`brightest` for `glass`/`sand` are
   // the source values unchanged (`emit_opaque_canvas` passes `fondo
   // pecera.png`/`fondo arena.png` through with no resize, no recolour); the
-  // The `night` row is the authored nocturnal forest pass-through.
+  // `night` row is the authored nocturnal backdrop's own pass-through.
   glass: {
     art: SECTOR_BACKGROUND_ART.aquarium,
     quiet: '#9bb6c5',

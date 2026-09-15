@@ -271,8 +271,8 @@ export const SECTOR_BACKGROUND_ART: Readonly<Record<
   range: { href: '/art/sector-range-background.png', w: 1536, h: 1024 },
   forest: { href: '/art/sector-forest-background.png', w: 1536, h: 1024 },
   aquarium: { href: '/art/sector-aquarium-background.png', w: 1536, h: 1024 },
-  // Derived from `fondo bosque.png` by `nightfall()` (design.md §3.2) — a
-  // full-canvas opaque scene like every other row here, same 1536x1024.
+  // Authored from `fondo nocturno.png` — a full-canvas opaque scene like
+  // every other row here, same 1536x1024.
   night: { href: '/art/sector-night-background.png', w: 1536, h: 1024 },
 }
 

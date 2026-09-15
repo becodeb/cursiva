@@ -169,8 +169,8 @@ describe('art registry matches the shipped pipeline manifest', () => {
   it('registers every clue kind in both states, and never the same file twice', () => {
     // 14 clue + 4 animal + lens + octopus + 2 home (octopus, desk) + 2 lamp
     // + 1 goal (medusa) + 1 hazard (estrella de mar) + 9 zoo journey
-    // + 7 sector backgrounds (this change adds `night`, derived by
-    // `nightfall()`) + 14 sector adventure cutouts (row C adds the sheep;
+    // + 7 sector backgrounds (this change adds `night`, authored as its own
+    // sector background) + 14 sector adventure cutouts (row C adds the sheep;
     // this change adds the entrance's three night findable objects — chest,
     // stone, leaf) + 2 hedgehog poses + 1 Andean hat + 12 grass + 8 mud.
     // Grass carries MORE variants than mud on purpose: it covers the whole
@@ -308,18 +308,19 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(night.quiet).toBe(nightBackdrop.quiet)
     expect(night.brightest).toBe(nightBackdrop.brightest)
     expect(night.corridorRows).toEqual(nightBackdrop.corridorRows)
-    // nightfall()'s swap-day gate (design.md §3.2): brightest in [77, 110].
+    // The night backdrop's swap-day gate (design.md §3.2): brightest in [77, 110].
     expect(luma(nightBackdrop.brightest)).toBeGreaterThanOrEqual(77)
     expect(luma(nightBackdrop.brightest)).toBeLessThanOrEqual(110)
   })
 
-  it("the night backdrop's brightest reflects nightfall()'s derivation, not fondo bosque.png's own unmodified sample (zoo-map spec)", () => {
-    // `sector-forest-background.png` is the SAME source (`fondo bosque.png`)
-    // passed through UNCHANGED for paso F's own forest sector row — its
-    // manifest entry is what "the un-derived forest source's own sampled
-    // brightest" means (zoo-map spec "Entrance and Night Backdrops Resolve
-    // Through the Adventure-Keyed Registry"). The derived night row must
-    // differ, proving the sample really was taken post-`nightfall()`.
+  it("the night backdrop's brightest is its own authored sample, not fondo bosque.png's (zoo-map spec)", () => {
+    // `sector-forest-background.png` and `sector-night-background.png` are
+    // two SEPARATE authored sources (`fondo bosque.png`, `fondo
+    // nocturno.png`) — the manifest's forest entry is what "the daylight
+    // scene's own sampled brightest" means (zoo-map spec "Entrance and
+    // Night Backdrops Resolve Through the Adventure-Keyed Registry"). The
+    // night row must differ, proving the sample really was taken from its
+    // own file, not accidentally aliased to the forest one.
     const forest = manifest['sector-forest-background']
     const night = manifest['sector-night-background']
     expect(night.brightest).not.toBe(forest.brightest)
