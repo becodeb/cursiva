@@ -680,7 +680,10 @@ describe('buildLevelTarget — pushBand containment on wave crests (design.md §
     return band * factor
   }
 
-  it('keeps every catalog level with a corridor inside its own band, folded or not', () => {
+  // Walks every catalog level through buildLevelTarget: ~3.5 s of work on the
+  // dev host, which overruns vitest's 5 s default whenever the box is loaded.
+  // A slow pass is not a failure; give it room.
+  it('keeps every catalog level with a corridor inside its own band, folded or not', { timeout: 30_000 }, () => {
     for (const level of LEVELS) {
       if (level.kind !== 'path' || level.paths.length === 0) continue
       const target = buildLevelTarget(level)
