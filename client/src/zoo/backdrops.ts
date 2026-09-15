@@ -171,8 +171,8 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   },
   night: {
     art: SECTOR_BACKGROUND_ART.night,
-    quiet: '#394459',
-    brightest: '#526084',
+    quiet: '#3b4c5b',
+    brightest: '#506186',
     corridorRows: { top: 51, bottom: 973 },
     tile: NIGHT_VEIL,
     ink: TORCH_CHALK,
@@ -207,8 +207,8 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // (`artManifest.test.ts` guards the parity).
   bee: {
     art: SECTOR_BACKGROUND_ART.forest,
-    quiet: '#949b8c',
-    brightest: '#949b8c',
+    quiet: '#86a678',
+    brightest: '#86a678',
     corridorRows: { top: 191, bottom: 926 },
   },
   // The hedgehog adventure (`radial-spines` design.md §8.2): paints on the
@@ -221,8 +221,8 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // one law over one backdrop, asserted once (design.md §2 D4, docs/09 §4).
   hedgehog: {
     art: SECTOR_BACKGROUND_ART.night,
-    quiet: '#394459',
-    brightest: '#526084',
+    quiet: '#3b4c5b',
+    brightest: '#506186',
     corridorRows: { top: 51, bottom: 973 },
     ink: TORCH_CHALK,
     inkDim: TORCH_CHALK_DIM,

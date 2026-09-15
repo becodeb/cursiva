@@ -341,8 +341,8 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(forest.corridorRows).toEqual({ top: 191, bottom: 926 })
     // The band is flat over this range: quiet and brightest are the SAME
     // colour (design.md §3.1's own prediction, confirmed by the rebuild).
-    expect(forest.quiet).toBe('#949b8c')
-    expect(forest.brightest).toBe('#949b8c')
+    expect(forest.quiet).toBe('#86a678')
+    expect(forest.brightest).toBe('#86a678')
   })
 
   it("gives the flower's two states IDENTICAL w/h (free-trail-waypoints design.md §3.2) — both derive from flor.png", () => {

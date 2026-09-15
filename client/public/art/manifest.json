@@ -342,15 +342,15 @@
     "w": 256
   },
   "sector-forest-background": {
-    "brightest": "#949b8c",
-    "bytes": 35774,
+    "brightest": "#86a678",
+    "bytes": 47084,
     "corridorRows": {
       "bottom": 926,
       "top": 191
     },
     "file": "art/sector-forest-background.png",
     "h": 1024,
-    "quiet": "#949b8c",
+    "quiet": "#86a678",
     "w": 1536
   },
   "sector-honeycomb": {
@@ -384,15 +384,15 @@
     "w": 299
   },
   "sector-night-background": {
-    "brightest": "#526084",
-    "bytes": 35770,
+    "brightest": "#506186",
+    "bytes": 47116,
     "corridorRows": {
       "bottom": 973,
       "top": 51
     },
     "file": "art/sector-night-background.png",
     "h": 1024,
-    "quiet": "#394459",
+    "quiet": "#3b4c5b",
     "w": 1536
   },
   "sector-range-background": {

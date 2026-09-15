@@ -457,8 +457,8 @@ describe('SPINE_BACKDROPS ink law (radial-spines design.md §2 D1(a)/D4, §8.2)'
     const vsBrightest = Math.abs(luma(TORCH_CHALK) - luma(hedgehog.brightest))
     expect(vsQuiet).toBeGreaterThanOrEqual(55)
     expect(vsBrightest).toBeGreaterThanOrEqual(55)
-    expect(vsQuiet).toBeCloseTo(171.9, 0)
-    expect(vsBrightest).toBeCloseTo(143.1, 0)
+    expect(vsQuiet).toBeCloseTo(166.2, 0)
+    expect(vsBrightest).toBeCloseTo(142.7, 0)
   })
 
   it('the unfilled mark (TORCH_CHALK_DIM) clears the night band too — brightest by only 0.8, recorded as a risk', () => {

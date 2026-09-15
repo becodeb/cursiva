@@ -355,7 +355,7 @@ const SECTOR_QUIET_BAND_BASE: Readonly<Record<string, readonly [number, number, 
   'fondo arena.png': [214, 203, 186],
   'fondo ladera.png': [157, 163, 150],
   'fondo cordillera.png': [200, 211, 216],
-  'fondo bosque.png': [148, 155, 140],
+  'fondo bosque.png': [134, 166, 120],
   'fondo pecera.png': [155, 182, 197],
 }
 
