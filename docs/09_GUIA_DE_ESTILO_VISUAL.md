@@ -429,6 +429,31 @@ color de relleno en hex. Ejemplo completo:
 A single feather, seen from the side, pointing UP. Fill #2f6b5c.
 ```
 
+### Variante para fondos de sector
+
+El bloque de arriba termina en "fondo blanco, objeto aislado", y para un
+fondo de sector eso es exactamente lo contrario de lo que se pide. Para un
+fondo se pega el bloque **sin su último párrafo** y en su lugar va esto:
+
+```
+This is a FULL-BLEED background for a children's game, landscape 3:2
+(1536x1024). It is a PLACE, not a band: the scenery has to look like one
+continuous scene. Decoration lives only along the top and bottom edges
+and ends with an ORGANIC edge (bushes, tufts, rocks, ripples), never with
+a straight horizontal line. Between those edges the ground is ONE flat
+colour with nothing on it at all: no tufts, no marks, no flowers, no
+texture. Every shape has a flat colour fill; #1a1a1a is only ever the
+outline, never a fill. No animals, no characters, no text, no shadows.
+```
+
+Y después la línea del lugar con sus colores, incluyendo **el hex exacto
+del suelo y las filas que tienen que quedar planas**. Esto no es gusto:
+`build_art.py` afirma que la franja es de un solo color fila por fila,
+porque ahí se dibuja el corredor. Un fondo cuya franja tenga una mata
+metida no pasa. Y la luma del suelo decide qué tintas son legibles encima
+(sección 4), así que un fondo nuevo conserva la luma del que reemplaza
+salvo que se decida cambiar las tintas a la vez.
+
 ### Reglas que se pegan junto al objeto
 
 - **Las marcas de pista apuntan hacia ARRIBA.** El motor las rota para
