@@ -247,6 +247,10 @@ cargado. Se decide cuando lleguen.
      Funcionó porque el `brightest` de `fondo bosque.png` es `#f5f5f5`,
      croma cero: un píxel saturado habría clampeado un canal y costado
      luma. Verificar esa condición antes de derivar otro.
+     **Superado (2026-09-15).** El fondo nocturno dejó de derivarse del
+     bosque: ahora es arte propio (`fondo nocturno.png`), sin
+     `nightfall()`. La banda tranquila mide `#2a3346` (luma 50) y el pico
+     medido es 95.
 
 7. **Enmendado al implementar el paso E (2026-09-13).** Cinco cosas, y la
    primera es la más cara de todas las que llevamos:
@@ -360,6 +364,10 @@ cargado. Se decide cuando lleguen.
      76×72 contra 57×37 y 62×32 de las decorativas, o sea 1,3 veces más
      ancha y el doble de alta. Se distingue por tamaño y por estar sola en
      la banda limpia, no por luma.
+     **Resuelto por arte (2026-09-15).** El fondo del bosque fue
+     regenerado sin las flores decorativas: la banda tranquila mide
+     `#86a678` (luma 151), plana, sin literal blanco compitiendo con la
+     flor objetivo.
    - **La abeja tapa la flor a la que llega.** Medido sobre las capturas:
      en el momento en que se para encima queda **1,3%** del pétalo visible.
      Es el mismo defecto que `docs/09` §2 ya resolvió una vez —por eso el
