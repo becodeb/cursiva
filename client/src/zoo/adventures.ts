@@ -10,7 +10,10 @@
 import type { ArtImage, ZooAnimalId } from '../detective/assets'
 import {
   CARRIER_LENS_ART,
+  CART_ART,
+  OCTOPUS_ART,
   SECTOR_ADVENTURE_ART,
+  SIGN_ART,
   ZOO_ANIMAL_ART,
   ZOO_OCTOPUS_PRINT_ART,
 } from '../detective/assets'
@@ -18,20 +21,38 @@ import { animalPlacements, type Records, type SectorId, type ZooSector } from '.
 
 /** One id per adventure — the key `zoo/backdrops.ts`'s registry now uses,
  *  and what lets `montañas` carry two adventures where every earlier sector
- *  carried at most one. `glass`/`sand`/`night` are the entrance and the
- *  night sector (design.md §5, §6.1) — none of the three recovers an
- *  animal, which is what `AdventureSubject` below exists to represent. */
+ *  carried at most one. `peces`/`tortugas`/`monos`/`sendero`/`night` are the
+ *  entrance's four enclosures (add-caretaker-prologue design.md D7, §3,
+ *  replacing the old two-row `glass`/`sand` split) and the night sector
+ *  (design.md §5, §6.1) — none of the five recovers an animal, which is
+ *  what `AdventureSubject` below exists to represent. */
 export type AdventureId =
   | 'duck'
   | 'sheep'
   | 'llama'
-  | 'glass'
-  | 'sand'
+  | 'peces'
+  | 'tortugas'
+  | 'monos'
+  | 'sendero'
   | 'night'
   | 'snake'
   | 'bee'
   | 'dolphin'
   | 'hedgehog'
+
+/** One beat of an adventure's closing SCREEN (add-caretaker-prologue
+ *  design.md D3). `figure` overrides the standing octopus for THIS beat
+ *  only — absent means `ZOO_OCTOPUS_BACKPACK_ART`, which is every beat but
+ *  the magnifier swap. No `signLabel` field: `AdventureClosing` renders
+ *  exactly one `CaptionedArt` per beat, and its caption is always `line`
+ *  (the docs/16 §9 sentence) — the sign's uppercase word lives IN the
+ *  artwork `art` points at (`SIGN_ART.fish`/`.turtles`/`.monkeys`), drawn
+ *  there by `scripts/art/make_placeholders.py`, never as a second label. */
+export interface ClosingBeat {
+  line: string
+  art: ArtImage
+  figure?: ArtImage
+}
 
 interface AdventureBase {
   id: AdventureId
@@ -45,12 +66,15 @@ interface AdventureBase {
    *  zoo (`zoo-map` spec, "Octopus Phrase Reads as a Closing"). */
   closing: string
   /** The once-per-adventure closing SCREEN (`docs/13` §5 item 6; design.md
-   *  §6.2). Distinct from `closing` above, which is the map bubble's
-   *  one-line label and stays exactly what it is: a caption cannot carry a
-   *  transformation. ABSENT = no closing screen, which is every shipped row
-   *  that predates this change — finishing the duck, sheep or llama
-   *  adventure behaves byte-for-byte as it does today. */
-  closingBeat?: { line: string; art: ArtImage }
+   *  §6.2), now an ORDERED, non-empty beat list (add-caretaker-prologue
+   *  design.md D3) rendered in sequence by `AdventureClosing`. Distinct
+   *  from `closing` above, which is the map bubble's one-line label and
+   *  stays exactly what it is: a caption cannot carry a transformation.
+   *  ABSENT = no closing screen — `duck`/`sheep`/`llama`, unchanged by this
+   *  field's shape change. A non-empty TUPLE, not `ClosingBeat[]`: an empty
+   *  array is truthy, and `closingLevel`'s `if (!adventure.closingBeat)`
+   *  guard needs the empty case unrepresentable to stay byte-unchanged. */
+  closingBeat?: readonly [ClosingBeat, ...ClosingBeat[]]
 }
 
 /** An adventure recovers an animal, or it carries a picture of its own.
@@ -97,32 +121,89 @@ export const ADVENTURES: readonly Adventure[] = [
     intro: 'Las llamas están en los picos. ¿Subimos a buscarlas?',
     closing: '¡Encontramos a la llama! Ya está en la cumbre.',
   },
-  // The entrance's two adventures (design.md §5.2, §6.1). Neither recovers
-  // an animal — `icon` carries the picture that travels with their two
-  // lines instead.
+  // The entrance's four enclosures (add-caretaker-prologue design.md D7,
+  // §3; docs/16 §9's script, verbatim). Four rows in place of the two
+  // `glass`/`sand` rows this change replaces — the SAME eight level ids,
+  // regrouped two-per-enclosure (docs/16 §5's table). None recovers an
+  // animal — `icon` carries the picture that travels with their two lines,
+  // the same convention the old rows used. The FLAT play order these four
+  // rows are met in is decided by `zoo/sectors.ts`'s `entrada.adventureIds`
+  // (design.md D7), not by this array's order.
   {
-    id: 'glass',
-    levelIds: ['glass1', 'glass2', 'glass3', 'glass4'],
+    id: 'peces',
+    levelIds: ['glass1', 'glass2'],
     sector: 'entrada',
-    icon: CARRIER_LENS_ART,
-    intro: 'El vidrio de la pecera está todo sucio. ¿Lo limpiamos?',
+    // The intro names the SURFACE, never the missing animal: showing
+    // `SIGN_ART.fish` here would announce PECES before the child cleans the
+    // glass, and the discovery of the absence is the whole point of the
+    // prologue (`docs/16` §1). The sign is the CLOSING's art, earned by the
+    // cleaning, not spent on the way in. Same reasoning on the other three.
+    icon: SECTOR_ADVENTURE_ART.chest,
+    intro: 'El vidrio de la pecera está todo empañado. ¿Lo limpiamos?',
     closing: 'El vidrio quedó limpito.',
-    // No closingBeat — the entrance's story closes at sand4, not here
-    // (design.md §6.2, proposal question 2's assumption, adopted).
+    closingBeat: [
+      {
+        line: '¡Las algas, el cofre, las piedras… pero no hay ni un pez!',
+        art: SIGN_ART.fish,
+      },
+    ],
   },
   {
-    id: 'sand',
-    levelIds: ['sand1', 'sand2', 'sand3', 'sand4'],
+    id: 'tortugas',
+    levelIds: ['sand1', 'sand2'],
     sector: 'entrada',
-    // "Las huellas siguen por la arena" — the map's own onward symbol reads
-    // on sand (design.md §6.1).
-    icon: ZOO_OCTOPUS_PRINT_ART,
-    intro: 'Ahora barremos la arena de la entrada. ¿Vamos?',
-    closing: 'La entrada quedó reluciente.',
-    closingBeat: {
-      line: '¡Se fueron todos los animales! Agarrá la lupa: los vamos a buscar.',
-      art: CARRIER_LENS_ART,
-    },
+    icon: SECTOR_ADVENTURE_ART.stone,
+    intro: 'La arena tapó todo el recinto. Barrámosla.',
+    closing: 'La arena quedó reluciente.',
+    closingBeat: [
+      {
+        line: 'Las piedras, el tronco… ¿y las tortugas dónde están?',
+        art: SIGN_ART.turtles,
+      },
+    ],
+  },
+  {
+    id: 'monos',
+    levelIds: ['glass3', 'glass4'],
+    sector: 'entrada',
+    icon: SECTOR_ADVENTURE_ART.leaf,
+    intro: 'Cayeron un montón de hojas. ¿Las sacamos?',
+    closing: 'El aviario quedó limpito.',
+    closingBeat: [
+      {
+        line: 'Las sogas, las frutas… acá tampoco hay nadie.',
+        art: SIGN_ART.monkeys,
+      },
+    ],
+  },
+  {
+    id: 'sendero',
+    levelIds: ['sand3', 'sand4'],
+    sector: 'entrada',
+    // The caretaker's own cart, not the footprints: the footprints are what
+    // the child is about to FIND at the end of this enclosure, and putting
+    // them on the way in gives away the one surprise the prologue exists to
+    // deliver (`docs/16` §2, beat 4). The cart says "there is cleaning to
+    // do", which is all the intro should say.
+    icon: CART_ART,
+    intro: 'El sendero quedó lleno de barro.',
+    closing: 'El sendero quedó reluciente.',
+    // Two beats (design.md D4): the footprints appear, then the caretaker
+    // becomes the detective in place — a transformation of WHO is standing
+    // there, not a second sentence. Beat 1's line is the game's
+    // pre-existing (and, before this change, only) `closingBeat` line,
+    // carried forward character-for-character from the old `sand` row.
+    closingBeat: [
+      {
+        line: '¡Mirá! ¿Y esto? ¡Son huellas!',
+        art: ZOO_OCTOPUS_PRINT_ART,
+      },
+      {
+        line: '¡Se fueron todos los animales! Agarrá la lupa: los vamos a buscar.',
+        art: CARRIER_LENS_ART,
+        figure: OCTOPUS_ART,
+      },
+    ],
   },
   {
     id: 'night',
@@ -231,7 +312,7 @@ export function introLevel(levelId: string): Adventure | undefined {
  *  closing beat — the mirror of `introLevel` (design.md §6.3), and pure for
  *  the same reason. `undefined` for every level that is not an adventure's
  *  own last level, and for an adventure with no `closingBeat` at all
- *  (today `duck`/`sheep`/`llama`/`glass`, every shipped row). */
+ *  (today `duck`/`sheep`/`llama`, every shipped row). */
 export function closingLevel(levelId: string): Adventure | undefined {
   const adventure = adventureFor(levelId)
   if (!adventure || !adventure.closingBeat) return undefined

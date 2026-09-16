@@ -48,13 +48,16 @@ const OFF_PATH_INK = '#94a3b8'
 
 const MIN_BACKDROP_CONTRAST = 55 // docs/09:158
 
-/** The three reveal-grid rows, now wired straight into `ADVENTURE_BACKDROP`
- * (`AdventureId` widened by task 5.1) — no more `PENDING_ENTRANCE_BACKDROP`
- * indirection; see `apply-progress.md`'s Phase 5 section for the closed
- * forward reference. */
+/** The five reveal-grid rows, wired straight into `ADVENTURE_BACKDROP` — no
+ * `PENDING_ENTRANCE_BACKDROP` indirection. Widened from three to five
+ * (add-caretaker-prologue design.md D6/D7): the old `glass`/`sand` rows
+ * re-key to `peces`/`tortugas` with the SAME literals, and `monos`/`sendero`
+ * are new rows, each satisfying the same 55-luma law. */
 const REVEAL_BACKDROPS = {
-  glass: ADVENTURE_BACKDROP.glass!,
-  sand: ADVENTURE_BACKDROP.sand!,
+  peces: ADVENTURE_BACKDROP.peces!,
+  tortugas: ADVENTURE_BACKDROP.tortugas!,
+  monos: ADVENTURE_BACKDROP.monos!,
+  sendero: ADVENTURE_BACKDROP.sendero!,
   night: ADVENTURE_BACKDROP.night!,
 }
 /** The three pre-existing corridor-channel rows, kept split from the reveal
@@ -77,7 +80,7 @@ const ART_CORRIDOR_BACKDROPS = {
 }
 
 describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
-  it('separates the reveal veil paint from the lightest thing it covers, for all seven backdrops', () => {
+  it('separates the reveal veil paint from the lightest thing it covers, for all ten backdrops', () => {
     for (const [id, b] of [
       ...Object.entries(CHANNEL_BACKDROPS),
       ...Object.entries(REVEAL_BACKDROPS),
@@ -113,7 +116,7 @@ describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
     expect([...grouped].sort()).not.toEqual(registryKeysWithHypothetical.sort())
   })
 
-  it("clears the child's own ink against the veil, for the three reveal-grid rows", () => {
+  it("clears the child's own ink against the veil, for the five reveal-grid rows", () => {
     for (const [id, b] of Object.entries(REVEAL_BACKDROPS)) {
       expect(Math.abs(luma(b.tile!) - luma(b.ink ?? INK_COLOR)), id).toBeGreaterThanOrEqual(
         MIN_BACKDROP_CONTRAST,
@@ -133,15 +136,33 @@ describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
   // construction: each compares a DIFFERENT paint than the one the registry
   // actually declares, so none can accidentally pass alongside the rows
   // above.
-  it('goes red for SHEET_PAPER against the aquarium — no admissible light paint (design.md §2.2, §2.3)', () => {
+  it('goes red for SHEET_PAPER against the aquarium (peces) — no admissible light paint (design.md §2.2, §2.3)', () => {
     expect(
-      Math.abs(luma(SHEET_PAPER) - luma(REVEAL_BACKDROPS.glass.brightest)),
+      Math.abs(luma(SHEET_PAPER) - luma(REVEAL_BACKDROPS.peces.brightest)),
     ).toBeLessThan(MIN_BACKDROP_CONTRAST)
   })
 
-  it('goes red for SHEET_PAPER against the sand — no admissible light paint (design.md §2.2, §2.3)', () => {
+  it('goes red for SHEET_PAPER against the sand (tortugas) — no admissible light paint (design.md §2.2, §2.3)', () => {
     expect(
-      Math.abs(luma(SHEET_PAPER) - luma(REVEAL_BACKDROPS.sand.brightest)),
+      Math.abs(luma(SHEET_PAPER) - luma(REVEAL_BACKDROPS.tortugas.brightest)),
+    ).toBeLessThan(MIN_BACKDROP_CONTRAST)
+  })
+
+  // Added for `monos`/`sendero` (add-caretaker-prologue design.md D6): the
+  // same falsifiability pattern as `peces`/`tortugas` above — both new base
+  // fills sit close enough to `SHEET_PAPER` (paper gaps 47/51, design.md
+  // D6's worked table) that no light paint is admissible either, which is
+  // what forces the dark `LEAF_LITTER`/`PATH_MUD` veils rather than leaving
+  // them a taste call.
+  it('goes red for SHEET_PAPER against monos — no admissible light paint (design.md D6)', () => {
+    expect(
+      Math.abs(luma(SHEET_PAPER) - luma(REVEAL_BACKDROPS.monos.brightest)),
+    ).toBeLessThan(MIN_BACKDROP_CONTRAST)
+  })
+
+  it('goes red for SHEET_PAPER against sendero — no admissible light paint (design.md D6)', () => {
+    expect(
+      Math.abs(luma(SHEET_PAPER) - luma(REVEAL_BACKDROPS.sendero.brightest)),
     ).toBeLessThan(MIN_BACKDROP_CONTRAST)
   })
 
@@ -510,18 +531,32 @@ describe('backdropFor', () => {
   })
 
   // zoo-map spec: "Entrance and Night Backdrops Resolve Through the
-  // Adventure-Keyed Registry" — the backdrops resolve for the first time
-  // here, now that `adventureFor` (`zoo/adventures.ts`, task 5.1) knows
-  // `glass`/`sand`/`night`.
-  it('resolves the glass adventure to the aquarium backdrop', () => {
-    for (const id of ['glass1', 'glass2', 'glass3', 'glass4']) {
-      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.glass)
+  // Adventure-Keyed Registry" — the backdrops resolve here now that
+  // `adventureFor` (`zoo/adventures.ts`) knows `peces`/`tortugas`/`monos`/
+  // `sendero`/`night`. `peces`/`tortugas` re-key the old `glass`/`sand`
+  // rows (same literals, only the level ids they cover are now split
+  // two-per-enclosure); `monos`/`sendero` are new rows.
+  it('resolves the peces adventure (glass1, glass2) to the aquarium backdrop', () => {
+    for (const id of ['glass1', 'glass2']) {
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.peces)
     }
   })
 
-  it('resolves the sand adventure to the sand backdrop', () => {
-    for (const id of ['sand1', 'sand2', 'sand3', 'sand4']) {
-      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.sand)
+  it('resolves the tortugas adventure (sand1, sand2) to the sand backdrop', () => {
+    for (const id of ['sand1', 'sand2']) {
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.tortugas)
+    }
+  })
+
+  it('resolves the monos adventure (glass3, glass4) to the new leaf-veil backdrop', () => {
+    for (const id of ['glass3', 'glass4']) {
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.monos)
+    }
+  })
+
+  it('resolves the sendero adventure (sand3, sand4) to the new mud-veil backdrop', () => {
+    for (const id of ['sand3', 'sand4']) {
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.sendero)
     }
   })
 

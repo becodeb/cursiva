@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { LEVELS } from '../levels/catalog'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import { ZOO_ANIMAL_ART } from '../detective/assets'
+import { adventureFor } from './adventures'
 import {
   PLAZA,
   PLAZA_CENTRE,
@@ -232,13 +233,56 @@ describe('Registry↔Catalog Structural Consistency', () => {
     ])
   })
 
-  it("entrada's eight levels are glass then sand, and entrada is never fogged (zoo-map spec)", () => {
+  // (Previously: `entrada.adventureIds` was asserted BYTE-IDENTICAL to
+  // `['glass1','glass2','glass3','glass4','sand1','sand2','sand3','sand4']`
+  // — glass then sand, flat. add-caretaker-prologue design.md D7 interleaves
+  // this list into the play order the docs/16 §9 script requires (`zoo-map`
+  // delta "entrada's Level Ids Keep Their Identity and Per-Family Order, and
+  // Play in Narrative Order"): the SAME eight ids, as a SET, with each
+  // family's relative order intact, is the invariant that survives — never
+  // a byte-identical flat list, which would assert the interleaving itself
+  // as a bug.)
+  it("entrada's eight levels are the same set, glass and sand each in their own relative order, interleaved into the narrative play order — and entrada is never fogged (zoo-map spec)", () => {
     expect(entrada.adventureIds).toEqual([
-      'glass1', 'glass2', 'glass3', 'glass4', 'sand1', 'sand2', 'sand3', 'sand4',
+      'glass1', 'glass2', 'sand1', 'sand2', 'glass3', 'glass4', 'sand3', 'sand4',
+    ])
+    expect([...entrada.adventureIds].sort()).toEqual(
+      ['glass1', 'glass2', 'glass3', 'glass4', 'sand1', 'sand2', 'sand3', 'sand4'].sort(),
+    )
+    expect(entrada.adventureIds.filter((id) => id.startsWith('glass'))).toEqual([
+      'glass1', 'glass2', 'glass3', 'glass4',
+    ])
+    expect(entrada.adventureIds.filter((id) => id.startsWith('sand'))).toEqual([
+      'sand1', 'sand2', 'sand3', 'sand4',
     ])
     for (const records of [{}, filed('sand4'), filed('glass1', 'glass2', 'glass3', 'glass4')]) {
       expect(entrada.unlockedWhen(records)).toBe(true)
     }
+  })
+
+  // [add-caretaker-prologue, zoo-map delta "entrada's Level Ids Keep Their
+  // Identity and Per-Family Order, and Play in Narrative Order", scenario
+  // "the list orders the four enclosures the way the script tells them"]
+  // Walking `nextAdventure` from empty records, filing each returned id in
+  // turn, must yield the eight ids in the EXACT interleaved order, so the
+  // adventures a child meets are peces, then tortugas, then monos, then
+  // sendero — never monos second and tortugas third, which the old flat
+  // order would have produced.
+  it('walking nextAdventure from empty records yields the ids in narrative order (peces, tortugas, monos, sendero)', () => {
+    const order: string[] = []
+    let records: Records = {}
+    for (let i = 0; i < entrada.adventureIds.length; i++) {
+      const next = nextAdventure(entrada, records)
+      expect(next, `step ${i}`).not.toBeNull()
+      order.push(next!)
+      records = { ...records, ...filed(next!) }
+    }
+    expect(order).toEqual([
+      'glass1', 'glass2', 'sand1', 'sand2', 'glass3', 'glass4', 'sand3', 'sand4',
+    ])
+    expect(order.map((id) => adventureFor(id)?.id)).toEqual([
+      'peces', 'peces', 'tortugas', 'tortugas', 'monos', 'monos', 'sendero', 'sendero',
+    ])
   })
 
   it('nocturna stays fogged until llama-peak4 is filed (zoo-map spec)', () => {

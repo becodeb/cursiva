@@ -6,7 +6,13 @@
 // under test is pure over plain data.
 import { describe, expect, it } from 'vitest'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
-import { CARRIER_LENS_ART, SECTOR_ADVENTURE_ART, ZOO_ANIMAL_ART, ZOO_OCTOPUS_PRINT_ART } from '../detective/assets'
+import {
+  CART_ART,
+  SECTOR_ADVENTURE_ART,
+  SIGN_ART,
+  ZOO_ANIMAL_ART,
+  ZOO_OCTOPUS_PRINT_ART,
+} from '../detective/assets'
 import { SECTORS, type Records } from './sectors'
 import { ADVENTURES, adventureFor, adventureIcon, closingLevel, introLevel, mapBubble } from './adventures'
 
@@ -20,14 +26,21 @@ const estanque = SECTORS.find((s) => s.id === 'estanque')!
 const montanas = SECTORS.find((s) => s.id === 'montanas')!
 
 describe('ADVENTURES', () => {
-  it("declares ten rows: duck/sheep/llama, the entrance's glass/sand, the night sector, the arena's snake, the forest's bee, the pond's dolphin, and the night sector's second adventure — the hedgehog (design.md §5, §6.1; free-trail-waypoints design.md §9; this change's §8; radial-spines design.md §8.2)", () => {
-    expect(ADVENTURES).toHaveLength(10)
+  // Renamed from ten rows to twelve (add-caretaker-prologue design.md D7):
+  // the old two-row `glass`/`sand` split regroups into four entrance
+  // enclosures — `peces`, `tortugas`, `monos`, `sendero` — each carrying TWO
+  // of the same eight level ids, never renumbered (`zoo-map` delta
+  // "Adventure Identifiers Regroup the Entrance Into Four Enclosures").
+  it("declares twelve rows: duck/sheep/llama, the entrance's four enclosures (peces/tortugas/monos/sendero), the night sector, the arena's snake, the forest's bee, the pond's dolphin, and the night sector's second adventure — the hedgehog (design.md §5, §6.1; free-trail-waypoints design.md §9; this change's §8; radial-spines design.md §8.2; add-caretaker-prologue design.md D7)", () => {
+    expect(ADVENTURES).toHaveLength(12)
     expect(ADVENTURES.map((a) => a.id)).toEqual([
       'duck',
       'sheep',
       'llama',
-      'glass',
-      'sand',
+      'peces',
+      'tortugas',
+      'monos',
+      'sendero',
       'night',
       'snake',
       'bee',
@@ -51,20 +64,64 @@ describe('ADVENTURES', () => {
     expect(llama.animal).toBe('llama')
   })
 
-  it('the glass/sand/night rows declare no animal, each an icon of its own, in the entrance/night sectors', () => {
-    const glass = ADVENTURES.find((a) => a.id === 'glass')!
-    const sand = ADVENTURES.find((a) => a.id === 'sand')!
+  // `docs/16` §9 is a TABLE OF EXACT SENTENCES, and the `zoo-map` delta's
+  // "Four Entrance Rows Carry the docs/16 §9 Script Verbatim" requirement
+  // pins it character for character. Without this, the script is prose in a
+  // document that the code merely resembles: a typo, a dropped ellipsis or a
+  // helpfully "improved" line would ship silently. The ellipses below are
+  // single U+2026 characters, not three dots — that is exactly the kind of
+  // drift this guard exists to catch.
+  it('the four entrance rows carry the docs/16 §9 script verbatim, sign art included', () => {
+    const peces = ADVENTURES.find((a) => a.id === 'peces')!
+    const tortugas = ADVENTURES.find((a) => a.id === 'tortugas')!
+    const monos = ADVENTURES.find((a) => a.id === 'monos')!
+    const sendero = ADVENTURES.find((a) => a.id === 'sendero')!
+
+    expect(peces.intro).toBe('El vidrio de la pecera está todo empañado. ¿Lo limpiamos?')
+    expect(tortugas.intro).toBe('La arena tapó todo el recinto. Barrámosla.')
+    expect(monos.intro).toBe('Cayeron un montón de hojas. ¿Las sacamos?')
+    expect(sendero.intro).toBe('El sendero quedó lleno de barro.')
+
+    expect(peces.closingBeat![0].line).toBe('¡Las algas, el cofre, las piedras… pero no hay ni un pez!')
+    expect(tortugas.closingBeat![0].line).toBe('Las piedras, el tronco… ¿y las tortugas dónde están?')
+    expect(monos.closingBeat![0].line).toBe('Las sogas, las frutas… acá tampoco hay nadie.')
+    expect(sendero.closingBeat![0].line).toBe('¡Mirá! ¿Y esto? ¡Son huellas!')
+
+    // The uppercase word (PECES/TORTUGAS/MONOS) lives IN the sign artwork,
+    // not in a second DOM label — `AdventureClosing` renders exactly one
+    // `CaptionedArt`, and its caption is the sentence above. So the testable
+    // invariant for the sign is WHICH ART the beat points at.
+    expect(peces.closingBeat![0].art).toBe(SIGN_ART.fish)
+    expect(tortugas.closingBeat![0].art).toBe(SIGN_ART.turtles)
+    expect(monos.closingBeat![0].art).toBe(SIGN_ART.monkeys)
+  })
+
+  it('the four entrance rows and the night row declare no animal, each an icon of its own, in the entrance/night sectors', () => {
+    const peces = ADVENTURES.find((a) => a.id === 'peces')!
+    const tortugas = ADVENTURES.find((a) => a.id === 'tortugas')!
+    const monos = ADVENTURES.find((a) => a.id === 'monos')!
+    const sendero = ADVENTURES.find((a) => a.id === 'sendero')!
     const night = ADVENTURES.find((a) => a.id === 'night')!
 
-    expect(glass.levelIds).toEqual(['glass1', 'glass2', 'glass3', 'glass4'])
-    expect(glass.sector).toBe('entrada')
-    expect(glass.animal).toBeUndefined()
-    expect(glass.icon).toBe(CARRIER_LENS_ART)
+    expect(peces.levelIds).toEqual(['glass1', 'glass2'])
+    expect(peces.sector).toBe('entrada')
+    expect(peces.animal).toBeUndefined()
+    expect(peces.icon).toBe(SECTOR_ADVENTURE_ART.chest)
 
-    expect(sand.levelIds).toEqual(['sand1', 'sand2', 'sand3', 'sand4'])
-    expect(sand.sector).toBe('entrada')
-    expect(sand.animal).toBeUndefined()
-    expect(sand.icon).toBe(ZOO_OCTOPUS_PRINT_ART)
+    expect(tortugas.levelIds).toEqual(['sand1', 'sand2'])
+    expect(tortugas.sector).toBe('entrada')
+    expect(tortugas.animal).toBeUndefined()
+    expect(tortugas.icon).toBe(SECTOR_ADVENTURE_ART.stone)
+
+    expect(monos.levelIds).toEqual(['glass3', 'glass4'])
+    expect(monos.sector).toBe('entrada')
+    expect(monos.animal).toBeUndefined()
+    expect(monos.icon).toBe(SECTOR_ADVENTURE_ART.leaf)
+
+    expect(sendero.levelIds).toEqual(['sand3', 'sand4'])
+    expect(sendero.sector).toBe('entrada')
+    expect(sendero.animal).toBeUndefined()
+    expect(sendero.icon).toBe(CART_ART)
 
     expect(night.levelIds).toEqual(['night1', 'night2', 'night3', 'night4'])
     expect(night.sector).toBe('nocturna')
@@ -78,6 +135,35 @@ describe('ADVENTURES', () => {
     expect(bee.sector).toBe('bosque')
     expect(bee.animal).toBe('abeja')
     expect(bee.closingBeat).toBeUndefined()
+  })
+})
+
+// [add-caretaker-prologue, zoo-map delta "Adventure Identifiers Regroup the
+// Entrance Into Four Enclosures", scenarios "The four rows' levelIds union
+// equals the eight original ids" and "Each family's internal order survives
+// the regrouping"]. Asserted PER FAMILY, never over the flat union: the
+// interleaving IS the change (`zoo/sectors.ts`'s `entrada.adventureIds`), so
+// an order assertion over the flat union here would assert that as a bug.
+describe("the four entrance rows' levelIds union (design.md D7)", () => {
+  const ENTRANCE_IDS = ['peces', 'tortugas', 'monos', 'sendero']
+  const union = ADVENTURES.filter((a) => ENTRANCE_IDS.includes(a.id)).flatMap((a) => a.levelIds)
+
+  it('the union, sorted, equals the eight original ids — none renamed, dropped, or duplicated', () => {
+    expect([...union].sort()).toEqual(
+      ['glass1', 'glass2', 'glass3', 'glass4', 'sand1', 'sand2', 'sand3', 'sand4'].sort(),
+    )
+  })
+
+  it('filtering the union down to glass* ids yields them in their original order', () => {
+    expect(union.filter((id) => id.startsWith('glass'))).toEqual([
+      'glass1', 'glass2', 'glass3', 'glass4',
+    ])
+  })
+
+  it('filtering the union down to sand* ids yields them in their original order', () => {
+    expect(union.filter((id) => id.startsWith('sand'))).toEqual([
+      'sand1', 'sand2', 'sand3', 'sand4',
+    ])
   })
 })
 
@@ -127,14 +213,26 @@ describe('introLevel', () => {
   })
 
   it('resolves glass1/sand1/night1 to their own adventure', () => {
-    expect(introLevel('glass1')?.id).toBe('glass')
-    expect(introLevel('sand1')?.id).toBe('sand')
+    expect(introLevel('glass1')?.id).toBe('peces')
+    expect(introLevel('sand1')?.id).toBe('tortugas')
     expect(introLevel('night1')?.id).toBe('night')
   })
 
-  it('resolves undefined for every glass/sand/night level after each adventure\'s first', () => {
-    for (const id of ['glass2', 'glass3', 'glass4']) expect(introLevel(id)).toBeUndefined()
-    for (const id of ['sand2', 'sand3', 'sand4']) expect(introLevel(id)).toBeUndefined()
+  // [add-caretaker-prologue, zoo-map delta "Adventure Identifiers Regroup
+  // the Entrance Into Four Enclosures", scenario "introLevel resolves
+  // glass3 and sand3 as new adventure starts"] Regrouping the entrance's
+  // eight levels two-per-enclosure means `glass3`/`sand3` are now each an
+  // adventure's OWN first level (`monos`/`sendero` respectively) — unlike
+  // before this change, when both were `undefined` under the old four-level
+  // `glass`/`sand` rows.
+  it('resolves glass3/sand3 as new adventure starts (monos, sendero) — unlike before the regrouping', () => {
+    expect(introLevel('glass3')?.id).toBe('monos')
+    expect(introLevel('sand3')?.id).toBe('sendero')
+  })
+
+  it('resolves undefined for every glass/sand/night level after each adventure\'s own first', () => {
+    for (const id of ['glass2', 'glass4']) expect(introLevel(id)).toBeUndefined()
+    for (const id of ['sand2', 'sand4']) expect(introLevel(id)).toBeUndefined()
     for (const id of ['night2', 'night3', 'night4']) expect(introLevel(id)).toBeUndefined()
   })
 })
@@ -146,23 +244,46 @@ describe('adventureIcon (design.md §6.1)', () => {
     expect(adventureIcon(ADVENTURES[2])).toBe(ZOO_ANIMAL_ART.llama)
   })
 
+  // The four entrance rows deliberately do NOT carry their own sign or the
+  // footprints as their intro icon. An intro that shows `SIGN_ART.fish`
+  // announces PECES before the child has cleaned anything, and one that
+  // shows the footprints gives away beat 4's surprise — and the prologue
+  // exists so the child DISCOVERS the absence rather than being told
+  // (`docs/16` §1, §2). Each icon names something already in the scene, or
+  // the caretaker's own cart; the sign is spent on the CLOSING, where it is
+  // the reveal. This assertion is what keeps that from drifting back.
   it('returns the row\'s own icon for an animal-less row', () => {
-    const glass = ADVENTURES.find((a) => a.id === 'glass')!
-    const sand = ADVENTURES.find((a) => a.id === 'sand')!
+    const peces = ADVENTURES.find((a) => a.id === 'peces')!
+    const tortugas = ADVENTURES.find((a) => a.id === 'tortugas')!
+    const monos = ADVENTURES.find((a) => a.id === 'monos')!
+    const sendero = ADVENTURES.find((a) => a.id === 'sendero')!
     const night = ADVENTURES.find((a) => a.id === 'night')!
-    expect(adventureIcon(glass)).toBe(CARRIER_LENS_ART)
-    expect(adventureIcon(sand)).toBe(ZOO_OCTOPUS_PRINT_ART)
+    expect(adventureIcon(peces)).toBe(SECTOR_ADVENTURE_ART.chest)
+    expect(adventureIcon(tortugas)).toBe(SECTOR_ADVENTURE_ART.stone)
+    expect(adventureIcon(monos)).toBe(SECTOR_ADVENTURE_ART.leaf)
+    expect(adventureIcon(sendero)).toBe(CART_ART)
     expect(adventureIcon(night)).toBe(SECTOR_ADVENTURE_ART.flashlight)
   })
 })
 
-describe('closingLevel (design.md §6.3, corrected against main-screen spec — see apply-progress.md)', () => {
-  it("resolves sand4 to its own adventure — the entrance's only closing beat", () => {
-    expect(closingLevel('sand4')?.id).toBe('sand')
+describe('closingLevel (design.md §6.3, D3, corrected against main-screen spec — see apply-progress.md)', () => {
+  // (Previously: `sand4` was the entrance's ONLY closing beat, and `glass4`
+  // was asserted BY NAME to resolve to `undefined` — the old two-row
+  // `glass`/`sand` split gave the entrance a single closing screen at its
+  // very end. The four-enclosure regrouping (add-caretaker-prologue
+  // design.md D7) gives EACH enclosure its own last level and its own
+  // closing beat, so `glass2`/`sand2`/`glass4`/`sand4` all now resolve —
+  // `glass4`'s prior negative-case scenario is RETIRED, not merely widened.)
+  it("resolves each entrance enclosure's own last level to its own adventure", () => {
+    expect(closingLevel('glass2')?.id).toBe('peces')
+    expect(closingLevel('sand2')?.id).toBe('tortugas')
+    expect(closingLevel('glass4')?.id).toBe('monos')
+    expect(closingLevel('sand4')?.id).toBe('sendero')
   })
 
-  it('resolves undefined for glass4 — the entrance closes at sand4, not here', () => {
-    expect(closingLevel('glass4')).toBeUndefined()
+  it('resolves undefined for glass1/sand1 — the first level of an enclosure, not its last', () => {
+    expect(closingLevel('glass1')).toBeUndefined()
+    expect(closingLevel('sand1')).toBeUndefined()
   })
 
   it('resolves undefined for night4 — main-screen spec names it explicitly among the excluded adventures', () => {
@@ -183,7 +304,10 @@ describe('closingLevel (design.md §6.3, corrected against main-screen spec — 
   })
 
   it('resolves undefined for a level that is not an adventure\'s own last level', () => {
-    for (const id of ['sand1', 'sand2', 'sand3', 'night1', 'night2', 'night3']) {
+    // `sand2` is deliberately EXCLUDED from this list — the four-enclosure
+    // regrouping makes it `tortugas`'s own last level (asserted above), not
+    // a mid-adventure one anymore.
+    for (const id of ['glass3', 'sand3', 'night1', 'night2', 'night3']) {
       expect(closingLevel(id)).toBeUndefined()
     }
   })

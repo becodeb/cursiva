@@ -329,9 +329,22 @@ export const SECTORS: readonly ZooSector[] = [
     fog: closedFog(ENTRADA_HIT, 1),
     animalSpot: hitCentre(ENTRADA_HIT),
     animals: [],
-    // glass then sand, in play order (design.md §5.2, `zoo-map` spec
-    // "Sector-to-Adventure Mapping").
-    adventureIds: ['glass1', 'glass2', 'glass3', 'glass4', 'sand1', 'sand2', 'sand3', 'sand4'],
+    // Interleaved, and it MUST stay that way (add-caretaker-prologue
+    // design.md D7, the amended `zoo-map` requirement "entrada's Level Ids
+    // Keep Their Identity and Per-Family Order, and Play in Narrative
+    // Order"). `resolveNextAction` returns `{ type: 'exit' }` for every
+    // level a zoo sector owns (`screen/GameScreen.tsx:223`), so finishing
+    // an entrance level always returns to the map, and `nextAdventure`
+    // (below, `:495-497`) hands out the next one by taking the first
+    // UNFILED id in THIS list — so the flat order here, not `nextLevelId`,
+    // is what decides whether the child meets `tortugas` or `monos`
+    // second. This list therefore IS the play order: it must read
+    // `glass1, glass2, sand1, sand2, glass3, glass4, sand3, sand4` so the
+    // four enclosures play peces, tortugas, monos, sendero — the order
+    // docs/16 §9's script requires. Same eight ids, same set, each
+    // family's relative order intact — never a byte-identical flat list
+    // against the old two-block order.
+    adventureIds: ['glass1', 'glass2', 'sand1', 'sand2', 'glass3', 'glass4', 'sand3', 'sand4'],
     unlockedWhen: alwaysOpen,
   },
   {

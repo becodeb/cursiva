@@ -101,6 +101,17 @@ export const TORCH_CHALK_DIM = '#989896'
  *  same lever `CHANNEL_STONE`/`GLASS_GRIME` use. */
 export const SAND_HOLLOW = '#3b332b'
 
+/** The leaf veil over the monos enclosure (add-caretaker-prologue design.md
+ *  D6's worked arithmetic). Luma 113, 92 clear of the base fill's 205 and
+ *  73 clear of `INK_COLOR`'s 40 — both well past the 55-luma law, and the
+ *  base fill's 252-`SHEET_PAPER` gap of 47 keeps `docs/09:158`'s "no
+ *  admissible light paint" falsifiability true for this surface too. */
+export const LEAF_LITTER = '#6e7a4a'
+
+/** The mud veil over the sendero (design.md D6's worked arithmetic). Luma
+ *  102, 99 clear of the base fill's 201 and 62 clear of `INK_COLOR`'s 40. */
+export const PATH_MUD = '#75634c'
+
 export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>> = {
   duck: {
     art: SECTOR_BACKGROUND_ART.lagoon,
@@ -143,30 +154,41 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
     corridorRows: { top: 166, bottom: 858 },
     channel: CHANNEL_STONE,
   },
-  // The entrance's and the night sector's three rows (design.md §2.5),
-  // wired in now that `AdventureId` (`zoo/adventures.ts`, task 5.1) carries
-  // `'glass' | 'sand' | 'night'`. Phase 1 parked these three under a
-  // temporary `PENDING_ENTRANCE_BACKDROP` export because `AdventureId`
-  // was not yet widened (see `apply-progress.md`'s Phase 1 section for the
-  // full cross-phase note); this closes that forward reference — the
-  // values themselves are unchanged, already hand-copied from the rebuilt
-  // `manifest.json` (task 1.2). `quiet`/`brightest` for `glass`/`sand` are
-  // the source values unchanged (`emit_opaque_canvas` passes `fondo
-  // pecera.png`/`fondo arena.png` through with no resize, no recolour); the
-  // `night` row is the authored nocturnal backdrop's own pass-through.
-  glass: {
+  // The entrance's four enclosures and the night sector's row (design.md
+  // §2.5, re-keyed by add-caretaker-prologue design.md D6/§4). `peces`/
+  // `tortugas` re-key the old `glass`/`sand` rows with their SAME `tile`
+  // and luma literals, unchanged (`zoo-map` delta's own requirement);
+  // `monos`/`sendero` are new rows, each satisfying the `trace-canvas`
+  // delta's 55-luma law against both `INK_COLOR` and `SHEET_PAPER` (design
+  // D6's worked arithmetic) — `quiet`/`brightest` read off the rebuilt
+  // `manifest.json` (task 1.10), not hand-guessed.
+  peces: {
     art: SECTOR_BACKGROUND_ART.aquarium,
     quiet: '#9bb6c5',
     brightest: '#c7d9e0',
     corridorRows: { top: 51, bottom: 973 },
     tile: GLASS_GRIME,
   },
-  sand: {
+  tortugas: {
     art: SECTOR_BACKGROUND_ART.sand,
     quiet: '#d6cbba',
     brightest: '#dad0c0',
     corridorRows: { top: 51, bottom: 973 },
     tile: SAND_DRIFT,
+  },
+  monos: {
+    art: SECTOR_BACKGROUND_ART.monkeys,
+    quiet: '#c9d3b8',
+    brightest: '#c9d3b8',
+    corridorRows: { top: 51, bottom: 973 },
+    tile: LEAF_LITTER,
+  },
+  sendero: {
+    art: SECTOR_BACKGROUND_ART.path,
+    quiet: '#d5c8b0',
+    brightest: '#d5c8b0',
+    corridorRows: { top: 51, bottom: 973 },
+    tile: PATH_MUD,
   },
   night: {
     art: SECTOR_BACKGROUND_ART.night,
