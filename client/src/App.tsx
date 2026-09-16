@@ -13,6 +13,7 @@
  */
 import { useState } from 'react'
 import GameScreen, { initialView, resolveEnterAction, type GameView } from './screen/GameScreen'
+import PrologueOpening, { prologueRoute } from './screen/PrologueOpening'
 import MainScreen from './screen/MainScreen'
 import ZooMap from './screen/ZooMap'
 import { LocalProgressStore } from './progress/LocalProgressStore'
@@ -23,8 +24,25 @@ import type { LevelRecord } from './game/types'
 
 /** Which shell is on screen. `game` carries where to open it, which is how
  * the map's own routing decision (`nextAdventure`) reaches the game without
- * the game having to re-derive it. */
-type Shell = { at: 'map' } | { at: 'game'; initial?: GameView } | { at: 'workbench' }
+ * the game having to re-derive it. `prologue` (add-caretaker-prologue
+ * design.md D2) is the caretaker's opening, shown before the map on a
+ * child's first visit — a `Shell` variant, not a `GameView`: the opening
+ * happens BEFORE the map, which the game shell never owns. */
+type Shell =
+  | { at: 'map' }
+  | { at: 'game'; initial?: GameView }
+  | { at: 'workbench' }
+  | { at: 'prologue'; from?: number }
+
+/** Whether the opening has already been seen, DERIVED from the existing
+ *  level records rather than a new persisted key (design.md D2; the same
+ *  precedent `sectors.ts:507-524` records against a persisted `<sector>-
+ *  seen` flag, and `migrateEntrance.ts:83`'s reading of an empty record set
+ *  as a fresh install — every migration returns `{}` on one, so an empty
+ *  store after `openProgressStore()` is exactly a fresh install). */
+export function firstVisit(records: Readonly<Record<string, LevelRecord>>): boolean {
+  return Object.keys(records).length === 0
+}
 
 /** The map is a resume control, so it needs the persisted records — but only
  * at the moment it is shown. Reading them through a store constructed right
@@ -70,19 +88,39 @@ function maybeSeedProgress(search: string, dev: boolean): void {
   }
 }
 
-/** A `?nivel=` deep link skips the map. The link exists so a level can be
- * opened directly while the mechanics are being reviewed, and routing it
- * through the map would defeat that. `initialView` returns `null` for
- * anything unroutable — including a bare `?nivel=mapa` outside dev mode
- * (design.md §8, "Dev gate on the map route") — so the zoo map, not the
- * internal `LevelMap`, is the fallback whenever nothing was asked for. */
+/** A `?nivel=` deep link skips the map — AND the opening (`prologue-opening`
+ * spec "A `?nivel=` Deep Link Bypasses the Opening"): the link exists so a
+ * level can be opened directly while the mechanics are being reviewed, and
+ * routing it through either screen would defeat that. `initialView` returns
+ * `null` for anything unroutable — including a bare `?nivel=mapa` outside
+ * dev mode (design.md §8, "Dev gate on the map route") — so the opening (on
+ * a first visit) or the zoo map (otherwise) is the fallback whenever nothing
+ * was asked for (design.md D2). */
+export function resolveShell(
+  search: string,
+  dev: boolean,
+  records: Readonly<Record<string, LevelRecord>>,
+): Shell {
+  const view = initialView(search, dev)
+  if (view) return { at: 'game', initial: view }
+  const opening = prologueRoute(search, dev)
+  if (opening) return opening
+  return firstVisit(records) ? { at: 'prologue' } : { at: 'map' }
+}
+
+/** The impure wrapper: reads `window`, the store and the dev flag, seeds any
+ *  requested progress, then hands the pure resolver above the three values
+ *  it needs. Split this way because the ORDER of those three branches is
+ *  what three `prologue-opening` scenarios actually assert, and a private
+ *  function that reads globals can only be checked by reading it. Every
+ *  ingredient was already tested alone; what was untested was the
+ *  composition — which is the part a later refactor would silently break. */
 function initialShell(): Shell {
   const search = typeof window === 'undefined' ? '' : window.location.search
   const dev = isDevMode()
   maybeSeedRecoveredDuck(search, dev)
   maybeSeedProgress(search, dev)
-  const view = initialView(search, dev)
-  return view ? { at: 'game', initial: view } : { at: 'map' }
+  return resolveShell(search, dev, readRecords())
 }
 
 export default function App() {
@@ -101,6 +139,10 @@ export default function App() {
   const goToMap = () => {
     setRecords(readRecords())
     setShell({ at: 'map' })
+  }
+
+  if (shell.at === 'prologue') {
+    return <PrologueOpening from={shell.from} onDone={goToMap} />
   }
 
   if (shell.at === 'map') {

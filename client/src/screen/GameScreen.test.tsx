@@ -49,6 +49,7 @@ vi.mock('./AdventureClosing', () => ({
 }))
 
 import GameScreen, {
+  advanceClosing,
   allEarned,
   initialView,
   nextView,
@@ -188,6 +189,27 @@ describe('initialView: ?nivel=cierre-<levelId> is a dev-only capture surface (re
     expect(initialView('?nivel=cierre-sand1', true)).toBeNull()
     expect(initialView('?nivel=cierre-trail1', true)).toBeNull()
   })
+
+  // [add-caretaker-prologue] An optional `:<n>` suffix reaches a beat past
+  // the first — `sendero`'s two-beat closing is otherwise unreachable by a
+  // single-URL capture (design.md D3).
+  it('an optional :<n> suffix resolves to that beat', () => {
+    expect(initialView('?nivel=cierre-sand4:1', true)).toEqual({
+      view: 'close',
+      levelId: 'sand4',
+      beat: 1,
+    })
+    expect(initialView('?nivel=cierre-sand4:0', true)).toEqual({
+      view: 'close',
+      levelId: 'sand4',
+      beat: 0,
+    })
+  })
+
+  it('a malformed :<n> suffix falls through to null, never a crash', () => {
+    expect(initialView('?nivel=cierre-sand4:abc', true)).toBeNull()
+    expect(initialView('?nivel=cierre-sand4:-1', true)).toBeNull()
+  })
 })
 
 describe('allEarned (design.md "Decision: earned clues are derived from progress, not stored")', () => {
@@ -315,12 +337,23 @@ describe('GameScreen intro view (duck-undulations-and-sector-backdrop design.md 
 // resolveCloseAction (reveal-grid-entrance-and-night, design.md §6.3,
 // main-screen spec "close GameView Variant and resolveCloseAction").
 describe('resolveCloseAction', () => {
-  it('finishing sand4 resolves to the close view', () => {
-    expect(resolveCloseAction('sand4', {})).toEqual({ type: 'close', levelId: 'sand4' })
+  // (Previously: only `sand4` resolved to `'close'`, and `glass4` was
+  // asserted BY NAME not to — the entrance's own only closing beat lived on
+  // the old `sand` row. `glass4` is now `monos`'s own last level and `monos`
+  // now declares a `closingBeat` (add-caretaker-prologue, main-screen delta
+  // "close GameView Variant and resolveCloseAction"), so that prior
+  // negative-case scenario is RETIRED, not merely widened: `glass4` MUST
+  // resolve to `'close'` after this change.)
+  it('finishing each entrance adventure\'s last level (glass2, sand2, glass4, sand4) resolves to the close view', () => {
+    for (const id of ['glass2', 'sand2', 'glass4', 'sand4']) {
+      expect(resolveCloseAction(id, {}), id).toEqual({ type: 'close', levelId: id })
+    }
   })
 
-  it('finishing glass4 does not resolve to the close view — the entrance closes at sand4, not here', () => {
-    expect(resolveCloseAction('glass4', {})).toBeNull()
+  it('finishing a mid-adventure entrance level does not resolve to the close view', () => {
+    for (const id of ['glass1', 'sand1', 'glass3', 'sand3']) {
+      expect(resolveCloseAction(id, {}), id).toBeNull()
+    }
   })
 
   it('finishing night4 does not resolve to the close view — no closingBeat on that adventure', () => {
@@ -362,8 +395,13 @@ describe("resolveNextAction tries resolveCloseAction first (design.md §6.3)", (
   })
 })
 
-describe("GameScreen close view (design.md §6.3, main-screen spec 'AdventureClosing Screen Renders the Transformation')", () => {
-  it("mounts AdventureClosing for the 'close' view, and its onContinue is wired to onExit", () => {
+describe("GameScreen close view (design.md §6.3, D3, main-screen spec 'AdventureClosing Screen Renders the Transformation')", () => {
+  // Renamed from `sand` (add-caretaker-prologue design.md D7): `sendero` is
+  // `sand`'s direct successor, ending on the same `sand4` and carrying the
+  // TWO-beat closing the old single-beat `sand` row used to carry as one.
+  const sendero = ADVENTURES.find((a) => a.id === 'sendero')!
+
+  it("mounts AdventureClosing for the 'close' view at beat 0 by default, and passes the FIRST beat", () => {
     let exited = false
     renderToString(
       <GameScreen
@@ -374,21 +412,111 @@ describe("GameScreen close view (design.md §6.3, main-screen spec 'AdventureClo
       />,
     )
     expect(adventureClosingProbe.current, 'AdventureClosing never mounted').toBeTruthy()
-    const sand = ADVENTURES.find((a) => a.id === 'sand')!
-    expect(adventureClosingProbe.current?.adventure).toBe(sand)
+    expect(adventureClosingProbe.current?.adventure).toBe(sendero)
+    expect(adventureClosingProbe.current?.beat).toBe(sendero.closingBeat![0])
     const onContinue = adventureClosingProbe.current?.onContinue as (() => void) | undefined
     expect(typeof onContinue).toBe('function')
+    // `renderToString` cannot observe a re-render (this file's own header),
+    // so this only proves the beat-0 tap does NOT call `onExit` directly —
+    // it must advance to beat 1 instead of leaving the shell early.
+    onContinue?.()
+    expect(exited).toBe(false)
+  })
+
+  it("mounts AdventureClosing at beat 1 when the view's beat field says so, and its onContinue exits", () => {
+    let exited = false
+    renderToString(
+      <GameScreen
+        initial={{ view: 'close', levelId: 'sand4', beat: 1 }}
+        onExit={() => {
+          exited = true
+        }}
+      />,
+    )
+    expect(adventureClosingProbe.current?.beat).toBe(sendero.closingBeat![1])
+    const onContinue = adventureClosingProbe.current?.onContinue as (() => void) | undefined
     onContinue?.()
     expect(exited).toBe(true)
+  })
+
+  it('a single-beat adventure (peces) at beat 0 exits on its own onContinue', () => {
+    let exited = false
+    renderToString(
+      <GameScreen
+        initial={{ view: 'close', levelId: 'glass2' }}
+        onExit={() => {
+          exited = true
+        }}
+      />,
+    )
+    const peces = ADVENTURES.find((a) => a.id === 'peces')!
+    expect(adventureClosingProbe.current?.beat).toBe(peces.closingBeat![0])
+    const onContinue = adventureClosingProbe.current?.onContinue as (() => void) | undefined
+    onContinue?.()
+    expect(exited).toBe(true)
+  })
+
+  it('an out-of-range beat index falls back to the first beat, never crashes', () => {
+    expect(() =>
+      renderToString(
+        <GameScreen initial={{ view: 'close', levelId: 'sand4', beat: 99 }} onExit={() => {}} />,
+      ),
+    ).not.toThrow()
+    expect(adventureClosingProbe.current?.beat).toBe(sendero.closingBeat![0])
   })
 
   it('an unknown/stale close levelId (no closingBeat) falls through to the ordinary play render, never crashes', () => {
     adventureClosingProbe.current = null
     expect(() =>
-      renderToString(<GameScreen initial={{ view: 'close', levelId: 'glass4' }} onExit={() => {}} />),
+      renderToString(<GameScreen initial={{ view: 'close', levelId: 'night4' }} onExit={() => {}} />),
     ).not.toThrow()
-    // `glass4`'s own adventure carries no `closingBeat` — `AdventureClosing`
+    // `night4`'s own adventure carries no `closingBeat` — `AdventureClosing`
     // must never mount for it.
     expect(adventureClosingProbe.current).toBeNull()
+  })
+})
+
+// GameView gains no new member (main-screen delta "GameView Gains No New
+// Member"; add-caretaker-prologue design.md D3). Compile-time proof, the
+// same `@ts-expect-error`-adjacent convention `rot is pinned to the literal
+// 0` (`zoo/sectors.test.ts`) and `CaptionedArt.test.tsx`'s `label` proof
+// both use: a `Record<GameView['view'], true>` that lists exactly today's
+// five variants type-checks ONLY while the union has exactly those five
+// keys — a sixth variant added to `GameView` without a matching key here
+// fails `tsc --noEmit` (`npm run build`), never `npm test`.
+const GAME_VIEW_VARIANTS: Record<GameView['view'], true> = {
+  map: true,
+  play: true,
+  intro: true,
+  deduce: true,
+  close: true,
+}
+
+describe('GameView gains no new member (main-screen delta)', () => {
+  it('lists exactly the five existing variants — proven at compile time by npm run build, not this run', () => {
+    expect(Object.keys(GAME_VIEW_VARIANTS).sort()).toEqual(
+      ['close', 'deduce', 'intro', 'map', 'play'].sort(),
+    )
+  })
+})
+
+// advanceClosing (add-caretaker-prologue design.md D3) — the mirror of
+// `resolveCloseAction` for the "already showing the closing" side.
+describe('advanceClosing', () => {
+  it("sendero's two-beat closing advances from 0 to 1, then exits", () => {
+    expect(advanceClosing('sand4', 0)).toEqual({ type: 'close', levelId: 'sand4', beat: 1 })
+    expect(advanceClosing('sand4', 1)).toEqual({ type: 'exit' })
+  })
+
+  it("peces's single-beat closing exits straight from beat 0", () => {
+    expect(advanceClosing('glass2', 0)).toEqual({ type: 'exit' })
+  })
+
+  it('an out-of-range beat exits rather than advancing past the list', () => {
+    expect(advanceClosing('sand4', 5)).toEqual({ type: 'exit' })
+  })
+
+  it('a level id with no closingBeat exits immediately', () => {
+    expect(advanceClosing('night4', 0)).toEqual({ type: 'exit' })
   })
 })

@@ -1,11 +1,15 @@
 // The transformation screen (`docs/13_AVENTURAS_POR_ANIMAL.md` §5 item 6;
-// design.md §6.2-§6.3). The mirror of `AdventureIntro`, not a generalization
-// of it: two ~110-line components sharing a stage read better than one with
-// a mode flag, and `AdventureIntro` stays byte-identical but for §6.1's one
-// line (`adventureIcon`). Shown once per adventure that carries a
-// `closingBeat` — today only the entrance's `sand` adventure, ending on
-// `sand4` — reached ONLY through the `'close'` `GameView` `resolveCloseAction`
-// produces, never through a `GameAction`.
+// design.md §6.2-§6.3, add-caretaker-prologue design.md D3). The mirror of
+// `AdventureIntro`, not a generalization of it: two ~110-line components
+// sharing a stage read better than one with a mode flag, and `AdventureIntro`
+// stays byte-identical but for §6.1's one line (`adventureIcon`). Shown once
+// per adventure that carries a `closingBeat` — today the entrance's
+// `peces`/`tortugas`/`monos`/`sendero` adventures — reached ONLY through the
+// `'close'` `GameView` `resolveCloseAction` produces, never through a
+// `GameAction`. The beat sequencing itself lives OUTSIDE this component
+// (`GameScreen`'s own `beat?` field on the `'close'` view, D3): this
+// component renders exactly ONE beat per mount and knows nothing about the
+// list or its own position in it.
 //
 // No `url(#…)` anywhere (`canvas/TraceCanvas.tsx:70-84`'s ban): the octopus
 // and the bubble are plain `<img src>`, the reward art is `CaptionedArt`'s
@@ -15,7 +19,7 @@ import CaptionedArt from '../detective/CaptionedArt'
 import { ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
-import type { Adventure } from '../zoo/adventures'
+import type { Adventure, ClosingBeat } from '../zoo/adventures'
 
 /* Same stage geometry as `AdventureIntro.tsx`'s `INTRO_CSS`, restated under
    its own class prefix rather than shared, the same reason the two
@@ -37,23 +41,26 @@ const CLOSING_CSS = `
 
 export interface AdventureClosingProps {
   adventure: Adventure
+  /** The ONE beat to render this mount — `GameScreen`'s `'close'` view picks
+   *  it out of `adventure.closingBeat` by index (design.md D3) and re-mounts
+   *  this component with the next one on each tap. This component never
+   *  reads `adventure.closingBeat` itself and never advances on its own. */
+  beat: ClosingBeat
   onContinue: () => void
 }
 
 /** The reusable transformation beat (`docs/13` §5 item 6). Reachable ONLY
  *  for an adventure whose `closingBeat` is defined — `closingLevel`
  *  (`zoo/adventures.ts`) is the one function that resolves a `GameView` into
- *  this component, and it already refuses any adventure without one, so the
- *  non-null assertion below is a call-site invariant, not a guess.
- *  No `aria-label` on the button — the caption inside already names it. */
-export default function AdventureClosing({ adventure, onContinue }: AdventureClosingProps) {
-  const beat = adventure.closingBeat!
+ *  this component. No `aria-label` on the button — the caption inside
+ *  already names it. */
+export default function AdventureClosing({ adventure, beat, onContinue }: AdventureClosingProps) {
   const backdrop = backdropFor(adventure.levelIds[adventure.levelIds.length - 1])
   return (
     <main className="cv-closing" style={{ background: backdrop?.quiet ?? SHEET_PAPER }}>
       <style>{CLOSING_CSS}</style>
       <button type="button" className="cv-closing-stage" onClick={onContinue}>
-        <img src={ZOO_OCTOPUS_BACKPACK_ART.href} alt="" className="cv-closing-octopus" />
+        <img src={(beat.figure ?? ZOO_OCTOPUS_BACKPACK_ART).href} alt="" className="cv-closing-octopus" />
         <span className="cv-closing-bubble">
           <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
           <CaptionedArt art={beat.art} label={beat.line} size={76} />

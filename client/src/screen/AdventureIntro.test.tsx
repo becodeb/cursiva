@@ -92,7 +92,10 @@ describe("AdventureIntro — row C's sheep and llama entries render their own an
 // and the screen must render THAT art, never a fabricated placeholder
 // animal.
 describe('AdventureIntro — an animal-less adventure renders its own icon, not an animal (main-screen spec)', () => {
-  const glass = ADVENTURES.find((a) => a.id === 'glass')!
+  // Renamed from the old `glass` adventure (add-caretaker-prologue design.md
+  // D7): `peces` is `glass`'s direct successor — same entrance sector, same
+  // animal-less `icon` contract this test exercises.
+  const glass = ADVENTURES.find((a) => a.id === 'peces')!
 
   it('renders no ZOO_ANIMAL_ART href, and its own intro text exactly once', () => {
     const html = renderToString(<AdventureIntro adventure={glass} onStart={() => {}} />)
@@ -102,7 +105,7 @@ describe('AdventureIntro — an animal-less adventure renders its own icon, not 
     expect(html.split(glass.intro).length - 1).toBe(1)
   })
 
-  it("renders the glass adventure's own icon href", () => {
+  it("renders the peces adventure's own icon href", () => {
     const html = renderToString(<AdventureIntro adventure={glass} onStart={() => {}} />)
     expect(glass.icon).toBeDefined()
     expect(html).toContain(`href="${glass.icon!.href}"`)

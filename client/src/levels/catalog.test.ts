@@ -396,8 +396,10 @@ describe('LEVELS — surface, kind and feedback', () => {
     expect(LEVELS[0].id).toBe('glass1')
     // Closes the forward reference task 4.8 named (`AdventureId`/`ADVENTURES`
     // only gained a `'glass'` row in Phase 5's task 5.1) — design.md §5.1's
-    // exact test snippet, now compiling for real.
-    expect(ADVENTURES.find((a) => a.id === 'glass')!.levelIds[0]).toBe('glass1')
+    // exact test snippet, now compiling for real. Renamed to `peces`
+    // (add-caretaker-prologue design.md D7): `glass1` is still its own
+    // first level — the level id itself is untouched by the regrouping.
+    expect(ADVENTURES.find((a) => a.id === 'peces')!.levelIds[0]).toBe('glass1')
     for (const l of free) expect(l.paths, l.id).toEqual([])
     for (const l of free) expect(l.phase, l.id).toBe(1)
   })

@@ -31,7 +31,7 @@ export type GameView =
   | { view: 'play'; levelId: string }
   | { view: 'intro'; levelId: string }
   | { view: 'deduce'; caseId: string }
-  | { view: 'close'; levelId: string }
+  | { view: 'close'; levelId: string; beat?: number }
 
 /**
  * Navigation intents. `next` carries the ALREADY-RESOLVED successor id (null =
@@ -120,9 +120,21 @@ export function initialView(search: string, dev = false): GameView | null {
     // to get there — the same reason `?debug=pato-recuperado` exists. Without
     // this route the closing screen is the one screen in the change no capture
     // can show, and paso C's unticked capture tasks are what blocked its gate.
+    //
+    // [add-caretaker-prologue] An optional `:<n>` suffix reaches a beat past
+    // the first — `sendero`'s two-beat closing is otherwise unreachable by a
+    // single-URL capture. The separator is `:`, never `-`: several level ids
+    // (`sand4`) already end in a digit, which would make `cierre-sand4-1`
+    // ambiguous between "level sand4-1" and "level sand4, beat 1".
     if (id?.startsWith('cierre-') && dev) {
-      const levelId = id.slice('cierre-'.length)
-      if (closingLevel(levelId)) return { view: 'close', levelId }
+      const rest = id.slice('cierre-'.length)
+      const at = rest.indexOf(':')
+      const levelId = at < 0 ? rest : rest.slice(0, at)
+      if (closingLevel(levelId)) {
+        if (at < 0) return { view: 'close', levelId }
+        const beat = Number(rest.slice(at + 1))
+        if (Number.isInteger(beat) && beat >= 0) return { view: 'close', levelId, beat }
+      }
     }
     if (id && LEVELS.some((l) => l.id === id)) return { view: 'play', levelId: id }
   } catch {
@@ -166,23 +178,41 @@ export type ExitAction = { type: 'exit' }
  * state it never needs to represent (main-screen spec "close GameView
  * Variant and resolveCloseAction").
  */
-export type CloseAction = { type: 'close'; levelId: string }
+export type CloseAction = { type: 'close'; levelId: string; beat?: number }
 export type NextAction = GameAction | ExitAction | CloseAction
 
 /**
  * Whether a finished level's adventure has a closing BEAT to show
  * (`zoo/adventures.ts`'s `closingLevel`) — pure, and the mirror of
  * `resolveEnterAction` for the exit side of a run. Tried FIRST by
- * `resolveNextAction`, below, so `sand4` resolves to the transformation
- * screen instead of the ordinary sector-exit-to-map outcome every other
- * finished adventure (including `glass`/`night`, this same change's other
- * two reveal-grid adventures) still gets.
+ * `resolveNextAction`, below, so `sand4`/`glass2`/`sand2`/`glass4` resolve to
+ * the transformation screen instead of the ordinary sector-exit-to-map
+ * outcome every other finished adventure (including `night`, this same
+ * change's other reveal-grid adventure) still gets.
  */
 export function resolveCloseAction(
   finishedLevelId: string,
   _records: Readonly<Record<string, LevelRecord>>,
 ): CloseAction | null {
   return closingLevel(finishedLevelId) ? { type: 'close', levelId: finishedLevelId } : null
+}
+
+/**
+ * Advances the closing screen from BEAT `beat` (add-caretaker-prologue
+ * design.md D3) — the mirror of `resolveCloseAction` for the "already
+ * showing the closing" side. Pure: it re-derives the adventure from
+ * `levelId` rather than trusting a caller-held reference, the same
+ * never-stale convention `resolveNextAction` uses. `beat + 1` still inside
+ * the beat list advances to it; falling off the end exits to the map,
+ * exactly as a single-beat adventure's one tap already did before this
+ * change.
+ */
+export function advanceClosing(levelId: string, beat: number): CloseAction | ExitAction {
+  const adventure = closingLevel(levelId)
+  if (adventure && beat + 1 < adventure.closingBeat!.length) {
+    return { type: 'close', levelId, beat: beat + 1 }
+  }
+  return { type: 'exit' }
 }
 
 /**
@@ -303,16 +333,30 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
   }
 
   if (state.view === 'close') {
-    // The transformation (`docs/13` §5 item 6, design.md §6.3): shown once
-    // per adventure that carries a `closingBeat`, reached only through
+    // The transformation (`docs/13` §5 item 6, design.md §6.3, D3): shown
+    // once per adventure that carries a `closingBeat`, reached only through
     // `onNext` below calling `resolveCloseAction` — never through a
-    // `GameAction`. `onContinue` is `onExit` — the child lands on the zoo
-    // map, exactly where `resolveNextAction` was sending them anyway
-    // (main-screen spec "AdventureClosing Screen Renders the
-    // Transformation").
+    // `GameAction`. `index` picks ONE beat out of the adventure's ordered
+    // list (falling back to the first for an out-of-range/stale index, the
+    // same never-crash convention this file uses elsewhere); `onContinue`
+    // discriminates `advanceClosing`'s result instead of calling `onExit`
+    // directly, so a beat past the current one re-renders this same screen
+    // with the NEXT beat rather than leaving for the map early.
     const adventure = closingLevel(state.levelId)
     if (adventure) {
-      return <AdventureClosing adventure={adventure} onContinue={onExit} />
+      const index = state.beat ?? 0
+      const beat = adventure.closingBeat![index] ?? adventure.closingBeat![0]
+      return (
+        <AdventureClosing
+          adventure={adventure}
+          beat={beat}
+          onContinue={() => {
+            const action = advanceClosing(state.levelId, index)
+            if (action.type === 'exit') onExit()
+            else setState({ view: 'close', levelId: state.levelId, beat: action.beat })
+          }}
+        />
+      )
     }
     // Unknown/stale id: fall through to the ordinary play render below, the
     // same never-crash convention `intro`'s own branch just used above.
