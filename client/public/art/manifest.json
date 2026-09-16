@@ -383,6 +383,18 @@
     "h": 448,
     "w": 299
   },
+  "sector-monkeys-background": {
+    "brightest": "#c9d3b8",
+    "bytes": 22544,
+    "corridorRows": {
+      "bottom": 973,
+      "top": 51
+    },
+    "file": "art/sector-monkeys-background.png",
+    "h": 1024,
+    "quiet": "#c9d3b8",
+    "w": 1536
+  },
   "sector-night-background": {
     "brightest": "#526083",
     "bytes": 22289,
@@ -393,6 +405,18 @@
     "file": "art/sector-night-background.png",
     "h": 1024,
     "quiet": "#2a3346",
+    "w": 1536
+  },
+  "sector-path-background": {
+    "brightest": "#d5c8b0",
+    "bytes": 22503,
+    "corridorRows": {
+      "bottom": 973,
+      "top": 51
+    },
+    "file": "art/sector-path-background.png",
+    "h": 1024,
+    "quiet": "#d5c8b0",
     "w": 1536
   },
   "sector-range-background": {
@@ -549,6 +573,24 @@
     "h": 170,
     "w": 256
   },
+  "sign-fish": {
+    "bytes": 1760,
+    "file": "art/sign-fish.png",
+    "h": 256,
+    "w": 256
+  },
+  "sign-monkeys": {
+    "bytes": 1757,
+    "file": "art/sign-monkeys.png",
+    "h": 256,
+    "w": 256
+  },
+  "sign-turtles": {
+    "bytes": 1836,
+    "file": "art/sign-turtles.png",
+    "h": 256,
+    "w": 256
+  },
   "zoo-backpack": {
     "bytes": 7232,
     "file": "art/zoo-backpack.png",
@@ -590,6 +632,12 @@
     "file": "art/zoo-octopus-backpack.png",
     "h": 448,
     "w": 442
+  },
+  "zoo-octopus-caretaker": {
+    "bytes": 1384,
+    "file": "art/zoo-octopus-caretaker.png",
+    "h": 320,
+    "w": 320
   },
   "zoo-octopus-print": {
     "bytes": 9305,

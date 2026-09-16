@@ -40,7 +40,9 @@ import {
   OCTOPUS_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
+  SIGN_ART,
   ZOO_BACKPACK_ART,
+  ZOO_CARETAKER_ART,
   ZOO_FOG_ART,
   ZOO_MAP_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
@@ -124,6 +126,8 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
   ['ZOO_STAR_ART', ZOO_STAR_ART] as const,
   ['ZOO_OCTOPUS_PRINT_ART', ZOO_OCTOPUS_PRINT_ART] as const,
   ['ZOO_SPEECH_BUBBLE_ART', ZOO_SPEECH_BUBBLE_ART] as const,
+  ['ZOO_CARETAKER_ART', ZOO_CARETAKER_ART] as const,
+  ...Object.entries(SIGN_ART).map(([id, art]) => [`SIGN_ART.${id}`, art] as const),
   ...Object.entries(SECTOR_BACKGROUND_ART).map(([id, art]) =>
     [`SECTOR_BACKGROUND_ART.${id}`, art] as const,
   ),
@@ -178,7 +182,9 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // sits small inside the corridor and half-covered by the child's own line.
     // + 1 CART_ART (the arena's backpack reward, Phase 7).
     // + 1 flowerDormant (the bee family's dormant flower, paso F).
-    expect(REGISTERED.length).toBe(81)
+    // + 1 caretaker + 3 signs + 2 entrance backgrounds (monos, sendero)
+    // (the prologue, add-caretaker-prologue).
+    expect(REGISTERED.length).toBe(87)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -282,15 +288,17 @@ describe('art registry matches the shipped pipeline manifest', () => {
   })
 
   it("matches the entrance and night backdrops' quiet/brightest/corridorRows against the rebuilt manifest (design.md §2.3, §3.2)", () => {
-    // `ADVENTURE_BACKDROP.glass/.sand/.night` are now wired in directly
-    // (Phase 5's task 5.1 widened `AdventureId`; `zoo/backdrops.ts`'s own
-    // Phase 1 `PENDING_ENTRANCE_BACKDROP` indirection is closed — see
-    // `apply-progress.md`). The parity this test guards is unchanged.
+    // `ADVENTURE_BACKDROP.peces/.tortugas/.night` are wired in directly.
+    // `peces`/`tortugas` re-key the pre-existing `glass`/`sand` rows with
+    // their SAME literals (add-caretaker-prologue design.md D6, the
+    // amended `zoo-map` requirement "Entrance and Night Backdrops Resolve
+    // Through the Adventure-Keyed Registry") — the parity this test
+    // guards is unchanged, only the key name is.
     const aquarium = manifest['sector-aquarium-background']
     const sand = manifest['sector-sand-background']
     const night = manifest['sector-night-background']
-    const glass = ADVENTURE_BACKDROP.glass!
-    const sandBackdrop = ADVENTURE_BACKDROP.sand!
+    const glass = ADVENTURE_BACKDROP.peces!
+    const sandBackdrop = ADVENTURE_BACKDROP.tortugas!
     const nightBackdrop = ADVENTURE_BACKDROP.night!
 
     expect(aquarium.quiet).toBe(glass.quiet)

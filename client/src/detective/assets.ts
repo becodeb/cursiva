@@ -262,7 +262,8 @@ export const CART_ART: ArtImage = {
  * 3:2 intrinsic coordinate system and leave the quiet centre free for a
  * finger-drawn route. */
 export const SECTOR_BACKGROUND_ART: Readonly<Record<
-  'lagoon' | 'sand' | 'slope' | 'range' | 'forest' | 'aquarium' | 'night',
+  | 'lagoon' | 'sand' | 'slope' | 'range' | 'forest' | 'aquarium' | 'night'
+  | 'monkeys' | 'path',
   ArtImage
 >> = {
   lagoon: { href: '/art/sector-lagoon-background.png', w: 1536, h: 1024 },
@@ -274,6 +275,31 @@ export const SECTOR_BACKGROUND_ART: Readonly<Record<
   // Authored from `fondo nocturno.png` — a full-canvas opaque scene like
   // every other row here, same 1536x1024.
   night: { href: '/art/sector-night-background.png', w: 1536, h: 1024 },
+  // The prologue's third and fourth enclosures (design.md §4). Placeholder
+  // sources, same full-canvas opaque contract as every other row here.
+  monkeys: { href: '/art/sector-monkeys-background.png', w: 1536, h: 1024 },
+  path: { href: '/art/sector-path-background.png', w: 1536, h: 1024 },
+}
+
+/** The prologue's caretaker cutout — the Pulpito shown in beat 0, before the
+ * zoo map, and the closing beats' standing octopus fallback (design.md D1,
+ * D3). `w`/`h` are copied from the rebuilt `manifest.json`, guarded by
+ * `artManifest.test.ts`. */
+export const ZOO_CARETAKER_ART: ArtImage = {
+  href: '/art/zoo-octopus-caretaker.png',
+  w: 320,
+  h: 320,
+}
+
+/** The three wooden zoo signs the prologue's `peces`/`tortugas`/`monos`
+ * closings carry (design.md §4, docs/16 §5). The word (`PECES`/`TORTUGAS`/
+ * `MONOS`) lives IN the drawing itself, not in a second DOM label —
+ * `AdventureClosing` renders exactly one `CaptionedArt` per beat, and its
+ * caption is always the beat's `line` (the docs/16 §9 sentence). */
+export const SIGN_ART: Readonly<Record<'fish' | 'turtles' | 'monkeys', ArtImage>> = {
+  fish: { href: '/art/sign-fish.png', w: 256, h: 256 },
+  turtles: { href: '/art/sign-turtles.png', w: 256, h: 256 },
+  monkeys: { href: '/art/sign-monkeys.png', w: 256, h: 256 },
 }
 
 /** Props used by the sector adventures. Each file is a transparent cutout;

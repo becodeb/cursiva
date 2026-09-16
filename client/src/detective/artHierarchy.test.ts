@@ -49,6 +49,7 @@ import {
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
   ZOO_BACKPACK_ART,
+  ZOO_CARETAKER_ART,
   ZOO_FOG_ART,
   ZOO_MAP_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
@@ -286,6 +287,13 @@ const WORLD_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
   'hedgehog-profile.png': HEDGEHOG_ART.profile,
   'hedgehog-curled.png': HEDGEHOG_ART.curled,
   'andean-hat.png': ANDEAN_HAT_ART,
+  // The prologue's caretaker cutout (add-caretaker-prologue design.md D5,
+  // §4). Not part of any spread below: `ZOO_CARETAKER_ART` is a standalone
+  // export, so it needs its own entry the way every other bare `zoo-*`
+  // export above does. The three signs (`SIGN_ART`) are NOT `zoo-*`/
+  // `sector-*`/… prefixed, so `WORLD_GUARD_FILES`'s own glob never picks
+  // them up and no entry is needed here for them.
+  'zoo-octopus-caretaker.png': ZOO_CARETAKER_ART,
   ...Object.fromEntries(
     Object.entries(SECTOR_BACKGROUND_ART).map(([id, art]) => [`sector-${id}-background.png`, art]),
   ),
@@ -585,6 +593,13 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
     }
   })
 
+  // A generous explicit timeout, not the 5000ms default: this test decodes
+  // every `WORLD_GUARD_FILES` PNG in sequence, and the prologue's four new
+  // files (add-caretaker-prologue) push the isolated run to ~3.7s already —
+  // comfortably under 5s alone, but the full suite's worker contention
+  // pushed it past 5s and timed out. The work itself is legitimate (each
+  // file needs decoding); widening the budget is the honest fix, not
+  // trimming the loop's own coverage.
   it('keeps zoo and sector art on intrinsic canvases with safe alpha and dark pixels', async () => {
     // `zoo-cart.png` shipped from Phase 1 of `snake-drag-and-art-corridor`
     // ahead of its registry entry; Phase 7 registers `CART_ART`
@@ -639,7 +654,7 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
         ).toBe(0)
       }
     }
-  })
+  }, 20000)
 
   /** Regression for the sheep-hill boxed-sheep defect. `oveja.png` carries an
    * alpha DITHER across the whole canvas -- 4,374 evenly spaced opaque specks

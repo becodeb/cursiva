@@ -437,6 +437,14 @@ SINGLES = [
     # `SPECKLED_ALPHA_SOURCES` entry; its authored canvas is 1254x1254, not
     # 1024x1024, so it takes no `AUTHORED_SOURCE_SIZES` entry either.
     ('carrito.png',            'zoo-cart.png',              256, 'contour',    True),
+    # The prologue's caretaker beat 0 and the three sign closings
+    # (design.md D5/§4). Placeholder sources, same `'contour'`/`keep_ink`
+    # path as every other zoo journey cutout -- the border already carries
+    # `ART_OUTLINE`, and the sign words are already drawn in ink.
+    ('pulpo cuidador.png',     'zoo-octopus-caretaker.png', 448, 'contour',    True),
+    ('cartel peces.png',       'sign-fish.png',             256, 'contour',    True),
+    ('cartel tortugas.png',    'sign-turtles.png',          256, 'contour',    True),
+    ('cartel monos.png',       'sign-monkeys.png',          256, 'contour',    True),
 ]
 
 # Full-canvas scenes are already authored at final dimensions. They bypass the
@@ -473,6 +481,10 @@ PASSTHROUGHS = [
     ('fondo bosque.png', 'sector-forest-background.png', 1536, 1024, (191, 926)),
     ('fondo pecera.png', 'sector-aquarium-background.png', 1536, 1024, (51, 973)),
     ('fondo nocturno.png', 'sector-night-background.png', 1536, 1024, (51, 973)),
+    # The prologue's two new entrance enclosures (design.md D6/§4). Same
+    # corridor band as the other entrance backgrounds -- (51, 973).
+    ('fondo recinto monos.png', 'sector-monkeys-background.png', 1536, 1024, (51, 973)),
+    ('fondo sendero.png', 'sector-path-background.png', 1536, 1024, (51, 973)),
 ]
 
 
@@ -813,6 +825,16 @@ AUTHORED_SOURCE_SIZES = {
     'erizo.png': (1024, 1024),
     'erizo enroscado.png': (1024, 1024),
     'gorro andino.png': (1024, 1024),
+    # The prologue's caretaker beat (design.md D5). `make_placeholders.py`
+    # writes all six at these exact canvases; `validate_authored_source_
+    # sizes` runs before anything else, so a mismatched regeneration fails
+    # loudly rather than silently changing crop/downscale behavior.
+    'pulpo cuidador.png': (1024, 1024),
+    'fondo recinto monos.png': (1536, 1024),
+    'fondo sendero.png': (1536, 1024),
+    'cartel peces.png': (1024, 1024),
+    'cartel tortugas.png': (1024, 1024),
+    'cartel monos.png': (1024, 1024),
 }
 
 
