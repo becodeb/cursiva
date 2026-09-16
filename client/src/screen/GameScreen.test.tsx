@@ -372,12 +372,19 @@ describe('resolveCloseAction', () => {
     }
   })
 
-  it('replaying sand4 resolves to the close view again — no persisted flag suppresses it', () => {
-    expect(resolveCloseAction('sand4', {})).toEqual({ type: 'close', levelId: 'sand4' })
-    expect(resolveCloseAction('sand4', { 'sand4': { ...EMPTY_RECORD, approvals: 5 } })).toEqual({
-      type: 'close',
-      levelId: 'sand4',
-    })
+  // Every enclosure's last level, not just sand4. The scenario this covers
+  // names glass4/monos specifically, and `resolveCloseAction` being pure and
+  // id-generic is an argument, not a test: the thing that would actually
+  // break this is a persisted "already saw the closing" flag creeping in,
+  // and such a flag would most likely be keyed per adventure.
+  it('replaying any enclosure\'s last level resolves to the close view again — no persisted flag suppresses it', () => {
+    for (const levelId of ['glass2', 'sand2', 'glass4', 'sand4'] as const) {
+      expect(resolveCloseAction(levelId, {}), levelId).toEqual({ type: 'close', levelId })
+      expect(
+        resolveCloseAction(levelId, { [levelId]: { ...EMPTY_RECORD, approvals: 5 } }),
+        levelId,
+      ).toEqual({ type: 'close', levelId })
+    }
   })
 })
 
