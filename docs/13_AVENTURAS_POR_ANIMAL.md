@@ -156,7 +156,7 @@ cargado. Se decide cuando lleguen.
 
 | Aventura | Estado | Qué hay que hacer |
 |---|---|---|
-| Exploración libre | **Hecha** (`glass1..4`, `sand1..4`, `night1..4`) | Nada. Grilla de piezas que se borran (vidrio, arena) o se iluminan (linterna) al tocarlas, sin `mask` ni `clipPath` (veda de `url(#)`). |
+| Exploración libre | **Hecha** (`glass1..4`, `sand1..4`, `night1..4`) | Nada. Grilla de piezas que se borran (vidrio, arena) o se iluminan (linterna) al tocarlas, sin `mask` ni `clipPath` (veda de `url(#)`). **Los ocho ids de la entrada se reagruparon** en cuatro aventuras de dos niveles — `peces`, `tortugas`, `monos`, `sendero` — por el prólogo (`docs/16` §5). Los ids no cambiaron; lo que cambió es cuántos beats de historia cuelgan de ellos. |
 | Patos | Existe como **caso detective** (`duck-trail1..4`: onda, espiral, triangular, cuadrada) | **Recortar como ondulaciones**: los cuatro niveles pasan a ser ondas suaves con la progresión de la sección 2. La espiral es del caracol y la triangular de las ovejas; no se gastan acá. Los ids se conservan (son claves persistidas); cambia el contenido. |
 | Víboras | **Hecha** (`snake1..4`) | Nada. Arrastre de objetos (ordenar de la más chica a la más grande) y corredor-arte: el cuerpo de la víbora, ajustado por medición al momento de compilar, es el camino. |
 | Ovejas | **Hecha** (`sheep-hill1..4`) | Nada. Cresta sobre línea de suelo con altura por vértice (`peakRidge`), ovejas paradas en los picos (`vertexArt`), fondo de ladera. |

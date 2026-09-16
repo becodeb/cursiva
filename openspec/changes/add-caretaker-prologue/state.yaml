@@ -1,0 +1,144 @@
+change: add-caretaker-prologue
+branch: sdd/prologo-cuidador
+scope: docs/16_PROLOGO_EL_CUIDADOR.md (binding brief) — the caretaker opening,
+  four entrance adventures, one intro + one closing per enclosure, and the
+  magnifier moment on `sendero`
+execution_mode: auto
+artifact_store: openspec
+delivery_strategy: exception-ok
+review_budget_lines: unbounded
+
+phases:
+  explore: done
+  propose: done
+  spec: done
+  design: done
+  tasks: done
+  apply: pending
+  verify: pending
+  archive: pending
+
+artifacts:
+  exploration: openspec/changes/add-caretaker-prologue/exploration.md
+  proposal: openspec/changes/add-caretaker-prologue/proposal.md
+  specs:
+    - openspec/changes/add-caretaker-prologue/specs/prologue-opening/spec.md
+    - openspec/changes/add-caretaker-prologue/specs/zoo-map/spec.md
+    - openspec/changes/add-caretaker-prologue/specs/main-screen/spec.md
+    - openspec/changes/add-caretaker-prologue/specs/trace-canvas/spec.md
+  design: openspec/changes/add-caretaker-prologue/design.md
+  tasks: openspec/changes/add-caretaker-prologue/tasks.md
+
+next_recommended:
+  - sdd-apply
+
+tasks_summary: |
+  Five phases, 5 work units, single PR (size:exception, exception-ok).
+  Phase 1 (13 tasks): art pipeline — make_placeholders.py, six new
+  art-source PNGs, build_art.py rows, rebuild, assets.ts exports,
+  REGISTERED 81->87.
+  Phase 2 (8 tasks): pure data — zoo/prologue.ts, adventures.ts (AdventureId,
+  ClosingBeat tuple, four entrance rows), backdrops.ts (LEAF_LITTER,
+  PATH_MUD, four rows), sectors.ts (no edit — see conflict note).
+  Phase 3 (15 tasks): screens — PrologueOpening.tsx (+ prologueRoute),
+  AdventureClosing.tsx (beat prop), GameScreen.tsx (beat?, advanceClosing,
+  cierre-<id>:<n>), App.tsx (Shell, firstVisit, initialShell).
+  Phase 4 (9 tasks): test guards — extend the six hand-enumerated guards,
+  add level-id-per-family/estanque/GameView/contract assertions.
+  Phase 5 (10 tasks): npm test + npm run build green, captures into
+  capturas/prologo/.
+
+  TWO DESIGN.MD vs SPEC.MD CONFLICTS FOUND, EACH RESOLVED BY THE
+  ORCHESTRATOR AND THE SPEC DELTA AMENDED TO MATCH (same precedent as the
+  shipped `night` closingBeat comment in adventures.ts):
+  1. entrada.adventureIds order — RESOLVED IN FAVOUR OF DESIGN D7. The list
+     IS the play order (`nextAdventure` picks the first unfiled id from it,
+     `resolveNextAction` exits every entrance level to the map), so it is
+     interleaved to `glass1, glass2, sand1, sand2, glass3, glass4, sand3,
+     sand4`. The amended `zoo-map` requirement now asserts the same eight
+     ids as a SET with each family's relative order intact, never a
+     byte-identical flat list.
+  2. The sign's uppercase word vs the discovery sentence — RESOLVED AGAINST
+     `signLabel`. `AdventureClosing` renders exactly one `CaptionedArt`: one
+     image, one caption, and that caption is always `beat.line` (the docs/16
+     §9 sentence). `ClosingBeat` gains no `signLabel` field; the uppercase
+     word lives IN the sign artwork (`SIGN_ART.fish`/`.turtles`/`.monkeys`),
+     drawn there by `scripts/art/make_placeholders.py`. The testable
+     assertion is which art the beat points at, not a label string.
+
+notes: |
+  sdd-spec and sdd-design can run in parallel. The spec contract is the
+  proposal's "Capabilities" section: ONE new capability (`prologue-opening`)
+  and THREE modified (`zoo-map`, `main-screen`, `trace-canvas`). Do not
+  delta `level-engine`, `reveal-grid` or `progress-store` — no level config,
+  no reveal grid and no store key changes in this change.
+
+  THREE FORKS WERE RESOLVED BEFORE propose AND ARE NOT OPEN:
+
+  1. `closingBeat` becomes an ORDERED, NON-EMPTY LIST of beats, rendered in
+     sequence by the existing `AdventureClosing`. docs/16 §8 forbids a third
+     screen pattern, so there is NO new `GameView`: the sequence index lives
+     in `GameScreen`'s existing `close` view.
+  2. The "has the opening been seen" gate is DERIVED from existing progress
+     records, never a new persisted key. `zoo/sectors.ts:507-524` records the
+     team rejecting exactly this kind of flag and `game/migrateEntrance.ts:83`
+     already reads an empty record set as a fresh install. `?nivel=` deep
+     links bypass the opening; the opening stays reachable on demand for
+     tests and captures via the repo's `?nivel=intro-<id>` / `?nivel=cierre-<id>`
+     dev convention (`GameScreen.tsx:113,123`).
+  3. Missing art ships as hand-authored FLAT-COLOUR PLACEHOLDER PNGs at the
+     exact `AUTHORED_SOURCE_SIZES` canvas, with NO change to
+     `scripts/art/build_art.py`'s logic. They must be visually obvious as
+     stand-ins.
+
+  LEVEL IDS ARE NEVER TOUCHED. `glass1..4` and `sand1..4` are persisted
+  progress keys and `zoo/sectors.ts:400` opens the pond with
+  `isFiled('sand4')`. The four adventures regroup them two-by-two:
+  peces(glass1,glass2) / tortugas(sand1,sand2) / monos(glass3,glass4) /
+  sendero(sand3,sand4). `zoo/backpack.ts:39-43` grants the lupa at `sand4`
+  and is level-id keyed, so it is untouched. `game/migrateEntrance.ts` is
+  RE-VERIFIED, not rewritten.
+
+  ART, CORRECTING docs/16 §7's LIST. Four of its "blocking" requests are
+  ALREADY SHIPPED and must be reused, not re-requested:
+    fondo pecera.png  -> sector-aquarium-background.png  (PASSTHROUGHS:474)
+    fondo arena.png   -> sector-sand-background.png      (PASSTHROUGHS:462)
+    pulpo con lupa.png-> carrier-octopus.png             (SINGLES:354)
+    carrito.png       -> zoo-cart.png                    (SINGLES:439)
+  SIX slots are genuinely new and ship as placeholders:
+    pulpo cuidador.png       -> zoo-octopus-caretaker.png    SINGLES      1024x1024
+    fondo recinto monos.png  -> sector-monkeys-background.png PASSTHROUGHS 1536x1024
+    fondo sendero.png        -> sector-path-background.png    PASSTHROUGHS 1536x1024
+    cartel peces.png         -> sign-fish.png                SINGLES      1024x1024
+    cartel tortugas.png      -> sign-turtles.png             SINGLES      1024x1024
+    cartel monos.png         -> sign-monkeys.png             SINGLES      1024x1024
+  Four registration points each; `detective/artManifest.test.ts:181` moves
+  from `REGISTERED.length === 81` to `=== 87`. `emit_opaque_canvas` rejects
+  any non-opaque pixel, so both background placeholders must be fully opaque,
+  and their flat fill must clear `docs/09` §4's 55-luma law against the veil
+  `tile` and the ink. Read `quiet`/`brightest` off the REBUILT manifest.json;
+  never hand-guess them (the standing rule from pasos C/D/E).
+
+  GUARDS THAT WILL GO RED — extend, never delete:
+    zoo/adventures.test.ts:23-67   (ten literal rows incl. 'glass'/'sand')
+    zoo/adventures.test.ts:129-165 (introLevel undefined for glass3/sand3;
+                                    closingLevel('glass4') undefined)
+    screen/GameScreen.test.tsx:176-188, 318-390 (sand4 closes, glass4 does not)
+    levels/catalog.test.ts:400     (ADVENTURES.find('glass').levelIds[0])
+    detective/artManifest.test.ts:181 (the exact 81)
+  The microprogression assertions in catalog.test.ts are checked per SURFACE
+  FAMILY inside levels/catalog.ts, independent of the ADVENTURES grouping, so
+  the split does not endanger them.
+
+  Baseline to preserve: 79 test files / ~1633 tests green; `npm test` and
+  `npm run build` at the root. Never a bare `tsc --noEmit` (TS 7 quirk,
+  openspec/config.yaml).
+
+  IN-APP UI COPY IS SPANISH (Rioplatense voseo) — the script is verbatim from
+  docs/16 §4 and §9. Every other artifact, identifier and comment is English.
+
+  Five product questions are open in the proposal's "Proposal question round",
+  each with a stated working assumption. SDD ran in `auto` mode so none could
+  be asked live; flagging them is the precedent pasos C, D and E all set. The
+  sharpest one: the enclosure names `monos` and `sendero` are docs/16 §5's own
+  proposal and it flags them as needing the author's confirmation.

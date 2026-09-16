@@ -1,7 +1,7 @@
 # Estado del proyecto y mapa de la documentación
 
-Actualizado el 2026-09-16, verificado contra el código de `main`
-(`8bd51bf`), no contra los documentos.
+Actualizado el 2026-09-16, verificado contra el código de la rama
+`sdd/prologo-cuidador`, no contra los documentos.
 
 ---
 
@@ -20,7 +20,8 @@ nuevo.**
 | `13_AVENTURAS_POR_ANIMAL` | La progresión va por animal y sector. Plan A–H | **Vigente. Es el documento de referencia del contenido.** Pasos A–H terminados |
 | `14_PROYECTO_APP_PULPITO_DIRECTIVA` | Versión formalizada de `13` (transcripción del `.docx`) | **Vigente**, es la fuente de `13` |
 | `15_PRIMER_CASO_OBJETOS_PERDIDOS` | El capítulo de las letras cursivas, empezando por la `i` | **Documentado, sin implementar. Etapa futura**, no el próximo paso |
-| `16_PROLOGO_EL_CUIDADOR` | El prólogo: el Pulpito es el cuidador, limpia cuatro recintos, nacen las huellas y el detective | **Vigente. Es el próximo trabajo** |
+| `16_PROLOGO_EL_CUIDADOR` | El prólogo: el Pulpito es el cuidador, limpia cuatro recintos, nacen las huellas y el detective | **Vigente e implementado** |
+| `17_PEDIDOS_DE_ARTE_PROLOGO` | Los cuatro pedidos de arte del prólogo y cómo entra una lámina nueva | **Vigente.** Acorta la lista de `16` §7: cuatro de esos diez pedidos ya estaban dibujados |
 
 Los PDF y `.docx` originales están fuera del repo, en
 `~/cursiva-pdfs-originales/`. Sus transcripciones (`11`, `14`, `15`) y sus
@@ -37,11 +38,21 @@ app. Siete sectores, niebla sobre los cerrados, huellas hacia el recién
 descubierto, animales recuperados, mochila, contador de estrellas, bocadillo
 del Pulpito. `screen/ZooMap.tsx`, `zoo/sectors.ts`.
 
-**Las diez aventuras** (`docs/13`, pasos B–H), 4 niveles cada una:
+**El prólogo** (`docs/16`): pantalla de apertura de tres láminas donde el
+Pulpito se presenta como cuidador, con botón de saltar siempre visible; los
+cuatro recintos de la entrada, cada uno con su entrada y su cierre; y el
+cierre del sendero en dos beats — las huellas, y después la lupa, donde el
+pulpo se transforma en detective sin que se mueva nada más en pantalla.
+`screen/PrologueOpening.tsx`, `zoo/prologue.ts`, `zoo/adventures.ts`.
+El arte nuevo son seis placeholders (`scripts/art/make_placeholders.py`):
+qué se pide para reemplazarlos está en `docs/17`.
+
+**Las doce aventuras** (`docs/13`, pasos B–H, más los cuatro recintos del
+prólogo). Las de `docs/13` llevan 4 niveles cada una:
 
 | Sector | Aventuras | Mecánica |
 |---|---|---|
-| entrada | `glass1..4`, `sand1..4` | grilla de revelado, modo borrar |
+| entrada | `peces` (`glass1-2`), `tortugas` (`sand1-2`), `monos` (`glass3-4`), `sendero` (`sand3-4`) | grilla de revelado, modo borrar |
 | estanque | `duck-trail1..4`, medusa (`f2-*`), `dolphin1..4` | camino; los delfines con cámara que se desplaza |
 | montañas | `sheep-hill1..4`, `llama-peak1..4` | cresta con altura por vértice |
 | nocturna | `night1..4`, `hedgehog1..4` | revelado con linterna; trazos radiales sueltos |
@@ -50,24 +61,27 @@ del Pulpito. `screen/ZooMap.tsx`, `zoo/sectors.ts`.
 
 **Entrada y cierre narrativo**: `screen/AdventureIntro.tsx` y
 `screen/AdventureClosing.tsx` — Pulpito, bocadillo, una imagen y una frase.
-Existen y funcionan.
+El cierre ahora puede ser una **secuencia** de beats, no uno solo, y un beat
+puede cambiar la figura que está parada en escena: así se cuenta la
+transformación de la lupa sin una tercera pantalla.
 
-**Arte**: 82 PNG en `client/public/art/`, generados por
+**Arte**: 87 PNG en `client/public/art/`, generados por
 `python3 scripts/art/build_art.py` desde `art-source/`. Tests que fallan si
 sobra o falta un asset, si el contraste de las pistas no gana, o si la paleta
 se sale de banda.
 
-**Tests**: 79 archivos, ~1633 casos. `npm test` (vitest), `npm run build`
+**Tests**: 82 archivos, 1882 casos. `npm test` (vitest), `npm run build`
 (`tsc --noEmit && vite build`). No hay linter en el repo.
 
 ## 3. Qué falta, en orden
 
-1. **El prólogo** (`docs/16`). Que se entienda que el Pulpito es el cuidador,
-   que cada recinto tenga su animal ausente, y que las huellas y la lupa sean
-   un momento y no una línea de texto. **Es el próximo trabajo.**
-2. **Cierres narrativos en las otras nueve aventuras.** Solo `sand` declara
-   un `closingBeat`. Las demás terminan y vuelven al mapa sin decir nada, así
-   que "el animal apareció en el zoológico" nunca se cuenta.
+1. **El arte del prólogo.** Los seis assets nuevos son placeholders: bloques
+   de color con la palabra dibujada. Los pedidos están escritos en `docs/17`,
+   agrupados en cuatro láminas para que el personaje no cambie entre una pose
+   y otra. **Es el próximo trabajo, y no es de código.**
+2. **Cierres narrativos en las otras ocho aventuras.** Los cuatro recintos
+   del prólogo ya tienen el suyo. Las demás terminan y vuelven al mapa sin
+   decir nada, así que "el animal apareció en el zoológico" nunca se cuenta.
 3. **Pruebas en tablet.** Nadie las hizo todavía: corredor sobre agua, onda 4
    del pato, cámara de los delfines, rendimiento de la grilla de revelado.
 4. **Decisiones de arte abiertas** (`docs/13` §4, ítems 5–10). Son de la
@@ -109,7 +123,7 @@ entonces se va a tirar cuando esa decisión se tome.
 ## 6. Cómo mirar la app
 
 ```bash
-npm test                       # 79 archivos, ~1633 casos
+npm test                       # 82 archivos, 1882 casos
 npm run build                  # tsc --noEmit && vite build
 npm run dev                    # vite
 bash scripts/shot.sh <url> capturas/x.png 1000 600
@@ -119,7 +133,8 @@ Flags de depuración: `?debug=sectores`, `?debug=ordenadas:<k>`,
 `?debug=espina`, `?debug=estela:<k>`, `?debug=espinas:<k>`,
 `?debug=camara:<x>`, `?debug=progreso:<ids>`, `?debug=pato-recuperado`.
 Enlaces directos: `?nivel=<id>`, `?nivel=intro-<id>`, `?nivel=cierre-<id>`,
-`?nivel=mapa`, `?nivel=deduccion`.
+`?nivel=cierre-<id>:<n>` (el beat n del cierre), `?nivel=apertura`,
+`?nivel=apertura:<n>`, `?nivel=mapa`, `?nivel=deduccion`.
 
 Las capturas de cada paso ya hecho están en `capturas/` (fuera de git).
 Mirarlas antes de pedir cambios.
