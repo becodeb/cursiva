@@ -287,7 +287,7 @@ export const SECTOR_BACKGROUND_ART: Readonly<Record<
  * `artManifest.test.ts`. */
 export const ZOO_CARETAKER_ART: ArtImage = {
   href: '/art/zoo-octopus-caretaker.png',
-  w: 320,
+  w: 235,
   h: 320,
 }
 
@@ -297,9 +297,9 @@ export const ZOO_CARETAKER_ART: ArtImage = {
  * `AdventureClosing` renders exactly one `CaptionedArt` per beat, and its
  * caption is always the beat's `line` (the docs/16 §9 sentence). */
 export const SIGN_ART: Readonly<Record<'fish' | 'turtles' | 'monkeys', ArtImage>> = {
-  fish: { href: '/art/sign-fish.png', w: 256, h: 256 },
-  turtles: { href: '/art/sign-turtles.png', w: 256, h: 256 },
-  monkeys: { href: '/art/sign-monkeys.png', w: 256, h: 256 },
+  fish: { href: '/art/sign-fish.png', w: 199, h: 256 },
+  turtles: { href: '/art/sign-turtles.png', w: 199, h: 256 },
+  monkeys: { href: '/art/sign-monkeys.png', w: 197, h: 256 },
 }
 
 /** Props used by the sector adventures. Each file is a transparent cutout;

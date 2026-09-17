@@ -225,6 +225,50 @@ Light, quiet colours. Nothing darker than a mid tone. No sky gradient.
 su propio placeholder— pero si el pedido tarda, el cambio es una línea en
 `client/src/zoo/backdrops.ts`.
 
+## 3 bis. El fondo "transparente" que no es transparente
+
+Encontrado en la primera ronda de arte de este documento (2026-09-17), con
+los tests en verde: los cuatro recortes nuevos se veían con un **rectángulo
+gris detrás de la figura**.
+
+La causa no se ve en una miniatura. El fondo transparente que devolvió el
+generador salió a **alpha exactamente 8** en vez de 0, sobre el 10 % del
+lienzo. Dos consecuencias encadenadas: `recolour` tiñe ese campo de tinta, y
+`alpha_bbox` —que compara con `>= 8`— lo cuenta como contenido, así que el
+recorte se lo queda. `pulpo cuidador.png` recortaba 640 px de ancho cuando su
+figura mide 470.
+
+Cómo se detecta en diez segundos, y conviene hacerlo con **cada** lámina
+nueva antes de creerle a la suite:
+
+```python
+# desde scripts/art/
+from png import read_png
+img = read_png('../../art-source/<lamina>.png')
+px = img.px; t = img.w * img.h
+haze = sum(1 for i in range(3, len(px), 4) if 0 < px[i] <= 8)
+print(f"halo={haze*100/t:.2f}%  esquina={tuple(px[0:4])}")
+```
+
+Un recorte sano da `halo` entre 0,00 % y 0,40 % y esquina `(0, 0, 0, 0)`.
+Los cuatro defectuosos daban 23–29 % y `(26, 26, 26, 8)`.
+
+**El arreglo ya está en el pipeline**: `clear_ghost_alpha` en `build_art.py`,
+con la lista `GHOST_ALPHA_SOURCES`. Si una lámina nueva mide mal, **agregala
+a esa lista por nombre**; no subas el umbral para todos. Correrlo sobre todas
+las fuentes movía un píxel a cuatro assets ya aprobados (`droplet`,
+`webfoot`, `hedgehog-profile`, `home-desk`) porque un recorte corrido un
+píxel da vuelta un redondeo de `box_resize`, y `artManifest.test.ts` los
+cuida a propósito. Es la misma razón por la que `SPECKLED_ALPHA_SOURCES` es
+opt-in.
+
+**Y ojo con el paso 3 de la sección 4 cuando esto pasa**: al irse el relleno
+fantasma **cambian el `w` y el `h`**, así que ahí sí hay que copiar los
+nuevos del manifest a `assets.ts`. Y si algún CSS dimensionaba la figura por
+ancho asumiendo un lienzo cuadrado, deja de valer: el pulpo cuidador pasó de
+320×320 a 235×320 y `width: 44%` lo estiró hasta esconderle la cabeza detrás
+del globo. `PrologueOpening.tsx` ahora lo fija por alto.
+
 ## 4. Cómo entra una lámina nueva
 
 Cuatro puntos de registro, y el orden importa. Está todo en `docs/16` §8,

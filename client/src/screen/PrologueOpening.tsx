@@ -44,7 +44,14 @@ const PROLOGUE_CSS = `
 .cv-prologue { height: 100dvh; display: flex; align-items: center; justify-content: center; background-color: ${SHEET_PAPER}; box-sizing: border-box; padding: 4%; }
 .cv-prologue-frame { position: relative; width: min(100%, 620px, 84dvh); aspect-ratio: 1 / 1; container-type: inline-size; }
 .cv-prologue-stage { position: absolute; inset: 0; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; }
-.cv-prologue-octopus { position: absolute; left: 50%; bottom: 2%; width: 44%; height: auto; transform: translateX(-50%); }
+/* Sized by HEIGHT, unlike AdventureIntro's own octopus rule, and the
+   difference is not cosmetic. That rule says width: 44% because
+   ZOO_OCTOPUS_BACKPACK_ART is 442x448 -- near square, so width and height
+   land in the same place. The caretaker is 235x320: at width: 44% it stands
+   36% taller than the backpack octopus does and its head disappears behind
+   the bubble. Height is what has to be pinned here, because what the layout
+   actually needs is for the figure to stop below the bubble. */
+.cv-prologue-octopus { position: absolute; left: 50%; bottom: 2%; height: 44%; width: auto; transform: translateX(-50%); }
 .cv-prologue-bubble { position: absolute; left: 50%; top: 4%; width: 82%; transform: translateX(-50%); }
 .cv-prologue-bubble > img { display: block; width: 100%; height: auto; }
 .cv-prologue-bubble .cv-captioned { position: absolute; left: 10%; right: 10%; top: 16%; height: 58%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4cqw; }

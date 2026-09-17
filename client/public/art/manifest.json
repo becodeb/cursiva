@@ -574,22 +574,22 @@
     "w": 256
   },
   "sign-fish": {
-    "bytes": 46420,
+    "bytes": 44605,
     "file": "art/sign-fish.png",
     "h": 256,
-    "w": 256
+    "w": 199
   },
   "sign-monkeys": {
-    "bytes": 50189,
+    "bytes": 47948,
     "file": "art/sign-monkeys.png",
     "h": 256,
-    "w": 256
+    "w": 197
   },
   "sign-turtles": {
-    "bytes": 47130,
+    "bytes": 45153,
     "file": "art/sign-turtles.png",
     "h": 256,
-    "w": 256
+    "w": 199
   },
   "zoo-backpack": {
     "bytes": 7232,
@@ -634,10 +634,10 @@
     "w": 442
   },
   "zoo-octopus-caretaker": {
-    "bytes": 67679,
+    "bytes": 64062,
     "file": "art/zoo-octopus-caretaker.png",
     "h": 320,
-    "w": 320
+    "w": 235
   },
   "zoo-octopus-print": {
     "bytes": 9305,

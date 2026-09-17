@@ -283,12 +283,67 @@ def emit_opaque_canvas(name: str, img: png.Image, expected_w: int, expected_h: i
 # entry here.
 SPECKLED_ALPHA_SOURCES = {'oveja.png', 'piedra.png'}
 
+# Sources whose "transparent" field came back at a low but NON-ZERO alpha.
+# See `clear_ghost_alpha` for the measurement and why this is opt-in like
+# `SPECKLED_ALPHA_SOURCES` rather than a blanket pass.
+GHOST_ALPHA_SOURCES = {
+    'pulpo cuidador.png',
+    'cartel peces.png',
+    'cartel tortugas.png',
+    'cartel monos.png',
+}
+
+
+def clear_ghost_alpha(img: png.Image, thresh: int = 8) -> png.Image:
+    """Erase a background that was exported almost-transparent instead of
+    transparent.
+
+    Some exports return the "transparent" field at a low but NON-ZERO alpha.
+    `pulpo cuidador.png` and the three `cartel *.png` of the prologue's first
+    authored round each came back with ~10% of the canvas at alpha EXACTLY 8
+    -- a flat spike, not the smooth tail antialiasing leaves. That field is
+    invisible in a thumbnail and does two things downstream: `recolour` dyes
+    it INK, so the asset ships as a near-black wash, and `alpha_bbox` counts
+    it as content, so the crop keeps it. `pulpo cuidador.png` cropped 640px
+    wide instead of its figure's 470.
+
+    Note the boundary. `alpha_bbox`'s own test is `>= thresh`, so alpha 8 is
+    content to the cropper; clearing `< thresh` would step over the one value
+    that matters and change nothing. We clear `<= thresh`: under ~3% opacity
+    is background, and the cropper and the eraser now agree on that.
+
+    Measured before shipping this, so it is not a guess. Every previously
+    approved cutout is untouched: `pulpo mochila.png` returns the IDENTICAL
+    bounding box at thresh 8 and 9, and the shipped cutouts measure
+    0.00-0.40% in the 1-8 band against these four's 23-29%.
+
+    This is `SPECKLED_ALPHA_SOURCES`'s defect class reached from a third
+    direction -- `oveja.png` and `piedra.png` were opaque specks, which break
+    the crop by scattering -- and it takes the same opt-in shape, for the
+    reason that set already gives: a blanket pass is not free. Run over every
+    source, clearing `<= 8` moved four ALREADY-APPROVED assets by one pixel
+    (`droplet` 195->194 wide, `webfoot` 230->231 tall, `hedgehog-profile`
+    306->307, `home-desk`). Not a visible change -- a one-pixel crop shift
+    flipping a rounding in `box_resize` -- but `artManifest.test.ts` and
+    `artHierarchy.test.ts` guard those dimensions on purpose, and editing a
+    guard to match a change the guard just caught is how the guard stops
+    meaning anything. Opt-in keeps this aimed at the sources that measured
+    the defect.
+    """
+    px = img.px
+    for i in range(3, len(px), 4):
+        if px[i] <= thresh:
+            px[i - 3] = px[i - 2] = px[i - 1] = px[i] = 0
+    return img
+
 
 def prepare(src_name: str, target_h: int) -> png.Image:
     """Crop to content and downscale so the taller side lands on `2*target_h`."""
     img = png.read_png(os.path.join(SRC, src_name))
     if src_name in SPECKLED_ALPHA_SOURCES:
         img = keep_largest_blob(img)
+    if src_name in GHOST_ALPHA_SOURCES:
+        img = clear_ghost_alpha(img)
     x0, y0, x1, y1 = png.alpha_bbox(img)
     img = png.crop(img, x0, y0, x1, y1)
     work = target_h * 2
