@@ -2,9 +2,9 @@
 
 ## Cumulative Status
 
-- Completed before this unit: U0 Baseline, U1 Migration regression, U2 Progression consistency.
-- Completed in this unit: U3 Asset/docs protection, including zero-mutation dry-run behavior, all-six authored-source byte preservation, docs/09 hierarchy updates, and focused Python regression coverage. Build/export atomicity is explicitly deferred to U12.
-- Remaining: U4–U15.1.
+- Completed before this unit: U0 Baseline, U1 Migration regression, U2 Progression consistency, U3 Asset/docs protection. Build/export atomicity is explicitly deferred to U12.
+- Completed in this unit: U4 Playwright harness, including reusable viewport/state vocabulary, a local Vite webServer config, ignored Playwright output/report folders, and 15 real-UI state×viewport evidence captures.
+- Remaining: U5–U15.1.
 
 ## U1 Migration Regression
 
@@ -96,3 +96,123 @@ Implemented only the U3 art-source and documentation protection layer. No visual
 
 ### Deviations
 None — implementation preserves docs/09 authority, does not touch visual assets, and narrows U3 to safe placeholder generation. Build/export atomicity is deferred to U12.
+
+## U4 Playwright Harness
+
+### Scope
+Implemented only the reusable Playwright visual-matrix foundation. No product UX, selectors, or component mocks were added.
+
+### Behavior
+- `@playwright/test` is installed in the `client` workspace and recorded in the root lockfile.
+- `client/playwright.config.ts` starts the real Vite app at `127.0.0.1:4173`, writes reports under ignored Playwright folders, and defaults to managed Chromium while allowing `PLAYWRIGHT_CHANNEL=chrome` for local machines that already have Chrome installed.
+- `client/e2e/mvp-visual.spec.ts` defines the reusable viewport names (`desktop` 1280x720, `landscape` 844x390, `portrait` 390x844) and state vocabulary (`start`, `partial`, `error`, `success`, `map-return`).
+- The harness captures 15 real UI cells. The baseline matrix uses real app routes: `glass1` for start/partial/success/map-return, the existing `revelado` render-state debug flag for partial/success reveal fixtures, real pointer input on `f1-libre` for error, and the real back button for map-return.
+- Evidence screenshots are generated under ignored `client/test-results/playwright-output/.../mvp-visual-matrix/*.png`; they are not committed golden baselines.
+
+### Evidence
+| Step | Command | Result |
+|---|---|---|
+| Browser setup attempt | `npx playwright install chromium` | FAILED locally: repeated timeout downloading Chrome for Testing from Playwright CDN. |
+| Local browser fallback | `$env:PLAYWRIGHT_CHANNEL='chrome'; npm run test:e2e -w client` | PASS: 15 Playwright cells using installed local Chrome. |
+| Existing client tests | `npm run test -w client` | PASS: 82 files, 1887 tests. |
+| Build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
+
+### Visual Observations
+- `start`: the fogged glass scene renders with the pale blue background, top water line, central covered rectangle, back control, and bottom action controls at all three viewports.
+- `partial`: the same real glass scene renders with a smaller remaining covered area from the deterministic `revelado:45` fixture.
+- `error`: the real `f1-libre` attempt view shows a short dark stroke, result pillars, the coaching text "Quedate adentro del camino, despacito.", and disabled `Siguiente`.
+- `success`: the deterministic `revelado:100` fixture reveals the beach/treasure artwork with the action controls still visible.
+- `map-return`: clicking the real back control lands on the zoo map with the Pulpito in the plaza, fogged sectors, star HUD, speech bubble, and dev reset overlay because the route is intentionally `?dev`.
+
+### Files Changed
+- `client/package.json` — added `test:e2e` and `@playwright/test`.
+- `package-lock.json` — locked Playwright dependencies for the workspace.
+- `client/playwright.config.ts` — added the stable local Vite webServer, Chromium project, output/report locations, reduced motion, and optional local Chrome channel override.
+- `client/e2e/mvp-visual.spec.ts` — added reusable viewport/state matrix helpers and 15 real-UI captures.
+- `.gitignore` — ignored Playwright output and HTML report folders.
+- `openspec/changes/finish-mvp-roadmap/tasks.md` — marked only U4 complete.
+- `openspec/changes/finish-mvp-roadmap/apply-progress.md` — recorded cumulative U0–U4 progress and evidence.
+
+### Deviations
+None — U4 establishes the Playwright harness and representative baseline matrix only. Later visual units still own their product-specific UX changes and quality judgment.
+
+## U4 Review Fixes
+
+### Scope
+Fixed confirmed review/visual-QA findings in the U4 Playwright harness only. No U5+ product behavior was changed.
+
+### Behavior
+- `client/playwright.config.ts` now starts Vite with `--strictPort` on `127.0.0.1:4173` and `reuseExistingServer: false`, so an occupied port fails instead of reusing an unverified stale server.
+- Playwright output and HTML report folders are isolated per invocation under a sanitized run id. `PLAYWRIGHT_RUN_ID` provides deterministic evidence paths; otherwise the config uses a timestamp plus process id. All output roots remain ignored.
+- `client/e2e/mvp-visual.spec.ts` now asserts the real reveal-tile count for the glass fixtures: start = 60 tiles, partial `?debug=revelado:45` = 30 tiles, success `?debug=revelado:100` = 0 tiles.
+- Evidence screenshots now use viewport capture only, not `fullPage`, so page overflow is visible as a defect instead of hidden in a taller screenshot.
+- `tasks.md` and `apply-progress.md` were trimmed to a single EOF newline; `git diff --check` passes.
+
+### Evidence
+| Step | Command | Result |
+|---|---|---|
+| Matrix run A | `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u4-review-run-a'; npm run test:e2e -w client` | PASS: 15 Playwright cells in isolated run folder. |
+| Matrix run B | `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u4-review-run-b'; npm run test:e2e -w client` | PASS: 15 Playwright cells in a second isolated run folder. |
+| Root tests | `npm run test` | PASS: 82 files, 1887 tests. |
+| Root build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
+| Whitespace | `git diff --check` | PASS. |
+
+### Visual Observations
+- Run B produced exactly 15 viewport-sized screenshots: `1280x720`, `844x390`, and `390x844` for each state.
+- `start` shows a full 60-tile grime cover over the glass scene.
+- `partial` visibly differs from start and has the top half revealed by the 30 remaining-tile `revelado:45` fixture.
+- `success` visibly differs from both start and partial with all grime tiles gone and the beach/treasure content visible.
+- `error` still shows the real `f1-libre` attempt result with coaching text and disabled `Siguiente`.
+- `map-return` still shows the real zoo map after using the visible back control.
+
+### Evidence Paths
+- `client/test-results/playwright-output/u4-review-run-a/.../mvp-visual-matrix/*.png`
+- `client/test-results/playwright-output/u4-review-run-b/.../mvp-visual-matrix/*.png`
+- `client/test-results/playwright-output/u4-review-run-b-contact-sheet.png`
+
+### Deviations
+None — the fixes harden the U4 harness and assertions without changing production UX or later roadmap units.
+
+## U4 Path Traversal Fix
+
+### Scope
+Fixed the confirmed critical path-traversal defect in Playwright per-run output/report path handling only. No U5+ product behavior was changed.
+
+### Behavior
+- `PLAYWRIGHT_RUN_ID` is sanitized through `client/playwright.runPaths.mjs`; dot-only values such as `..`, `.`, and empty strings fall back to a safe id.
+- Every sanitized id is prefixed with `run-`, so separator-containing values like `../outside` become a leaf directory under the dedicated base instead of a path segment that can escape.
+- Output and report directories are resolved against their dedicated bases and rejected if the resolved path is outside those bases before the Playwright config is exported.
+- `client/scripts/playwrightRunPaths.test.mjs` covers `..`, `.`, separators, empty, and normal ids without invoking Playwright cleanup.
+
+### Evidence
+| Step | Command | Result |
+|---|---|---|
+| Path regression | `node client/scripts/playwrightRunPaths.test.mjs` | PASS. |
+| Unique-id matrix | `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u4-traversal-safe'; npm run test:e2e -w client` | PASS: 15 Playwright cells under `run-u4-traversal-safe`. |
+| Root tests | `npm run test` | PASS: 82 files, 1887 tests. |
+| Root build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
+| Whitespace | `git diff --check` | PASS. |
+
+### Visual Observations
+- The unique-id run produced exactly 15 viewport screenshots: desktop `1280x720`, landscape `844x390`, and portrait `390x844` for each state.
+- `partial` remains visibly distinct from `start` with the top of the glass scene revealed.
+- `success` shows the beach/treasure content with no grime tiles, confirming the viewport capture still exercises the deterministic fixture.
+- `error` and `map-return` still capture the real app paths: failed writing attempt and zoo-map return via the visible back control.
+
+### Evidence Paths
+- `client/test-results/playwright-output/run-u4-traversal-safe/.../mvp-visual-matrix/*.png`
+- `client/test-results/playwright-output/run-u4-traversal-safe-contact-sheet.png`
+
+### Deviations
+None — the change hardens U4 evidence isolation without changing production UX or later roadmap units.
+
+## U4 Changed-Line Accounting and Local Commit Boundaries
+
+Git-style changed-line accounting uses additions plus deletions, counting untracked added files as all-added. The full U4 diff now exceeds the 400-line review budget, so it is split into two coherent local commit boundaries:
+
+| Boundary | Scope | Files | Git-style count |
+|---|---|---|---|
+| A | Safe Playwright runner infrastructure | `.gitignore`, `client/package.json`, `package-lock.json`, `client/playwright.config.ts`, `client/playwright.runPaths.mjs`, `client/scripts/playwrightRunPaths.test.mjs` | 201 (199 additions, 2 deletions) |
+| B | Visual matrix and SDD artifacts | `client/e2e/mvp-visual.spec.ts`, `openspec/changes/finish-mvp-roadmap/tasks.md`, `openspec/changes/finish-mvp-roadmap/apply-progress.md` | 257 (253 additions, 4 deletions) |
+
+Both boundaries are independently coherent and below 400 changed lines: A installs/configures a safe reproducible runner plus path-regression coverage; B adds the reusable real-UI visual matrix and records U4 SDD completion/evidence.
