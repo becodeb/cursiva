@@ -15,7 +15,7 @@ The committed LF/CRLF baseline is complete and excluded. Execute U1→U15 automa
 ## Ordered Work Units
 
 - [x] U0. Baseline — confirm the committed LF/CRLF normalization; no pending baseline changes.
-- [ ] U1. Migration regression — add Vitest coverage and additive/idempotent safeguards in `client/src/game/migrateEntrance.test.ts` and `LevelProgressStore.ts`; preserve contaminated localStorage.
+- [x] U1. Migration regression — add Vitest coverage and additive/idempotent safeguards in `client/src/game/migrateEntrance.test.ts` and `LevelProgressStore.ts`; preserve contaminated localStorage.
 - [ ] U2. Progression consistency — verify/fix stars, unlocks, and map return in `client/src/zoo/{sectors,stars,adventures}.*` with focused tests.
 - [ ] U3. Asset/docs protection — protect authored assets in `scripts/art/{make_placeholders,build_art}.py`; document docs/09 contract and test manifest hierarchy.
 - [ ] U4. Playwright harness — add `client/playwright.config.ts` and `client/e2e/mvp-visual.spec.ts`; capture 15 state×viewport combinations.

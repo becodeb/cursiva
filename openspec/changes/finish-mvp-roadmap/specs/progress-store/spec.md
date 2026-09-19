@@ -17,18 +17,19 @@ The progress store MUST migrate a fresh profile that reopens `glass1` without du
 - WHEN migration runs during `glass1` startup
 - THEN no level other than the active `glass1` attempt MAY become filed
 
-### Requirement: Contaminated Progress Is Preserved Non-Destructively
+### Requirement: Previously Seeded sand4 Progress Is Preserved Non-Destructively
 
-The progress store MUST block newly bad migrations while preserving existing contaminated historical localStorage records for investigation and manual recovery.
+The progress store MUST preserve profiles that already contain a structurally valid `sand4` record from the previous migration behavior. This preservation contract applies to known valid level records, not arbitrary malformed, duplicate, or out-of-contract localStorage fields.
 
-#### Scenario: Contaminated payload survives read and save
-- GIVEN localStorage already contains unexpected or duplicate progress fields
-- WHEN the store opens and later saves a valid `glass1` update
+#### Scenario: Existing sand4 progress survives read and save
+- GIVEN localStorage already contains a structurally valid `sand4` record and other known level records
+- WHEN the real progress store opens, saves a valid `glass1` update, and opens again
 - THEN the valid update MUST be written
-- AND the unexpected historical data MUST NOT be deleted by migration
+- AND the existing `sand4` domain fields MUST NOT be deleted or semantically changed
+- AND `estanque` MUST remain unlocked because that existing progress is still present
 
-#### Scenario: New bad migration is rejected
-- GIVEN a migration would overwrite unrelated filed levels or stars
-- WHEN the store validates the migrated payload
-- THEN the write MUST be refused or isolated
-- AND the previous stored payload MUST remain recoverable
+#### Scenario: Existing sand4 blocks synthetic reseeding
+- GIVEN a profile already contains a valid `sand4` record
+- WHEN the entrance migration runs
+- THEN no replacement `sand4` record MAY be generated
+- AND other known valid records MUST keep their existing level semantics

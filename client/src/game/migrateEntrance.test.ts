@@ -7,6 +7,8 @@ import type { StorageLike } from './LevelProgressStore'
 import { EMPTY_RECORD, APPROVALS_TO_UNLOCK } from './types'
 import type { LevelRecord } from './types'
 import { migrateEntrance, ENTRANCE_UNLOCK_ID, NIGHT_UNLOCK_ID } from './migrateEntrance'
+import { openProgressStore } from './openProgressStore'
+import { LEVEL_PROGRESS_KEY } from './LevelProgressStore'
 import { nextAdventure, SECTORS } from '../zoo/sectors'
 
 function makeRecord(over: Partial<LevelRecord> = {}): LevelRecord {
@@ -20,6 +22,31 @@ function fakeStorage(): StorageLike {
     setItem: (_key, v) => {
       value = v
     },
+  }
+}
+
+function fakeBrowserStorage(seed?: string): StorageLike & { raw(): string | null } {
+  let value: string | null = seed ?? null
+  return {
+    getItem: (key) => (key === LEVEL_PROGRESS_KEY ? value : null),
+    setItem: (key, v) => {
+      if (key === LEVEL_PROGRESS_KEY) value = v
+    },
+    raw: () => value,
+  }
+}
+
+function withBrowserStorage(storage: StorageLike, run: () => void): void {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'window')
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { localStorage: storage },
+  })
+  try {
+    run()
+  } finally {
+    if (previous) Object.defineProperty(globalThis, 'window', previous)
+    else Reflect.deleteProperty(globalThis, 'window')
   }
 }
 
@@ -220,6 +247,56 @@ describe('migrateEntrance — protects the pond, the real stake (design.md §8.1
     const changed = migrateEntrance({})
     expect(changed).toEqual({})
     expect(estanque.unlockedWhen(changed)).toBe(false)
+  })
+
+  it('the real open path does not invent sand4 or unlock estanque after only glass1 is completed', () => {
+    const storage = fakeBrowserStorage()
+    withBrowserStorage(storage, () => {
+      const firstOpen = openProgressStore()
+      firstOpen.save('glass1', makeRecord({ approvals: APPROVALS_TO_UNLOCK, attempts: 1 }))
+
+      const reopened = openProgressStore()
+      const records = reopened.all()
+
+      expect(records['glass1']?.approvals).toBe(APPROVALS_TO_UNLOCK)
+      expect(records[ENTRANCE_UNLOCK_ID]).toBeUndefined()
+      expect(estanque.unlockedWhen(records)).toBe(false)
+      expect(JSON.parse(storage.raw() ?? '{}')).not.toHaveProperty(ENTRANCE_UNLOCK_ID)
+    })
+  })
+
+  it('the real open path preserves an existing sand4 record through a glass1 save', () => {
+    const sand4 = makeRecord({
+      approvals: 7,
+      attempts: 9,
+      bestAccuracy: 91,
+      bestFluency: 83,
+      streakPass: 4,
+      widthFactor: 0.75,
+    })
+    const otherKnownRecord = makeRecord({ approvals: 1, attempts: 2 })
+    const storage = fakeBrowserStorage(
+      JSON.stringify({
+        trail1: otherKnownRecord,
+        [ENTRANCE_UNLOCK_ID]: sand4,
+      }),
+    )
+
+    withBrowserStorage(storage, () => {
+      const firstOpen = openProgressStore()
+      expect(firstOpen.get(ENTRANCE_UNLOCK_ID)).toEqual(sand4)
+      expect(estanque.unlockedWhen(firstOpen.all())).toBe(true)
+
+      firstOpen.save('glass1', makeRecord({ approvals: APPROVALS_TO_UNLOCK, attempts: 1 }))
+
+      const reopened = openProgressStore()
+      const records = reopened.all()
+
+      expect(records['glass1']?.approvals).toBe(APPROVALS_TO_UNLOCK)
+      expect(records[ENTRANCE_UNLOCK_ID]).toEqual(sand4)
+      expect(records['trail1']).toEqual(otherKnownRecord)
+      expect(estanque.unlockedWhen(records)).toBe(true)
+    })
   })
 })
 

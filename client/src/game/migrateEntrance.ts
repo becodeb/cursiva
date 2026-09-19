@@ -35,6 +35,17 @@ export const ENTRANCE_UNLOCK_ID = 'sand4'
 /** `f2-guirnalda`'s new positional predecessor (design.md §8.1). */
 export const NIGHT_UNLOCK_ID = 'night4'
 
+const ENTRANCE_LEVEL_IDS = [
+  'glass1',
+  'glass2',
+  'sand1',
+  'sand2',
+  'glass3',
+  'glass4',
+  'sand3',
+  ENTRANCE_UNLOCK_ID,
+] as const
+
 /**
  * Depth-preserving copy-forward onto a brand new destination id. Unlike
  * `migrateDuckCase.ts`'s/`migrateNivel3.ts`'s `seedFrom`, the SOURCE here can
@@ -64,10 +75,11 @@ function seedFrom(source: LevelRecord | undefined): LevelRecord {
  * `f1-libre`'s or `llama-peak4`'s own entries, and returns ONLY the entries
  * it changed.
  *
- * `sand4`'s guard is "the store is non-empty and `sand4` has no record yet" —
- * a fresh install has nothing to protect, which is the branch that keeps this
- * migration invisible to every new player. `night4`'s guard quotes the exact
- * condition that used to grant `f2-guirnalda` its unlock
+ * `sand4`'s guard is "the store is non-empty, no entrance level has already
+ * been recorded, and `sand4` has no record yet" — a fresh install or a child
+ * who has started the new glass/sand entrance has nothing to copy forward,
+ * while a pre-entrance legacy payload still keeps the pond. `night4`'s guard
+ * quotes the exact condition that used to grant `f2-guirnalda` its unlock
  * (`llama-peak4.approvals >= APPROVALS_TO_UNLOCK`), the same discipline
  * `migrateNivel3.ts` uses rather than re-deciding it.
  *
@@ -80,7 +92,12 @@ export function migrateEntrance(
   records: Readonly<Record<string, LevelRecord>>,
 ): Record<string, LevelRecord> {
   const changed: Record<string, LevelRecord> = {}
-  if (Object.keys(records).length > 0 && !records[ENTRANCE_UNLOCK_ID]) {
+  const hasEntranceProgress = ENTRANCE_LEVEL_IDS.some((id) => records[id])
+  if (
+    Object.keys(records).length > 0 &&
+    !hasEntranceProgress &&
+    !records[ENTRANCE_UNLOCK_ID]
+  ) {
     changed[ENTRANCE_UNLOCK_ID] = seedFrom(records['f1-libre'])
   }
   const nightSource = records['llama-peak4']
