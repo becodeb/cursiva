@@ -6,3 +6,5 @@ dist/
 __pycache__/
 *.pyc
 capturas/
+client/test-results/
+client/playwright-report/
