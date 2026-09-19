@@ -11,7 +11,7 @@
  * adding a third piece of UI copy there would be an unrelated screen's
  * concern riding along.
  */
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import GameScreen, { initialView, resolveEnterAction, type GameView } from './screen/GameScreen'
 import PrologueOpening, { prologueRoute } from './screen/PrologueOpening'
 import MainScreen from './screen/MainScreen'
@@ -141,23 +141,42 @@ export default function App() {
     setShell({ at: 'map' })
   }
 
+  // Dev-only escape hatch: the map is the one screen a destructive control
+  // can safely sit on (no in-progress trace to lose, same reasoning
+  // `devMode.ts` gives for `LevelMap`'s own "Reiniciar progreso"). Wiping
+  // `LevelProgressStore` here and re-reading it is the same pair `goToMap`
+  // already does, so the zoo map re-renders fogged over instead of holding
+  // stale records.
+  const resetDevProgress = () => {
+    if (!window.confirm('¿Borrar todo el progreso y empezar de nuevo?')) return
+    openProgressStore().reset()
+    setRecords(readRecords())
+  }
+
   if (shell.at === 'prologue') {
     return <PrologueOpening from={shell.from} onDone={goToMap} />
   }
 
   if (shell.at === 'map') {
     return (
-      <ZooMap
-        records={records}
-        onEnter={(levelId: string) => {
-          setTrip((n) => n + 1)
-          // `resolveEnterAction` is the mirror of `resolveNextAction`
-          // (duck-undulations-and-sector-backdrop design.md §4): routes
-          // through the narrative entry for an adventure's first level,
-          // straight to play for every other one.
-          setShell({ at: 'game', initial: resolveEnterAction(levelId, records) })
-        }}
-      />
+      <>
+        <ZooMap
+          records={records}
+          onEnter={(levelId: string) => {
+            setTrip((n) => n + 1)
+            // `resolveEnterAction` is the mirror of `resolveNextAction`
+            // (duck-undulations-and-sector-backdrop design.md §4): routes
+            // through the narrative entry for an adventure's first level,
+            // straight to play for every other one.
+            setShell({ at: 'game', initial: resolveEnterAction(levelId, records) })
+          }}
+        />
+        {isDevMode() && (
+          <button type="button" onClick={resetDevProgress} style={DEV_RESET_BUTTON}>
+            Reiniciar progreso (dev)
+          </button>
+        )}
+      </>
     )
   }
 
@@ -203,3 +222,22 @@ const LINK = {
   textDecoration: 'underline',
   cursor: 'pointer',
 } as const
+
+/** `position: fixed` so it floats above `ZooMap`'s own `.cv-zoo` (100dvh,
+ *  `overflow: hidden`) rather than being clipped by it — a corner overlay,
+ *  not a layout row, exactly because this control must never compete with
+ *  the map's own HUD for space. */
+const DEV_RESET_BUTTON: CSSProperties = {
+  position: 'fixed',
+  top: 8,
+  right: 8,
+  zIndex: 9999,
+  padding: '6px 10px',
+  fontSize: 12,
+  fontWeight: 600,
+  borderRadius: 8,
+  border: '1px solid #94a3b8',
+  background: 'rgba(255,255,255,0.85)',
+  color: '#334155',
+  cursor: 'pointer',
+}
