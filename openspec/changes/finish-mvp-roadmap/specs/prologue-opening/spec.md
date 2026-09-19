@@ -4,7 +4,7 @@
 
 ### Requirement: Approved Entrance Narrative Closures Render Exactly
 
-MVP narrative closures MUST render only the exact approved docs/16/current-registry entrance beats: `peces` after `glass2`, `tortugas` after `sand2`, `monos` after `glass4`, and `sendero` after `sand4` with its two ordered beats.
+MVP narrative closure work MUST verify and, only if needed, remediate the exact already-approved docs/16/current-registry entrance beats: `peces` after `glass2`, `tortugas` after `sand2`, `monos` after `glass4`, and `sendero` after `sand4` with its two ordered beats.
 
 #### Scenario: Three sign-bearing enclosure closings render verbatim
 - GIVEN `peces`, `tortugas`, and `monos` complete on `glass2`, `sand2`, and `glass4`
@@ -25,6 +25,6 @@ MVP narrative closures MUST render only the exact approved docs/16/current-regis
 - AND no placeholder story text, beat, or asset MAY be shipped as an approved closure
 
 #### Scenario: Prologue opening remains isolated
-- GIVEN approved entrance closures are added or verified
+- GIVEN approved entrance closures are verified or remediated
 - WHEN the prologue opening plates render
 - THEN skip behavior, seen gate, and deep-link bypass MUST remain unchanged

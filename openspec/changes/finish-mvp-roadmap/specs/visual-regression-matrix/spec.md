@@ -15,6 +15,7 @@ Each applicable visual work unit MUST capture its affected real product scene ac
 - GIVEN U4 through U15 visual validation is complete
 - WHEN the evidence set is reviewed
 - THEN it MUST cover map, fogged glass, night discovery, PISTAS, approved narrative closing, renewed backgrounds, and the U14 wooden sign frame
+- AND U14 MUST contribute its own 15-cell Playwright matrix rather than relying on U13
 
 ### Requirement: Portrait Guidance Does Not Trap Navigation
 

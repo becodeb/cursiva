@@ -25,13 +25,14 @@ The PISTAS rail MAY improve animation, labels, focus behavior, and visual clarit
 
 ### Requirement: In-Level CaptionedArt Uses the Wooden Zoo-Sign Frame
 
-In-level `CaptionedArt` used as zoo signage MUST render inside the wooden zoo-sign frame from docs/16, while Pulpito-only speech bubbles MUST NOT count as satisfying that in-level signage requirement.
+LevelPlay MUST render the approved wooden-framed `CaptionedArt` sign inside playable level content for the docs/16 zoo-sign defect. Pulpito-only speech bubbles MUST NOT count as satisfying that in-level signage requirement.
 
-#### Scenario: In-level sign has a wooden frame
-- GIVEN a playable level renders animal signage through `CaptionedArt`
-- WHEN the sign appears inside the level scene
-- THEN a wooden zoo-sign frame MUST surround the image and caption together
-- AND the frame MUST NOT be provided only by Pulpito's speech bubble
+#### Scenario: LevelPlay renders the approved sign inside playable content
+- GIVEN a docs/16 sign-bearing level is rendered by `LevelPlay`
+- WHEN playable level content appears
+- THEN an approved wooden-framed `CaptionedArt` sign MUST exist inside the level scene
+- AND the frame MUST surround the image and caption together
+- AND the sign MUST NOT be provided only by Pulpito's speech bubble
 
 #### Scenario: Image and caption semantics are preserved
 - GIVEN the framed in-level sign renders
