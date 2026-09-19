@@ -87,7 +87,9 @@ export function auditCaptions(html: string): CaptionAudit {
   // `<style>` blocks are markup, never something a child reads off the
   // screen — the same exclusion every screen's own `visibleText`/`textOf`
   // helper already makes.
-  const stripped = html.replace(/<style[^>]*>[\s\S]*?<\/style>/g, '')
+  const stripped = html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/g, '')
+    .replace(/<[^>]*class="[^"]*cv-zoo-sr[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/g, '')
 
   const captioned: string[] = []
   const uncaptioned: string[] = []

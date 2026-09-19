@@ -225,6 +225,15 @@ const MUD_INK_DIM = '#b3a08c'
 export const RESTART_MESSAGE = 'Volvé a empezar'
 /** How long the restart cue stays up before the standing hint returns. */
 const RESTART_CUE_MS = 2200
+export const PORTRAIT_GUIDANCE_QUERY = '(max-width: 559px) and (orientation: portrait)'
+
+export function isPortraitGuidanceViewport(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia(PORTRAIT_GUIDANCE_QUERY).matches
+  )
+}
 
 /** Full sheet height; the drawing band is a crop of it (docs/02 §3). */
 const SHEET_HEIGHT = 600
@@ -404,7 +413,9 @@ html, body, #root { margin: 0; padding: 0; }
 .cv-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cv-title { margin: 0; font-size: 24px; font-weight: 700; color: #1e293b; text-align: right; }
 .cv-hint { flex: 0 0 auto; margin: 0; font-size: 28px; line-height: 1.3; color: #1e293b; }
-.cv-rotate { flex: 0 0 auto; display: none; margin: 0; font-size: 15px; color: #64748b; }
+.cv-portrait-guidance { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 18px; border: 2px dashed #94a3b8; border-radius: 20px; background: rgba(255,255,255,0.72); color: #1e293b; font-size: 24px; line-height: 1.3; text-align: center; font-weight: 700; }
+.cv-portrait-guidance strong { display: block; font-size: 30px; margin-bottom: 8px; }
+.cv-portrait-guidance span { display: block; color: #475569; font-size: 18px; font-weight: 600; }
 .cv-sheet { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
 /* The canvas is TraceCanvas's own root svg element — no wrapper element
  * exists to put a class on, so it is targeted structurally. It grows to
@@ -453,8 +464,15 @@ html, body, #root { margin: 0; padding: 0; }
 .cv-btn-ok { background: #dcfce7; border-color: #86efac; }
 .cv-btn-off { opacity: 0.45; cursor: default; }
 
-/* Upright and narrow is genuinely width-limited: say so, do not block it. */
-@media (max-width: 559px) and (orientation: portrait) { .cv-rotate { display: block; } }
+/* Upright and narrow is genuinely width-limited: show guidance instead of
+ * shrinking the play surface into an unusable mini game. Header and actions
+ * stay outside this block, so Back/Return and keyboard navigation are never
+ * trapped behind the instruction. The class is set from the same media query
+ * this rule answers, so the sheet is hidden only when the guidance is present
+ * in the document. */
+.cv-play-portrait-guided { gap: 10px; }
+.cv-play-portrait-guided .cv-portrait-guidance { flex-direction: column; }
+.cv-play-portrait-guided .cv-sheet { display: none; }
 
 /* Height-constrained but not tiny — the PRIMARY devices, a tablet in landscape
  * and a touch laptop. Full-size chrome eats ~45% of a 700px viewport, so the
@@ -481,7 +499,8 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-play { gap: 4px; padding: 6px 10px; }
   .cv-title { font-size: 16px; }
   .cv-hint { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .cv-rotate { font-size: 12px; }
+  .cv-portrait-guidance { font-size: 18px; padding: 12px; }
+  .cv-portrait-guidance strong { font-size: 22px; }
   .cv-result { min-height: 34px; flex-direction: row; align-items: center; justify-content: center; gap: 14px; }
   .cv-pillars { flex-wrap: nowrap; gap: 14px; }
   .cv-pillar { font-size: 16px; gap: 5px; }
@@ -1610,7 +1629,20 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // renders byte-identically; the eight mountain levels are the first to be
   // a place without being the world (design.md §3.2).
   const drawnPlace = inWorld || !!backdrop
+  const [portraitGuidanceActive, setPortraitGuidanceActive] = useState(isPortraitGuidanceViewport)
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    const media = window.matchMedia(PORTRAIT_GUIDANCE_QUERY)
+    const sync = () => setPortraitGuidanceActive(media.matches)
+    sync()
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', sync)
+      return () => media.removeEventListener('change', sync)
+    }
+    media.addListener(sync)
+    return () => media.removeListener(sync)
+  }, [])
   // The window, when this level authors one (`scrolling-camera` capability).
   // Absent `level.camera` = no `camera` prop at all, so `TraceCanvas` renders
   // the shipped byte-identical expression. `viewWidth` comes from the
@@ -1774,10 +1806,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     [clueDef, clueFiled],
   )
 
+  const mainClassName = `${ground ? 'cv-play cv-play-ground' : 'cv-play'}${portraitGuidanceActive ? ' cv-play-portrait-guided' : ''}`
+
   return (
     <main
-      className={ground ? 'cv-play cv-play-ground' : 'cv-play'}
+      className={mainClassName}
       style={backdrop ? { background: backdrop.quiet } : undefined}
+      aria-describedby={portraitGuidanceActive ? 'cv-portrait-guidance' : undefined}
     >
       <style>{LAYOUT_CSS}</style>
       <div className="cv-top">
@@ -1805,11 +1840,20 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
        * written. */}
       {!drawnPlace && <p className="cv-hint">{level.hint}</p>}
       </div>
-      {/* Upright phones are width-limited and rotating really is the fix, so
-       * the screen says it plainly and keeps playing (docs/04 §3.3). Also
-       * suppressed in the detective world — the brief's "sin texto" is literal. */}
-      {!drawnPlace && (
-        <p className="cv-rotate">Girá el dispositivo para dibujar más grande.</p>
+      {/* Upright phones are width-limited, but miniaturizing the drawing game
+       * makes the real task worse. The portrait path therefore gives a clear
+       * rotate-device instruction while keeping Back and the action nav in the
+       * normal document flow, including drawn-place levels. */}
+      {portraitGuidanceActive && (
+        <section
+          id="cv-portrait-guidance"
+          className="cv-portrait-guidance"
+          role="status"
+          aria-live="polite"
+        >
+          <strong>Girá el dispositivo</strong>
+          <span>Para dibujar cómodo, usá el juego en horizontal. Podés volver al mapa con el botón Volver.</span>
+        </section>
       )}
       {/* PISTAS bar (design unit 5, level-engine spec "PISTAS Rail Chrome"):
        * a horizontal bar across the TOP of the screen, a flex sibling of

@@ -216,3 +216,80 @@ Git-style changed-line accounting uses additions plus deletions, counting untrac
 | B | Visual matrix and SDD artifacts | `client/e2e/mvp-visual.spec.ts`, `openspec/changes/finish-mvp-roadmap/tasks.md`, `openspec/changes/finish-mvp-roadmap/apply-progress.md` | 257 (253 additions, 4 deletions) |
 
 Both boundaries are independently coherent and below 400 changed lines: A installs/configures a safe reproducible runner plus path-regression coverage; B adds the reusable real-UI visual matrix and records U4 SDD completion/evidence.
+
+## U5 Responsive / Map Accessibility
+
+### Scope
+Implemented only U5 responsive/orientation and zoo-map accessibility. Progression, scoring, reveal semantics, and U0-U4 behavior remain unchanged.
+
+### Behavior
+- Portrait gameplay now shows an accessible rotate-device guidance panel instead of miniaturizing the trace surface; Back/return and action controls stay outside the guidance and remain reachable.
+- Reveal-based glass portrait states keep deterministic progress fixtures available for assertions while the visual surface is hidden behind the guidance.
+- Desktop `1280x720` and landscape `844x390` continue to show the playable surface and controls without viewport clipping.
+- ZooMap open sectors are keyboard-focusable SVG controls with `role="button"`, `tabindex="0"`, visible focus styling, actionable labels, Enter/Space activation, and a screen-reader status summary of open sectors, stars, and recovered animals.
+- Closed/scenery sectors stay out of the tab order.
+- Caption auditing now ignores the zoo-map screen-reader-only status text as non-visible copy; visible caption/image invariants remain enforced.
+
+### Evidence
+| Step | Command | Result |
+|---|---|---|
+| RED focused tests | `npm test -w client -- src/screen/ZooMap.test.tsx src/screen/LevelPlay.test.tsx` after adding U5 expectations first | FAILED: missing focusable sector controls/status and portrait guidance semantics. |
+| Focused GREEN | `npm test -w client -- src/screen/ZooMap.test.tsx src/screen/LevelPlay.test.tsx` | PASS: 2 files, 108 tests. |
+| Root tests | `npm test` | PASS: 82 files, 1890 tests. |
+| Build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
+| Playwright matrix | `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u5-responsive-a11y-b'; npm run test:e2e -w client` | PASS: 15 real state×viewport cells. |
+| Whitespace | `git diff --check` | PASS. |
+
+### Visual Observations
+- Portrait start/partial/success show a large centered rotate-device panel, visible Back control, and reachable action buttons; the trace surface is not miniaturized.
+- Portrait error keeps the same guidance/navigation contract with `Siguiente` disabled.
+- Portrait map-return reaches the real zoo map after the Back control.
+- Landscape `844x390` and desktop `1280x720` keep the playable surface, Back, and action controls in view without clipping.
+- Map-return screenshots show the real zoo map with fogged sectors, Pulpito, HUD, speech bubble, and newly accessible sector controls.
+
+### Evidence Paths
+- `client/test-results/playwright-output/run-u5-responsive-a11y-b/.../mvp-visual-matrix/*.png`
+
+### Files Changed
+- `client/src/screen/LevelPlay.tsx` — added portrait guidance layout that hides mini gameplay only in upright narrow viewports while preserving navigation/actions.
+- `client/src/screen/LevelPlay.test.tsx` — added portrait guidance semantics regression coverage.
+- `client/src/screen/ZooMap.tsx` — added focusable, labeled, keyboard-activatable sector controls and a meaningful map status.
+- `client/src/screen/ZooMap.test.tsx` — added focused map accessibility coverage.
+- `client/src/detective/captionAudit.ts` — excluded screen-reader-only zoo status from visible-caption auditing.
+- `client/e2e/mvp-visual.spec.ts` — strengthened U4 matrix assertions for U5 portrait guidance and map control/status accessibility.
+- `openspec/changes/finish-mvp-roadmap/tasks.md` — marked only U5 complete.
+- `openspec/changes/finish-mvp-roadmap/apply-progress.md` — recorded cumulative U0–U5 progress and evidence.
+
+### Deviations
+None — U5 uses existing screen/map seams and does not introduce a generic responsive or progression engine.
+
+## U5 Findings Remediation
+
+### Scope
+Fixed all confirmed U5 review findings without broadening beyond responsive/orientation/map accessibility.
+
+### Behavior
+- The rotate guidance is now controlled by the same media query that hides the trace sheet: `(max-width: 559px) and (orientation: portrait)`. This covers representative drawn-place levels without reveal such as `duck-trail2`, so portrait never shows a blank hidden game without an explanation.
+- Outside that portrait query the guidance section is not rendered and `aria-describedby` is absent, so desktop and landscape assistive tech do not hear rotate-device copy.
+- The Playwright portrait error cell now creates a real failed attempt by drawing in landscape, returns to portrait, and asserts actual attempt feedback plus disabled progression.
+
+### Evidence
+| Step | Command | Result |
+|---|---|---|
+| Focused regressions | `npm test -w client -- src/screen/LevelPlay.test.tsx src/screen/ZooMap.test.tsx` | PASS: 2 files, 110 tests. |
+| Root tests | `npm test` | PASS: 82 files, 1892 tests. |
+| Build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
+| Playwright matrix | `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u5-responsive-a11y-fix'; npm run test:e2e -w client` | PASS: 15 real state×viewport cells. |
+| Whitespace | `git diff --check` | PASS. |
+
+### Visual Observations
+- Portrait start shows Back, a large rotate-device panel, and action controls; no mini gameplay is visible.
+- Portrait error shows the same guidance plus a real failed-attempt result (`Quédate dentro del camino, despacito.`) and disabled `Siguiente`.
+- Landscape `844x390` and desktop `1280x720` show playable trace surfaces without rotate guidance or clipping.
+- Portrait map-return still reaches the real ZooMap; map status/control assertions pass.
+
+### Evidence Paths
+- `client/test-results/playwright-output/run-u5-responsive-a11y-fix/.../mvp-visual-matrix/*.png`
+
+### Deviations
+None — remediation tightened the existing U5 implementation and preserved progression/gameplay semantics plus U0-U4.

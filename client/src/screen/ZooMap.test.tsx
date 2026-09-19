@@ -263,3 +263,21 @@ describe('ZooMap bubble (zoo-map spec "Octopus Phrase Reads as a Closing")', () 
     expect(auditCaptions(render(records)).uncaptioned).toEqual([])
   })
 })
+
+describe('ZooMap accessibility (finish-mvp-roadmap U5)', () => {
+  it('exposes open sectors as named keyboard-focusable controls with status', () => {
+    const html = render(filed('sand4'))
+    expect(html).toContain('role="button"')
+    expect(html).toContain('tabindex="0"')
+    expect(html).toContain('aria-label="Entrar a Estanque')
+    expect(html).toContain('aria-describedby="cv-zoo-status"')
+    expect(html).toContain('id="cv-zoo-status"')
+  })
+
+  it('keeps closed and scenery sectors out of the tab order', () => {
+    const html = render()
+    const focusableSectors = [...html.matchAll(/data-sector-control="([^"]+)"/g)].map((m) => m[1])
+    expect(focusableSectors).toEqual(['entrada'])
+    expect(focusableSectors).not.toContain('sendero')
+  })
+})

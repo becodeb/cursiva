@@ -40,6 +40,7 @@ import {
   type ZooSector,
 } from '../zoo/sectors'
 import { mapBubble } from '../zoo/adventures'
+import { getLevel } from '../levels/catalog'
 
 /** The measured edge colour of `zoo-map.png` (design.md §1) — the letterbox
  *  `xMidYMid meet` leaves on the outer `<svg>` is filled with this, never a
@@ -50,6 +51,8 @@ const ZOO_CSS = `
 .cv-zoo { height: 100dvh; overflow: hidden; background: ${ZOO_BACKGROUND}; }
 html, body, #root { margin: 0; height: 100%; }
 .cv-zoo-stage { position: relative; width: 100%; max-height: 100%; aspect-ratio: 5 / 3; margin: 0 auto; }
+.cv-zoo-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.cv-zoo-sector-control:focus-visible .cv-zoo-sector-hit { stroke: #1d4ed8; stroke-width: 8; stroke-dasharray: 18 12; }
 .cv-zoo-hud { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 2% 3%; box-sizing: border-box; pointer-events: none; }
 .cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
 /* The bocadillo is sized as a FRACTION OF THE STAGE, never in px: the
@@ -147,6 +150,30 @@ function Footprint({ x, y, angle }: FootprintMark) {
   )
 }
 
+
+const SECTOR_LABELS: Record<SectorId, string> = {
+  entrada: 'Entrada',
+  bosque: 'Bosque',
+  estanque: 'Estanque',
+  montanas: 'Montañas',
+  arena: 'Arena',
+  nocturna: 'Nocturna',
+  sendero: 'Sendero',
+}
+
+function sectorActionLabel(sector: ZooSector, records: Records): string {
+  const next = nextAdventure(sector, records)
+  const nextTitle = next ? getLevel(next)?.title ?? next : null
+  return nextTitle
+    ? `Entrar a ${SECTOR_LABELS[sector.id]}. Próximo juego: ${nextTitle}.`
+    : `${SECTOR_LABELS[sector.id]} todavía no tiene una aventura disponible.`
+}
+
+function activateSector(sector: ZooSector, records: Records, onEnter: (levelId: string) => void): void {
+  const next = nextAdventure(sector, records)
+  if (next) onEnter(next)
+}
+
 export interface ZooMapProps {
   /** The persisted level records, straight from `cursiva.levels.v1`. Passed
    *  in rather than read here so this screen stays renderable in the node
@@ -180,10 +207,13 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // SVG world shows each one at its own `animalSpot`; the HUD row below
   // shows the same set as a small summary of "who's been found so far".
   const recovered = SECTORS.flatMap((sector) => animalPlacements(sector, records))
+  const openSectors = SECTORS.filter((sector) => sector.hit && isOpen(sector, records))
+  const statusText = `Mapa del zoo: ${openSectors.length} sectores abiertos, ${stars} estrellas y ${recovered.length} animales recuperados.`
 
   return (
     <main className="cv-zoo">
       <style>{ZOO_CSS}</style>
+      <p id="cv-zoo-status" className="cv-zoo-sr" role="status" aria-live="polite">{statusText}</p>
       <div className="cv-zoo-stage">
         <svg
           viewBox="0 0 1000 600"
@@ -191,6 +221,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
           height="100%"
           preserveAspectRatio="xMidYMid meet"
           aria-label="El zoológico del Pulpito"
+          aria-describedby="cv-zoo-status"
         >
           {/* The world continues under the letterbox `meet` leaves — the
               same "page is a place, not a card" move `docs/09` §7 made for
@@ -282,20 +313,31 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
           {/* Transparent hit-rects — the only tappable surface. Tapping an
               open sector opens its NEXT adventure (OD2); a sector whose
               `nextAdventure` is `null` (none authored yet) is simply inert. */}
-          {SECTORS.filter((sector) => sector.hit && isOpen(sector, records)).map((sector) => (
-            <rect
+          {openSectors.map((sector) => (
+            <g
               key={`hit-${sector.id}`}
-              x={sector.hit!.x}
-              y={sector.hit!.y}
-              width={sector.hit!.w}
-              height={sector.hit!.h}
-              fill="transparent"
-              style={{ cursor: 'pointer' }}
-              onClick={() => {
-                const next = nextAdventure(sector, records)
-                if (next) onEnter(next)
+              className="cv-zoo-sector-control"
+              data-sector-control={sector.id}
+              role="button"
+              tabIndex={0}
+              aria-label={sectorActionLabel(sector, records)}
+              onClick={() => activateSector(sector, records, onEnter)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return
+                event.preventDefault()
+                activateSector(sector, records, onEnter)
               }}
-            />
+            >
+              <rect
+                className="cv-zoo-sector-hit"
+                x={sector.hit!.x}
+                y={sector.hit!.y}
+                width={sector.hit!.w}
+                height={sector.hit!.h}
+                fill="transparent"
+                style={{ cursor: 'pointer' }}
+              />
+            </g>
           ))}
 
           {/* `?debug=sectores` (docs/12 §4): every `hit` and `animalSpot` in

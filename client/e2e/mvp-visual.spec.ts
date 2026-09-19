@@ -12,8 +12,8 @@ type ViewportName = keyof typeof VIEWPORTS
 type VisualState = {
   name: VisualStateName
   url: string
-  assert: (page: Page) => Promise<void>
-  prepare?: (page: Page) => Promise<void>
+  assert: (page: Page, viewport: ViewportName) => Promise<void>
+  prepare?: (page: Page, viewport: ViewportName) => Promise<void>
 }
 
 const GLASS_REVEAL_TILE = '#64726b'
@@ -25,16 +25,16 @@ export const VISUAL_STATES: readonly VisualState[] = [
   {
     name: 'start',
     url: levelUrl(),
-    assert: async (page) => {
-      await assertLevelShell(page)
+    assert: async (page, viewport) => {
+      await assertLevelShell(page, viewport)
       await expectRevealTileCount(page, 60)
     },
   },
   {
     name: 'partial',
     url: levelUrl('&debug=revelado:45'),
-    assert: async (page) => {
-      await assertLevelShell(page)
+    assert: async (page, viewport) => {
+      await assertLevelShell(page, viewport)
       await expectRevealTileCount(page, 30)
     },
   },
@@ -42,8 +42,8 @@ export const VISUAL_STATES: readonly VisualState[] = [
     name: 'error',
     url: '/index.html?dev&nivel=f1-libre',
     prepare: drawShortAttempt,
-    assert: async (page) => {
-      await assertLevelShell(page)
+    assert: async (page, viewport) => {
+      await assertLevelShell(page, viewport)
       await expect(page.getByLabel('Resultado del intento')).toContainText(/camino|tranquilo|dedo|parejo|flecha/i)
       await expect(page.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
     },
@@ -51,8 +51,8 @@ export const VISUAL_STATES: readonly VisualState[] = [
   {
     name: 'success',
     url: levelUrl('&debug=revelado:100'),
-    assert: async (page) => {
-      await assertLevelShell(page)
+    assert: async (page, viewport) => {
+      await assertLevelShell(page, viewport)
       await expectRevealTileCount(page, 0)
     },
   },
@@ -73,24 +73,31 @@ for (const [viewportName, viewport] of Object.entries(VIEWPORTS) as Array<[Viewp
     for (const state of VISUAL_STATES) {
       test(`${state.name} @ ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
         await page.goto(state.url)
-        await state.prepare?.(page)
-        await state.assert(page)
+        await state.prepare?.(page, viewportName)
+        await state.assert(page, viewportName)
         await captureEvidence(page, testInfo, state.name, viewportName)
       })
     }
   })
 }
 
-async function assertLevelShell(page: Page): Promise<void> {
+async function assertLevelShell(page: Page, viewport: ViewportName): Promise<void> {
   await expect(page.locator('main.cv-play')).toBeVisible()
   await expect(page.getByRole('button', { name: /volver/i })).toBeVisible()
-  await expect(page.locator('.cv-sheet svg')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Borrar' })).toBeVisible()
+  if (viewport === 'portrait') {
+    await expect(page.getByRole('status').filter({ hasText: /girá el dispositivo/i })).toBeVisible()
+    await expect(page.locator('.cv-sheet svg')).toBeHidden()
+  } else {
+    await expect(page.locator('.cv-sheet svg')).toBeVisible()
+  }
 }
 
 async function assertZooMap(page: Page): Promise<void> {
   await expect(page.locator('main.cv-zoo')).toBeVisible()
   await expect(page.getByLabel('El zoológico del Pulpito')).toBeVisible()
+  await expect(page.getByRole('status')).toContainText(/sectores abiertos/)
+  await expect(page.getByRole('button', { name: /Entrar a Entrada/ })).toBeVisible()
 }
 
 async function expectRevealTileCount(page: Page, expected: number): Promise<void> {
@@ -104,7 +111,10 @@ async function revealTileCount(page: Page): Promise<number> {
   )
 }
 
-async function drawShortAttempt(page: Page): Promise<void> {
+async function drawShortAttempt(page: Page, viewport: ViewportName): Promise<void> {
+  const restorePortrait = viewport === 'portrait'
+  if (restorePortrait) await page.setViewportSize(VIEWPORTS.landscape)
+
   const sheet = page.locator('.cv-sheet svg')
   await expect(sheet).toBeVisible()
   const box = await sheet.boundingBox()
@@ -115,6 +125,8 @@ async function drawShortAttempt(page: Page): Promise<void> {
   await page.mouse.down()
   await page.mouse.move(x + 6, y + 6, { steps: 2 })
   await page.mouse.up()
+
+  if (restorePortrait) await page.setViewportSize(VIEWPORTS.portrait)
 }
 
 async function captureEvidence(

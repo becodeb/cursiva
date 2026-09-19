@@ -1589,3 +1589,59 @@ describe('LevelPlay ?debug=espinas:<k> reaches the SCREEN\'s spines prop (radial
     expect(strokesOf(renderWithSearch(level, '?debug=espinas:3'))).toHaveLength(0)
   })
 })
+
+describe('LevelPlay portrait guidance (finish-mvp-roadmap U5)', () => {
+  function renderWithPortrait(level: LevelConfig, portrait: boolean): string {
+    vi.stubGlobal('window', {
+      location: { search: '' },
+      matchMedia: (media: string) => ({
+        matches: portrait,
+        media,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    })
+    try {
+      return renderToString(
+        <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  }
+
+  it('keeps rotate guidance out of the accessibility tree outside portrait', () => {
+    const html = renderWithPortrait(makeLevel(), false)
+    expect(html).not.toContain('class="cv-portrait-guidance"')
+    expect(html).not.toContain('aria-describedby="cv-portrait-guidance"')
+    expect(textOf(html)).not.toContain('Girá el dispositivo')
+    expect(html).toContain('class="cv-sheet"')
+  })
+
+  it('declares rotate guidance as status in portrait while keeping Back and actions outside the guidance', () => {
+    const html = renderWithPortrait(makeLevel(), true)
+    expect(html).toContain('cv-play-portrait-guided')
+    expect(html).toContain('class="cv-portrait-guidance"')
+    expect(html).toContain('role="status"')
+    expect(html).toContain('aria-live="polite"')
+    expect(html).toContain('Girá el dispositivo')
+    expect(html).toContain('class="cv-sheet"')
+    expect(html).toContain('aria-describedby="cv-portrait-guidance"')
+    expect(textOf(html)).toContain('‹ Volver')
+    expect(textOf(html)).toContain('Borrar')
+  })
+
+  it('also explains portrait drawn-place levels whose sheet is hidden by the same responsive rule', () => {
+    const html = renderWithPortrait(getLevel('duck-trail2'), true)
+    expect(html).toContain('cv-play-portrait-guided')
+    expect(html).toContain('class="cv-portrait-guidance"')
+    expect(html).toContain('Girá el dispositivo')
+    expect(html).toContain('aria-describedby="cv-portrait-guidance"')
+    expect(html).toContain('class="cv-sheet"')
+    expect(textOf(html)).not.toContain('Fase 1 ·')
+  })
+})

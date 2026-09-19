@@ -19,7 +19,7 @@ The committed LF/CRLF baseline is complete and excluded. Execute U1→U15 automa
 - [x] U2. Progression consistency — verify/fix stars, unlocks, and map return in `client/src/zoo/{sectors,stars,adventures}.*` with focused tests.
 - [x] U3. Asset/docs protection — protect authored placeholder sources in `scripts/art/make_placeholders.py`; document docs/09 source hierarchy and safe placeholder behavior.
 - [x] U4. Playwright harness — add `client/playwright.config.ts` and `client/e2e/mvp-visual.spec.ts`; capture 15 state×viewport combinations.
-- [ ] U5. Responsive/map accessibility — update `ZooMap.tsx`, `LevelPlay.tsx`, and tests; portrait guidance stays dismissible and map return reachable.
+- [x] U5. Responsive/map accessibility — update `ZooMap.tsx`, `LevelPlay.tsx`, and tests; portrait guidance stays dismissible and map return reachable.
 - [ ] U6. Ink policy — implement existing `TraceCanvas.tsx`/`canvas/ink.ts` seams with tests/screenshots; do not alter deduction or scoring.
 - [ ] U7. Fogged glass — polish `RevealLayer.tsx`, reveal-grid tests, and glass catalog; capture start/partial/error/success/map-return at all three viewports (15 cells).
 - [ ] U8. Night discovery — update catalog/backdrops/reveal behavior and tests; capture start/partial/error/success/map-return at all three viewports (15 cells).
