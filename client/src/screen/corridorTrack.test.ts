@@ -214,7 +214,7 @@ describe('multiCorridorTick — the nearest of several disjoint routes', () => {
       query: '?raw',
       import: 'default',
     })
-    const source = Object.values(modules)[0] as string
+    const source = (Object.values(modules)[0] as string).replace(/\r\n/g, '\n')
     // The exact function body this file shipped before multiCorridorTick was
     // introduced — pinned verbatim so an edit to corridorTick itself, rather
     // than an addition after it, fails this test by name.

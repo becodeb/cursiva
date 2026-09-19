@@ -1458,7 +1458,7 @@ describe('LevelPlay spine reseed call-site guard (radial-spines capability, desi
       query: '?raw',
       import: 'default',
     })
-    const source = Object.values(modules)[0] as string
+    const source = (Object.values(modules)[0] as string).replace(/\r\n/g, '\n')
     const calls = source.match(/initialSpineState\(level\.spines, debugSearch\)/g) ?? []
     expect(calls).toHaveLength(3)
     // Breaking this by deleting the `restartRun` call (this test's own RED
