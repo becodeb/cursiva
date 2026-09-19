@@ -19,15 +19,16 @@ Final MVP background families MUST follow `docs/09_GUIA_DE_ESTILO_VISUAL.md`: fu
 
 ### Requirement: Authored Assets Are Protected From Placeholder Regeneration
 
-Placeholder tooling MUST NOT overwrite approved authored backgrounds, sign art, or exported MVP assets.
+Placeholder tooling MUST NOT overwrite approved authored placeholder-family sources in `art-source/`.
 
 #### Scenario: Placeholder generation skips authored assets
 - GIVEN an approved asset already exists
-- WHEN `make_placeholders` or the art build pipeline runs
-- THEN the approved asset MUST remain byte-preserved or the command MUST fail safely
+- WHEN `make_placeholders` runs, including dry-run mode
+- THEN the approved source MUST remain byte-preserved
+- AND dry-run MUST perform no filesystem mutation
 
-#### Scenario: Missing art blocker is explicit
+#### Scenario: Build integration blocker is deferred
 - GIVEN a required renewed background is missing
-- WHEN validation runs
-- THEN the missing asset MUST be reported as an isolated art blocker
-- AND unrelated art families MUST still validate
+- WHEN U3 is complete
+- THEN build/export failure atomicity MUST remain unclaimed
+- AND missing-source/export validation MUST be handled by the later U12 background integration work unit

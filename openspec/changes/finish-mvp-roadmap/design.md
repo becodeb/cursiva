@@ -21,7 +21,7 @@ Finish the MVP as 15 ordered one-commit local work units (U1→U15). These units
 |---|---|---|---|
 | U1 | Migration regression | `client/src/game/migrateEntrance.test.ts`, `LevelProgressStore.ts` | Vitest: glass1-only/pond-safe preservation; no destructive writes. |
 | U2 | Stars/unlocks/map return | `client/src/zoo/sectors.ts`, `stars.ts`, `adventures.ts`, tests | Sector, star, map-return tests. |
-| U3 | Placeholder/art contract protection | `scripts/art/make_placeholders.py`, `build_art.py`, `docs/09_GUIA_DE_ESTILO_VISUAL.md`, `client/src/detective/*test.ts` | Script dry run plus art manifest/hierarchy tests. |
+| U3 | Placeholder/source contract protection | `scripts/art/make_placeholders.py`, `docs/09_GUIA_DE_ESTILO_VISUAL.md`, focused Python tests | Placeholder dry run plus authored-source byte-preservation tests; build/export atomicity is deferred to U12. |
 | U4 | Playwright visual matrix | `client/package.json`, `client/playwright.config.ts`, `client/e2e/mvp-visual.spec.ts`, optional `scripts/shot.sh` | 15 state×viewport captures with assertions. |
 | U5 | Responsive/map/accessibility | `ZooMap.tsx`, `ZooMap.test.tsx`, `LevelPlay.tsx`, `App.test.tsx` | Portrait guidance remains navigable; map return reachable. |
 | U6 | Ink policy | `TraceCanvas.tsx`, `canvas/ink.ts`, related tests | Ink visibility tests/screenshots; scoring unchanged. |
@@ -30,7 +30,7 @@ Finish the MVP as 15 ordered one-commit local work units (U1→U15). These units
 | U9 | PISTAS clarity/animation | `PistasRail.tsx`, `LevelPlay.tsx`, `PistasRail.test.tsx` | Animation/accessibility assertions; filing semantics unchanged. |
 | U10 | Narrative closures | `zoo/adventures.ts`, `AdventureIntro.tsx`, `AdventureClosing.tsx`, `GameScreen.test.tsx` | Verify/remediate already-existing approved closings for `peces`, `tortugas`, `monos`, and `sendero` beat 0/1; record jellyfish/medusa/unapproved content only. |
 | U11 | Background generation | `art-source/`, `client/public/art/`, docs/09 prompts | Art role generates full 3:2 backgrounds with calm bands. |
-| U12 | Background integration | `scripts/art/build_art.py`, art registry/public assets | Approved assets wired; placeholder protection retained. |
+| U12 | Background integration | `scripts/art/build_art.py`, art registry/public assets | Approved assets wired; placeholder protection retained; build/export failure behavior validated here. |
 | U13 | Visual QA | Playwright evidence paths | Fresh QA verifies completed visual units have 15 real-scene cells across map, glass, night, PISTAS, approved closing, and renewed backgrounds; U14 is verified by U14 itself. |
 | U14 | docs/16 sign-frame defect | `LevelPlay` in-level `CaptionedArt` rendering/tests | Add the approved wooden zoo-sign frame inside playable `LevelPlay` content, not only Pulpito speech bubbles; preserve caption/image semantics and run its own 15-cell Playwright matrix. |
 | U15 | Final closure and archive preflight | Targeted Vitest/build, visual matrix, openspec/specs/{detective-mode,trace-canvas,zoo-map}/spec.md | Structurally repair the three known invalid main specs without semantic changes before archive; if combined U15 exceeds 400 lines, land that repair as its own local docs commit. |

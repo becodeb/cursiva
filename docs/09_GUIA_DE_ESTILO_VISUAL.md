@@ -256,9 +256,20 @@ caminó por acá"; la forma sola no alcanza.
 ## 6. Dónde entran los assets
 
 Todo el arte vive detrás de un registro tipado en
-`client/src/detective/assets.ts` (`CLUE_ART`, `ANIMAL_ART`, `GLASS_ART`).
-Reemplazar un placeholder por arte real es editar el string `d` de esa
-entrada y nada más. La costura está hecha justamente para esto.
+`client/src/detective/assets.ts`. El registro apunta a PNG exportados en
+`client/public/art/`, y esos PNG salen de las fuentes de `art-source/`
+mediante `scripts/art/build_art.py`. La jerarquía es esta:
+
+1. `art-source/` es la fuente autoral aprobada.
+2. `scripts/art/build_art.py` valida tamaños/fuentes y deriva los PNG
+   embarcados.
+3. `client/public/art/manifest.json` registra lo emitido.
+4. `client/src/detective/assets.ts` copia los `href` y tamaños que consume
+   el juego.
+
+Reemplazar un placeholder por arte real es reemplazar la fuente en
+`art-source/` y volver a correr el pipeline; no se edita a mano el PNG
+embarcado ni se inventan tamaños en el registro.
 
 ## 7. La hoja es un lugar (deuda saldada el 2026-09-11)
 
@@ -453,6 +464,20 @@ porque ahí se dibuja el corredor. Un fondo cuya franja tenga una mata
 metida no pasa. Y la luma del suelo decide qué tintas son legibles encima
 (sección 4), así que un fondo nuevo conserva la luma del que reemplaza
 salvo que se decida cambiar las tintas a la vez.
+
+### Placeholders y protección de fuentes
+
+`make_placeholders.py` existe sólo para crear las seis fuentes provisorias que
+faltaban en esta rama: `fondo recinto monos.png`, `fondo sendero.png`,
+`pulpo cuidador.png`, `cartel peces.png`, `cartel tortugas.png` y
+`cartel monos.png`. Esas fuentes están por debajo del contrato visual de esta
+guía; no son autorización para regenerar arte aprobado.
+
+Regla operativa: si el archivo ya existe en `art-source/`, el generador lo
+saltea y lo trata como fuente autoral protegida. En modo `--dry-run`, sólo
+informa qué crearía y qué saltearía: no crea archivos ni directorios. La
+integración del build/export y sus fallos atómicos quedan para la unidad U12;
+U3 sólo protege la generación segura de placeholders.
 
 ### Reglas que se pegan junto al objeto
 

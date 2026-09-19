@@ -2,9 +2,9 @@
 
 ## Cumulative Status
 
-- Completed before this unit: U0 Baseline, U1 Migration regression.
-- Completed in this unit: U2 Progression consistency, including the final interactive App wiring regression for the real GameScreen → App map-return → ZooMap enter state transitions.
-- Remaining: U3–U15.1.
+- Completed before this unit: U0 Baseline, U1 Migration regression, U2 Progression consistency.
+- Completed in this unit: U3 Asset/docs protection, including zero-mutation dry-run behavior, all-six authored-source byte preservation, docs/09 hierarchy updates, and focused Python regression coverage. Build/export atomicity is explicitly deferred to U12.
+- Remaining: U4–U15.1.
 
 ## U1 Migration Regression
 
@@ -65,3 +65,34 @@ Verified the existing concrete zoo progression seams and added regression covera
 
 ### Deviations
 None — U2 avoided a generic progression engine and now requires no production seam exports for the App wiring regression.
+
+## U3 Asset/docs Protection
+
+### Scope
+Implemented only the U3 art-source and documentation protection layer. No visual assets were normalized, regenerated, or edited.
+
+### Behavior
+- `make_placeholders.py` now has a testable `write_placeholders(src, dry_run=False)` seam and a `--dry-run` CLI mode.
+- Existing placeholder-family source files are treated as protected authored sources and all six are skipped byte-for-byte rather than overwritten.
+- Missing placeholder-family sources are created only when absent; dry runs report the same create/skip plan without writing files or creating a missing target directory.
+- `docs/09_GUIA_DE_ESTILO_VISUAL.md` now documents the source -> build -> manifest -> registry hierarchy and the safe placeholder behavior without weakening its 3:2/calm-zone visual authority.
+- Build/export failure atomicity and missing-source validation remain deferred to U12; U3 does not claim them fixed.
+
+### RED / GREEN Evidence
+| Step | Command | Result |
+|---|---|---|
+| RED | `python -m unittest scripts.art.make_placeholders_test` after adding the protection tests first | FAIL: `write_placeholders` did not exist, proving the old script had no dry-run/testable protection seam. |
+| Review RED | `python -m unittest scripts.art.make_placeholders_test` after adding the confirmed dry-run regression | FAIL: dry run created a nonexistent target directory. |
+| GREEN focused Python | `python -m unittest scripts.art.make_placeholders_test` | PASS: 2 tests. |
+| Dry run | `python scripts\art\make_placeholders.py --dry-run` | PASS: reported 0 creates and 6 protected existing source skips; wrote no art files/directories. |
+| Related existing client art guard | `npm run test -w client -- src/detective/artHierarchy.test.ts` | PASS: 1 file, 9 tests. |
+
+### Files Changed
+- `scripts/art/make_placeholders.py` — added conservative skip-only placeholder planning, dry-run CLI, and a reusable write seam.
+- `scripts/art/make_placeholders_test.py` — added focused regression coverage for all-six non-overwrite byte preservation and zero-mutation dry-run behavior.
+- `docs/09_GUIA_DE_ESTILO_VISUAL.md` — updated the art hierarchy and placeholder protection contract while deferring build/export failure behavior to U12.
+- `openspec/changes/finish-mvp-roadmap/tasks.md` — marked only U3 complete.
+- `openspec/changes/finish-mvp-roadmap/apply-progress.md` — recorded cumulative U0–U3 progress and evidence.
+
+### Deviations
+None — implementation preserves docs/09 authority, does not touch visual assets, and narrows U3 to safe placeholder generation. Build/export atomicity is deferred to U12.

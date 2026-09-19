@@ -17,7 +17,7 @@ The committed LF/CRLF baseline is complete and excluded. Execute U1→U15 automa
 - [x] U0. Baseline — confirm the committed LF/CRLF normalization; no pending baseline changes.
 - [x] U1. Migration regression — add Vitest coverage and additive/idempotent safeguards in `client/src/game/migrateEntrance.test.ts` and `LevelProgressStore.ts`; preserve contaminated localStorage.
 - [x] U2. Progression consistency — verify/fix stars, unlocks, and map return in `client/src/zoo/{sectors,stars,adventures}.*` with focused tests.
-- [ ] U3. Asset/docs protection — protect authored assets in `scripts/art/{make_placeholders,build_art}.py`; document docs/09 contract and test manifest hierarchy.
+- [x] U3. Asset/docs protection — protect authored placeholder sources in `scripts/art/make_placeholders.py`; document docs/09 source hierarchy and safe placeholder behavior.
 - [ ] U4. Playwright harness — add `client/playwright.config.ts` and `client/e2e/mvp-visual.spec.ts`; capture 15 state×viewport combinations.
 - [ ] U5. Responsive/map accessibility — update `ZooMap.tsx`, `LevelPlay.tsx`, and tests; portrait guidance stays dismissible and map return reachable.
 - [ ] U6. Ink policy — implement existing `TraceCanvas.tsx`/`canvas/ink.ts` seams with tests/screenshots; do not alter deduction or scoring.
