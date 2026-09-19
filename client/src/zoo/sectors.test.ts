@@ -8,6 +8,7 @@ import { LEVELS } from '../levels/catalog'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import { ZOO_ANIMAL_ART } from '../detective/assets'
 import { adventureFor } from './adventures'
+import { totalStars } from './stars'
 import {
   PLAZA,
   PLAZA_CENTRE,
@@ -439,6 +440,27 @@ describe('nextAdventure Resolution (OD2)', () => {
     expect(nextAdventure(bosque, filed('snake4'))).toBe('bee1')
     expect(nextAdventure(bosque, filed('snake4', 'bee1', 'bee2'))).toBe('bee3')
     expect(nextAdventure(bosque, filed('snake4', ...bosque.adventureIds))).toBe('bee4')
+  })
+})
+
+describe('Progression consistency (finish-mvp-roadmap U2)', () => {
+  it('uses the same entrada records for stars, estanque unlock, map focus, and next adventure', () => {
+    const records = filed(...entrada.adventureIds)
+
+    expect(totalStars(records)).toBe(entrada.adventureIds.length)
+    expect(isOpen(estanque, records)).toBe(true)
+    expect(recentlyDiscovered(records)?.id).toBe('estanque')
+    expect(nextAdventure(estanque, records)).toBe('duck-trail1')
+    expect(animalPlacements(estanque, records)).toEqual([])
+  })
+
+  it('uses the same pond records for stars, recovered animal, next adventure, and sector unlock', () => {
+    const records = filed(...entrada.adventureIds, 'duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4')
+
+    expect(totalStars(records)).toBe(entrada.adventureIds.length + 4)
+    expect(animalPlacements(estanque, records).map((p) => p.art)).toEqual([ZOO_ANIMAL_ART.pato])
+    expect(nextAdventure(estanque, records)).toBe('f2-guirnalda')
+    expect(isOpen(montanas, records)).toBe(true)
   })
 })
 

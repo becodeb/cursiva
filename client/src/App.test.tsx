@@ -3,9 +3,70 @@
 // over a plain `Records` value, no store, no DOM — the same node-testable
 // shape `zoo/prologue.ts`'s `advancePlate` and `GameScreen.ts`'s
 // `resolveNextAction` already use.
-import { describe, expect, it } from 'vitest'
-import { firstVisit, resolveShell } from './App'
-import { EMPTY_RECORD, type LevelRecord } from './game/types'
+import { act } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const gameScreenProbe: { current: Record<string, unknown> | null } = { current: null }
+vi.mock('./screen/GameScreen', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./screen/GameScreen')>()
+  return {
+    ...actual,
+    default: (props: Record<string, unknown>) => {
+      gameScreenProbe.current = props
+      return null
+    },
+  }
+})
+
+const zooMapProbe: { current: Record<string, unknown> | null } = { current: null }
+vi.mock('./screen/ZooMap', () => ({
+  default: (props: Record<string, unknown>) => {
+    zooMapProbe.current = props
+    return null
+  },
+}))
+
+import App, { firstVisit, resolveShell } from './App'
+import { applyAttempt } from './game/adaptiveTolerance'
+import { openProgressStore } from './game/openProgressStore'
+import { EMPTY_RECORD, type LevelAttempt, type LevelRecord } from './game/types'
+import { LEVEL_PROGRESS_KEY, type StorageLike } from './game/LevelProgressStore'
+import { nextAdventure, SECTORS, type Records } from './zoo/sectors'
+
+class MemoryStorage implements StorageLike {
+  private readonly values = new Map<string, string>()
+
+  getItem(key: string): string | null {
+    return this.values.get(key) ?? null
+  }
+
+  setItem(key: string, value: string): void {
+    this.values.set(key, value)
+  }
+}
+
+const approvedAttempt: LevelAttempt = {
+  approved: true,
+  failedPillar: null,
+  accuracy: 100,
+  directionOk: true,
+  wrongDirection: false,
+  fluency: 100,
+  extraLifts: 0,
+}
+
+let root: Root | null = null
+
+afterEach(() => {
+  act(() => {
+    root?.unmount()
+  })
+  root = null
+  gameScreenProbe.current = null
+  zooMapProbe.current = null
+  vi.unstubAllGlobals()
+})
 
 describe('firstVisit (design.md D2: derived, never a new persisted key)', () => {
   it('an empty Records object resolves to "not seen" (true)', () => {
@@ -60,3 +121,125 @@ describe('resolveShell (prologue-opening spec: the routing order)', () => {
     expect(resolveShell('', true, played)).toEqual({ at: 'map' })
   })
 })
+
+describe('App/GameScreen/ZooMap progression composition (finish-mvp-roadmap U2)', () => {
+  it('completes duck-trail1, refreshes App map records, and the same sector enters duck-trail2', () => {
+    const storage = new MemoryStorage()
+    storage.setItem(LEVEL_PROGRESS_KEY, JSON.stringify({ sand4: { ...EMPTY_RECORD, approvals: 1 } }))
+    installInteractiveGlobals(storage, '?nivel=duck-trail1')
+
+    const container = fakeElement('div')
+    container.ownerDocument = document
+    root = createRoot(container as unknown as Element)
+    act(() => {
+      root!.render(<App />)
+    })
+    expect(gameScreenProbe.current?.initial).toEqual({ view: 'play', levelId: 'duck-trail1' })
+
+    act(() => {
+      const store = openProgressStore()
+      store.save('duck-trail1', applyAttempt(store.get('duck-trail1'), approvedAttempt))
+      ;(gameScreenProbe.current?.onExit as () => void)()
+    })
+
+    const refreshed = zooMapProbe.current?.records as Records
+    expect(refreshed['duck-trail1']?.approvals).toBe(1)
+    const estanque = SECTORS.find((sector) => sector.id === 'estanque')!
+    const next = nextAdventure(estanque, refreshed)
+    expect(next).toBe('duck-trail2')
+
+    act(() => {
+      ;(zooMapProbe.current?.onEnter as (levelId: string) => void)(next!)
+    })
+
+    expect(gameScreenProbe.current?.initial).toEqual({ view: 'play', levelId: 'duck-trail2' })
+  })
+})
+
+function installInteractiveGlobals(storage: StorageLike, search: string): void {
+  const doc = fakeDocument()
+  const win = {
+    document: doc,
+    location: { search },
+    localStorage: storage,
+    HTMLElement: function HTMLElement() {},
+    HTMLIFrameElement: function HTMLIFrameElement() {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }
+  doc.defaultView = win
+  vi.stubGlobal('window', win)
+  vi.stubGlobal('document', doc)
+  vi.stubGlobal('HTMLElement', win.HTMLElement)
+  vi.stubGlobal('HTMLIFrameElement', win.HTMLIFrameElement)
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+}
+
+type FakeElement = {
+  nodeType: number
+  nodeName: string
+  tagName: string
+  ownerDocument?: unknown
+  childNodes: unknown[]
+  style: Record<string, unknown>
+  textContent: string
+  appendChild: (child: unknown) => unknown
+  insertBefore: (child: unknown) => unknown
+  removeChild: (child: unknown) => unknown
+  addEventListener: () => void
+  removeEventListener: () => void
+  setAttribute: () => void
+  removeAttribute: () => void
+}
+
+function fakeDocument(): FakeElement & {
+  defaultView?: unknown
+  createElement: (tagName: string) => FakeElement
+  createTextNode: (text: string) => FakeElement & { data: string }
+  documentElement: FakeElement
+  body: FakeElement
+} {
+  const documentElement = fakeElement('html')
+  const body = fakeElement('body')
+  return {
+    ...fakeElement('#document'),
+    nodeType: 9,
+    documentElement,
+    body,
+    createElement: fakeElement,
+    createTextNode: fakeText,
+  }
+}
+
+function fakeText(text: string): FakeElement & { data: string } {
+  return { ...fakeElement('#text'), nodeType: 3, data: text }
+}
+
+function fakeElement(tagName: string): FakeElement {
+  const node: FakeElement = {
+    nodeType: 1,
+    nodeName: tagName.toUpperCase(),
+    tagName: tagName.toUpperCase(),
+    childNodes: [] as unknown[],
+    style: {},
+    textContent: '',
+    appendChild(child: unknown): unknown {
+      node.childNodes.push(child)
+      return child
+    },
+    insertBefore(child: unknown): unknown {
+      node.childNodes.push(child)
+      return child
+    },
+    removeChild(child: unknown): unknown {
+      node.childNodes = node.childNodes.filter((item) => item !== child)
+      return child
+    },
+    addEventListener(): void {},
+    removeEventListener(): void {},
+    setAttribute(): void {},
+    removeAttribute(): void {},
+  }
+  node.ownerDocument = node
+  return node
+}
