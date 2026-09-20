@@ -1271,6 +1271,15 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     expect(eraseResultMessage('glass2', false)).toBe('Seguí limpiando el vidrio.')
   })
 
+  it('uses leaves attempt wording for glass3/glass4 while glass1/glass2 keep the glass wording', () => {
+    expect(eraseResultMessage('glass3', true)).toBe('¡Hojas juntadas!')
+    expect(eraseResultMessage('glass3', false)).toBe('Seguí juntando las hojas.')
+    expect(eraseResultMessage('glass4', true)).toBe('¡Hojas juntadas!')
+    expect(eraseResultMessage('glass4', false)).toBe('Seguí juntando las hojas.')
+    expect(eraseResultMessage('glass1', true)).toBe('¡Vidrio limpio!')
+    expect(eraseResultMessage('glass2', false)).toBe('Seguí limpiando el vidrio.')
+  })
+
   it('sends a reveal prop with the hidden-object art for a light level', () => {
     const level = makeRevealLevel(light)
     renderToString(

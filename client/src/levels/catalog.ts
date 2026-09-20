@@ -397,8 +397,13 @@ const ENTRANCE: LevelConfig[] = [
   {
     id: 'glass3',
     phase: 1,
-    title: 'Los rincones',
-    hint: 'Buscá los rincones que todavía están sucios.',
+    // `glass3`/`glass4` are the `monos` adventure (`zoo/adventures.ts`), whose
+    // backdrop veil is `LEAF_LITTER`, not glass grime: only the child-facing
+    // title/hint move to the leaves here. The IDs, `rules`, and `reveal`
+    // geometry stay byte-identical — R1-R3's progression is asserted on those
+    // numbers, and renaming a level is a progress-store migration, not copy.
+    title: 'Hojas en los rincones',
+    hint: 'Buscá las hojas que quedaron en los rincones.',
     kind: 'free',
     surface: 'blank',
     maze: false,
@@ -415,8 +420,8 @@ const ENTRANCE: LevelConfig[] = [
   {
     id: 'glass4',
     phase: 1,
-    title: 'Sin dejar marcas',
-    hint: 'Limpiá bien fuerte, sin dejar ni una mancha.',
+    title: 'Ni una hoja',
+    hint: 'Juntá todas las hojas, sin dejar ninguna.',
     kind: 'free',
     surface: 'blank',
     maze: false,

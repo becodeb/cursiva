@@ -188,9 +188,21 @@ function isSandRevealLevel(levelId: string): boolean {
   return levelId === 'sand1' || levelId === 'sand2'
 }
 
+/** The `monos` adventure's own two levels (`zoo/adventures.ts`). They are
+ *  named `glass*` only because they predate the two-per-enclosure regrouping
+ *  — the SURFACE they erase is the monkey enclosure's leaf litter
+ *  (`backdrops.ts`'s `LEAF_LITTER` on the `monos` row), so both the visual
+ *  policy and the child-facing wording follow the leaves, not the ID. */
+function isLeavesRevealLevel(levelId: string): boolean {
+  return levelId === 'glass3' || levelId === 'glass4'
+}
+
 export function eraseResultMessage(levelId: string, approved: boolean): string {
   if (isSandRevealLevel(levelId)) {
     return approved ? '¡Arena barrida!' : 'Seguí barriendo la arena.'
+  }
+  if (isLeavesRevealLevel(levelId)) {
+    return approved ? '¡Hojas juntadas!' : 'Seguí juntando las hojas.'
   }
   return approved ? '¡Vidrio limpio!' : 'Seguí limpiando el vidrio.'
 }
