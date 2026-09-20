@@ -534,8 +534,9 @@ PASSTHROUGHS = [
     # range, so the two fields below are equal (design.md §3.1's own
     # prediction, verified by re-running this script).
     ('fondo bosque.png', 'sector-forest-background.png', 1536, 1024, (191, 926)),
-    ('fondo pecera.png', 'sector-aquarium-background.png', 1536, 1024, (51, 973)),
+    ('fondo entrada vidrio.png', 'sector-aquarium-background.png', 1536, 1024, (51, 973)),
     ('fondo nocturno.png', 'sector-night-background.png', 1536, 1024, (51, 973)),
+    ('fondo noche zoo.png', 'sector-night-zoo-background.png', 1536, 1024, (51, 973)),
     # The prologue's two new entrance enclosures (design.md D6/§4). Same
     # corridor band as the other entrance backgrounds -- (51, 973).
     ('fondo recinto monos.png', 'sector-monkeys-background.png', 1536, 1024, (51, 973)),
@@ -867,6 +868,8 @@ AUTHORED_SOURCE_SIZES = {
     'fondo bosque.png': (1536, 1024),
     'fondo nocturno.png': (1536, 1024),
     'fondo pecera.png': (1536, 1024),
+    'fondo entrada vidrio.png': (1536, 1024),
+    'fondo noche zoo.png': (1536, 1024),
     'vibora chica.png': (1024, 1024),
     'vibora mediana.png': (1024, 1024),
     'vibora grande.png': (1024, 1024),

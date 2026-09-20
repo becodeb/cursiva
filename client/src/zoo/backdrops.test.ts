@@ -465,11 +465,13 @@ describe('SPINE_BACKDROPS ink law (radial-spines design.md §2 D1(a)/D4, §8.2)'
     expect(hedgehog.inkDim).toBe(ADVENTURE_BACKDROP.night!.inkDim)
   })
 
-  it('the row reuses the night row\'s art and quiet/brightest/corridorRows verbatim — no new measurement', () => {
+  it('keeps the established hedgehog art measurements when night discovery moves to renewed art', () => {
     const night = ADVENTURE_BACKDROP.night!
-    expect(hedgehog.art).toBe(night.art)
-    expect(hedgehog.quiet).toBe(night.quiet)
-    expect(hedgehog.brightest).toBe(night.brightest)
+    expect(hedgehog.art.href).toBe('/art/sector-night-background.png')
+    expect(night.art.href).toBe('/art/sector-night-zoo-background.png')
+    expect(hedgehog.art).not.toBe(night.art)
+    expect(hedgehog.quiet).toBe('#2a3346')
+    expect(hedgehog.brightest).toBe('#526083')
     expect(hedgehog.corridorRows).toEqual(night.corridorRows)
   })
 

@@ -51,6 +51,13 @@ const ZOO_CSS = `
 .cv-zoo { height: 100dvh; overflow: hidden; background: ${ZOO_BACKGROUND}; }
 html, body, #root { margin: 0; height: 100%; }
 .cv-zoo-stage { position: relative; width: 100%; max-height: 100%; aspect-ratio: 5 / 3; margin: 0 auto; }
+.cv-zoo-portrait-guidance { display: none; }
+@media (max-width: 559px) and (orientation: portrait) {
+  .cv-zoo-stage { display: none; }
+  .cv-zoo-portrait-guidance { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; border: 2px dashed #94a3b8; border-radius: 20px; background: rgba(255,255,255,0.72); color: #1e293b; line-height: 1.3; text-align: center; font-weight: 700; }
+  .cv-zoo-portrait-guidance::before { content: "Girá el dispositivo"; display: block; font-size: 30px; margin-bottom: 8px; }
+  .cv-zoo-portrait-guidance::after { content: "Para recorrer el zoológico cómodo, usá el juego en horizontal."; display: block; color: #475569; font-size: 18px; font-weight: 600; }
+}
 .cv-zoo-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .cv-zoo-sector-control:focus-visible .cv-zoo-sector-hit { stroke: #1d4ed8; stroke-width: 8; stroke-dasharray: 18 12; }
 .cv-zoo-hud { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 2% 3%; box-sizing: border-box; pointer-events: none; }
@@ -214,6 +221,12 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
     <main className="cv-zoo">
       <style>{ZOO_CSS}</style>
       <p id="cv-zoo-status" className="cv-zoo-sr" role="status" aria-live="polite">{statusText}</p>
+      <section
+        className="cv-zoo-portrait-guidance"
+        role="status"
+        aria-live="polite"
+        aria-label="Girá el dispositivo. Para recorrer el zoológico cómodo, usá el juego en horizontal."
+      />
       <div className="cv-zoo-stage">
         <svg
           viewBox="0 0 1000 600"

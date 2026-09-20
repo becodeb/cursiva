@@ -295,7 +295,9 @@ const WORLD_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
   // them up and no entry is needed here for them.
   'zoo-octopus-caretaker.png': ZOO_CARETAKER_ART,
   ...Object.fromEntries(
-    Object.entries(SECTOR_BACKGROUND_ART).map(([id, art]) => [`sector-${id}-background.png`, art]),
+    Object.entries(SECTOR_BACKGROUND_ART).map(([id, art]) => [
+      `sector-${id.replace(/([A-Z])/g, '-$1').toLowerCase()}-background.png`, art,
+    ]),
   ),
   ...Object.fromEntries(
     Object.entries(SECTOR_ADVENTURE_ART).map(([id, art]) => [
@@ -317,13 +319,17 @@ const FULL_CANVAS_ART = new Set([
  *  authored contour; the authored night backdrop intentionally uses
  *  blue-tinted dark silhouettes and fills throughout, so its near-black
  *  pixels are a deliberate colour grade rather than accidental contours. */
-const COLOUR_GRADED_FULL_CANVAS = new Set(['sector-night-background.png'])
+const COLOUR_GRADED_FULL_CANVAS = new Set([
+  'sector-aquarium-background.png',
+  'sector-night-background.png',
+  'sector-night-zoo-background.png',
+])
 
 /** Authoring canvases are a separate contract from compact shipped assets:
  * backgrounds retain their final 3:2 coordinate system, while cutouts retain
  * a square transparent workspace before `build_art.py` crops them. */
 const SECTOR_SOURCE_FILES = import.meta.glob(
-  '../../../art-source/{fondo laguna,fondo arena,fondo ladera,fondo cordillera,fondo bosque,fondo nocturno,fondo pecera,vibora chica,vibora mediana,vibora grande,llama,abeja,flor,panal,delfin,caracol,linterna,erizo,erizo enroscado,gorro andino}.png',
+  '../../../art-source/{fondo laguna,fondo arena,fondo ladera,fondo cordillera,fondo bosque,fondo nocturno,vibora chica,vibora mediana,vibora grande,llama,abeja,flor,panal,delfin,caracol,linterna,erizo,erizo enroscado,gorro andino}.png',
   { eager: true, query: '?inline', import: 'default' },
 ) as Inlined
 
@@ -334,7 +340,6 @@ const SECTOR_SOURCE_CANVASES: Readonly<Record<string, { w: number; h: number; op
   'fondo cordillera.png': { w: 1536, h: 1024, opaque: true },
   'fondo bosque.png': { w: 1536, h: 1024, opaque: true },
   'fondo nocturno.png': { w: 1536, h: 1024, opaque: true },
-  'fondo pecera.png': { w: 1536, h: 1024, opaque: true },
   'vibora chica.png': { w: 1024, h: 1024, opaque: false },
   'vibora mediana.png': { w: 1024, h: 1024, opaque: false },
   'vibora grande.png': { w: 1024, h: 1024, opaque: false },
@@ -361,7 +366,6 @@ const SECTOR_QUIET_BAND_BASE: Readonly<Record<string, readonly [number, number, 
   'fondo cordillera.png': [200, 211, 216],
   'fondo bosque.png': [134, 166, 120],
   'fondo nocturno.png': [42, 51, 70],
-  'fondo pecera.png': [155, 182, 197],
 }
 
 /** Full-canvas sector art is a true pass-through: the authored source IS the
@@ -375,7 +379,6 @@ const SECTOR_SOURCE_TO_EMITTED: Readonly<Record<string, string>> = {
   'fondo cordillera.png': 'sector-range-background.png',
   'fondo bosque.png': 'sector-forest-background.png',
   'fondo nocturno.png': 'sector-night-background.png',
-  'fondo pecera.png': 'sector-aquarium-background.png',
 }
 
 function named(files: Inlined): readonly (readonly [string, string])[] {

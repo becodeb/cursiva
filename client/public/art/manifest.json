@@ -294,15 +294,15 @@
     "w": 181
   },
   "sector-aquarium-background": {
-    "brightest": "#c7d9e0",
-    "bytes": 26778,
+    "brightest": "#ffffff",
+    "bytes": 2099948,
     "corridorRows": {
       "bottom": 973,
       "top": 51
     },
     "file": "art/sector-aquarium-background.png",
     "h": 1024,
-    "quiet": "#9bb6c5",
+    "quiet": "#b5e7f2",
     "w": 1536
   },
   "sector-bee": {
@@ -405,6 +405,18 @@
     "file": "art/sector-night-background.png",
     "h": 1024,
     "quiet": "#2a3346",
+    "w": 1536
+  },
+  "sector-night-zoo-background": {
+    "brightest": "#fbf4b6",
+    "bytes": 2090531,
+    "corridorRows": {
+      "bottom": 973,
+      "top": 51
+    },
+    "file": "art/sector-night-zoo-background.png",
+    "h": 1024,
+    "quiet": "#1e4175",
     "w": 1536
   },
   "sector-path-background": {

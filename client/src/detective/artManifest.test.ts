@@ -100,6 +100,14 @@ const manifest: Record<string, ManifestEntry> = JSON.parse(
   )[0] as string,
 )
 
+const buildScript = Object.values(
+  import.meta.glob('../../../scripts/art/build_art.py', {
+    eager: true,
+    query: '?raw',
+    import: 'default',
+  }),
+)[0] as string
+
 /** Every `ArtImage` the registry exports, labelled by where it comes from so a
  * failure names the export rather than a bare path. */
 const REGISTERED: readonly (readonly [string, ArtImage])[] = [
@@ -145,6 +153,15 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
 const keyOf = (href: string) => href.replace(/^\/art\//, '').replace(/\.png$/, '')
 
 describe('art registry matches the shipped pipeline manifest', () => {
+  it('builds the approved glass and night sources into the public background exports', () => {
+    expect(buildScript).toContain(
+      "('fondo entrada vidrio.png', 'sector-aquarium-background.png', 1536, 1024, (51, 973))",
+    )
+    expect(buildScript).toContain(
+      "('fondo noche zoo.png', 'sector-night-zoo-background.png', 1536, 1024, (51, 973))",
+    )
+  })
+
   it.each(REGISTERED.map(([label, art]) => [label, art] as const))(
     '%s has a manifest entry with matching intrinsic size, and the file exists',
     (label, art) => {
@@ -184,7 +201,7 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // + 1 flowerDormant (the bee family's dormant flower, paso F).
     // + 1 caretaker + 3 signs + 2 entrance backgrounds (monos, sendero)
     // (the prologue, add-caretaker-prologue).
-    expect(REGISTERED.length).toBe(87)
+    expect(REGISTERED.length).toBe(88)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -296,7 +313,7 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // guards is unchanged, only the key name is.
     const aquarium = manifest['sector-aquarium-background']
     const sand = manifest['sector-sand-background']
-    const night = manifest['sector-night-background']
+    const night = manifest['sector-night-zoo-background']
     const glass = ADVENTURE_BACKDROP.peces!
     const sandBackdrop = ADVENTURE_BACKDROP.tortugas!
     const nightBackdrop = ADVENTURE_BACKDROP.night!
@@ -304,8 +321,8 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(aquarium.quiet).toBe(glass.quiet)
     expect(aquarium.brightest).toBe(glass.brightest)
     expect(aquarium.corridorRows).toEqual(glass.corridorRows)
-    expect(glass.quiet).toBe('#9bb6c5')
-    expect(glass.brightest).toBe('#c7d9e0')
+    expect(glass.quiet).toBe('#b5e7f2')
+    expect(glass.brightest).toBe('#ffffff')
 
     expect(sand.quiet).toBe(sandBackdrop.quiet)
     expect(sand.brightest).toBe(sandBackdrop.brightest)
@@ -316,9 +333,7 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(night.quiet).toBe(nightBackdrop.quiet)
     expect(night.brightest).toBe(nightBackdrop.brightest)
     expect(night.corridorRows).toEqual(nightBackdrop.corridorRows)
-    // The night backdrop's swap-day gate (design.md §3.2): brightest in [77, 110].
-    expect(luma(nightBackdrop.brightest)).toBeGreaterThanOrEqual(77)
-    expect(luma(nightBackdrop.brightest)).toBeLessThanOrEqual(110)
+    expect(luma(nightBackdrop.brightest)).toBeGreaterThanOrEqual(220)
   })
 
   it("the night backdrop's brightest is its own authored sample, not fondo bosque.png's (zoo-map spec)", () => {
@@ -330,14 +345,14 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // night row must differ, proving the sample really was taken from its
     // own file, not accidentally aliased to the forest one.
     const forest = manifest['sector-forest-background']
-    const night = manifest['sector-night-background']
+    const night = manifest['sector-night-zoo-background']
     expect(night.brightest).not.toBe(forest.brightest)
     expect(ADVENTURE_BACKDROP.night!.brightest).not.toBe(forest.brightest)
   })
 
   it('the night backdrop registry entry names no source file — only the built sector-night-background.png (zoo-map spec)', () => {
     const href = ADVENTURE_BACKDROP.night!.art.href
-    expect(href).toContain('sector-night-background')
+    expect(href).toContain('sector-night-zoo-background')
     expect(href.toLowerCase()).not.toContain('bosque')
     expect(href.toLowerCase()).not.toContain('forest')
   })

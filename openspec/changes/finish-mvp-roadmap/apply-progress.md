@@ -580,3 +580,40 @@ Avoid: changing the scene layout, adding characters, adding animal silhouettes/i
 ```
 
 Post-replacement dimensions remain 1536x1024 RGB for both selected sources. U12 integration remains next; no `client/public/art`, manifest, registry, or build output was touched.
+
+## U12 Background Integration
+
+### Scope and Wiring
+- `glass1` (the U7 matrix target) resolves through `peces` to `SECTOR_BACKGROUND_ART.aquarium`; the existing public export `sector-aquarium-background.png` now builds from approved `art-source/fondo entrada vidrio.png`. The same adventure mapping covers `glass1` and `glass2`; `glass3` and `glass4` retain their separate `monos` backdrop.
+- `night2` (the U8 matrix target) resolves through `night`; the approved `art-source/fondo noche zoo.png` now builds as `sector-night-zoo-background.png`, exported as typed `SECTOR_BACKGROUND_ART.nightZoo`, and is used by `night1`–`night4`.
+- The established `sector-night-background.png` remains wired to hedgehog levels so their existing chalk-ink contrast contract is preserved. No gameplay, scoring, persistence, progression, reveal, clue, or narrative behavior changed.
+- `make_placeholders.py` was not changed; its authored-source skip and dry-run protections remain covered by its focused Python tests.
+
+### Focused Validation
+- `python scripts/art/build_art.py` — PASS; 88 files emitted, including the renewed glass export and distinct night-zoo export.
+- `python -m unittest scripts/art/make_placeholders_test.py` — PASS, 2 tests.
+- `npm test -w client -- src/detective/artManifest.test.ts src/detective/artHierarchy.test.ts src/zoo/backdrops.test.ts` — PASS, 168 tests.
+- `npm test` — PASS, 82 files / 1,913 tests.
+- `npm run build` — PASS (`tsc --noEmit` + Vite); existing chunk-size warning only.
+- `git diff --check` — PASS.
+
+### Visual Evidence and Findings
+- Raw 30-cell Playwright run: `client/test-results/playwright-output/run-u12-background-integration/` (glass and night: start, partial, error, success, and map-return at 1280x720, 844x390, and 390x844).
+- Glass contact sheet: `client/test-results/playwright-output/run-u12-background-integration/contact-sheets/u12-glass-contact-sheet.jpg`.
+- Night contact sheet: `client/test-results/playwright-output/run-u12-background-integration/contact-sheets/u12-night-contact-sheet.jpg`.
+- `PLAYWRIGHT_RUN_ID=u12-background-integration PLAYWRIGHT_CHANNEL=chrome npm run test:e2e -w client -- e2e/mvp-visual.spec.ts e2e/u8-night-visual.spec.ts` — PASS, 30/30.
+- Manual inspection confirmed both renewed scenes are visibly present. `xMidYMid slice` keeps the calm central action zones useful at desktop and compact landscape sizes; fog, torch/discovery, feedback, and progress/reward remain legible. A subsequent review identified the portrait map-return defect remediated below.
+
+### Remediation After Visual Review
+- Confirmed defect: returning from either glass or night at `390x844` rendered the 5:3 ZooMap as a `390x234` strip with unused green space and no rotate guidance.
+- Focused fix: ZooMap now follows the existing portrait MVP pattern at `(max-width: 559px) and (orientation: portrait)`: the miniaturized map stage is hidden and replaced by a full-height accessible rotate status. Desktop and compact-landscape map rendering and all map interactions remain unchanged.
+- Falsifiable coverage: `ZooMap.test.tsx` asserts the portrait media contract, hidden stage rule, status role, and accessible label. Both real Playwright suites now assert that portrait map-return shows the named rotate status and hides the map SVG, while landscape/desktop still require the map.
+- `npm test -w client -- src/screen/ZooMap.test.tsx` — PASS, 22 tests.
+- `PLAYWRIGHT_RUN_ID=u12-background-remediation-final PLAYWRIGHT_CHANNEL=chrome npm run test:e2e -w client -- e2e/mvp-visual.spec.ts e2e/u8-night-visual.spec.ts -g 'map-return'` — PASS, 6/6 affected cells.
+- Raw remediation captures: `client/test-results/playwright-output/run-u12-background-remediation-final/`.
+- Remediation contact sheet: `client/test-results/playwright-output/run-u12-background-remediation-final/contact-sheets/u12-map-return-remediation.jpg`.
+- Manual inspection: both glass-return and night-return show the full-height rotate card at `390x844` with no miniaturized map; `1280x720` and `844x390` retain the full interactive map without the guidance.
+- Post-remediation `npm test` — PASS, 82 files / 1,914 tests. `npm run build` — PASS with the existing chunk-size warning only. `git diff --check` — PASS.
+
+### Status
+U12 complete. U10, U13, U14, U15, and U15.1 remain pending; the recorded U10/U15/U15.1 deferrals are unchanged.

@@ -25,6 +25,11 @@ for (const [name, [width, height]] of Object.entries(VIEWPORTS) as Array<[Viewpo
 async function assertState(page: Page, state: StateName, viewport: ViewportName): Promise<void> {
   if (state === 'map-return') {
     await expect(page.locator('main.cv-zoo')).toBeVisible()
+    if (viewport === 'portrait') {
+      await expect(page.getByRole('status', { name: /girá el dispositivo/i })).toBeVisible()
+      await expect(page.getByLabel('El zoológico del Pulpito')).toBeHidden()
+      return
+    }
     await expect(page.getByRole('status')).toContainText(/sectores abiertos/)
     return
   }

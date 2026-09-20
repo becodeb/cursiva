@@ -97,8 +97,13 @@ async function assertLevelShell(page: Page, viewport: ViewportName): Promise<voi
   }
 }
 
-async function assertZooMap(page: Page): Promise<void> {
+async function assertZooMap(page: Page, viewport: ViewportName): Promise<void> {
   await expect(page.locator('main.cv-zoo')).toBeVisible()
+  if (viewport === 'portrait') {
+    await expect(page.getByRole('status', { name: /girá el dispositivo/i })).toBeVisible()
+    await expect(page.getByLabel('El zoológico del Pulpito')).toBeHidden()
+    return
+  }
   await expect(page.getByLabel('El zoológico del Pulpito')).toBeVisible()
   await expect(page.getByRole('status')).toContainText(/sectores abiertos/)
   await expect(page.getByRole('button', { name: /Entrar a Entrada/ })).toBeVisible()

@@ -164,8 +164,8 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // `manifest.json` (task 1.10), not hand-guessed.
   peces: {
     art: SECTOR_BACKGROUND_ART.aquarium,
-    quiet: '#9bb6c5',
-    brightest: '#c7d9e0',
+    quiet: '#b5e7f2',
+    brightest: '#ffffff',
     corridorRows: { top: 51, bottom: 973 },
     tile: GLASS_GRIME,
   },
@@ -191,9 +191,9 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
     tile: PATH_MUD,
   },
   night: {
-    art: SECTOR_BACKGROUND_ART.night,
-    quiet: '#2a3346',
-    brightest: '#526083',
+    art: SECTOR_BACKGROUND_ART.nightZoo,
+    quiet: '#1e4175',
+    brightest: '#fbf4b6',
     corridorRows: { top: 51, bottom: 973 },
     tile: NIGHT_VEIL,
     ink: TORCH_CHALK,
@@ -232,11 +232,9 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
     brightest: '#86a678',
     corridorRows: { top: 191, bottom: 926 },
   },
-  // The hedgehog adventure (`radial-spines` design.md §8.2): paints on the
-  // SAME night backdrop the `night` adventure already paints on — the
-  // night row's own `art`/`quiet`/`brightest`/`corridorRows`, reused rather
-  // than re-measured (`zoo-map` spec, "reusing the night sector's shipped
-  // art"). No `tile` — a spines level draws no reveal veil at all — and no
+  // The hedgehog adventure keeps the established low-contrast night backdrop;
+  // the renewed discovery scene is scoped to night1..4 so this existing ink
+  // contract does not change. No `tile` — a spines level draws no reveal veil at all — and no
   // `channel` — it draws no corridor either, the bee row's own precedent.
   // `ink`/`inkDim` reuse the night row's own two fields: the 55-luma law is
   // one law over one backdrop, asserted once (design.md §2 D4, docs/09 §4).

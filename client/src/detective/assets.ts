@@ -263,7 +263,7 @@ export const CART_ART: ArtImage = {
  * finger-drawn route. */
 export const SECTOR_BACKGROUND_ART: Readonly<Record<
   | 'lagoon' | 'sand' | 'slope' | 'range' | 'forest' | 'aquarium' | 'night'
-  | 'monkeys' | 'path',
+  | 'nightZoo' | 'monkeys' | 'path',
   ArtImage
 >> = {
   lagoon: { href: '/art/sector-lagoon-background.png', w: 1536, h: 1024 },
@@ -275,6 +275,7 @@ export const SECTOR_BACKGROUND_ART: Readonly<Record<
   // Authored from `fondo nocturno.png` — a full-canvas opaque scene like
   // every other row here, same 1536x1024.
   night: { href: '/art/sector-night-background.png', w: 1536, h: 1024 },
+  nightZoo: { href: '/art/sector-night-zoo-background.png', w: 1536, h: 1024 },
   // The prologue's third and fourth enclosures (design.md §4). Placeholder
   // sources, same full-canvas opaque contract as every other row here.
   monkeys: { href: '/art/sector-monkeys-background.png', w: 1536, h: 1024 },

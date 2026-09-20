@@ -265,6 +265,15 @@ describe('ZooMap bubble (zoo-map spec "Octopus Phrase Reads as a Closing")', () 
 })
 
 describe('ZooMap accessibility (finish-mvp-roadmap U5)', () => {
+  it('replaces the miniaturized map with rotate guidance on narrow portrait screens', () => {
+    const html = render()
+    expect(html).toContain('@media (max-width: 559px) and (orientation: portrait)')
+    expect(html).toContain('.cv-zoo-stage { display: none; }')
+    expect(html).toContain('class="cv-zoo-portrait-guidance"')
+    expect(html).toContain('role="status"')
+    expect(html).toContain('aria-label="Girá el dispositivo.')
+  })
+
   it('exposes open sectors as named keyboard-focusable controls with status', () => {
     const html = render(filed('sand4'))
     expect(html).toContain('role="button"')
