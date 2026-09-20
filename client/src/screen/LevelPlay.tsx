@@ -64,6 +64,7 @@ import {
 } from '../levels/spines'
 import { grassScatter, mudScatter } from '../canvas/groundScatter'
 import type { TracePoint } from '../canvas/useTraceInput'
+import { resolveInkPolicy } from '../canvas/ink'
 import { contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnContact'
 import { buildLevelTarget } from '../levels/buildLevel'
 import { hitObstacle, obstacleAt } from '../levels/obstacles'
@@ -1629,6 +1630,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // renders byte-identically; the eight mountain levels are the first to be
   // a place without being the world (design.md §3.2).
   const drawnPlace = inWorld || !!backdrop
+  const inkPolicy = resolveInkPolicy({
+    revealMode: level.reveal?.mode,
+    artCorridor: !!level.artCorridor,
+    waypoints: !!level.waypoints,
+    spines: !!level.spines,
+    inWorld,
+  })
   const [portraitGuidanceActive, setPortraitGuidanceActive] = useState(isPortraitGuidanceViewport)
 
   useEffect(() => {
@@ -2013,6 +2021,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         inkColor={inWorld ? MUD_INK : backdropEntry?.ink}
         inkDimColor={inWorld ? MUD_INK_DIM : backdropEntry?.inkDim}
         inkHidden={arrangeOpen}
+        inkPolicy={inkPolicy}
         artCorridor={traceArtCorridor}
         // Any bump restarts the run (docs/01 principle 2).
         resetSignal={resetOnContact ? resetSignal : undefined}

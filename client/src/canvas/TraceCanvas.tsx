@@ -37,7 +37,7 @@
 //   `resetSignal`      the run goes back to the start (docs/01 principle 2).
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { inkPath, traceInk } from './ink'
+import { inkPath, inkPolicyAllowsLive, inkPolicyAllowsSettled, traceInk, type InkRenderPolicy } from './ink'
 import { taperedCorridor, type CorridorSegment } from './corridorTaper'
 import type { ScatterMark } from './groundScatter'
 import { useTraceInput, type TracePoint } from './useTraceInput'
@@ -714,6 +714,8 @@ export interface TraceCanvasProps {
    * sets one), so this is a no-op for the static markup a test can see.
    * Absent or `false` renders exactly as before this change. */
   inkHidden?: boolean
+  /** Explicit child-ink lifecycle. 'settled' persists released marks; 'live-only' shows only the active stroke; 'none' renders no child ink. */
+  inkPolicy?: InkRenderPolicy
   /** The snake adventure's drawn-cutout corridor pieces (`art-corridor`/
    * `object-arrange` capabilities), rendered above the channel stroke and
    * below every ink layer. Absent = no corridor-art layer, which is every
@@ -807,6 +809,7 @@ export default function TraceCanvas({
   carrierArt,
   inkOnly = false,
   inkHidden = false,
+  inkPolicy = 'settled',
   artCorridor,
   clues,
   ground,
@@ -831,6 +834,8 @@ export default function TraceCanvas({
     onEnd: onRelease,
     multiStroke,
   })
+  const showLiveInkLayer = inkPolicyAllowsLive(inkPolicy)
+  const showSettledInk = inkPolicyAllowsSettled(inkPolicy)
   useEffect(() => {
     drawingRef.current = isDrawing // mirror so the frame-loop closure never reads stale state
   }, [isDrawing])
@@ -972,6 +977,11 @@ export default function TraceCanvas({
           lastD = ''
           path.setAttribute('d', '')
         }
+      } else if (!inkPolicyAllowsLive(inkPolicy, drawingRef.current)) {
+        if (lastD !== '') {
+          lastD = ''
+          path.setAttribute('d', '')
+        }
       } else {
         const d = inkPath(traceInk(rendered))
         if (d !== lastD) {
@@ -1048,7 +1058,7 @@ export default function TraceCanvas({
     }
     raf = requestAnimationFrame(frame)
     return () => cancelAnimationFrame(raf)
-  }, [pointsRef, onFrame])
+  }, [pointsRef, onFrame, inkPolicy])
 
   // ---- Restart the run (`resetSignal`, docs/01 principle 2) ----------------
   // The ink that was on the sheet is snapshotted into a layer of its own and
@@ -1568,7 +1578,7 @@ export default function TraceCanvas({
           pointerEvents="none"
         />
       )}
-      {settledDs.length > 0 && !inkHidden && (
+      {settledDs.length > 0 && !inkHidden && showSettledInk && (
         // Settled ink of the strokes already released in this attempt.
         <g pointerEvents="none">
           {settledDs.map((d, idx) => (
@@ -1585,7 +1595,7 @@ export default function TraceCanvas({
           ))}
         </g>
       )}
-      {fading && (
+      {fading && showSettledInk && (
         // The abandoned run, on its way out (`resetSignal`). Same ink, same
         // width, only leaving — no red, no cross, no shrink-and-pop. A plain
         // opacity transition, so nothing depends on an animation library.
@@ -1653,11 +1663,13 @@ export default function TraceCanvas({
       )}
       <path
         ref={inkRef}
+        data-ink-policy={inkPolicy}
         fill="none"
         stroke={offPath ? inkDimColor : inkColor}
         strokeWidth={INK_WIDTH}
         strokeLinecap="round"
         strokeLinejoin="round"
+        style={showLiveInkLayer ? undefined : { display: 'none' }}
       />
       {hazards && hazards.radii.length > 0 && (
         // Timed hazards, drawn ABOVE the ink on purpose: the child has to see

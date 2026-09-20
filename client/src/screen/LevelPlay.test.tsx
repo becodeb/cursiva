@@ -78,6 +78,7 @@ import {
 } from '../detective/assets'
 import { auditCaptions } from '../detective/captionAudit'
 import { INK_COLOR } from '../canvas/TraceCanvas'
+import type { InkRenderPolicy } from '../canvas/ink'
 import { TORCH_CHALK } from '../zoo/backdrops'
 import { PRINT } from '../detective/palette'
 import { getLevel } from '../levels/catalog'
@@ -1293,6 +1294,30 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     }).not.toThrow()
   })
 
+
+
+  it('resolves inkPolicy to live-only for erase reveal levels', () => {
+    const level = makeRevealLevel(erase)
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current?.inkPolicy satisfies unknown).toBe('live-only' satisfies InkRenderPolicy)
+  })
+
+  it('resolves inkPolicy to none for light reveal levels', () => {
+    const level = makeRevealLevel(light)
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current?.inkPolicy satisfies unknown).toBe('none' satisfies InkRenderPolicy)
+  })
+
+  it('keeps settled inkPolicy for ordinary mark-making levels', () => {
+    renderToString(
+      <LevelPlay level={makeLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current?.inkPolicy satisfies unknown).toBe('settled' satisfies InkRenderPolicy)
+  })
   it("resolves inkColor to the night backdrop's own TORCH_CHALK", () => {
     const level = makeRevealLevel(
       { mode: 'light', cols: 15, rows: 9, radius: 200, objects: [] },

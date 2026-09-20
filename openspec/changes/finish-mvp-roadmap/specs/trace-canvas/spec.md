@@ -4,7 +4,7 @@
 
 ### Requirement: MVP Ink Policy Is Explicit and Stable
 
-Trace ink MUST remain visible, high-contrast, and level-appropriate on every MVP drawing surface by using the existing trace/canvas ink seams rather than adding per-level ad hoc drawing behavior.
+Trace ink MUST remain visible, high-contrast, and level-appropriate on every MVP drawing surface by using the existing trace/canvas ink seams rather than adding per-level ad hoc drawing behavior. The explicit policy values are exactly `settled`, `live-only`, and `none`: `settled` renders live ink plus released marks, `live-only` renders only the active stroke, and `none` renders no child ink.
 
 #### Scenario: Ink token is selected by level surface
 - GIVEN a glass, night, art-corridor, or standard trace level

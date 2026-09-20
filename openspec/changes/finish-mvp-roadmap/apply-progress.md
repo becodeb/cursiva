@@ -2,9 +2,9 @@
 
 ## Cumulative Status
 
-- Completed before this unit: U0 Baseline, U1 Migration regression, U2 Progression consistency, U3 Asset/docs protection. Build/export atomicity is explicitly deferred to U12.
-- Completed in this unit: U4 Playwright harness, including reusable viewport/state vocabulary, a local Vite webServer config, ignored Playwright output/report folders, and 15 real-UI state×viewport evidence captures.
-- Remaining: U5–U15.1.
+- Completed before this unit: U0 Baseline, U1 Migration regression, U2 Progression consistency, U3 Asset/docs protection, U4 Playwright harness, U5 Responsive/map accessibility. Build/export atomicity is explicitly deferred to U12.
+- Completed in this unit: U6 Ink policy, including explicit `settled | live-only | none` resolution, TraceCanvas lifecycle gating, interaction-level regression coverage, and before/after 15-cell Playwright evidence.
+- Remaining: U7–U15.1.
 
 ## U1 Migration Regression
 
@@ -293,3 +293,90 @@ Fixed all confirmed U5 review findings without broadening beyond responsive/orie
 
 ### Deviations
 None — remediation tightened the existing U5 implementation and preserved progression/gameplay semantics plus U0-U4.
+
+## U6 Ink Policy
+
+### Scope
+Implemented only U6 ink lifecycle policy through the existing `canvas/ink.ts`, `TraceCanvas.tsx`, `LevelPlay.tsx`, and backdrop/catalog seams. Scoring, deduction, progression, reveal fold state, and pointer capture remain unchanged.
+
+### Behavior
+- `canvas/ink.ts` now exposes exactly three policy values: `settled`, `live-only`, and `none`.
+- `settled` keeps live ink plus released/persisted marks for ordinary mark-making surfaces, detective/world trails, art corridors, waypoint trails, and spine levels.
+- `live-only` is selected for erase reveal levels: the active stroke can be shown while drawing, but released strokes are not rendered as dark persistent traces.
+- `none` is selected for light reveal levels: child ink is hidden and only the reveal/world response renders.
+- `TraceCanvas` still keeps pointer capture and `onFrame`/`onRelease` active; the policy changes paint only, so release scoring and deduction semantics are untouched.
+- No new animation was introduced; the existing reduced-motion Playwright matrix remains under the configured reduced-motion context.
+
+### Evidence
+| Step | Command | Result |
+|---|---|---|
+| RED focused tests | `npm run test -w client -- src/canvas/ink.test.ts src/canvas/TraceCanvas.test.tsx src/screen/LevelPlay.test.tsx` after adding U6 expectations first | FAILED: missing policy resolver, TraceCanvas lifecycle gating, and LevelPlay policy prop. |
+| Focused GREEN | `npm run test -w client -- src/canvas/ink.test.ts src/canvas/TraceCanvas.test.tsx src/screen/LevelPlay.test.tsx` | PASS: 3 files, 252 tests. |
+| Root tests | `npm run test` | PASS: 82 files, 1902 tests. |
+| Root build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
+| Before matrix | `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u6-before'; npm run test:e2e -w client` | PASS: 15 cells. |
+| After matrix | `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u6-after'; npm run test:e2e -w client` | PASS: 15 cells. |
+| Screenshot diff | Pixel compare `run-u6-before` vs `run-u6-after` | 0 changed pixels in all 15 cells; the matrix uses deterministic debug reveal fixtures and the ordinary `f1-libre` error, so U6's changed post-release reveal ink lifecycle does not alter those still frames. |
+| Whitespace | `git diff --check` | PASS. |
+
+### Visual Observations
+- Desktop/landscape/portrait `start`, `partial`, and `success` glass fixtures remain visually identical before/after: same grime coverage states, same revealed beach/treasure content, and no introduced dark trace.
+- `error` remains the ordinary `f1-libre` failed attempt with its small dark stroke, coaching text, and disabled `Siguiente`; this proves ordinary `settled` mark-making still paints persisted ink.
+- `map-return` remains the real zoo map at all three viewports with Pulpito, fogged sectors, HUD, and navigation intact.
+- Exact image comparison found `0` changed pixels for every before/after matrix cell, which is expected because U6 changes the release lifecycle for reveal drawing rather than the debug-seeded static reveal states.
+
+### Evidence Paths
+- `client/test-results/playwright-output/run-u6-before/.../mvp-visual-matrix/*.png`
+- `client/test-results/playwright-output/run-u6-after/.../mvp-visual-matrix/*.png`
+- `client/test-results/playwright-output/run-u6-after-contact-sheet.png`
+
+### Files Changed
+- `client/src/canvas/ink.ts` — added explicit ink policy type, resolver, and lifecycle helpers.
+- `client/src/canvas/ink.test.ts` — added policy resolution/lifecycle regression coverage.
+- `client/src/canvas/TraceCanvas.tsx` — added `inkPolicy` paint gating for live, settled, and fading ink without affecting input callbacks.
+- `client/src/canvas/TraceCanvas.test.tsx` — added SSR lifecycle rendering regressions for all three policy values.
+- `client/src/screen/LevelPlay.tsx` — resolves policy from existing level/backdrop/reveal seams and passes it to TraceCanvas.
+- `client/src/screen/LevelPlay.test.tsx` — proves erase reveal = `live-only`, light reveal = `none`, ordinary levels = `settled`.
+- `openspec/changes/finish-mvp-roadmap/specs/trace-canvas/spec.md` — made the exact policy vocabulary explicit.
+- `openspec/changes/finish-mvp-roadmap/tasks.md` — marked only U6 complete.
+- `openspec/changes/finish-mvp-roadmap/apply-progress.md` — recorded cumulative U0–U6 progress and evidence.
+
+### Deviations
+None — U6 uses the narrow existing canvas/ink and LevelPlay seams and does not introduce a generic engine or alter score/deduction semantics.
+
+## U6 Contract Defect Fix
+
+### Scope
+Fixed the confirmed U6 lifecycle defect: `live-only` ink must be tied to active drawing state, not merely to the retained single-stroke point buffer. No LevelPlay behavior, scoring, deduction, or persistence semantics were changed.
+
+### Behavior
+- `inkPolicyAllowsLive(policy, drawing)` now returns `false` for `live-only` once drawing is no longer active.
+- `TraceCanvas` clears the live path after `pointerup` for `live-only`, even when `multiStroke` is omitted and `useTraceInput` intentionally retains the point buffer for default single-stroke mode.
+- `settled` still keeps the default single-stroke path visible after `pointerup`.
+- `pointercancel` clears `live-only` ink as well.
+- Added a browser-level TraceCanvas harness so the regression exercises real pointerdown/move/up/cancel interactions; SSR-only tests remain as static lifecycle coverage but are not the contract proof.
+
+### Evidence
+| Step | Command | Result |
+|---|---|---|
+| Focused unit/SSR regressions | `npm run test -w client -- src/canvas/ink.test.ts src/canvas/TraceCanvas.test.tsx src/screen/LevelPlay.test.tsx` | PASS: 3 files, 252 tests. |
+| Browser interaction regression | `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u6-ink-lifecycle-fix-final'; npm run test:e2e -w client -- e2e/trace-canvas-ink-policy.spec.ts` | PASS: 3 tests; `live-only` clears on pointerup/cancel, `settled` persists after pointerup. |
+| Root tests | `npm run test` | PASS: 82 files, 1902 tests. |
+| Root build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
+| Whitespace | `git diff --check` | PASS. |
+
+### Evidence Paths
+- `client/test-results/playwright-output/run-u6-ink-lifecycle-fix-final/trace-canvas-ink-policy-*/`
+
+### Files Changed
+- `client/src/canvas/ink.ts` — added active-drawing awareness to live policy checks.
+- `client/src/canvas/TraceCanvas.tsx` — uses active drawing state when deciding whether to write/retain the live path.
+- `client/e2e/trace-canvas-ink-policy.spec.ts` — added browser interaction regression for pointerup/cancel and settled persistence.
+- `client/src/testing/traceCanvasHarness.tsx` and `client/trace-canvas-harness.html` — minimal Vite-served TraceCanvas harness for the browser interaction test.
+- `openspec/changes/finish-mvp-roadmap/apply-progress.md` — recorded this U6 contract fix evidence.
+
+### Changed-Line Accounting
+Current U6 working diff including untracked interaction harness files is 316 git-style changed lines, below the 400-line split threshold.
+
+### Deviations
+None — this is a contract repair inside U6's existing ink policy scope.

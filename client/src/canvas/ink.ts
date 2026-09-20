@@ -22,6 +22,33 @@ export interface InkOptions {
 /** A centerline vertex, as carried straight from the captured points. */
 export type InkPoint = [number, number]
 
+
+export type InkRenderPolicy = 'settled' | 'live-only' | 'none'
+
+export interface InkPolicySurface {
+  revealMode?: 'erase' | 'light'
+  artCorridor?: boolean
+  waypoints?: boolean
+  spines?: boolean
+  inWorld?: boolean
+}
+
+export function resolveInkPolicy(surface: InkPolicySurface): InkRenderPolicy {
+  if (surface.revealMode === 'light') return 'none'
+  if (surface.revealMode === 'erase') return 'live-only'
+  return 'settled'
+}
+
+export function inkPolicyAllowsLive(policy: InkRenderPolicy, drawing = true): boolean {
+  if (policy === 'none') return false
+  if (policy === 'live-only') return drawing
+  return true
+}
+
+export function inkPolicyAllowsSettled(policy: InkRenderPolicy): boolean {
+  return policy === 'settled'
+}
+
 /**
  * Return the captured points as a centerline polyline (render-only). The
  * points are copied out as `[x, y]` tuples but NEVER mutated: downstream

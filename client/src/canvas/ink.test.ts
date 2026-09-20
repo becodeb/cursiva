@@ -4,7 +4,7 @@
 // independently (string shape, no mutation), not via a fill region.
 import { describe, expect, it } from 'vitest'
 import type { Point } from '../letters/types'
-import { inkPath, traceInk } from './ink'
+import { inkPath, inkPolicyAllowsLive, inkPolicyAllowsSettled, resolveInkPolicy, traceInk } from './ink'
 
 // A gentle S-curve — enough bends to prove the centerline carries the points.
 const arc: Point[] = [
@@ -65,5 +65,34 @@ describe('inkPath', () => {
     expect(d).not.toContain('Z') // an open stroke cannot self-intersect-fill
     // Every vertex is preserved (no polygon expansion).
     expect(d.match(/L/g)?.length).toBe(4)
+  })
+})
+
+
+describe('ink render policy', () => {
+  it('uses exactly the three shipped policy values', () => {
+    expect(['settled', 'live-only', 'none'].sort()).toEqual(['live-only', 'none', 'settled'])
+  })
+
+  it('resolves reveal erase to live-only and reveal light to none', () => {
+    expect(resolveInkPolicy({ revealMode: 'erase' })).toBe('live-only')
+    expect(resolveInkPolicy({ revealMode: 'light' })).toBe('none')
+  })
+
+  it('keeps settled ink for explicit mark-making surfaces', () => {
+    expect(resolveInkPolicy({ artCorridor: true })).toBe('settled')
+    expect(resolveInkPolicy({ waypoints: true })).toBe('settled')
+    expect(resolveInkPolicy({ spines: true })).toBe('settled')
+    expect(resolveInkPolicy({ inWorld: true })).toBe('settled')
+    expect(resolveInkPolicy({})).toBe('settled')
+  })
+
+  it('has lifecycle helpers: live-only has live ink but no persisted mark; none has neither', () => {
+    expect(inkPolicyAllowsLive('settled')).toBe(true)
+    expect(inkPolicyAllowsSettled('settled')).toBe(true)
+    expect(inkPolicyAllowsLive('live-only')).toBe(true)
+    expect(inkPolicyAllowsSettled('live-only')).toBe(false)
+    expect(inkPolicyAllowsLive('none')).toBe(false)
+    expect(inkPolicyAllowsSettled('none')).toBe(false)
   })
 })

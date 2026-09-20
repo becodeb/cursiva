@@ -1522,6 +1522,35 @@ describe('TraceCanvas inkHidden (object-arrange spec: suppresses ink while the a
   })
 })
 
+
+
+describe('TraceCanvas inkPolicy lifecycle rendering', () => {
+  const strokes = [
+    [
+      { x: 100, y: 300 },
+      { x: 200, y: 320 },
+    ],
+  ]
+
+  it('settled renders released strokes and keeps the live ink path available', () => {
+    const html = renderToString(<TraceCanvas completedStrokes={strokes} inkPolicy="settled" />)
+    expect(html).toMatch(/d="M100 300 L200 320/)
+    expect(html).toContain('data-ink-policy="settled"')
+  })
+
+  it('live-only keeps the live path but renders no settled trace after release', () => {
+    const html = renderToString(<TraceCanvas completedStrokes={strokes} inkPolicy="live-only" />)
+    expect(html).not.toMatch(/d="M100 300 L200 320/)
+    expect(html).toContain('data-ink-policy="live-only"')
+  })
+
+  it('none renders no visible live path and no settled trace', () => {
+    const html = renderToString(<TraceCanvas completedStrokes={strokes} inkPolicy="none" />)
+    expect(html).not.toMatch(/d="M100 300 L200 320/)
+    expect(html).toContain('data-ink-policy="none"')
+    expect(html).toContain('display:none')
+  })
+})
 describe('TraceCanvas reveal layer (reveal-grid spec: "Reveal Layer Renders as Plain Rects Between Backdrop and Ink")', () => {
   const backdrop = { href: '/art/sector-aquarium-background.png', quiet: '#9bb6c5' }
   const reveal = {
