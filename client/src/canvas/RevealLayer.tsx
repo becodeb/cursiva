@@ -38,6 +38,16 @@ const SAND_WARM = '#dfb774'
 const SAND_EDGE = '#f0cf91'
 const SAND_GRAIN = '#8e6b46'
 const SAND_ROCK = '#76685a'
+// The leaf pile's own paints, render-local peers of the `SAND_*` row above.
+// `LEAF_BASE` restates `backdrops.ts`'s `LEAF_LITTER` rather than importing it:
+// that constant answers the 55-luma veil law, this one answers what the leaves
+// policy paints. The other three lean toward the renewed monkey background's
+// sampled tones (`manifest.json`: quiet `#f8be64`, brightest `#f7fdea`), so the
+// pile reads as litter in that sunlight, not a flat green slab on top of it.
+const LEAF_BASE = '#6e7a4a'
+const LEAF_DEEP = '#4d5733'
+const LEAF_RIM = '#9aa861'
+const LEAF_DRY = '#b07a3c'
 
 type Point = { x: number; y: number }
 type Edge = { a: Point; b: Point }
@@ -203,6 +213,233 @@ function sandSilhouettePath(loops: readonly Point[][]): string {
   return loops.map(erodedSandLoopPath).filter(Boolean).join(' ')
 }
 
+/** How much exposed frontier one leaf lobe is worth, in viewBox units. An
+ *  entrance cell edge is 1000/15 ≈ 66.7, so most edges want ~1.45 lobes and the
+ *  jitter below rounds that to one or two — which is what keeps the scalloping
+ *  off the cell rhythm. `boundaryLoops` never merges collinear runs, so every
+ *  edge arriving here is exactly one cell side. */
+const LEAF_LOBE_SPAN = 46
+
+/**
+ * The two bow directions are NOT equally risky, and the winding is what makes
+ * that statement well-formed.
+ *
+ * `boundaryLoops` walks each tile tl -> tr -> br -> bl, which winds the outer
+ * contour of the covered union clockwise and every interior hole
+ * counter-clockwise. Verified by shoelace on real `glass3`/`glass4` geometry
+ * (15 cols x 9 rows over the 1000x600 sheet): the outer contour came back at
+ * +600000, a 2x2 hole at -17777.8, an L-shaped 10-cell hole at -44444.4. That
+ * opposite handedness is exactly why ONE `outward` normal serves both — and it
+ * is what lets a single global sign rule be correct: `+depth` is the pile
+ * ADVANCING over paper the child already cleared on both kinds of loop (off the
+ * union on the outer contour, into the hole on an island), and `-depth` is the
+ * pile RETREATING, which can only ever expose more of that same cleared paper.
+ * Were holes wound the same way as the outer contour, this cap would be
+ * backwards on every hole and would eat them all.
+ *
+ * So the advance cap stays where it was — this is the bound that keeps the pile
+ * off what the child erased.
+ */
+const LEAF_ADVANCE_DEPTH = 24
+
+/** The retreat cap, as a fraction of the grid's own cell edge rather than as an
+ *  absolute, so the licence means the same thing on the 15x9 grid (66.7 units)
+ *  `glass3`/`glass4` use as on the coarser 10x6 one. 0.55 of a cell is 36.7
+ *  units there — half again the advance cap, which is what a multi-cell run
+ *  needs before it stops returning to the straight cell line at every lobe
+ *  junction. The ceiling is the thin ridge case: two cleared blobs either side
+ *  of a one-cell-wide spine of leaves each retreat by at most this bow's own
+ *  deflection plus the vertex pull below, and the two together must stay under
+ *  one cell or the spine between them would be rendered away. */
+const LEAF_RETREAT_RATIO = 0.55
+
+/** How far a vertex may be pulled back, same units. The bow alone is pinned to
+ *  the straight polyline at every lobe junction, so a 90-degree corner stays a
+ *  hard 90-degree corner however deep the bows either side of it get — that is
+ *  the stair step visual QA measured in the `glass4` SW corner. Only moving the
+ *  vertices themselves softens it. Small next to the bow because the two
+ *  compound, per the ridge argument above. */
+const LEAF_VERTEX_PULL_RATIO = 0.12
+
+/** The grid's cell edge, read off the loop itself. `boundaryLoops` never merges
+ *  collinear runs, so every edge it emits is exactly one cell side and the
+ *  shortest of them IS the cell — no need to thread `cols`/`rows` down here. */
+function shortestEdge(loop: readonly Point[]): number {
+  let shortest = Infinity
+  for (let idx = 0; idx < loop.length; idx++) {
+    const a = loop[idx]
+    const b = loop[(idx + 1) % loop.length]
+    const len = Math.hypot(b.x - a.x, b.y - a.y)
+    if (len > 0 && len < shortest) shortest = len
+  }
+  return Number.isFinite(shortest) ? shortest : 0
+}
+
+/**
+ * Which sheet sides a point sits on, as a bitmask — the one place retreat is
+ * NOT free.
+ *
+ * Retreating anywhere else only uncovers paper the child already cleared. On
+ * the sheet's own border it would uncover paper nobody has touched: the reveal
+ * grid tiles the WHOLE viewBox (`revealGrid.ts`), so at level start the union
+ * IS the sheet rectangle and a deep inward bow there would open a bare margin
+ * around a pile that is supposed to cover the enclosure floor. Pinning those
+ * edges also means the very first frame of a leaves level renders exactly as it
+ * did before this clamp was split — every edge and every vertex of that one
+ * loop is on the border, so nothing there moves.
+ *
+ * `boundaryLoops` emits tile corners verbatim, so these comparisons are against
+ * exact grid arithmetic; the half-unit tolerance only absorbs float drift in
+ * `width / cols`.
+ */
+function sheetSides(point: Point, bounds: ArtBox): number {
+  const eps = 0.5
+  let sides = 0
+  if (Math.abs(point.x - bounds.x) < eps) sides |= 1
+  if (Math.abs(point.x - (bounds.x + bounds.width)) < eps) sides |= 2
+  if (Math.abs(point.y - bounds.y) < eps) sides |= 4
+  if (Math.abs(point.y - (bounds.y + bounds.height)) < eps) sides |= 8
+  return sides
+}
+
+/** An edge lies ON the border only when both ends share the same side — two
+ *  points on DIFFERENT borders (the run across a corner notch, say) bound
+ *  cleared paper, not paper's edge. */
+function onSheetEdge(a: Point, b: Point, bounds: ArtBox): boolean {
+  return (sheetSides(a, bounds) & sheetSides(b, bounds)) !== 0
+}
+
+/**
+ * Pull the frontier's vertices back into the pile.
+ *
+ * The direction is the negated bisector of the two edge normals meeting at the
+ * vertex, so it is the retreat direction by construction rather than by a sign
+ * guess — the winding argument above is what makes that hold on hole loops too.
+ * The magnitude is `(0.5 + jitter(…, 1))`, which lands in `[0, 1]` and so is
+ * NEVER negative: a vertex can only ever uncover more, which is why no amount
+ * of noise here can reintroduce the pile-eats-the-hole failure. Adjacent
+ * vertices draw independent amounts, and that is what turns a right-angled
+ * stair step into a ragged one. Vertices on the sheet border do not move at
+ * all.
+ */
+function retreatVertices(loop: readonly Point[], loopIndex: number, pull: number, bounds: ArtBox): Point[] {
+  const count = loop.length
+  return loop.map((point, idx) => {
+    if (sheetSides(point, bounds) !== 0) return point
+    const prev = loop[(idx - 1 + count) % count]
+    const next = loop[(idx + 1) % count]
+    const before = outwardNormal(prev, point)
+    const after = outwardNormal(point, next)
+    const bx = before.x + after.x
+    const by = before.y + after.y
+    const blen = Math.hypot(bx, by)
+    // A 180-degree reversal (a degenerate one-cell spur) cancels the bisector;
+    // there is no well-defined retreat there, so leave that vertex alone.
+    if (blen === 0) return point
+    const amount = (0.5 + jitter(loopIndex * 617 + idx * 43 + point.x * 0.011 + point.y * 0.013, 1)) * pull
+    return { x: point.x - (bx / blen) * amount, y: point.y - (by / blen) * amount }
+  })
+}
+
+function outwardNormal(a: Point, b: Point): Point {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const len = Math.hypot(dx, dy) || 1
+  return { x: dy / len, y: -dx / len }
+}
+
+/**
+ * The leaf pile's own frontier — what `erodedSandLoopPath` is for sand, given
+ * a deliberately different character rather than one shared parameterised
+ * curve generator. Sand erodes: three noise-pushed samples per cell edge, so
+ * the drift reads as swept grit. A raked leaf pile does not erode; it ends in
+ * overlapping blades, so this spends each edge on a whole number of cubic lobes
+ * whose COUNT comes from that edge's own length plus noise. A long exposed edge
+ * therefore scallops repeatedly while a one-cell hole gets a single blade —
+ * which is what stops a short erase hole from reading as a rounded rectangle,
+ * the exact defect the sand perimeter follow-up fixed (`apply-progress.md`,
+ * "Independent Visual-QA P2 Follow-up"). Handedness matches sand's:
+ * `boundaryLoops` winds the outer union clockwise and holes counter-clockwise,
+ * so one outward normal serves both — and, per `LEAF_ADVANCE_DEPTH`, so does
+ * one sign rule for which way is dangerous. Cubic `C` (sand uses `Q`) — plain
+ * path data, no `<defs>` and no `url(#…)`, per this file's header ban.
+ */
+function lobedLeafLoopPath(points: readonly Point[], loopIndex: number, sheetBounds: ArtBox): string {
+  const closed = pointKey(points[0]) === pointKey(points[points.length - 1]) ? points.slice(0, -1) : [...points]
+  if (closed.length < 3) return ''
+
+  const cell = shortestEdge(closed)
+  const islandRetreat = Math.max(LEAF_ADVANCE_DEPTH, cell * LEAF_RETREAT_RATIO)
+  const loop = retreatVertices(closed, loopIndex, cell * LEAF_VERTEX_PULL_RATIO, sheetBounds)
+
+  const parts: string[] = []
+  for (let idx = 0; idx < loop.length; idx++) {
+    const a = loop[idx]
+    const b = loop[(idx + 1) % loop.length]
+    // Per EDGE, not per loop. A cleared blob that happens to touch the paper's
+    // border is topologically part of the outer contour rather than a hole, yet
+    // its frontier is the same stair-stepped rectangle geometry an enclosed
+    // island shows — so the licence has to follow which paper an edge bounds,
+    // not which loop it was walked in. Only the border edges themselves stay on
+    // the original symmetric bound.
+    const border = onSheetEdge(a, b, sheetBounds)
+    const retreatLimit = border ? LEAF_ADVANCE_DEPTH : islandRetreat
+    // The raised cap alone would never bind: the raw noise below only reaches
+    // about -13 on a full-cell span, well inside the old ±24. So the safe half
+    // of the signed depth is GAINED into that headroom as well. Without this
+    // the bound would widen on paper and the frontier would stay exactly as
+    // straight as it is today.
+    const retreatGain = border ? 1 : 3.2
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const len = Math.hypot(dx, dy) || 1
+    const outward = { x: dy / len, y: -dx / len }
+    const tangent = { x: dx / len, y: dy / len }
+    const edgeSeed = loopIndex * 733 + idx * 97 + a.x * 0.017 + a.y * 0.023
+    const lobes = Math.max(1, Math.round(len / LEAF_LOBE_SPAN + jitter(edgeSeed, 0.9)))
+    const span = len / lobes
+    for (let lobe = 0; lobe < lobes; lobe++) {
+      const seed = edgeSeed + lobe * 31
+      const p0 = { x: a.x + dx * (lobe / lobes), y: a.y + dy * (lobe / lobes) }
+      const p1 = { x: a.x + dx * ((lobe + 1) / lobes), y: a.y + dy * ((lobe + 1) / lobes) }
+      // SIGNED, with only a small outward bias. An always-outward bow was tried
+      // first and rejected by arithmetic, not taste: it inflates the pile in
+      // every direction, so on an interior hole the pile EATS the hole — one
+      // cleared 66.7-wide cell comes back ~22 units narrower per side and the
+      // child barely sees what they just erased.
+      const raw = jitter(seed, span * 0.56) + span * 0.08
+      // ASYMMETRIC about that sign, because the two directions are not equally
+      // risky (see `LEAF_ADVANCE_DEPTH`). Positive is `outward`: into the hole
+      // on an island loop, off the covered union on the outer one — in both
+      // cases the pile advancing over cleared paper, so it keeps the original
+      // tight bound everywhere, unconditionally. Negative is the pile
+      // retreating, which can only ever expose more of what the child already
+      // erased. Widening BOTH sides instead would be the rejected
+      // always-outward bow with extra steps.
+      const depth =
+        raw >= 0 ? Math.min(LEAF_ADVANCE_DEPTH, raw) : Math.max(-retreatLimit, raw * retreatGain)
+      // Asymmetry, so no two lobes are the same blade seen twice.
+      const skew = jitter(seed + 53, span * 0.2)
+      if (parts.length === 0) parts.push(`M ${p0.x} ${p0.y}`)
+      const c1 = {
+        x: p0.x + tangent.x * (span * 0.2 + skew) + outward.x * depth,
+        y: p0.y + tangent.y * (span * 0.2 + skew) + outward.y * depth,
+      }
+      const c2 = {
+        x: p1.x - tangent.x * (span * 0.2 - skew) + outward.x * depth * 0.66,
+        y: p1.y - tangent.y * (span * 0.2 - skew) + outward.y * depth * 0.66,
+      }
+      parts.push(`C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p1.x} ${p1.y}`)
+    }
+  }
+  parts.push('Z')
+  return parts.join(' ')
+}
+
+function leafSilhouettePath(loops: readonly Point[][], sheetBounds: ArtBox): string {
+  return loops.map((loop, idx) => lobedLeafLoopPath(loop, idx, sheetBounds)).filter(Boolean).join(' ')
+}
+
 function pointInTile(tile: TraceRevealTile, px: number, py: number): boolean {
   return px >= tile.x && px <= tile.x + tile.w && py >= tile.y && py <= tile.y + tile.h
 }
@@ -273,17 +510,169 @@ function wholePaneSandSweeps(sheetBounds: ArtBox): readonly { path: string; anch
   })
 }
 
+/** How many blades the pane carries. Raised from 44 by real-browser visual QA
+ *  (system Chromium, 30 cells over three viewports): at `844x390` — the
+ *  realistic play viewport, where a 1000-unit viewBox lands at roughly 0.45
+ *  device px per unit — 44 blades over a 1000x600 sheet left gaps wide enough
+ *  that the pile read as a flat olive mat with scattered specks instead of
+ *  overlapping litter. The ceiling is the frontier and the enclosure's own
+ *  sign underneath: a blade renders only when its WHOLE outline sits over
+ *  still-covered tiles (`bladeProbes` below), so a denser scatter cannot creep
+ *  into what the child already cleared. Raising this number is therefore the
+ *  sanctioned way to pay for the thinning that gate causes at the frontier —
+ *  loosening the gate back to the anchor is not. */
+const LEAF_BLADE_COUNT = 128
+
+/**
+ * Where a blade's ink actually lands, as points the frontier gate can test.
+ *
+ * Gating on the anchor tests the blade's CENTRE, and a blade is up to
+ * `2 * half` = 52.8 units long against the 66.7-unit play cell — so an anchor
+ * one unit inside the frontier still paints up to 26.4 units of leaf ink onto
+ * paper the child just cleared. Independent review measured 5 blades and 1 rake
+ * overhanging a 3x2 erased block on the real 15x9 grid, worst overhang 20.4
+ * units; this file's own fixture reproduces 16.8. That is exactly the ink
+ * `LEAF_ADVANCE_DEPTH` exists to keep off cleared paper — the silhouette was
+ * bounded and the decoration painted on top of it was not.
+ *
+ * Nine points, in local blade coordinates before the render's own `rotate`:
+ * the two tips, three samples along each belly quadratic (a quadratic through
+ * `(±half, 0)` with control `(0, ∓belly)` reaches only `belly / 2`, so the
+ * extremes are `t = 0.5` — not the control point), and the centre FIRST so the
+ * common far-outside blade rejects after a single tile scan. Both blade axes
+ * are shorter than one cell, so a body crossing a cleared cell always drags one
+ * of these into it. Computed once with the scatter — pane-relative and
+ * deterministic, like the scatter itself — never per render.
+ */
+function bladeProbes(cx: number, cy: number, half: number, belly: number, rotate: number): Point[] {
+  const rad = (rotate * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  const local: readonly Point[] = [
+    { x: 0, y: 0 },
+    { x: -half, y: 0 },
+    { x: half, y: 0 },
+    { x: -half / 2, y: -belly * 0.375 },
+    { x: 0, y: -belly * 0.5 },
+    { x: half / 2, y: -belly * 0.375 },
+    { x: -half / 2, y: belly * 0.375 },
+    { x: 0, y: belly * 0.5 },
+    { x: half / 2, y: belly * 0.375 },
+  ]
+  return local.map((p) => ({ x: cx + p.x * cos - p.y * sin, y: cy + p.x * sin + p.y * cos }))
+}
+
+/** Individual blades scattered over the WHOLE pane, exactly like
+ *  `wholePaneSandCues`: deterministic and pane-relative, so clearing a cell
+ *  never re-rolls the survivors (the render below drops any blade whose whole
+ *  outline is no longer over covered tiles, via `probes`). A blade is a pointed
+ *  oval — two quadratics, tip to tip — not sand's ellipse, because that is the
+ *  silhouette that reads as a leaf at this size. Three tones, because the silhouette below
+ *  paints one flat union: these blades ARE the pile's internal relief, so they
+ *  carry a shadowed one, a lit one, and a dry one off the backdrop's amber. */
+function wholePaneLeafCues(sheetBounds: ArtBox): readonly {
+  path: string
+  anchor: Point
+  probes: readonly Point[]
+  rotate: number
+  fill: string
+  opacity: number
+}[] {
+  const { x, y, width, height } = sheetBounds
+  return Array.from({ length: LEAF_BLADE_COUNT }, (_, idx) => {
+    // The same irrational strides the sand cues use, so the scatter never
+    // lines up with the reveal grid's own columns and rows.
+    const fx = (0.06 + idx * 0.61803398875) % 0.88
+    const fy = (0.1 + idx * 0.38196601125 + (idx % 5) * 0.06) % 0.8
+    const cx = x + width * (0.06 + fx)
+    const cy = y + height * (0.08 + fy)
+    // Blade LENGTH, raised alongside the count for the same measured reason:
+    // the old `10 + (idx % 5) * 2.4` rendered 9-18 device px at `844x390`,
+    // which is under the size at which a pointed oval reads as a leaf rather
+    // than as a speck.
+    const half = 15 + (idx % 7) * 1.9
+    const tone = idx % 3
+    // Belly (half-width) is driven by a SEPARATE index term from the tone, and
+    // deliberately by an irrational stride rather than another modulus: with
+    // the old `idx % 3` driving both, belly was a pure function of tone, so
+    // `LEAF_DRY` — the amber blade, by far the most visible against
+    // `LEAF_BASE` and therefore the one a child actually notices — was
+    // PERMANENTLY the thinnest silhouette of the three. Real captures read
+    // those blades as twigs or pine needles. The stride below (√2 − 1) shares
+    // no period with 3, so every tone now spans the whole fatness range;
+    // swapping which tone got the thin constant would have kept the coupling.
+    const plump = (idx * 0.41421356237) % 1
+    // On top of that decorrelated spread, the amber blade gets a flat bonus:
+    // it is the one doing the visual work, so it should also be the fattest
+    // silhouette on average, not merely no longer the thinnest.
+    const belly = half * (0.34 + plump * 0.22) + (tone === 0 ? 3.2 : 0)
+    const rotate = -48 + ((idx * 53) % 97)
+    return {
+      path: `M ${cx - half} ${cy} Q ${cx} ${cy - belly}, ${cx + half} ${cy} Q ${cx} ${cy + belly}, ${cx - half} ${cy} Z`,
+      anchor: { x: cx, y: cy },
+      probes: bladeProbes(cx, cy, half, belly, rotate),
+      rotate,
+      fill: tone === 0 ? LEAF_DRY : tone === 1 ? LEAF_RIM : LEAF_DEEP,
+      // The two GREEN tones sat at a luma delta of only 12-20 out of 255
+      // against `LEAF_BASE` at their old 0.46/0.52, so two blades in three
+      // effectively vanished and the amber third had to carry the whole read.
+      // Raising their alpha (not their hex — the palette is authored) lifts
+      // `LEAF_RIM` to roughly +28 and `LEAF_DEEP` to roughly -23, which is
+      // where a blade separates from the mat. The amber keeps its 0.68: it was
+      // never the tone that failed to show.
+      opacity: tone === 0 ? 0.68 : tone === 1 ? 0.66 : 0.7,
+    }
+  })
+}
+
+/** The rake's own marks — the leaves peer of `wholePaneSandSweeps`, straighter
+ *  and longer because a rake leaves furrows where wind leaves curved drifts.
+ *
+ *  A furrow is 70-100 units long, so the anchor gate was even weaker here than
+ *  on a blade: measured reach past the midpoint was 50.9 units, three quarters
+ *  of a play cell. `probes` samples the quadratic at fifths — the curve is
+ *  shallow (`drop` is at most 19.2 against a length of 100), so five samples
+ *  bracket it far more tightly than the cell the gate is resolving against, and
+ *  the two ENDPOINTS are what the old anchor was missing. */
+function wholePaneLeafRakes(sheetBounds: ArtBox): readonly { path: string; probes: readonly Point[] }[] {
+  const { x, y, width, height } = sheetBounds
+  return Array.from({ length: 8 }, (_, idx) => {
+    const x0 = x + width * (0.1 + ((idx * 0.31) % 0.7))
+    const y0 = y + height * (0.13 + ((idx * 0.27) % 0.66))
+    const len = width * (0.07 + (idx % 3) * 0.015)
+    const drop = height * (0.022 + (idx % 2) * 0.01)
+    const at = (t: number): Point => ({
+      x: (1 - t) * (1 - t) * x0 + 2 * t * (1 - t) * (x0 + len * 0.55) + t * t * (x0 + len),
+      y: (1 - t) * (1 - t) * y0 + 2 * t * (1 - t) * (y0 + drop * 0.5) + t * t * (y0 + drop),
+    })
+    return {
+      path: `M ${x0} ${y0} Q ${x0 + len * 0.55} ${y0 + drop * 0.5}, ${x0 + len} ${y0 + drop}`,
+      // Midpoint first: it is the old anchor, so the far-outside furrow still
+      // rejects on one tile scan.
+      probes: [at(0.5), at(0), at(0.25), at(0.75), at(1)],
+    }
+  })
+}
+
 export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
   const glassFog = isGlassFog(reveal.fill)
   const nightVeil = isNightVeil(reveal.fill)
   const sand = reveal.visual === 'sand'
+  // Opt-in by the level projection ONLY (`LevelPlay`'s `isLeavesRevealLevel`),
+  // never inferred from `reveal.fill`: a future adventure reusing `LEAF_LITTER`
+  // must not silently inherit this pile. The sand policy holds the same line.
+  const leaves = reveal.visual === 'leaves'
   const fogPath = glassFog ? fogSilhouettePath(reveal.tiles) : ''
   const sandLoops = sand ? boundaryLoops(reveal.tiles) : []
   const sandPath = sand ? sandSilhouettePath(sandLoops) : ''
+  const leafLoops = leaves ? boundaryLoops(reveal.tiles) : []
+  const leafPath = leaves ? leafSilhouettePath(leafLoops, sheetBounds) : ''
   const streaks = glassFog ? wholePaneStreaks(sheetBounds) : []
   const droplets = glassFog ? wholePaneDroplets(sheetBounds) : []
   const sandCues = sand ? wholePaneSandCues(sheetBounds) : []
   const sandSweeps = sand ? wholePaneSandSweeps(sheetBounds) : []
+  const leafCues = leaves ? wholePaneLeafCues(sheetBounds) : []
+  const leafRakes = leaves ? wholePaneLeafRakes(sheetBounds) : []
   const hiddenArt = reveal.art?.filter((obj) => !obj.revealed) ?? []
   const revealedArt = reveal.art?.filter((obj) => obj.revealed) ?? []
 
@@ -394,6 +783,57 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
           )}
         </g>
       )}
+      {leaves && leafPath && (
+        <g data-leaf-litter="true">
+          {/* One continuous union painted three times: body, a deep wash that
+              reads as shadow under a pile, and a lifted rim. The body stroke is
+              deliberately thin (sand's is 52) — a fat one would fill in the
+              very lobe notches this policy exists to produce. */}
+          <path
+            data-leaf-silhouette="true"
+            d={leafPath}
+            fill={LEAF_BASE}
+            fillRule="evenodd"
+            stroke={LEAF_BASE}
+            strokeWidth={12}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path d={leafPath} fill={LEAF_DEEP} fillRule="evenodd" opacity={0.26} />
+          <path d={leafPath} fill="none" stroke={LEAF_RIM} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" opacity={0.5} />
+          {/* Gated on the WHOLE mark, not its midpoint: see `bladeProbes`. The
+              frontier thins slightly as a result — a furrow or blade that
+              straddles it is dropped whole rather than clipped — which is the
+              intended reading of a pile edge, and is paid for by
+              `LEAF_BLADE_COUNT` rather than by relaxing the gate. */}
+          {leafRakes.map((rake, idx) =>
+            rake.probes.every((p) => pointInAnyTile(reveal.tiles, p.x, p.y)) ? (
+              <path
+                key={`leaf-rake-${idx}`}
+                data-leaf-rake="true"
+                d={rake.path}
+                fill="none"
+                stroke={LEAF_DEEP}
+                strokeWidth={4}
+                strokeLinecap="round"
+                opacity={0.34}
+              />
+            ) : null,
+          )}
+          {leafCues.map((cue, idx) =>
+            cue.probes.every((p) => pointInAnyTile(reveal.tiles, p.x, p.y)) ? (
+              <path
+                key={`leaf-blade-${idx}`}
+                data-leaf-blade="true"
+                d={cue.path}
+                fill={cue.fill}
+                opacity={cue.opacity}
+                transform={`rotate(${cue.rotate} ${cue.anchor.x} ${cue.anchor.y})`}
+              />
+            ) : null,
+          )}
+        </g>
+      )}
       {reveal.tiles.map((tile) => (
         <rect
           key={stableTileId(tile)}
@@ -411,7 +851,12 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
           // artifact, not a geometry gap; the tiles genuinely abut. A plain
           // presentation attribute, not a `url(#...)` reference.
           shapeRendering="crispEdges"
-          {...(glassFog || sand ? { opacity: 0 } : tile.opacity < 1 ? { opacity: tile.opacity } : {})}
+          // `leaves` joins `glassFog`/`sand` for the same reason: the visible
+          // surface is the silhouette above, so these rects stay invisible
+          // state/counting sentinels (reveal-grid spec, "Reveal Layer Renders as
+          // Plain Rects With No Fragment Reference"). Count, keys, and geometry
+          // are untouched, so folding and scoring cannot move.
+          {...(glassFog || sand || leaves ? { opacity: 0 } : tile.opacity < 1 ? { opacity: tile.opacity } : {})}
         />
       ))}
       {nightVeil && reveal.light?.complete && (

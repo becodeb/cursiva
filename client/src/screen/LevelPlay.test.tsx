@@ -1271,6 +1271,31 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     expect(eraseResultMessage('glass2', false)).toBe('Seguí limpiando el vidrio.')
   })
 
+  // `glass3`/`glass4` are the `monos` adventure: their surface is leaf litter,
+  // so policy and wording key off the level, never off the `glass*` ID prefix.
+  it('opts only glass3 and glass4 into the typed leaves visual policy', () => {
+    for (const id of ['glass3', 'glass4'] as const) {
+      renderToString(
+        <LevelPlay level={getLevel(id)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      expect((traceCanvasProbe.current?.reveal as { visual?: string }).visual, id).toBe('leaves')
+    }
+
+    for (const id of ['glass1', 'glass2'] as const) {
+      renderToString(
+        <LevelPlay level={getLevel(id)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      expect((traceCanvasProbe.current?.reveal as { visual?: string }).visual, id).toBeUndefined()
+    }
+
+    for (const id of ['sand1', 'sand2'] as const) {
+      renderToString(
+        <LevelPlay level={getLevel(id)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      expect((traceCanvasProbe.current?.reveal as { visual?: string }).visual, id).toBe('sand')
+    }
+  })
+
   it('uses leaves attempt wording for glass3/glass4 while glass1/glass2 keep the glass wording', () => {
     expect(eraseResultMessage('glass3', true)).toBe('¡Hojas juntadas!')
     expect(eraseResultMessage('glass3', false)).toBe('Seguí juntando las hojas.')
@@ -1278,6 +1303,22 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     expect(eraseResultMessage('glass4', false)).toBe('Seguí juntando las hojas.')
     expect(eraseResultMessage('glass1', true)).toBe('¡Vidrio limpio!')
     expect(eraseResultMessage('glass2', false)).toBe('Seguí limpiando el vidrio.')
+  })
+
+  // The leaves slice is copy plus paint: everything the grid scores on is pinned
+  // here rather than left to review.
+  it('leaves the glass3/glass4 reveal geometry, rules, and tile count untouched', () => {
+    for (const id of ['glass3', 'glass4'] as const) {
+      const level = getLevel(id)
+      expect(level.reveal, id).toEqual({ mode: 'erase', cols: 15, rows: 9, radius: id === 'glass3' ? 110 : 80 })
+      expect(level.rules.minAccuracy, id).toBe(id === 'glass3' ? 76 : 82)
+      renderToString(
+        <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      const reveal = traceCanvasProbe.current?.reveal as { tiles: unknown[]; fill: string }
+      expect(reveal.tiles.length, id).toBe(15 * 9)
+      expect(reveal.fill, id).toBe('#6e7a4a')
+    }
   })
 
   it('sends a reveal prop with the hidden-object art for a light level', () => {

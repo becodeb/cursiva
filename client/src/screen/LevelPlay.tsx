@@ -1914,6 +1914,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     return {
       fill: backdropEntry?.tile ?? SHEET_PAPER,
       ...(isSandRevealLevel(level.id) ? { visual: 'sand' as const } : {}),
+      ...(isLeavesRevealLevel(level.id) ? { visual: 'leaves' as const } : {}),
       tiles,
       art,
       light,

@@ -444,9 +444,12 @@ export interface TraceReveal {
   /** The veil's own paint — a reveal level's `backdrop?.tile`. */
   fill: string
   /** An opt-in visual treatment owned by the current level projection. The
-   * default stays the plain tile contract; `sand` changes only how those
-   * same remaining tiles are painted. */
-  visual?: 'sand'
+   * default stays the plain tile contract; `sand` and `leaves` change only
+   * how those same remaining tiles are painted. This union is a closed list
+   * of NAMED surfaces on purpose — each one is a render-local policy inside
+   * `RevealLayer`, not a registry a level can extend, so adding a surface
+   * stays a typed compile-time decision rather than runtime configuration. */
+  visual?: 'sand' | 'leaves'
   tiles: readonly TraceRevealTile[]
   /** Hidden objects for light discovery. Undiscovered objects stay under the veil;
    * discovered objects may be celebrated above it. */
