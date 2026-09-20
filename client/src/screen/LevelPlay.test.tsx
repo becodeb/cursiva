@@ -65,6 +65,7 @@ import LevelPlay, {
   LAYOUT_CSS,
   allRevealTiles,
   drawingBand,
+  eraseResultMessage,
   isOffPath,
   releasedRevealState,
   seedCameraFor,
@@ -1247,6 +1248,27 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     expect(reveal).toBeTruthy()
     expect(reveal.tiles.length).toBe(erase.cols * erase.rows) // nothing cleared yet
     expect(reveal.art).toBeUndefined() // erase mode has no hidden objects
+  })
+
+  it('opts only sand1 and sand2 into the typed sand visual policy', () => {
+    for (const id of ['sand1', 'sand2'] as const) {
+      renderToString(
+        <LevelPlay level={getLevel(id)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      expect((traceCanvasProbe.current?.reveal as { visual?: string }).visual, id).toBe('sand')
+    }
+
+    renderToString(
+      <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect((traceCanvasProbe.current?.reveal as { visual?: string }).visual).toBeUndefined()
+  })
+
+  it('uses sand-specific attempt wording without changing glass wording', () => {
+    expect(eraseResultMessage('sand1', true)).toBe('¡Arena barrida!')
+    expect(eraseResultMessage('sand2', false)).toBe('Seguí barriendo la arena.')
+    expect(eraseResultMessage('glass1', true)).toBe('¡Vidrio limpio!')
+    expect(eraseResultMessage('glass2', false)).toBe('Seguí limpiando el vidrio.')
   })
 
   it('sends a reveal prop with the hidden-object art for a light level', () => {

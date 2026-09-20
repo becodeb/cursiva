@@ -128,6 +128,43 @@ describe('RevealLayer', () => {
     expect((html.match(/data-fog-streak="true"/g) ?? []).length).toBeGreaterThan(0)
   })
 
+  it('renders explicit sand as one organic drift while keeping one invisible rect sentinel per remaining tile', () => {
+    const reveal: TraceReveal = {
+      fill: '#7a6a58',
+      visual: 'sand',
+      tiles: [
+        { x: 0, y: 0, w: 100, h: 100, opacity: 1 },
+        { x: 100, y: 0, w: 100, h: 100, opacity: 1 },
+        { x: 0, y: 100, w: 100, h: 100, opacity: 1 },
+      ],
+    }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+
+    expect(html).toContain('data-sand-drift="true"')
+    expect((html.match(/data-sand-silhouette="true"/g) ?? []).length).toBe(1)
+    const sandPath = html.match(/data-sand-silhouette="true" d="([^"]+)"/)?.[1] ?? ''
+    expect((sandPath.match(/Q /g) ?? []).length).toBeGreaterThan(12)
+    expect(html).not.toContain('data-sand-edge-lobe')
+    expect((html.match(/data-fog-tile-id=/g) ?? []).length).toBe(reveal.tiles.length)
+    expect((html.match(/<rect/g) ?? []).length).toBe(reveal.tiles.length)
+    expect((html.match(/opacity="0"/g) ?? []).length).toBe(reveal.tiles.length)
+    expect((html.match(/data-sand-grain="true"/g) ?? []).length).toBeGreaterThan(0)
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<defs')
+    expect(html).not.toContain('url(#')
+  })
+
+  it('does not infer sand polish from the veil colour alone', () => {
+    const reveal: TraceReveal = {
+      fill: '#7a6a58',
+      tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }],
+    }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+    expect(html).not.toContain('data-sand-drift="true"')
+  })
+
   it('keeps fog tile identity and whole-pane condensation stable when an earlier tile clears', () => {
     const survivor = { x: 100, y: 0, w: 100, h: 100, opacity: 1 }
     const before: TraceReveal = {

@@ -443,6 +443,10 @@ export interface TraceRevealTile {
 export interface TraceReveal {
   /** The veil's own paint — a reveal level's `backdrop?.tile`. */
   fill: string
+  /** An opt-in visual treatment owned by the current level projection. The
+   * default stays the plain tile contract; `sand` changes only how those
+   * same remaining tiles are painted. */
+  visual?: 'sand'
   tiles: readonly TraceRevealTile[]
   /** Hidden objects for light discovery. Undiscovered objects stay under the veil;
    * discovered objects may be celebrated above it. */

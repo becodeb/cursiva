@@ -33,6 +33,11 @@ const NIGHT_GLOW = '#fff3b0'
 const NIGHT_FOUND_GLOW = '#fce97a'
 const NIGHT_HINT = '#f7d66b'
 const NIGHT_SUCCESS_WASH = '#ffe88a'
+const SAND_BASE = '#c4945c'
+const SAND_WARM = '#dfb774'
+const SAND_EDGE = '#f0cf91'
+const SAND_GRAIN = '#8e6b46'
+const SAND_ROCK = '#76685a'
 
 type Point = { x: number; y: number }
 type Edge = { a: Point; b: Point }
@@ -154,6 +159,50 @@ function fogSilhouettePath(tiles: readonly TraceRevealTile[]): string {
   return boundaryLoops(tiles).map(organicLoopPath).filter(Boolean).join(' ')
 }
 
+function midpoint(a: Point, b: Point): Point {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+}
+
+function erodedSandLoopPath(points: readonly Point[], loopIndex: number): string {
+  const loop = pointKey(points[0]) === pointKey(points[points.length - 1]) ? points.slice(0, -1) : [...points]
+  if (loop.length < 3) return ''
+
+  const eroded: Point[] = []
+  for (let idx = 0; idx < loop.length; idx++) {
+    const a = loop[idx]
+    const b = loop[(idx + 1) % loop.length]
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const len = Math.hypot(dx, dy) || 1
+    const outward = { x: dy / len, y: -dx / len }
+    for (let step = 0; step < 3; step++) {
+      const t = step / 3
+      const base = { x: a.x + dx * t, y: a.y + dy * t }
+      const seed = loopIndex * 911 + idx * 71 + step * 29 + a.x * 0.013 + a.y * 0.019
+      const normalOffset = jitter(seed, Math.min(32, len * 0.32))
+      const tangentOffset = jitter(seed + 37, Math.min(6, len * 0.06))
+      eroded.push({
+        x: base.x + outward.x * normalOffset + (dx / len) * tangentOffset,
+        y: base.y + outward.y * normalOffset + (dy / len) * tangentOffset,
+      })
+    }
+  }
+
+  const start = midpoint(eroded[eroded.length - 1], eroded[0])
+  const parts = [`M ${start.x} ${start.y}`]
+  for (let idx = 0; idx < eroded.length; idx++) {
+    const point = eroded[idx]
+    const end = midpoint(point, eroded[(idx + 1) % eroded.length])
+    parts.push(`Q ${point.x} ${point.y}, ${end.x} ${end.y}`)
+  }
+  parts.push('Z')
+  return parts.join(' ')
+}
+
+function sandSilhouettePath(loops: readonly Point[][]): string {
+  return loops.map(erodedSandLoopPath).filter(Boolean).join(' ')
+}
+
 function pointInTile(tile: TraceRevealTile, px: number, py: number): boolean {
   return px >= tile.x && px <= tile.x + tile.w && py >= tile.y && py <= tile.y + tile.h
 }
@@ -187,12 +236,54 @@ function wholePaneDroplets(sheetBounds: ArtBox): readonly { cx: number; cy: numb
   }))
 }
 
+function wholePaneSandCues(sheetBounds: ArtBox): readonly {
+  cx: number
+  cy: number
+  rx: number
+  ry: number
+  rotate: number
+  rock: boolean
+}[] {
+  const { x, y, width, height } = sheetBounds
+  return Array.from({ length: 27 }, (_, idx) => {
+    const fx = (0.08 + idx * 0.61803398875) % 0.9
+    const fy = (0.12 + idx * 0.38196601125 + (idx % 4) * 0.07) % 0.82
+    const rock = idx % 6 === 0
+    return {
+      cx: x + width * (0.05 + fx),
+      cy: y + height * (0.07 + fy),
+      rx: rock ? 7 + (idx % 3) * 2 : 2.2 + (idx % 4) * 0.7,
+      ry: rock ? 4.5 + (idx % 2) * 1.5 : 1.5 + (idx % 3) * 0.45,
+      rotate: -32 + (idx * 47) % 67,
+      rock,
+    }
+  })
+}
+
+function wholePaneSandSweeps(sheetBounds: ArtBox): readonly { path: string; anchor: Point }[] {
+  const { x, y, width, height } = sheetBounds
+  return Array.from({ length: 9 }, (_, idx) => {
+    const x0 = x + width * (0.08 + ((idx * 0.29) % 0.74))
+    const y0 = y + height * (0.14 + ((idx * 0.23) % 0.68))
+    const len = width * (0.055 + (idx % 3) * 0.018)
+    return {
+      path: `M ${x0} ${y0} Q ${x0 + len * 0.48} ${y0 - height * 0.015}, ${x0 + len} ${y0 + height * 0.004}`,
+      anchor: { x: x0 + len * 0.5, y: y0 },
+    }
+  })
+}
+
 export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
   const glassFog = isGlassFog(reveal.fill)
   const nightVeil = isNightVeil(reveal.fill)
+  const sand = reveal.visual === 'sand'
   const fogPath = glassFog ? fogSilhouettePath(reveal.tiles) : ''
+  const sandLoops = sand ? boundaryLoops(reveal.tiles) : []
+  const sandPath = sand ? sandSilhouettePath(sandLoops) : ''
   const streaks = glassFog ? wholePaneStreaks(sheetBounds) : []
   const droplets = glassFog ? wholePaneDroplets(sheetBounds) : []
+  const sandCues = sand ? wholePaneSandCues(sheetBounds) : []
+  const sandSweeps = sand ? wholePaneSandSweeps(sheetBounds) : []
   const hiddenArt = reveal.art?.filter((obj) => !obj.revealed) ?? []
   const revealedArt = reveal.art?.filter((obj) => obj.revealed) ?? []
 
@@ -250,6 +341,59 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
           })}
         </g>
       )}
+      {sand && sandPath && (
+        <g data-sand-drift="true">
+          <path
+            data-sand-silhouette="true"
+            d={sandPath}
+            fill={SAND_BASE}
+            fillRule="evenodd"
+            stroke={SAND_BASE}
+            strokeWidth={52}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path d={sandPath} fill={SAND_WARM} fillRule="evenodd" opacity={0.28} />
+          <path
+            d={sandPath}
+            fill="none"
+            stroke={SAND_EDGE}
+            strokeWidth={12}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.55}
+          />
+          {sandSweeps.map((sweep, idx) =>
+            pointInAnyTile(reveal.tiles, sweep.anchor.x, sweep.anchor.y) ? (
+              <path
+                key={`sand-sweep-${idx}`}
+                data-sand-sweep="true"
+                d={sweep.path}
+                fill="none"
+                stroke={SAND_EDGE}
+                strokeWidth={3}
+                strokeLinecap="round"
+                opacity={0.48}
+              />
+            ) : null,
+          )}
+          {sandCues.map((cue, idx) =>
+            pointInAnyTile(reveal.tiles, cue.cx, cue.cy) ? (
+              <ellipse
+                key={`sand-grain-${idx}`}
+                data-sand-grain="true"
+                cx={cue.cx}
+                cy={cue.cy}
+                rx={cue.rx}
+                ry={cue.ry}
+                fill={cue.rock ? SAND_ROCK : SAND_GRAIN}
+                opacity={cue.rock ? 0.78 : 0.62}
+                transform={`rotate(${cue.rotate} ${cue.cx} ${cue.cy})`}
+              />
+            ) : null,
+          )}
+        </g>
+      )}
       {reveal.tiles.map((tile) => (
         <rect
           key={stableTileId(tile)}
@@ -267,7 +411,7 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
           // artifact, not a geometry gap; the tiles genuinely abut. A plain
           // presentation attribute, not a `url(#...)` reference.
           shapeRendering="crispEdges"
-          {...(glassFog ? { opacity: 0 } : tile.opacity < 1 ? { opacity: tile.opacity } : {})}
+          {...(glassFog || sand ? { opacity: 0 } : tile.opacity < 1 ? { opacity: tile.opacity } : {})}
         />
       ))}
       {nightVeil && reveal.light?.complete && (

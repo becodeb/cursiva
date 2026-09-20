@@ -782,3 +782,33 @@ Avoid: every living creature or silhouette, photorealism, 3D, gradients, shadows
 
 ### Status
 Corrective integration complete without changing any task checkbox. U10, U15, and U15.1 remain deferred and unchecked.
+
+## Post-U14 Corrective Reveal Polish — Sand / Rocks
+
+### Scope and Behavior
+- Added one typed, render-local `TraceReveal.visual: 'sand'` opt-in and selected it only for `sand1`/`sand2` in `LevelPlay`; default reveal, glass fog, and night discovery rendering stay on their existing paths.
+- The remaining sand cells now paint as one continuous warm drift with deterministic, non-grid sweep/grain/rock cues and an organic union boundary. The existing remaining-tile `<rect>` nodes remain stable invisible sentinels, so reveal folding, scoring, tile counts, gestures, persistence, IDs, unlocks, and progress are unchanged.
+- Released erase ink remains `live-only`, leaving no dark trace after pointer release. An empty remaining-tile set paints no sand at success, exposing the renewed turtle habitat and reward cleanly.
+- Corrected only the sand attempt result copy to `¡Arena barrida!` / `Seguí barriendo la arena.`; glass wording remains unchanged.
+
+### Tests and Visual Evidence
+- Focused Vitest: `npm test -w client -- src/canvas/RevealLayer.test.tsx src/screen/LevelPlay.test.tsx src/levels/revealGrid.test.ts src/canvas/ink.test.ts` — PASS, 4 files / 148 tests. Coverage asserts the explicit sand opt-in, organic layer, unchanged rect sentinel count, no fragment references, sand-only copy, reveal scoring, and `live-only` ink policy.
+- Full tests: `npm test` — PASS, 82 files / 1,927 tests.
+- Build: `npm run build` — PASS (`tsc --noEmit` + Vite); existing chunk-size warning only.
+- System Chrome Playwright: `PLAYWRIGHT_CHANNEL=chrome PLAYWRIGHT_RUN_ID=sand-reveal-polish-final npm run test:e2e -w client -- e2e/sand-reveal-polish-temp.spec.ts --project=chromium` — PASS, 15/15 for `sand1` start, partial, error, success, and map-return at `1280x720`, `844x390`, and `390x844`; the temporary spec was removed afterward.
+- Raw ignored evidence: `client/test-results/playwright-output/run-sand-reveal-polish-final/`.
+- Manual 15-cell contact sheet (outside the repository): `C:/Users/mastr/AppData/Local/Temp/cursiva-sand-reveal-polish-final-contact.jpg`.
+- Manual inspection confirmed: the start state is a coherent sand/debris layer; partial and error states use swept irregular boundaries rather than tile holes; sparse cues do not form a grid; released attempts leave no dark trace; success fully exposes the renewed habitat with `¡Arena barrida!`; map-return reaches the real zoo map; portrait retains rotate guidance and Back access.
+
+### Status
+Corrective sand reveal polish complete without changing any task checkbox. U10, U15, and U15.1 remain deferred and unchecked.
+
+### Independent Visual-QA P2 Follow-up — Organic Sand Perimeter
+- Confirmed the remaining defect: the first continuous union removed the internal grid, but smoothing the original cell boundary retained long straight segments and rounded right-angle holes.
+- Replaced only the sand silhouette projection with a restrained deterministic three-sample quadratic erosion. After a second visual review found the first correction too scalloped, the displacement was reduced to at most ±16 viewBox units and the repeating lobe primitives were removed entirely.
+- The final outline breaks straight exposed edges and short-attempt holes subtly, without becoming decorative and without masks, clip paths, patterns, filters, fragment references, extra rects, unstable keys, or changes to reveal state/scoring.
+- Added falsifiable SSR coverage for the quadratic contour and the absence of edge-lobe markup while retaining the exact invisible rect-sentinel count and forbidden-reference assertions.
+- Focused Vitest remained PASS: 4 files / 148 tests. Full `npm test` remained PASS: 82 files / 1,927 tests. `npm run build` remained PASS with only the existing chunk-size warning.
+- System Chrome comparison: `PLAYWRIGHT_CHANNEL=chrome PLAYWRIGHT_RUN_ID=sand-edge-balance-final npm run test:e2e -w client -- e2e/sand-edge-balance-temp.spec.ts --project=chromium` — PASS, 8/8 for direct-gesture partial/error sand and glass at `1280x720` and `844x390`; the temporary spec was removed.
+- Raw ignored evidence: `client/test-results/playwright-output/run-sand-edge-balance-final/`. Comparison contact sheet: `C:/Users/mastr/AppData/Local/Temp/cursiva-sand-edge-balance-final-contact.jpg`.
+- Manual comparison against glass confirmed the sand frontier is only subtly more irregular/material, has no repeating scallops, and a short direct-pointer hole avoids the previous rounded rectangle; released error still has no persistent ink trace.

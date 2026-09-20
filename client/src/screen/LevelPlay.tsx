@@ -184,6 +184,17 @@ const LAMP_SIZE = 84
  * content, not a case default. */
 const GOAL_ART_SIZE = 96
 
+function isSandRevealLevel(levelId: string): boolean {
+  return levelId === 'sand1' || levelId === 'sand2'
+}
+
+export function eraseResultMessage(levelId: string, approved: boolean): string {
+  if (isSandRevealLevel(levelId)) {
+    return approved ? '¡Arena barrida!' : 'Seguí barriendo la arena.'
+  }
+  return approved ? '¡Vidrio limpio!' : 'Seguí limpiando el vidrio.'
+}
+
 /**
  * Where the magnifying glass RESTS, as an offset from the octopus's feet.
  *
@@ -1888,8 +1899,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
             ? { x: revealState.point.x, y: revealState.point.y, radius: level.reveal.radius, complete: false }
             : null
         : null
-    return { fill: backdropEntry?.tile ?? SHEET_PAPER, tiles, art, light }
-  }, [level.reveal, revealState, target.viewBoxWidth, backdropEntry])
+    return {
+      fill: backdropEntry?.tile ?? SHEET_PAPER,
+      ...(isSandRevealLevel(level.id) ? { visual: 'sand' as const } : {}),
+      tiles,
+      art,
+      light,
+    }
+  }, [level.id, level.reveal, revealState, target.viewBoxWidth, backdropEntry])
 
   // The waypoint fold's render projection (`free-trail-waypoints`
   // capability, design.md §5): N images (the flowers, then the hive), plus
@@ -2284,7 +2301,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       {drawnPlace && level.reveal?.mode === 'erase' && attempt && (
         <section aria-label="Resultado del intento" className="cv-result">
           <p className="cv-coach" role="status">
-            {attempt.approved ? '¡Vidrio limpio!' : 'Seguí limpiando el vidrio.'}
+            {eraseResultMessage(level.id, attempt.approved)}
           </p>
         </section>
       )}
