@@ -22,7 +22,7 @@ The committed LF/CRLF baseline is complete and excluded. Execute U1→U15 automa
 - [x] U5. Responsive/map accessibility — update `ZooMap.tsx`, `LevelPlay.tsx`, and tests; portrait guidance stays dismissible and map return reachable.
 - [x] U6. Ink policy — implement existing `TraceCanvas.tsx`/`canvas/ink.ts` seams with tests/screenshots; do not alter deduction or scoring.
 - [x] U7. Fogged glass — polish `RevealLayer.tsx`, reveal-grid tests, and glass catalog; capture start/partial/error/success/map-return at all three viewports (15 cells).
-- [ ] U8. Night discovery — update catalog/backdrops/reveal behavior and tests; capture start/partial/error/success/map-return at all three viewports (15 cells).
+- [x] U8. Night discovery — update catalog/backdrops/reveal behavior and tests; capture start/partial/error/success/map-return at all three viewports (15 cells).
 - [ ] U9. PISTAS clarity — improve `PistasRail.tsx`/`LevelPlay.tsx` animation and accessibility; prove filing/deduction semantics unchanged.
 - [ ] U10. Narrative closures — verify/remediate the already-existing exact approved docs/16/current-registry entrance closings (`peces`, `tortugas`, `monos`, `sendero` beat 0/1); record jellyfish/medusa/unapproved content only. DEFERRED by explicit user instruction for this U7 slice; do not mark complete until resumed.
 - [ ] U11. Background generation — Art role creates docs/09-compliant 3:2 families with calm gameplay bands in `art-source/` and `client/public/art/`.

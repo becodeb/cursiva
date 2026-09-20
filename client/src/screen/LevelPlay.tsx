@@ -305,6 +305,32 @@ export function drawingBand(
  * flag's own contract. Absent flags (the ordinary, non-debug path) return
  * EXACTLY `EMPTY_REVEAL`, byte-identical to before this wiring.
  */
+
+export function releasedRevealState(
+  reveal: LevelConfig['reveal'],
+  snapshot: ReadonlyArray<ReadonlyArray<TracePoint>>,
+  width: number,
+): RevealState | null {
+  if (!reveal) return null
+  let next = EMPTY_REVEAL
+  for (const stroke of snapshot) {
+    next = revealTick(next, stroke, true, reveal, width)
+    next = revealTick(next, [], false, reveal, width)
+  }
+  return next
+}
+
+export function allRevealTiles(reveal: NonNullable<LevelConfig['reveal']>, width: number): Array<TraceReveal['tiles'][number]> {
+  const tileW = (width > 0 ? width : 1) / reveal.cols
+  const tileH = SHEET_HEIGHT / reveal.rows
+  const tiles: Array<TraceReveal['tiles'][number]> = []
+  for (let row = 0; row < reveal.rows; row++) {
+    for (let col = 0; col < reveal.cols; col++) {
+      tiles.push({ x: col * tileW, y: row * tileH, w: tileW, h: tileH, opacity: 0 })
+    }
+  }
+  return tiles
+}
 export function initialRevealState(reveal: LevelConfig['reveal'], search: string): RevealState {
   if (!reveal) return EMPTY_REVEAL
   if (reveal.mode === 'erase') {
@@ -1487,6 +1513,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       // RAW points, always. `snapshot` is the captured stroke, never the
       // rail-warped copy the canvas draws — scoring the assist would make
       // accuracy a measurement of the rail instead of the child (see `rail.ts`).
+      const releasedReveal = releasedRevealState(level.reveal, snapshot, target.viewBoxWidth)
+      if (releasedReveal) setRevealState(releasedReveal)
       const result = evaluateLevel(snapshot, target, pointerType)
       setAttempt(result)
       setPhase('result')
@@ -1499,7 +1527,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       if (shouldFileClue(!!clueDef, reachedEndRef.current)) setClueFiled(true)
       onAttempt(result)
     },
-    [target, onAttempt, clueDef, arrangeOpen, level.spines, spinePin, feedback.haptics],
+    [target, onAttempt, clueDef, arrangeOpen, level.spines, level.reveal, spinePin, feedback.haptics],
   )
 
   const replayDemo = (): void => {
@@ -1707,21 +1735,31 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // the backdrop's own veil paint and the hidden objects' art, if any.
   const reveal = useMemo<TraceReveal | undefined>(() => {
     if (!level.reveal) return undefined
-    const tiles = revealTiles(level.reveal, revealState, target.viewBoxWidth)
+    const lightComplete = level.reveal.mode === 'light' && revealState.lit.size >= level.reveal.objects.length
+    const tiles = lightComplete && level.reveal.mode === 'light' ? allRevealTiles(level.reveal, target.viewBoxWidth) : revealTiles(level.reveal, revealState, target.viewBoxWidth)
     const art =
       level.reveal.mode === 'light'
-        ? level.reveal.objects.map((o) => ({
+        ? level.reveal.objects.map((o, idx) => ({
             href: o.art.href,
             w: o.art.w,
             h: o.art.h,
             size: o.size,
             x: o.x,
             y: o.y,
+            revealed: revealState.lit.has(idx),
           }))
         : undefined
     // Every reveal-grid level ships a backdrop declaring `tile` (design.md
     // §2.5); the fallback only guards a level authored without one.
-    return { fill: backdropEntry?.tile ?? SHEET_PAPER, tiles, art }
+    const light =
+      level.reveal.mode === 'light'
+        ? lightComplete
+          ? { x: 0, y: 0, radius: level.reveal.radius, complete: true }
+          : revealState.point
+            ? { x: revealState.point.x, y: revealState.point.y, radius: level.reveal.radius, complete: false }
+            : null
+        : null
+    return { fill: backdropEntry?.tile ?? SHEET_PAPER, tiles, art, light }
   }, [level.reveal, revealState, target.viewBoxWidth, backdropEntry])
 
   // The waypoint fold's render projection (`free-trail-waypoints`
@@ -2109,6 +2147,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         <section aria-label="Resultado del intento" className="cv-result">
           <p className="cv-coach" role="status">
             {attempt.approved ? '¡Vidrio limpio!' : 'Seguí limpiando el vidrio.'}
+          </p>
+        </section>
+      )}
+      {drawnPlace && level.reveal?.mode === 'light' && attempt && (
+        <section aria-label="Resultado del intento" className="cv-result" style={{ color: '#fff7c2', textShadow: '0 2px 8px rgba(0,0,0,0.7)' }}>
+          <p className="cv-coach" role="status">
+            {attempt.approved
+              ? '¡Descubrimiento brillante!'
+              : `Encontraste ${revealState.lit.size} de ${level.reveal.objects.length}. Volvé a alumbrar las luces que faltan.`}
           </p>
         </section>
       )}

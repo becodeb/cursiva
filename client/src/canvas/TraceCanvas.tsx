@@ -444,8 +444,11 @@ export interface TraceReveal {
   /** The veil's own paint — a reveal level's `backdrop?.tile`. */
   fill: string
   tiles: readonly TraceRevealTile[]
-  /** Hidden objects, drawn UNDER the tiles so the veil covers them. */
-  art?: readonly { href: string; w: number; h: number; size: number; x: number; y: number }[]
+  /** Hidden objects for light discovery. Undiscovered objects stay under the veil;
+   * discovered objects may be celebrated above it. */
+  art?: readonly { href: string; w: number; h: number; size: number; x: number; y: number; revealed?: boolean }[]
+  /** The live torch point for light reveal levels. Null when the finger is up. */
+  light?: { x: number; y: number; radius: number; complete: boolean } | null
 }
 
 /** One art-corridor piece's own render box (art-corridor spec, "Art Corridor

@@ -55,6 +55,44 @@ describe('RevealLayer', () => {
     expect(rectIdx).toBeGreaterThan(imageIdx)
   })
 
+  it('keeps night hints, torch, discovered art, and completion celebration visible without fragment references', () => {
+    const reveal: TraceReveal = {
+      fill: '#12161f',
+      tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }],
+      light: { x: 500, y: 300, radius: 170, complete: false },
+      art: [
+        { href: '/art/sector-stone.png', w: 220, h: 200, size: 72, x: 260, y: 180, revealed: true },
+        { href: '/art/sector-leaf.png', w: 180, h: 160, size: 64, x: 740, y: 420, revealed: false },
+      ],
+    }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+    expect(html).toContain('data-night-visible-hint="true"')
+    expect(html).toContain('data-night-torch="true"')
+    expect(html).toContain('data-night-discovery="true"')
+    expect(html).not.toContain('url(#')
+    expect(html).not.toContain('<mask')
+
+    const complete = renderToString(
+      <RevealLayer
+        reveal={{
+          ...reveal,
+          tiles: [
+            { x: 0, y: 0, w: 100, h: 100, opacity: 0 },
+            { x: 100, y: 0, w: 100, h: 100, opacity: 0 },
+          ],
+          light: { x: 0, y: 0, radius: 170, complete: true },
+          art: reveal.art?.map((obj) => ({ ...obj, revealed: true })),
+        }}
+        sheetBounds={sheetBounds}
+      />,
+    )
+    expect(complete).toContain('data-night-celebration="true"')
+    expect(complete).toContain('data-night-success-glow="true"')
+    expect(complete).toContain('opacity="0"')
+    expect((complete.match(/<rect/g) ?? []).length).toBe(2)
+    expect((complete.match(/data-fog-tile-id=/g) ?? []).length).toBe(2)
+  })
+
   it('introduces zero forbidden fragment references', () => {
     const reveal: TraceReveal = {
       fill: '#7a6a58',

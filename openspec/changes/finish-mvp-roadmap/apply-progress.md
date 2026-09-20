@@ -417,3 +417,31 @@ Current working diff is 399 git-style changed lines (369 additions, 30 deletions
 
 ### Deviations
 None - U7 stays on existing reveal/backdrop seams and does not change semantics, scoring, deduction, or persistence.
+
+## U8 Night Discovery Polish
+
+### Scope and Behavior
+Implemented only U8 visible night discovery through the existing light reveal/backdrop seams. Night levels now show larger child-visible discoverable glow hints at start, a visible torch glow while the finger is down, persistent found-object halos for partial/error progress, explicit next-action feedback after incomplete attempts, and a warmer full-scene celebratory completed state instead of falling back to darkness. Completion rendering is derived from the same released stroke snapshot used for approval, and completed light reveals keep exactly one zero-opacity rect sentinel per tile with no decorative rect overcount. Light reveal still uses U6 `none` ink, scoring/deduction/progression rules are unchanged, map return preserves the earned attempt, and portrait keeps rotate guidance.
+
+### Evidence
+- Before inspection: `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u8-before-night-inspect'; npm run test:e2e -w client -- e2e/u8-night-inspect-temp.spec.ts` => PASS, 15 cells captured before product edits.
+- Focused regressions: `npm run test -w client -- src/canvas/RevealLayer.test.tsx src/screen/LevelPlay.test.tsx` => PASS, 2 files / 103 tests.
+- Final night matrix: `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u8-night-review-final-d'; npm run test:e2e -w client -- e2e/u8-night-visual.spec.ts` => PASS, 15 direct-pointer cells.
+- Root tests/build/whitespace: `npm run test` PASS (82 files / 1908 tests); `npm run build` PASS with existing chunk warning; `git diff --check` PASS.
+
+### Manual Visual Observations
+Before U8, start/error/success were nearly all black; partial showed only a blocky dim window, and success enabled Next while returning the scene to darkness. After review remediation, desktop and landscape start states show stronger invitation rings without revealing art; partial shows a clear torch with no dark child ink; error keeps the first discovery visibly persisted plus the “Volvé a alumbrar” guidance; success keeps both discoveries bright under a persistent warm scene glow and celebration hierarchy; map-return reaches the real zoo map after earned progress; portrait retains rotate guidance.
+
+### Evidence Paths
+- Before: `client/test-results/playwright-output/run-u8-before-night-inspect/.../u8-before-*.png`
+- Initial final: `client/test-results/playwright-output/run-u8-night-visual-final-c/.../u8-night-visual/*.png`
+- Review final: `client/test-results/playwright-output/run-u8-night-review-final-d/.../u8-night-visual/*.png`
+
+### Files Changed
+`client/src/canvas/RevealLayer.tsx`, `client/src/canvas/TraceCanvas.tsx`, `client/src/screen/LevelPlay.tsx`, `client/src/canvas/RevealLayer.test.tsx`, `client/src/screen/LevelPlay.test.tsx`, `client/e2e/u8-night-visual.spec.ts`, `openspec/changes/finish-mvp-roadmap/tasks.md`, and this apply-progress file.
+
+### Changed-Line Accounting
+Current U8 product/test/SDD working diff is 303 git-style changed lines, below the 400-line review budget.
+
+### Deviations
+None - U8 stays on existing night/backdrop/reveal seams and does not change scoring, deduction, generic engine structure, or art placeholders.

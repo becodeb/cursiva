@@ -62,8 +62,10 @@ vi.mock('../zoo/backdrops', async (importOriginal) => {
 })
 
 import LevelPlay, {
+  allRevealTiles,
   drawingBand,
   isOffPath,
+  releasedRevealState,
   seedCameraFor,
   shouldFileClue,
   shouldTickClue,
@@ -1234,10 +1236,36 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     renderToString(
       <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
-    const reveal = traceCanvasProbe.current?.reveal as { tiles: unknown[]; art?: unknown[] }
+    const reveal = traceCanvasProbe.current?.reveal as { tiles: unknown[]; art?: { revealed?: boolean }[]; light?: unknown }
     expect(reveal.tiles.length).toBe(light.cols * light.rows)
     expect(reveal.art).toHaveLength(1)
+    expect(reveal.art?.[0].revealed).toBe(false)
+    expect(reveal.light).toBeNull()
   })
+
+
+  it('derives released night discovery from the complete release stroke snapshot', () => {
+    const twoObjects: RevealConfig = {
+      mode: 'light',
+      cols: 15,
+      rows: 9,
+      radius: 170,
+      objects: [
+        { art: CARRIER_LENS_ART, size: 96, x: 260, y: 180 },
+        { art: CARRIER_LENS_ART, size: 96, x: 740, y: 420 },
+      ],
+    }
+    const state = releasedRevealState(twoObjects, [[{ x: 260, y: 180 }, { x: 740, y: 420 }]], 1000)
+    expect(state?.lit.size).toBe(2)
+    expect(state?.point).toBeNull()
+  })
+
+  it('keeps one zero-opacity sentinel rect per tile for completed light reveal states', () => {
+    const tiles = allRevealTiles(light, 1000)
+    expect(tiles).toHaveLength(light.cols * light.rows)
+    expect(tiles.every((tile) => tile.opacity === 0)).toBe(true)
+  })
+
 
   it('sends no reveal prop for a level with no reveal field', () => {
     renderToString(

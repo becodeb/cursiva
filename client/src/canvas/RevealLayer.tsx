@@ -28,12 +28,21 @@ const GLASS_FOG_STROKE = '#dcecf0'
 const GLASS_DROPLET_FILL = '#eef8fb'
 const GLASS_FROST = '#edf7fa'
 const GLASS_EDGE = '#b8cbd0'
+const NIGHT_VEIL_FILL = '#12161f'
+const NIGHT_GLOW = '#fff3b0'
+const NIGHT_FOUND_GLOW = '#fce97a'
+const NIGHT_HINT = '#f7d66b'
+const NIGHT_SUCCESS_WASH = '#ffe88a'
 
 type Point = { x: number; y: number }
 type Edge = { a: Point; b: Point }
 
 function isGlassFog(fill: string): boolean {
   return fill.toLowerCase() === GLASS_GRIME_FILL
+}
+
+function isNightVeil(fill: string): boolean {
+  return fill.toLowerCase() === NIGHT_VEIL_FILL
 }
 
 function stableTileId(tile: TraceRevealTile): string {
@@ -180,20 +189,41 @@ function wholePaneDroplets(sheetBounds: ArtBox): readonly { cx: number; cy: numb
 
 export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
   const glassFog = isGlassFog(reveal.fill)
+  const nightVeil = isNightVeil(reveal.fill)
   const fogPath = glassFog ? fogSilhouettePath(reveal.tiles) : ''
   const streaks = glassFog ? wholePaneStreaks(sheetBounds) : []
   const droplets = glassFog ? wholePaneDroplets(sheetBounds) : []
+  const hiddenArt = reveal.art?.filter((obj) => !obj.revealed) ?? []
+  const revealedArt = reveal.art?.filter((obj) => obj.revealed) ?? []
 
   return (
     <g pointerEvents="none">
-      {reveal.art?.map((obj, idx) => (
+      {hiddenArt.map((obj, idx) => (
         <image
-          key={`reveal-art-${idx}`}
+          key={`reveal-art-hidden-${idx}`}
           href={obj.href}
           {...clampArtBox(placeArt(obj, obj.size, { x: obj.x, y: obj.y }), sheetBounds)}
           preserveAspectRatio="xMidYMid meet"
         />
       ))}
+      {nightVeil && hiddenArt.map((obj, idx) => (
+        <g key={`night-hint-${idx}`} data-night-hint="true">
+          <circle cx={obj.x} cy={obj.y} r={Math.max(34, obj.size * 0.64)} fill={NIGHT_HINT} opacity={0.11} />
+          <circle cx={obj.x} cy={obj.y} r={Math.max(24, obj.size * 0.44)} fill={NIGHT_HINT} opacity={0.13} />
+          <path
+            d={`M ${obj.x} ${obj.y - 27} L ${obj.x + 8} ${obj.y - 8} L ${obj.x + 27} ${obj.y} L ${obj.x + 8} ${obj.y + 8} L ${obj.x} ${obj.y + 27} L ${obj.x - 8} ${obj.y + 8} L ${obj.x - 27} ${obj.y} L ${obj.x - 8} ${obj.y - 8} Z`}
+            fill={NIGHT_HINT}
+            opacity={0.24}
+          />
+        </g>
+      ))}
+      {nightVeil && reveal.light && !reveal.light.complete && (
+        <g data-night-torch="true">
+          <circle cx={reveal.light.x} cy={reveal.light.y} r={reveal.light.radius * 1.12} fill={NIGHT_GLOW} opacity={0.16} />
+          <circle cx={reveal.light.x} cy={reveal.light.y} r={reveal.light.radius * 0.62} fill={NIGHT_GLOW} opacity={0.22} />
+          <circle cx={reveal.light.x} cy={reveal.light.y} r={18} fill="#fffbe6" opacity={0.4} />
+        </g>
+      )}
       {glassFog && fogPath && (
         <g data-fog-pane="glass">
           <path data-fog-silhouette="glass" d={fogPath} fill={reveal.fill} fillRule="evenodd" opacity={0.78} />
@@ -240,6 +270,46 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
           {...(glassFog ? { opacity: 0 } : tile.opacity < 1 ? { opacity: tile.opacity } : {})}
         />
       ))}
+      {nightVeil && reveal.light?.complete && (
+        <g data-night-success-glow="true">
+          <path d={`M ${sheetBounds.x} ${sheetBounds.y} H ${sheetBounds.x + sheetBounds.width} V ${sheetBounds.y + sheetBounds.height} H ${sheetBounds.x} Z`} fill={NIGHT_SUCCESS_WASH} opacity={0.16} />
+          <circle cx={sheetBounds.x + sheetBounds.width * 0.5} cy={sheetBounds.y + sheetBounds.height * 0.45} r={Math.min(sheetBounds.width, sheetBounds.height) * 0.58} fill={NIGHT_SUCCESS_WASH} opacity={0.2} />
+        </g>
+      )}
+      {nightVeil && hiddenArt.map((obj, idx) => (
+        <g key={`night-visible-hint-${idx}`} data-night-visible-hint="true">
+          <circle cx={obj.x} cy={obj.y} r={Math.max(19, obj.size * 0.32)} fill={NIGHT_HINT} opacity={0.28} />
+          <circle cx={obj.x} cy={obj.y} r={Math.max(44, obj.size * 0.72)} fill="none" stroke={NIGHT_HINT} strokeWidth={5} opacity={0.2} />
+        </g>
+      ))}
+      {revealedArt.map((obj, idx) => {
+        const box = clampArtBox(placeArt(obj, obj.size * (nightVeil ? 1.16 : 1), { x: obj.x, y: obj.y }), sheetBounds)
+        return (
+          <g key={`reveal-art-found-${idx}`} data-night-discovery="true">
+            {nightVeil && (
+              <>
+                <circle cx={obj.x} cy={obj.y} r={Math.max(42, obj.size * 0.72)} fill={NIGHT_FOUND_GLOW} opacity={reveal.light?.complete ? 0.38 : 0.25} />
+                <circle cx={obj.x} cy={obj.y} r={Math.max(28, obj.size * 0.5)} fill="#fffbe6" opacity={reveal.light?.complete ? 0.5 : 0.22} />
+              </>
+            )}
+            <image href={obj.href} {...box} preserveAspectRatio="xMidYMid meet" opacity={nightVeil ? 1 : undefined} />
+          </g>
+        )
+      })}
+      {nightVeil && reveal.light?.complete && (
+        <g data-night-celebration="true">
+          {Array.from({ length: 14 }, (_, idx) => (
+            <circle
+              key={`night-star-${idx}`}
+              cx={sheetBounds.x + sheetBounds.width * (0.12 + (idx % 7) * 0.125)}
+              cy={sheetBounds.y + sheetBounds.height * (0.12 + Math.floor(idx / 7) * 0.68 + (idx % 2) * 0.06)}
+              r={5 + (idx % 4)}
+              fill="#fff6bf"
+              opacity={0.9}
+            />
+          ))}
+        </g>
+      )}
     </g>
   )
 }
