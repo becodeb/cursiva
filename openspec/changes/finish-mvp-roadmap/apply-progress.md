@@ -617,3 +617,28 @@ Post-replacement dimensions remain 1536x1024 RGB for both selected sources. U12 
 
 ### Status
 U12 complete. U10, U13, U14, U15, and U15.1 remain pending; the recorded U10/U15/U15.1 deferrals are unchanged.
+
+## U13 Visual QA / Iteration
+
+### Real-Chrome Matrices
+- `PLAYWRIGHT_CHANNEL=chrome PLAYWRIGHT_RUN_ID=u13-visual-audit-final npm run test:e2e -w client -- e2e/mvp-visual.spec.ts e2e/u8-night-visual.spec.ts e2e/u13-visual-audit-temp.spec.ts` — PASS, 78/78 cells: ZooMap 15, renewed glass/aquarium 15, renewed night 15, PISTAS normal motion 15, and exact current-registry approved closings 18. Each family covers start, partial, error, success, and map-return at 1280x720, 844x390, and 390x844; closing adds its final approved beat.
+- `PLAYWRIGHT_CHANNEL=chrome PLAYWRIGHT_RUN_ID=u13-pistas-reduced-final npm run test:e2e -w client -- e2e/u13-visual-audit-temp.spec.ts -g 'u13 PISTAS'` — PASS, 15/15 reduced-motion cells. The success-flight animation is suppressed while the static reward/progress state remains visible.
+- The temporary U13 Playwright harness was removed after capture. Raw evidence remains gitignored under `client/test-results/playwright-output/run-u13-visual-audit-final/` and `client/test-results/playwright-output/run-u13-pistas-reduced-final/`.
+
+### Manual Contact-Sheet Inspection
+- `client/test-results/playwright-output/run-u13-visual-audit-final/contact-sheets/glass-contact-sheet.png`
+- `client/test-results/playwright-output/run-u13-visual-audit-final/contact-sheets/night-contact-sheet.png`
+- `client/test-results/playwright-output/run-u13-visual-audit-final/contact-sheets/map-contact-sheet.png`
+- `client/test-results/playwright-output/run-u13-visual-audit-final/contact-sheets/pistas-normal-contact-sheet.png`
+- `client/test-results/playwright-output/run-u13-visual-audit-final/contact-sheets/closing-contact-sheet.png`
+- `client/test-results/playwright-output/run-u13-pistas-reduced-final/contact-sheets/pistas-reduced-contact-sheet.png`
+
+Manual inspection verified child-readable action, visible progress and reward, recoverable error states, renewed-scene crops, controls/navigation, desktop/compact-landscape responsiveness, portrait rotate guidance, and focus/contrast/accessibility. PISTAS retains its intentional no-result-copy detective presentation; reset and disabled/enabled progression states remain visually legible. No new gameplay, scoring, persistence, progression, ink, reveal, deduction, or narrative semantics were introduced.
+
+### Confirmed Defect and Remediation
+- Real Chrome exposed the browser-default 8px body margin around `AdventureClosing`, creating a white frame and 16px vertical overflow at every required viewport.
+- `AdventureClosing.tsx` now resets `html`, `body`, and `#root` margin/height inside the closing document CSS. `AdventureClosing.test.tsx` protects the full-viewport contract. The final closing contact sheet confirms edge-to-edge backgrounds, readable approved copy, and a clean map return at all three viewports.
+- Focused validation: `npm run test -w client -- src/screen/AdventureClosing.test.tsx` — PASS, 11/11; targeted system-Chrome remediation probe — PASS, 4/4.
+
+### Scope and Deferrals
+U13 complete. The already-wired exact approved `peces`, `tortugas`, `monos`, and `sendero` beat 0/1 closings were exercised only as current-registry evidence; U10 remains an isolated deferred blocker because no narrative remediation or unapproved content was added. U14 signage was explicitly excluded. U15 and U15.1 remain deferred and unchecked.

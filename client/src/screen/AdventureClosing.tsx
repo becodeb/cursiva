@@ -29,6 +29,7 @@ import type { Adventure, ClosingBeat } from '../zoo/adventures'
    number below (the 84dvh landscape clamp, the container-type: inline-size
    cqw sizing). */
 const CLOSING_CSS = `
+html, body, #root { margin: 0; height: 100%; }
 .cv-closing { height: 100dvh; display: flex; align-items: center; justify-content: center; background-color: ${SHEET_PAPER}; box-sizing: border-box; padding: 4%; }
 .cv-closing-stage { position: relative; width: min(100%, 620px, 84dvh); aspect-ratio: 1 / 1; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; }
 .cv-closing-octopus { position: absolute; left: 50%; bottom: 2%; width: 44%; height: auto; transform: translateX(-50%); }

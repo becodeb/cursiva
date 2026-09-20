@@ -36,6 +36,14 @@ const fixtureAdventure: Adventure = {
 }
 
 describe('AdventureClosing (main-screen spec "AdventureClosing Screen Renders the Transformation")', () => {
+  it('owns the viewport without the browser default body margin adding scroll or a white frame', () => {
+    const html = renderToString(
+      <AdventureClosing adventure={sendero} beat={sendero.closingBeat![0]} onContinue={() => {}} />,
+    )
+    expect(html).toContain('html, body, #root { margin: 0; height: 100%; }')
+    expect(html).toContain('.cv-closing { height: 100dvh;')
+  })
+
   it("renders beat.art's href and beat.line for sendero's first beat", () => {
     const beat = sendero.closingBeat![0]
     const html = renderToString(<AdventureClosing adventure={sendero} beat={beat} onContinue={() => {}} />)
