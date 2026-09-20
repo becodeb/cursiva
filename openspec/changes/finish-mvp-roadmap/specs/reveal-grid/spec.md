@@ -36,3 +36,28 @@ Night discovery levels MUST expose start, partial, error, and success states wit
 - GIVEN a night level reaches success
 - WHEN visual capture runs
 - THEN the discovered subject and completion feedback MUST both be visible
+
+
+## MODIFIED Requirements
+
+### Requirement: Reveal Layer Renders as Plain Rects With No Fragment Reference
+
+The reveal grid's default render contract SHALL remain one plain `<rect>` per tile, with opacity set from that tile's fold state, and no `<mask>`, `<pattern>`, `<clipPath>`, `<defs>`, `useId`, `<filter>`, CSS filter, or `url(#...)` reference introduced anywhere in the layer markup. For fogged-glass erase levels only, those per-tile rects SHALL remain present as stable invisible state/counting sentinels while the visible fog is rendered by one direct continuous SVG silhouette computed from the union of remaining tile cells, plus direct reference-free condensation marks. This glass exception MUST NOT change reveal-grid fold semantics, completion, scoring, or persistence.
+
+#### Scenario: One rect renders per tile
+- GIVEN a non-glass reveal layer rendered via `renderToString` for a `cols x rows` grid
+- WHEN the HTML string is inspected
+- THEN exactly `cols * rows` `<rect>` elements attributable to the reveal layer MUST appear
+- AND each rect's opacity MUST represent that tile's fold state
+
+#### Scenario: Glass fog uses rect sentinels and one continuous visible silhouette
+- GIVEN a fogged-glass erase reveal layer with remaining fog tiles
+- WHEN the layer renders
+- THEN one stable invisible `<rect>` sentinel MUST exist for each remaining fog tile
+- AND visible fog MUST be rendered as one direct continuous SVG silhouette for the union of remaining fog cells
+- AND the silhouette MAY contain even-odd interior holes for cleaned regions
+
+#### Scenario: No forbidden reference is introduced
+- GIVEN the same render
+- WHEN the HTML string is scanned
+- THEN it MUST NOT contain `<mask`, `<pattern`, `<clipPath`, `<defs`, `<filter`, `filter:`, or the substring `url(#`

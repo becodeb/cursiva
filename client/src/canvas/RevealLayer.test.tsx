@@ -18,7 +18,7 @@ describe('RevealLayer', () => {
       h: 100,
       opacity: 1,
     }))
-    const reveal: TraceReveal = { fill: '#64726b', tiles }
+    const reveal: TraceReveal = { fill: '#7a6a58', tiles }
     const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
     expect((html.match(/<rect/g) ?? []).length).toBe(totalTiles - clearedCount)
   })
@@ -69,6 +69,44 @@ describe('RevealLayer', () => {
     expect(html).not.toContain('<defs')
   })
 
+
+  it('renders fogged glass as one continuous direct silhouette with no filters or fragments', () => {
+    const reveal: TraceReveal = {
+      fill: '#64726b',
+      tiles: [
+        { x: 0, y: 0, w: 100, h: 100, opacity: 1 },
+        { x: 100, y: 0, w: 100, h: 100, opacity: 1 },
+      ],
+    }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+    expect((html.match(/data-fog-tile-id=/g) ?? []).length).toBe(2)
+    expect(html).toContain('data-fog-pane="glass"')
+    expect((html.match(/data-fog-silhouette="glass"/g) ?? []).length).toBe(1)
+    expect(html).not.toContain('filter:')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<filter')
+    expect(html).not.toContain('<defs')
+    expect(html).not.toContain('url(#')
+    expect((html.match(/data-fog-streak="true"/g) ?? []).length).toBeGreaterThan(0)
+  })
+
+  it('keeps fog tile identity and whole-pane condensation stable when an earlier tile clears', () => {
+    const survivor = { x: 100, y: 0, w: 100, h: 100, opacity: 1 }
+    const before: TraceReveal = {
+      fill: '#64726b',
+      tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }, survivor],
+    }
+    const after: TraceReveal = { fill: '#64726b', tiles: [survivor] }
+    const beforeHtml = renderToString(<RevealLayer reveal={before} sheetBounds={sheetBounds} />)
+    const afterHtml = renderToString(<RevealLayer reveal={after} sheetBounds={sheetBounds} />)
+    expect(beforeHtml).toContain('data-fog-tile-id="fog-10000-0-10000-10000"')
+    expect(afterHtml).toContain('data-fog-tile-id="fog-10000-0-10000-10000"')
+    expect((beforeHtml.match(/data-fog-silhouette="glass"/g) ?? []).length).toBe(1)
+    expect((afterHtml.match(/data-fog-silhouette="glass"/g) ?? []).length).toBe(1)
+    expect(beforeHtml).not.toContain('<clipPath')
+    expect(afterHtml).not.toContain('url(#')
+  })
+
   it('renders nothing at all for an empty tile list', () => {
     const reveal: TraceReveal = { fill: '#64726b', tiles: [] }
     const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
@@ -83,7 +121,7 @@ describe('RevealLayer', () => {
     // at a fractional pixel read as a lighter hairline across what should be
     // one continuous surface. `crispEdges` disables that antialiasing.
     const reveal: TraceReveal = {
-      fill: '#64726b',
+      fill: '#7a6a58',
       tiles: [
         { x: 0, y: 0, w: 66.67, h: 66.67, opacity: 1 },
         { x: 66.67, y: 0, w: 66.67, h: 66.67, opacity: 0.5 },

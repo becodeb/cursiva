@@ -2105,6 +2105,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           )}
         </section>
       )}
+      {drawnPlace && level.reveal?.mode === 'erase' && attempt && (
+        <section aria-label="Resultado del intento" className="cv-result">
+          <p className="cv-coach" role="status">
+            {attempt.approved ? '¡Vidrio limpio!' : 'Seguí limpiando el vidrio.'}
+          </p>
+        </section>
+      )}
       <nav aria-label="Acciones" className="cv-actions">
         <button
           type="button"

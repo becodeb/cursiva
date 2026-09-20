@@ -1577,13 +1577,27 @@ describe('TraceCanvas reveal layer (reveal-grid spec: "Reveal Layer Renders as P
     expect(html).not.toContain(`fill="${reveal.fill}"`)
   })
 
-  it('introduces no forbidden fragment reference', () => {
-    const html = renderToString(<TraceCanvas backdrop={backdrop} reveal={reveal} />)
+  it('keeps non-glass reveal layers free of fragment references', () => {
+    const nonGlassReveal = { ...reveal, fill: '#7a6a58' }
+    const html = renderToString(<TraceCanvas backdrop={backdrop} reveal={nonGlassReveal} />)
     expect(html).not.toContain('url(#')
     expect(html).not.toContain('<mask')
     expect(html).not.toContain('<pattern')
     expect(html).not.toContain('<clipPath')
     expect(html).not.toContain('<defs')
+  })
+
+  it('uses direct glass frost shapes without fragment references', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} reveal={reveal} />)
+    expect(html).toContain('data-fog-pane="glass"')
+    expect(html).toContain('data-fog-silhouette="glass"')
+    expect(html).not.toContain('filter:')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<filter')
+    expect(html).not.toContain('<defs')
+    expect(html).not.toContain('url(#')
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
   })
 
   it('a lagoon backdrop, a ground maze and a plain maze render byte-identical to before this change', () => {

@@ -16,7 +16,6 @@ type VisualState = {
   prepare?: (page: Page, viewport: ViewportName) => Promise<void>
 }
 
-const GLASS_REVEAL_TILE = '#64726b'
 const EVIDENCE_ROOT = 'mvp-visual-matrix'
 
 const levelUrl = (suffix = '') => `/index.html?dev&nivel=glass1${suffix}`
@@ -40,20 +39,25 @@ export const VISUAL_STATES: readonly VisualState[] = [
   },
   {
     name: 'error',
-    url: '/index.html?dev&nivel=f1-libre',
+    url: levelUrl(),
     prepare: drawShortAttempt,
     assert: async (page, viewport) => {
       await assertLevelShell(page, viewport)
-      await expect(page.getByLabel('Resultado del intento')).toContainText(/camino|tranquilo|dedo|parejo|flecha/i)
+      const remainingFog = await revealTileCount(page)
+      expect(remainingFog).toBeGreaterThan(0)
+      expect(remainingFog).toBeLessThan(60)
+      await expect(page.getByLabel('Resultado del intento')).toContainText(/casi|probá|dedo|parejo|tranquilo|limpiando|vidrio/i)
       await expect(page.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
     },
   },
   {
     name: 'success',
-    url: levelUrl('&debug=revelado:100'),
+    url: levelUrl(),
+    prepare: drawGlassCleaningAttempt,
     assert: async (page, viewport) => {
       await assertLevelShell(page, viewport)
       await expectRevealTileCount(page, 0)
+      await expect(page.getByRole('button', { name: 'Siguiente' })).toBeEnabled()
     },
   },
   {
@@ -105,13 +109,43 @@ async function expectRevealTileCount(page: Page, expected: number): Promise<void
 }
 
 async function revealTileCount(page: Page): Promise<number> {
-  return page.locator('rect').evaluateAll((rects, fill) =>
-    rects.filter((rect) => rect.getAttribute('fill')?.toLowerCase() === fill).length,
-    GLASS_REVEAL_TILE,
-  )
+  return page.locator('rect[data-fog-tile-id]').count()
 }
 
 async function drawShortAttempt(page: Page, viewport: ViewportName): Promise<void> {
+  await drawOnLandscapeIfNeeded(page, viewport, async (box) => {
+    const x = box.x + box.width * 0.5
+    const y = box.y + box.height * 0.5
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + 6, y + 6, { steps: 2 })
+    await page.mouse.up()
+  })
+}
+
+async function drawGlassCleaningAttempt(page: Page, viewport: ViewportName): Promise<void> {
+  await drawOnLandscapeIfNeeded(page, viewport, async (box) => {
+    const cols = 10
+    const rows = 6
+    await page.mouse.move(box.x + box.width * 0.05, box.y + box.height * 0.08)
+    await page.mouse.down()
+    for (let row = 0; row < rows; row++) {
+      const colRange = row % 2 === 0 ? [...Array(cols).keys()] : [...Array(cols).keys()].reverse()
+      for (const col of colRange) {
+        const x = box.x + box.width * ((col + 0.5) / cols)
+        const y = box.y + box.height * ((row + 0.5) / rows)
+        await page.mouse.move(x, y, { steps: 4 })
+      }
+    }
+    await page.mouse.up()
+  })
+}
+
+async function drawOnLandscapeIfNeeded(
+  page: Page,
+  viewport: ViewportName,
+  draw: (box: { x: number; y: number; width: number; height: number }) => Promise<void>,
+): Promise<void> {
   const restorePortrait = viewport === 'portrait'
   if (restorePortrait) await page.setViewportSize(VIEWPORTS.landscape)
 
@@ -119,12 +153,7 @@ async function drawShortAttempt(page: Page, viewport: ViewportName): Promise<voi
   await expect(sheet).toBeVisible()
   const box = await sheet.boundingBox()
   if (!box) throw new Error('Trace sheet was not measurable')
-  const x = box.x + box.width * 0.5
-  const y = box.y + box.height * 0.5
-  await page.mouse.move(x, y)
-  await page.mouse.down()
-  await page.mouse.move(x + 6, y + 6, { steps: 2 })
-  await page.mouse.up()
+  await draw(box)
 
   if (restorePortrait) await page.setViewportSize(VIEWPORTS.portrait)
 }

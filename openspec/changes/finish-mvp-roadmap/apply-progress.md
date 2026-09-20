@@ -4,7 +4,9 @@
 
 - Completed before this unit: U0 Baseline, U1 Migration regression, U2 Progression consistency, U3 Asset/docs protection, U4 Playwright harness, U5 Responsive/map accessibility. Build/export atomicity is explicitly deferred to U12.
 - Completed in this unit: U6 Ink policy, including explicit `settled | live-only | none` resolution, TraceCanvas lifecycle gating, interaction-level regression coverage, and before/after 15-cell Playwright evidence.
-- Remaining: U7–U15.1.
+- Remaining before U7: U7–U15.1.
+- Completed in this unit: U7 Fogged glass polish.
+- Remaining after U7: U8–U15.1. Explicit deferrals: U10 narrative content, U15 final closure, and U15.1 archive preflight remain pending and are not complete. Execution priority after U9 is U11 → U12 → U13 → U14.
 
 ## U1 Migration Regression
 
@@ -25,6 +27,7 @@ Implemented only the U1 storage/migration regression around the real `openProgre
 | RED | `npm run test -w client -- src/game/migrateEntrance.test.ts` after adding only the fresh glass1 regression test | FAIL: new real-open-path test observed an invented `sand4` record. |
 | GREEN focused | `npm run test -w client -- src/game/migrateEntrance.test.ts` | PASS: 1 file, 17 tests. |
 | GREEN related | `npm run test -w client -- src/game/migrateEntrance.test.ts src/game/levelProgress.test.ts src/game/*.test.ts src/zoo/sectors.test.ts src/zoo/adventures.test.ts` | PASS: 4 files, 131 tests. |
+| Root tests | `npm run test` | PASS: 82 files, 1903 tests. |
 | Build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
 
 ### Files Changed
@@ -55,6 +58,7 @@ Verified the existing concrete zoo progression seams and added regression covera
 | Initial characterization | Added U2 consistency tests in `sectors.test.ts` and a helper-only GameScreen map-return test | PASS: 5 files, 159 tests. |
 | Final review fix | Removed helper-only/exported-seam strategy; added interactive App wiring regression in `App.test.tsx` using React `createRoot` plus a tiny fake DOM and mocked child boundaries | PASS: 5 files, 159 tests. |
 | Focused related tests | `npm run test -w client -- src/App.test.tsx src/screen/GameScreen.test.tsx src/zoo/sectors.test.ts src/zoo/stars.test.ts src/zoo/adventures.test.ts` | PASS: 5 files, 159 tests. |
+| Root tests | `npm run test` | PASS: 82 files, 1903 tests. |
 | Build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
 
 ### Files Changed
@@ -115,6 +119,7 @@ Implemented only the reusable Playwright visual-matrix foundation. No product UX
 | Browser setup attempt | `npx playwright install chromium` | FAILED locally: repeated timeout downloading Chrome for Testing from Playwright CDN. |
 | Local browser fallback | `$env:PLAYWRIGHT_CHANNEL='chrome'; npm run test:e2e -w client` | PASS: 15 Playwright cells using installed local Chrome. |
 | Existing client tests | `npm run test -w client` | PASS: 82 files, 1887 tests. |
+| Root tests | `npm run test` | PASS: 82 files, 1903 tests. |
 | Build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
 
 ### Visual Observations
@@ -236,6 +241,7 @@ Implemented only U5 responsive/orientation and zoo-map accessibility. Progressio
 | RED focused tests | `npm test -w client -- src/screen/ZooMap.test.tsx src/screen/LevelPlay.test.tsx` after adding U5 expectations first | FAILED: missing focusable sector controls/status and portrait guidance semantics. |
 | Focused GREEN | `npm test -w client -- src/screen/ZooMap.test.tsx src/screen/LevelPlay.test.tsx` | PASS: 2 files, 108 tests. |
 | Root tests | `npm test` | PASS: 82 files, 1890 tests. |
+| Root tests | `npm run test` | PASS: 82 files, 1903 tests. |
 | Build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
 | Playwright matrix | `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u5-responsive-a11y-b'; npm run test:e2e -w client` | PASS: 15 real state×viewport cells. |
 | Whitespace | `git diff --check` | PASS. |
@@ -278,6 +284,7 @@ Fixed all confirmed U5 review findings without broadening beyond responsive/orie
 |---|---|---|
 | Focused regressions | `npm test -w client -- src/screen/LevelPlay.test.tsx src/screen/ZooMap.test.tsx` | PASS: 2 files, 110 tests. |
 | Root tests | `npm test` | PASS: 82 files, 1892 tests. |
+| Root tests | `npm run test` | PASS: 82 files, 1903 tests. |
 | Build | `npm run build` | PASS: TypeScript and Vite build succeeded; Vite reported only the existing chunk-size warning. |
 | Playwright matrix | `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u5-responsive-a11y-fix'; npm run test:e2e -w client` | PASS: 15 real state×viewport cells. |
 | Whitespace | `git diff --check` | PASS. |
@@ -380,3 +387,33 @@ Current U6 working diff including untracked interaction harness files is 316 git
 
 ### Deviations
 None — this is a contract repair inside U6's existing ink policy scope.
+
+
+## U7 Fogged Glass Polish
+
+### Scope and Behavior
+Implemented only U7 visible fogged-glass polish; no scoring, deduction, persistence, progression, engine, commit, PR, push, pull, reset, rebase, or discard work was performed. Glass fog now renders as one direct continuous SVG silhouette from the union of remaining grid cells, with smoothed organic contours and even-odd holes. Per-tile rects remain stable invisible sentinels for reveal state/counting; visible fog is not one closed path per tile. Condensation is stable direct SVG and appears only where fog remains. No `<mask>`, `<pattern>`, `<clipPath>`, `<defs>`, `<filter>`, CSS filter, or `url(#...)` reference is introduced; superseded `frostBackdrop` plumbing was removed. Direct wiping exposes sharp art with no persistent dark trace, preserving U6 `live-only`; error keeps Next disabled, success enables it, and portrait keeps rotate guidance.
+
+### Evidence
+- Before matrix: `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u7-review-before'; npm run test:e2e -w client -- e2e/mvp-visual.spec.ts` => PASS, 15 cells.
+- Focused regressions: `npm run test -w client -- src/canvas/RevealLayer.test.tsx src/canvas/TraceCanvas.test.tsx src/screen/LevelPlay.test.tsx` => PASS, 3 files / 251 tests.
+- Diagonal direct wipe: `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u7-final-diagonal-c'; npm run test:e2e -w client -- e2e/u7-diagonal-temp.spec.ts` => PASS, 2 desktop/landscape captures; temp spec removed.
+- Final matrix: `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u7-final-silhouette-matrix'; npm run test:e2e -w client -- e2e/mvp-visual.spec.ts` => PASS, 15 cells.
+- Root tests/build/whitespace: `npm run test` PASS (82 files / 1905 tests); `npm run build` PASS with existing chunk warning; `git diff --check` PASS.
+
+### Manual Visual Observations
+Before remediation, diagonal wipes read as rectangular/stair-step deletion. Final desktop/landscape diagonal wipes read as continuous organic clearings with smoothed fog contours, stable direct condensation, and no dark settled trace. Success is sharp with Next active; map-return remains the real zoo map; portrait cells retain rotate guidance.
+
+### Evidence Paths
+- `client/test-results/playwright-output/run-u7-final-diagonal-c/.../u7-diagonal/*.png`
+- `client/test-results/playwright-output/run-u7-final-silhouette-matrix/.../mvp-visual-matrix/*.png`
+- `client/test-results/playwright-output/u7-final-silhouette-matrix-contact-sheet.png`
+
+### Files Changed
+`client/src/canvas/RevealLayer.tsx`, `client/src/canvas/RevealLayer.test.tsx`, `client/src/canvas/TraceCanvas.test.tsx`, `client/src/screen/LevelPlay.tsx`, `client/e2e/mvp-visual.spec.ts`, `openspec/changes/finish-mvp-roadmap/specs/reveal-grid/spec.md`, `openspec/changes/finish-mvp-roadmap/tasks.md`, and this apply-progress file.
+
+### Changed-Line Accounting
+Current working diff is 399 git-style changed lines (369 additions, 30 deletions), below the 400-line split threshold.
+
+### Deviations
+None - U7 stays on existing reveal/backdrop seams and does not change semantics, scoring, deduction, or persistence.
