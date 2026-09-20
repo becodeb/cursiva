@@ -62,6 +62,7 @@ vi.mock('../zoo/backdrops', async (importOriginal) => {
 })
 
 import LevelPlay, {
+  LAYOUT_CSS,
   allRevealTiles,
   drawingBand,
   isOffPath,
@@ -644,6 +645,22 @@ describe('LevelPlay PISTAS rail presence (design unit 5/6)', () => {
     // The earned droplet colour (POND) must not reach the rail's socket
     // either — the colour token half of the contract is unchanged.
     expect(html).not.toContain('#3f6f8f')
+  })
+
+  it('keeps the PISTAS storage cue outside active tracing and provides a reduced-motion fallback', () => {
+    expect(LAYOUT_CSS).toContain('@media (prefers-reduced-motion: reduce)')
+    expect(LAYOUT_CSS).toContain('.pistas-flight { display: none; }')
+    expect(LAYOUT_CSS).toContain('pistas-fly-home')
+    expect(LAYOUT_CSS).toContain('pistas-store-pop')
+    expect(LAYOUT_CSS).toContain('pistas-slot-spark')
+  })
+
+  it('keeps every PISTAS slot visible on narrow portrait screens', () => {
+    expect(LAYOUT_CSS).toContain('@media (max-width: 559px)')
+    expect(LAYOUT_CSS).toContain('max-width: calc(100vw - 24px)')
+    expect(LAYOUT_CSS).toContain('flex-wrap: wrap')
+    expect(LAYOUT_CSS).toContain('flex: 0 0 100%')
+    expect(LAYOUT_CSS).toContain('justify-content: center')
   })
 })
 

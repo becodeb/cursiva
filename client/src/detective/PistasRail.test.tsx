@@ -191,14 +191,24 @@ describe('PistasRail slots', () => {
     expect(html).not.toContain(CLUE_ART.droplet.art.drained.href)
   })
 
+  it('a filed slot has a stable accessible name and the visible fly-home affordance', () => {
+    const html = renderToString(<PistasRail slots={[filedSlot]} lampOn />)
+    expect(html).toContain('role="img"')
+    expect(html).toContain('aria-label="Pista guardada: gota"')
+    expect(html).toContain('class="pistas-flight"')
+    expect(html).toContain(`src="${CLUE_ART.droplet.art.earned.href}"`)
+  })
+
   it('a drained slot shows the SAME clue art in its drained state, in a grey socket', () => {
     const html = renderToString(<PistasRail slots={[drainedSlot]} lampOn={false} />)
-    expect(html).toContain('fill="none"')
+    expect(html).toContain('fill="rgba(255,255,255,0.48)"')
     expect(html).toContain(`stroke="${CLUE_DRAINED}"`)
     // `drainedSlot` is the CORN trail, so this also pins that a slot shows
     // its own trail's art rather than a shared generic placeholder.
     expect(html).toContain(`href="${CLUE_ART.corn.art.drained.href}"`)
     expect(html).not.toContain(CLUE_ART.corn.art.earned.href)
+    expect(html).toContain('aria-label="Pista pendiente: maíz"')
+    expect(html).not.toContain('pistas-flight')
   })
 
   it('renders a PADDING slot as an empty socket, never a phantom clue', () => {

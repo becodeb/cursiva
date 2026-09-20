@@ -445,3 +445,49 @@ Current U8 product/test/SDD working diff is 303 git-style changed lines, below t
 
 ### Deviations
 None - U8 stays on existing night/backdrop/reveal seams and does not change scoring, deduction, generic engine structure, or art placeholders.
+
+## U9 PISTAS Clarity / Animation
+
+### Scope and Behavior
+Implemented only U9 visible PISTAS clarity and collection feedback. The rail now reads as a soft reward tray with clearer slot sockets, stable accessible names for filed/pending slots, a filed-slot pop/spark, and a one-off fly-home clue affordance that runs only after route-end filing changes `clueFiled` on release. Mid-trace clue collection remains a non-animated earned-art swap on the trail; filing still depends only on `shouldFileClue(hasClueTrail, reachedEnd)` and does not use clue-light/lit-mark state, scoring, or deduction state. Reduced-motion users receive no travel/pop animation; the filed slot remains visibly highlighted with a persistent static outline.
+
+### Evidence
+- Before inspection: `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u9-before-pistas-inspect'; npm run test:e2e -w client -- e2e/u9-pistas-inspect-temp.spec.ts` => captured real PISTAS start/partial/error/success/map-return at 1280x720, 844x390, and 390x844. Desktop/landscape success drawing initially failed because the temporary path used the opposite sine direction; captures still showed the baseline rail hierarchy and map-return.
+- Focused regressions: `npm run test -w client -- src/detective/PistasRail.test.tsx src/screen/LevelPlay.test.tsx` => PASS, 2 files / 114 tests.
+- Deduction/no-filter regression after CSS polish: `npm run test -w client -- src/screen/Deduction.test.tsx src/detective/PistasRail.test.tsx src/screen/LevelPlay.test.tsx` => PASS, 3 files / 156 tests.
+- Final real PISTAS matrix with normal motion: `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u9-after-pistas-visual'; npm run test:e2e -w client -- e2e/u9-pistas-inspect-temp.spec.ts` => PASS, 15 cells.
+- Final real PISTAS matrix with reduced motion: `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u9-after-pistas-reduced'; npm run test:e2e -w client -- e2e/u9-pistas-inspect-temp.spec.ts` => PASS, 15 cells.
+- Root tests/build/whitespace: `npm run test` PASS (82 files / 1910 tests); `npm run build` PASS with existing Vite chunk-size warning; `git diff --check` PASS.
+
+### Manual Visual Observations
+Before U9, PISTAS read as flat text plus small loose sockets; partial/error/success did not make progress/reward hierarchy obvious, and the child saw no clear storage moment. After U9, desktop and landscape start states show PISTAS as a distinct cream reward tray; partial visibly shows earned trail marks while the rail remains unfiled; error keeps the rail unfiled and Next disabled; success shows the lamp/route reward, the first slot filled and highlighted, and Next enabled; map-return remains the real zoo map. Portrait keeps rotate guidance plus the improved rail fallback, and reduced-motion keeps a static filed-slot highlight without travel/pop motion.
+
+### Evidence Paths
+- Before: `client/test-results/playwright-output/run-u9-before-pistas-inspect/.../u9-pistas-inspect/*.png`
+- Normal motion final: `client/test-results/playwright-output/run-u9-after-pistas-visual/.../u9-pistas-inspect/*.png`
+- Normal motion contact sheet: `client/test-results/playwright-output/run-u9-after-pistas-visual/u9-after-contact-sheet.jpg`
+- Reduced-motion final: `client/test-results/playwright-output/run-u9-after-pistas-reduced/.../u9-pistas-inspect/*.png`
+
+### Files Changed
+`client/src/detective/PistasRail.tsx`, `client/src/detective/PistasRail.test.tsx`, `client/src/screen/LevelPlay.tsx`, `client/src/screen/LevelPlay.test.tsx`, `openspec/changes/finish-mvp-roadmap/tasks.md`, and this apply-progress file.
+
+### Changed-Line Accounting
+Current U9 product/test/SDD working diff is below the 400-line review budget.
+
+### Deviations
+None - U9 stays on existing `PistasRail`/`LevelPlay` seams, keeps animation after filing/release rather than during active tracing, and does not change `shouldFileClue`, route-end filing, clue-light, scoring, deduction, storage, or progression semantics.
+
+### Portrait Layout Follow-up
+Fixed the confirmed 390x844 portrait defect by making the PISTAS tray wrap into a compact two-row narrow layout: lamp + label on the first row, all four slots centered on a second row. The filed-slot highlight and reduced-motion fallback now stay within the visible tray, and the clue flight destination is an onscreen slot. The portrait rotate guidance remains the active-gameplay fallback, and the rail no longer covers Back or bottom actions.
+
+### Follow-up Evidence
+- Focused layout/unit contracts: `npm run test -w client -- src/screen/LevelPlay.test.tsx src/detective/PistasRail.test.tsx` => PASS, 2 files / 115 tests.
+- Portrait normal-motion layout assertion: `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u9-portrait-layout-normal-b'; $env:U9_MOTION='normal'; npm run test:e2e -w client -- e2e/u9-pistas-visual-temp.spec.ts --grep "portrait"` => PASS, 5 portrait cells.
+- Full normal-motion layout matrix: `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u9-layout-full-normal'; $env:U9_MOTION='normal'; npm run test:e2e -w client -- e2e/u9-pistas-visual-temp.spec.ts` => PASS, 15 cells.
+- Full reduced-motion layout matrix: `$env:PLAYWRIGHT_CHANNEL='chrome'; $env:PLAYWRIGHT_RUN_ID='u9-layout-full-reduced'; Remove-Item Env:U9_MOTION -ErrorAction SilentlyContinue; npm run test:e2e -w client -- e2e/u9-pistas-visual-temp.spec.ts` => PASS, 15 cells.
+
+### Follow-up Evidence Paths
+- Normal layout matrix: `client/test-results/playwright-output/run-u9-layout-full-normal/.../u9-pistas-visual/*.png`
+- Normal layout contact sheet: `client/test-results/playwright-output/run-u9-layout-full-normal/u9-layout-full-normal-contact-sheet.jpg`
+- Reduced layout matrix: `client/test-results/playwright-output/run-u9-layout-full-reduced/.../u9-pistas-visual/*.png`
+- Reduced layout contact sheet: `client/test-results/playwright-output/run-u9-layout-full-reduced/u9-layout-full-reduced-contact-sheet.jpg`

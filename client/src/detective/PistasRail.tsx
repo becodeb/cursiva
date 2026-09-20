@@ -48,6 +48,16 @@ const SLOT_SIZE = 38
  * four-slot chrome, padded with drained placeholders. */
 const RAIL_SLOT_COUNT = 4
 
+const CLUE_ACCESSIBLE_NAME: Record<ClueKind, string> = {
+  droplet: 'gota',
+  corn: 'maíz',
+  footprint: 'huella',
+  feather: 'pluma',
+  webfoot: 'huella de pato',
+  breadcrumb: 'miga',
+  bubble: 'burbuja',
+}
+
 /** One trail's filing state, as far as the caller can see it. */
 export interface PistasSlot {
   kind: ClueKind
@@ -123,30 +133,58 @@ function Slot({ slot }: { slot: PistasSlot | undefined }) {
   // Inset inside the 22-unit socket so the mark never touches its wall.
   const markHeight = 16
   const markWidth = art ? (markHeight * art.w) / art.h : 0
+  const accessibleName = slot
+    ? filed
+      ? `Pista guardada: ${CLUE_ACCESSIBLE_NAME[slot.kind]}`
+      : `Pista pendiente: ${CLUE_ACCESSIBLE_NAME[slot.kind]}`
+    : 'Espacio de pista vacío'
   return (
-    <svg viewBox="0 0 24 24" width={SLOT_SIZE} height={SLOT_SIZE} aria-hidden="true" focusable="false">
-      <rect
-        x={1}
-        y={1}
-        width={22}
-        height={22}
-        rx={5}
-        fill="none"
-        stroke={color}
-        strokeWidth={1.5}
-        opacity={filed ? 0.9 : 0.45}
-      />
-      {art && (
-        <image
-          href={art.href}
-          x={12 - markWidth / 2}
-          y={12 - markHeight / 2}
+    <span
+      className={`pistas-slot-shell${filed ? ' pistas-slot-shell-filed' : ''}`}
+      data-filed={filed ? 'true' : 'false'}
+    >
+      {filed && art && (
+        <img
+          className="pistas-flight"
+          src={art.href}
           width={markWidth}
           height={markHeight}
-          preserveAspectRatio="xMidYMid meet"
+          alt=""
+          aria-hidden="true"
         />
       )}
-    </svg>
+      <svg
+        className="pistas-slot"
+        viewBox="0 0 24 24"
+        width={SLOT_SIZE}
+        height={SLOT_SIZE}
+        role="img"
+        aria-label={accessibleName}
+        focusable="false"
+      >
+        <rect
+          x={1}
+          y={1}
+          width={22}
+          height={22}
+          rx={5}
+          fill={filed ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.48)'}
+          stroke={color}
+          strokeWidth={filed ? 2.6 : 1.5}
+          opacity={slot ? 1 : 0.55}
+        />
+        {art && (
+          <image
+            href={art.href}
+            x={12 - markWidth / 2}
+            y={12 - markHeight / 2}
+            width={markWidth}
+            height={markHeight}
+            preserveAspectRatio="xMidYMid meet"
+          />
+        )}
+      </svg>
+    </span>
   )
 }
 

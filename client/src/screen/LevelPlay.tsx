@@ -466,8 +466,12 @@ html, body, #root { margin: 0; padding: 0; }
   flex-direction: row;
   align-items: center;
   gap: 18px;
-  padding: 6px 4px 10px;
-  border-bottom: 1px solid #e2e8f0;
+  margin: 0 auto;
+  padding: 7px 12px 9px;
+  border: 2px solid rgba(63, 111, 143, 0.24);
+  border-radius: 22px;
+  background: rgba(255, 253, 244, 0.88);
+  box-shadow: 0 10px 24px rgba(30, 41, 59, 0.13), inset 0 -3px 0 rgba(63, 111, 143, 0.08);
 }
 .pistas-lamp-row { flex: 0 0 auto; display: flex; }
 /* The word is TYPESET now, not six hand-drawn polylines. Decision D6 ("no
@@ -478,9 +482,61 @@ html, body, #root { margin: 0; padding: 0; }
    monoline is the opposite of §1's "formas gordas y generosas".
    Weight 800 is the heaviest Nunito ships here, which is what puts it in the
    same register as the thick-marker art instead of beside it. */
-.pistas-word { flex: 0 0 auto; font-weight: 800; font-size: 96px; line-height: 1;
+.pistas-word { flex: 0 0 auto; font-weight: 800; font-size: 84px; line-height: 1;
   letter-spacing: 0.03em; color: #1e293b; -webkit-font-smoothing: antialiased; }
 .pistas-slots { flex: 0 0 auto; display: flex; flex-direction: row; align-items: center; gap: 12px; }
+.pistas-slot-shell { position: relative; display: inline-flex; align-items: center; justify-content: center; border-radius: 13px; }
+.pistas-slot { display: block; border-radius: 13px; background: rgba(255,255,255,0.42); }
+.pistas-slot-shell-filed .pistas-slot {
+  animation: pistas-store-pop 760ms cubic-bezier(.2,.9,.25,1.2) both;
+  box-shadow: 0 5px 9px rgba(63,111,143,.22);
+}
+.pistas-slot-shell-filed::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border: 3px solid rgba(250, 204, 21, 0.82);
+  border-radius: 18px;
+  opacity: 0;
+  animation: pistas-slot-spark 900ms ease-out both;
+  pointer-events: none;
+}
+.pistas-flight {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  transform: translate(-84px, 48px) scale(1.9) rotate(-12deg);
+  transform-origin: center;
+  opacity: 0;
+  pointer-events: none;
+  animation: pistas-fly-home 880ms cubic-bezier(.22,.78,.26,1) both;
+}
+@keyframes pistas-fly-home {
+  0% { opacity: 0; transform: translate(-84px, 48px) scale(1.9) rotate(-12deg); }
+  18% { opacity: 1; transform: translate(-70px, 34px) scale(2.05) rotate(-8deg); }
+  72% { opacity: 1; transform: translate(-12px, 4px) scale(1.24) rotate(3deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(.72) rotate(0deg); }
+}
+@keyframes pistas-store-pop {
+  0% { transform: scale(.72); }
+  52% { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+@keyframes pistas-slot-spark {
+  0% { opacity: 0; transform: scale(.7); }
+  36% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pistas-slot-shell-filed .pistas-slot,
+  .pistas-slot-shell-filed::after,
+  .pistas-flight {
+    animation: none;
+  }
+  .pistas-flight { display: none; }
+  .pistas-slot-shell-filed::after { opacity: 1; transform: none; border-color: rgba(250, 204, 21, 0.72); }
+}
 .cv-result { flex: 0 0 auto; min-height: 96px; display: flex; flex-direction: column; justify-content: center; color: #1e293b; }
 .cv-pillars { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; }
 .cv-pillar { display: inline-flex; align-items: baseline; gap: 8px; font-size: 24px; font-weight: 600; }
@@ -513,8 +569,8 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-coach { margin: 4px 0 0; font-size: 18px; }
   .cv-btn { min-height: 52px; padding: 0 22px; font-size: 18px; }
   .cv-btn-back { min-height: 48px; }
-  .pistas-bar { gap: 14px; padding: 4px 2px 8px; }
-  .pistas-word { font-size: 70px; }
+  .pistas-bar { gap: 14px; padding: 5px 10px 7px; border-radius: 18px; }
+  .pistas-word { font-size: 62px; }
   .pistas-lamp-row svg { width: 34px; height: 34px; }
   .pistas-slots { gap: 8px; }
   .pistas-slots svg { width: 30px; height: 30px; }
@@ -555,11 +611,36 @@ html, body, #root { margin: 0; padding: 0; }
   /* The bar is already a horizontal row at every height — a short viewport
    * only needs it SMALLER, not restructured, so every row reclaimed here
    * still goes straight into canvas height. */
-  .pistas-bar { gap: 8px; padding: 2px 2px 6px; }
-  .pistas-word { font-size: 42px; }
+  .pistas-bar { gap: 8px; padding: 3px 8px 5px; border-radius: 14px; }
+  .pistas-word { font-size: 36px; }
   .pistas-lamp-row svg { width: 22px; height: 22px; }
   .pistas-slots { gap: 5px; }
   .pistas-slots svg { width: 18px; height: 18px; }
+}
+
+/* Narrow upright phones cannot spend the whole row on a single 84px word.
+ * Portrait already replaces active tracing with rotate guidance, so the rail
+ * can become a compact two-line tray: lamp + title on the first line, all four
+ * slots together on the second. The width cap is the contract here — the rail
+ * must stay inside the viewport instead of sliding under Back/actions. */
+@media (max-width: 559px) {
+  .pistas-bar {
+    max-width: calc(100vw - 24px);
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 5px 8px;
+    padding: 5px 8px 7px;
+    border-radius: 16px;
+  }
+  .pistas-word { font-size: 42px; }
+  .pistas-lamp-row svg { width: 24px; height: 24px; }
+  .pistas-slots {
+    flex: 0 0 100%;
+    justify-content: center;
+    gap: 7px;
+  }
+  .pistas-slots svg { width: 28px; height: 28px; }
+  .pistas-slot-shell-filed::after { inset: -5px; border-width: 2px; border-radius: 14px; }
 }
 `
 
