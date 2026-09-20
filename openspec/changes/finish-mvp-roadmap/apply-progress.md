@@ -661,3 +661,100 @@ U13 complete. The already-wired exact approved `peces`, `tortugas`, `monos`, and
 
 ### Status
 U14 complete. No gameplay, scoring, persistence, progression, ink, clue, deduction, or narrative copy changed. U10, U15, and U15.1 remain explicitly deferred and unchecked.
+
+## Post-U14 Corrective Art Follow-up — Sand / Monkeys Sources
+
+### Execution Status
+- Stopped before replacing either source. The mandatory one-call-per-asset limit prohibits a regeneration: the sole sand-generation result includes three small flying-bird silhouettes in the upper-left sky, violating the explicit no-animals rule. It is therefore rejected and was not copied into `art-source/fondo arena.png`.
+- No ImageGen call was made for `art-source/fondo recinto monos.png`: once the sand result required a second call to become usable, continuing would not produce the requested complete, compliant two-asset replacement. Existing source files remain unchanged.
+- No task checkbox was changed. No public-art integration, build, manifest, registry, code, or tests were changed.
+
+### Built-in ImageGen Record
+
+| Asset | Built-in ImageGen call id | Output path | Dimensions | Inspection | Result |
+|---|---|---|---|---|---|
+| `art-source/fondo arena.png` | `exec-a034daa8-3962-40d2-a400-09a0e5dbd0b9` | `C:/Users/mastr/.codex/generated_images/01a0bf54-6970-7392-94ae-0a45c1e3e5bb/exec-a034daa8-3962-40d2-a400-09a0e5dbd0b9.png` | `1536x1024`, RGB | Inspected with `view_image` at original resolution. Composition, near-black contours, edge-weighted rocks/fence/water/shelter, and calm lower sand are suitable, but three bird silhouettes appear at upper-left. | Rejected; no replacement copied. |
+| `art-source/fondo recinto monos.png` | — | — | — | Not generated because completing the rejected sand asset would require a forbidden second sand call. | Not attempted. |
+
+#### Exact sand prompt
+```text
+Use case: illustration-story
+Asset type: authored source background for a children's handwriting/erase game, to replace art-source/fondo arena.png; 1536x1024 landscape, 3:2, full-bleed complete scene.
+Primary request: Create a polished child-friendly sandy turtle-enclosure entrance habitat, with no turtle, animal, person, character, or text anywhere. The child will erase a sand/debris veil over the central and lower area, so keep a broad calm integrated play zone across the middle and lower half.
+Style/medium: 2D children's game illustration matching the approved renewed glass/night background family: thick neutral near-black #1a1a1a felt-tip outlines, rounded ends, slight human hand wobble, flat warm colour fills with very gentle paper-like texture; strong chunky readable shapes; no gradients, no shading, no 3D, no vector clip-art.
+Scene/backdrop: sunlit warm sand habitat and entry scene. Along the organic outer edges place broad rounded boulders and stones, low dry grasses and succulents, weathered wooden fence posts/rails, a tiny shallow water basin or trickle, and a simple arched earth-and-stone shelter entrance with NO signage and NO writing. Use warm sand, ochre, terracotta, muted sage green, pale blue water, and neutral grey rocks. Detail is edge-weighted; the center and lower sand must remain calm and low-contrast but naturally connected to the habitat, never a blank or rectangular cut-out.
+Composition/framing: complete 3:2 landscape, useful under later 1280x720 and 844x390 crops. Keep important scenery inside crop-safe edge zones. Frame a broad central/lower sandy clearing organically with side and upper-edge habitat cues; make the lower clearing clear enough for a semi-transparent sand/debris erase veil and gesture/hitbox overlays.
+Lighting/mood: gentle sunny morning, friendly, inviting, calm.
+Constraints: exact 1536x1024 PNG; no animals, no people, no characters, no turtle silhouette, no monkey silhouette, no text, letters, numbers, signs, logos, watermark, UI, paths or embedded route lines. Neutral #1a1a1a contours only. No artificial central cutout or empty rectangle.
+Avoid: photorealism, 3D render, gradients, shadows, glossy effects, dense central texture, busy central decorations, blue/green/teal outlines, watermark, gibberish.
+```
+
+### Required Follow-up
+A new sand-generation call (and then the first monkeys-generation call) is needed to complete this corrective-art task. That requires explicit approval because it would exceed the one-call cap for the sand asset.
+
+### Follow-up Execution After Clarification
+
+The clarification authorizes one isolated targeted remediation for the sand output and one isolated first-generation call for the monkeys source. Each call targeted only its own asset; neither call combined subjects or output destinations.
+
+| Asset | Operation | Built-in ImageGen call id | Output path | Dimensions | Original-resolution inspection | Disposition |
+|---|---|---|---|---|---|---|
+| `art-source/fondo arena.png` | Targeted edit of the rejected sand output | `exec-e743d333-bcc2-41ea-ac0b-a43de451d801` | `C:/Users/mastr/.codex/generated_images/01a0bf54-6970-7392-94ae-0a45c1e3e5bb/exec-e743d333-bcc2-41ea-ac0b-a43de451d801.png` | `1536x1024`, RGB | Inspected with `view_image` at original resolution. The composition and style remain appropriate, but the upper-left still visibly contains the small flying-bird silhouettes the edit was meant to remove. | Rejected; `art-source/fondo arena.png` remains untouched. |
+| `art-source/fondo recinto monos.png` | New source generation | `exec-824b9032-cbd7-46f6-8ea4-fdbd8fd1ad7b` | `C:/Users/mastr/.codex/generated_images/01a0bf54-6970-7392-94ae-0a45c1e3e5bb/exec-824b9032-cbd7-46f6-8ea4-fdbd8fd1ad7b.png` | `1536x1024`, RGB | Inspected with `view_image` at original resolution. No animals, characters, text, logos, or watermark observed. The scene has neutral near-black linework, ropes/platforms/branches/foliage/rocks at the edges, and a broad organically calm central/lower earth clearing suitable for leaf-litter erasure. | Accepted and copied to `art-source/fondo recinto monos.png` (SHA-256 `80ADB8846E40E244BAD14331F793E4136F7AFC9997DAF3FCFCAC6781C0EDC590`). |
+
+#### Exact sand-remediation prompt
+```text
+Use case: precise-object-edit
+Asset type: targeted remediation for the authored source background art-source/fondo arena.png.
+Input image: the provided 1536x1024 sandy turtle-enclosure scene is the exact edit target.
+Primary request: Remove only the three small flying bird silhouettes from the upper-left sky. Replace them with matching plain pale-blue sky and subtle existing atmosphere, leaving no animal, character, bird, silhouette, text, or new object there.
+Style/medium: preserve the existing polished 2D child-friendly storybook game illustration exactly: thick neutral near-black #1a1a1a rounded felt-tip contours, warm flat fills, gentle paper texture, strong readable shapes.
+Composition/framing: preserve the full 1536x1024 3:2 composition exactly: the organic edge-weighted rocks, fence, water pool and trickle, arched earth-and-stone shelter, plants, broad integrated calm central and lower sandy play clearing, palette, crop safety, and lighting. Do not crop, resize, rotate, alter, add, remove, or rearrange anything except the three birds.
+Constraints: remove the birds only; no animals, people, characters, text, letters, numbers, logos, watermark, UI, paths, or route lines. Keep contours neutral near-black #1a1a1a; do not introduce central cutout, new texture, gradient, shadow, or 3D effect.
+Avoid: changing the existing scene, changing fill colours, busy central detail, blue/green/teal outlines, photorealism, vector clip-art, gradients, glossy effects, watermark, gibberish.
+```
+
+#### Exact monkeys-generation prompt
+```text
+Use case: illustration-story
+Asset type: authored source background for a children's handwriting/leaf-litter erase game, to replace art-source/fondo recinto monos.png; exact 1536x1024 landscape, 3:2, full-bleed complete scene.
+Primary request: Create a polished child-friendly leafy monkey-habitat clearing with absolutely no monkeys, animals, people, characters, faces, silhouettes, or text anywhere. The child will erase a leaf-litter veil over the central and lower area, so keep a broad calm, naturally integrated clearing across the middle and lower half.
+Style/medium: 2D children's game illustration matching the approved renewed glass/night family: thick neutral near-black #1a1a1a felt-tip marker contours, round ends, slight human hand wobble; flat warm colours with gentle paper texture; chunky strong readable shapes. No gradients, shading, 3D, glossy render, or vector clip-art.
+Scene/backdrop: a sunny, welcoming leafy primate habitat without inhabitants. Use thick ropes looping organically from sturdy wooden posts and branches at upper sides, simple wooden climbing platforms near the edge zones, layered rounded green foliage, chunky tree trunks, a few large rocks, and low shrubs framing the scene. The central/lower clearing is a warm muted earth-and-leaf-toned ground, calm and low contrast but organically continuous with the habitat; no artificial central empty rectangle or cutout.
+Composition/framing: full complete 3:2 landscape, crop-safe for later 1280x720 and 844x390 displays. Put ropes, branches, platforms, foliage, trunks and rocks mainly around top, bottom, and side edges. Maintain a broad clear central/lower zone for a semi-transparent leaf-litter erase veil, gesture tracing, and hitbox overlays. Important scenery must survive crop without depending on extreme edges.
+Lighting/mood: gentle dappled morning light, friendly, tranquil, child-readable.
+Color palette: warm ochre/brown wood, moss and leaf greens, muted clay/tan ground, grey stones, small pale sky openings; dark contours exclusively neutral near-black #1a1a1a.
+Constraints: exact 1536x1024 PNG; no animals, no monkeys, no birds, no people, no characters, no faces, no animal silhouettes or icons, no text, letters, numbers, signs, logos, watermark, UI, paths, or embedded route lines. No artificial central cutout. No transparent background.
+Avoid: photorealism, 3D, gradients, shadows, dense central details, busy central texture, blue/green/teal outlines, watermark, gibberish.
+```
+
+### Post-Follow-up Status
+- `fondo recinto monos.png` is renewed and accepted.
+- `fondo arena.png` remains blocked by the birds retained in the sole authorized targeted edit; further sand work requires a new explicit instruction.
+- No task checkboxes, public-art integration, manifest, registry, code, build output, commit, push, PR, or history were changed.
+
+### Final From-Scratch Sand Generation
+
+Authorized one-asset final generation completed independently from the monkeys asset.
+
+| Asset | Operation | Built-in ImageGen call id | Output path | Dimensions | Original-resolution inspection | Disposition |
+|---|---|---|---|---|---|---|
+| `art-source/fondo arena.png` | From-scratch generation, sand asset only | `exec-f13b7acb-18ce-4afa-a996-67a299d9aef0` | `C:/Users/mastr/.codex/generated_images/01a0bf54-6970-7392-94ae-0a45c1e3e5bb/exec-f13b7acb-18ce-4afa-a996-67a299d9aef0.png` | `1536x1024`, RGB | Inspected with `view_image` at original resolution. No living creatures, creature silhouettes/icons/patterns, text, logos, or watermark observed. The complete sandy habitat has neutral near-black contours, edge-weighted rocks/fence/water/shelter/plants, and an organically broad calm central/lower sand play zone. | Accepted and copied to `art-source/fondo arena.png` (SHA-256 `8FE9003E3219EFD9218AB2ED609CD4F6CC852CBEFE4EAD37E474C8FCF11A1064`). |
+
+#### Exact final sand-generation prompt
+```text
+Use case: illustration-story
+Asset type: final authored source background for a children's handwriting/sand-debris erase game, to replace art-source/fondo arena.png only. Generate exactly one full 1536x1024 PNG, landscape 3:2, full-bleed complete scene.
+Primary request: Create a polished child-friendly sandy turtle-habitat enclosure and entrance, completely uninhabited. It must provide a broad calm, naturally integrated sandy play zone across the middle and lower half for a semi-transparent sand/debris erase veil, tracing gestures, and hitbox overlays.
+Critical exclusion rule: ABSOLUTELY NO LIVING CREATURES anywhere in the entire image. No birds, animals, turtles, monkeys, insects, fish, people, characters, faces, animal or human silhouettes, shadows shaped like creatures, creature icons, creatures on signs, creature decorations, creature patterns, or creature-like marks — including in the sky, background, foreground, water, rocks, wood, plants, signs, or any decorative area. No text, letters, numbers, logos, symbols, watermark, UI, signs, or glyphs anywhere.
+Style/medium: 2D children's game illustration matching the approved renewed glass/night family and docs/09: thick rounded felt-tip marker contours in neutral near-black #1a1a1a, slight human hand wobble, flat warm colours, very gentle paper texture, chunky strong readable shapes. No gradients, no shading, no 3D, no glossy render, no vector clip-art.
+Scene/backdrop: gentle sunny sandy habitat, framed organically along upper and side edges by rounded natural stone formations, grey and terracotta boulders, low dry grasses/succulents, weathered wooden fence posts/rails, a small shallow pale-blue water basin with a tiny trickle, and a simple arched earth-and-stone shelter entrance with an empty plain opening. The center and lower sand must be calm, low contrast, and continuous with the enclosure, never an artificial blank rectangle or cut-out.
+Composition/framing: full complete crop-safe 3:2 scene for later 1280x720 and 844x390 views. Keep important edge scenery inside crop-safe zones. Detail is edge-weighted, but all negative space emerges naturally from calm open sand rather than a central empty box.
+Lighting/mood: inviting warm morning, tranquil, clean, child-readable.
+Color palette: warm sand, ochre, terracotta, muted sage green, pale blue water, neutral grey rock. Dark contours exclusively neutral #1a1a1a.
+Constraints: preserve exact 1536x1024 RGB output, no transparent background, no path or embedded route lines, no busy central details, no dense central texture, no blue/green/teal contours.
+Avoid: every living creature or silhouette, photorealism, 3D, gradients, shadows, dense central detail, artificial central cutout, text, watermark, logo, gibberish.
+```
+
+### Corrective-Art Follow-up Final Status
+- Both renewed authoring sources are now accepted: `art-source/fondo arena.png` and `art-source/fondo recinto monos.png`.
+- No task checkbox, public-art integration, manifest, registry, build output, code, commit, push, PR, or history was changed.
