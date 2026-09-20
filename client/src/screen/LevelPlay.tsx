@@ -109,7 +109,9 @@ import {
   GROUND_MUD,
   LAMP_ART,
   OCTOPUS_ART,
+  SIGN_ART,
 } from '../detective/assets'
+import CaptionedArt from '../detective/CaptionedArt'
 import PistasRail, { type PistasSlot } from '../detective/PistasRail'
 import { BackIcon, ContinueIcon, ReplayIcon, RetryIcon } from '../detective/icons'
 
@@ -134,6 +136,21 @@ const EMPTY_ARRANGE_CONFIG: ArrangeConfig = { from: [], snapRadius: 0 }
 /** How long the visual metronome stays swollen after a beat. Short enough to
  * read as a pulse, long enough to see at 60 BPM on a slow panel. */
 const BEAT_FLASH_MS = 140
+
+/**
+ * docs/16's first three enclosures identify the animal that belongs behind
+ * the surface the child is cleaning. The approved art already includes the
+ * animal, uppercase word, and wooden frame, so this stays a narrow LevelPlay
+ * projection rather than becoming another level-engine field.
+ */
+const PROLOGUE_ZOO_SIGNS = {
+  glass1: { art: SIGN_ART.fish, label: 'PECES' },
+  glass2: { art: SIGN_ART.fish, label: 'PECES' },
+  sand1: { art: SIGN_ART.turtles, label: 'TORTUGAS' },
+  sand2: { art: SIGN_ART.turtles, label: 'TORTUGAS' },
+  glass3: { art: SIGN_ART.monkeys, label: 'MONOS' },
+  glass4: { art: SIGN_ART.monkeys, label: 'MONOS' },
+} as const
 
 /** Rendered HEIGHT of a clue mark, in viewBox units on the 1000x600 sheet
  * (docs/09 §3: clue marks are ~20-30 units tall).
@@ -443,14 +460,43 @@ html, body, #root { margin: 0; padding: 0; }
 .cv-portrait-guidance { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 18px; border: 2px dashed #94a3b8; border-radius: 20px; background: rgba(255,255,255,0.72); color: #1e293b; font-size: 24px; line-height: 1.3; text-align: center; font-weight: 700; }
 .cv-portrait-guidance strong { display: block; font-size: 30px; margin-bottom: 8px; }
 .cv-portrait-guidance span { display: block; color: #475569; font-size: 18px; font-weight: 600; }
-.cv-sheet { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.cv-sheet { position: relative; container-type: size; flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
 /* The canvas is TraceCanvas's own root svg element — no wrapper element
  * exists to put a class on, so it is targeted structurally. It grows to
- * fill the sheet, exactly as it always did — .cv-sheet has gone back to a
- * single-child layout now that the PISTAS bar sits above it (design.md
- * "Layout": DOM chrome, a flex sibling of the canvas, never inside the
- * viewBox — it just is not a sibling INSIDE .cv-sheet any more). */
+ * fill the sheet, exactly as it always did. The zoo sign is nested in a span,
+ * so TraceCanvas remains the sheet's only direct SVG child and keeps the exact
+ * sizing contract it had before U14. */
 .cv-sheet > svg { flex: 1 1 auto; min-width: 0; min-height: 0; }
+
+/* docs/16 zoo signage. The approved PNG is the complete wooden sign: animal,
+ * word, frame and posts. It sits over a quiet edge of the playable scene, so
+ * the canvas keeps its exact size and pointer surface. CaptionedArt still owns
+ * the accessible text; its duplicate visual glyphs are clipped because PECES /
+ * TORTUGAS / MONOS are already legible inside the authored sign. */
+.cv-level-zoo-sign {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  /* TraceCanvas uses a 5:3 viewBox with contain fitting. Half of its visible
+   * width is therefore the smaller of half the sheet width and 5/6 of its
+   * height. Container units keep this placard ten pixels inside that same
+   * visible scene at every supported landscape aspect ratio. */
+  left: calc(50cqw - min(50cqw, 83.333cqh) + 10px);
+  display: inline-flex;
+  pointer-events: none;
+}
+.cv-level-zoo-sign > svg { width: clamp(72px, 9vw, 112px); height: auto; }
+.cv-level-zoo-sign .cv-caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* PISTAS bar (design unit 5, level-engine spec "PISTAS Rail Chrome"; defect
  * fix: shipped as a vertical column down the right edge, one letter under
@@ -590,6 +636,8 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-coach { margin: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cv-btn { min-height: 44px; padding: 0 16px; font-size: 16px; }
   .cv-btn-back { min-height: 44px; padding: 0 12px; font-size: 16px; }
+  .cv-level-zoo-sign { top: 6px; }
+  .cv-level-zoo-sign > svg { width: clamp(58px, 8vw, 68px); }
 
   /* Two rows become one, twice. Every row reclaimed goes straight into canvas
    * height, and on a 390px-tall landscape phone that is the whole budget. */
@@ -1934,6 +1982,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   )
 
   const mainClassName = `${ground ? 'cv-play cv-play-ground' : 'cv-play'}${portraitGuidanceActive ? ' cv-play-portrait-guided' : ''}`
+  const zooSign = PROLOGUE_ZOO_SIGNS[level.id as keyof typeof PROLOGUE_ZOO_SIGNS]
 
   return (
     <main
@@ -1988,7 +2037,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
        * case trail, never for a world-only level with no clue (D1). */}
       {isCase && <PistasRail slots={railSlots} lampOn={clueFiled} />}
       <div className="cv-sheet">
-      <TraceCanvas
+        {zooSign && (
+          <CaptionedArt
+            art={zooSign.art}
+            label={zooSign.label}
+            size={128}
+            className="cv-level-zoo-sign"
+          />
+        )}
+        <TraceCanvas
         key={`${level.id}-${demoRun}`}
         demo={phase === 'demo' ? demos : undefined}
         enabled={phase !== 'demo'}
@@ -2179,7 +2236,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
             ))}
           </g>
         )}
-      </TraceCanvas>
+        </TraceCanvas>
       </div>
       <div className="cv-foot">
       {/* Pillars and coach copy (accuracy/direction/fluency readouts, the

@@ -78,6 +78,7 @@ import {
   OCTOPUS_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
+  SIGN_ART,
 } from '../detective/assets'
 import { auditCaptions } from '../detective/captionAudit'
 import { INK_COLOR } from '../canvas/TraceCanvas'
@@ -1383,6 +1384,52 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     // all through the REAL `backdropFor`, so `inkColor` is `undefined` —
     // exactly the byte-identical default every non-world level already had.
     expect(traceCanvasProbe.current?.inkColor).toBeUndefined()
+  })
+})
+
+describe('LevelPlay docs/16 wooden zoo signs (finish-mvp-roadmap U14)', () => {
+  const signLevels = [
+    ['glass1', SIGN_ART.fish.href, 'PECES'],
+    ['glass2', SIGN_ART.fish.href, 'PECES'],
+    ['sand1', SIGN_ART.turtles.href, 'TORTUGAS'],
+    ['sand2', SIGN_ART.turtles.href, 'TORTUGAS'],
+    ['glass3', SIGN_ART.monkeys.href, 'MONOS'],
+    ['glass4', SIGN_ART.monkeys.href, 'MONOS'],
+  ] as const
+
+  it.each(signLevels)('%s renders its approved framed CaptionedArt inside the playable sheet', (levelId, href, label) => {
+    const html = renderToString(
+      <LevelPlay level={getLevel(levelId)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+
+    expect(body).toContain('class="cv-captioned cv-level-zoo-sign"')
+    expect(body).toContain(`href="${href}"`)
+    expect(body).toContain(`<span class="cv-caption">${label}</span>`)
+    expect(body.indexOf('cv-level-zoo-sign')).toBeGreaterThan(body.indexOf('class="cv-sheet"'))
+
+    const audit = auditCaptions(html)
+    expect(audit.captioned).toContain(label)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
+  })
+
+  it('does not add a sign to the sendero, night, or ordinary level families', () => {
+    for (const level of [getLevel('sand3'), getLevel('night2'), makeLevel()]) {
+      const html = renderToString(
+        <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      expect(html.replace(/<style>[\s\S]*?<\/style>/, ''), level.id).not.toContain('cv-level-zoo-sign')
+    }
+  })
+
+  it('overlays the sign without shrinking or intercepting the canvas and clips only the duplicated DOM glyphs', () => {
+    expect(LAYOUT_CSS).toContain('.cv-sheet { position: relative;')
+    expect(LAYOUT_CSS).toContain('.cv-level-zoo-sign {')
+    expect(LAYOUT_CSS).toContain('position: absolute;')
+    expect(LAYOUT_CSS).toContain('pointer-events: none;')
+    expect(LAYOUT_CSS).toContain('.cv-level-zoo-sign .cv-caption {')
+    expect(LAYOUT_CSS).toContain('clip: rect(0, 0, 0, 0);')
   })
 })
 

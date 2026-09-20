@@ -89,11 +89,16 @@ async function assertLevelShell(page: Page, viewport: ViewportName): Promise<voi
   await expect(page.locator('main.cv-play')).toBeVisible()
   await expect(page.getByRole('button', { name: /volver/i })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Borrar' })).toBeVisible()
+  const sign = page.locator('.cv-level-zoo-sign')
   if (viewport === 'portrait') {
     await expect(page.getByRole('status').filter({ hasText: /girá el dispositivo/i })).toBeVisible()
-    await expect(page.locator('.cv-sheet svg')).toBeHidden()
+    await expect(page.locator('.cv-sheet > svg')).toBeHidden()
+    await expect(sign).toBeHidden()
   } else {
-    await expect(page.locator('.cv-sheet svg')).toBeVisible()
+    await expect(page.locator('.cv-sheet > svg')).toBeVisible()
+    await expect(sign).toBeVisible()
+    await expect(sign).toContainText('PECES')
+    await expect(sign.locator('image')).toHaveAttribute('href', '/art/sign-fish.png')
   }
 }
 
@@ -154,7 +159,7 @@ async function drawOnLandscapeIfNeeded(
   const restorePortrait = viewport === 'portrait'
   if (restorePortrait) await page.setViewportSize(VIEWPORTS.landscape)
 
-  const sheet = page.locator('.cv-sheet svg')
+  const sheet = page.locator('.cv-sheet > svg')
   await expect(sheet).toBeVisible()
   const box = await sheet.boundingBox()
   if (!box) throw new Error('Trace sheet was not measurable')

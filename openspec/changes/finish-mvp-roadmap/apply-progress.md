@@ -642,3 +642,22 @@ Manual inspection verified child-readable action, visible progress and reward, r
 
 ### Scope and Deferrals
 U13 complete. The already-wired exact approved `peces`, `tortugas`, `monos`, and `sendero` beat 0/1 closings were exercised only as current-registry evidence; U10 remains an isolated deferred blocker because no narrative remediation or unapproved content was added. U14 signage was explicitly excluded. U15 and U15.1 remain deferred and unchecked.
+
+## U14 docs/16 In-Level Zoo-Sign Frame
+
+### Scope and Implementation
+- Real system-Chrome inspection of `glass1` showed an empty fogged enclosure with no in-level cue that fish belong there. The approved sign materially clarifies the image/caption relationship while the child cleans, rather than revealing it only later in Pulpito's closing bubble.
+- `LevelPlay` now projects the existing approved `SIGN_ART` assets through `CaptionedArt` for the six sign-bearing prologue levels: `glass1..2` (`PECES`), `sand1..2` (`TORTUGAS`), and `glass3..4` (`MONOS`). `sendero`, night, and ordinary levels remain unchanged.
+- The sign is an absolute, pointer-transparent overlay inside the playable sheet. Container-relative placement follows the visible 5:3 canvas edge, so it does not resize the drawing surface or drift into surrounding chrome at compact landscape sizes.
+- The approved raster already contains its readable uppercase word inside the wooden frame. The duplicate DOM glyph is visually clipped but remains inside the real `CaptionedArt` container for assistive technology and `captionAudit`; no standalone or imageless caption was introduced.
+
+### Focused and Full Validation
+- `npm test -w client -- src/screen/LevelPlay.test.tsx` — PASS, 104/104. Coverage proves all six sign-bearing level ids use the approved art/label, caption audit stays clean, non-sign families remain untouched, and the overlay cannot shrink or intercept the canvas.
+- `PLAYWRIGHT_CHANNEL=chrome PLAYWRIGHT_RUN_ID=u14-zoo-sign-final npx playwright test e2e/mvp-visual.spec.ts --project=chromium` — PASS, 15/15 using system Chrome. The matrix covers start, partial, error, success, and map-return at `1280x720`, `844x390`, and `390x844`; Playwright's configured reduced-motion mode was active.
+- Raw captures: `client/test-results/playwright-output/run-u14-zoo-sign-final/`. Manual contact sheet: `client/test-results/playwright-output/run-u14-zoo-sign-final/u14-contact-sheet.png`.
+- Manual inspection confirmed the wood-and-orange sign is immediately recognizable, its animal and caption remain readable, it stays inside the upper-left scene edge without shrinking the canvas or covering the central cleaning area, controls/reward/map return stay clear, and portrait correctly replaces all play content with rotate guidance.
+- The first compact-landscape probe caught the sign outside the 5:3 scene; container-relative placement fixed it before the final matrix.
+- `npm test` — PASS, 82 files / 1,923 tests. `npm run build` — PASS with the existing chunk-size warning only. `git diff --check` — PASS.
+
+### Status
+U14 complete. No gameplay, scoring, persistence, progression, ink, clue, deduction, or narrative copy changed. U10, U15, and U15.1 remain explicitly deferred and unchecked.
