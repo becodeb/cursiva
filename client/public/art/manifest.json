@@ -384,15 +384,15 @@
     "w": 299
   },
   "sector-monkeys-background": {
-    "brightest": "#c9d3b8",
-    "bytes": 645060,
+    "brightest": "#f7fdea",
+    "bytes": 3141847,
     "corridorRows": {
       "bottom": 973,
       "top": 51
     },
     "file": "art/sector-monkeys-background.png",
     "h": 1024,
-    "quiet": "#c9d3b8",
+    "quiet": "#f8be64",
     "w": 1536
   },
   "sector-night-background": {
@@ -444,15 +444,15 @@
     "w": 1536
   },
   "sector-sand-background": {
-    "brightest": "#dad0c0",
-    "bytes": 55641,
+    "brightest": "#ffffff",
+    "bytes": 2804280,
     "corridorRows": {
       "bottom": 973,
       "top": 51
     },
     "file": "art/sector-sand-background.png",
     "h": 1024,
-    "quiet": "#d6cbba",
+    "quiet": "#f9cf86",
     "w": 1536
   },
   "sector-sheep": {

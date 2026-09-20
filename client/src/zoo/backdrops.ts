@@ -70,8 +70,8 @@ export const CHANNEL_STONE = '#606569'
 export const GLASS_GRIME = '#64726b'
 
 /** Wet, wind-piled sand over the entrance's dry path (design.md §2.2). Same
- *  luma 109 as `GLASS_GRIME`, for the same reason: the measured `brightest`
- *  (209) leaves no admissible light paint either (design.md §2.3). */
+ *  luma 109 as `GLASS_GRIME`, for the same reason: the renewed background's
+ *  measured `brightest` is 255, so no admissible light paint exists. */
 export const SAND_DRIFT = '#7a6a58'
 
 /** The dark itself. The authored night backdrop's brightest sampled blue
@@ -92,20 +92,18 @@ export const TORCH_CHALK = '#f2efe6'
  *  55-luma law is asserted on (design.md §2.4's named exception). */
 export const TORCH_CHALK_DIM = '#989896'
 
-/** The scooped hollow in the sand each snake lies in (design.md §2.3). Two-
- *  sided window: must clear the sand's `brightest` (209.2) by 55 AND the
- *  darkest snake body (`#67895c`, 121.7) by 55 — `luma ≤ min(154.2, 66.7) =
- *  66.7` — and must not read as the art's own contour (26), a soft floor at
- *  40. Luma 52.5 sits mid-window with 14.2 of headroom, and only the
- *  CEILING can move as the measurement above already landed: pinned low, the
- *  same lever `CHANNEL_STONE`/`GLASS_GRIME` use. */
+/** The scooped hollow in the sand each snake lies in (design.md §2.3).
+ *  Luma 52 clears the renewed sand's sampled `brightest` (255) by 203;
+ *  default `SHEET_PAPER` (252) clears it by only 3, so this row still needs
+ *  a dark channel. It also stays visibly above the art's near-black contour
+ *  (26) rather than reading as another outline. */
 export const SAND_HOLLOW = '#3b332b'
 
 /** The leaf veil over the monos enclosure (add-caretaker-prologue design.md
- *  D6's worked arithmetic). Luma 113, 92 clear of the base fill's 205 and
- *  73 clear of `INK_COLOR`'s 40 — both well past the 55-luma law, and the
- *  base fill's 252-`SHEET_PAPER` gap of 47 keeps `docs/09:158`'s "no
- *  admissible light paint" falsifiability true for this surface too. */
+ *  D6). Luma 113 clears the renewed background's sampled `brightest` (249)
+ *  by 136 and `INK_COLOR` (40) by 73 — both past the 55-luma law.
+ *  `SHEET_PAPER` (252) sits only 3 from that brightest sample, preserving
+ *  the falsifiable reason this surface needs a dark veil. */
 export const LEAF_LITTER = '#6e7a4a'
 
 /** The mud veil over the sendero (design.md D6's worked arithmetic). Luma
@@ -171,15 +169,15 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   },
   tortugas: {
     art: SECTOR_BACKGROUND_ART.sand,
-    quiet: '#d6cbba',
-    brightest: '#dad0c0',
+    quiet: '#f9cf86',
+    brightest: '#ffffff',
     corridorRows: { top: 51, bottom: 973 },
     tile: SAND_DRIFT,
   },
   monos: {
     art: SECTOR_BACKGROUND_ART.monkeys,
-    quiet: '#c9d3b8',
-    brightest: '#c9d3b8',
+    quiet: '#f8be64',
+    brightest: '#f7fdea',
     corridorRows: { top: 51, bottom: 973 },
     tile: LEAF_LITTER,
   },
@@ -208,8 +206,8 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // black spots (R1, gap 14), so `TORCH_CHALK` is the only admissible line.
   snake: {
     art: SECTOR_BACKGROUND_ART.sand,
-    quiet: '#d6cbba',
-    brightest: '#dad0c0',
+    quiet: '#f9cf86',
+    brightest: '#ffffff',
     corridorRows: { top: 51, bottom: 973 },
     channel: SAND_HOLLOW,
     ink: TORCH_CHALK,

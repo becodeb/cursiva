@@ -136,13 +136,14 @@ function paeth(a: number, b: number, c: number): number {
   return pb <= pc ? b : c
 }
 
-/** Decode one 8-bit RGBA non-interlaced PNG. Rejects anything else loudly
- * rather than silently mis-reading it: if `png.py`'s `write_png` ever emits a
- * different shape, this must stop rather than measure garbage. */
+/** Decode one 8-bit RGB/RGBA non-interlaced PNG. Authored ImageGen sources
+ * are RGB while pipeline outputs are RGBA; normalize both to RGBA so the
+ * source-canvas and pass-through checks compare pixels, not file encoding. */
 async function decodePng(bytes: Bytes): Promise<Raster> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   let w = 0
   let h = 0
+  let channels = 0
   const idat: Uint8Array[] = []
   let pos = 8 // past the 8-byte signature
   while (pos < bytes.length) {
@@ -153,9 +154,10 @@ async function decodePng(bytes: Bytes): Promise<Raster> {
       w = view.getUint32(pos + 8)
       h = view.getUint32(pos + 12)
       const [depth, colour, , , interlace] = body.subarray(8)
-      if (depth !== 8 || colour !== 6 || interlace !== 0) {
+      if (depth !== 8 || (colour !== 2 && colour !== 6) || interlace !== 0) {
         throw new Error(`unsupported PNG: depth ${depth}, colour type ${colour}`)
       }
+      channels = colour === 2 ? 3 : 4
     } else if (tag === 'IDAT') {
       idat.push(body)
     } else if (tag === 'IEND') {
@@ -171,16 +173,16 @@ async function decodePng(bytes: Bytes): Promise<Raster> {
   }
   const raw = await inflate(merged)
 
-  const stride = w * 4
-  const px = new Uint8Array(stride * h)
+  const sourceStride = w * channels
+  const decoded = new Uint8Array(sourceStride * h)
   let src = 0
   for (let y = 0; y < h; y++) {
     const filter = raw[src++]
-    const row = y * stride
-    for (let x = 0; x < stride; x++) {
-      const a = x >= 4 ? px[row + x - 4] : 0
-      const b = y > 0 ? px[row - stride + x] : 0
-      const c = x >= 4 && y > 0 ? px[row - stride + x - 4] : 0
+    const row = y * sourceStride
+    for (let x = 0; x < sourceStride; x++) {
+      const a = x >= channels ? decoded[row + x - channels] : 0
+      const b = y > 0 ? decoded[row - sourceStride + x] : 0
+      const c = x >= channels && y > 0 ? decoded[row - sourceStride + x - channels] : 0
       const v = raw[src + x]
       let out: number
       if (filter === 0) out = v
@@ -189,9 +191,17 @@ async function decodePng(bytes: Bytes): Promise<Raster> {
       else if (filter === 3) out = v + ((a + b) >> 1)
       else if (filter === 4) out = v + paeth(a, b, c)
       else throw new Error(`unknown PNG filter ${filter}`)
-      px[row + x] = out & 0xff
+      decoded[row + x] = out & 0xff
     }
-    src += stride
+    src += sourceStride
+  }
+  if (channels === 4) return { w, h, px: decoded }
+  const px = new Uint8Array(w * h * 4)
+  for (let sourceAt = 0, targetAt = 0; sourceAt < decoded.length; sourceAt += 3, targetAt += 4) {
+    px[targetAt] = decoded[sourceAt]
+    px[targetAt + 1] = decoded[sourceAt + 1]
+    px[targetAt + 2] = decoded[sourceAt + 2]
+    px[targetAt + 3] = 255
   }
   return { w, h, px }
 }
@@ -321,8 +331,10 @@ const FULL_CANVAS_ART = new Set([
  *  pixels are a deliberate colour grade rather than accidental contours. */
 const COLOUR_GRADED_FULL_CANVAS = new Set([
   'sector-aquarium-background.png',
+  'sector-monkeys-background.png',
   'sector-night-background.png',
   'sector-night-zoo-background.png',
+  'sector-sand-background.png',
 ])
 
 /** Authoring canvases are a separate contract from compact shipped assets:
@@ -355,13 +367,12 @@ const SECTOR_SOURCE_CANVASES: Readonly<Record<string, { w: number; h: number; op
   'gorro andino.png': { w: 1024, h: 1024, opaque: false },
 }
 
-/** The tracing corridor is deliberate negative space, not empty scenery by
- * accident: docs/09 §9 reserves y=20–80% for only the sector's calm base
- * colour. A two-channel tolerance accepts lossless PNG tooling that rounds a
- * palette value while still rejecting decoration, contours, or texture. */
+/** Legacy flat-band sources reserve y=20–80% for one calm base colour. The
+ * renewed illustrated backgrounds use organic calm zones instead and are
+ * protected by manifest sampling, pixel-identical export tests, and browser
+ * evidence rather than this obsolete flat-fill invariant. */
 const SECTOR_QUIET_BAND_BASE: Readonly<Record<string, readonly [number, number, number]>> = {
   'fondo laguna.png': [180, 197, 208],
-  'fondo arena.png': [214, 203, 186],
   'fondo ladera.png': [157, 163, 150],
   'fondo cordillera.png': [200, 211, 216],
   'fondo bosque.png': [134, 166, 120],

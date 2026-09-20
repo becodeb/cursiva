@@ -313,9 +313,11 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // guards is unchanged, only the key name is.
     const aquarium = manifest['sector-aquarium-background']
     const sand = manifest['sector-sand-background']
+    const monkeys = manifest['sector-monkeys-background']
     const night = manifest['sector-night-zoo-background']
     const glass = ADVENTURE_BACKDROP.peces!
     const sandBackdrop = ADVENTURE_BACKDROP.tortugas!
+    const monkeysBackdrop = ADVENTURE_BACKDROP.monos!
     const nightBackdrop = ADVENTURE_BACKDROP.night!
 
     expect(aquarium.quiet).toBe(glass.quiet)
@@ -327,8 +329,14 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(sand.quiet).toBe(sandBackdrop.quiet)
     expect(sand.brightest).toBe(sandBackdrop.brightest)
     expect(sand.corridorRows).toEqual(sandBackdrop.corridorRows)
-    expect(sandBackdrop.quiet).toBe('#d6cbba')
-    expect(sandBackdrop.brightest).toBe('#dad0c0')
+    expect(sandBackdrop.quiet).toBe('#f9cf86')
+    expect(sandBackdrop.brightest).toBe('#ffffff')
+
+    expect(monkeys.quiet).toBe(monkeysBackdrop.quiet)
+    expect(monkeys.brightest).toBe(monkeysBackdrop.brightest)
+    expect(monkeys.corridorRows).toEqual(monkeysBackdrop.corridorRows)
+    expect(monkeysBackdrop.quiet).toBe('#f8be64')
+    expect(monkeysBackdrop.brightest).toBe('#f7fdea')
 
     expect(night.quiet).toBe(nightBackdrop.quiet)
     expect(night.brightest).toBe(nightBackdrop.brightest)

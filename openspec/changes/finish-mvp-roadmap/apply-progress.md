@@ -758,3 +758,27 @@ Avoid: every living creature or silhouette, photorealism, 3D, gradients, shadows
 ### Corrective-Art Follow-up Final Status
 - Both renewed authoring sources are now accepted: `art-source/fondo arena.png` and `art-source/fondo recinto monos.png`.
 - No task checkbox, public-art integration, manifest, registry, build output, code, commit, push, PR, or history was changed.
+
+## Post-U14 Corrective Background Integration — Sand / Monkeys
+
+### Scope and Wiring
+- Re-ran the existing `scripts/art/build_art.py` pass-through pipeline for the approved `art-source/fondo arena.png` and `art-source/fondo recinto monos.png` sources. Only their two public PNGs and corresponding manifest fields changed among deterministic art outputs.
+- `sand1`/`sand2` continue to resolve through `tortugas` to `sector-sand-background.png`; `glass3`/`glass4` continue to resolve through `monos` to `sector-monkeys-background.png`. No adventure mapping, reveal mechanics, scoring, persistence, progression, or copy changed.
+- Updated the registry's sampled `quiet`/`brightest` values to the rebuilt manifest: sand `#f9cf86`/`#ffffff`, monkeys `#f8be64`/`#f7fdea`. The snake row was updated too because it deliberately reuses the same sand export and must not retain stale manifest metadata.
+- Added focused Python validation that both renewed public outputs are `1536x1024`, match manifest byte counts, and are pixel-identical to their approved sources after RGB-to-RGBA normalization. Existing placeholder byte-preservation coverage remains unchanged and green.
+- Adapted the existing test-only PNG decoder to accept both authored RGB and emitted RGBA PNGs. The renewed illustrated sand/monkeys canvases are treated like the existing colour-graded full scenes rather than falsely requiring the former flat-colour sand band.
+- Review follow-up refreshed the `SAND_HOLLOW` and `LEAF_LITTER` comments with arithmetic from the renewed manifest samples; runtime values stayed unchanged.
+
+### Validation and Visual Evidence
+- `python scripts/art/build_art.py` — PASS; 88 files emitted. Git status showed deterministic changes only for `sector-sand-background.png`, `sector-monkeys-background.png`, and their six manifest values.
+- `python -m unittest scripts.art.background_integration_test scripts.art.make_placeholders_test` — PASS, 3 tests.
+- `npm test -w client -- src/detective/artManifest.test.ts src/detective/artHierarchy.test.ts src/zoo/backdrops.test.ts` — PASS, 3 files / 168 tests.
+- `npm test` — PASS, 82 files / 1,923 tests.
+- `npm run build` — PASS (`tsc --noEmit` + Vite); existing chunk-size warning only.
+- `git diff --check` — PASS; branch remained `main` at `0b63e0108fc41359c16034f9609da03345216c90`, and the pre-existing untracked dev-server logs/`tmp/` were preserved.
+- System Chrome Playwright matrix: `PLAYWRIGHT_CHANNEL=chrome PLAYWRIGHT_RUN_ID=sand-monkeys-background-followup npm run test:e2e -w client -- e2e/u12-sand-monkeys-temp.spec.ts --project=chromium` — PASS, 30/30. It exercised sand (`sand1`) and monkeys/leaves (`glass3`) at start, partial, error, success, and map-return in `1280x720`, `844x390`, and `390x844`; the temporary spec was removed afterward.
+- Raw evidence: `client/test-results/playwright-output/run-sand-monkeys-background-followup/`. Manual landscape contact sheet: `client/test-results/playwright-output/run-sand-monkeys-background-followup/sand-monkeys-landscape-contact-sheet.jpg`.
+- Manual inspection confirmed both renewed scenes are present and crop safely in desktop/compact landscape; revealed partial/error windows show the expected source art, success reveals the full scene, and map-return reaches the real zoo map. Portrait retains the established rotate guidance. Rectangular veils remain visible by design for the later mechanic-polish slice.
+
+### Status
+Corrective integration complete without changing any task checkbox. U10, U15, and U15.1 remain deferred and unchecked.
