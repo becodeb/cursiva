@@ -25,7 +25,7 @@ The committed LF/CRLF baseline is complete and excluded. Execute U1→U15 automa
 - [x] U8. Night discovery — update catalog/backdrops/reveal behavior and tests; capture start/partial/error/success/map-return at all three viewports (15 cells).
 - [x] U9. PISTAS clarity — improve `PistasRail.tsx`/`LevelPlay.tsx` animation and accessibility; prove filing/deduction semantics unchanged.
 - [ ] U10. Narrative closures — verify/remediate the already-existing exact approved docs/16/current-registry entrance closings (`peces`, `tortugas`, `monos`, `sendero` beat 0/1); record jellyfish/medusa/unapproved content only. DEFERRED by explicit user instruction for this U7 slice; do not mark complete until resumed.
-- [ ] U11. Background generation — Art role creates docs/09-compliant 3:2 families with calm gameplay bands in `art-source/` and `client/public/art/`.
+- [x] U11. Background generation — Art role created docs/09-compliant 3:2 family source candidates with calm gameplay zones in `art-source/`; `client/public/art/` export/registry wiring remains deferred to U12.
 - [ ] U12. Background integration — wire approved assets/build script; retain placeholder protection and add focused validation.
 - [ ] U13. Visual QA — fresh QA verifies 15 real-scene cells for completed visual units across map, glass, night, PISTAS, approved closing, and renewed backgrounds; record isolated blockers. U14 signage is excluded here and verified by U14.
 - [ ] U14. docs/16 sign-frame defect — add the approved wooden zoo-sign frame around in-level `CaptionedArt` inside playable `LevelPlay` content, not only Pulpito's speech bubble; preserve caption/image semantics, run focused tests, and capture its own 15-cell Playwright matrix.

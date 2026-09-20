@@ -491,3 +491,92 @@ Fixed the confirmed 390x844 portrait defect by making the PISTAS tray wrap into 
 - Normal layout contact sheet: `client/test-results/playwright-output/run-u9-layout-full-normal/u9-layout-full-normal-contact-sheet.jpg`
 - Reduced layout matrix: `client/test-results/playwright-output/run-u9-layout-full-reduced/.../u9-pistas-visual/*.png`
 - Reduced layout contact sheet: `client/test-results/playwright-output/run-u9-layout-full-reduced/u9-layout-full-reduced-contact-sheet.jpg`
+
+## U11 Background Generation
+
+### Scope and Behavior
+Generated only the ART-source candidates for renewed backgrounds. No integration code, build pipeline output, `client/public/art/`, manifest, or registry files were edited. The selected minimum high-impact set covers the two immediate families requested for the next integration slice: glass/entrance and night.
+
+### Selected Assets
+| Family | Source path | Dimensions | Visual rationale |
+|---|---|---:|---|
+| glass/entrance | `art-source/fondo entrada vidrio.png` | 1536x1024 | Full zoo glass-foyer scene with gate/glass depth, edge-weighted foliage/wood/stone, and a broad pale blue-green calm playable zone that should tolerate fog and hitbox overlays without looking like an artificial empty rectangle. |
+| night | `art-source/fondo noche zoo.png` | 1536x1024 | Full moonlit zoo-garden scene with edge-weighted foliage, moon/stars, warm lantern cue, and a muted central blue play field that is calmer and more inviting than the current nearly-flat night placeholder. |
+
+### Final Prompts
+#### glass/entrance
+```text
+Use case: illustration-story
+Asset type: authored source background for a children's handwriting game, to be copied into art-source/ only; 3:2 landscape full scene, suitable for later 1280x720 and 844x390 crops.
+Primary request: Generate a full-bleed glass entrance family background: a quiet zoo entrance / glass aviary foyer seen through freshly cleaned panes, child-friendly and storybook, polished illustrated game art.
+Style/medium: 2D children's game illustration drawn with thick felt-tip marker by hand. Dark outline #1a1a1a, thick, rounded ends, HUMAN not vector: slight wobble, small variation in thickness, curves that do not close perfectly. Flat colour fills that overshoot the outline slightly on one side and fall short on another, like tidy child colouring. Chunky generous shapes, no fine detail, flat colours only.
+Scene/backdrop: a friendly zoo entrance beside tall glass panels, rounded shrubs, soft blue-green sky reflections, simple wooden gate posts, small rocks and plants at edges. The middle playable area must remain calm and readable: broad quiet pale blue/blue-green glass-ground zone with low contrast, no busy texture, no central empty rectangle or artificial cut-out.
+Composition/framing: full complete composition with depth and narrative; foreground foliage and gate details mostly along the top/bottom/side edges, organic edges only. Maintain a calm open playable zone across the central 65% through lighting, contrast, and object distribution, not by leaving a blank rectangle. Important elements must not rely on the far extreme edges so the scene still works when cropped to 1280x720 or 844x390.
+Lighting/mood: gentle morning light, inviting, clean, calm, readable under semi-transparent fog/glass overlays.
+Color palette: paper-warm neutrals, pale blue glass, muted green shrubs, warm wooden accents; contour is neutral #1a1a1a only.
+Constraints: no text, no letters, no numbers, no UI, no watermark, no logos, no paths or embedded route lines, no characters, no animals. Preserve quiet contrast for gesture/hitbox overlays. Complete scene; no isolated asset; no transparent background.
+Avoid: photorealism, 3D, vector clip-art, gradients, bevels, drop shadows, glowing UI, texture noise, dense central decorations, rectangular empty center, signs with writing.
+```
+
+#### night
+```text
+Use case: illustration-story
+Asset type: authored source background for a children's handwriting game, to be copied into art-source/ only; 3:2 landscape full scene, suitable for later 1280x720 and 844x390 crops.
+Primary request: Generate a full-bleed night family background: a calm nighttime zoo garden where little discovery objects can be revealed by a flashlight, child-friendly storybook and inviting rather than scary.
+Style/medium: 2D children's game illustration drawn with thick felt-tip marker by hand. Dark outline #1a1a1a, thick, rounded ends, HUMAN not vector: slight wobble, small variation in thickness, curves that do not close perfectly. Flat colour fills that overshoot the outline slightly on one side and fall short on another, like tidy child colouring. Chunky generous shapes, no fine detail, flat colours only.
+Scene/backdrop: moonlit zoo garden at night with rounded bushes, soft tree silhouettes, simple stones and low plants along edges, a crescent moon and a few chunky stars high in the scene. Keep the central playable zone broad and calm: muted deep blue ground/air with enough quiet contrast for illuminated overlays and hidden-object hitboxes, no busy texture in the middle.
+Composition/framing: full complete composition with depth and narrative; decoration mostly along top/bottom/side edges with organic edges, not a straight band. No central empty rectangle or artificial cut-out; the calm play area is integrated by dim even lighting and sparse object distribution. Important scenery should survive both 1280x720 and 844x390 landscape crops.
+Lighting/mood: soft moonlight with a gentle warm lantern glow near one side, cozy, safe, quiet, readable; not black-on-black.
+Color palette: deep muted navy and blue-gray, desaturated greens, small warm yellow accents; contour is neutral #1a1a1a only.
+Constraints: no text, no letters, no numbers, no UI, no watermark, no logos, no path or embedded route line, no characters, no animals. Preserve quiet contrast for gesture/hitbox overlays. Complete scene; no isolated asset; no transparent background.
+Avoid: horror, photorealism, 3D, vector clip-art, gradients, bevels, drop shadows, glowing UI, texture noise, dense central decorations, rectangular empty center, signs with writing.
+```
+
+### Inspection and Rejected Variants
+- Inspected docs/09 visual style contract, `docs/referencias/primer-caso/i09-reconocer-la-pista.png`, existing `art-source/fondo nocturno.png`, U7 glass screenshot `client/test-results/playwright-output/u7-fresh-direct-wipe/desktop-diagonal-direct-wipe.png`, and U8 night screenshots from `run-u8-night-visual-final-c` before selection.
+- Inspected both generated outputs with `view_image` before copying into `art-source/`.
+- Rejected variants: none. Each family used exactly one ImageGen call and the first generated scene met the minimum U11 composition/style need well enough for U12 integration validation.
+
+### Files Changed
+`art-source/fondo entrada vidrio.png`, `art-source/fondo noche zoo.png`, `openspec/changes/finish-mvp-roadmap/tasks.md`, and this apply-progress file.
+
+### Deviations
+U11 deliberately copied selected finals only to `art-source/`. Despite the older task wording mentioning `client/public/art/`, the U11 execution instruction explicitly deferred build/registry/public-art integration to U12, so no shipped asset or registry was touched.
+
+### Status
+U11 complete. U12 is next: wire approved sources through `scripts/art/build_art.py`, `client/public/art/manifest.json`, and the typed background registry with focused validation.
+
+### U11 Remediation After Review
+
+Review found two ART defects in the selected U11 sources: chromatic dark linework in both generated backgrounds, and animal silhouettes/icons on the night background's upper-left gate. Remediation used exactly one targeted built-in ImageGen edit call per affected asset, using the current local source file as the reference, then inspected each result at original resolution before replacing the `art-source` file.
+
+| Asset | Edit source path | Built-in ImageGen output | Inspection result |
+|---|---|---|---|
+| `art-source/fondo entrada vidrio.png` | previous `art-source/fondo entrada vidrio.png` | `C:/Users/mastr/.codex/generated_images/01a0bd1f-024e-7541-b0c4-e609f6241223/call_e6547fEoPdB5nromeIpnLhFH.png` | Accepted after original-resolution visual inspection: full 3:2 glass composition and calm center preserved; dark linework reads as neutral near-black rather than teal/green. |
+| `art-source/fondo noche zoo.png` | previous `art-source/fondo noche zoo.png` | `C:/Users/mastr/.codex/generated_images/01a0bd1f-024e-7541-b0c4-e609f6241223/call_q7dFZ0MEMXRA30LilNJj8ySq.png` | Accepted after original-resolution visual inspection: full 3:2 night composition and calm center preserved; upper-left gate animal icons removed; dark linework reads as neutral near-black rather than blue/teal. |
+
+#### Remediation prompt: glass/entrance
+```text
+Use case: precise-object-edit
+Asset type: remediation edit for an authored 3:2 children's game background source.
+Input image: the provided image is the exact edit target; preserve its full 1536x1024 landscape composition.
+Primary request: Keep the scene, palette, calm playable center, lighting, glass entrance, plants, rocks, gate posts, perspective, and all content exactly as close as possible, but recontour every dark outline/linework stroke to a consistent neutral near-black #1a1a1a. The current dark linework drifts chromatic green/teal/blue; make it neutral marker black.
+Style/medium: preserve the existing hand-drawn 2D children's game/storybook illustration with thick felt-tip marker outlines, rounded ends, slight human wobble, flat colour fills.
+Composition/framing: do not crop, resize, rotate, add, remove, or rearrange scene elements. Preserve full-bleed 3:2 frame and broad calm playable center.
+Constraints: change only the chromatic dark outlines/linework to neutral near-black #1a1a1a. No text, no letters, no numbers, no UI, no watermark, no logos, no animals, no characters, no path/route line. Do not introduce new objects.
+Avoid: changing colours of fills, adding texture, changing the calm center, making vector-clean lines, adding shadows/glow, altering scene content.
+```
+
+#### Remediation prompt: night
+```text
+Use case: precise-object-edit
+Asset type: remediation edit for an authored 3:2 children's game background source.
+Input image: the provided image is the exact edit target; preserve its full 1536x1024 landscape composition.
+Primary request: Preserve the moonlit zoo garden, calm central playable zone, palette, lighting, depth, trees, moon, stars, lantern, gate, plants, rocks, waterfall, and all scenery as close as possible, but make two targeted fixes: (1) remove the small giraffe and elephant silhouettes/icons from the upper-left gate sign/arch so there are no animals or characters anywhere; replace that area with plain matching arch/gate surface and linework; (2) recontour every dark outline/linework stroke to a consistent neutral near-black #1a1a1a instead of chromatic blue/teal.
+Style/medium: preserve the existing hand-drawn 2D children's game/storybook illustration with thick felt-tip marker outlines, rounded ends, slight human wobble, flat colour fills.
+Composition/framing: do not crop, resize, rotate, or rearrange. Keep the full-bleed 3:2 frame and calm central play area.
+Constraints: change only the animal-icon removal on the upper-left gate and the chromatic dark outlines/linework to neutral near-black #1a1a1a. No text, no letters, no numbers, no UI, no watermark, no logos, no path/route line, no animals, no characters. Do not introduce new objects.
+Avoid: changing the scene layout, adding characters, adding animal silhouettes/icons elsewhere, changing fill colours, adding texture, making vector-clean lines, adding shadows/glow.
+```
+
+Post-replacement dimensions remain 1536x1024 RGB for both selected sources. U12 integration remains next; no `client/public/art`, manifest, registry, or build output was touched.
