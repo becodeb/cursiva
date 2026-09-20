@@ -812,3 +812,56 @@ Corrective sand reveal polish complete without changing any task checkbox. U10, 
 - System Chrome comparison: `PLAYWRIGHT_CHANNEL=chrome PLAYWRIGHT_RUN_ID=sand-edge-balance-final npm run test:e2e -w client -- e2e/sand-edge-balance-temp.spec.ts --project=chromium` — PASS, 8/8 for direct-gesture partial/error sand and glass at `1280x720` and `844x390`; the temporary spec was removed.
 - Raw ignored evidence: `client/test-results/playwright-output/run-sand-edge-balance-final/`. Comparison contact sheet: `C:/Users/mastr/AppData/Local/Temp/cursiva-sand-edge-balance-final-contact.jpg`.
 - Manual comparison against glass confirmed the sand frontier is only subtly more irregular/material, has no repeating scallops, and a short direct-pointer hole avoids the previous rounded rectangle; released error still has no persistent ink trace.
+
+## Leaves Activity Polish (HANDOFF highest-priority slice)
+
+### Scope and Implementation
+- `HANDOFF.md`'s highest-priority remaining slice: `glass3`/`glass4` rendered hard rectangular `LEAF_LITTER` tiles and carried glass-oriented child-facing copy. Both are closed here. U10, U15, and U15.1 remain explicitly deferred and unchecked.
+- Delivered as two conventional local commits per `HANDOFF.md` requirement 5, which directs splitting copy from rendering when the slice cannot fit the 400-line budget. Copy is 30 changed lines; rendering is 949 and cannot be made smaller without gutting its falsifiable guards, so the budget is knowingly exceeded on the rendering commit alone.
+  - `feat(leaves): speak of leaves in the monkey enclosure` — `catalog.ts` titles/hints, `isLeavesRevealLevel`, `eraseResultMessage`.
+  - `feat(leaves): paint the monkey enclosure's litter as leaves` — `TraceReveal.visual` union, the `RevealLayer` leaves policy, and its tests.
+- The policy is render-local and typed beside glass/night/sand. No registry, no generic engine. Reveal geometry, sentinel rects, scoring, `minAccuracy` (76/82), gestures, persistence, unlocks, level IDs, and progression are untouched; `LevelPlay.test.tsx` now pins them rather than leaving them to review.
+- Child-facing copy: `Hojas en los rincones` / `Buscá las hojas que quedaron en los rincones.` (`glass3`), `Ni una hoja` / `Juntá todas las hojas, sin dejar ninguna.` (`glass4`), `¡Hojas juntadas!` / `Seguí juntando las hojas.` (both). `glass1`/`glass2` glass wording is byte-identical.
+
+### Review and QA Rounds
+Three rounds of implement -> independent clean-context review -> separate real-browser visual QA -> fix confirmed findings.
+
+- Round 1 review: no correctness defects. Round 1 visual QA found two confirmed legibility defects: blades read as twigs because `idx % 3` drove both tone and belly, pinning the only high-contrast tone to the thinnest silhouette; and interior cleared islands kept rectangular geometry, with a hard 90 degree stair step on `glass4`.
+- Round 2 fixed both. The retreat gate was deliberately implemented per-edge (every edge except those on the sheet border) rather than per-winding as originally specified: a cleared blob touching the sheet border is topologically part of the outer contour while being visually the same interior-island defect, so a winding gate under-fixes it. Verified by shoelace on real 15x9 geometry: outer contour +600000, 2x2 hole -17777.78; a 5x4 block flush against the top border yields one positive loop carrying 13 interior edges a winding gate would wrongly deny.
+- Round 2 review confirmed the gate change is justified and independently verified the byte-identical first frame claim by reconstructing the pre-fix function and string-comparing (identical, 6643 characters). It found two real defects: the hole-legibility guard had gone vacuous, and a comment asserted a blade containment the code did not have.
+- Round 3 fixed all three remaining findings. Round 2 visual QA passed 30/30 cells and independently measured the same blade overhang the review found from the code side.
+
+### Falsification Evidence
+Each guard was verified to fail against the specific defect it exists to reject.
+
+| Guard | Mutation applied | Correct build | Broken build |
+|---|---|---|---|
+| Hole legibility | `depth = Math.min(LEAF_ADVANCE_DEPTH, Math.abs(raw))` (always-outward bow) | excess area 0.216 (1 cell) / 0.226 (3x2), floor 0.12 | 0.035 / 0.043 — FAILS |
+| Blade containment | gate reverted to anchor-only | worst overhang 0 | 16.77 units — FAILS |
+| Belly/tone decorrelation | `belly = half * (0.34 + tone * 0.11)` | ratio set size 7+ per tone | 1 — FAILS |
+| Island undulation | same always-outward bow | 40.90 | 10.83 vs required > 30 — FAILS |
+
+The hole-legibility test had to move from control-point classification to the rendered hole's enclosed area: the new vertex pull pushes control points clear of the hole in both the correct and the broken build, and maximum penetration depth does not discriminate either (6.73 units in both, since the `+24` advance cap is identical on the positive side).
+
+### Visual Evidence
+- Browser: system Chromium 146.0.7680.164 (`/usr/bin/chromium`, `--disable-gpu --no-sandbox`) on aarch64. There is no system Chrome on this host and Playwright ships no bundled browsers here, so the `PLAYWRIGHT_CHANNEL=chrome` invocation used by earlier units is not reproducible; this is a deliberate, recorded substitution, not an equivalent.
+- No viewport clamp occurred: PNG IHDR headers verified at `1280x720`, `844x390`, and real `390x844`. All clearing was driven by direct `page.mouse` gestures through the sheet's own `getScreenCTM()`.
+- Matrix: 30/30 cells across `glass3`/`glass4` x start/partial/error/success/map-return x three viewports. All 15 portrait cells show rotate guidance with the sheet hidden.
+- Defect 1 resolved: blade length at `844x390` moved from 9-18px to 12-26px (median 19.3); amber mean belly ratio moved from a constant 0.34, the thinnest, to 0.609, the fattest; luma-601 delta against `LEAF_BASE` moved from +19.7/-17.2 to +28.2/-23.1. Blades occupy about 5 percent of pile area and the MONOS sign is HTML chrome outside the SVG, so it cannot be covered.
+- Defect 2 resolved: the `glass4` stair step is gone and multi-cell island edges undulate. The border exception holds — probing 1604 points per inset, the deepest bare inward excursion on any sheet border is 2.5 units of 1000, identical between start and partial. A one-cell spine between two cleared blobs survives at 52-74 units against 66.7 nominal.
+- Safety property verified visually and by probe: across three successive adjacent clears, zero tiles returned, zero cleared tile centres fall inside the pile, and zero covered tile centres fall outside it.
+- Neighbours proven unchanged rather than assumed: a `git worktree` at `5d1cff8` was served on a second port and the same 36 cells captured against both trees with identical gestures. 33/36 byte-identical by sha256; the other three differ by 3, 12, and 17 pixels at a maximum channel delta of 8/255 — antialiasing noise.
+- Raw captures under `client/test-results/playwright-output/run-leaves-qa/` and `run-leaves-qa2/` (gitignored).
+
+### Validation
+- `npm test` — PASS, 82 files / 1,939 tests (baseline 1,927 before this slice).
+- Copy commit validated standalone before the rendering commit: `npm test` PASS 82 files / 1,928 tests, `npm run build` PASS.
+- `npm run build` — PASS, `tsc --noEmit` clean, only the pre-existing chunk-size warning.
+- `git diff --check` — clean. The committed tree was sha256-verified identical to the reviewed and QA'd snapshot before either commit was made.
+
+### Harness Gotchas Recorded
+- `.cv-sheet svg` matches the MONOS sign's inner `<svg>` first, not the trace sheet; `.cv-sheet > svg` is required. A first QA run silently erased only the sign's corner.
+- The sheet `<svg>` bounding box is wider than the drawn sheet because of letterboxing, so crops must be anchored to the viewBox rect via `getScreenCTM()`, not to the element box, and the viewBox width should be read from the DOM rather than assumed to be 1000.
+
+### Status
+The `HANDOFF.md` highest-priority slice is complete. U10 narrative closures, U15 final closure, and U15.1 archive preflight remain deferred and unchecked. Nothing has been pushed.

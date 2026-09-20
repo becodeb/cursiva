@@ -4,26 +4,23 @@
 
 - Branch: `main`
 - Last pushed implementation: `b518031 feat(sand): make sweeping visually organic`
+- Local, not yet pushed: `3831634 feat(leaves): speak of leaves in the monkey enclosure` and `64d9904 feat(leaves): paint the monkey enclosure's litter as leaves`
 - Renewed 3:2 ImageGen sources and public exports are complete for:
   - glass/entrance
   - night zoo
   - sand/turtle habitat
   - leaves/monkey habitat
 - Sand reveal polish is complete and visually approved.
+- Leaves reveal polish (`glass3` / `glass4`) is complete and visually approved; see `apply-progress.md`, section "Leaves Activity Polish".
 - Existing untracked `dev-server.err.log`, `dev-server.out.log`, and `tmp/` are local artifacts. Do not add, delete, or reinterpret them without the user's direction.
 
 ## Highest-priority remaining slice
 
-Polish the leaves activity (`glass3` / `glass4`) so it no longer renders hard rectangular `LEAF_LITTER` tiles or uses glass-oriented child-facing copy.
+None outstanding. The leaves slice this document was written to hand off is done: `glass3` / `glass4` no longer render rectangular `LEAF_LITTER` tiles, and their child-facing copy speaks of leaves rather than glass. Requirements 1-6 below were all met, except that requirement 5's 400-line cap was knowingly exceeded on the rendering commit — the copy/rendering split that requirement prescribes was applied, and the rendering half cannot be made smaller without gutting its falsifiable guards.
 
-Requirements:
+What remains is the work already listed under "Intentional deferrals", plus one open question for the author:
 
-1. Reuse the typed render-local reveal policy established by the sand slice; do not build a generic engine.
-2. Add a leaves-specific visual policy with a coherent leaf layer, subtle organic cleared boundaries, and sparse leaf cues.
-3. Preserve exactly the reveal grid, invisible rect sentinels, scoring, gestures, persistence, unlocks, ink policy, level IDs, and progression.
-4. Align only child-facing titles/instruction/error/success copy for `glass3` / `glass4`; do not change narrative or deduction semantics.
-5. Keep the slice below 400 textual changed lines. If that is not possible, split copy from rendering.
-6. Do not generate more background images unless real visual QA proves one of the four renewed families is unusable.
+- **Blade overhang at the pile edge.** Blades and rakes are now admitted by their sampled extent, so no leaf ink lands on cleared paper. An earlier round let them overhang by up to 24 units, which visual QA judged as reading like fallen leaves at the pile's edge rather than as a defect. The stricter gate thins the frontier by about 3 blades out of 119 on a 3x2 cleared fixture, which did not warrant raising `LEAF_BLADE_COUNT`. If the author prefers the looser, more scattered edge, the sanctioned lever is the blade count, never the gate.
 
 ## Required workflow
 
