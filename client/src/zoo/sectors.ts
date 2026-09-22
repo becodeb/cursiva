@@ -115,7 +115,8 @@ export const PLAZA_CENTRE = { x: 498, y: 282 } as const
  *  comment used to carry ("Deleted in paso D, not a rule" — proposal,
  *  "Decisions"). `entrada` is open on a fresh install because there is
  *  nowhere else to start (`docs/12` §1; design.md §7.1): the estanque is the
- *  only row that ever moves OFF this helper, to `isFiled(records, 'sand4')`
+ *  only row that ever moves OFF this helper, to `isFiled(records, 'sand3')
+ *  || isFiled(records, 'sand4')`
  *  below. */
 const alwaysOpen = (): boolean => true
 /** Entrada, bosque, montañas, arena and nocturna: content is pasos B-H. */
@@ -329,22 +330,24 @@ export const SECTORS: readonly ZooSector[] = [
     fog: closedFog(ENTRADA_HIT, 1),
     animalSpot: hitCentre(ENTRADA_HIT),
     animals: [],
-    // Interleaved, and it MUST stay that way (add-caretaker-prologue
-    // design.md D7, the amended `zoo-map` requirement "entrada's Level Ids
-    // Keep Their Identity and Per-Family Order, and Play in Narrative
-    // Order"). `resolveNextAction` returns `{ type: 'exit' }` for every
-    // level a zoo sector owns (`screen/GameScreen.tsx:223`), so finishing
-    // an entrance level always returns to the map, and `nextAdventure`
-    // (below, `:495-497`) hands out the next one by taking the first
-    // UNFILED id in THIS list — so the flat order here, not `nextLevelId`,
-    // is what decides whether the child meets `tortugas` or `monos`
-    // second. This list therefore IS the play order: it must read
-    // `glass1, glass2, sand1, sand2, glass3, glass4, sand3, sand4` so the
-    // four enclosures play peces, tortugas, monos, sendero — the order
-    // docs/16 §9's script requires. Same eight ids, same set, each
-    // family's relative order intact — never a byte-identical flat list
-    // against the old two-block order.
-    adventureIds: ['glass1', 'glass2', 'sand1', 'sand2', 'glass3', 'glass4', 'sand3', 'sand4'],
+    // Narrowed from eight ids to four by adventure-flow-and-map-guidance T1
+    // ("levels that must be done twice"): each enclosure used to carry TWO
+    // levels of the same erase gesture on the same picture
+    // (add-caretaker-prologue design.md D7), and `zoo/adventures.ts`'s four
+    // rows now each keep only their easier level id. This list IS the play
+    // order — `nextAdventure` (below, `:495-497`) hands out the next one by
+    // taking the first UNFILED id in THIS list, not `nextLevelId` — so it
+    // must read `glass1, sand1, glass3, sand3`, the order docs/16 §9's
+    // script requires: peces, tortugas, monos, sendero. The dropped twin of
+    // each pair (`glass2`/`sand2`/`glass4`/`sand4`) is never renamed or
+    // deleted from the catalog — only removed from here and from
+    // `ADVENTURES` — so it no longer appears in the play order at all;
+    // reaching it still works through the dev `?nivel=` deep link.
+    // Finishing any one of these four now shows its own closing beat
+    // (`resolveCloseAction`, tried before the ordinary sector-exit outcome
+    // — `screen/GameScreen.tsx`), since each is now its own adventure's
+    // only, and therefore last, level.
+    adventureIds: ['glass1', 'sand1', 'glass3', 'sand3'],
     unlockedWhen: alwaysOpen,
   },
   {
@@ -409,8 +412,13 @@ export const SECTORS: readonly ZooSector[] = [
     // No longer `alwaysOpen` (amendment A4, design.md §7.1): the real stake
     // of `migrateEntrance` is right here — without that migration a
     // returning child would find the pond fogged over the moment this row
-    // ships.
-    unlockedWhen: (records) => isFiled(records, 'sand4'),
+    // ships. `sand3` is the sendero's own level after adventure-flow-and-
+    // map-guidance T1 narrowed it to one; `sand4` stays in the OR as a
+    // widening, never a replacement, for a returning child who could have
+    // IT filed instead — the sendero's own old last level, or what
+    // `migrateEntrance` itself seeds for a pre-entrance legacy child (it
+    // seeds `sand4`, never `sand3`). Either alone opens the pond.
+    unlockedWhen: (records) => isFiled(records, 'sand3') || isFiled(records, 'sand4'),
   },
   {
     id: 'montanas',

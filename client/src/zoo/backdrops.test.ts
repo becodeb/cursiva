@@ -536,30 +536,29 @@ describe('backdropFor', () => {
   // Adventure-Keyed Registry" — the backdrops resolve here now that
   // `adventureFor` (`zoo/adventures.ts`) knows `peces`/`tortugas`/`monos`/
   // `sendero`/`night`. `peces`/`tortugas` re-key the old `glass`/`sand`
-  // rows (same literals, only the level ids they cover are now split
-  // two-per-enclosure); `monos`/`sendero` are new rows.
-  it('resolves the peces adventure (glass1, glass2) to the aquarium backdrop', () => {
-    for (const id of ['glass1', 'glass2']) {
-      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.peces)
-    }
+  // rows (same literals). (Previously: each row covered TWO level ids,
+  // split two-per-enclosure. Adventure-flow-and-map-guidance T1 narrows
+  // every row to its easier id alone, so `backdropFor` now resolves
+  // `undefined` for the harder, dropped twin — it belongs to no adventure
+  // at all any more, not merely to a different one.)
+  it('resolves the peces adventure (glass1) to the aquarium backdrop; glass2 belongs to no adventure after T1', () => {
+    expect(backdropFor('glass1')).toBe(ADVENTURE_BACKDROP.peces)
+    expect(backdropFor('glass2')).toBeUndefined()
   })
 
-  it('resolves the tortugas adventure (sand1, sand2) to the sand backdrop', () => {
-    for (const id of ['sand1', 'sand2']) {
-      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.tortugas)
-    }
+  it('resolves the tortugas adventure (sand1) to the sand backdrop; sand2 belongs to no adventure after T1', () => {
+    expect(backdropFor('sand1')).toBe(ADVENTURE_BACKDROP.tortugas)
+    expect(backdropFor('sand2')).toBeUndefined()
   })
 
-  it('resolves the monos adventure (glass3, glass4) to the new leaf-veil backdrop', () => {
-    for (const id of ['glass3', 'glass4']) {
-      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.monos)
-    }
+  it('resolves the monos adventure (glass3) to the leaf-veil backdrop; glass4 belongs to no adventure after T1', () => {
+    expect(backdropFor('glass3')).toBe(ADVENTURE_BACKDROP.monos)
+    expect(backdropFor('glass4')).toBeUndefined()
   })
 
-  it('resolves the sendero adventure (sand3, sand4) to the new mud-veil backdrop', () => {
-    for (const id of ['sand3', 'sand4']) {
-      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.sendero)
-    }
+  it('resolves the sendero adventure (sand3) to the mud-veil backdrop; sand4 belongs to no adventure after T1', () => {
+    expect(backdropFor('sand3')).toBe(ADVENTURE_BACKDROP.sendero)
+    expect(backdropFor('sand4')).toBeUndefined()
   })
 
   it('resolves the night adventure to the night backdrop', () => {

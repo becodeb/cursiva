@@ -5,6 +5,7 @@
 // Sector's Animal Is Recovered"). Node environment, no DOM — every function
 // under test is pure over plain data.
 import { describe, expect, it } from 'vitest'
+import { getLevel } from '../levels/catalog'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import {
   CART_ART,
@@ -103,22 +104,27 @@ describe('ADVENTURES', () => {
     const sendero = ADVENTURES.find((a) => a.id === 'sendero')!
     const night = ADVENTURES.find((a) => a.id === 'night')!
 
-    expect(peces.levelIds).toEqual(['glass1', 'glass2'])
+    // Narrowed to one level per enclosure by adventure-flow-and-map-guidance
+    // T1 ("levels that must be done twice") — each row below used to carry
+    // two ids (the same erase gesture on the same picture); the harder twin
+    // of each pair (`glass2`/`sand2`/`glass4`/`sand4`) is dropped from every
+    // row, never from the catalog (see the dedicated describe block below).
+    expect(peces.levelIds).toEqual(['glass1'])
     expect(peces.sector).toBe('entrada')
     expect(peces.animal).toBeUndefined()
     expect(peces.icon).toBe(SECTOR_ADVENTURE_ART.chest)
 
-    expect(tortugas.levelIds).toEqual(['sand1', 'sand2'])
+    expect(tortugas.levelIds).toEqual(['sand1'])
     expect(tortugas.sector).toBe('entrada')
     expect(tortugas.animal).toBeUndefined()
     expect(tortugas.icon).toBe(SECTOR_ADVENTURE_ART.stone)
 
-    expect(monos.levelIds).toEqual(['glass3', 'glass4'])
+    expect(monos.levelIds).toEqual(['glass3'])
     expect(monos.sector).toBe('entrada')
     expect(monos.animal).toBeUndefined()
     expect(monos.icon).toBe(SECTOR_ADVENTURE_ART.leaf)
 
-    expect(sendero.levelIds).toEqual(['sand3', 'sand4'])
+    expect(sendero.levelIds).toEqual(['sand3'])
     expect(sendero.sector).toBe('entrada')
     expect(sendero.animal).toBeUndefined()
     expect(sendero.icon).toBe(CART_ART)
@@ -138,32 +144,33 @@ describe('ADVENTURES', () => {
   })
 })
 
-// [add-caretaker-prologue, zoo-map delta "Adventure Identifiers Regroup the
-// Entrance Into Four Enclosures", scenarios "The four rows' levelIds union
-// equals the eight original ids" and "Each family's internal order survives
-// the regrouping"]. Asserted PER FAMILY, never over the flat union: the
-// interleaving IS the change (`zoo/sectors.ts`'s `entrada.adventureIds`), so
-// an order assertion over the flat union here would assert that as a bug.
-describe("the four entrance rows' levelIds union (design.md D7)", () => {
+// [adventure-flow-and-map-guidance T1, "levels that must be done twice"]
+// Narrowed from eight ids (two per enclosure, asserted per-family so the
+// interleaving in `zoo/sectors.ts`'s `entrada.adventureIds` was never
+// mistaken for a flat-order bug) down to four (one per enclosure — the
+// EASIER of each original pair). The dropped twins never appear in any row
+// any more, so the union below is now simply the four kept ids, already in
+// narrative order.
+describe("the four entrance rows' levelIds union (T1)", () => {
   const ENTRANCE_IDS = ['peces', 'tortugas', 'monos', 'sendero']
   const union = ADVENTURES.filter((a) => ENTRANCE_IDS.includes(a.id)).flatMap((a) => a.levelIds)
 
-  it('the union, sorted, equals the eight original ids — none renamed, dropped, or duplicated', () => {
-    expect([...union].sort()).toEqual(
-      ['glass1', 'glass2', 'glass3', 'glass4', 'sand1', 'sand2', 'sand3', 'sand4'].sort(),
-    )
+  it('the union is exactly the four kept ids, in narrative order — none of the four dropped ids (glass2, sand2, glass4, sand4) appears in any row', () => {
+    expect(union).toEqual(['glass1', 'sand1', 'glass3', 'sand3'])
   })
+})
 
-  it('filtering the union down to glass* ids yields them in their original order', () => {
-    expect(union.filter((id) => id.startsWith('glass'))).toEqual([
-      'glass1', 'glass2', 'glass3', 'glass4',
-    ])
-  })
-
-  it('filtering the union down to sand* ids yields them in their original order', () => {
-    expect(union.filter((id) => id.startsWith('sand'))).toEqual([
-      'sand1', 'sand2', 'sand3', 'sand4',
-    ])
+describe('the four dropped enclosure ids (T1)', () => {
+  // `glass2`/`sand2`/`glass4`/`sand4` are never deleted or renamed from the
+  // catalog — level ids are persisted keys — only removed from every
+  // `ADVENTURES` row and every sector's `adventureIds`. Still resolvable
+  // through `getLevel` (the dev `?nivel=` deep link), but an orphan as far
+  // as the adventure/sector registries are concerned.
+  it('still resolve through getLevel, and belong to no adventure', () => {
+    for (const id of ['glass2', 'sand2', 'glass4', 'sand4']) {
+      expect(getLevel(id).id, id).toBe(id)
+      expect(adventureFor(id), id).toBeUndefined()
+    }
   })
 })
 
@@ -230,10 +237,18 @@ describe('introLevel', () => {
     expect(introLevel('sand3')?.id).toBe('sendero')
   })
 
-  it('resolves undefined for every glass/sand/night level after each adventure\'s own first', () => {
-    for (const id of ['glass2', 'glass4']) expect(introLevel(id)).toBeUndefined()
-    for (const id of ['sand2', 'sand4']) expect(introLevel(id)).toBeUndefined()
+  it('resolves undefined for night2/night3/night4 — after night\'s own first level', () => {
     for (const id of ['night2', 'night3', 'night4']) expect(introLevel(id)).toBeUndefined()
+  })
+
+  // (Previously: `glass2`/`sand2`/`glass4`/`sand4` were each the SECOND
+  // level of a two-level enclosure, so `introLevel` resolved `undefined` for
+  // being past the adventure's own first. Adventure-flow-and-map-guidance T1
+  // dropped them from every row entirely — the reason is now "belongs to no
+  // adventure at all," not merely "not first," though the resolved value is
+  // the same `undefined` either way.)
+  it('resolves undefined for the four dropped enclosure ids — they belong to no adventure at all after T1', () => {
+    for (const id of ['glass2', 'sand2', 'glass4', 'sand4']) expect(introLevel(id), id).toBeUndefined()
   })
 })
 
@@ -267,23 +282,24 @@ describe('adventureIcon (design.md §6.1)', () => {
 })
 
 describe('closingLevel (design.md §6.3, D3, corrected against main-screen spec — see apply-progress.md)', () => {
-  // (Previously: `sand4` was the entrance's ONLY closing beat, and `glass4`
-  // was asserted BY NAME to resolve to `undefined` — the old two-row
-  // `glass`/`sand` split gave the entrance a single closing screen at its
-  // very end. The four-enclosure regrouping (add-caretaker-prologue
-  // design.md D7) gives EACH enclosure its own last level and its own
-  // closing beat, so `glass2`/`sand2`/`glass4`/`sand4` all now resolve —
-  // `glass4`'s prior negative-case scenario is RETIRED, not merely widened.)
-  it("resolves each entrance enclosure's own last level to its own adventure", () => {
-    expect(closingLevel('glass2')?.id).toBe('peces')
-    expect(closingLevel('sand2')?.id).toBe('tortugas')
-    expect(closingLevel('glass4')?.id).toBe('monos')
-    expect(closingLevel('sand4')?.id).toBe('sendero')
+  // (Previously: each entrance enclosure carried TWO levels, and its second
+  // one — `glass2`/`sand2`/`glass4`/`sand4` — was the row's own last level,
+  // the one that resolved to its closing beat; `glass1`/`sand1`/`glass3`/
+  // `sand3` were each the FIRST of a pair and resolved `undefined`.
+  // Adventure-flow-and-map-guidance T1 narrows every enclosure to its
+  // easier level alone, so that single id is now BOTH first and last: the
+  // closing-eligible ids invert to `glass1`/`sand1`/`glass3`/`sand3`, and
+  // their old, harder twins belong to no adventure at all any more — see
+  // the dedicated dropped-ids describe block in `adventures.test.ts`.)
+  it("resolves each entrance enclosure's own single level (its own first AND last) to its own adventure", () => {
+    expect(closingLevel('glass1')?.id).toBe('peces')
+    expect(closingLevel('sand1')?.id).toBe('tortugas')
+    expect(closingLevel('glass3')?.id).toBe('monos')
+    expect(closingLevel('sand3')?.id).toBe('sendero')
   })
 
-  it('resolves undefined for glass1/sand1 — the first level of an enclosure, not its last', () => {
-    expect(closingLevel('glass1')).toBeUndefined()
-    expect(closingLevel('sand1')).toBeUndefined()
+  it('resolves undefined for the four dropped enclosure ids — they belong to no adventure at all after T1', () => {
+    for (const id of ['glass2', 'sand2', 'glass4', 'sand4']) expect(closingLevel(id), id).toBeUndefined()
   })
 
   it('resolves undefined for night4 — main-screen spec names it explicitly among the excluded adventures', () => {
@@ -304,10 +320,10 @@ describe('closingLevel (design.md §6.3, D3, corrected against main-screen spec 
   })
 
   it('resolves undefined for a level that is not an adventure\'s own last level', () => {
-    // `sand2` is deliberately EXCLUDED from this list — the four-enclosure
-    // regrouping makes it `tortugas`'s own last level (asserted above), not
-    // a mid-adventure one anymore.
-    for (const id of ['glass3', 'sand3', 'night1', 'night2', 'night3']) {
+    // `glass3`/`sand3` are deliberately EXCLUDED from this list — T1's
+    // narrowing makes each its own enclosure's only (and therefore last)
+    // level, asserted above, not a mid-adventure one.
+    for (const id of ['night1', 'night2', 'night3']) {
       expect(closingLevel(id)).toBeUndefined()
     }
   })

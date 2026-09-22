@@ -17,7 +17,13 @@ describe('BACKPACK_ITEMS', () => {
     expect(BACKPACK_ITEMS).toHaveLength(5)
     expect(BACKPACK_ITEMS).toEqual([
       { id: 'andean-hat', art: ANDEAN_HAT_ART, grantedBy: 'montanas', earnedWhen: ['llama-peak4'] },
-      { id: 'lupa', art: CARRIER_LENS_ART, grantedBy: 'entrada', earnedWhen: ['sand4'] },
+      {
+        id: 'lupa',
+        art: CARRIER_LENS_ART,
+        grantedBy: 'entrada',
+        earnedWhen: ['sand3'],
+        earnedWhenLegacy: ['sand4'],
+      },
       { id: 'linterna', art: SECTOR_ADVENTURE_ART.flashlight, grantedBy: 'nocturna', earnedWhen: ['night4'] },
       { id: 'carrito', art: CART_ART, grantedBy: 'arena', earnedWhen: ['snake4'] },
       { id: 'flor', art: SECTOR_ADVENTURE_ART.flower, grantedBy: 'bosque', earnedWhen: ['bee4'] },
@@ -37,7 +43,13 @@ describe('earnedItems', () => {
     expect(items[0].id).toBe('andean-hat')
   })
 
-  it('includes the lupa once sand4 is filed, and neither of the other three', () => {
+  it('includes the lupa once sand3 is filed (the sendero\'s own level after T1), and neither of the other four', () => {
+    const items = earnedItems(filed('sand3'))
+    expect(items).toHaveLength(1)
+    expect(items[0].id).toBe('lupa')
+  })
+
+  it('also includes the lupa on a legacy sand4-only record, never regressing a returning child who has it filed instead of sand3', () => {
     const items = earnedItems(filed('sand4'))
     expect(items).toHaveLength(1)
     expect(items[0].id).toBe('lupa')

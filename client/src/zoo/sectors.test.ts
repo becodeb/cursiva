@@ -234,41 +234,32 @@ describe('Registry↔Catalog Structural Consistency', () => {
     ])
   })
 
-  // (Previously: `entrada.adventureIds` was asserted BYTE-IDENTICAL to
-  // `['glass1','glass2','glass3','glass4','sand1','sand2','sand3','sand4']`
-  // — glass then sand, flat. add-caretaker-prologue design.md D7 interleaves
-  // this list into the play order the docs/16 §9 script requires (`zoo-map`
-  // delta "entrada's Level Ids Keep Their Identity and Per-Family Order, and
-  // Play in Narrative Order"): the SAME eight ids, as a SET, with each
-  // family's relative order intact, is the invariant that survives — never
-  // a byte-identical flat list, which would assert the interleaving itself
-  // as a bug.)
-  it("entrada's eight levels are the same set, glass and sand each in their own relative order, interleaved into the narrative play order — and entrada is never fogged (zoo-map spec)", () => {
-    expect(entrada.adventureIds).toEqual([
-      'glass1', 'glass2', 'sand1', 'sand2', 'glass3', 'glass4', 'sand3', 'sand4',
-    ])
-    expect([...entrada.adventureIds].sort()).toEqual(
-      ['glass1', 'glass2', 'glass3', 'glass4', 'sand1', 'sand2', 'sand3', 'sand4'].sort(),
-    )
-    expect(entrada.adventureIds.filter((id) => id.startsWith('glass'))).toEqual([
-      'glass1', 'glass2', 'glass3', 'glass4',
-    ])
-    expect(entrada.adventureIds.filter((id) => id.startsWith('sand'))).toEqual([
-      'sand1', 'sand2', 'sand3', 'sand4',
-    ])
-    for (const records of [{}, filed('sand4'), filed('glass1', 'glass2', 'glass3', 'glass4')]) {
+  // (Previously: `entrada.adventureIds` held eight ids, glass and sand each
+  // interleaved two-per-enclosure, in the docs/16 §9 narrative order
+  // peces/tortugas/monos/sendero. Adventure-flow-and-map-guidance T1
+  // narrows every enclosure to its easier level alone, so the list shrinks
+  // to exactly those four ids — the SAME narrative order survives, just one
+  // id per stop instead of two. The dropped twins never appear here again;
+  // see the dedicated dropped-ids test below.)
+  it("entrada's four levels are one per enclosure, in the narrative play order peces/tortugas/monos/sendero — and entrada is never fogged (zoo-map spec)", () => {
+    expect(entrada.adventureIds).toEqual(['glass1', 'sand1', 'glass3', 'sand3'])
+    for (const records of [{}, filed('sand3'), filed('glass1', 'sand1', 'glass3', 'sand3')]) {
       expect(entrada.unlockedWhen(records)).toBe(true)
     }
   })
 
-  // [add-caretaker-prologue, zoo-map delta "entrada's Level Ids Keep Their
-  // Identity and Per-Family Order, and Play in Narrative Order", scenario
-  // "the list orders the four enclosures the way the script tells them"]
+  it('the four dropped enclosure ids (glass2, sand2, glass4, sand4) belong to no sector any more (T1) — reachable only through the dev ?nivel= deep link', () => {
+    for (const id of ['glass2', 'sand2', 'glass4', 'sand4']) {
+      expect(sectorOf(id), id).toBeUndefined()
+    }
+  })
+
   // Walking `nextAdventure` from empty records, filing each returned id in
-  // turn, must yield the eight ids in the EXACT interleaved order, so the
-  // adventures a child meets are peces, then tortugas, then monos, then
-  // sendero — never monos second and tortugas third, which the old flat
-  // order would have produced.
+  // turn, must yield the four ids in narrative order, so the adventures a
+  // child meets are peces, then tortugas, then monos, then sendero — never
+  // monos second and tortugas third. (Previously: eight ids, two per
+  // enclosure; adventure-flow-and-map-guidance T1 narrows this to exactly
+  // one id per enclosure, so each adventure now surfaces only once.)
   it('walking nextAdventure from empty records yields the ids in narrative order (peces, tortugas, monos, sendero)', () => {
     const order: string[] = []
     let records: Records = {}
@@ -278,12 +269,8 @@ describe('Registry↔Catalog Structural Consistency', () => {
       order.push(next!)
       records = { ...records, ...filed(next!) }
     }
-    expect(order).toEqual([
-      'glass1', 'glass2', 'sand1', 'sand2', 'glass3', 'glass4', 'sand3', 'sand4',
-    ])
-    expect(order.map((id) => adventureFor(id)?.id)).toEqual([
-      'peces', 'peces', 'tortugas', 'tortugas', 'monos', 'monos', 'sendero', 'sendero',
-    ])
+    expect(order).toEqual(['glass1', 'sand1', 'glass3', 'sand3'])
+    expect(order.map((id) => adventureFor(id)?.id)).toEqual(['peces', 'tortugas', 'monos', 'sendero'])
   })
 
   it('nocturna stays fogged until llama-peak4 is filed (zoo-map spec)', () => {
@@ -376,10 +363,20 @@ describe('Estanque — the real stake of migrateEntrance (row D, design.md §7.1
     expect(isOpen(estanque, {})).toBe(false)
   })
 
-  it('opens once sand4 is filed, never before', () => {
+  // `sand3` is the sendero's own level after adventure-flow-and-map-
+  // guidance T1 narrowed it to one; `sand4` stays admissible too — a
+  // widening, never a replacement — for a returning child who has it filed
+  // instead (the sendero's own old last level, or `migrateEntrance`'s own
+  // seed for a pre-entrance legacy child).
+  it('opens once sand3 is filed, never before', () => {
+    expect(estanque.unlockedWhen(filed('sand3'))).toBe(true)
+    expect(isOpen(estanque, filed('sand3'))).toBe(true)
+    expect(estanque.unlockedWhen(filed('glass1', 'sand1', 'glass3'))).toBe(false)
+  })
+
+  it('also opens on a legacy sand4-only record, never regressing a returning child who has it filed instead of sand3', () => {
     expect(estanque.unlockedWhen(filed('sand4'))).toBe(true)
     expect(isOpen(estanque, filed('sand4'))).toBe(true)
-    expect(estanque.unlockedWhen(filed('glass1', 'glass2', 'glass3', 'glass4'))).toBe(false)
   })
 
   it('footprints originate at the plaza and end near the estanque, never on either endpoint', () => {
@@ -492,12 +489,13 @@ describe('recentlyDiscovered (design.md §7.2: preference layered in front of th
   it("falls back to today's rule (never no sector) once entrada is attempted and nothing else has opened", () => {
     // No untouched sector qualifies (entrada is attempted, no other sector
     // is open yet), so this must fall back to the pre-existing rule —
-    // entrada still has seven unfiled ids — not to `null`.
+    // entrada still has three unfiled ids (T1 narrowed it to four total) —
+    // not to `null`.
     expect(recentlyDiscovered(attempted('glass1'))?.id).toBe('entrada')
   })
 
   it('resolves to null once every open sector is fully filed', () => {
-    // Filing entrada's own eight ids opens the estanque (`sand4`); filing
+    // Filing entrada's own four ids opens the estanque (`sand3`); filing
     // the estanque's `duck-trail4` opens `montañas`; filing `montañas`'
     // `llama-peak4` opens `nocturna`; filing `nocturna`'s `night4` opens
     // `arena` (`snake-drag-and-art-corridor` design.md §0 A1); filing

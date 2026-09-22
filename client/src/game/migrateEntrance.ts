@@ -14,7 +14,10 @@
 // ratified amendment A4, retires the proposal's question 4 dilemma): it is
 // `estanque.unlockedWhen`, which stops being `alwaysOpen` in this change and
 // reads `isFiled(records, 'sand4')` instead (`zoo-map` capability, wired in
-// Phase 5). Seeding `sand4` is what keeps a returning child's POND open, not
+// Phase 5; widened to `isFiled(records, 'sand3') || isFiled(records,
+// 'sand4')` by adventure-flow-and-map-guidance T1, which narrowed the
+// sendero to its own `sand3` level — the OR keeps this exact seed valid).
+// Seeding `sand4` is what keeps a returning child's POND open, not
 // merely their dev-map display unlocked — losing the pond is a far worse
 // regression than a dev-only display, which is why this migration is not
 // optional. The zoo map itself never asks `isUnlocked` — it routes through

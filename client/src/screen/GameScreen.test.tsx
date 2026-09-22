@@ -16,12 +16,16 @@
 //
 // [zoo-map-home] `resolveNextAction` no longer routes to `deduce` at all —
 // the auto-route is retired (proposal D2, design.md §6). It is now
-// SECTOR-aware, not case-aware: a finished level owned by ANY zoo sector
-// exits the shell, and a level no sector has adopted (today the hen's
-// `trail1..4`, wired to no sector) keeps today's `next` behaviour unchanged.
-// The `nextView` reducer's OWN `deduce` branch is untouched below — it is
-// still reachable directly (the deep-link path, `initialView`), just no
-// longer through `resolveNextAction`.
+// adventure- and sector-aware, not case-aware: [adventure-flow-and-map-
+// guidance T2] a finished level that is not its own adventure's (or
+// no-row sector block's) last one continues straight to the next one, and
+// only the true end of a run exits the shell — see the dedicated
+// `resolveNextAction` describe block below for the full rule. A level no
+// sector has adopted (today the hen's `trail1..4`, wired to no sector)
+// keeps today's `next` behaviour unchanged. The `nextView` reducer's OWN
+// `deduce` branch is untouched below — it is still reachable directly (the
+// deep-link path, `initialView`), just no longer through
+// `resolveNextAction`.
 import { describe, expect, it, vi } from 'vitest'
 import { renderToString } from 'react-dom/server'
 
@@ -172,43 +176,52 @@ describe('initialView: ?nivel=intro-<levelId> is a dev-only capture surface (duc
 // transformation screen at all. Dev-gated exactly like `intro-`, and only for
 // a level that really closes an adventure, so a typo stays null rather than
 // rendering a closing screen for a level that has none.
+// `sand3` is the sendero's own (and, after adventure-flow-and-map-guidance
+// T1 narrowed it to one level, therefore last) level — the id this surface
+// targets changed from `sand4` when T1 shipped; `sand4` itself now closes
+// no adventure at all.
 describe('initialView: ?nivel=cierre-<levelId> is a dev-only capture surface (reveal-grid-entrance-and-night)', () => {
   it('resolves the closing screen only when dev is true', () => {
-    expect(initialView('?nivel=cierre-sand4', true)).toEqual({
+    expect(initialView('?nivel=cierre-sand3', true)).toEqual({
       view: 'close',
-      levelId: 'sand4',
+      levelId: 'sand3',
     })
   })
 
   it('falls through to null when dev is false, including the default', () => {
-    expect(initialView('?nivel=cierre-sand4', false)).toBeNull()
-    expect(initialView('?nivel=cierre-sand4')).toBeNull()
+    expect(initialView('?nivel=cierre-sand3', false)).toBeNull()
+    expect(initialView('?nivel=cierre-sand3')).toBeNull()
   })
 
   it('falls through to null for a level that closes no adventure, even in dev mode', () => {
-    expect(initialView('?nivel=cierre-sand1', true)).toBeNull()
+    // `duck-trail1` is a real adventure level whose own adventure carries no
+    // closing beat at all; `trail1` belongs to no adventure whatsoever; and
+    // `sand4` — the sendero's own dropped, harder twin after T1 — now
+    // belongs to no adventure either, so it joins this negative list.
+    expect(initialView('?nivel=cierre-duck-trail1', true)).toBeNull()
     expect(initialView('?nivel=cierre-trail1', true)).toBeNull()
+    expect(initialView('?nivel=cierre-sand4', true)).toBeNull()
   })
 
   // [add-caretaker-prologue] An optional `:<n>` suffix reaches a beat past
   // the first — `sendero`'s two-beat closing is otherwise unreachable by a
   // single-URL capture (design.md D3).
   it('an optional :<n> suffix resolves to that beat', () => {
-    expect(initialView('?nivel=cierre-sand4:1', true)).toEqual({
+    expect(initialView('?nivel=cierre-sand3:1', true)).toEqual({
       view: 'close',
-      levelId: 'sand4',
+      levelId: 'sand3',
       beat: 1,
     })
-    expect(initialView('?nivel=cierre-sand4:0', true)).toEqual({
+    expect(initialView('?nivel=cierre-sand3:0', true)).toEqual({
       view: 'close',
-      levelId: 'sand4',
+      levelId: 'sand3',
       beat: 0,
     })
   })
 
   it('a malformed :<n> suffix falls through to null, never a crash', () => {
-    expect(initialView('?nivel=cierre-sand4:abc', true)).toBeNull()
-    expect(initialView('?nivel=cierre-sand4:-1', true)).toBeNull()
+    expect(initialView('?nivel=cierre-sand3:abc', true)).toBeNull()
+    expect(initialView('?nivel=cierre-sand3:-1', true)).toBeNull()
   })
 })
 
@@ -234,19 +247,38 @@ describe('allEarned (design.md "Decision: earned clues are derived from progress
   })
 })
 
-// [zoo-map-home] The old deduce-route cases above (`describe.each`, per
-// case) are converted below into exit-route cases (design.md §6, tasks.md
-// Phase 3): a zoo sector owns EVERY one of the estanque's eight adventure
-// ids, so finishing any one of them exits — regardless of position, unlike
-// the retired "last trail of the case" rule. The hen's `trail1..4` are wired
-// to no sector at all, so they keep today's `next` behaviour forever.
-describe('resolveNextAction (zoo-map design.md §6: "finishing ANY sector adventure returns to the map")', () => {
-  it('every id a zoo sector owns exits the shell, regardless of position within the sector', () => {
-    for (const id of DUCK_TRAIL_IDS) {
-      expect(resolveNextAction(id, {})).toEqual({ type: 'exit' })
+// [adventure-flow-and-map-guidance T2] Replaces the old "any sector level
+// exits" rule (zoo-map-home, design.md §6): finishing a level that belongs
+// to an `ADVENTURES` row now continues STRAIGHT to the next level of that
+// SAME row, in order, whenever it is not the row's own last level — a child
+// plays a whole adventure without seeing the map until it ends. A level a
+// sector owns directly, with no adventure row of its own (today the
+// medusa's `f2-guirnalda`..`f2-agua4`, inside `estanque`), chains the same
+// way through a contiguous block of its sector's own `adventureIds`. Only an
+// adventure's own last level — when it carries no closing beat — or the
+// last id of a no-row block still exits to the map. The hen's `trail1..4`
+// are wired to no sector at all, so they keep today's `next` behaviour
+// forever, and so do the four entrance ids T1 dropped from every sector.
+describe('resolveNextAction (adventure-flow-and-map-guidance T2: "an unfinished adventure continues, only its end returns to the map")', () => {
+  it("every non-last level of every ADVENTURES row resolves to next, with the following id in that row's own levelIds — even for a single-level row, which has none", () => {
+    for (const adventure of ADVENTURES) {
+      for (let i = 0; i < adventure.levelIds.length - 1; i++) {
+        const id = adventure.levelIds[i]
+        expect(resolveNextAction(id, {}), `${adventure.id}: ${id}`).toEqual({
+          type: 'next',
+          levelId: adventure.levelIds[i + 1],
+        })
+      }
     }
-    for (const id of ['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4']) {
-      expect(resolveNextAction(id, {})).toEqual({ type: 'exit' })
+  })
+
+  it("every ADVENTURES row's own last level resolves to close when the row carries a closingBeat (peces/tortugas/monos/sendero, each after T1), and to exit otherwise (duck-trail4, sheep-hill4, llama-peak4, night4, snake4, bee4, dolphin4, hedgehog4)", () => {
+    for (const adventure of ADVENTURES) {
+      const last = adventure.levelIds[adventure.levelIds.length - 1]
+      const expected = adventure.closingBeat
+        ? { type: 'close', levelId: last }
+        : { type: 'exit' }
+      expect(resolveNextAction(last, {}), `${adventure.id}: ${last}`).toEqual(expected)
     }
   })
 
@@ -254,6 +286,13 @@ describe('resolveNextAction (zoo-map design.md §6: "finishing ANY sector advent
     const action = resolveNextAction('duck-trail4', recordsWith(DUCK_TRAIL_IDS, 1))
     expect(action).toEqual({ type: 'exit' })
     expect(action.type).not.toBe('deduce')
+  })
+
+  it("the medusa's own block — no ADVENTURES row claims f2-guirnalda..f2-agua4 — chains through the estanque's adventureIds and exits once the block ends (dolphin1 starts its own row right after)", () => {
+    expect(resolveNextAction('f2-guirnalda', {})).toEqual({ type: 'next', levelId: 'f2-agua2' })
+    expect(resolveNextAction('f2-agua2', {})).toEqual({ type: 'next', levelId: 'f2-agua3' })
+    expect(resolveNextAction('f2-agua3', {})).toEqual({ type: 'next', levelId: 'f2-agua4' })
+    expect(resolveNextAction('f2-agua4', {})).toEqual({ type: 'exit' })
   })
 
   it('composing an exit action through nextView is a type error — exit is deliberately outside GameAction', () => {
@@ -274,6 +313,12 @@ describe('resolveNextAction (zoo-map design.md §6: "finishing ANY sector advent
   it('an ordinary non-sector, non-detective level keeps today\'s next behaviour unchanged', () => {
     const action = resolveNextAction('f1-libre', {})
     expect(action).toEqual({ type: 'next', levelId: nextLevelId('f1-libre') })
+  })
+
+  it('the four entrance ids T1 dropped from every sector (glass2, sand2, glass4, sand4) fall back to catalog next behaviour, same as any other unclaimed level', () => {
+    for (const id of ['glass2', 'sand2', 'glass4', 'sand4']) {
+      expect(resolveNextAction(id, {}), id).toEqual({ type: 'next', levelId: nextLevelId(id) })
+    }
   })
 })
 
@@ -337,21 +382,24 @@ describe('GameScreen intro view (duck-undulations-and-sector-backdrop design.md 
 // resolveCloseAction (reveal-grid-entrance-and-night, design.md §6.3,
 // main-screen spec "close GameView Variant and resolveCloseAction").
 describe('resolveCloseAction', () => {
-  // (Previously: only `sand4` resolved to `'close'`, and `glass4` was
-  // asserted BY NAME not to — the entrance's own only closing beat lived on
-  // the old `sand` row. `glass4` is now `monos`'s own last level and `monos`
-  // now declares a `closingBeat` (add-caretaker-prologue, main-screen delta
-  // "close GameView Variant and resolveCloseAction"), so that prior
-  // negative-case scenario is RETIRED, not merely widened: `glass4` MUST
-  // resolve to `'close'` after this change.)
-  it('finishing each entrance adventure\'s last level (glass2, sand2, glass4, sand4) resolves to the close view', () => {
-    for (const id of ['glass2', 'sand2', 'glass4', 'sand4']) {
+  // (Previously — reveal-grid-entrance-and-night, then add-caretaker-
+  // prologue's four-enclosure regrouping — each enclosure's closing-eligible
+  // id was its own SECOND level: `glass2`/`sand2`/`glass4`/`sand4`, with
+  // `glass1`/`sand1`/`glass3`/`sand3` asserted BY NAME not to close, being
+  // merely mid-adventure. Adventure-flow-and-map-guidance T1 narrows every
+  // enclosure to its easier level alone, so that single id is now BOTH
+  // first and last: the closing-eligible ids INVERT to `glass1`/`sand1`/
+  // `glass3`/`sand3`, and their old, harder twins belong to no adventure at
+  // all — this prior negative/positive split is RETIRED, not merely
+  // widened.)
+  it('finishing each entrance enclosure\'s own single level (glass1, sand1, glass3, sand3) resolves to the close view', () => {
+    for (const id of ['glass1', 'sand1', 'glass3', 'sand3']) {
       expect(resolveCloseAction(id, {}), id).toEqual({ type: 'close', levelId: id })
     }
   })
 
-  it('finishing a mid-adventure entrance level does not resolve to the close view', () => {
-    for (const id of ['glass1', 'sand1', 'glass3', 'sand3']) {
+  it('finishing the four ids T1 dropped from every enclosure (glass2, sand2, glass4, sand4) does not resolve to the close view — they belong to no adventure at all', () => {
+    for (const id of ['glass2', 'sand2', 'glass4', 'sand4']) {
       expect(resolveCloseAction(id, {}), id).toBeNull()
     }
   })
@@ -372,13 +420,12 @@ describe('resolveCloseAction', () => {
     }
   })
 
-  // Every enclosure's last level, not just sand4. The scenario this covers
-  // names glass4/monos specifically, and `resolveCloseAction` being pure and
-  // id-generic is an argument, not a test: the thing that would actually
-  // break this is a persisted "already saw the closing" flag creeping in,
-  // and such a flag would most likely be keyed per adventure.
-  it('replaying any enclosure\'s last level resolves to the close view again — no persisted flag suppresses it', () => {
-    for (const levelId of ['glass2', 'sand2', 'glass4', 'sand4'] as const) {
+  // Every enclosure's own level, not just one of them. `resolveCloseAction`
+  // being pure and id-generic is an argument, not a test: the thing that
+  // would actually break this is a persisted "already saw the closing" flag
+  // creeping in, and such a flag would most likely be keyed per adventure.
+  it('replaying any enclosure\'s level resolves to the close view again — no persisted flag suppresses it', () => {
+    for (const levelId of ['glass1', 'sand1', 'glass3', 'sand3'] as const) {
       expect(resolveCloseAction(levelId, {}), levelId).toEqual({ type: 'close', levelId })
       expect(
         resolveCloseAction(levelId, { [levelId]: { ...EMPTY_RECORD, approvals: 5 } }),
@@ -389,8 +436,12 @@ describe('resolveCloseAction', () => {
 })
 
 describe("resolveNextAction tries resolveCloseAction first (design.md §6.3)", () => {
-  it('sand4 resolves to close, not the ordinary sector-exit outcome entrada would otherwise trigger', () => {
-    expect(resolveNextAction('sand4', {})).toEqual({ type: 'close', levelId: 'sand4' })
+  // `sand3` is the sendero's own level after adventure-flow-and-map-guidance
+  // T1 narrowed it to one — without the close-first check, `sand3` would
+  // otherwise resolve to `{ type: 'exit' }` (it is entrada's own last
+  // adventureIds entry) rather than to its closing beat.
+  it('sand3 resolves to close, not the ordinary sector-exit outcome entrada would otherwise trigger', () => {
+    expect(resolveNextAction('sand3', {})).toEqual({ type: 'close', levelId: 'sand3' })
   })
 
   it("nextView's exhaustive switch is unaffected by the 'close' variant, for every pre-existing input", () => {
@@ -404,15 +455,17 @@ describe("resolveNextAction tries resolveCloseAction first (design.md §6.3)", (
 
 describe("GameScreen close view (design.md §6.3, D3, main-screen spec 'AdventureClosing Screen Renders the Transformation')", () => {
   // Renamed from `sand` (add-caretaker-prologue design.md D7): `sendero` is
-  // `sand`'s direct successor, ending on the same `sand4` and carrying the
-  // TWO-beat closing the old single-beat `sand` row used to carry as one.
+  // `sand`'s direct successor, carrying the TWO-beat closing the old
+  // single-beat `sand` row used to carry as one. Ended on `sand4` until
+  // adventure-flow-and-map-guidance T1 narrowed the sendero to one level;
+  // `sand3` is its own (and therefore last) level now.
   const sendero = ADVENTURES.find((a) => a.id === 'sendero')!
 
   it("mounts AdventureClosing for the 'close' view at beat 0 by default, and passes the FIRST beat", () => {
     let exited = false
     renderToString(
       <GameScreen
-        initial={{ view: 'close', levelId: 'sand4' }}
+        initial={{ view: 'close', levelId: 'sand3' }}
         onExit={() => {
           exited = true
         }}
@@ -434,7 +487,7 @@ describe("GameScreen close view (design.md §6.3, D3, main-screen spec 'Adventur
     let exited = false
     renderToString(
       <GameScreen
-        initial={{ view: 'close', levelId: 'sand4', beat: 1 }}
+        initial={{ view: 'close', levelId: 'sand3', beat: 1 }}
         onExit={() => {
           exited = true
         }}
@@ -450,7 +503,7 @@ describe("GameScreen close view (design.md §6.3, D3, main-screen spec 'Adventur
     let exited = false
     renderToString(
       <GameScreen
-        initial={{ view: 'close', levelId: 'glass2' }}
+        initial={{ view: 'close', levelId: 'glass1' }}
         onExit={() => {
           exited = true
         }}
@@ -466,7 +519,7 @@ describe("GameScreen close view (design.md §6.3, D3, main-screen spec 'Adventur
   it('an out-of-range beat index falls back to the first beat, never crashes', () => {
     expect(() =>
       renderToString(
-        <GameScreen initial={{ view: 'close', levelId: 'sand4', beat: 99 }} onExit={() => {}} />,
+        <GameScreen initial={{ view: 'close', levelId: 'sand3', beat: 99 }} onExit={() => {}} />,
       ),
     ).not.toThrow()
     expect(adventureClosingProbe.current?.beat).toBe(sendero.closingBeat![0])
@@ -510,17 +563,20 @@ describe('GameView gains no new member (main-screen delta)', () => {
 // advanceClosing (add-caretaker-prologue design.md D3) — the mirror of
 // `resolveCloseAction` for the "already showing the closing" side.
 describe('advanceClosing', () => {
+  // `sand3` replaces `sand4` throughout this block after adventure-flow-and-
+  // map-guidance T1 narrowed the sendero to its own one level; `glass2`
+  // (peces's own dropped, harder twin) becomes `glass1`.
   it("sendero's two-beat closing advances from 0 to 1, then exits", () => {
-    expect(advanceClosing('sand4', 0)).toEqual({ type: 'close', levelId: 'sand4', beat: 1 })
-    expect(advanceClosing('sand4', 1)).toEqual({ type: 'exit' })
+    expect(advanceClosing('sand3', 0)).toEqual({ type: 'close', levelId: 'sand3', beat: 1 })
+    expect(advanceClosing('sand3', 1)).toEqual({ type: 'exit' })
   })
 
   it("peces's single-beat closing exits straight from beat 0", () => {
-    expect(advanceClosing('glass2', 0)).toEqual({ type: 'exit' })
+    expect(advanceClosing('glass1', 0)).toEqual({ type: 'exit' })
   })
 
   it('an out-of-range beat exits rather than advancing past the list', () => {
-    expect(advanceClosing('sand4', 5)).toEqual({ type: 'exit' })
+    expect(advanceClosing('sand3', 5)).toEqual({ type: 'exit' })
   })
 
   it('a level id with no closingBeat exits immediately', () => {

@@ -82,7 +82,7 @@ import {
   SIGN_ART,
 } from '../detective/assets'
 import { auditCaptions } from '../detective/captionAudit'
-import { INK_COLOR } from '../canvas/TraceCanvas'
+import { INK_COLOR, SHEET_PAPER } from '../canvas/TraceCanvas'
 import type { InkRenderPolicy } from '../canvas/ink'
 import { TORCH_CHALK } from '../zoo/backdrops'
 import { PRINT } from '../detective/palette'
@@ -1306,7 +1306,9 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
   })
 
   // The leaves slice is copy plus paint: everything the grid scores on is pinned
-  // here rather than left to review.
+  // here rather than left to review. `level.reveal`/`rules.minAccuracy` are
+  // catalog-level properties, untouched by adventure/sector membership, so
+  // both ids keep their own authored numbers regardless of T1.
   it('leaves the glass3/glass4 reveal geometry, rules, and tile count untouched', () => {
     for (const id of ['glass3', 'glass4'] as const) {
       const level = getLevel(id)
@@ -1317,7 +1319,15 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
       )
       const reveal = traceCanvasProbe.current?.reveal as { tiles: unknown[]; fill: string }
       expect(reveal.tiles.length, id).toBe(15 * 9)
-      expect(reveal.fill, id).toBe('#6e7a4a')
+      // `fill` comes from the LEAF_LITTER backdrop, resolved through the
+      // level's own adventure (`zoo/backdrops.ts`'s `backdropFor`).
+      // Adventure-flow-and-map-guidance T1 keeps `glass3` in `monos` (still
+      // resolves LEAF_LITTER), but drops `glass4` from every `ADVENTURES`
+      // row — it belongs to no adventure at all now, so `backdropFor`
+      // resolves `undefined` and the reveal falls back to the ordinary
+      // `SHEET_PAPER` fill, the ADVERTISED default for "a level authored
+      // without one" (this file's own `reveal` comment above).
+      expect(reveal.fill, id).toBe(id === 'glass3' ? '#6e7a4a' : SHEET_PAPER)
     }
   })
 
@@ -1460,13 +1470,15 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
 })
 
 describe('LevelPlay docs/16 wooden zoo signs (finish-mvp-roadmap U14)', () => {
+  // Only the three ids adventure-flow-and-map-guidance T1 KEEPS in an
+  // `ADVENTURES` row: each still resolves its enclosure's backdrop
+  // (`zoo/backdrops.ts`'s `backdropFor`), which is what makes `drawnPlace`
+  // true and the surrounding chrome render as icons rather than plain text —
+  // the precondition this test's strict zero-uncaptioned audit relies on.
   const signLevels = [
     ['glass1', SIGN_ART.fish.href, 'PECES'],
-    ['glass2', SIGN_ART.fish.href, 'PECES'],
     ['sand1', SIGN_ART.turtles.href, 'TORTUGAS'],
-    ['sand2', SIGN_ART.turtles.href, 'TORTUGAS'],
     ['glass3', SIGN_ART.monkeys.href, 'MONOS'],
-    ['glass4', SIGN_ART.monkeys.href, 'MONOS'],
   ] as const
 
   it.each(signLevels)('%s renders its approved framed CaptionedArt inside the playable sheet', (levelId, href, label) => {
@@ -1483,6 +1495,37 @@ describe('LevelPlay docs/16 wooden zoo signs (finish-mvp-roadmap U14)', () => {
     const audit = auditCaptions(html)
     expect(audit.captioned).toContain(label)
     expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
+  })
+
+  // (Previously: `glass2`/`sand2`/`glass4` were asserted alongside the three
+  // above, with the SAME strict zero-uncaptioned audit — each still
+  // resolved a backdrop before T1. Adventure-flow-and-map-guidance T1 drops
+  // all three from every `ADVENTURES` row (`zoo/adventures.ts`), so
+  // `backdropFor` now resolves `undefined` for them: `drawnPlace` goes
+  // false, and the chrome falls back to the same plain-text buttons and
+  // visible hint paragraph every other non-"place" level already uses —
+  // `f1-libre`, the hen trails — never held to a zero-uncaptioned claim
+  // either. The sign itself still renders correctly — `PROLOGUE_ZOO_SIGNS`
+  // keeps these ids as harmless extra keys (docs/16 §9's own script) — so
+  // only that narrower claim is asserted for these three now.)
+  it.each([
+    ['glass2', SIGN_ART.fish.href, 'PECES'],
+    ['sand2', SIGN_ART.turtles.href, 'TORTUGAS'],
+    ['glass4', SIGN_ART.monkeys.href, 'MONOS'],
+  ] as const)('%s still renders its approved framed CaptionedArt, even though T1 dropped it from every adventure', (levelId, href, label) => {
+    const html = renderToString(
+      <LevelPlay level={getLevel(levelId)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+
+    expect(body).toContain('class="cv-captioned cv-level-zoo-sign"')
+    expect(body).toContain(`href="${href}"`)
+    expect(body).toContain(`<span class="cv-caption">${label}</span>`)
+    expect(body.indexOf('cv-level-zoo-sign')).toBeGreaterThan(body.indexOf('class="cv-sheet"'))
+
+    const audit = auditCaptions(html)
+    expect(audit.captioned).toContain(label)
     expect(audit.imagelessContainers).toEqual([])
   })
 

@@ -17,7 +17,7 @@ import { DETECTIVE_CASES, caseSolvedId } from '../detective/cases'
 import AdventureClosing from './AdventureClosing'
 import { isDevMode } from '../canvas/devMode'
 import { sectorOf } from '../zoo/sectors'
-import { closingLevel, introLevel } from '../zoo/adventures'
+import { adventureFor, closingLevel, introLevel } from '../zoo/adventures'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
@@ -185,10 +185,14 @@ export type NextAction = GameAction | ExitAction | CloseAction
  * Whether a finished level's adventure has a closing BEAT to show
  * (`zoo/adventures.ts`'s `closingLevel`) — pure, and the mirror of
  * `resolveEnterAction` for the exit side of a run. Tried FIRST by
- * `resolveNextAction`, below, so `sand4`/`glass2`/`sand2`/`glass4` resolve to
- * the transformation screen instead of the ordinary sector-exit-to-map
- * outcome every other finished adventure (including `night`, this same
- * change's other reveal-grid adventure) still gets.
+ * `resolveNextAction`, below, so `glass1`/`sand1`/`glass3`/`sand3` — each
+ * now its own enclosure's only, and therefore last, level after
+ * adventure-flow-and-map-guidance T1 narrowed every enclosure from two
+ * levels to one — resolve to the transformation screen instead of the
+ * ordinary sector-exit-to-map outcome every other finished adventure
+ * (including `night`, this same change's other reveal-grid adventure)
+ * still gets. Their old, harder twins (`glass2`/`sand2`/`glass4`/`sand4`)
+ * belong to no adventure any more, so this now resolves `null` for them.
  */
 export function resolveCloseAction(
   finishedLevelId: string,
@@ -216,33 +220,89 @@ export function advanceClosing(levelId: string, beat: number): CloseAction | Exi
 }
 
 /**
+ * The level right after `levelId` in ITS OWN adventure's `levelIds`, or
+ * `undefined` when `levelId` belongs to no `ADVENTURES` row at all, or is
+ * already that row's own last level (adventure-flow-and-map-guidance T2).
+ * Exported and pure, the same reason every other routing decision in this
+ * file is: `resolveNextAction` needs it, and it is independently testable
+ * in node without a DOM. Strictly positional — `levelIds.indexOf` plus one
+ * — so replaying an adventure from a level that is already filed still
+ * walks forward in order rather than treating "already seen" as "done with
+ * this adventure."
+ */
+export function nextInAdventure(levelId: string): string | undefined {
+  const adventure = adventureFor(levelId)
+  if (!adventure) return undefined
+  const index = adventure.levelIds.indexOf(levelId)
+  if (index < 0 || index >= adventure.levelIds.length - 1) return undefined
+  return adventure.levelIds[index + 1]
+}
+
+/**
+ * The level right after `levelId` in ITS OWN sector's `adventureIds`, but
+ * ONLY while the FOLLOWING id belongs to no `ADVENTURES` row either — a
+ * contiguous block of levels a sector owns directly, with no adventure row
+ * of its own (today the medusa's `f2-guirnalda → f2-agua2 → f2-agua3 →
+ * f2-agua4`, inside `estanque`). `undefined` once the block ends: there is
+ * no next id at all, or the next id IS another adventure's own first
+ * level, which must resolve to THAT adventure (through `resolveEnterAction`,
+ * from the map) rather than being walked into silently. Callers are
+ * expected to have already confirmed `levelId` itself carries no adventure
+ * (`resolveNextAction`, below, only calls this once `adventureFor` already
+ * failed) — this only decides where the BLOCK goes next, the mirror half of
+ * `nextInAdventure` above.
+ */
+export function nextInSectorBlock(levelId: string): string | undefined {
+  const sector = sectorOf(levelId)
+  if (!sector) return undefined
+  const index = sector.adventureIds.indexOf(levelId)
+  if (index < 0 || index >= sector.adventureIds.length - 1) return undefined
+  const next = sector.adventureIds[index + 1]
+  return adventureFor(next) ? undefined : next
+}
+
+/**
  * What a finished level's "next" control resolves to. `nextView` itself must
  * stay catalog-independent (its own comment above), so this is where the
- * catalog knowledge (`nextLevelId`) AND the zoo's sector knowledge
- * (`sectorOf`) actually meet — design.md §6's own words: "the *decision*
- * lives in `GameScreen.onNext`". Exported and pure for the same reason
- * `shouldFileClue` is exported from `LevelPlay.tsx`: the real `onNext`
- * closure runs inside a `useState` setter, and this repo's node harness
- * cannot observe a re-render after `renderToString`, so the decision itself
- * must be testable on its own (level-engine spec "Deduction View Reachable
- * from nextView").
+ * catalog knowledge (`nextLevelId`), the adventure registry (`adventureFor`)
+ * and the zoo's sector knowledge (`sectorOf`) actually meet — design.md §6's
+ * own words: "the *decision* lives in `GameScreen.onNext`". Exported and
+ * pure for the same reason `shouldFileClue` is exported from
+ * `LevelPlay.tsx`: the real `onNext` closure runs inside a `useState`
+ * setter, and this repo's node harness cannot observe a re-render after
+ * `renderToString`, so the decision itself must be testable on its own
+ * (level-engine spec "Deduction View Reachable from nextView").
  *
- * [zoo-map-home] Finishing ANY adventure a zoo sector owns exits to the map
- * — not just the sector's last one, and never to the deduction screen (D2,
- * the auto-route is retired). `docs/12` §3: "Volver de un nivel cae en el
- * mapa." A level no sector has adopted yet (today the hen's `trail1..4` and
- * everything past the estanque's own ids) keeps today's `next` behaviour,
- * byte-for-byte.
+ * [adventure-flow-and-map-guidance T2] Finishing a level that belongs to an
+ * `ADVENTURES` row and is NOT that row's own last level continues STRAIGHT
+ * to the next id in `levelIds`, in order (`nextInAdventure`, above) — even
+ * if the successor is already filed, so replaying an adventure replays it
+ * start to finish rather than bouncing back to the map after every level.
+ * That `{ type: 'next' }` action reaches `nextView` unchanged, which sends
+ * it straight to the `play` view (never through `resolveEnterAction`), so
+ * the narrative entry never re-shows mid-adventure — it is reached only
+ * from the map (`App.tsx`'s `onEnter`). A level a sector owns directly, with
+ * no `ADVENTURES` row of its own (today the medusa's `f2-guirnalda`..
+ * `f2-agua4` inside `estanque`), chains the same way through its sector's
+ * own `adventureIds`, but only while the next id ALSO belongs to no row —
+ * `nextInSectorBlock`, above. Every other level a sector owns — an
+ * adventure's own last level with no closing beat, or the last id of a
+ * no-row block — exits to the map, never to the deduction screen (D2, the
+ * auto-route retired long before this change). `docs/12` §3: "Volver de un
+ * nivel cae en el mapa." A level no sector has adopted at all (today the
+ * hen's `trail1..4`, and — after this change's T1 — the entrance's four
+ * dropped ids `glass2`/`sand2`/`glass4`/`sand4`, dev-reachable only) keeps
+ * today's `next` behaviour, byte-for-byte.
  *
  * [reveal-grid-entrance-and-night] `resolveCloseAction` is tried FIRST
- * (design.md §6.3): a closing beat is a MORE SPECIFIC outcome than a plain
- * sector exit, and `sand4` is both — the closing screen must win.
+ * (design.md §6.3): a closing beat is a MORE SPECIFIC outcome than either
+ * continuing within an adventure or a plain sector exit, and every one of
+ * the entrance's four enclosures is now both (T1) — the closing screen must
+ * win.
  *
- * `records` is kept in the signature — unused today, hence the leading `_`
- * (`tsconfig`'s `noUnusedParameters` would otherwise fail the build) — for
- * two reasons: the sole call site already passes `store.all()` positionally
- * alongside `finishedLevelId`, and paso D's own unlock rules will need it
- * the moment a sector's `unlockedWhen` stops being a constant function.
+ * `records` is kept in the signature only to hand to `resolveCloseAction`
+ * above — a sector's `unlockedWhen` plays no part in routing a FINISHED
+ * level onward, only in which sectors the MAP itself shows as open.
  */
 export function resolveNextAction(
   finishedLevelId: string,
@@ -250,7 +310,14 @@ export function resolveNextAction(
 ): NextAction {
   const close = resolveCloseAction(finishedLevelId, records)
   if (close) return close
-  if (sectorOf(finishedLevelId)) return { type: 'exit' }
+  if (adventureFor(finishedLevelId)) {
+    const next = nextInAdventure(finishedLevelId)
+    return next ? { type: 'next', levelId: next } : { type: 'exit' }
+  }
+  if (sectorOf(finishedLevelId)) {
+    const next = nextInSectorBlock(finishedLevelId)
+    return next ? { type: 'next', levelId: next } : { type: 'exit' }
+  }
   return { type: 'next', levelId: nextLevelId(finishedLevelId) }
 }
 

@@ -10,8 +10,10 @@ import { CARRIER_LENS_ART, SECTOR_ADVENTURE_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_S
 import { ADVENTURES, type Adventure, type ClosingBeat } from '../zoo/adventures'
 
 // Renamed from `sand` (add-caretaker-prologue design.md D7): `sendero` is
-// `sand`'s direct successor, ending on the same `sand4` and carrying the
-// TWO-beat closing the old single-beat `sand` row used to carry as one.
+// `sand`'s direct successor, carrying the TWO-beat closing the old
+// single-beat `sand` row used to carry as one. Ended on `sand4` until
+// adventure-flow-and-map-guidance T1 narrowed the sendero to one level;
+// `sand3` is its own (and therefore last) level now.
 const sendero = ADVENTURES.find((a) => a.id === 'sendero')!
 const peces = ADVENTURES.find((a) => a.id === 'peces')!
 

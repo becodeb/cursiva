@@ -16,6 +16,17 @@ export interface BackpackItem {
    *  shape `ZooAnimal.appearsWhen` uses, for the same structural-test
    *  reason: a closure cannot be inspected by a registry↔catalog test. */
   earnedWhen: readonly string[]
+  /** OR-widened alternative to `earnedWhen`, checked the same way (every
+   *  one filed ⇒ earned) but independently — ABSENT for every item but the
+   *  lupa. Exists for a returning child who could have filed a now-dropped
+   *  LEGACY id instead of `earnedWhen`'s current one (adventure-flow-and-
+   *  map-guidance T1: the entrance's four-enclosure regrouping keeps only
+   *  the easier level id of each pair, so `sand4` — the sendero's own old
+   *  last level, and what `migrateEntrance.ts` seeds for a pre-entrance
+   *  legacy child — must go on earning the lupa even though the new last
+   *  level is `sand3`). Never `&&` with `earnedWhen`: either satisfied set
+   *  alone is enough. */
+  earnedWhenLegacy?: readonly string[]
 }
 
 /** Four entries: the Andean hat (row C, `docs/13` §2), the lupa and the
@@ -23,9 +34,12 @@ export interface BackpackItem {
  * art-corridor` design.md §7.1). `llama-peak4` rather than all eight
  * sheep/llama ids for the hat — the hat belongs to the LLAMA adventure
  * specifically, and `llama-peak4` is also the sector's own last level, so
- * both readings land on the same id. Same reading for `sand4`/`night4`/
+ * both readings land on the same id. Same reading for `sand3`/`night4`/
  * `snake4`: each is its own adventure's last level, and the caretaking/
  * searching story earns the tool at the exact moment the adventure closes.
+ * (`sand3` replaces `sand4` here after adventure-flow-and-map-guidance T1
+ * narrowed the sendero to one level — `earnedWhenLegacy` below is what
+ * keeps a returning child's already-earned lupa from regressing.)
  * The Pulpito does not WEAR any of them (design.md §4.4) — a worn accessory
  * needs a composited sprite that does not exist. */
 export const BACKPACK_ITEMS: readonly BackpackItem[] = [
@@ -39,7 +53,8 @@ export const BACKPACK_ITEMS: readonly BackpackItem[] = [
     id: 'lupa',
     art: CARRIER_LENS_ART,
     grantedBy: 'entrada',
-    earnedWhen: ['sand4'],
+    earnedWhen: ['sand3'],
+    earnedWhenLegacy: ['sand4'],
   },
   {
     id: 'linterna',
@@ -70,5 +85,9 @@ export const BACKPACK_ITEMS: readonly BackpackItem[] = [
 ]
 
 export function earnedItems(records: Records): readonly BackpackItem[] {
-  return BACKPACK_ITEMS.filter((item) => item.earnedWhen.every((id) => isFiled(records, id)))
+  return BACKPACK_ITEMS.filter(
+    (item) =>
+      item.earnedWhen.every((id) => isFiled(records, id)) ||
+      (item.earnedWhenLegacy?.every((id) => isFiled(records, id)) ?? false),
+  )
 }

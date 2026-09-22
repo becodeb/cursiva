@@ -123,15 +123,21 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   // The entrance's four enclosures (add-caretaker-prologue design.md D7,
   // §3; docs/16 §9's script, verbatim). Four rows in place of the two
-  // `glass`/`sand` rows this change replaces — the SAME eight level ids,
-  // regrouped two-per-enclosure (docs/16 §5's table). None recovers an
-  // animal — `icon` carries the picture that travels with their two lines,
-  // the same convention the old rows used. The FLAT play order these four
-  // rows are met in is decided by `zoo/sectors.ts`'s `entrada.adventureIds`
-  // (design.md D7), not by this array's order.
+  // `glass`/`sand` rows this change replaces. Narrowed from two levels to
+  // ONE per enclosure by adventure-flow-and-map-guidance T1 ("levels that
+  // must be done twice" — the same erase gesture on the same picture,
+  // played back to back): each row below keeps only the EASIER of its
+  // original pair (`glass1`/`sand1`/`glass3`/`sand3`); the harder twin
+  // (`glass2`/`sand2`/`glass4`/`sand4`) is never deleted from the catalog —
+  // level ids are persisted keys — but belongs to no adventure and no
+  // sector any more, reachable only through the dev `?nivel=` deep link.
+  // None recovers an animal — `icon` carries the picture that travels with
+  // their two lines, the same convention the old rows used. The FLAT play
+  // order these four rows are met in is decided by `zoo/sectors.ts`'s
+  // `entrada.adventureIds` (design.md D7), not by this array's order.
   {
     id: 'peces',
-    levelIds: ['glass1', 'glass2'],
+    levelIds: ['glass1'],
     sector: 'entrada',
     // The intro names the SURFACE, never the missing animal: showing
     // `SIGN_ART.fish` here would announce PECES before the child cleans the
@@ -150,7 +156,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'tortugas',
-    levelIds: ['sand1', 'sand2'],
+    levelIds: ['sand1'],
     sector: 'entrada',
     icon: SECTOR_ADVENTURE_ART.stone,
     intro: 'La arena tapó todo el recinto. Barrámosla.',
@@ -164,7 +170,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'monos',
-    levelIds: ['glass3', 'glass4'],
+    levelIds: ['glass3'],
     sector: 'entrada',
     icon: SECTOR_ADVENTURE_ART.leaf,
     intro: 'Cayeron un montón de hojas. ¿Las sacamos?',
@@ -178,7 +184,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'sendero',
-    levelIds: ['sand3', 'sand4'],
+    levelIds: ['sand3'],
     sector: 'entrada',
     // The caretaker's own cart, not the footprints: the footprints are what
     // the child is about to FIND at the end of this enclosure, and putting
