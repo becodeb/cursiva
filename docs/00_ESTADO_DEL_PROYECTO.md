@@ -3,6 +3,9 @@
 Actualizado el 2026-09-16, verificado contra el código de la rama
 `sdd/prologo-cuidador`, no contra los documentos.
 
+**2026-09-22:** hay una revisión completa jugando desde cero en `docs/18`,
+con el estado de lo que se está arreglando y lo que queda. Leerla primero.
+
 ---
 
 ## 1. Los documentos, y cuál manda
@@ -22,6 +25,7 @@ nuevo.**
 | `15_PRIMER_CASO_OBJETOS_PERDIDOS` | El capítulo de las letras cursivas, empezando por la `i` | **Documentado, sin implementar. Etapa futura**, no el próximo paso |
 | `16_PROLOGO_EL_CUIDADOR` | El prólogo: el Pulpito es el cuidador, limpia cuatro recintos, nacen las huellas y el detective | **Vigente e implementado** |
 | `17_PEDIDOS_DE_ARTE_PROLOGO` | Los cuatro pedidos de arte del prólogo y cómo entra una lámina nueva | **Vigente.** Acorta la lista de `16` §7: cuatro de esos diez pedidos ya estaban dibujados |
+| `18_DIAGNOSTICO_Y_REDISENO_PEDAGOGICO` | La app jugada como un chico de primer grado (2026-09-22): 29 defectos, qué hacen Matific y Glifing, la historia propuesta, pedidos de arte y lo que falta | **Vigente. Manda sobre `12`, `13` y `16`** en el flujo entre niveles, el orden de la entrada, qué es una pista y cómo se recupera un animal |
 
 Los PDF y `.docx` originales están fuera del repo, en
 `~/cursiva-pdfs-originales/`. Sus transcripciones (`11`, `14`, `15`) y sus
