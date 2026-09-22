@@ -71,17 +71,20 @@ progress cleanup, deleting catalog level ids (they are persisted keys), push / P
 
 Route legend: inline = done by the orchestrator; delegated = one bounded writer agent.
 
-- [ ] **T0 — Diagnosis and redesign doc.** `docs/18_…` (diagnosis with evidence, pedagogy,
+- [x] **T0 — Diagnosis and redesign doc.** `docs/18_…` (diagnosis with evidence, pedagogy,
       story proposal, UX plan, art requests, status) + `docs/00` index row. Route: inline (single
       doc, needs the QA context).
-- [ ] **T1 — One level per entrance enclosure.** Play order `glass1, sand1, glass3, sand3`;
+- [x] **T1 — One level per entrance enclosure.** Play order `glass1, sand1, glass3, sand3`;
       closings, estanque gate, backpack grant and migrations follow; ids stay in the catalog.
       Route: delegated (touches `zoo/adventures.ts`, `zoo/sectors.ts`, `zoo/backpack.ts`,
       `game/openProgressStore.ts` + tests; 4+ files).
 - [ ] **T2 — Continuous adventure flow.** Finishing a non-final level of an adventure goes straight
       to its next level; the map only after the last level (and its closing). Levels of a sector
       not covered by an adventure row (medusa `f2-*`) continue through their contiguous block.
-      Route: delegated with T1 (same writer, separate commit).
+      Route: delegated with T1 (same writer; landed in the same commit because the tests of both
+      halves share files and each half alone is red). Amendment (in progress): an adventure that
+      recovers no animal chains into the next adventure of its sector (prologue enclosures flow
+      peces → tortugas → monos → sendero without the map; night → hedgehog).
 - [ ] **T3 — Stable level layout.** Reserve the result row from the first render (no sheet
       shrink), global margin reset (intro/prologue), mud success copy, pulsing enabled "Siguiente".
       Route: delegated.
@@ -98,7 +101,8 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
       closing, map bubble and level hints; speaker button; persisted mute; clip registry for
       future recorded audio. Route: delegated.
 - [ ] **T8 — Rescue closings.** Closing beat per animal adventure using the registry's existing
-      `closing` lines and the animal art; peces intro art = PECES sign. Route: delegated.
+      `closing` lines and the animal art. (The peces intro keeps its chest: an entry icon must
+      never name the absent animal — `docs/17` §1.) Route: delegated.
 - [ ] **T9 — Visual QA and doc status.** Full Playwright walkthrough at 1280x720, 1024x768,
       844x390 (+ portrait guidance), evidence in `capturas/2026-09-22-despues/`, update `docs/18`
       status table. Route: inline.
@@ -122,8 +126,15 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 
 | Task | Commit | Route | Checks | Review assess |
 |------|--------|-------|--------|---------------|
-| T0 | — | inline | — | — |
+| T0 | `7e50091` | inline (single doc, QA context lives in the orchestrator) | `git diff --check` clean | passive (`non_executable_only`), no review; boundary → `7e50091` |
+| T1+T2 | `99dd8ad` | delegated (mapping trigger: 12 files) | `npm test` 82 files / 1945 tests; `npm run build` ok; `git diff --check` ok (writer + parent spot check) | medium (`executable_change` `migrateEntrance.ts`), `review_due: slice_budget_reached` (701 lines) → preflight pending |
+
+- 2026-09-23: journey QA on `99dd8ad` from an empty store (1280x720): levels played between map
+  visits `[0,1,1,1,1,4,4]` — the duck and the sheep now play 4 levels straight; the prologue still
+  returns to the map after each enclosure (amendment above). Found: after the sheep the map bubble
+  says "¡Encontramos al pato!" because `mapBubble` follows `recentlyDiscovered`, whose fallback picks
+  the first open sector in registry order (estanque) — fixed by T4's journey order + T8's closings.
 
 ## Next step
 
-Delegate T1+T2 to one writer; write T0 in parallel.
+Land the chaining amendment, then run the review preflight for `7e50091..HEAD` (review due).

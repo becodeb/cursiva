@@ -18,14 +18,17 @@
 // the auto-route is retired (proposal D2, design.md §6). It is now
 // adventure- and sector-aware, not case-aware: [adventure-flow-and-map-
 // guidance T2] a finished level that is not its own adventure's (or
-// no-row sector block's) last one continues straight to the next one, and
-// only the true end of a run exits the shell — see the dedicated
-// `resolveNextAction` describe block below for the full rule. A level no
-// sector has adopted (today the hen's `trail1..4`, wired to no sector)
-// keeps today's `next` behaviour unchanged. The `nextView` reducer's OWN
-// `deduce` branch is untouched below — it is still reachable directly (the
-// deep-link path, `initialView`), just no longer through
-// `resolveNextAction`.
+// no-row sector block's) last one continues straight to the next one. The
+// true end of a run usually leaves the shell for the map — EXCEPT [T2
+// amendment] an animal-less adventure whose sector opens straight into
+// another adventure right after it, which instead continues into THAT
+// adventure's own narrative entry (`resolveAfterAdventure`) — see the
+// dedicated `resolveNextAction` and `resolveAfterAdventure` describe blocks
+// below for the full rule. A level no sector has adopted (today the hen's
+// `trail1..4`, wired to no sector) keeps today's `next` behaviour
+// unchanged. The `nextView` reducer's OWN `deduce` branch is untouched
+// below — it is still reachable directly (the deep-link path,
+// `initialView`), just no longer through `resolveNextAction`.
 import { describe, expect, it, vi } from 'vitest'
 import { renderToString } from 'react-dom/server'
 
@@ -57,6 +60,7 @@ import GameScreen, {
   allEarned,
   initialView,
   nextView,
+  resolveAfterAdventure,
   resolveCloseAction,
   resolveEnterAction,
   resolveNextAction,
@@ -254,12 +258,18 @@ describe('allEarned (design.md "Decision: earned clues are derived from progress
 // plays a whole adventure without seeing the map until it ends. A level a
 // sector owns directly, with no adventure row of its own (today the
 // medusa's `f2-guirnalda`..`f2-agua4`, inside `estanque`), chains the same
-// way through a contiguous block of its sector's own `adventureIds`. Only an
-// adventure's own last level — when it carries no closing beat — or the
-// last id of a no-row block still exits to the map. The hen's `trail1..4`
-// are wired to no sector at all, so they keep today's `next` behaviour
-// forever, and so do the four entrance ids T1 dropped from every sector.
-describe('resolveNextAction (adventure-flow-and-map-guidance T2: "an unfinished adventure continues, only its end returns to the map")', () => {
+// way through a contiguous block of its sector's own `adventureIds`. The
+// last id of a no-row block always exits to the map. An adventure's own
+// last level — when it carries no closing beat — used to always exit too;
+// [T2 amendment] it now chains into the NEXT adventure's own narrative
+// entry instead, whenever that adventure recovers no animal and its sector
+// opens straight into another adventure right after it (`night` → `night4`
+// → `hedgehog`, below) — every other closingBeat-less last level (one that
+// recovers an animal, or has nothing left after it in its sector) still
+// exits exactly as before. The hen's `trail1..4` are wired to no sector at
+// all, so they keep today's `next` behaviour forever, and so do the four
+// entrance ids T1 dropped from every sector.
+describe('resolveNextAction (adventure-flow-and-map-guidance T2: "an unfinished adventure continues, and only a true dead end returns to the map")', () => {
   it("every non-last level of every ADVENTURES row resolves to next, with the following id in that row's own levelIds — even for a single-level row, which has none", () => {
     for (const adventure of ADVENTURES) {
       for (let i = 0; i < adventure.levelIds.length - 1; i++) {
@@ -272,14 +282,22 @@ describe('resolveNextAction (adventure-flow-and-map-guidance T2: "an unfinished 
     }
   })
 
-  it("every ADVENTURES row's own last level resolves to close when the row carries a closingBeat (peces/tortugas/monos/sendero, each after T1), and to exit otherwise (duck-trail4, sheep-hill4, llama-peak4, night4, snake4, bee4, dolphin4, hedgehog4)", () => {
+  it("every ADVENTURES row's own last level resolves to close when the row carries a closingBeat (peces/tortugas/monos/sendero, each after T1); night instead chains into hedgehog's narrative entry (T2 amendment, its own describe block below); every other closingBeat-less row exits (duck-trail4, sheep-hill4, llama-peak4, snake4, bee4, dolphin4, hedgehog4)", () => {
     for (const adventure of ADVENTURES) {
       const last = adventure.levelIds[adventure.levelIds.length - 1]
+      if (adventure.id === 'night') continue // asserted separately: it chains, it does not exit.
       const expected = adventure.closingBeat
         ? { type: 'close', levelId: last }
         : { type: 'exit' }
       expect(resolveNextAction(last, {}), `${adventure.id}: ${last}`).toEqual(expected)
     }
+  })
+
+  it("night4 — no closingBeat, and nocturna's own adventureIds open hedgehog right after it — chains into hedgehog's narrative entry instead of exiting (T2 amendment)", () => {
+    expect(resolveNextAction('night4', {})).toEqual({
+      type: 'enter',
+      view: { view: 'intro', levelId: 'hedgehog1' },
+    })
   })
 
   it('duck-trail4 exits — never routes to deduce (D2: the auto-route is retired)', () => {
@@ -319,6 +337,51 @@ describe('resolveNextAction (adventure-flow-and-map-guidance T2: "an unfinished 
     for (const id of ['glass2', 'sand2', 'glass4', 'sand4']) {
       expect(resolveNextAction(id, {}), id).toEqual({ type: 'next', levelId: nextLevelId(id) })
     }
+  })
+})
+
+// resolveAfterAdventure (adventure-flow-and-map-guidance T2 amendment: "an
+// adventure that recovers no animal chains into the next adventure of its
+// sector"). Both `advanceClosing` and `resolveNextAction` defer to this once
+// they already know the level is its own adventure's own last one — see
+// their own describe blocks for the wiring; this block asserts the decision
+// itself, directly.
+describe('resolveAfterAdventure', () => {
+  it("peces, tortugas and monos each chain straight into the next enclosure's narrative entry (glass1 → tortugas, sand1 → monos, glass3 → sendero)", () => {
+    expect(resolveAfterAdventure('glass1', {})).toEqual({ view: 'intro', levelId: 'sand1' })
+    expect(resolveAfterAdventure('sand1', {})).toEqual({ view: 'intro', levelId: 'glass3' })
+    expect(resolveAfterAdventure('glass3', {})).toEqual({ view: 'intro', levelId: 'sand3' })
+  })
+
+  it("sendero (sand3) is entrada's own last adventureIds entry — nothing follows it, so it does not chain", () => {
+    expect(resolveAfterAdventure('sand3', {})).toBeNull()
+  })
+
+  it("night chains straight into hedgehog's narrative entry, the same rule applied to nocturna's own pair of adventures", () => {
+    // Concretely `intro` because `hedgehog` carries an `intro` string like
+    // every registered adventure does today — asserted against
+    // `resolveEnterAction` itself so this stays correct even if that ever
+    // changes, and pinned to the literal shape besides.
+    expect(resolveAfterAdventure('night4', {})).toEqual(resolveEnterAction('hedgehog1', {}))
+    expect(resolveAfterAdventure('night4', {})).toEqual({ view: 'intro', levelId: 'hedgehog1' })
+  })
+
+  it('an adventure that recovers an animal never chains — it always ends on the map, where the animal now stands', () => {
+    for (const id of [
+      'duck-trail4',
+      'sheep-hill4',
+      'llama-peak4',
+      'snake4',
+      'bee4',
+      'dolphin4',
+      'hedgehog4',
+    ]) {
+      expect(resolveAfterAdventure(id, {}), id).toBeNull()
+    }
+  })
+
+  it("a no-row sector block's own end (the medusa's f2-agua4) never chains — this function is scoped to ADVENTURES rows only", () => {
+    expect(resolveAfterAdventure('f2-agua4', {})).toBeNull()
   })
 })
 
@@ -499,7 +562,7 @@ describe("GameScreen close view (design.md §6.3, D3, main-screen spec 'Adventur
     expect(exited).toBe(true)
   })
 
-  it('a single-beat adventure (peces) at beat 0 exits on its own onContinue', () => {
+  it('a single-beat adventure (peces) at beat 0 chains into the next enclosure instead of exiting (adventure-flow-and-map-guidance T2 amendment: peces recovers no animal, and tortugas opens right after it in entrada)', () => {
     let exited = false
     renderToString(
       <GameScreen
@@ -512,8 +575,12 @@ describe("GameScreen close view (design.md §6.3, D3, main-screen spec 'Adventur
     const peces = ADVENTURES.find((a) => a.id === 'peces')!
     expect(adventureClosingProbe.current?.beat).toBe(peces.closingBeat![0])
     const onContinue = adventureClosingProbe.current?.onContinue as (() => void) | undefined
+    // `renderToString` cannot observe the re-render into tortugas' own intro
+    // (this file's own header) — this only proves onContinue no longer
+    // leaves the shell early. `advanceClosing`'s own describe block below
+    // asserts the resolved destination directly.
     onContinue?.()
-    expect(exited).toBe(true)
+    expect(exited).toBe(false)
   })
 
   it('an out-of-range beat index falls back to the first beat, never crashes', () => {
@@ -562,24 +629,47 @@ describe('GameView gains no new member (main-screen delta)', () => {
 
 // advanceClosing (add-caretaker-prologue design.md D3) — the mirror of
 // `resolveCloseAction` for the "already showing the closing" side.
+// [adventure-flow-and-map-guidance T2 amendment] Falling off the LAST beat
+// of a real closing sequence now defers to `resolveAfterAdventure` instead
+// of unconditionally exiting — see that function's own describe block for
+// the destination assertions; the point of the `{}` records argument below
+// is only that it threads through, since none of entrada's chained targets
+// consult it.
 describe('advanceClosing', () => {
   // `sand3` replaces `sand4` throughout this block after adventure-flow-and-
   // map-guidance T1 narrowed the sendero to its own one level; `glass2`
   // (peces's own dropped, harder twin) becomes `glass1`.
-  it("sendero's two-beat closing advances from 0 to 1, then exits", () => {
-    expect(advanceClosing('sand3', 0)).toEqual({ type: 'close', levelId: 'sand3', beat: 1 })
-    expect(advanceClosing('sand3', 1)).toEqual({ type: 'exit' })
+  it("sendero's two-beat closing advances from 0 to 1, then exits (sand3 is entrada's own last adventure — nothing follows it)", () => {
+    expect(advanceClosing('sand3', 0, {})).toEqual({ type: 'close', levelId: 'sand3', beat: 1 })
+    expect(advanceClosing('sand3', 1, {})).toEqual({ type: 'exit' })
   })
 
-  it("peces's single-beat closing exits straight from beat 0", () => {
-    expect(advanceClosing('glass1', 0)).toEqual({ type: 'exit' })
+  it("peces's single-beat closing chains into tortugas' narrative entry from beat 0 (T2 amendment: peces recovers no animal, tortugas opens right after it)", () => {
+    expect(advanceClosing('glass1', 0, {})).toEqual({
+      type: 'enter',
+      view: { view: 'intro', levelId: 'sand1' },
+    })
   })
 
-  it('an out-of-range beat exits rather than advancing past the list', () => {
-    expect(advanceClosing('sand3', 5)).toEqual({ type: 'exit' })
+  it("tortugas' single-beat closing chains into monos' narrative entry from beat 0", () => {
+    expect(advanceClosing('sand1', 0, {})).toEqual({
+      type: 'enter',
+      view: { view: 'intro', levelId: 'glass3' },
+    })
   })
 
-  it('a level id with no closingBeat exits immediately', () => {
-    expect(advanceClosing('night4', 0)).toEqual({ type: 'exit' })
+  it("monos' single-beat closing chains into sendero's narrative entry from beat 0", () => {
+    expect(advanceClosing('glass3', 0, {})).toEqual({
+      type: 'enter',
+      view: { view: 'intro', levelId: 'sand3' },
+    })
+  })
+
+  it('an out-of-range beat exits rather than advancing past the list (sand3 still has nothing to chain into)', () => {
+    expect(advanceClosing('sand3', 5, {})).toEqual({ type: 'exit' })
+  })
+
+  it('a level id with no closingBeat at all exits immediately — not trigger (a) of the T2 amendment, so it never reaches resolveAfterAdventure (this input is never reached by the real UI)', () => {
+    expect(advanceClosing('night4', 0, {})).toEqual({ type: 'exit' })
   })
 })

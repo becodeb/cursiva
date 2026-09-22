@@ -179,7 +179,23 @@ export type ExitAction = { type: 'exit' }
  * Variant and resolveCloseAction").
  */
 export type CloseAction = { type: 'close'; levelId: string; beat?: number }
-export type NextAction = GameAction | ExitAction | CloseAction
+/**
+ * Continuing straight into another adventure's narrative entry instead of
+ * exiting to the map (adventure-flow-and-map-guidance T2 amendment) — what
+ * `resolveAfterAdventure`, below, produces once an animal-less adventure's
+ * own end meets another adventure's own start (today: peces → tortugas →
+ * monos → sendero inside the entrance, night → hedgehog inside the night
+ * sector). Kept OUT of `GameAction`, the same reason `ExitAction` and
+ * `CloseAction` are: `nextView` must stay ignorant of the adventure/sector
+ * knowledge this decision needs, so both call sites below (`AdventureClosing`'s
+ * `onContinue`, `LevelPlay`'s `onNext`) discriminate it and call `setState`
+ * directly rather than ever reaching `dispatch`. Carries a whole `GameView`,
+ * not a bare level id, because the target may be an `intro` or a `play`
+ * view — exactly `resolveEnterAction`'s own return shape, since that is
+ * what produces it.
+ */
+export type EnterAction = { type: 'enter'; view: GameView }
+export type NextAction = GameAction | ExitAction | CloseAction | EnterAction
 
 /**
  * Whether a finished level's adventure has a closing BEAT to show
@@ -189,10 +205,14 @@ export type NextAction = GameAction | ExitAction | CloseAction
  * now its own enclosure's only, and therefore last, level after
  * adventure-flow-and-map-guidance T1 narrowed every enclosure from two
  * levels to one — resolve to the transformation screen instead of the
- * ordinary sector-exit-to-map outcome every other finished adventure
- * (including `night`, this same change's other reveal-grid adventure)
- * still gets. Their old, harder twins (`glass2`/`sand2`/`glass4`/`sand4`)
- * belong to no adventure any more, so this now resolves `null` for them.
+ * ordinary "adventure ends" outcome every other finished adventure gets.
+ * That outcome is no longer unconditionally a map exit: [T2 amendment]
+ * `night` — this same change's other animal-less adventure, carrying no
+ * closing beat of its own — chains straight into `hedgehog`'s narrative
+ * entry instead (`resolveAfterAdventure`, below), the same rule this
+ * function's four enclosures would ALSO hit if any lacked a `closingBeat`.
+ * Their old, harder twins (`glass2`/`sand2`/`glass4`/`sand4`) belong to no
+ * adventure any more, so this now resolves `null` for them.
  */
 export function resolveCloseAction(
   finishedLevelId: string,
@@ -207,16 +227,38 @@ export function resolveCloseAction(
  * showing the closing" side. Pure: it re-derives the adventure from
  * `levelId` rather than trusting a caller-held reference, the same
  * never-stale convention `resolveNextAction` uses. `beat + 1` still inside
- * the beat list advances to it; falling off the end exits to the map,
- * exactly as a single-beat adventure's one tap already did before this
- * change.
+ * the beat list advances to it. `levelId` carrying no `closingBeat` at all
+ * (`closingLevel` itself `undefined`) exits immediately, unconditionally,
+ * exactly as before this change — that degenerate input is never reached by
+ * the real UI (the `'close'` view never mounts `AdventureClosing` without a
+ * `closingBeat` to show it), and it is NOT trigger (a) of
+ * adventure-flow-and-map-guidance T2's amendment ("`advanceClosing` falls
+ * off its LAST BEAT"): there is no beat sequence here to fall off of. That
+ * trigger is `resolveNextAction`'s own job instead (`night4`, which carries
+ * no `closingBeat`, chains through THAT function, not this one).
+ *
+ * Falling off the end of a REAL, non-empty beat list used to always exit to
+ * the map; [T2 amendment] it now defers to `resolveAfterAdventure`, below,
+ * so an animal-less closing (peces, tortugas, monos — sendero's own closing
+ * is entrada's last, so it still exits) chains straight into the next
+ * enclosure's narrative entry instead of dropping the child on the map
+ * between every room of the prologue. `records` is new on this signature
+ * for exactly that reason: `resolveAfterAdventure` needs it to resolve the
+ * NEXT adventure's own entry the same way a tap on the map would
+ * (`resolveEnterAction`).
  */
-export function advanceClosing(levelId: string, beat: number): CloseAction | ExitAction {
+export function advanceClosing(
+  levelId: string,
+  beat: number,
+  records: Readonly<Record<string, LevelRecord>>,
+): CloseAction | ExitAction | EnterAction {
   const adventure = closingLevel(levelId)
-  if (adventure && beat + 1 < adventure.closingBeat!.length) {
+  if (!adventure) return { type: 'exit' }
+  if (beat + 1 < adventure.closingBeat!.length) {
     return { type: 'close', levelId, beat: beat + 1 }
   }
-  return { type: 'exit' }
+  const after = resolveAfterAdventure(levelId, records)
+  return after ? { type: 'enter', view: after } : { type: 'exit' }
 }
 
 /**
@@ -262,6 +304,47 @@ export function nextInSectorBlock(levelId: string): string | undefined {
 }
 
 /**
+ * What happens once an adventure truly ENDS, beyond the ordinary "exit to
+ * the map" outcome every adventure got before this amendment
+ * (adventure-flow-and-map-guidance T2: "an adventure that recovers no
+ * animal chains into the next adventure of its sector"). Both callers reach
+ * this only once they already know `lastLevelId` is its OWN adventure's own
+ * last level — `advanceClosing` via `closingLevel` falling off the beat
+ * list, `resolveNextAction` via `nextInAdventure` returning `undefined` —
+ * the same trust `nextInSectorBlock` places in `resolveNextAction` for its
+ * own precondition, so this only re-derives the SECTOR position, never the
+ * adventure one. `null` means the ordinary outcome (exit to the map) still
+ * applies; a non-null result is a `GameView` to enter, exactly as if the
+ * child had tapped the next enclosure on the map themselves.
+ *
+ * Chaining requires ALL THREE: `lastLevelId`'s own adventure carries no
+ * `animal` (`AdventureSubject`'s union, `zoo/adventures.ts`) — an adventure
+ * that recovers one always ends on the map, where the animal now stands, so
+ * `duck-trail4`/`sheep-hill4`/`llama-peak4`/`snake4`/`bee4`/`dolphin4`/
+ * `hedgehog4` never chain; its SECTOR's `adventureIds` (`zoo/sectors.ts`)
+ * lists another id right after `lastLevelId` — the last adventure of a
+ * sector (`sand3`, entrada's own last entry) has none; and that following
+ * id is the FIRST level of ANOTHER `ADVENTURES` row (`introLevel`) — a
+ * no-row block's own end (the medusa's `f2-agua4`) never even reaches this
+ * function, since `adventureFor` already excludes it above. Today this is
+ * the entrance's `peces → tortugas → monos → sendero` chain and the night
+ * sector's `night → hedgehog`.
+ */
+export function resolveAfterAdventure(
+  lastLevelId: string,
+  records: Readonly<Record<string, LevelRecord>>,
+): GameView | null {
+  const adventure = adventureFor(lastLevelId)
+  if (!adventure || adventure.animal !== undefined) return null
+  const sector = sectorOf(lastLevelId)
+  if (!sector) return null
+  const index = sector.adventureIds.indexOf(lastLevelId)
+  if (index < 0 || index >= sector.adventureIds.length - 1) return null
+  const next = sector.adventureIds[index + 1]
+  return introLevel(next) ? resolveEnterAction(next, records) : null
+}
+
+/**
  * What a finished level's "next" control resolves to. `nextView` itself must
  * stay catalog-independent (its own comment above), so this is where the
  * catalog knowledge (`nextLevelId`), the adventure registry (`adventureFor`)
@@ -285,14 +368,20 @@ export function nextInSectorBlock(levelId: string): string | undefined {
  * no `ADVENTURES` row of its own (today the medusa's `f2-guirnalda`..
  * `f2-agua4` inside `estanque`), chains the same way through its sector's
  * own `adventureIds`, but only while the next id ALSO belongs to no row —
- * `nextInSectorBlock`, above. Every other level a sector owns — an
- * adventure's own last level with no closing beat, or the last id of a
- * no-row block — exits to the map, never to the deduction screen (D2, the
- * auto-route retired long before this change). `docs/12` §3: "Volver de un
- * nivel cae en el mapa." A level no sector has adopted at all (today the
- * hen's `trail1..4`, and — after this change's T1 — the entrance's four
- * dropped ids `glass2`/`sand2`/`glass4`/`sand4`, dev-reachable only) keeps
- * today's `next` behaviour, byte-for-byte.
+ * `nextInSectorBlock`, above. The last id of a no-row block always exits to
+ * the map, never to the deduction screen (D2, the auto-route retired long
+ * before this change). `docs/12` §3: "Volver de un nivel cae en el mapa."
+ * An adventure's own last level with no closing beat instead defers to
+ * `resolveAfterAdventure`, below (T2 amendment): an animal-less adventure
+ * whose sector opens straight into another adventure right after it (the
+ * entrance's four enclosures, the night sector before hedgehog) continues
+ * into that adventure's own narrative entry; every other case — an
+ * adventure that recovers an animal, or one with nothing left after it in
+ * its sector — still exits to the map exactly as before. A level no sector
+ * has adopted at all (today the hen's `trail1..4`, and — after this
+ * change's T1 — the entrance's four dropped ids
+ * `glass2`/`sand2`/`glass4`/`sand4`, dev-reachable only) keeps today's
+ * `next` behaviour, byte-for-byte.
  *
  * [reveal-grid-entrance-and-night] `resolveCloseAction` is tried FIRST
  * (design.md §6.3): a closing beat is a MORE SPECIFIC outcome than either
@@ -300,9 +389,12 @@ export function nextInSectorBlock(levelId: string): string | undefined {
  * the entrance's four enclosures is now both (T1) — the closing screen must
  * win.
  *
- * `records` is kept in the signature only to hand to `resolveCloseAction`
- * above — a sector's `unlockedWhen` plays no part in routing a FINISHED
- * level onward, only in which sectors the MAP itself shows as open.
+ * `records` is kept in the signature to hand to `resolveCloseAction` above,
+ * and — since the T2 amendment — to `resolveAfterAdventure` too, for the
+ * same reason `resolveEnterAction` keeps it: a sector's `unlockedWhen`
+ * plays no part in routing a FINISHED level onward, only in which sectors
+ * the MAP itself shows as open, and in resolving the CHAINED adventure's
+ * own entry the same way a tap on the map would.
  */
 export function resolveNextAction(
   finishedLevelId: string,
@@ -312,7 +404,9 @@ export function resolveNextAction(
   if (close) return close
   if (adventureFor(finishedLevelId)) {
     const next = nextInAdventure(finishedLevelId)
-    return next ? { type: 'next', levelId: next } : { type: 'exit' }
+    if (next) return { type: 'next', levelId: next }
+    const after = resolveAfterAdventure(finishedLevelId, records)
+    return after ? { type: 'enter', view: after } : { type: 'exit' }
   }
   if (sectorOf(finishedLevelId)) {
     const next = nextInSectorBlock(finishedLevelId)
@@ -407,8 +501,12 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
     // list (falling back to the first for an out-of-range/stale index, the
     // same never-crash convention this file uses elsewhere); `onContinue`
     // discriminates `advanceClosing`'s result instead of calling `onExit`
-    // directly, so a beat past the current one re-renders this same screen
-    // with the NEXT beat rather than leaving for the map early.
+    // directly: a beat past the current one re-renders this same screen
+    // with the NEXT beat; falling off the LAST beat either leaves for the
+    // map or — for an animal-less adventure whose sector opens straight
+    // into another one (adventure-flow-and-map-guidance T2 amendment) —
+    // enters that adventure's own narrative entry instead
+    // (`resolveAfterAdventure`).
     const adventure = closingLevel(state.levelId)
     if (adventure) {
       const index = state.beat ?? 0
@@ -418,8 +516,9 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
           adventure={adventure}
           beat={beat}
           onContinue={() => {
-            const action = advanceClosing(state.levelId, index)
+            const action = advanceClosing(state.levelId, index, store.all())
             if (action.type === 'exit') onExit()
+            else if (action.type === 'enter') setState(action.view)
             else setState({ view: 'close', levelId: state.levelId, beat: action.beat })
           }}
         />
@@ -442,13 +541,15 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
         }}
         onNext={() => {
           // `resolveNextAction` returns `NextAction` — `GameAction` widened
-          // by the two outcomes `nextView` cannot express (design.md §6,
-          // §6.3). This is the single point that has to discriminate before
-          // dispatching, so `dispatch` never silently becomes the fallback
-          // for "leave the shell" or "show the transformation".
+          // by the THREE outcomes `nextView` cannot express (design.md §6,
+          // §6.3; adventure-flow-and-map-guidance T2 amendment). This is the
+          // single point that has to discriminate before dispatching, so
+          // `dispatch` never silently becomes the fallback for "leave the
+          // shell", "show the transformation" or "enter the next adventure".
           const action = resolveNextAction(state.levelId, store.all())
           if (action.type === 'exit') onExit()
           else if (action.type === 'close') setState({ view: 'close', levelId: action.levelId })
+          else if (action.type === 'enter') setState(action.view)
           else dispatch(action)
         }}
         onBack={onExit}
