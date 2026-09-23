@@ -10,10 +10,16 @@ import {
   armClearance,
   cornerClearance,
   crests,
+  F2_BUCLES_HOLE_RATIO,
   garland,
   garlandVaried,
   hills,
+  loopHoleClearance,
+  loopHoleRadius,
   loops,
+  ovals,
+  ovalSpacingClearance,
+  ovalTurnRadius,
   peakRidge,
   peakRidgeCorridorLimit,
   spiral,
@@ -85,6 +91,11 @@ const GENERATORS: ReadonlyArray<{ name: string; d: string; start: Point }> = [
   { name: 'crests', d: crests(), start: { x: 120, y: 310 } },
   { name: 'triangularWave', d: triangularWave(), start: { x: 120, y: 300 } },
   { name: 'squareWave', d: squareWave(), start: { x: 120, y: 190 } },
+  // Default `count: 1` at `x0: 260, x1: 740` centres the ring at `cx: 500`;
+  // its own 1-o'clock start is `(500 + 150·sin30°, 300 − 190·cos30°)` —
+  // `ovals`'s own describe block below re-derives and checks this exactly,
+  // this entry only proves the shared per-generator contract.
+  { name: 'ovals', d: ovals(), start: { x: 575, y: 135.45 } },
 ]
 
 /** Axis-aligned bounding box of a generated path. */
@@ -554,6 +565,45 @@ describe('loops', () => {
   })
 })
 
+describe('loopHoleRadius (promised-animals P4: does a loop leave a real hole)', () => {
+  it("reproduces f2-bucles' own measured value (width ≈ 227, height 300)", () => {
+    expect(loopHoleRadius((840 - 160) / 3, 300)).toBeCloseTo(10.91, 1)
+  })
+
+  it('scales linearly under ISOTROPIC scaling (same factor on width and height) — a pure consequence of curvature scaling as 1/scale', () => {
+    const base = loopHoleRadius(200, 260)
+    expect(loopHoleRadius(400, 520)).toBeCloseTo(base * 2, 1)
+    expect(loopHoleRadius(100, 130)).toBeCloseTo(base / 2, 1)
+  })
+
+  it('F2_BUCLES_HOLE_RATIO matches a fresh re-derivation from the shipped size, not a copied guess', () => {
+    const ratio = loopHoleRadius((840 - 160) / 3, 300) / 80
+    expect(F2_BUCLES_HOLE_RATIO).toBeCloseTo(ratio, 3)
+  })
+})
+
+describe('loopHoleClearance', () => {
+  it("f2-bucles' own shipped size clears its own ratio, at its own floor", () => {
+    expect(loopHoleClearance((840 - 160) / 3, 300, 80)).toBe(true)
+  })
+
+  it('holds for every authored monkey size (promised-animals P4)', () => {
+    const cases: ReadonlyArray<{ name: string; width: number; height: number; corridorWidth: number }> = [
+      { name: 'monkey1', width: 420, height: 275, corridorWidth: 100 },
+      { name: 'monkey2', width: 290, height: 265, corridorWidth: 90 },
+      { name: 'monkey3', width: 225, height: 255, corridorWidth: 80 },
+      { name: 'monkey4', width: 184, height: 250, corridorWidth: 70 },
+    ]
+    for (const c of cases) {
+      expect(loopHoleClearance(c.width, c.height, c.corridorWidth), c.name).toBe(true)
+    }
+  })
+
+  it('goes false for a loop scaled small enough that the corridor would swallow the hole (sensitivity proof)', () => {
+    expect(loopHoleClearance(60, 80, 80)).toBe(false)
+  })
+})
+
 describe('crests', () => {
   it('spans the full ruled height from the top zone to the baseline', () => {
     const points = poly(crests({ cycles: 3 }))
@@ -827,5 +877,156 @@ describe('peakRidgeCorridorLimit', () => {
     const admits = (w: number): boolean => w <= peakRidgeCorridorLimit({ x0, x1, heights })
     expect(admits(wStar)).toBe(true)
     expect(admits(wStar + 1)).toBe(false)
+  })
+})
+
+/**
+ * Signed polygon area via the plain shoelace formula, taken directly on
+ * `(x, y)` with NO `y`-flip. `ovals`'s own describe block below proves what
+ * that sign means in this app's `y`-DOWN SVG space before trusting it on a
+ * real ring: a POSITIVE result is CLOCKWISE on screen, a NEGATIVE one
+ * COUNTER-CLOCKWISE — the reverse of the familiar "positive = CCW" rule a
+ * `y`-UP maths convention gives the identical formula.
+ */
+function signedArea(points: Point[]): number {
+  let sum = 0
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i]
+    const b = points[(i + 1) % points.length]
+    sum += a.x * b.y - b.x * a.y
+  }
+  return sum / 2
+}
+
+describe('ovals (promised-animals P3: the Ola letter family\'s own closed turn)', () => {
+  // The sign convention `ovals` is judged against, proved on a shape simple
+  // enough to read by eye before it is trusted on a Bezier-flattened ring.
+  it("sign convention: a unit square walked CLOCKWISE on screen (right along the top, down the right side, left along the bottom, up the left side) has POSITIVE signed area", () => {
+    const clockwiseOnScreen: Point[] = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 0, y: 1 },
+    ]
+    expect(signedArea(clockwiseOnScreen)).toBeCloseTo(1, 6)
+  })
+
+  it('sign convention: the SAME square walked COUNTER-CLOCKWISE on screen (down the left side first) has NEGATIVE signed area', () => {
+    const counterClockwiseOnScreen: Point[] = [
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+      { x: 1, y: 1 },
+      { x: 1, y: 0 },
+    ]
+    expect(signedArea(counterClockwiseOnScreen)).toBeCloseTo(-1, 6)
+  })
+
+  it('emits only M and C commands (level-engine spec: Generators emit only supported commands)', () => {
+    const commands = new Set(ovals({ count: 3 }).match(/[A-Za-z]/g))
+    expect(commands).toEqual(new Set(['M', 'C']))
+  })
+
+  it("starts in the first ring's upper-right quadrant, at the exact 1-o'clock point (30° past the top)", () => {
+    const cx = 500
+    const rx = 150
+    const ry = 190
+    const cy = 300
+    const first = poly(ovals({ x0: 260, x1: 740, cy, rx, ry, count: 1 }))[0]
+    expect(first.x).toBeGreaterThan(cx)
+    expect(first.y).toBeLessThan(cy)
+    expect(first.x).toBeCloseTo(cx + rx * 0.5, 1)
+    expect(first.y).toBeCloseTo(cy - (ry * Math.sqrt(3)) / 2, 1)
+  })
+
+  it('a single ring closes: its own start and end coincide', () => {
+    const points = poly(ovals({ count: 1 }))
+    expect(points[0].x).toBeCloseTo(points[points.length - 1].x, 1)
+    expect(points[0].y).toBeCloseTo(points[points.length - 1].y, 1)
+  })
+
+  it('a single ring turns counter-clockwise on screen: negative signed area (the convention proved above)', () => {
+    expect(signedArea(poly(ovals({ count: 1, rx: 150, ry: 190 })))).toBeLessThan(0)
+  })
+
+  it('every ring of a multi-oval level is independently counter-clockwise, sampled ring by ring', () => {
+    // Re-derived at each ring's own centre the same way `ovals()` itself
+    // computes it, then re-walked in ISOLATION (a fresh `count: 1` call
+    // centred there) rather than sliced out of the connected polyline: the
+    // connector between two rings is not itself a closed loop, and a naive
+    // shoelace read spanning it would prove nothing.
+    const x0 = 140
+    const x1 = 860
+    const count = 2
+    const rx = 120
+    const ry = 160
+    const cy = 300
+    const w = (x1 - x0) / count
+    for (let i = 0; i < count; i++) {
+      const cx = x0 + w * (i + 0.5)
+      const ring = poly(ovals({ x0: cx - rx, x1: cx + rx, cy, rx, ry, count: 1 }))
+      expect(signedArea(ring), `ring ${i}`).toBeLessThan(0)
+    }
+  })
+
+  it('bounding box stays inside the viewBox for a packed four-oval level (turtle4-shaped)', () => {
+    for (const p of poly(ovals({ x0: 20, x1: 980, cy: 300, rx: 75, ry: 110, count: 4 }))) {
+      expect(p.x).toBeGreaterThanOrEqual(0)
+      expect(p.x).toBeLessThanOrEqual(1000)
+      expect(p.y).toBeGreaterThanOrEqual(0)
+      expect(p.y).toBeLessThanOrEqual(600)
+    }
+  })
+})
+
+describe('ovalTurnRadius', () => {
+  it('reproduces the turtle1 radius (rx 150, ry 190)', () => {
+    expect(ovalTurnRadius(150, 190)).toBeCloseTo(118.42, 1)
+  })
+
+  it('is symmetric in rx/ry — the tightest point is always minor²/major, whichever axis is longer', () => {
+    expect(ovalTurnRadius(150, 190)).toBeCloseTo(ovalTurnRadius(190, 150), 6)
+  })
+
+  it('holds the ideal-band predicate — ovalTurnRadius(rx, ry) > corridorWidth/2 − BAND_INSET — for every authored turtle size', () => {
+    const cases: ReadonlyArray<{ name: string; rx: number; ry: number; corridorWidth: number }> = [
+      { name: 'turtle1', rx: 150, ry: 190, corridorWidth: 100 },
+      { name: 'turtle2', rx: 120, ry: 160, corridorWidth: 90 },
+      { name: 'turtle3', rx: 95, ry: 130, corridorWidth: 80 },
+      { name: 'turtle4', rx: 75, ry: 110, corridorWidth: 70 },
+    ]
+    for (const c of cases) {
+      const band = c.corridorWidth / 2 - BAND_INSET
+      expect(ovalTurnRadius(c.rx, c.ry), c.name).toBeGreaterThan(band)
+    }
+  })
+})
+
+describe('ovalSpacingClearance', () => {
+  it('is vacuously true for a single oval — nothing to space against', () => {
+    expect(ovalSpacingClearance(0, 150, 100, 1)).toBe(true)
+  })
+
+  it('holds for every authored multi-oval turtle size', () => {
+    const cases: ReadonlyArray<{
+      name: string
+      spacing: number
+      rx: number
+      corridorWidth: number
+      count: number
+    }> = [
+      { name: 'turtle2', spacing: 360, rx: 120, corridorWidth: 90, count: 2 },
+      { name: 'turtle3', spacing: 300, rx: 95, corridorWidth: 80, count: 3 },
+      { name: 'turtle4', spacing: 240, rx: 75, corridorWidth: 70, count: 4 },
+    ]
+    for (const c of cases) {
+      expect(
+        ovalSpacingClearance(c.spacing, c.rx, c.corridorWidth, c.count),
+        c.name,
+      ).toBe(true)
+    }
+  })
+
+  it('goes false for a deliberately merging pair (sensitivity proof: rx 150 ovals spaced only 280 apart already overlap before any corridor padding)', () => {
+    expect(ovalSpacingClearance(280, 150, 100, 2)).toBe(false)
   })
 })

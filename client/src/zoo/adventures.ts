@@ -43,12 +43,15 @@ export type AdventureId =
   // The prologue's promise, kept (P2, `odd/tasks/promised-animals.md`):
   // the four garland levels the medusa's own goal art used to sit on
   // (`f2-guirnalda`..`f2-agua4`, `estanque`) get a real rescue adventure
-  // instead of running with no `ADVENTURES` row at all. `turtles`/`monkeys`
-  // (P3/P4) are the arena's and the bosque's own future counterparts —
-  // named here in the plural to match `peces`/`tortugas`/`monos` above,
-  // but distinct ids on purpose (this file's own header: those three are
-  // the entrance's cleaning enclosures, which recover no animal at all).
+  // instead of running with no `ADVENTURES` row at all.
   | 'fish'
+  // The turtles' and monkeys' own rows (P3/P4, `odd/tasks/promised-
+  // animals.md`) — the arena's and the bosque's own SECOND adventure each,
+  // named in the plural to match `peces`/`tortugas`/`monos` above, but
+  // distinct ids on purpose (this file's own header: those three are the
+  // entrance's cleaning enclosures, which recover no animal at all).
+  | 'turtles'
+  | 'monkeys'
 
 /** One beat of an adventure's closing SCREEN (add-caretaker-prologue
  *  design.md D3). `figure` overrides the standing octopus for THIS beat
@@ -287,6 +290,26 @@ export const ADVENTURES: readonly Adventure[] = [
     closingBeat: [{ line: '¡Las víboras están en su arena!', art: ZOO_ANIMAL_ART.vibora }],
   },
   {
+    id: 'turtles',
+    levelIds: ['turtle1', 'turtle2', 'turtle3', 'turtle4'],
+    sector: 'arena',
+    animal: 'tortuga',
+    intro: 'Las tortugas se escaparon del recinto y se fueron a dar vueltas por la arena. ¿Seguimos sus vueltas?',
+    closing: '¡Encontramos a las tortugas! Ya volvieron a su recinto.',
+    // Rescue closing (T8) — the snake row's own reasoning, restated: one
+    // beat, `closing` verbatim, the animal's own art, default figure.
+    //
+    // Placed HERE, right after `snake`, matching the arena's own real play
+    // order (`zoo/sectors.ts`'s `arena.adventureIds`: snake, then turtles)
+    // — the same readability-only convention `fish`'s own comment explains
+    // for `estanque`, with the identical consequence: `mapBubble`'s
+    // `.filter(...).at(-1)` cannot actually see this row's position, since
+    // the turtle's own placement lives in `entrada` (`zoo/sectors.ts`'s
+    // `entrada.animals`), not `arena` — the whole "each rescued animal goes
+    // back to ITS OWN enclosure" rule, restated a second time.
+    closingBeat: [{ line: '¡Encontramos a las tortugas! Ya volvieron a su recinto.', art: ZOO_ANIMAL_ART.tortuga }],
+  },
+  {
     id: 'bee',
     levelIds: ['bee1', 'bee2', 'bee3', 'bee4'],
     sector: 'bosque',
@@ -295,6 +318,20 @@ export const ADVENTURES: readonly Adventure[] = [
     closing: '¡La abeja volvió a su panal!',
     // Rescue closing (T8) — the snake row's own reasoning, restated.
     closingBeat: [{ line: '¡La abeja volvió a su panal!', art: ZOO_ANIMAL_ART.abeja }],
+  },
+  {
+    id: 'monkeys',
+    levelIds: ['monkey1', 'monkey2', 'monkey3', 'monkey4'],
+    sector: 'bosque',
+    animal: 'mono',
+    intro: 'Los monos se escaparon de sus sogas y se fueron colgados de las lianas del bosque. ¿Seguimos sus vueltas?',
+    closing: '¡Encontramos a los monos! Ya volvieron a sus sogas.',
+    // Rescue closing (T8) — the bee row's own reasoning, restated. Placed
+    // right after `bee`, matching the bosque's own real play order — see
+    // the `turtles` row's own comment above for why `mapBubble`'s registry
+    // position is unaffected either way (the monkey's own placement lives
+    // in `entrada`, not `bosque`).
+    closingBeat: [{ line: '¡Encontramos a los monos! Ya volvieron a sus sogas.', art: ZOO_ANIMAL_ART.mono }],
   },
   {
     id: 'fish',

@@ -379,7 +379,10 @@ describe('resolveAfterAdventure', () => {
       'sheep-hill4',
       'llama-peak4',
       'snake4',
+      // The turtles' and monkeys' own last levels (`promised-animals` P3/P4).
+      'turtle4',
       'bee4',
+      'monkey4',
       // The fish row's own last level (`promised-animals` P2) — it recovers
       // `pez`, so it follows the exact same rule as every other
       // animal-recovering row here. Before P2 this id belonged to no
@@ -731,7 +734,10 @@ describe('advanceClosing', () => {
       ['sheep-hill4', 'sheep'],
       ['llama-peak4', 'llama'],
       ['snake4', 'snake'],
+      // The turtles' and monkeys' own last levels (`promised-animals` P3/P4).
+      ['turtle4', 'turtles'],
       ['bee4', 'bee'],
+      ['monkey4', 'monkeys'],
       // The fish row's own last level (`promised-animals` P2).
       ['f2-agua4', 'fish'],
       ['dolphin4', 'dolphin'],

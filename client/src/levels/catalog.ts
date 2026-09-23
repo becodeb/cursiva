@@ -29,6 +29,7 @@ import {
   garlandVaried,
   hills,
   loops,
+  ovals,
   peakRidge,
   spineWave,
   spiral,
@@ -1754,10 +1755,297 @@ export const LEGACY_PHASE_1: readonly LevelConfig[] = [
 // tell the child to keep going while the starfish says wait (design.md §3).
 // ─────────────────────────────────────────────────────────────────────────────
 const PHASE_2: LevelConfig[] = [
+  // ───────────────────────────────────────────────────────────────────────
+  // The turtles' own family (P3, `odd/tasks/promised-animals.md`): the Ola
+  // letter family's closed counter-clockwise turn (`docs/01` §8: `c a d g
+  // q o`), taught by turtles going in circles in the arena's sand. Placed at
+  // the START of PHASE_2, alongside `f2-guirnalda`'s own family — the
+  // adventure ROW lives in `zoo/adventures.ts`'s `turtles` entry, appended
+  // to the arena's own `snake` row there, same as every other family; this
+  // array's own order is catalog bookkeeping only.
+  //
+  // PHASE 2, NOT PHASE 1, despite being zoo-native side content like sheep/
+  // llama/snake/bee/dolphin/hedgehog — the reason is `maze`, not the
+  // sector: `ovals()`'s own shape is the LESSON (a pattern to learn), so it
+  // needs `maze: false` to keep `guide={showShapeLine && !level.maze}`
+  // (`TraceCanvas.tsx`) drawing the ideal line — the exact reason
+  // `f2-guirnalda`/`f2-colinas`/`f2-bucles` all keep `maze: false` too. But
+  // `catalog.test.ts`'s own "renders only the phase-1 routes as real
+  // mazes" guard is unconditional: `level.maze === (phase === 1 && kind ===
+  // 'path')` for every level without an `artCorridor` — so a `maze: false`
+  // routed level MUST be phase 2, full stop. Phase 2 also means these four
+  // must stay INSIDE the 149-451 writing band (`catalog.test.ts`'s own
+  // "keeps phase 2 in the writing band"), the opposite requirement phase 1
+  // pattern levels carry — `ry: 150` uniform across all four keeps every
+  // ring's own top/bottom exactly on that band's edge with a hair of
+  // margin (measured, not assumed: `ovals()`'s Bezier approximation
+  // deviates from the ideal ellipse by under 0.05 units at this scale).
+  //
+  // `carrier: false`, no `clue`, no `detectiveWorld`: NOT in the detective
+  // world, the same choice sheep/llama make and for the same functional
+  // reason — with a real sand backdrop (`zoo/backdrops.ts`'s `turtles`
+  // row) but `inWorld` false, `LevelPlay.tsx`'s `inkColor={inWorld ?
+  // MUD_INK : backdropEntry?.ink}` (`:2543`) lets `backdropEntry.ink`
+  // actually reach the canvas instead of the forced `MUD_INK` a case trail
+  // would get — necessary here because the sand channel (`SAND_HOLLOW`,
+  // luma 52) fails the 55-luma law against the default slate ink by 12,
+  // the same reason the snake adventure needs the identical override.
+  // `carrier: true` would be a silent no-op without `inWorld` true (no
+  // `carrierArt` would ever resolve, `LevelPlay.tsx:2526-2531`), which is
+  // exactly why sheep/llama leave it off too.
+  //
+  // `rules(2, true, true, fluency)`: `mustBeContinuous: true` because a
+  // closed loop drawn with a pen lift is not the shape at all — turtle2-4's
+  // own hints say so outright ("sin levantar el dedo"). `resetOnContact:
+  // false`, the garland family's own gentle pattern-practice convention:
+  // there is no hazard here, and a delicate curve deserves patience, not
+  // repeated restarts. `feedback.rail` stays OFF on every level here,
+  // including `turtle1`: `catalog.test.ts`'s own "turns the assisted rail
+  // on at FIRST CONTACT only" is a CLOSED, curated list of exactly three
+  // ids (`duck-trail1`, `sheep-hill1`, `f3-l`), not "every family's own
+  // first level" — `llama-peak1`/`dolphin1`/`snake1`/`bee1`/`hedgehog1` all
+  // introduce a family of their own and none of them get it either.
+  // `feedback.metronomeBpm` climbs 55 → 60 → 64 → 68 as the rings shrink
+  // and multiply — inside `catalog.test.ts`'s own required 50-70 band for
+  // any phase-2 level whose beat is not silenced.
+  //
+  // Sizes (`rx`/`corridorWidth`; `ry` is fixed at 150) are chosen, not
+  // merely approximated, against TWO measured guards (`paths.test.ts`,
+  // `catalog.test.ts`): `ovalTurnRadius(rx, ry) > corridorWidth/2 −
+  // BAND_INSET` (the hole never folds shut under `pushBand`'s fixed
+  // offset) and, for turtle2-4, `ovalSpacingClearance` (neighbouring rings
+  // leave a real gap, a quarter of the corridor's own width, once each
+  // side's own padding is subtracted). `x0`/`x1` widen level over level
+  // (350-650 → 140-860 → 50-950 → 20-980) because MORE, smaller rings need
+  // MORE of the sheet's own width to keep that gap real — turtle4's own
+  // 20-unit margin either side of the viewBox is the tightest this family
+  // gets, the same kind of margin `f2-agua3`'s own worst cycle already
+  // ships at (4.5 units on ITS own guard).
+  // ───────────────────────────────────────────────────────────────────────
+  {
+    id: 'turtle1',
+    phase: 2,
+    title: 'La vuelta de la tortuga',
+    hint: 'Empezá arriba, andá para la izquierda y dá toda la vuelta, como la tortuga.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: feedback(55, false),
+    // A single ring: `ovalTurnRadius(150, 150) = 150`, comfortably clear of
+    // `100/2 − 6 = 44`.
+    paths: [ovals({ x0: 350, x1: 650, cy: 300, rx: 150, ry: 150, count: 1 })],
+    corridorWidth: 100,
+    rules: rules(2, true, true, 35),
+    showGuide: true,
+    letters: [],
+    demo: true,
+  },
+  {
+    id: 'turtle2',
+    phase: 2,
+    title: 'Dos vueltas seguidas',
+    hint: 'Dos vueltas seguidas: terminá una y seguí con la otra sin levantar el dedo.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: feedback(60, false),
+    // `ovalTurnRadius(120, 150) = 96`, clear of `90/2 − 6 = 39`.
+    // `ovalSpacingClearance(360, 120, 90, 2)`: gap left over is
+    // `360 − 240 − 90 = 30`, which is `⅓` of the corridor width — clear of
+    // the quarter-width floor.
+    paths: [ovals({ x0: 140, x1: 860, cy: 300, rx: 120, ry: 150, count: 2 })],
+    corridorWidth: 90,
+    rules: rules(2, true, true, 38),
+    showGuide: true,
+    letters: [],
+    demo: true,
+  },
+  {
+    id: 'turtle3',
+    phase: 2,
+    title: 'Tres vueltas chiquitas',
+    hint: 'Tres vueltas más chiquitas, siempre para el mismo lado.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: feedback(64, false),
+    // `ovalTurnRadius(95, 150) ≈ 60.2`, clear of `80/2 − 6 = 34`.
+    // `ovalSpacingClearance(300, 95, 80, 3)`: leftover `300 − 190 − 80 = 30`,
+    // `⅜` of the corridor width.
+    paths: [ovals({ x0: 50, x1: 950, cy: 300, rx: 95, ry: 150, count: 3 })],
+    corridorWidth: 80,
+    rules: rules(2, true, true, 40),
+    showGuide: true,
+    letters: [],
+    demo: true,
+  },
+  {
+    id: 'turtle4',
+    phase: 2,
+    title: 'Cuatro vueltas redonditas',
+    hint: 'Cuatro vueltas redonditas, ¡como escribir oooo!',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: feedback(68, false),
+    // `ovalTurnRadius(75, 150) = 37.5`, clear of `70/2 − 6 = 29` — this
+    // family's own tightest margin, the same role `f2-agua3`'s worst cycle
+    // plays for the garland family.
+    // `ovalSpacingClearance(240, 75, 70, 4)`: leftover `240 − 150 − 70 = 20`,
+    // exactly the quarter-width floor (`0.25 × 70 = 17.5`, cleared by 2.5).
+    paths: [ovals({ x0: 20, x1: 980, cy: 300, rx: 75, ry: 150, count: 4 })],
+    corridorWidth: 70,
+    rules: rules(2, true, true, 42),
+    showGuide: true,
+    letters: [],
+    demo: true,
+  },
+  // ───────────────────────────────────────────────────────────────────────
+  // The monkeys' own family (P4, `odd/tasks/promised-animals.md`): the Rulo
+  // letter family's own rising, self-crossing loop (`docs/01` §8: `e l b h
+  // k f`), taught by monkeys swinging on the forest's lianas — the same
+  // `loops()` generator `f2-bucles` already ships (never changed, never
+  // reused here: a fresh call with this family's own sizes).
+  //
+  // Every field this family shares with the turtles above carries the SAME
+  // reasoning, restated once rather than per level: phase 2 (the same
+  // `maze: false` ⇒ phase-2-only rule); `yTop: 150, yBase: 450` on every
+  // level — `f2-bucles`' own exact band — rather than a shrinking one,
+  // because phase 2's own "keeps phase 2 in the writing band" ceiling
+  // leaves no room to grow BEYOND that band and still clears phase 1's
+  // "spans over 300 units" floor were this phase 1 instead (the reason
+  // this family is phase 2 at all, restated: `loops()`'s crossing shape
+  // is a lesson, and `f2-bucles` already proves this exact band works for
+  // it). `carrier: false`/no `clue`/no `detectiveWorld` (not in the
+  // world — unlike turtles, the forest backdrop needs no `ink` override
+  // at all: its own `brightest` clears the 55-luma law against the
+  // default slate ink by 111, so `backdropEntry?.ink` resolving
+  // `undefined` and falling back to `INK_COLOR` is already correct, see
+  // the `monkeys` row in `zoo/backdrops.ts`). `resetOnContact: false` (a
+  // gentle pattern family, no hazard). `rules(2, true, true, fluency)`
+  // (one continuous stroke — every hint below says so). `feedback.rail`
+  // stays off throughout — `loops()` is not a new mechanic here, the same
+  // reason `llama-peak1` (reusing sheep's own `peakRidge`) gets no
+  // first-contact assist either.
+  //
+  // Sizes are chosen against `loopHoleClearance(width, height,
+  // corridorWidth)` (`paths.ts`/`paths.test.ts`): `loops()`'s own crossing
+  // makes the strict `ovalTurnRadius`-style "never folds" bound unreachable
+  // for this shape at ANY size this sheet can hold (that function's own
+  // header shows the arithmetic), so this asks the achievable question
+  // instead — stays at least as open, proportionally, as `f2-bucles`' own
+  // shipped hole. `width` here is each cycle's own span, `(x1 − x0) /
+  // cycles` — the exact quantity `loops()` itself divides by. `monkey4`'s
+  // own `corridorWidth: 60` — narrower than the `≈70` first sketched for
+  // this family — is a deliberate, measured departure: fitting five rings
+  // across the sheet at `corridorWidth: 70` leaves no `x0`/`x1` span left
+  // that ALSO clears the hole-clearance floor (checked, not assumed: every
+  // span wide enough to clear the floor overflows the viewBox, and every
+  // span that fits the viewBox falls short of the floor) — narrowing the
+  // corridor by 10 units is what actually resolves the conflict, not a
+  // loosened guard.
+  // ───────────────────────────────────────────────────────────────────────
+  {
+    id: 'monkey1',
+    phase: 2,
+    title: 'El primer rulo',
+    hint: 'Subí, dá una vuelta como el mono en la liana y bajá. Otra vez.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: feedback(55, false),
+    // width 260, height 300: `loopHoleClearance(260, 300, 100)` — ratio
+    // ≈0.135, clear of the 0.12 floor.
+    paths: [loops({ x0: 240, x1: 760, yTop: 150, yBase: 450, cycles: 2 })],
+    corridorWidth: 100,
+    rules: rules(2, true, true, 35),
+    showGuide: true,
+    letters: [],
+    demo: true,
+  },
+  {
+    id: 'monkey2',
+    phase: 2,
+    title: 'Tres rulos colgado',
+    hint: 'Tres vueltas colgado: subí, girá y bajá.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: feedback(60, false),
+    // width 240, height 300: ratio ≈0.133.
+    paths: [loops({ x0: 140, x1: 860, yTop: 150, yBase: 450, cycles: 3 })],
+    corridorWidth: 90,
+    rules: rules(2, true, true, 38),
+    showGuide: true,
+    letters: [],
+    demo: true,
+  },
+  {
+    id: 'monkey3',
+    phase: 2,
+    title: 'Rulos más chiquitos',
+    hint: 'Las lianas se juntan: vueltas más chiquitas.',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: feedback(64, false),
+    // width 220, height 300: ratio ≈0.130.
+    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 4 })],
+    corridorWidth: 80,
+    rules: rules(2, true, true, 40),
+    showGuide: true,
+    letters: [],
+    demo: true,
+  },
+  {
+    id: 'monkey4',
+    phase: 2,
+    title: 'Muchos rulos seguidos',
+    // Four rings, like `monkey3`, but in a narrower corridor. The first cut
+    // squeezed five rings into a 60-unit corridor, the tightest path in the
+    // game, for a first grader's last level before the letters. Difficulty now
+    // comes from the corridor alone.
+    hint: '¡Cuatro vueltas seguidas, como escribir llll!',
+    kind: 'path',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: feedback(68, false),
+    // width 220, height 300 (monkey3's own geometry) at corridor 70: the
+    // hole ratio rises above monkey3's ≈0.130, comfortably clear of the 0.12
+    // floor.
+    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 4 })],
+    corridorWidth: 70,
+    rules: rules(2, true, true, 42),
+    showGuide: true,
+    letters: [],
+    demo: true,
+  },
   {
     id: 'f2-guirnalda',
     phase: 2,
-    title: 'Las olas de la medusa',
+    // Renamed from "Las olas de la medusa" (P3 follow-up, `odd/tasks/
+    // promised-animals.md`): the title reaches the map's own accessible
+    // action label (`ZooMap.tsx`'s `sectorActionLabel`, "Próximo juego:
+    // …"), so a medusa name for a fish trail was a real, spoken
+    // inconsistency once P2 retired the jellyfish's own `goalArt` — not
+    // merely a cosmetic label nobody reads.
+    title: 'Las burbujas de los peces',
     // The fish adventure's own first tramo (P2, `odd/tasks/promised-
     // animals.md`; `zoo/adventures.ts`'s `fish` row): the child follows the
     // bubbles the fish left behind on their way out, not a medusa swimming
@@ -1807,7 +2095,9 @@ const PHASE_2: LevelConfig[] = [
   {
     id: 'f2-agua2',
     phase: 2,
-    title: 'La medusa se apura',
+    // Renamed from "La medusa se apura" (P3 follow-up) — see `f2-guirnalda`'s
+    // own comment above for why this title is spoken, not decorative.
+    title: 'Las burbujas se apuran',
     hint: 'Más burbujas. Hacé las curvas redonditas, como una U.',
     kind: 'path',
     surface: 'blank',
@@ -1827,7 +2117,10 @@ const PHASE_2: LevelConfig[] = [
   {
     id: 'f2-agua3',
     phase: 2,
-    title: 'Las olas cambian',
+    // Renamed from "Las olas cambian" (P3 follow-up) — see `f2-guirnalda`'s
+    // own comment above. `f2-agua4`'s own "La estrella de mar" already
+    // named the hazard, not the medusa, so it is untouched.
+    title: 'Las burbujas cambian',
     // The microprogression's third step: SIZE and SPACING both vary within
     // one path (docs/11 Nivel 3), not just from level to level — the reason
     // `garlandVaried` exists rather than a wider `garland` call.

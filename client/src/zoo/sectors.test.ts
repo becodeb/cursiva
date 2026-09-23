@@ -293,10 +293,15 @@ describe('Registry↔Catalog Structural Consistency', () => {
     expect(nocturna.unlockedWhen(filed('llama-peak4'))).toBe(true)
   })
 
-  it('bosque stays fogged until snake4 is filed, then opens with bee1..4 (free-trail-waypoints design.md §9)', () => {
+  it('bosque stays fogged until snake4 is filed, then opens with bee1..4 then monkey1..4 (free-trail-waypoints design.md §9; promised-animals P4)', () => {
     // `bosque` was promoted OUT of the "stays fogged for every input" set by
     // `free-trail-waypoints` — the forest's new last rung of the ladder.
-    expect(bosque.adventureIds).toEqual(['bee1', 'bee2', 'bee3', 'bee4'])
+    // `monkey1..4` (P4) is a SECOND adventure on this already-open sector,
+    // appended after the bee's own four — `unlockedWhen` is unaffected.
+    expect(bosque.adventureIds).toEqual([
+      'bee1', 'bee2', 'bee3', 'bee4',
+      'monkey1', 'monkey2', 'monkey3', 'monkey4',
+    ])
     for (const records of [{}, filed('sand4', 'night4', 'llama-peak4')]) {
       expect(bosque.unlockedWhen(records)).toBe(false)
     }
@@ -311,9 +316,14 @@ describe('Registry↔Catalog Structural Consistency', () => {
     expect(after[0].art).toBe(ZOO_ANIMAL_ART.abeja)
   })
 
-  it('arena stays fogged until night4 is filed, then opens with snake1..4', () => {
+  it('arena stays fogged until night4 is filed, then opens with snake1..4 then turtle1..4 (promised-animals P3)', () => {
     const arena = SECTORS.find((s) => s.id === 'arena')!
-    expect(arena.adventureIds).toEqual(['snake1', 'snake2', 'snake3', 'snake4'])
+    // `turtle1..4` (P3) is a SECOND adventure on this already-open sector,
+    // appended after the snake's own four — `unlockedWhen` is unaffected.
+    expect(arena.adventureIds).toEqual([
+      'snake1', 'snake2', 'snake3', 'snake4',
+      'turtle1', 'turtle2', 'turtle3', 'turtle4',
+    ])
     expect(arena.unlockedWhen({})).toBe(false)
     expect(arena.unlockedWhen(filed('llama-peak4'))).toBe(false)
     expect(arena.unlockedWhen(filed('night4'))).toBe(true)
@@ -593,7 +603,7 @@ describe('Recovered Animal Placement', () => {
     expect(placed[0].art).toBe(ZOO_ANIMAL_ART.pez)
   })
 
-  it("the fish's own box sits inside ENTRADA_HIT, on the left third of the spot — clear of where the turtle and monkey are planned (P3, P4)", () => {
+  it("the fish's own box sits inside ENTRADA_HIT, on the left third of the spot — clear of the turtle and monkey (P3, P4)", () => {
     const [placed] = animalPlacements(entrada, filed('f2-agua4'))
     const hit = entrada.hit!
     expect(placed.box.x).toBeGreaterThanOrEqual(hit.x)
@@ -603,10 +613,50 @@ describe('Recovered Animal Placement', () => {
     // Standing grip: feet on `animalSpot`, same law `duck`/`delfin` above
     // assert.
     expect(placed.box.y + placed.box.height).toBeCloseTo(entrada.animalSpot.y, 6)
-    // Left of centre, not past the spot's own midline — the turtle's future
+    // Left of centre, not past the spot's own midline — the turtle's own
     // `dx: 0` slot starts right where this box ends (see the registry's own
     // worked measurement, `zoo/sectors.ts`).
     expect(placed.box.x + placed.box.width).toBeLessThanOrEqual(entrada.animalSpot.x)
+  })
+
+  // The turtles' own rescue (P3, `odd/tasks/promised-animals.md`): same
+  // reasoning as the fish above — the recovered turtle stands in `entrada`,
+  // not `arena`, where `turtle1..4` are actually played.
+  it('the turtle is absent before turtle4 is filed, and appears at the entrance once it is', () => {
+    expect(animalPlacements(entrada, filed('turtle1', 'turtle2', 'turtle3'))).toEqual([])
+    const placed = animalPlacements(entrada, filed('turtle4'))
+    expect(placed).toHaveLength(1)
+    expect(placed[0].art).toBe(ZOO_ANIMAL_ART.tortuga)
+  })
+
+  // The monkeys' own rescue (P4). Same reasoning, `bosque` is where
+  // `monkey1..4` are played, `entrada` is where the recovered monkey stands.
+  it('the monkey is absent before monkey4 is filed, and appears at the entrance once it is', () => {
+    expect(animalPlacements(entrada, filed('monkey1', 'monkey2', 'monkey3'))).toEqual([])
+    const placed = animalPlacements(entrada, filed('monkey4'))
+    expect(placed).toHaveLength(1)
+    expect(placed[0].art).toBe(ZOO_ANIMAL_ART.mono)
+  })
+
+  it('the fish, turtle and monkey all stand together at the entrance once every rescue is done — three boxes, all inside ENTRADA_HIT, none overlapping', () => {
+    const placed = animalPlacements(entrada, filed('f2-agua4', 'turtle4', 'monkey4'))
+    expect(placed).toHaveLength(3)
+    const hit = entrada.hit!
+    const insideHit = (box: { x: number; y: number; width: number; height: number }): boolean =>
+      box.x >= hit.x &&
+      box.y >= hit.y &&
+      box.x + box.width <= hit.x + hit.w &&
+      box.y + box.height <= hit.y + hit.h
+    for (const p of placed) expect(insideHit(p.box), p.art.href).toBe(true)
+    const disjoint = (
+      a: { x: number; y: number; width: number; height: number },
+      b: { x: number; y: number; width: number; height: number },
+    ): boolean => a.x + a.width <= b.x || a.x >= b.x + b.width || a.y + a.height <= b.y || a.y >= b.y + b.height
+    for (let i = 0; i < placed.length; i++) {
+      for (let j = i + 1; j < placed.length; j++) {
+        expect(disjoint(placed[i].box, placed[j].box), `${placed[i].art.href} vs ${placed[j].art.href}`).toBe(true)
+      }
+    }
   })
 })
 

@@ -329,23 +329,25 @@ export const SECTORS: readonly ZooSector[] = [
     // `unlockedWhen` returns true (`!isOpen`, `ZooMap.tsx:231`).
     fog: closedFog(ENTRADA_HIT, 1),
     animalSpot: hitCentre(ENTRADA_HIT),
-    // The prologue's promise, kept (P2, `odd/tasks/promised-animals.md`):
+    // The prologue's promise, kept (P2-P4, `odd/tasks/promised-animals.md`):
     // a rescued animal goes back to its OWN enclosure — the very one the
     // prologue showed empty — not to the sector it was found in, which is
-    // why the fish lands HERE, in `entrada`, rather than in `estanque`
-    // alongside the duck and the dolphins. `dx: -70` reserves the left
-    // third of `ENTRADA_HIT` (398×170..626×594 around this spot's own
-    // (512, 509)) for the fish; the turtle's future `dx: 0` and the
-    // monkey's future `dx: 70` (P3, P4) are PLANNED, not yet entries here —
-    // worked out together so all three fit side by side without
-    // overlapping, at `size: 45` each: the fish's box lands x∈[413.9,
-    // 470.2], the turtle's own centred box (aspect 448/292) would land
-    // x∈[477.5, 546.5], and the monkey's (aspect 320/320, today's
-    // placeholder) x∈[559.5, 604.5] — three clear gaps, all inside
-    // `ENTRADA_HIT`'s own x∈[398, 626]. `size: 45`, not the duck's 96 or
-    // the dolphin's 72: three animals share one spot here, where the pond
-    // gives the duck and the dolphin one each.
-    animals: [{ id: 'pez', dx: -70, dy: 0, size: 45, appearsWhen: ['f2-agua4'] }],
+    // why all three land HERE, in `entrada`, rather than in `estanque`/
+    // `arena`/`bosque` alongside the other animals those sectors recover.
+    // Worked out together (P2's own comment first planned all three
+    // slots) so they fit side by side without overlapping, at `size: 45`
+    // each — smaller than the duck's 96 or the dolphin's 72, since three
+    // animals share this one spot where the pond gives the duck and the
+    // dolphin one each: fish left (`dx: -70`, box x∈[413.9, 470.2]),
+    // turtle centre (`dx: 0`, box x∈[477.5, 546.5], aspect 448/292),
+    // monkey right (`dx: 70`, box x∈[559.5, 604.5], aspect 320/320 —
+    // today's placeholder, `PROMISED_ANIMAL_ART.mono`) — three clear
+    // gaps, all inside `ENTRADA_HIT`'s own x∈[398, 626].
+    animals: [
+      { id: 'pez', dx: -70, dy: 0, size: 45, appearsWhen: ['f2-agua4'] },
+      { id: 'tortuga', dx: 0, dy: 0, size: 45, appearsWhen: ['turtle4'] },
+      { id: 'mono', dx: 70, dy: 0, size: 45, appearsWhen: ['monkey4'] },
+    ],
     // Narrowed from eight ids to four by adventure-flow-and-map-guidance T1
     // ("levels that must be done twice"): each enclosure used to carry TWO
     // levels of the same erase gesture on the same picture
@@ -377,7 +379,11 @@ export const SECTORS: readonly ZooSector[] = [
     // and it sits comfortably inside `BOSQUE_HIT`'s 300×300
     // (`free-trail-waypoints` design.md §9).
     animals: [{ id: 'abeja', dx: 0, dy: 0, size: 48, appearsWhen: ['bee4'] }],
-    adventureIds: ['bee1', 'bee2', 'bee3', 'bee4'],
+    // A second adventure joins an already-open sector, the same move
+    // `arena`'s own `turtle1..4` just made: the monkeys' own five-loop
+    // family (`promised-animals` P4), played right after the bee.
+    // `unlockedWhen` stays UNCHANGED.
+    adventureIds: ['bee1', 'bee2', 'bee3', 'bee4', 'monkey1', 'monkey2', 'monkey3', 'monkey4'],
     // The ladder's new last rung: entrada → estanque ← sand4 → montañas ←
     // duck-trail4 → nocturna ← llama-peak4 → arena ← night4 → bosque ←
     // snake4 (`free-trail-waypoints` design.md §9). Only ever WIDENS access.
@@ -477,7 +483,13 @@ export const SECTORS: readonly ZooSector[] = [
     // `ARENA_HIT`'s width with room (`snake-drag-and-art-corridor`
     // design.md §7.1).
     animals: [{ id: 'vibora', dx: 0, dy: 0, size: 30, appearsWhen: ['snake4'] }],
-    adventureIds: ['snake1', 'snake2', 'snake3', 'snake4'],
+    // A second adventure joins an already-open sector (`nocturna`'s own
+    // precedent, below): the turtles' own four ovals (`promised-animals`
+    // P3), played right after the snake, in the exact order docs/13 §3's
+    // own convention already established for `montañas`/`nocturna` —
+    // `unlockedWhen` stays UNCHANGED, adding an adventure never moves when
+    // the sector itself opens.
+    adventureIds: ['snake1', 'snake2', 'snake3', 'snake4', 'turtle1', 'turtle2', 'turtle3', 'turtle4'],
     // The ladder's new last rung: entrada → estanque ← sand4 → montañas ←
     // duck-trail4 → nocturna ← llama-peak4 → arena ← night4. Only ever
     // WIDENS access (design.md §0 A1).

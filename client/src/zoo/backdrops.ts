@@ -244,6 +244,29 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
     // #f5f5f5 (the eye, luma 245 — R3's `TORCH_CHALK` gap of 6).
     corridorArt: { brightest: '#7b9b6e', darkest: '#1a1a1a', headWhite: '#f5f5f5' },
   },
+  // The turtles adventure (`promised-animals` P3) — a SECOND, plain-channel
+  // row on the exact same sand art `tortugas`/`snake` already draw on: same
+  // file, same measured `quiet`/`brightest`, same `corridorRows`, DIFFERENT
+  // adventure because this one is a painted band (`ovals()`, no drawn
+  // corridor art) rather than the snake's own cutout pieces. `channel:
+  // SAND_HOLLOW` for the same reason `snake` needs it — `SHEET_PAPER`
+  // already fails the sand's own `brightest` (255) by the exact "goes red"
+  // proof `backdrops.test.ts` runs for `tortugas` — and `ink`/`inkDim`
+  // reuse `TORCH_CHALK`/`TORCH_CHALK_DIM` for a reason `snake`'s own L1-L4
+  // tests do NOT cover: unlike the snake, this row has no drawn art of its
+  // own to protect the ink from, but `SAND_HOLLOW`'s own luma (52) still
+  // fails the 55-luma law against the default slate ink by 12 — measured,
+  // not assumed, and asserted directly in `backdrops.test.ts` for THIS row
+  // rather than only inherited from `snake`'s.
+  turtles: {
+    art: SECTOR_BACKGROUND_ART.sand,
+    quiet: '#f9cf86',
+    brightest: '#ffffff',
+    corridorRows: { top: 51, bottom: 973 },
+    channel: SAND_HOLLOW,
+    ink: TORCH_CHALK,
+    inkDim: TORCH_CHALK_DIM,
+  },
   // The forest — paso F's own row (`free-trail-waypoints`, design.md §3.1).
   // The first backdrop that needs no channel (a bee level draws no corridor
   // at all — `docs/13` §4 decision 3) and no veil (no `reveal` field
@@ -251,6 +274,30 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // `manifest.json` and are EQUAL — the band is flat over the whole range
   // (`artManifest.test.ts` guards the parity).
   bee: {
+    art: SECTOR_BACKGROUND_ART.forest,
+    quiet: '#86a678',
+    brightest: '#86a678',
+    corridorRows: { top: 191, bottom: 926 },
+  },
+  // The monkeys adventure (`promised-animals` P4) — the SAME forest art and
+  // measured `quiet`/`brightest` `bee` already draws on, a different
+  // adventure because this one DOES draw a routed corridor (`loops()`,
+  // `ovals()`'s own sibling generator) where the bee's own waypoint level
+  // draws none at all. No `channel` — default `SHEET_PAPER` already clears
+  // the forest's own `brightest` (151 luma) by 101, comfortably past the
+  // 55-luma law, so unlike the sand-backed `turtles` row above this one
+  // needs no override — and no `ink` override for the identical reason: the
+  // child's line is drawn ON the (light) channel, not directly on the
+  // forest pixels, so only the channel's own luma (`SHEET_PAPER`, 252) has
+  // to clear the default slate ink, which it does trivially. `corridorRows`
+  // reuses `bee`'s own band rather than a freshly sampled one: every
+  // authored `monkey1..4` route's own real vertical extent (measured
+  // against the real geometry, not assumed) sits inside `bee`'s (191, 926)
+  // with margin at every step — image rows 223-800 at their widest,
+  // narrowing at each smaller level — so `bee`'s own already-verified
+  // containment bounds this row too, the identical reuse argument
+  // `dolphin`'s and `fish`'s own entries above make for `duck`'s.
+  monkeys: {
     art: SECTOR_BACKGROUND_ART.forest,
     quiet: '#86a678',
     brightest: '#86a678',

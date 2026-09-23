@@ -61,7 +61,7 @@ describe('JOURNEY (guard: every ADVENTURES row start and every no-row block star
     }
   })
 
-  it('is exactly the 13 documented stops, in narrative order', () => {
+  it('is exactly the 15 documented stops, in narrative order', () => {
     expect(JOURNEY).toEqual([
       'glass1',
       'sand1',
@@ -76,6 +76,8 @@ describe('JOURNEY (guard: every ADVENTURES row start and every no-row block star
       'bee1',
       'f2-guirnalda',
       'dolphin1',
+      'turtle1',
+      'monkey1',
     ])
   })
 })
@@ -147,6 +149,34 @@ describe('nextJourneyStep', () => {
     const step = nextJourneyStep(records)
     expect(step?.entryLevel).toBe('f2-guirnalda')
     expect(step?.sector.id).toBe('estanque')
+  })
+
+  // `promised-animals` P3/P4: the final two stops, both a SECOND rescue for
+  // an already-visited sector (see `JOURNEY`'s own comment for why they
+  // sit last — the bridge to the letters, not one more animal among the
+  // earlier ones).
+  it('the journey steps after the fish/dolphin block are turtle1 in the arena, then monkey1 in the forest', () => {
+    const entrada = SECTORS.find((s) => s.id === 'entrada')!
+    const estanque = SECTORS.find((s) => s.id === 'estanque')!
+    const montanas = SECTORS.find((s) => s.id === 'montanas')!
+    const nocturna = SECTORS.find((s) => s.id === 'nocturna')!
+    const snake = ADVENTURES.find((a) => a.id === 'snake')!
+    const bee = ADVENTURES.find((a) => a.id === 'bee')!
+    const baseline = filed(
+      ...entrada.adventureIds,
+      ...estanque.adventureIds,
+      ...montanas.adventureIds,
+      ...nocturna.adventureIds,
+      ...snake.levelIds,
+      ...bee.levelIds,
+    )
+    expect(nextJourneyStep(baseline)?.entryLevel).toBe('turtle1')
+    expect(nextJourneyStep(baseline)?.sector.id).toBe('arena')
+
+    const turtles = ADVENTURES.find((a) => a.id === 'turtles')!
+    const afterTurtles = { ...baseline, ...filed(...turtles.levelIds) }
+    expect(nextJourneyStep(afterTurtles)?.entryLevel).toBe('monkey1')
+    expect(nextJourneyStep(afterTurtles)?.sector.id).toBe('bosque')
   })
 
   it('returns null once every sector the ladder reaches is fully filed', () => {

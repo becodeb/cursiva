@@ -93,4 +93,31 @@ describe('adventureProgress', () => {
     const progress = adventureProgress('sheep-hill3', {})
     expect(progress?.slots.map((s) => s.current)).toEqual([false, false, true, false])
   })
+
+  // The turtles' and monkeys' own rows (`promised-animals` P3/P4) — neither
+  // carries a `clue` (the finish chain shows a star on 1-3, the animal on
+  // 4), the same "no clue art yet" shape sheep's own row above already
+  // covers.
+  it('reports a mid-adventure turtle trail with no clue art (star fallback), animal tortuga', () => {
+    const progress = adventureProgress('turtle2', recordsFor(['turtle1']))
+    expect(progress).toEqual({
+      adventureId: 'turtles',
+      animal: 'tortuga',
+      rescued: false,
+      slots: [
+        { levelId: 'turtle1', clue: undefined, filed: true, current: false },
+        { levelId: 'turtle2', clue: undefined, filed: false, current: true },
+        { levelId: 'turtle3', clue: undefined, filed: false, current: false },
+        { levelId: 'turtle4', clue: undefined, filed: false, current: false },
+      ],
+    })
+  })
+
+  it('reports the monkeys adventure rescued once monkey4 is filed, animal mono', () => {
+    const allFour = recordsFor(['monkey1', 'monkey2', 'monkey3', 'monkey4'])
+    const progress = adventureProgress('monkey4', allFour)
+    expect(progress?.adventureId).toBe('monkeys')
+    expect(progress?.animal).toBe('mono')
+    expect(progress?.rescued).toBe(true)
+  })
 })

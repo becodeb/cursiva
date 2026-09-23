@@ -142,6 +142,20 @@ describe('ZooMap (layer order)', () => {
     expect(render()).not.toContain('/art/animal-pato.png')
     expect(render(filed('duck-trail4'))).toContain('/art/animal-pato.png')
   })
+
+  // The prologue's promise, kept (`promised-animals` P2-P4): all three
+  // rescued animals stand at the ENTRANCE, not at the sector their own
+  // adventure plays in — `sectors.test.ts`'s own "Recovered Animal
+  // Placement" describe block proves the underlying `animalPlacements`
+  // logic in full; this only proves the map actually renders it.
+  it('the fish, turtle and monkey each appear only once their own last level is filed, all at the entrance', () => {
+    expect(render()).not.toContain('/art/animal-pez.png')
+    expect(render(filed('f2-agua4'))).toContain('/art/animal-pez.png')
+    expect(render()).not.toContain('/art/animal-tortuga.png')
+    expect(render(filed('turtle4'))).toContain('/art/animal-tortuga.png')
+    expect(render()).not.toContain('/art/animal-mono.png')
+    expect(render(filed('monkey4'))).toContain('/art/animal-mono.png')
+  })
 })
 
 describe('ZooMap (HUD is DOM, outside the svg)', () => {

@@ -71,6 +71,14 @@ const CHANNEL_BACKDROPS = {
   // The fish row (`promised-animals` P2) shares the exact same literals too
   // — same group, same reasoning, no `channel` of its own.
   fish: ADVENTURE_BACKDROP.fish!,
+  // The turtles row (`promised-animals` P3) — a plain painted band over the
+  // sand, `channel: SAND_HOLLOW` declared, same group as `snake`'s own
+  // BACKDROP (not its `corridorArt`, which is what `ART_CORRIDOR_BACKDROPS`
+  // below is for).
+  turtles: ADVENTURE_BACKDROP.turtles!,
+  // The monkeys row (`promised-animals` P4) — a plain painted band over the
+  // forest, no `channel` override needed (its own header explains why).
+  monkeys: ADVENTURE_BACKDROP.monkeys!,
   sheep: ADVENTURE_BACKDROP.sheep!,
   llama: ADVENTURE_BACKDROP.llama!,
 }
@@ -83,7 +91,7 @@ const ART_CORRIDOR_BACKDROPS = {
 }
 
 describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
-  it('separates the reveal veil paint from the lightest thing it covers, for all eleven backdrops (promised-animals P2 adds fish)', () => {
+  it('separates the reveal veil paint from the lightest thing it covers, for all thirteen backdrops (promised-animals P2-P4 add fish/turtles/monkeys)', () => {
     for (const [id, b] of [
       ...Object.entries(CHANNEL_BACKDROPS),
       ...Object.entries(REVEAL_BACKDROPS),
@@ -256,6 +264,20 @@ describe('ADVENTURE_BACKDROP luma law (docs/09:158)', () => {
   it('is byte-identical for the lagoon: no channel field, resolved paint is SHEET_PAPER (regression, task 6.1)', () => {
     expect(ADVENTURE_BACKDROP.duck!.channel).toBeUndefined()
     expect(ADVENTURE_BACKDROP.duck!.channel ?? SHEET_PAPER).toBe(SHEET_PAPER)
+  })
+
+  // The turtles row (`promised-animals` P3) is the first PLAIN-channel row
+  // (no drawn art corridor of its own, unlike `snake`) ever painted in
+  // `SAND_HOLLOW`. The child's own ink is drawn ON that channel, not on the
+  // sand pixels directly, so the relevant law is ink-vs-channel — a
+  // question `snake`'s own L1-L4 tests never actually ask (theirs is about
+  // the drawn snake body's own darkest/brightest, a different concern). Not
+  // just declared here — checked, going both ways: the default slate fails,
+  // and the row's own chosen `ink` clears it.
+  it('goes red for the default slate ink against SAND_HOLLOW, and TORCH_CHALK clears it — why the turtles row overrides ink at all', () => {
+    expect(Math.abs(luma(INK_COLOR) - luma(SAND_HOLLOW))).toBeLessThan(MIN_BACKDROP_CONTRAST)
+    expect(Math.abs(luma(TORCH_CHALK) - luma(SAND_HOLLOW))).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
+    expect(ADVENTURE_BACKDROP.turtles!.ink).toBe(TORCH_CHALK)
   })
 
   it('clears the luma law against both mountain backdrops with CHANNEL_STONE', () => {
@@ -623,6 +645,18 @@ describe('backdropFor', () => {
   it('resolves the fish adventure to the lagoon backdrop — the medusa levels are no longer backdrop-less (promised-animals P2, was docs/13 §4 "Hecha — Nada")', () => {
     for (const id of ['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4']) {
       expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.fish)
+    }
+  })
+
+  it('resolves the turtles adventure to the sand backdrop (promised-animals P3)', () => {
+    for (const id of ['turtle1', 'turtle2', 'turtle3', 'turtle4']) {
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.turtles)
+    }
+  })
+
+  it('resolves the monkeys adventure to the forest backdrop (promised-animals P4)', () => {
+    for (const id of ['monkey1', 'monkey2', 'monkey3', 'monkey4']) {
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.monkeys)
     }
   })
 

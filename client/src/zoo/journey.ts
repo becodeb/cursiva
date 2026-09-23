@@ -56,6 +56,17 @@ export const JOURNEY: readonly string[] = [
   'bee1',
   'f2-guirnalda',
   'dolphin1',
+  // The turtles' and monkeys' own stops (`promised-animals` P3/P4): both
+  // are a SECOND stop for an already-visited sector (`arena`'s own snake1
+  // came earlier; `bosque`'s own bee1 did too) — the exact `montañas`
+  // (sheep, then llama) / `estanque` (duck, then fish, then dolphin)
+  // pattern this list already uses elsewhere, restated for a sector that
+  // now has two rescues instead of one. Placed LAST because they are the
+  // bridge to the letters proper (`docs/01` §8's Ola/Rulo families) — the
+  // final stretch before the pre-cursive curriculum, not one more animal
+  // among the earlier ones.
+  'turtle1',
+  'monkey1',
 ]
 
 /**

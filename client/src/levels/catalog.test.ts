@@ -34,6 +34,10 @@ import { SECTORS } from '../zoo/sectors'
 import {
   armClearance,
   cornerClearance,
+  loopHoleClearance,
+  loopHoleRadius,
+  ovalSpacingClearance,
+  ovalTurnRadius,
   peakRidgeCorridorLimit,
   spiral,
   uTurnRadius,
@@ -96,6 +100,14 @@ const EXPECTED_IDS = [
   'hedgehog2',
   'hedgehog3',
   'hedgehog4',
+  'turtle1',
+  'turtle2',
+  'turtle3',
+  'turtle4',
+  'monkey1',
+  'monkey2',
+  'monkey3',
+  'monkey4',
   'f2-guirnalda',
   'f2-agua2',
   'f2-agua3',
@@ -205,6 +217,15 @@ describe('LEVELS — authored values match the doc tables', () => {
     'llama-peak2': 80,
     'llama-peak3': 70,
     'llama-peak4': 60,
+    'turtle1': 100,
+    'turtle2': 90,
+    'turtle3': 80,
+    'turtle4': 70,
+    'monkey1': 100,
+    'monkey2': 90,
+    'monkey3': 80,
+    // Four rings at 70 (see this level's own comment in `catalog.ts`).
+    'monkey4': 70,
     'f2-guirnalda': 100,
     'f2-agua2': 80,
     'f2-agua3': 68,
@@ -272,6 +293,14 @@ describe('LEVELS — authored values match the doc tables', () => {
     'llama-peak2': 0,
     'llama-peak3': 0,
     'llama-peak4': 0,
+    'turtle1': 35,
+    'turtle2': 38,
+    'turtle3': 40,
+    'turtle4': 42,
+    'monkey1': 35,
+    'monkey2': 38,
+    'monkey3': 40,
+    'monkey4': 42,
     'f2-guirnalda': 35,
     'f2-agua2': 38,
     'f2-agua3': 40,
@@ -605,6 +634,78 @@ describe('LEVELS — Nivel 3 and every garland/hills level clears the ideal band
     const radius = uTurnRadius(165, 170)
     expect(radius).toBeGreaterThan(floor)
     expect(radius - floor).toBeCloseTo(4.5, 1)
+  })
+})
+
+describe('LEVELS — every turtle level keeps a real hole and a real gap between rings (promised-animals P3)', () => {
+  // Restates each level's own `ovals()` call literals (`rx`, `ry`, `count`,
+  // `x0`/`x1`), tying the live `corridorWidth` field to the geometry the
+  // same way the garland/hills block above does — a level author who
+  // retunes one without the other fails here, not in a browser.
+  const RING_CASES: ReadonlyArray<{ id: string; rx: number; ry: number }> = [
+    { id: 'turtle1', rx: 150, ry: 150 },
+    { id: 'turtle2', rx: 120, ry: 150 },
+    { id: 'turtle3', rx: 95, ry: 150 },
+    { id: 'turtle4', rx: 75, ry: 150 },
+  ]
+
+  it('keeps ovalTurnRadius safely wider than the ideal band on every turtle level', () => {
+    for (const { id, rx, ry } of RING_CASES) {
+      const level = getLevel(id)
+      expect(ovalTurnRadius(rx, ry), id).toBeGreaterThan(level.corridorWidth / 2 - BAND_INSET)
+    }
+  })
+
+  const SPACING_CASES: ReadonlyArray<{ id: string; spacing: number; rx: number; count: number }> = [
+    { id: 'turtle2', spacing: (860 - 140) / 2, rx: 120, count: 2 },
+    { id: 'turtle3', spacing: (950 - 50) / 3, rx: 95, count: 3 },
+    { id: 'turtle4', spacing: (980 - 20) / 4, rx: 75, count: 4 },
+  ]
+
+  it('keeps a real gap — at least a quarter of the corridor width — between every pair of neighbouring rings', () => {
+    for (const { id, spacing, rx, count } of SPACING_CASES) {
+      const level = getLevel(id)
+      expect(
+        ovalSpacingClearance(spacing, rx, level.corridorWidth, count),
+        id,
+      ).toBe(true)
+    }
+  })
+
+  it("holds even at turtle4's own tightest margin — the family's own equivalent of desafío 3's 4.5 units", () => {
+    const level = getLevel('turtle4')
+    const floor = level.corridorWidth / 2 - BAND_INSET
+    const radius = ovalTurnRadius(75, 150)
+    expect(radius).toBeGreaterThan(floor)
+    expect(radius - floor).toBeCloseTo(8.5, 1)
+  })
+})
+
+describe('LEVELS — every monkey level keeps a hole at least as open as f2-bucles, proportionally (promised-animals P4)', () => {
+  // `width` restates each level's own per-cycle span, `(x1 − x0) / cycles`
+  // — the exact quantity `loops()` itself divides by — tying the live
+  // `corridorWidth` field to the geometry the same way every other family's
+  // own catalog-level guard does.
+  const CASES: ReadonlyArray<{ id: string; width: number; height: number }> = [
+    { id: 'monkey1', width: (760 - 240) / 2, height: 300 },
+    { id: 'monkey2', width: (860 - 140) / 3, height: 300 },
+    { id: 'monkey3', width: (940 - 60) / 4, height: 300 },
+    { id: 'monkey4', width: (940 - 60) / 4, height: 300 },
+  ]
+
+  it('clears loopHoleClearance on every monkey level', () => {
+    for (const { id, width, height } of CASES) {
+      const level = getLevel(id)
+      expect(loopHoleClearance(width, height, level.corridorWidth), id).toBe(true)
+    }
+  })
+
+  it("holds even at monkey4's own tightest margin", () => {
+    const level = getLevel('monkey4')
+    const ratio = loopHoleRadius((940 - 60) / 4, 300) / level.corridorWidth
+    expect(ratio).toBeGreaterThanOrEqual(0.12)
+    // Same rings as monkey3 in a narrower corridor, so a wider hole ratio.
+    expect(ratio).toBeGreaterThan(loopHoleRadius((940 - 60) / 4, 300) / getLevel('monkey3').corridorWidth)
   })
 })
 
@@ -1956,7 +2057,11 @@ describe('the bee family — C1-C6 and R1-R5 (design.md §4.2/§6.2)', () => {
   it('R7: every bee id appears in ADVENTURES.bee.levelIds, bosque.adventureIds and EXPECTED_IDS, in the same order', () => {
     expect(ADVENTURES.find((a) => a.id === 'bee')!.levelIds).toEqual(BEE_IDS)
     const bosque = SECTORS.find((s) => s.id === 'bosque')!
-    expect(bosque.adventureIds).toEqual(BEE_IDS)
+    // `bosque.adventureIds` now carries the monkeys' own four levels too
+    // (`promised-animals` P4, right after the bee's own four) — this test's
+    // own name only claims the bee ids appear, in order, so it slices
+    // rather than asserting the sector's full id list here.
+    expect(bosque.adventureIds.slice(0, BEE_IDS.length)).toEqual(BEE_IDS)
     const positions = BEE_IDS.map((id) => EXPECTED_IDS.indexOf(id))
     expect(positions.every((p) => p >= 0)).toBe(true)
     expect(positions).toEqual([...positions].sort((a, b) => a - b))

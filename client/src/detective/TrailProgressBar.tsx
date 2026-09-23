@@ -62,11 +62,11 @@ const ANIMAL_HEIGHT = 46
  *  animal added to a row here does not lose its accessible name entirely
  *  before someone adds it here too.
  *
- *  `pez`/`tortuga`/`mono` (`promised-animals` P1) are added TOGETHER, the
+ *  `pez`/`tortuga`/`mono` were added TOGETHER in `promised-animals` P1, the
  *  same way `ZooAnimalId`/`ZOO_ANIMAL_ART` widened together in that task,
- *  even though only `pez` names a real row today (P2's `fish`; `tortuga`'s
- *  `turtles` and `mono`'s `monkeys` are P3/P4) — so a later task adding one
- *  of those two rows needs no return trip to this file. */
+ *  ahead of any of the three naming a real row — `fish` (P2), `turtles`
+ *  (P3) and `monkeys` (P4) have all shipped since, so all three entries now
+ *  name a real `ADVENTURES` row. */
 const ANIMAL_NAME: Readonly<Partial<Record<ZooAnimalId, string>>> = {
   pato: 'el pato',
   oveja: 'las ovejas',

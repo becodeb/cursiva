@@ -49,8 +49,8 @@ describe('ADVENTURES', () => {
   // enclosures — `peces`, `tortugas`, `monos`, `sendero` — each carrying TWO
   // of the same eight level ids, never renumbered (`zoo-map` delta
   // "Adventure Identifiers Regroup the Entrance Into Four Enclosures").
-  it("declares thirteen rows: duck/sheep/llama, the entrance's four enclosures (peces/tortugas/monos/sendero), the night sector, the arena's snake, the forest's bee, the pond's fish and dolphin, and the night sector's second adventure — the hedgehog (design.md §5, §6.1; free-trail-waypoints design.md §9; this change's §8; radial-spines design.md §8.2; add-caretaker-prologue design.md D7; promised-animals P2 adds `fish`)", () => {
-    expect(ADVENTURES).toHaveLength(13)
+  it("declares fifteen rows: duck/sheep/llama, the entrance's four enclosures (peces/tortugas/monos/sendero), the night sector, the arena's snake and turtles, the forest's bee and monkeys, the pond's fish and dolphin, and the night sector's second adventure — the hedgehog (design.md §5, §6.1; free-trail-waypoints design.md §9; this change's §8; radial-spines design.md §8.2; add-caretaker-prologue design.md D7; promised-animals P2-P4 add `fish`/`turtles`/`monkeys`)", () => {
+    expect(ADVENTURES).toHaveLength(15)
     expect(ADVENTURES.map((a) => a.id)).toEqual([
       'duck',
       'sheep',
@@ -61,7 +61,13 @@ describe('ADVENTURES', () => {
       'sendero',
       'night',
       'snake',
+      // `turtles` sits HERE, right after `snake`, matching the arena's real
+      // play order for readability — see the `turtles` row's own comment
+      // in `adventures.ts` for why `mapBubble` is unaffected either way.
+      'turtles',
       'bee',
+      // `monkeys`, same reasoning, right after `bee`.
+      'monkeys',
       // `fish` sits HERE, right before `dolphin`, matching the estanque's
       // real play order (duck → fish → dolphin) for readability — see the
       // `fish` row's own comment in `adventures.ts` for why `mapBubble`
@@ -180,6 +186,32 @@ describe('ADVENTURES', () => {
     )
     expect(fish.closing).toBe('¡Encontramos a los peces! Ya volvieron a su pecera.')
     expect(fish.closingBeat).toEqual([{ line: fish.closing, art: ZOO_ANIMAL_ART.pez }])
+  })
+
+  // The Ola letter family's own rescue (P3, `odd/tasks/promised-animals.md`).
+  it("the turtles row claims turtle1..4, recovers `tortuga`, and carries the approved intro/closing copy verbatim", () => {
+    const turtles = ADVENTURES.find((a) => a.id === 'turtles')!
+    expect(turtles.levelIds).toEqual(['turtle1', 'turtle2', 'turtle3', 'turtle4'])
+    expect(turtles.sector).toBe('arena')
+    expect(turtles.animal).toBe('tortuga')
+    expect(turtles.intro).toBe(
+      'Las tortugas se escaparon del recinto y se fueron a dar vueltas por la arena. ¿Seguimos sus vueltas?',
+    )
+    expect(turtles.closing).toBe('¡Encontramos a las tortugas! Ya volvieron a su recinto.')
+    expect(turtles.closingBeat).toEqual([{ line: turtles.closing, art: ZOO_ANIMAL_ART.tortuga }])
+  })
+
+  // The Rulo letter family's own rescue (P4, `odd/tasks/promised-animals.md`).
+  it("the monkeys row claims monkey1..4, recovers `mono`, and carries the approved intro/closing copy verbatim", () => {
+    const monkeys = ADVENTURES.find((a) => a.id === 'monkeys')!
+    expect(monkeys.levelIds).toEqual(['monkey1', 'monkey2', 'monkey3', 'monkey4'])
+    expect(monkeys.sector).toBe('bosque')
+    expect(monkeys.animal).toBe('mono')
+    expect(monkeys.intro).toBe(
+      'Los monos se escaparon de sus sogas y se fueron colgados de las lianas del bosque. ¿Seguimos sus vueltas?',
+    )
+    expect(monkeys.closing).toBe('¡Encontramos a los monos! Ya volvieron a sus sogas.')
+    expect(monkeys.closingBeat).toEqual([{ line: monkeys.closing, art: ZOO_ANIMAL_ART.mono }])
   })
 })
 
@@ -367,7 +399,9 @@ describe('closingLevel (design.md §6.3, D3, corrected against main-screen spec 
       'sheep-hill4',
       'llama-peak4',
       'snake4',
+      'turtle4',
       'bee4',
+      'monkey4',
       'f2-agua4',
       'dolphin4',
       'hedgehog4',
@@ -396,9 +430,9 @@ describe('closingLevel (design.md §6.3, D3, corrected against main-screen spec 
 describe('rescue closings (T8): every animal-recovering row', () => {
   const animalAdventures = ADVENTURES.filter((a) => a.animal !== undefined)
 
-  it('covers all eight animal-recovering rows (promised-animals P2 adds fish)', () => {
+  it('covers all ten animal-recovering rows (promised-animals P2-P4 add fish/turtles/monkeys)', () => {
     expect(animalAdventures.map((a) => a.id).sort()).toEqual(
-      ['bee', 'dolphin', 'duck', 'fish', 'hedgehog', 'llama', 'sheep', 'snake'].sort(),
+      ['bee', 'dolphin', 'duck', 'fish', 'hedgehog', 'llama', 'monkeys', 'sheep', 'snake', 'turtles'].sort(),
     )
   })
 

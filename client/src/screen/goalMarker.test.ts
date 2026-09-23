@@ -73,13 +73,17 @@ describe('goalMarkerOf', () => {
     expect(goalMarkerOf({ paths: [], polyline: [] } as unknown as LevelTarget)).toBeUndefined()
   })
 
-  it('is clear of the start dot on every level, including the closed o', () => {
+  it('is clear of the start dot on every level, including the closed o — except a fully closed ring (turtle1, checked on its own below)', () => {
     // The goal is drawn hollow so that an overlap would NEST rather than
-    // occlude, but it turns out no catalog level needs that today: `f3-o` was
-    // the suspected case and its exit stroke carries the end ~270 units away
-    // from the start. Pinned so a re-authored `o` that really did close on
-    // itself would show up here rather than as two marks on top of each other.
+    // occlude, but it turns out almost no catalog level needs that: `f3-o`
+    // was the suspected case and its exit stroke carries the end ~270 units
+    // away from the start. Pinned so a re-authored `o` that really did close
+    // on itself would show up here rather than as two marks on top of each
+    // other. `turtle1` (`promised-animals` P3) IS that case, by design —
+    // excluded here, asserted on its own right below, rather than silently
+    // dropped from the guard.
     for (const id of ROUTED_LEVEL_IDS) {
+      if (id === 'turtle1') continue
       const target = buildLevelTarget(getLevel(id))
       const goal = goalMarkerOf(target)!
       const start = target.polyline[0]
@@ -88,5 +92,12 @@ describe('goalMarkerOf', () => {
       // the two marks would visibly interpenetrate.
       expect(apart, `${id} goal sits on the start dot`).toBeGreaterThan(56)
     }
+  })
+
+  it("turtle1 is the one level whose goal sits ON the start dot — a single closed ring (ovals()'s own header) returns to its exact own 1-o'clock start by construction, the nested-marker case this suite's own 'drawn hollow' comment anticipated but never had a real example of until now", () => {
+    const target = buildLevelTarget(getLevel('turtle1'))
+    const goal = goalMarkerOf(target)!
+    const start = target.polyline[0]
+    expect(Math.hypot(goal.x - start.x, goal.y - start.y)).toBeCloseTo(0, 1)
   })
 })

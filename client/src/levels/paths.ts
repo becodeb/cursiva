@@ -770,6 +770,97 @@ export function loops(
 }
 
 /**
+ * The tightest radius of curvature on one {@link loops} cycle's own "top"
+ * segment — the swing from the upstroke's own end to the downstroke's own
+ * start, `y` measured from `yTop` (so this is scale-invariant in `y`
+ * position, only `width`/`height` matter) — found by SAMPLING the cubic's
+ * exact calculus derivatives at 1000 points along it, not by a closed form
+ * (`odd/tasks/promised-animals.md` P4, the monkeys' own "does the hole stay
+ * open" guard).
+ *
+ * WHY SAMPLED, NOT DERIVED. {@link uTurnRadius}/{@link ovalTurnRadius} both
+ * get a clean closed form because their own curves are SYMMETRIC about
+ * their tightest point (`t = ½` of a garland U; the end of an ellipse's own
+ * major axis) — the derivative of curvature is zero there by symmetry alone,
+ * with no calculus needed to find WHERE the extremum sits. The "top"
+ * segment's four control points are NOT symmetric (segment 2 of `loops`,
+ * above: "swinging back LEFT" is a one-sided correction, not a mirror of
+ * the upstroke it continues), so its tightest point sits at whatever `t`
+ * happens to minimise `radius(t)` — measured here at `t ≈ 0.34` for the
+ * shipped `f2-bucles` size, not `t = ½` — and finding that exactly means
+ * either solving a quintic for `dκ/dt = 0` or sampling densely enough that
+ * the true minimum cannot hide between two adjacent samples. 1000 steps
+ * measured stable to 3 significant figures against 4000 on every size this
+ * function is actually called with (checked, not assumed) — the same
+ * "measure it" discipline `scripts/art/png.py`'s `sample_spine` already
+ * uses for a curve too irregular to have earned a formula of its own.
+ *
+ * WHY THE RESULT IS SMALL. Measured on the shipped `f2-bucles` size
+ * (`width ≈ 227`, `height = 300`): `loopHoleRadius(227, 300) ≈ 10.9`. That
+ * is short of `corridorWidth/2 − BAND_INSET` (34, at `f2-bucles`'
+ * `corridorWidth: 80`) by a wide margin — the `uTurnRadius`-style STRICT
+ * "the corridor's own concave edge never folds through itself" bound a
+ * garland/oval level is held to is UNREACHABLE here at any `width`/`height`
+ * this app's 1000×600 sheet can hold (scaling the shape enough to clear it
+ * would need a loop several sheets tall), which is exactly what a
+ * self-crossing shape being asked to leave "a real hole", rather than "an
+ * uncrossed edge that never doubles back on itself", should be expected to
+ * mean: {@link loopHoleClearance}, below, asks a DIFFERENT, achievable
+ * question instead.
+ */
+export function loopHoleRadius(width: number, height: number): number {
+  const p0 = { x: width * 0.38, y: height * 0.1 }
+  const c1 = { x: width * 0.42, y: -height * 0.06 }
+  const c2 = { x: width * 0.18, y: -height * 0.06 }
+  const p3 = { x: width * 0.14, y: height * 0.3 }
+  const STEPS = 1000
+  let minRadius = Infinity
+  for (let i = 1; i < STEPS; i++) {
+    const t = i / STEPS
+    const mt = 1 - t
+    const xPrime = 3 * mt * mt * (c1.x - p0.x) + 6 * mt * t * (c2.x - c1.x) + 3 * t * t * (p3.x - c2.x)
+    const yPrime = 3 * mt * mt * (c1.y - p0.y) + 6 * mt * t * (c2.y - c1.y) + 3 * t * t * (p3.y - c2.y)
+    const xDouble = 6 * mt * (c2.x - 2 * c1.x + p0.x) + 6 * t * (p3.x - 2 * c2.x + c1.x)
+    const yDouble = 6 * mt * (c2.y - 2 * c1.y + p0.y) + 6 * t * (p3.y - 2 * c2.y + c1.y)
+    const denominator = (xPrime * xPrime + yPrime * yPrime) ** 1.5
+    if (denominator < 1e-9) continue
+    const curvature = Math.abs(xPrime * yDouble - yPrime * xDouble) / denominator
+    if (curvature === 0) continue
+    const radius = 1 / curvature
+    if (radius < minRadius) minRadius = radius
+  }
+  return minRadius
+}
+
+/**
+ * `f2-bucles`' own measured `loopHoleRadius(width, height) / corridorWidth`
+ * — `loopHoleRadius((840 − 160) / 3, 300) / 80`, restated as a literal
+ * rather than computed at module load, so this file's only runtime cost is
+ * the one call {@link loopHoleClearance} itself makes. `loopHoleRadius`'s
+ * own header explains why an absolute bound is unreachable for this shape;
+ * this is the achievable question instead — "at least as open,
+ * proportionally, as the loop already shipping" — checked against
+ * `catalog.test.ts`'s own re-derivation of the same call, not trusted as a
+ * bare number.
+ */
+export const F2_BUCLES_HOLE_RATIO = 0.1364
+
+/**
+ * Whether a {@link loops} cycle at this `width`/`height` keeps a hole at
+ * least as open, proportionally, as `f2-bucles`' own shipped one, once a
+ * corridor of `corridorWidth` is painted around it — `loopHoleRadius(width,
+ * height) / corridorWidth`, floored a hair under {@link
+ * F2_BUCLES_HOLE_RATIO} (0.12, not 0.1364) so the LAST, tightest level of a
+ * new four-level family can be genuinely harder than the one level already
+ * shipping without this guard refusing it outright — the same allowance
+ * `catalog.test.ts`'s own `uTurnRadius` table gives `f2-agua3`'s own
+ * worst cycle (a documented 4.5-unit margin, not zero).
+ */
+export function loopHoleClearance(width: number, height: number, corridorWidth: number): boolean {
+  return loopHoleRadius(width, height) / corridorWidth >= 0.12
+}
+
+/**
  * `docs/13` §2's "montañitas cortas y sucesivas" / "picos altos y
  * empinados" — a ridge of peaks over a ground line. The linear sibling of
  * {@link waveVaried}, and the RIDGE sibling of {@link triangularWave}: a
@@ -921,4 +1012,203 @@ export function crests(
   const cycles = o.cycles ?? 3
   const mid = (yTop + yBottom) / 2
   return alternatingArches(x0, x1, mid, (yBottom - yTop) / 2, cycles, true)
+}
+
+/**
+ * The Ola letter family's own closed turn (`docs/01` §8: `c a d g q o`;
+ * `odd/tasks/promised-animals.md` P3, the turtles' own generator) — no
+ * earlier generator draws it: {@link spiral} is reserved for the snail (an
+ * open, ever-tightening curve, not a repeated closed ring), and every other
+ * shape here is an open wave/ridge/loop that never returns to its own start.
+ *
+ * `count` closed ovals, left to right on one shared baseline `cy`, each one
+ * a standalone counter-clockwise ring — the exact motion a child is taught
+ * for `o`/`a`: start upper-right, sweep UP AND LEFT over the top, DOWN the
+ * left side, AROUND the bottom, UP the right side, back to the start. A
+ * short connecting curve runs from one ring's start point to the next's,
+ * arcing gently upward so the join reads as "along the top", the way a
+ * cursive `oo` lifts only slightly between letters rather than dropping to
+ * the baseline and climbing again.
+ *
+ * WHERE EACH RING STARTS. Real cursive does not start an `o` at 12 or 3
+ * o'clock — it starts around "1 o'clock", partway from the top toward the
+ * right, so the very first movement is already the up-and-left sweep this
+ * function's whole point is to teach. Clock position `h` (0 = top, clockwise
+ * increasing, matching this app's `y`-down screen space) maps to viewBox
+ * point `(cx + rx·sin(h·30°), cy − ry·cos(h·30°))` — `h = 0` is `(cx, cy −
+ * ry)` (12 o'clock, top), `h = 3` is `(cx + rx, cy)` (3 o'clock, right), `h =
+ * 6` is `(cx, cy + ry)` (6 o'clock, bottom): the ordinary clock-face layout.
+ * `h = 1` (30°) is therefore upper-right, between 12 and 3 — the authored
+ * start.
+ *
+ * THE FOUR ARCS. Each ring is four cubic-Bezier quarter-arcs (90° of clock
+ * face, i.e. exactly three clock-hours, each), walked in DECREASING clock
+ * order — 1 → 10 → 7 → 4 → 1 — because decreasing this particular angle
+ * convention IS counter-clockwise on screen (`h` was built to increase
+ * clockwise, so walking it backward is the only way to turn the other way).
+ * `1 → 10` climbs through 12 (over the top), `10 → 7` descends through 8-9
+ * (down the left side), `7 → 4` climbs back up through 6 (around the
+ * bottom — "up" in clock-hour terms, not screen `y`), `4 → 1` returns
+ * through 2-3 (up the right side): exactly the sweep the function's own
+ * header promises, four arcs for four quarters of one ring.
+ *
+ * THE MATH. Each arc is built in an intermediate UNIT-CIRCLE frame —
+ * `q(θ) = (sin θ, −cos θ)`, the same shape as the point formula above with
+ * `rx = ry = 1` — because `q'(θ) = (cos θ, sin θ)` is a UNIT tangent at every
+ * θ, which is what the standard `κ = (4/3)·tan(Δθ/4)` cubic-arc
+ * approximation (0.5523 at the 90° sweep used here) is defined against. The
+ * unit-frame control points `q(θ₀) + κ·q'(θ₀)` and `q(θ₁) − κ·q'(θ₁)` are
+ * then mapped into the real ellipse by scaling each axis independently by
+ * `rx`/`ry` — valid because a Bezier curve is affine-invariant, and
+ * `diag(rx, ry)` applied to the unit circle is exactly this ellipse. `Δθ`
+ * negative (the sweep runs backward through increasing-θ, i.e. decreasing
+ * clock hours) makes `κ` itself come out negative, which is what turns the
+ * tangent addition into a subtraction in the right places without a second
+ * code path for direction.
+ *
+ * Emits ONLY absolute `M` and `C` (`paths.test.ts`), the same contract
+ * every closed generator in this file keeps.
+ */
+export function ovals(
+  o: { x0?: number; x1?: number; cy?: number; rx?: number; ry?: number; count?: number } = {},
+): string {
+  const x0 = o.x0 ?? 260
+  const x1 = o.x1 ?? 740
+  const cy = o.cy ?? 300
+  const rx = o.rx ?? 150
+  const ry = o.ry ?? 190
+  const count = Math.max(1, Math.round(o.count ?? 1))
+  const w = (x1 - x0) / count
+
+  // Clock-hour position, `h = 0` at the top, clockwise increasing (see this
+  // function's own header for the derivation).
+  function clockPoint(cx: number, h: number): { x: number; y: number } {
+    const th = (h * 30 * Math.PI) / 180
+    return { x: cx + rx * Math.sin(th), y: cy - ry * Math.cos(th) }
+  }
+  // Unit tangent at clock-hour `h`, in the direction of INCREASING `h`
+  // (screen-clockwise) — `d/dθ (sin θ, −cos θ) = (cos θ, sin θ)`.
+  function clockTangent(h: number): { x: number; y: number } {
+    const th = (h * 30 * Math.PI) / 180
+    return { x: Math.cos(th), y: Math.sin(th) }
+  }
+  // One 90°-of-clock-face arc, from hour `h0` to hour `h1` (`h1 − h0 = ±3`
+  // here, always `-3` — see the header). Emits a single absolute `C`.
+  function arc(cx: number, h0: number, h1: number): string {
+    const dTh = ((h1 - h0) * 30 * Math.PI) / 180
+    const k = (4 / 3) * Math.tan(dTh / 4)
+    const p0 = clockPoint(cx, h0)
+    const p1 = clockPoint(cx, h1)
+    const t0 = clockTangent(h0)
+    const t1 = clockTangent(h1)
+    return cubic(
+      p0.x + k * rx * t0.x,
+      p0.y + k * ry * t0.y,
+      p1.x - k * rx * t1.x,
+      p1.y - k * ry * t1.y,
+      p1.x,
+      p1.y,
+    )
+  }
+
+  // The ring's own four quarter-arcs, in walking order (see header): 1 → 10
+  // → 7 → 4 → 1 o'clock. `-11`/`-20`/`-29` are `10`/`7`/`4` o'clock reached
+  // by SUBTRACTING three hours three times in a row rather than wrapping
+  // into `[0, 12)` — `clockPoint`/`clockTangent` are periodic in `h` (they
+  // only ever consume it through `sin`/`cos`), so an unwrapped, monotonically
+  // decreasing sequence is exactly as valid as a wrapped one and needs no
+  // modulo arithmetic to get the DIRECTION of the sweep right.
+  const RING_STOPS = [1, -2, -5, -8, -11] as const
+
+  // The connecting curve's own rise above the shared 1-o'clock height,
+  // measured as a fraction of `ry`. Small enough to stay clear of each
+  // ring's own topmost point (`cy - ry`, `1 - cos(30°) ≈ 0.134` of `ry`
+  // below it) at every authored `turtle1..4` size (`catalog.test.ts` proves
+  // this numerically alongside the corridor-clearance guard below, rather
+  // than trusting the arithmetic margin alone).
+  const CONNECTOR_RISE = 0.08
+
+  let d = ''
+  for (let i = 0; i < count; i++) {
+    const cx = x0 + w * (i + 0.5)
+    const start = clockPoint(cx, RING_STOPS[0])
+    if (i === 0) {
+      d = move(start.x, start.y)
+    } else {
+      // The short connector (header, "along the top"): a single symmetric
+      // cubic from the PREVIOUS ring's own 1-o'clock point (where the pen
+      // already sits) to this one's, rising `CONNECTOR_RISE · ry` at its
+      // midpoint — {@link hills}'s own single-cubic bump construction,
+      // restated for a connector that starts and ends at the SAME height
+      // (every ring in one `ovals()` call shares `cy`/`ry`) rather than
+      // hills' rise-from-a-baseline shape.
+      const prevCx = x0 + w * (i - 1 + 0.5)
+      const prevStart = clockPoint(prevCx, RING_STOPS[0])
+      const span = start.x - prevStart.x
+      const peakY = prevStart.y - CONNECTOR_RISE * ry
+      const ctrlY = (4 * peakY - prevStart.y) / 3
+      d += cubic(
+        prevStart.x + span * 0.15,
+        ctrlY,
+        prevStart.x + span * 0.85,
+        ctrlY,
+        start.x,
+        start.y,
+      )
+    }
+    for (let s = 0; s < RING_STOPS.length - 1; s++) {
+      d += arc(cx, RING_STOPS[s], RING_STOPS[s + 1])
+    }
+  }
+  return d
+}
+
+/**
+ * The tightest radius of curvature anywhere on an `rx`×`ry` ellipse — the
+ * {@link ovals} analogue of {@link uTurnRadius}, and used the SAME way
+ * (`catalog.test.ts`): the authoring predicate is `ovalTurnRadius(rx, ry) >
+ * corridorWidth/2 − BAND_INSET`, below which `pushBand`'s fixed `±half`
+ * offset (`buildLevel.ts`) folds through itself and an oval's own hole
+ * closes up.
+ *
+ * An ellipse's curvature is tightest at the ends of its MAJOR axis (radius
+ * `minor²/major`) and gentlest at the ends of its minor axis (`major²/
+ * minor`) — the standard closed form, restated here rather than derived
+ * inline because, unlike {@link uTurnRadius}'s one bottom-of-a-U point, an
+ * `ovals()` ring has its tightest point at whichever pair of its four
+ * quarter-arc joins sits on the longer axis (the top/bottom joins when `ry
+ * > rx`, as every authored `turtle1..4` size is).
+ */
+export function ovalTurnRadius(rx: number, ry: number): number {
+  const major = Math.max(rx, ry)
+  const minor = Math.min(rx, ry)
+  return (minor * minor) / major
+}
+
+/**
+ * Whether `count` ovals of radius `rx`, `spacing` apart centre-to-centre,
+ * leave a real gap between neighbours once each side's own corridor padding
+ * (`corridorWidth / 2`) is subtracted — the {@link ovals} analogue of {@link
+ * armClearance}: a real, visible wall must remain, not merely a
+ * non-negative one, so this asks for at least a QUARTER of the corridor's
+ * own width as leftover daylight (`armClearance`'s own mountain-family
+ * precedent asks for 0.7 of a wave's width; a quarter is enough here
+ * because up to four ovals have to share the SAME 1000-unit sheet at
+ * `turtle4`'s own size, which a 0.7 ratio cannot fit at all — checked, not
+ * assumed, by the failing arithmetic `catalog.test.ts`'s own comment
+ * records). `count` does not otherwise enter the formula: it is accepted so
+ * a caller can pass a level's own `{ rx, count }` straight through without
+ * re-deriving `spacing` at the call site, and so a FUTURE version of this
+ * guard that also checks the outermost ring against the viewBox edge (not
+ * needed today — every authored size already clears that separately) has
+ * `count` on hand without a second argument list to change.
+ */
+export function ovalSpacingClearance(
+  spacing: number,
+  rx: number,
+  corridorWidth: number,
+  count: number,
+): boolean {
+  if (count < 2) return true
+  return spacing - 2 * rx - corridorWidth >= 0.25 * corridorWidth
 }
