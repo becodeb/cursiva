@@ -474,7 +474,7 @@ describe('LevelPlay backdrop (duck-undulations-and-sector-backdrop design.md §3
     expect(html).toContain('#b4c5d0')
   })
 
-  it("f2-agua2 keeps its scattered ground unchanged — the medusa regression guard (shares the estanque sector but belongs to no backed adventure)", () => {
+  it("f2-agua2 now gets the lagoon backdrop and retires its scattered ground — the medusa levels joined the fish adventure (promised-animals P2)", () => {
     renderToString(
       <LevelPlay
         level={getLevel('f2-agua2')}
@@ -484,13 +484,10 @@ describe('LevelPlay backdrop (duck-undulations-and-sector-backdrop design.md §3
         onBack={noop}
       />,
     )
-    expect(traceCanvasProbe.current?.backdrop, 'f2-agua2 must not get the lagoon backdrop').toBeUndefined()
-    const ground = traceCanvasProbe.current?.ground as
-      | { grass: { marks: unknown[] }; mud: { marks: unknown[] } }
-      | undefined
-    expect(ground, 'f2-agua2 must keep its grass/mud scatter').toBeDefined()
-    expect(ground!.grass.marks.length).toBeGreaterThan(0)
-    expect(ground!.mud.marks.length).toBeGreaterThan(0)
+    expect(traceCanvasProbe.current?.ground, 'f2-agua2 must retire its scattered ground').toBeUndefined()
+    const backdrop = traceCanvasProbe.current?.backdrop as { href: string; quiet: string } | undefined
+    expect(backdrop?.href).toBe(SECTOR_BACKGROUND_ART.lagoon.href)
+    expect(backdrop?.quiet).toBe('#b4c5d0')
   })
 
   // Regression pair, named explicitly (design.md §3.2's `drawnPlace`):
@@ -1212,6 +1209,25 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     // animal wins over the star fallback there.
     render(getLevel('sheep-hill4'))
     expect((traceCanvasProbe.current?.endArt as Art)?.href).toBe(ZOO_ANIMAL_ART.oveja.href)
+  })
+
+  // The fish adventure (`promised-animals` P2): all four garland levels now
+  // carry `clue: { kind: 'bubble' }` and no `goalArt` (the removed medusa
+  // goal — see `levels/catalog.ts`'s own comment on `f2-guirnalda`), so
+  // `endArt`'s clue branch wins on the first three (drained, since a fresh
+  // render never reaches the trail's end) and the encounter branch wins on
+  // the fourth, the same duck/sheep pattern above.
+  it('shows the drained bubble on f2-guirnalda/f2-agua2/f2-agua3, and the fish on f2-agua4 (its own last level)', () => {
+    for (const id of ['f2-guirnalda', 'f2-agua2', 'f2-agua3'] as const) {
+      render(getLevel(id))
+      const art = traceCanvasProbe.current?.endArt as Art
+      expect(art?.href, id).toBe(CLUE_ART.bubble.art.drained.href)
+      expect(art?.href, id).not.toBe(ZOO_ANIMAL_ART.pez.href)
+    }
+    render(getLevel('f2-agua4'))
+    const art = traceCanvasProbe.current?.endArt as Art
+    expect(art?.href).toBe(ZOO_ANIMAL_ART.pez.href)
+    expect(art?.href).not.toBe(CLUE_ART.bubble.art.drained.href)
   })
 
   it('sends the octopus on a world-only level (inDetectiveWorld), but no lamp (endArt stays gated on isCaseTrail alone in S1)', () => {

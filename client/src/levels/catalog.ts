@@ -11,7 +11,15 @@
 // `buildWord` throw. That must NEVER blank the app, so the failure degrades to
 // the first letter's own path and warns. A level always exists; at worst it is
 // easier than authored.
-import { FLOWER_ART, GOAL_MEDUSA_ART, HAZARD_STARFISH_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
+// `GOAL_MEDUSA_ART` is no longer imported here: P2 (`odd/tasks/promised-
+// animals.md`) removes `goalArt: GOAL_MEDUSA_ART` from all four `f2-*`
+// levels below (their own comments explain why — the `fish` adventure row
+// now supplies a real default, the bubble clue then the animal, that a
+// level's own `goalArt` would otherwise keep overriding forever). The
+// export itself stays in `detective/assets.ts`, still registered in
+// `artManifest.test.ts`'s `REGISTERED` table — it ships no orphaned file,
+// it simply has no consumer left in this catalog.
+import { FLOWER_ART, HAZARD_STARFISH_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
 import { buildWord } from '../letters/combinations'
 import { LETTER_REGISTRY } from '../letters/registry'
 import type { LetterConfig } from '../letters/types'
@@ -1750,7 +1758,12 @@ const PHASE_2: LevelConfig[] = [
     id: 'f2-guirnalda',
     phase: 2,
     title: 'Las olas de la medusa',
-    hint: 'Seguí a la medusa: bajá y subí, bien despacio.',
+    // The fish adventure's own first tramo (P2, `odd/tasks/promised-
+    // animals.md`; `zoo/adventures.ts`'s `fish` row): the child follows the
+    // bubbles the fish left behind on their way out, not a medusa swimming
+    // for its own sake — the same "trace the animal's own path" reframing
+    // `docs/18` §4.1 asks every trail to carry.
+    hint: 'Seguí las burbujas: bajá, hacé la curva y subí, sin levantar el dedo.',
     kind: 'path',
     surface: 'blank',
     maze: false,
@@ -1763,14 +1776,39 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    detectiveWorld: true,
-    goalArt: GOAL_MEDUSA_ART,
+    // `clue`/no `goalArt`/no `detectiveWorld` (P2): this trail now belongs
+    // to the `fish` ADVENTURES row, so `LevelPlay.tsx`'s `endArt` priority
+    // chain (its own header, "1. goalArt WINS over everything below") would
+    // have kept showing the jellyfish here forever had `goalArt` stayed —
+    // a level's own content beating a default it did not ask for is
+    // exactly backwards once the level HAS a real adventure default (the
+    // bubble clue, then the fish on the adventure's own last tramo) to
+    // fall through to. `spacing: 60` matches every duck trail's own clue
+    // spacing — the same arc-length density this app already uses
+    // everywhere else.
+    //
+    // `detectiveWorld: true` — the field these four levels were the ONLY
+    // ones ever authored with (`levels/world.ts`'s own header: "Nivel 3 is
+    // the first thing in the app that needs [world membership and case
+    // membership] apart") — is DROPPED here rather than kept alongside the
+    // new `clue`: `isCaseTrail(level) = !!level.clue` (`levels/world.ts`)
+    // now puts this level in the detective world all on its own, the exact
+    // same mechanism every duck trail already relies on with no
+    // `detectiveWorld` flag of its own. Keeping the flag would be
+    // harmless in principle (`inDetectiveWorld`'s own doc: "can only
+    // WIDEN, never narrow") but would falsify `world.test.ts`'s regression
+    // guard, which specifically proves these four widen the world WITHOUT
+    // a clue — a claim this change makes untrue. `world.test.ts` is
+    // updated in the same commit to say so: no shipped level needs the
+    // widening flag any more, and the mechanism stays generic and tested
+    // through its own hand-built fixtures for whatever level needs it next.
+    clue: { kind: 'bubble', spacing: 60 },
   },
   {
     id: 'f2-agua2',
     phase: 2,
     title: 'La medusa se apura',
-    hint: 'Ahora las olas son más chiquitas y más juntas. Seguila sin frenar.',
+    hint: 'Más burbujas. Hacé las curvas redonditas, como una U.',
     kind: 'path',
     surface: 'blank',
     maze: false,
@@ -1783,8 +1821,8 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    detectiveWorld: true,
-    goalArt: GOAL_MEDUSA_ART,
+    // `clue`/no `goalArt`/no `detectiveWorld` — see `f2-guirnalda`'s own comment above.
+    clue: { kind: 'bubble', spacing: 60 },
   },
   {
     id: 'f2-agua3',
@@ -1793,7 +1831,7 @@ const PHASE_2: LevelConfig[] = [
     // The microprogression's third step: SIZE and SPACING both vary within
     // one path (docs/11 Nivel 3), not just from level to level — the reason
     // `garlandVaried` exists rather than a wider `garland` call.
-    hint: 'Algunas olas son grandes y otras chicas: seguilas todas de corrido.',
+    hint: 'Las burbujas se achican: curvas más chiquitas, despacio.',
     kind: 'path',
     surface: 'blank',
     maze: false,
@@ -1818,8 +1856,8 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    detectiveWorld: true,
-    goalArt: GOAL_MEDUSA_ART,
+    // `clue`/no `goalArt`/no `detectiveWorld` — see `f2-guirnalda`'s own comment above.
+    clue: { kind: 'bubble', spacing: 60 },
   },
   {
     id: 'f2-agua4',
@@ -1829,7 +1867,7 @@ const PHASE_2: LevelConfig[] = [
     // 1 (the new demand is TIMING, not precision), but with a hazard that
     // means no beat and no fluency bar (design.md §3) — a real child's stop is
     // a deceleration, and fluency (`1 − CV(speed)`) would fail them for it.
-    hint: 'Esperá a que la estrella se vaya y seguí a la medusa.',
+    hint: '¡Cuidado con las estrellas de mar! Seguí las burbujas sin tocarlas.',
     kind: 'path',
     surface: 'blank',
     maze: false,
@@ -1870,8 +1908,13 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    detectiveWorld: true,
-    goalArt: GOAL_MEDUSA_ART,
+    // `clue`/no `goalArt`/no `detectiveWorld` — see `f2-guirnalda`'s own
+    // comment above. This is also the `fish` row's own LAST level
+    // (`zoo/adventures.ts`), so `endArt`'s priority chain's step 2 (an
+    // animal-recovering adventure's own last level shows THAT animal) now
+    // wins here once `goalArt` is out of the way — the fish, not a star or
+    // another bubble, standing where THIS tramo's route ends.
+    clue: { kind: 'bubble', spacing: 60 },
     hazardArt: HAZARD_STARFISH_ART,
   },
   {

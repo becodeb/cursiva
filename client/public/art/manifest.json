@@ -17,11 +17,29 @@
     "h": 414,
     "w": 448
   },
+  "animal-mono": {
+    "bytes": 1550,
+    "file": "art/animal-mono.png",
+    "h": 320,
+    "w": 320
+  },
   "animal-pato": {
     "bytes": 96576,
     "file": "art/animal-pato.png",
     "h": 448,
     "w": 368
+  },
+  "animal-pez": {
+    "bytes": 76876,
+    "file": "art/animal-pez.png",
+    "h": 358,
+    "w": 448
+  },
+  "animal-tortuga": {
+    "bytes": 61519,
+    "file": "art/animal-tortuga.png",
+    "h": 292,
+    "w": 448
   },
   "animal-vaca": {
     "bytes": 131264,

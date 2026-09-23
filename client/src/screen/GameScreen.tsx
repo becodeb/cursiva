@@ -288,15 +288,23 @@ export function nextInAdventure(levelId: string): string | undefined {
  * The level right after `levelId` in ITS OWN sector's `adventureIds`, but
  * ONLY while the FOLLOWING id belongs to no `ADVENTURES` row either — a
  * contiguous block of levels a sector owns directly, with no adventure row
- * of its own (today the medusa's `f2-guirnalda → f2-agua2 → f2-agua3 →
- * f2-agua4`, inside `estanque`). `undefined` once the block ends: there is
- * no next id at all, or the next id IS another adventure's own first
- * level, which must resolve to THAT adventure (through `resolveEnterAction`,
- * from the map) rather than being walked into silently. Callers are
- * expected to have already confirmed `levelId` itself carries no adventure
+ * of its own. `undefined` once the block ends: there is no next id at all,
+ * or the next id IS another adventure's own first level, which must
+ * resolve to THAT adventure (through `resolveEnterAction`, from the map)
+ * rather than being walked into silently. Callers are expected to have
+ * already confirmed `levelId` itself carries no adventure
  * (`resolveNextAction`, below, only calls this once `adventureFor` already
  * failed) — this only decides where the BLOCK goes next, the mirror half of
  * `nextInAdventure` above.
+ *
+ * The medusa's own `f2-guirnalda → f2-agua2 → f2-agua3 → f2-agua4`, inside
+ * `estanque`, used to be the one live example of such a block — until
+ * `promised-animals` P2 gave it the `fish` row (`zoo/adventures.ts`), which
+ * means `adventureFor` now resolves for all four and this function is never
+ * actually reached by any id `ADVENTURES` ships today. It stays, generic
+ * and covered by its own tests below, for a hypothetical FUTURE block of
+ * sector-owned levels with no row of their own — the same reasoning
+ * `journey.ts`'s own `stepLevelIds` keeps its no-row fallback branch for.
  */
 export function nextInSectorBlock(levelId: string): string | undefined {
   const sector = sectorOf(levelId)
@@ -325,13 +333,15 @@ export function nextInSectorBlock(levelId: string): string | undefined {
  * `animal` (`AdventureSubject`'s union, `zoo/adventures.ts`) — an adventure
  * that recovers one always ends on the map, where the animal now stands, so
  * `duck-trail4`/`sheep-hill4`/`llama-peak4`/`snake4`/`bee4`/`dolphin4`/
- * `hedgehog4` never chain; its SECTOR's `adventureIds` (`zoo/sectors.ts`)
+ * `hedgehog4`/`f2-agua4` (the `fish` row's own last level, `promised-
+ * animals` P2) never chain; its SECTOR's `adventureIds` (`zoo/sectors.ts`)
  * lists another id right after `lastLevelId` — the last adventure of a
  * sector (`sand3`, entrada's own last entry) has none; and that following
  * id is the FIRST level of ANOTHER `ADVENTURES` row (`introLevel`) — a
- * no-row block's own end (the medusa's `f2-agua4`) never even reaches this
- * function, since `adventureFor` already excludes it above. Today this is
- * the entrance's `peces → tortugas → monos → sendero` chain and the night
+ * no-row block's own end never even reaches this function, since
+ * `adventureFor` already excludes it above (no shipped block is in that
+ * state today — see `nextInSectorBlock`'s own header). Today this is the
+ * entrance's `peces → tortugas → monos → sendero` chain and the night
  * sector's `night → hedgehog`.
  */
 export function resolveAfterAdventure(
@@ -369,12 +379,15 @@ export function resolveAfterAdventure(
  * it straight to the `play` view (never through `resolveEnterAction`), so
  * the narrative entry never re-shows mid-adventure — it is reached only
  * from the map (`App.tsx`'s `onEnter`). A level a sector owns directly, with
- * no `ADVENTURES` row of its own (today the medusa's `f2-guirnalda`..
- * `f2-agua4` inside `estanque`), chains the same way through its sector's
+ * no `ADVENTURES` row of its own, chains the same way through its sector's
  * own `adventureIds`, but only while the next id ALSO belongs to no row —
- * `nextInSectorBlock`, above. The last id of a no-row block always exits to
- * the map, never to the deduction screen (D2, the auto-route retired long
- * before this change). `docs/12` §3: "Volver de un nivel cae en el mapa."
+ * `nextInSectorBlock`, above (its own header explains why no shipped id
+ * exercises this branch any more since `promised-animals` P2: the medusa's
+ * `f2-guirnalda`..`f2-agua4` inside `estanque` was the one live example,
+ * and the `fish` row now claims all four). The last id of a no-row block
+ * always exits to the map, never to the deduction screen (D2, the
+ * auto-route retired long before this change). `docs/12` §3: "Volver de un
+ * nivel cae en el mapa."
  *
  * The `resolveAfterAdventure` call inside the `adventureFor` branch below is
  * UNREACHABLE for every id `ADVENTURES` ships today (T8, docs/18 §4.7 item

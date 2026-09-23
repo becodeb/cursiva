@@ -12,9 +12,31 @@ function recordsFor(filedIds: readonly string[]): Records {
 }
 
 describe('adventureProgress', () => {
-  it('resolves null for a level belonging to no ADVENTURES row at all (medusa f2-*)', () => {
-    expect(adventureProgress('f2-guirnalda', {})).toBeNull()
-    expect(adventureProgress('f2-agua2', {})).toBeNull()
+  // The medusa's four garland levels used to belong to no `ADVENTURES` row
+  // at all, so this used to assert `null` here. `promised-animals` P2
+  // (`odd/tasks/promised-animals.md`) gives them the `fish` row, so they
+  // now report a real bar like every other multi-level adventure — see the
+  // dedicated `fish` describe block below for the full shape.
+  it('reports a mid-adventure fish trail: filed levels, the current one flagged, bubble clues in play order', () => {
+    const progress = adventureProgress('f2-agua2', recordsFor(['f2-guirnalda']))
+    expect(progress).toEqual({
+      adventureId: 'fish',
+      animal: 'pez',
+      rescued: false,
+      slots: [
+        { levelId: 'f2-guirnalda', clue: 'bubble', filed: true, current: false },
+        { levelId: 'f2-agua2', clue: 'bubble', filed: false, current: true },
+        { levelId: 'f2-agua3', clue: 'bubble', filed: false, current: false },
+        { levelId: 'f2-agua4', clue: 'bubble', filed: false, current: false },
+      ],
+    })
+  })
+
+  it('reports the fish adventure rescued once f2-agua4 is filed', () => {
+    const allFour = recordsFor(['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4'])
+    const progress = adventureProgress('f2-agua4', allFour)
+    expect(progress?.rescued).toBe(true)
+    expect(progress?.slots.every((s) => s.filed)).toBe(true)
   })
 
   it('resolves null for the entrance (a single-level row): a "1 of 1" bar says nothing new', () => {

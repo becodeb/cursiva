@@ -52,7 +52,28 @@ export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
  * (`snake-drag-and-art-corridor` design.md §7.1, proposal decision 7), and
  * `'abeja'` for the forest's own (`free-trail-waypoints` design.md §9;
  * `docs/13` §7 lists `abeja.png` among the ANIMALS, not the UI icons). */
-export type ZooAnimalId = AnimalId | 'oveja' | 'llama' | 'vibora' | 'abeja' | 'delfin' | 'erizo'
+export type ZooAnimalId =
+  | AnimalId
+  | 'oveja'
+  | 'llama'
+  | 'vibora'
+  | 'abeja'
+  | 'delfin'
+  | 'erizo'
+  // The prologue's promise, kept (`docs/18` §4.5, `odd/tasks/promised-
+  // animals.md` P1): `'pez'`/`'tortuga'`/`'mono'` are the three animals the
+  // entrance's empty enclosures show a sign for (`SIGN_ART`) but the child
+  // never actually finds. All three widen this union in the same slice
+  // (P1) even though only the `fish` adventure ships behind it yet (P2) —
+  // splitting the art registry across P1/P2/P3/P4 while a SINGLE row
+  // (`peces`/`tortugas`/`monos`, `zoo/adventures.ts`) already names the
+  // whole trio would leave two of three ZOO animals with a `SIGN_ART` entry
+  // and no `ZOO_ANIMAL_ART` counterpart for a whole task longer than
+  // necessary — art has no reason to wait for its own adventure row to
+  // exist first.
+  | 'pez'
+  | 'tortuga'
+  | 'mono'
 
 /** A derived raster from `client/public/art/`, with its intrinsic pixel size
  * so a caller can hold aspect while scaling to a target height.
@@ -371,6 +392,37 @@ export const HEDGEHOG_ART: Readonly<Record<'profile' | 'curled', ArtImage>> = {
   curled: { href: '/art/hedgehog-curled.png', w: 412, h: 407 },
 }
 
+/** The prologue's promise, kept (P1, `odd/tasks/promised-animals.md`):
+ * `pez.png`/`tortuga.png` are genuine cutouts (real alpha, a blue contour
+ * normalized to `ART_OUTLINE` by `build_art.py`'s `fill='contour'` mode —
+ * the same treatment `oveja`/`llama`/`delfin` already get through
+ * `SECTOR_ADVENTURE_ART`) rather than reused sector props, so — unlike
+ * those three — they get no `SECTOR_ADVENTURE_ART` entry of their own:
+ * nothing else in this app stands a fish or a turtle anywhere but at
+ * `ZOO_ANIMAL_ART`. A small dedicated record, the same shape `SIGN_ART`
+ * and `HEDGEHOG_ART` already use, rather than three bare literals inlined
+ * into `ZOO_ANIMAL_ART` below — `artManifest.test.ts`'s `REGISTERED` table
+ * imports named exports one registry at a time, and an inline literal with
+ * no export of its own would ship art the manifest guard could never see,
+ * the exact "dead weight" failure its own header warns about. `w`/`h`
+ * copied from the rebuilt `manifest.json` (`docs/17` §4 step 3's own rule:
+ * read, never estimated), guarded by `artManifest.test.ts`.
+ *
+ * `mono` is PENDING REAL ART (`docs/18` §6 is the standing request):
+ * `art-source/mono.png` is a placeholder written by `make_placeholders.py`'s
+ * `make_sign('MONO')` — a bordered block with the word stamped across it,
+ * not a drawing of a monkey — shipped so the third promised animal still
+ * has a legible stand-in rather than no entry at all. Swapping it for an
+ * authored cutout is a source-file replacement plus a pipeline rerun
+ * (`docs/17` §4); this record's `w`/`h` will need the same manifest
+ * re-copy that step always does.
+ */
+export const PROMISED_ANIMAL_ART: Readonly<Record<'pez' | 'tortuga' | 'mono', ArtImage>> = {
+  pez: { href: '/art/animal-pez.png', w: 448, h: 358 },
+  tortuga: { href: '/art/animal-tortuga.png', w: 448, h: 292 },
+  mono: { href: '/art/animal-mono.png', w: 320, h: 320 },
+}
+
 /** `ZOO_ANIMAL_ART` resolves every {@link ZooAnimalId} — spreading
  * `ANIMAL_ART` preserves referential identity for every existing entry, so
  * `mapBubble`'s art-reference comparisons keep working for the duck. */
@@ -393,6 +445,10 @@ export const ZOO_ANIMAL_ART: Readonly<Record<ZooAnimalId, ArtImage>> = {
   // to the author rather than silently accepted. Closing it needs a third
   // drawing (`erizo con espinas.png`), which is art, not code.
   erizo: HEDGEHOG_ART.profile,
+  // `pez`/`tortuga`/`mono` — see `PROMISED_ANIMAL_ART`'s own header,
+  // declared just above, for why this is a spread of a dedicated record
+  // rather than three inline literals.
+  ...PROMISED_ANIMAL_ART,
 }
 
 /** One pose's measured silhouette, in the image's OWN normalised space

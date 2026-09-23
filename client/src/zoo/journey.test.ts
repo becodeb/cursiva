@@ -15,11 +15,15 @@ function filed(...ids: readonly string[]): Records {
 
 /** Test-local mirror of `journey.ts`'s own (unexported) `stepLevelIds`,
  *  written independently rather than imported — importing it would make the
- *  walking test below tautological against the very function it exercises. */
+ *  walking test below tautological against the very function it exercises.
+ *  Every JOURNEY stop today resolves through `adventureFor` (the `fish` row
+ *  claims `f2-guirnalda` since `promised-animals` P2 — `stepLevelIds`'s own
+ *  header has the full history), so the no-row fallback branch this mirror
+ *  used to need for that one stop is gone; a future no-row stop would need
+ *  it added back here too. */
 function idsFor(entryLevel: string): readonly string[] {
   const adventure = adventureFor(entryLevel)
   if (adventure) return adventure.levelIds
-  if (entryLevel === 'f2-guirnalda') return ['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4']
   throw new Error(`test fixture missing ids for ${entryLevel}`)
 }
 
@@ -30,7 +34,10 @@ describe('JOURNEY (guard: every ADVENTURES row start and every no-row block star
     for (const sector of SECTORS) {
       // A "no-row block start" is the first id, in a sector's own
       // `adventureIds`, of a maximal run of ids no `ADVENTURES` row claims —
-      // today only the estanque's `f2-guirnalda`.
+      // none today: the estanque's own `f2-guirnalda` was the last live
+      // example until the `fish` row claimed it (`promised-animals` P2).
+      // This loop still runs the general derivation, so a future no-row
+      // block would still be picked up here with no change to this test.
       let previousClaimed = true
       for (const id of sector.adventureIds) {
         const claimed = adventureFor(id) !== undefined
@@ -112,6 +119,34 @@ describe('nextJourneyStep', () => {
     const step = nextJourneyStep(records)
     expect(step?.entryLevel).toBe('llama-peak1')
     expect(step?.sector.id).toBe('montanas')
+  })
+
+  // `promised-animals` P2's own guard: `f2-guirnalda` (JOURNEY's stop right
+  // after `bee1`) resolves through the `fish` row now, not through the
+  // no-row `stepLevelIds` fallback — the same journey position, a genuinely
+  // different mechanism underneath.
+  it("the journey step right after the bee is the fish, in the estanque (promised-animals P2: f2-guirnalda now belongs to the fish row)", () => {
+    const entrada = SECTORS.find((s) => s.id === 'entrada')!
+    const duck = ADVENTURES.find((a) => a.id === 'duck')!
+    const sheep = ADVENTURES.find((a) => a.id === 'sheep')!
+    const llama = ADVENTURES.find((a) => a.id === 'llama')!
+    const night = ADVENTURES.find((a) => a.id === 'night')!
+    const hedgehog = ADVENTURES.find((a) => a.id === 'hedgehog')!
+    const snake = ADVENTURES.find((a) => a.id === 'snake')!
+    const bee = ADVENTURES.find((a) => a.id === 'bee')!
+    const records = filed(
+      ...entrada.adventureIds,
+      ...duck.levelIds,
+      ...sheep.levelIds,
+      ...llama.levelIds,
+      ...night.levelIds,
+      ...hedgehog.levelIds,
+      ...snake.levelIds,
+      ...bee.levelIds,
+    )
+    const step = nextJourneyStep(records)
+    expect(step?.entryLevel).toBe('f2-guirnalda')
+    expect(step?.sector.id).toBe('estanque')
   })
 
   it('returns null once every sector the ladder reaches is fully filed', () => {

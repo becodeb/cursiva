@@ -40,6 +40,15 @@ export type AdventureId =
   | 'bee'
   | 'dolphin'
   | 'hedgehog'
+  // The prologue's promise, kept (P2, `odd/tasks/promised-animals.md`):
+  // the four garland levels the medusa's own goal art used to sit on
+  // (`f2-guirnalda`..`f2-agua4`, `estanque`) get a real rescue adventure
+  // instead of running with no `ADVENTURES` row at all. `turtles`/`monkeys`
+  // (P3/P4) are the arena's and the bosque's own future counterparts —
+  // named here in the plural to match `peces`/`tortugas`/`monos` above,
+  // but distinct ids on purpose (this file's own header: those three are
+  // the entrance's cleaning enclosures, which recover no animal at all).
+  | 'fish'
 
 /** One beat of an adventure's closing SCREEN (add-caretaker-prologue
  *  design.md D3). `figure` overrides the standing octopus for THIS beat
@@ -286,6 +295,37 @@ export const ADVENTURES: readonly Adventure[] = [
     closing: '¡La abeja volvió a su panal!',
     // Rescue closing (T8) — the snake row's own reasoning, restated.
     closingBeat: [{ line: '¡La abeja volvió a su panal!', art: ZOO_ANIMAL_ART.abeja }],
+  },
+  {
+    id: 'fish',
+    levelIds: ['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4'],
+    sector: 'estanque',
+    animal: 'pez',
+    intro: 'Los peces se escaparon de la pecera y se escondieron en la laguna. ¡Dejaron burbujas! ¿Las seguimos?',
+    closing: '¡Encontramos a los peces! Ya volvieron a su pecera.',
+    // Rescue closing (T8) — the duck row's own reasoning, restated: one
+    // beat, `closing` verbatim, the animal's own art, default figure.
+    //
+    // Placed HERE, between `duck` and `dolphin`, matching the sector's own
+    // REAL play order (duck → fish's own four garland levels → dolphin,
+    // `zoo/sectors.ts`'s `estanque.adventureIds`) for readability, even
+    // though `mapBubble`'s own `.filter(...).at(-1)` (above) cannot
+    // actually see this row move: its filter requires BOTH `a.sector ===
+    // sector.id` AND the animal to already be STANDING in that same
+    // sector (`animalPlacements(sector, records)`), and the fish's own
+    // placement lives in `entrada` (`zoo/sectors.ts`'s `entrada.animals`
+    // row), not `estanque` — the whole point of "each rescued animal goes
+    // back to ITS OWN enclosure at the entrance" (`docs/18` §4.5). So
+    // `fish` can never contend with `duck`/`dolphin` for `estanque`'s own
+    // fallback bubble line, at ANY registry position, and it can equally
+    // never win `entrada`'s (its `sector` field there is `'estanque'`, not
+    // `'entrada'`) — a real, accepted gap: once rescued, the fish has no
+    // sector whose non-spotlight fallback bubble will ever announce it.
+    // That is not this row's OWN closing screen's problem — `AdventureClosing`
+    // already shows this exact line once, the instant `f2-agua4` is filed
+    // (T8, docs/18 §4.7 item 1) — only the SECOND, lower-priority surface
+    // `mapBubble` offers once the journey itself is exhausted.
+    closingBeat: [{ line: '¡Encontramos a los peces! Ya volvieron a su pecera.', art: ZOO_ANIMAL_ART.pez }],
   },
   {
     id: 'dolphin',

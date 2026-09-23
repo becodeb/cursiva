@@ -52,15 +52,21 @@ const MARK_HEIGHT = 18
  *  payoff, not one more collectible among equals. */
 const ANIMAL_HEIGHT = 46
 
-/** Spanish names for the seven animals a real `ADVENTURES` row can name
+/** Spanish names for the animals a real `ADVENTURES` row can name
  *  (`zoo/adventures.ts`) — voseo-neutral, third person, matching the
  *  register the registry's own `intro`/`closing` lines already use. Partial
  *  on purpose: `ZooAnimalId` also carries the deduction screen's own
  *  `gallina`/`vaca`/`gato`, which no adventure with a multi-level row ever
  *  names, so `adventureProgress` can never actually hand this a key outside
- *  the seven below — the `?? 'el animal'` fallback exists only so a future
+ *  the ones below — the `?? 'el animal'` fallback exists only so a future
  *  animal added to a row here does not lose its accessible name entirely
- *  before someone adds it here too. */
+ *  before someone adds it here too.
+ *
+ *  `pez`/`tortuga`/`mono` (`promised-animals` P1) are added TOGETHER, the
+ *  same way `ZooAnimalId`/`ZOO_ANIMAL_ART` widened together in that task,
+ *  even though only `pez` names a real row today (P2's `fish`; `tortuga`'s
+ *  `turtles` and `mono`'s `monkeys` are P3/P4) — so a later task adding one
+ *  of those two rows needs no return trip to this file. */
 const ANIMAL_NAME: Readonly<Partial<Record<ZooAnimalId, string>>> = {
   pato: 'el pato',
   oveja: 'las ovejas',
@@ -69,6 +75,9 @@ const ANIMAL_NAME: Readonly<Partial<Record<ZooAnimalId, string>>> = {
   abeja: 'la abeja',
   delfin: 'los delfines',
   erizo: 'el erizo',
+  pez: 'los peces',
+  tortuga: 'las tortugas',
+  mono: 'los monos',
 }
 
 /** "Camino hacia el pato: 1 de 4" — one accessible name for the WHOLE bar

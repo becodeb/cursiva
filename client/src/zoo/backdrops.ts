@@ -2,9 +2,17 @@
 // design.md §3.3, re-keyed by design.md §2.3 of this change). One entry per
 // ADVENTURE that has a drawn backdrop under its corridor. Pure, no React,
 // keyed through the ADVENTURE rather than the sector: a level opts in only
-// once its own adventure has actually been recut for the backdrop, which is
-// what keeps the medusa's four levels on their scattered ground (`docs/13`
-// §4 marks the medusa "Hecha — Nada").
+// once its own adventure has actually been recut for the backdrop.
+//
+// The medusa's four garland levels used to be the standing example of a
+// level with NO backdrop, kept on their scattered ground precisely because
+// they carried no `ADVENTURES` row of their own to key an entry off of
+// (`docs/13` §4 marked the medusa "Hecha — Nada"). `promised-animals` P2
+// (`odd/tasks/promised-animals.md`) gives them the `fish` row below, which
+// closes that gap: the pond's third and last stretch now shares the exact
+// lagoon backdrop the duck and the dolphin already draw on, the same way
+// `dolphin`'s own entry reuses `duck`'s literals rather than re-sampling
+// them.
 //
 // Re-keyed from `SectorId` to `AdventureId` (not `SectorId`) because
 // `montañas` needs TWO backdrops — the ladera under the sheep, the
@@ -132,6 +140,24 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
     brightest: '#b4c5d0',
     corridorRows: { top: 135, bottom: 889 },
     // No `channel` — the lagoon keeps `SHEET_PAPER`, exactly as the ducks do.
+  },
+  // The fish adventure (promised-animals P2) — the duck row's own literals,
+  // reused rather than re-sampled, the same move `dolphin` above already
+  // makes: the four garland levels' own channel never strays outside the
+  // duck's own measured (135, 889) corridor rows (measured against the
+  // real routes, not assumed — `f2-guirnalda` tops out at image row ≈266
+  // and bottoms at ≈788, `f2-agua2` ≈435/≈773, `f2-agua3` ≈337/≈749,
+  // `f2-agua4` ≈274/≈781, every one comfortably inside), so `brightest`
+  // sampled over the wider band cannot be exceeded by what these four
+  // actually render, the same containment argument `dolphin`'s own comment
+  // makes for its camera worlds.
+  fish: {
+    art: SECTOR_BACKGROUND_ART.lagoon,
+    quiet: '#b4c5d0',
+    brightest: '#b4c5d0',
+    corridorRows: { top: 135, bottom: 889 },
+    // No `channel` — the lagoon keeps `SHEET_PAPER`, exactly as the ducks
+    // and the dolphin do.
   },
   sheep: {
     art: SECTOR_BACKGROUND_ART.slope,

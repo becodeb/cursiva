@@ -39,6 +39,12 @@ describe('accessibleTrailName', () => {
       ['abeja', 'la abeja'],
       ['delfin', 'los delfines'],
       ['erizo', 'el erizo'],
+      // The fish row (`promised-animals` P2) — `tortuga`/`mono` are not
+      // added here: no `ADVENTURES` row names them yet (P3/P4), so they
+      // are not "real adventure animals" by this test's own stated scope,
+      // even though `TrailProgressBar.tsx`'s `ANIMAL_NAME` map already
+      // carries their Spanish names ahead of that (see its own comment).
+      ['pez', 'los peces'],
     ]
     for (const [animal, spanish] of cases) {
       const progress = progressFixture({ animal })

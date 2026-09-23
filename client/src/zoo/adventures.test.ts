@@ -49,8 +49,8 @@ describe('ADVENTURES', () => {
   // enclosures — `peces`, `tortugas`, `monos`, `sendero` — each carrying TWO
   // of the same eight level ids, never renumbered (`zoo-map` delta
   // "Adventure Identifiers Regroup the Entrance Into Four Enclosures").
-  it("declares twelve rows: duck/sheep/llama, the entrance's four enclosures (peces/tortugas/monos/sendero), the night sector, the arena's snake, the forest's bee, the pond's dolphin, and the night sector's second adventure — the hedgehog (design.md §5, §6.1; free-trail-waypoints design.md §9; this change's §8; radial-spines design.md §8.2; add-caretaker-prologue design.md D7)", () => {
-    expect(ADVENTURES).toHaveLength(12)
+  it("declares thirteen rows: duck/sheep/llama, the entrance's four enclosures (peces/tortugas/monos/sendero), the night sector, the arena's snake, the forest's bee, the pond's fish and dolphin, and the night sector's second adventure — the hedgehog (design.md §5, §6.1; free-trail-waypoints design.md §9; this change's §8; radial-spines design.md §8.2; add-caretaker-prologue design.md D7; promised-animals P2 adds `fish`)", () => {
+    expect(ADVENTURES).toHaveLength(13)
     expect(ADVENTURES.map((a) => a.id)).toEqual([
       'duck',
       'sheep',
@@ -62,6 +62,11 @@ describe('ADVENTURES', () => {
       'night',
       'snake',
       'bee',
+      // `fish` sits HERE, right before `dolphin`, matching the estanque's
+      // real play order (duck → fish → dolphin) for readability — see the
+      // `fish` row's own comment in `adventures.ts` for why `mapBubble`
+      // itself is unaffected by this row's exact position.
+      'fish',
       'dolphin',
       'hedgehog',
     ])
@@ -159,6 +164,23 @@ describe('ADVENTURES', () => {
     expect(bee.animal).toBe('abeja')
     expect(bee.closingBeat).toEqual([{ line: bee.closing, art: ZOO_ANIMAL_ART.abeja }])
   })
+
+  // The prologue's promise, kept (P2, `odd/tasks/promised-animals.md`): the
+  // medusa's own four garland levels (`f2-guirnalda`..`f2-agua4`) finally
+  // get an `ADVENTURES` row, rather than running as a no-row block inside
+  // `estanque.adventureIds` (see `journey.ts`'s and `GameScreen.ts`'s own
+  // updated comments for what that change means for the rest of the app).
+  it("the fish row claims the medusa's own four garland levels, recovers `pez`, and carries the approved intro/closing copy verbatim", () => {
+    const fish = ADVENTURES.find((a) => a.id === 'fish')!
+    expect(fish.levelIds).toEqual(['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4'])
+    expect(fish.sector).toBe('estanque')
+    expect(fish.animal).toBe('pez')
+    expect(fish.intro).toBe(
+      'Los peces se escaparon de la pecera y se escondieron en la laguna. ¡Dejaron burbujas! ¿Las seguimos?',
+    )
+    expect(fish.closing).toBe('¡Encontramos a los peces! Ya volvieron a su pecera.')
+    expect(fish.closingBeat).toEqual([{ line: fish.closing, art: ZOO_ANIMAL_ART.pez }])
+  })
 })
 
 // [adventure-flow-and-map-guidance T1, "levels that must be done twice"]
@@ -209,8 +231,16 @@ describe('adventureFor', () => {
 
   it('resolves undefined for a level that belongs to no adventure', () => {
     expect(adventureFor('trail1')).toBeUndefined()
-    expect(adventureFor('f2-agua2')).toBeUndefined()
     expect(adventureFor('not-a-real-id')).toBeUndefined()
+  })
+
+  // `f2-agua2` used to be this test's own third example (no row claimed any
+  // of the medusa's four garland levels); `promised-animals` P2 gives them
+  // the `fish` row, so it now resolves like any other claimed level.
+  it('resolves f2-guirnalda/f2-agua2/f2-agua3/f2-agua4 to the fish adventure (promised-animals P2)', () => {
+    for (const id of ['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4']) {
+      expect(adventureFor(id)?.id, id).toBe('fish')
+    }
   })
 })
 
@@ -338,6 +368,7 @@ describe('closingLevel (design.md §6.3, D3, corrected against main-screen spec 
       'llama-peak4',
       'snake4',
       'bee4',
+      'f2-agua4',
       'dolphin4',
       'hedgehog4',
     ]) {
@@ -365,9 +396,9 @@ describe('closingLevel (design.md §6.3, D3, corrected against main-screen spec 
 describe('rescue closings (T8): every animal-recovering row', () => {
   const animalAdventures = ADVENTURES.filter((a) => a.animal !== undefined)
 
-  it('covers all seven animal-recovering rows', () => {
+  it('covers all eight animal-recovering rows (promised-animals P2 adds fish)', () => {
     expect(animalAdventures.map((a) => a.id).sort()).toEqual(
-      ['bee', 'dolphin', 'duck', 'hedgehog', 'llama', 'sheep', 'snake'].sort(),
+      ['bee', 'dolphin', 'duck', 'fish', 'hedgehog', 'llama', 'sheep', 'snake'].sort(),
     )
   })
 
@@ -470,6 +501,25 @@ describe('mapBubble', () => {
     expect(mapBubble(estanque, filed('duck-trail4', 'dolphin4'))).toEqual({
       art: ZOO_ANIMAL_ART.delfin,
       label: '¡Pasamos entre los delfines! Ya están tranquilos en el estanque.',
+    })
+  })
+
+  // The fish's own accepted gap (see the `fish` row's own comment,
+  // `adventures.ts`): its animal stands in `entrada`, not `estanque` where
+  // its four garland levels actually play, so neither sector's fallback
+  // bubble can ever announce it — filing every one of its levels changes
+  // NEITHER bubble, unlike every other animal this describe block covers.
+  it("filing the whole fish adventure changes neither estanque's nor entrada's fallback bubble (promised-animals P2)", () => {
+    expect(
+      mapBubble(estanque, filed('duck-trail4', 'f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4')),
+    ).toEqual({
+      art: ZOO_ANIMAL_ART.pato,
+      label: '¡Encontramos al pato! Ya está en su laguna.',
+    })
+    const entrada = SECTORS.find((s) => s.id === 'entrada')!
+    expect(mapBubble(entrada, filed('f2-agua4'))).toEqual({
+      art: ZOO_OCTOPUS_PRINT_ART,
+      label: '¡Mirá! Las huellas van hacia allá. ¿Vamos?',
     })
   })
 

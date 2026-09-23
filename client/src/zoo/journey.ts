@@ -3,9 +3,8 @@
 // order from `zoo/sectors.ts`'s per-sector `adventureIds` (which only
 // decides play order WITHIN one sector, via `nextAdventure`): a sector can
 // hold several stops of this story (the estanque holds three — the duck,
-// the medusa's own block, and the dolphin), and the guide only moves on to a
-// sector's LATER stop once every stop ahead of it, sector by sector, is
-// done.
+// the fish, and the dolphin), and the guide only moves on to a sector's
+// LATER stop once every stop ahead of it, sector by sector, is done.
 //
 // This is the fix for a real, observed defect (`odd/tasks/adventure-flow-
 // and-map-guidance.md`, "2026-09-23"): the estanque opens second, right
@@ -13,7 +12,7 @@
 // the fog-fade animation, not for narration — falls back to "the first OPEN
 // sector with any unfinished adventure, in REGISTRY order" whenever nothing
 // is untouched. Once the child had done the entrance and the duck but left
-// the pond's medusa/dolphin blocks for later (as the story intends — they
+// the pond's fish/dolphin blocks for later (as the story intends — they
 // come after the forest), that fallback kept re-electing the pond forever:
 // finishing the sheep still showed "¡Encontramos al pato!" because the pond
 // still had unfinished work of ITS OWN, in registry position 3 of 7, ahead
@@ -25,14 +24,18 @@ import { adventureFor } from './adventures'
 import { isFiled, isOpen, sectorOf, type Records, type ZooSector } from './sectors'
 
 /**
- * One stop per `ADVENTURES` row's own first level (`peces` through
- * `hedgehog`), in the order the map guides a child through them, PLUS one
- * stop for the estanque's medusa block (`f2-guirnalda`) — the one stop in
- * the whole registry with no `ADVENTURES` row of its own (`zoo/adventures.ts`
- * declares no `f2` row; the four `f2-*` ids live only in `estanque`'s own
- * `adventureIds`). `journey.test.ts`'s own guard test derives this exact set
- * FROM `ADVENTURES` and `SECTORS` independently, so this literal cannot
- * silently drift from the registry it describes.
+ * One stop per `ADVENTURES` row's own first level, in the order the map
+ * guides a child through them — `peces` through `hedgehog`, `f2-guirnalda`
+ * (the `fish` row's own first level, `zoo/adventures.ts`) included among
+ * them since `promised-animals` P2. Before P2, this list carried one
+ * further exception: a stop for `f2-guirnalda` PLUS the estanque's medusa
+ * block, the one stop in the whole registry with no `ADVENTURES` row of its
+ * own. That exception is gone from shipped data now that `fish` claims it —
+ * see `stepLevelIds`'s own header for the generic "no-row block" mechanism
+ * it used to exercise, kept for a hypothetical future one.
+ * `journey.test.ts`'s own guard test derives this exact set FROM
+ * `ADVENTURES` and `SECTORS` independently, so this literal cannot silently
+ * drift from the registry it describes.
  *
  * Sector membership is deliberately NOT annotated here: `zoo/sectors.ts`'s
  * own `sectorOf` already answers "which sector owns this level id" from the
@@ -58,12 +61,20 @@ export const JOURNEY: readonly string[] = [
 /**
  * The full id set one `JOURNEY` stop represents, for the "still has an
  * unfiled level" test below: an `ADVENTURES` row's own `levelIds` when one
- * claims the stop, or — for a stop like `f2-guirnalda` that no row claims —
- * the contiguous run of EQUALLY unclaimed ids starting at it inside its own
- * sector's `adventureIds`, stopping at the next id an `ADVENTURES` row DOES
- * claim (here, `dolphin1`). Derived rather than a second hardcoded id list,
- * so a future no-row block (should one ever join the registry) needs no
- * change here to be understood correctly.
+ * claims the stop, or — for a stop no row claims — the contiguous run of
+ * EQUALLY unclaimed ids starting at it inside its own sector's
+ * `adventureIds`, stopping at the next id an `ADVENTURES` row DOES claim.
+ * Derived rather than a second hardcoded id list, so a future no-row block
+ * needs no change here to be understood correctly.
+ *
+ * `f2-guirnalda` used to be the one live example of that second branch —
+ * the estanque's medusa block, claimed by no row — until `promised-animals`
+ * P2 gave it the `fish` row. No shipped `JOURNEY` stop exercises the no-row
+ * branch any more (every stop's `adventureFor` now resolves), so this
+ * function's own fallback path is, for today's data, unreachable — kept
+ * generic rather than deleted, the same call `screen/GameScreen.ts`'s
+ * `nextInSectorBlock` makes for the identical reason, in case a future
+ * sector-owned block ships with no `ADVENTURES` row of its own again.
  */
 function stepLevelIds(entryLevel: string): readonly string[] {
   const claimed = adventureFor(entryLevel)

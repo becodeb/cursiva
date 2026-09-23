@@ -577,6 +577,37 @@ describe('Recovered Animal Placement', () => {
     ).toBe(true)
     expect(delfin.art).toBe(ZOO_ANIMAL_ART.delfin)
   })
+
+  // The prologue's promise, kept (P2, `odd/tasks/promised-animals.md`): a
+  // rescued animal goes back to its OWN enclosure, so the fish's own
+  // placement lives on `entrada` — where the prologue showed the empty
+  // pecera — not on `estanque`, where the four `f2-*` garland levels that
+  // rescue it actually run.
+  it('the fish is absent before f2-agua4 is filed, even once the other three garland levels are', () => {
+    expect(animalPlacements(entrada, filed('f2-guirnalda', 'f2-agua2', 'f2-agua3'))).toEqual([])
+  })
+
+  it('the fish appears at the entrance once f2-agua4 is filed', () => {
+    const placed = animalPlacements(entrada, filed('f2-agua4'))
+    expect(placed).toHaveLength(1)
+    expect(placed[0].art).toBe(ZOO_ANIMAL_ART.pez)
+  })
+
+  it("the fish's own box sits inside ENTRADA_HIT, on the left third of the spot — clear of where the turtle and monkey are planned (P3, P4)", () => {
+    const [placed] = animalPlacements(entrada, filed('f2-agua4'))
+    const hit = entrada.hit!
+    expect(placed.box.x).toBeGreaterThanOrEqual(hit.x)
+    expect(placed.box.y).toBeGreaterThanOrEqual(hit.y)
+    expect(placed.box.x + placed.box.width).toBeLessThanOrEqual(hit.x + hit.w)
+    expect(placed.box.y + placed.box.height).toBeLessThanOrEqual(hit.y + hit.h)
+    // Standing grip: feet on `animalSpot`, same law `duck`/`delfin` above
+    // assert.
+    expect(placed.box.y + placed.box.height).toBeCloseTo(entrada.animalSpot.y, 6)
+    // Left of centre, not past the spot's own midline — the turtle's future
+    // `dx: 0` slot starts right where this box ends (see the registry's own
+    // worked measurement, `zoo/sectors.ts`).
+    expect(placed.box.x + placed.box.width).toBeLessThanOrEqual(entrada.animalSpot.x)
+  })
 })
 
 describe('isFiled', () => {

@@ -204,6 +204,17 @@ PLACEHOLDERS = [
     PlaceholderSpec('cartel peces.png', lambda: make_sign('PECES')),
     PlaceholderSpec('cartel tortugas.png', lambda: make_sign('TORTUGAS')),
     PlaceholderSpec('cartel monos.png', lambda: make_sign('MONOS')),
+    # The monkey's own ZOO ANIMAL cutout (P1, promised-animals) — there is no
+    # authored `mono.png` cutout yet (`docs/18` §4.5's own table says so; the
+    # ChatGPT request for the real drawing is `docs/18` §6). Reuses
+    # `make_sign` byte-for-byte rather than a new helper: a bordered octagon
+    # block with a stamped word is exactly what a labelled placeholder needs,
+    # whether the word ends up read as a sign (the three `cartel *.png` rows
+    # above) or, here, as the animal's own name standing in for its portrait.
+    # PENDING REAL ART: swap this file for an authored cutout the same way
+    # `docs/17` §4 describes for any other placeholder, and nothing else in
+    # this script changes.
+    PlaceholderSpec('mono.png', lambda: make_sign('MONO')),
 ]
 
 

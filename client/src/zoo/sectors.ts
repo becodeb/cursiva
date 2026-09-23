@@ -329,7 +329,23 @@ export const SECTORS: readonly ZooSector[] = [
     // `unlockedWhen` returns true (`!isOpen`, `ZooMap.tsx:231`).
     fog: closedFog(ENTRADA_HIT, 1),
     animalSpot: hitCentre(ENTRADA_HIT),
-    animals: [],
+    // The prologue's promise, kept (P2, `odd/tasks/promised-animals.md`):
+    // a rescued animal goes back to its OWN enclosure — the very one the
+    // prologue showed empty — not to the sector it was found in, which is
+    // why the fish lands HERE, in `entrada`, rather than in `estanque`
+    // alongside the duck and the dolphins. `dx: -70` reserves the left
+    // third of `ENTRADA_HIT` (398×170..626×594 around this spot's own
+    // (512, 509)) for the fish; the turtle's future `dx: 0` and the
+    // monkey's future `dx: 70` (P3, P4) are PLANNED, not yet entries here —
+    // worked out together so all three fit side by side without
+    // overlapping, at `size: 45` each: the fish's box lands x∈[413.9,
+    // 470.2], the turtle's own centred box (aspect 448/292) would land
+    // x∈[477.5, 546.5], and the monkey's (aspect 320/320, today's
+    // placeholder) x∈[559.5, 604.5] — three clear gaps, all inside
+    // `ENTRADA_HIT`'s own x∈[398, 626]. `size: 45`, not the duck's 96 or
+    // the dolphin's 72: three animals share one spot here, where the pond
+    // gives the duck and the dolphin one each.
+    animals: [{ id: 'pez', dx: -70, dy: 0, size: 45, appearsWhen: ['f2-agua4'] }],
     // Narrowed from eight ids to four by adventure-flow-and-map-guidance T1
     // ("levels that must be done twice"): each enclosure used to carry TWO
     // levels of the same erase gesture on the same picture

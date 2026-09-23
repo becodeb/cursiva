@@ -68,6 +68,9 @@ const CHANNEL_BACKDROPS = {
   // The dolphin row shares the duck row's own literals verbatim (design.md
   // §3.1) — same group, same reasoning, no `channel` of its own.
   dolphin: ADVENTURE_BACKDROP.dolphin!,
+  // The fish row (`promised-animals` P2) shares the exact same literals too
+  // — same group, same reasoning, no `channel` of its own.
+  fish: ADVENTURE_BACKDROP.fish!,
   sheep: ADVENTURE_BACKDROP.sheep!,
   llama: ADVENTURE_BACKDROP.llama!,
 }
@@ -80,7 +83,7 @@ const ART_CORRIDOR_BACKDROPS = {
 }
 
 describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
-  it('separates the reveal veil paint from the lightest thing it covers, for all ten backdrops', () => {
+  it('separates the reveal veil paint from the lightest thing it covers, for all eleven backdrops (promised-animals P2 adds fish)', () => {
     for (const [id, b] of [
       ...Object.entries(CHANNEL_BACKDROPS),
       ...Object.entries(REVEAL_BACKDROPS),
@@ -374,6 +377,44 @@ describe('ADVENTURE_BACKDROP.dolphin (design.md §3.1/§3.2, this change)', () =
   })
 })
 
+describe('ADVENTURE_BACKDROP.fish (promised-animals P2)', () => {
+  it("the fish row's values equal the duck row's, verbatim — the same reuse dolphin's own entry makes", () => {
+    const fish = ADVENTURE_BACKDROP.fish!
+    const duck = ADVENTURE_BACKDROP.duck!
+    expect(fish.art).toBe(duck.art)
+    expect(fish.quiet).toBe(duck.quiet)
+    expect(fish.brightest).toBe(duck.brightest)
+    expect(fish.corridorRows).toEqual(duck.corridorRows)
+    expect(fish.channel).toBeUndefined()
+  })
+
+  // Measured channel extents (image-space Y, `viewBoxToImage` at the
+  // default 1000-unit view width), one per garland level — the widest
+  // excursion of `corridorWidth/2` either side of the route's own
+  // minY/maxY, read off `buildLevelTarget`'s real flattened polyline
+  // (`flattenPathD`) rather than estimated from the authored `yTop`/
+  // `yBottom` alone, since `garlandVaried` (`f2-agua3`) has no single pair
+  // of those to read.
+  it('covers every fish garland level channel inside the sampled corridor rows', () => {
+    const { corridorRows } = ADVENTURE_BACKDROP.fish!
+    for (const id of ['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4']) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      let minY = Infinity
+      let maxY = -Infinity
+      for (const p of target.polyline) {
+        minY = Math.min(minY, p.y)
+        maxY = Math.max(maxY, p.y)
+      }
+      const half = level.corridorWidth / 2
+      const topImg = viewBoxToImage(0, minY - half).y
+      const bottomImg = viewBoxToImage(0, maxY + half).y
+      expect(topImg, id).toBeGreaterThanOrEqual(corridorRows.top)
+      expect(bottomImg, id).toBeLessThanOrEqual(corridorRows.bottom)
+    }
+  })
+})
+
 // ─────────────────────────────────────────────────────────────────────────────
 // The bee row's own law (`free-trail-waypoints` design.md §3.4). A FOURTH
 // group, kept separate from the three above: the inherited `tile ?? channel
@@ -579,9 +620,9 @@ describe('backdropFor', () => {
     }
   })
 
-  it('is undefined for the medusa levels — the regression guard (docs/13 §4, "Hecha — Nada")', () => {
+  it('resolves the fish adventure to the lagoon backdrop — the medusa levels are no longer backdrop-less (promised-animals P2, was docs/13 §4 "Hecha — Nada")', () => {
     for (const id of ['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4']) {
-      expect(backdropFor(id), id).toBeUndefined()
+      expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.fish)
     }
   })
 

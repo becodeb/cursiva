@@ -271,6 +271,15 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
       'trail2',
       'trail3',
       'trail4',
+      // The fish's own four garland levels (`promised-animals` P2): they
+      // carry a real `clue` now (bubble), so this catalog-wide filter picks
+      // them up automatically, same as every trail above — the per-level
+      // loop right below already proves the actual invariant on their real
+      // geometry, not just this membership list.
+      'f2-guirnalda',
+      'f2-agua2',
+      'f2-agua3',
+      'f2-agua4',
     ])
   })
 

@@ -256,10 +256,12 @@ describe('allEarned (design.md "Decision: earned clues are derived from progress
 // to an `ADVENTURES` row now continues STRAIGHT to the next level of that
 // SAME row, in order, whenever it is not the row's own last level — a child
 // plays a whole adventure without seeing the map until it ends. A level a
-// sector owns directly, with no adventure row of its own (today the
-// medusa's `f2-guirnalda`..`f2-agua4`, inside `estanque`), chains the same
-// way through a contiguous block of its sector's own `adventureIds`. The
-// last id of a no-row block always exits to the map. An adventure's own
+// sector owns directly, with no adventure row of its own, chains the same
+// way through a contiguous block of its sector's own `adventureIds` — no
+// shipped level is in that state any more since `promised-animals` P2 gave
+// the medusa's own `f2-guirnalda`..`f2-agua4` (inside `estanque`) the
+// `fish` row (see the dedicated describe block below for its own coverage).
+// The last id of a no-row block always exits to the map. An adventure's own
 // last level — when it carries no closing beat — used to always exit too;
 // [T2 amendment] it now chains into the NEXT adventure's own narrative
 // entry instead, whenever that adventure recovers no animal and its sector
@@ -303,11 +305,19 @@ describe('resolveNextAction (adventure-flow-and-map-guidance T2: "an unfinished 
     expect(action.type).not.toBe('deduce')
   })
 
-  it("the medusa's own block — no ADVENTURES row claims f2-guirnalda..f2-agua4 — chains through the estanque's adventureIds and exits once the block ends (dolphin1 starts its own row right after)", () => {
-    expect(resolveNextAction('f2-guirnalda', {})).toEqual({ type: 'next', levelId: 'f2-agua2' })
-    expect(resolveNextAction('f2-agua2', {})).toEqual({ type: 'next', levelId: 'f2-agua3' })
-    expect(resolveNextAction('f2-agua3', {})).toEqual({ type: 'next', levelId: 'f2-agua4' })
-    expect(resolveNextAction('f2-agua4', {})).toEqual({ type: 'exit' })
+  // The medusa's own four garland levels used to be a no-row sector block
+  // (no `ADVENTURES` row claimed them), chaining through `nextInSectorBlock`
+  // and exiting flatly on `f2-agua4`. `promised-animals` P2 gives them the
+  // `fish` row instead: the three-to-next-level chain looks the same
+  // (already covered generically by "every non-last level of every
+  // ADVENTURES row resolves to next", above, and by "every ADVENTURES row's
+  // own last level resolves to close"), but `f2-agua4` itself now closes
+  // with its own rescue beat, the same T8 outcome `duck-trail4` gets above,
+  // rather than exiting flatly.
+  it('f2-agua4 (the fish row\'s own last level) now closes with its own rescue beat, not a flat exit (promised-animals P2)', () => {
+    const action = resolveNextAction('f2-agua4', {})
+    expect(action).toEqual({ type: 'close', levelId: 'f2-agua4' })
+    expect(action.type).not.toBe('exit')
   })
 
   it('composing an exit action through nextView is a type error — exit is deliberately outside GameAction', () => {
@@ -370,15 +380,20 @@ describe('resolveAfterAdventure', () => {
       'llama-peak4',
       'snake4',
       'bee4',
+      // The fish row's own last level (`promised-animals` P2) — it recovers
+      // `pez`, so it follows the exact same rule as every other
+      // animal-recovering row here. Before P2 this id belonged to no
+      // `ADVENTURES` row at all (a no-row sector block, `resolveAfterAdventure`'s
+      // own header), which also resolved `null` here, but for the OTHER
+      // reason that header names (`!adventure`, not `adventure.animal !==
+      // undefined`) — a dedicated test used to assert that case separately;
+      // it is folded into this generic list now that the reason has changed.
+      'f2-agua4',
       'dolphin4',
       'hedgehog4',
     ]) {
       expect(resolveAfterAdventure(id, {}), id).toBeNull()
     }
-  })
-
-  it("a no-row sector block's own end (the medusa's f2-agua4) never chains — this function is scoped to ADVENTURES rows only", () => {
-    expect(resolveAfterAdventure('f2-agua4', {})).toBeNull()
   })
 })
 
@@ -717,6 +732,8 @@ describe('advanceClosing', () => {
       ['llama-peak4', 'llama'],
       ['snake4', 'snake'],
       ['bee4', 'bee'],
+      // The fish row's own last level (`promised-animals` P2).
+      ['f2-agua4', 'fish'],
       ['dolphin4', 'dolphin'],
       ['hedgehog4', 'hedgehog'],
     ] as const) {

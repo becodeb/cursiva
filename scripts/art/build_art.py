@@ -406,6 +406,45 @@ SINGLES = [
     ('pato.png',              'animal-pato.png',           448, None,         True),
     ('vaca.png',              'animal-vaca.png',           448, None,         True),
     ('gato.png',              'animal-gato.png',           448, None,         True),
+    # The prologue's promise, kept (docs/18 §4.5, `odd/tasks/promised-
+    # animals.md` P1): the fish and turtle recintos ship empty today only
+    # because nobody ever exported their own art, not because the drawings
+    # are missing. `pez.png`/`tortuga.png` are genuine cutouts with real
+    # alpha (measured, not assumed: halo 0.00%/0.38% at thresh 8, both well
+    # inside the 0.00-0.40% "healthy cutout" band `docs/17` §3 bis gives —
+    # neither needs `GHOST_ALPHA_SOURCES`), but both carry a BLUE contour
+    # (the same defect class `recontour`'s own header records for
+    # `medusa.png`/`estrella de mar.png`), so `fill='contour'` is the right
+    # mode here, not `None`: these two land in `ZOO_ANIMAL_ART` rather than
+    # `SECTOR_ADVENTURE_ART`, but they are drawn-world creatures standing
+    # beside the child's own ink exactly like the llama/oveja/delfín rows
+    # below, not lineup art on a blank sheet like the four `animal-*.png`
+    # rows just above (whose `fill=None` is right only because they never
+    # share a scene with anything else). `animal-` is still the correct
+    # PREFIX, not `sector-`: unlike the llama/oveja/delfín, these two are
+    # never wrapped in a `SECTOR_ADVENTURE_ART` row of their own — the fish
+    # and the turtle are ZOO ANIMALS the child recovers and sees standing at
+    # the entrance afterward, the exact role `animal-pato.png` already
+    # plays, so their filename follows THAT sibling, not the sector props'.
+    # Both names are added to the post-halving `recontour` allow-list below
+    # (next to `sector-`/`zoo-`/`hedgehog-`) for the same reason those rows
+    # are: a real photographed contour, halved twice, can blend a few
+    # boundary pixels toward a faint chromatic tint that `docs/09` §4 bans —
+    # the flat, hand-drawn placeholder block below has no such gradient to
+    # blend, so it is left off that list, matching `sign-*.png`'s own
+    # precedent (also `fill='contour'`, also never added to that list).
+    ('pez.png',               'animal-pez.png',            448, 'contour',    True),
+    ('tortuga.png',           'animal-tortuga.png',        448, 'contour',    True),
+    # The monkey has no cutout yet — `docs/18` §4.5's own table says so, and
+    # `docs/18` §6 is the standing ChatGPT request for the real drawing.
+    # `art-source/mono.png` is a PLACEHOLDER written by `make_placeholders.py`
+    # (its `make_sign('MONO')` helper, reused rather than duplicated: the
+    # same bordered octagon block with a stamped word every `cartel *.png`
+    # placeholder already uses) — never overwritten by that script once
+    # present, and swapped for real art the same way `docs/17` §4 describes
+    # for any other placeholder: replace the source file, rerun the
+    # pipeline, copy the new `w`/`h` off the manifest. PENDING REAL ART.
+    ('mono.png',              'animal-mono.png',           448, 'contour',    True),
     ('pulpo con lupa.png',    'carrier-octopus.png',       384, 'contour',    True),
     # The home screen (docs/10). The octopus sits in its office with eight free
     # arms; the desk is the "place" it sits at. Both keep their authored colour
@@ -893,6 +932,11 @@ AUTHORED_SOURCE_SIZES = {
     'cartel peces.png': (1024, 1024),
     'cartel tortugas.png': (1024, 1024),
     'cartel monos.png': (1024, 1024),
+    # The monkey's own placeholder (P1, promised-animals): also written by
+    # `make_placeholders.py` at this exact canvas, same reasoning as the
+    # caretaker/carteles rows just above — fail loudly on a mismatched
+    # regeneration rather than silently mis-cropping it.
+    'mono.png': (1024, 1024),
 }
 
 
@@ -1052,7 +1096,20 @@ def main() -> None:
         # alpha antialiasing at the outer silhouette, but snap any resulting
         # dark chromatic blend back to the neutral world contour.
         if fill == 'contour' and (
-            name.startswith(('zoo-', 'sector-', 'hedgehog-')) or name in ('andean-hat.png', 'carrier-octopus.png', 'home-octopus.png')
+            name.startswith(('zoo-', 'sector-', 'hedgehog-'))
+            or name in (
+                'andean-hat.png', 'carrier-octopus.png', 'home-octopus.png',
+                # `animal-pez.png`/`animal-tortuga.png` (P1, promised-animals):
+                # real photographed cutouts with a genuine antialiased
+                # contour, the same blend risk the `sector-`/`zoo-` rows
+                # above are already re-run for — an `animal-` prefix does not
+                # exempt them. `animal-mono.png` is deliberately NOT here: it
+                # is a hand-drawn flat placeholder block (`make_placeholders.
+                # py`'s `make_sign`), with no soft edge to blend in the first
+                # place, matching `sign-*.png`'s own precedent of skipping
+                # this list for the same reason.
+                'animal-pez.png', 'animal-tortuga.png',
+            )
         ):
             recontour(final)
         # `sample_spine` reads the SHIPPED file -- the exact array `emit`

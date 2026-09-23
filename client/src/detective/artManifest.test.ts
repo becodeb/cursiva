@@ -38,6 +38,7 @@ import {
   HOME_OCTOPUS_ART,
   LAMP_ART,
   OCTOPUS_ART,
+  PROMISED_ANIMAL_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
   SIGN_ART,
@@ -144,6 +145,9 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
   ),
   ...GROUND_GRASS.map((art, i) => [`GROUND_GRASS[${i}]`, art] as const),
   ...GROUND_MUD.map((art, i) => [`GROUND_MUD[${i}]`, art] as const),
+  ...Object.entries(PROMISED_ANIMAL_ART).map(([id, art]) =>
+    [`PROMISED_ANIMAL_ART.${id}`, art] as const,
+  ),
 ]
 
 /** `manifest.json` stores the pipeline-relative `art/x.png`; the registry
@@ -201,7 +205,11 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // + 1 flowerDormant (the bee family's dormant flower, paso F).
     // + 1 caretaker + 3 signs + 2 entrance backgrounds (monos, sendero)
     // (the prologue, add-caretaker-prologue).
-    expect(REGISTERED.length).toBe(88)
+    // + 3 PROMISED_ANIMAL_ART (pez, tortuga, the mono placeholder — P1,
+    // `odd/tasks/promised-animals.md`): the fish and turtle recintos'
+    // animals finally get a `ZOO_ANIMAL_ART` entry, and the monkey gets a
+    // placeholder one, closing the prologue's own unkept promise.
+    expect(REGISTERED.length).toBe(91)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
