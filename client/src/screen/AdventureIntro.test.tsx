@@ -118,3 +118,26 @@ describe('AdventureIntro — an animal-less adventure renders its own icon, not 
     expect(audit.imagelessContainers).toEqual([])
   })
 })
+
+// Voice narration (docs/18 D1, "Todo se escucha"; T7). `renderToString`
+// never runs `useEffect`, so the actual `speak(adventure.intro)` call
+// `useNarration` makes is not observable here — these tests only prove the
+// STRUCTURE: a `SpeakButton` exists, named for a screen reader, and is a
+// sibling of the stage button (the frame/stage split this file's own
+// `INTRO_CSS` header documents), never nested inside it.
+describe('AdventureIntro voice narration (adventure-flow-and-map-guidance T7)', () => {
+  it('renders a SpeakButton, aria-label="Escuchar"', () => {
+    const html = renderToString(<AdventureIntro adventure={adventure} onStart={() => {}} />)
+    expect(html).toContain('aria-label="Escuchar"')
+  })
+
+  it('the SpeakButton is a SIBLING of the stage button, never nested inside it', () => {
+    const html = renderToString(<AdventureIntro adventure={adventure} onStart={() => {}} />)
+    const stageOpen = html.indexOf('class="cv-intro-stage"')
+    const stageClose = html.indexOf('</button>', stageOpen)
+    const speakOpen = html.indexOf('aria-label="Escuchar"')
+    expect(stageOpen).toBeGreaterThanOrEqual(0)
+    expect(stageClose).toBeGreaterThan(stageOpen)
+    expect(speakOpen).toBeGreaterThan(stageClose)
+  })
+})

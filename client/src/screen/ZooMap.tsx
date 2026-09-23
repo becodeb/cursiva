@@ -44,6 +44,8 @@ import {
 import { bubblePlacement, mapBubble, type BubbleAnchor } from '../zoo/adventures'
 import { nextJourneyStep } from '../zoo/journey'
 import { getLevel } from '../levels/catalog'
+import { canAutoSpeak, speak } from '../voice/narrator'
+import VoiceToggle from '../voice/VoiceToggle'
 
 /** How long the map bubble stays up before it hides itself, milliseconds
  *  (D4: it used to say the same thing forever with no way to dismiss it —
@@ -99,7 +101,7 @@ html, body, #root { margin: 0; height: 100%; }
 .cv-zoo-octopus-control { cursor: pointer; }
 .cv-zoo-octopus-control:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 6px; }
 .cv-zoo-hud { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 2% 3%; box-sizing: border-box; pointer-events: none; }
-.cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
+.cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right, .cv-zoo-hud-right-group { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
 /* Each HUD group is a pill so it reads as interface, not as scenery: bare
    portraits at the top centre were drawn straight over the montanas and the
    animals standing there (measured at 1024x768 once five animals were back),
@@ -109,6 +111,19 @@ html, body, #root { margin: 0; height: 100%; }
 .cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right { background: rgba(255, 255, 255, 0.86); border-radius: 999px; padding: 4px 10px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); }
 .cv-zoo-hud-mid:empty { display: none; }
 .cv-zoo-hud-left img, .cv-zoo-hud-mid img { width: 30px; height: 30px; object-fit: contain; }
+/* T7 (docs/18 D1/§3): the mute toggle sits beside the star pill rather than
+   INSIDE it — .cv-zoo-hud-right-group is the actual space-between child now
+   (replacing .cv-zoo-hud-right in that role), a plain flex row with no pill
+   of its own, so the star keeps its EXACT existing pill (unchanged
+   selector, unchanged look) and the toggle reads as its own separate round
+   control right next to it — never a pill nested inside another pill,
+   and never covering the star count, the recovered-animals pill, or the
+   backpack (docs/18's own HUD layout, untouched by this addition). No rule
+   of its own beyond the shared one above: a flex row sized to its own two
+   children's content, never stretched, so there is no extra main-axis
+   space for a justify-content of its own to act on. NOTE: no backticks
+   anywhere in this block — ZOO_CSS is a template literal, same reason this
+   file's own header states. */
 /* The spotlight (T4, D5): a dim layer covers the whole stage except an
    ellipse around the next destination's own hit-rect, so exactly one place
    on the map reads as "go here" - drawn as ONE even-odd path
@@ -401,6 +416,21 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   const [reopenNonce, setReopenNonce] = useState(0)
   useEffect(() => {
     setBubbleVisible(true)
+    // Voice narration (docs/18 D1/D4, §3 "Todo se escucha"; T7): the bubble
+    // is spoken every time it (re)appears — on the fresh mount, and again on
+    // each Pulpito tap that reopens it — never merely on the FIRST show,
+    // which is why this lives inside the SAME effect that resets
+    // `bubbleVisible`, keyed on the SAME `[bubbleKey, reopenNonce]` pair,
+    // rather than going through `useNarration` (whose own "speak again"
+    // trigger is the LINE changing, not a re-show of the same line — the
+    // exact case a re-opened bubble is). `bubbleSector`/`records`/
+    // `spotlightSector` are read from this render's own closure rather than
+    // added to the dependency array: `ZooMap` always remounts fresh on
+    // every map visit (this comment block's own next paragraph), so within
+    // one mount none of them changes except in step with `bubbleKey`.
+    if (bubbleSector && canAutoSpeak()) {
+      speak(mapBubble(bubbleSector, records, spotlightSector !== null).label)
+    }
     if (typeof window === 'undefined') return undefined
     const timer = window.setTimeout(() => setBubbleVisible(false), BUBBLE_AUTO_HIDE_MS)
     return () => window.clearTimeout(timer)
@@ -641,11 +671,19 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               <img key={i} src={placed.art.href} alt="" height={40} />
             ))}
           </div>
-          <div className="cv-zoo-hud-right">
-            {/* The ONLY way a number may sit beside a picture in this app —
-                `CaptionedArt`'s `label` is required at type level, which is
-                what makes a bare "12" impossible to ship by accident. */}
-            <CaptionedArt art={ZOO_STAR_ART} label={String(stars)} size={40} />
+          {/* T7 (docs/18 D1/§3): the mute toggle now shares this SLOT with
+              the star pill, as a separate round control beside it rather
+              than inside it — `.cv-zoo-hud-right-group` (ZOO_CSS) is what
+              actually receives the row's own space-between position now, so
+              the star pill's own markup/class/background is untouched. */}
+          <div className="cv-zoo-hud-right-group">
+            <VoiceToggle />
+            <div className="cv-zoo-hud-right">
+              {/* The ONLY way a number may sit beside a picture in this app —
+                  `CaptionedArt`'s `label` is required at type level, which is
+                  what makes a bare "12" impossible to ship by accident. */}
+              <CaptionedArt art={ZOO_STAR_ART} label={String(stars)} size={40} />
+            </div>
           </div>
         </div>
 

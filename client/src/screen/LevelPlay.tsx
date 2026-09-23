@@ -117,6 +117,9 @@ import {
 import CaptionedArt from '../detective/CaptionedArt'
 import TrailProgressBar from '../detective/TrailProgressBar'
 import { BackIcon, ContinueIcon, ReplayIcon, RetryIcon } from '../detective/icons'
+import { useNarration } from '../voice/useNarration'
+import { speak } from '../voice/narrator'
+import SpeakButton from '../voice/SpeakButton'
 
 /** Seconds one demonstration sub-path takes, and the gap before the next one. */
 const DEMO_DURATION_S = 1.6
@@ -254,6 +257,34 @@ export function eraseResultMessage(levelId: string, approved: boolean): string {
     return approved ? '¡Sendero limpio!' : 'Seguí limpiando el sendero.'
   }
   return approved ? '¡Vidrio limpio!' : 'Seguí limpiando el vidrio.'
+}
+
+/**
+ * The exact sentence spoken once an erase/light attempt is APPROVED (docs/18
+ * D1, "Todo se escucha"; T7) — the SAME success text `.cv-result-pill` shows
+ * on screen (`eraseResultMessage` for erase; the light mode's own literal for
+ * light), so a child who cannot read it yet still hears the exact words a
+ * grown-up reading over their shoulder would say. `null` for anything that
+ * is not a successful erase/light attempt: a "keep going" coaching message
+ * is deliberately never spoken here — D1/T7 is about the instruction and the
+ * celebration, not about narrating every intermediate nudge out loud, and a
+ * routed/lettered level's own three-pillar result section has no single
+ * sentence to read at all (`docs/01` principle 2's "never a single grade").
+ *
+ * Pure and exported so the exact wording is directly testable without a
+ * live pointer release — the same reason `eraseResultMessage` itself is
+ * exported (this file's own header notes `onFrame`/`onRelease` are not
+ * observable through `renderToString`).
+ */
+export function resultSpeechLine(
+  levelId: string,
+  mode: 'erase' | 'light' | undefined,
+  approved: boolean,
+): string | null {
+  if (!approved) return null
+  if (mode === 'erase') return eraseResultMessage(levelId, true)
+  if (mode === 'light') return '¡Descubrimiento brillante!'
+  return null
 }
 
 /**
@@ -531,6 +562,29 @@ html, body, #root { margin: 0; padding: 0; }
  * positioned ancestor no bigger than the row itself. */
 .cv-head { position: relative; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cv-title { margin: 0; font-size: 24px; font-weight: 700; color: #1e293b; text-align: right; }
+/* T7 (docs/18 D1/D24/D26): the "hear it again" button for the level's own
+ * hint lives at the RIGHT END of .cv-head — the back button occupies the
+ * left, the enclosure sign or the adventure bar (when either exists) is
+ * absolutely centred over the row (.cv-level-zoo-sign/.pistas-bar,
+ * above/below), and the right end was free (this row's own T3/T5 comment
+ * already says so: "the row's right side left empty on purpose for a later
+ * listen button" — this is that button). .cv-head-right is a SINGLE
+ * flex child wrapping the (optional) title AND the speak button together:
+ * .cv-head keeps exactly two flow children — the back button and this
+ * group — so justify-content: space-between still puts the group flush
+ * against the row's own right edge, byte-identical to where .cv-title
+ * alone used to sit on a classic (non-drawnPlace) level, and the group
+ * never competes with the centred sign/bar for space because it is a
+ * normal flow child while those stay absolutely positioned. flex: 0 0
+ * auto keeps the group from stretching into a click target wider than its
+ * own contents, and gap: 10px keeps the title (when present) from
+ * touching the round button beside it. Never taller than the row: the
+ * button is 44px, .cv-title's own line-height is well under that at
+ * every breakpoint below, so this adds no height to .cv-head. NOTE: no
+ * backticks anywhere in this block — LAYOUT_CSS is a template literal, and
+ * one backtick inside a comment here ends the string (the exact trap
+ * PROLOGUE_CSS/INTRO_CSS/ZOO_CSS already carry this same warning for). */
+.cv-head-right { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
 .cv-hint { flex: 0 0 auto; margin: 0; font-size: 28px; line-height: 1.3; color: #1e293b; }
 .cv-portrait-guidance { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 18px; border: 2px dashed #94a3b8; border-radius: 20px; background: rgba(255,255,255,0.72); color: #1e293b; font-size: 24px; line-height: 1.3; text-align: center; font-weight: 700; }
 .cv-portrait-guidance strong { display: block; font-size: 30px; margin-bottom: 8px; }
@@ -1455,6 +1509,36 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     setClueState(emptyClueState(trailClueMarks.length))
   }, [level.id, playDemo, resetSurface, trailClueMarks.length])
 
+  // Voice narration (docs/18 D1/D24/D26, §3 "Todo se escucha"; T7): every
+  // level's hint is also SPOKEN, not merely displayed. `!drawnPlace` in the
+  // header below only gates the WRITTEN sentence (Orchestrator Correction
+  // C1's "no text in the detective world" rule) — it is exactly the
+  // drawnPlace levels (the zoo entrance's erase/light picture and every
+  // detective-world trail, bee and hedgehog included) that carry NO
+  // on-screen instruction at all today, which is precisely the D24/D26
+  // complaint ("sin consigna"). Speaking unconditionally, regardless of
+  // `drawnPlace`, is what actually closes that gap; a classic (non-world)
+  // level's own written `.cv-hint` gains a spoken twin too, which costs it
+  // nothing. `useNarration` is what checks `canAutoSpeak()`/mute before ever
+  // touching `speechSynthesis` — this call only decides WHEN, never WHETHER
+  // a given device is allowed to speak.
+  useNarration(level.hint)
+
+  // The erase/light SUCCESS line is narrated too, the instant it appears
+  // (docs/18 D1/T7) — `resultSpeechLine` (above `eraseResultMessage`) is the
+  // exact same text `.cv-result-pill` shows, `null` for a coaching ("keep
+  // going") message or for a level with no `reveal` mode, matching what
+  // that pill itself only shows on `attempt.approved`. Keyed on the
+  // `attempt` OBJECT (a fresh reference on every `onRelease`'s own
+  // `setAttempt`, below) rather than on `attempt.approved` alone, so
+  // replaying an already-clean level and succeeding again is announced
+  // again instead of silently skipped for "looking unchanged".
+  useEffect(() => {
+    if (!attempt) return
+    const line = resultSpeechLine(level.id, level.reveal?.mode, attempt.approved)
+    if (line) speak(line)
+  }, [attempt, level.id, level.reveal?.mode])
+
   useEffect(() => {
     if (phase !== 'demo') return
     const t = window.setTimeout(() => setPhase('ready'), demoMs)
@@ -2247,7 +2331,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
          * `.cv-sheet`'s share of the flex column. Centred on the row's own
          * width (not "next to the back button"), so it clears the button on
          * the left at every supported viewport, with the row's right side
-         * left empty on purpose for a later "listen" button. */}
+         * left empty on purpose for a later "listen" button — T7 (docs/18
+         * D1/D24/D26) is that button, in `.cv-head-right` below. */}
         {zooSign && (
           <CaptionedArt
             art={zooSign.art}
@@ -2264,15 +2349,25 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
          * row, which `adventureProgress` returns `null` for), so there is
          * never a fight over the centre of this row. */}
         {progress && <TrailProgressBar progress={progress} />}
-        {/* No level title in the detective world (Orchestrator Correction C1:
-         * "Hace todo bien grande, bien simple la pantalla, sin texto"). Every
-         * other phase keeps this heading exactly as shipped — this is a
-         * branch, not a removal. */}
-        {!drawnPlace && (
-          <h1 className="cv-title">
-            Fase {level.phase} · {level.title}
-          </h1>
-        )}
+        {/* T7 (docs/18 D1/D24/D26): the level's own hint is spoken
+         * unconditionally (`useNarration(level.hint)`, above), but the
+         * REPEAT button lives here, grouped with the title into ONE flex
+         * child so `.cv-head`'s `justify-content: space-between` still puts
+         * it flush against the row's own right end (`.cv-head-right`'s own
+         * LAYOUT_CSS comment has the full reasoning) — never over the
+         * centred sign/bar above, which stays absolutely positioned and
+         * therefore out of this flex flow entirely. No level title in the
+         * detective world (Orchestrator Correction C1: "Hace todo bien
+         * grande, bien simple la pantalla, sin texto") — that branch is
+         * untouched, only wrapped. */}
+        <div className="cv-head-right">
+          {!drawnPlace && (
+            <h1 className="cv-title">
+              Fase {level.phase} · {level.title}
+            </h1>
+          )}
+          <SpeakButton line={level.hint} />
+        </div>
       </header>
       {/* The standing hint sentence is also suppressed (C1) — a world level's
        * instruction is SHOWN via `demo` (`TraceCanvas.tsx:747`), never

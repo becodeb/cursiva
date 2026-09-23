@@ -173,6 +173,20 @@ describe('ZooMap (HUD is DOM, outside the svg)', () => {
     expect(html).toContain('/art/zoo-star.png')
     expect(html).toContain('class="cv-caption">')
   })
+
+  // T7 (docs/18 D1/§3 "Todo se escucha"): the persisted mute switch. There is
+  // no `window`/`localStorage` in this harness, so `VoiceToggle`'s own lazy
+  // `useState` initializer reads the DEFAULT settings (`{ muted: false }`,
+  // `voice/narrator.ts`'s own `loadVoiceSettings`) — the same aria-label a
+  // real first visit (nothing persisted yet) would show.
+  it('renders the voice toggle beside the star pill, unmuted by default', () => {
+    const html = render()
+    expect(html).toContain('aria-label="Silenciar la voz"')
+    // Beside the star pill's own slot, not inside `.cv-zoo-hud-left`/`-mid`.
+    expect(html.indexOf('aria-label="Silenciar la voz"')).toBeGreaterThan(
+      html.indexOf('class="cv-zoo-hud-right-group"'),
+    )
+  })
 })
 
 describe('ZooMap (debug overlay, zoo-map spec "Sector Debug Overlay")', () => {

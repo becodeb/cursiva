@@ -218,3 +218,30 @@ describe('AdventureClosing rescue celebration (T8)', () => {
     expect(audit.imagelessContainers).toEqual([])
   })
 })
+
+// Voice narration (docs/18 D1, "Todo se escucha"; T7). `renderToString`
+// never runs `useEffect`, so the actual `speak(beat.line)` call
+// `useNarration` makes is not observable here — these tests only prove the
+// STRUCTURE: a `SpeakButton` exists, named for a screen reader, and is a
+// sibling of the stage button (the frame/stage split `CLOSING_CSS`'s own
+// header documents), never nested inside it.
+describe('AdventureClosing voice narration (adventure-flow-and-map-guidance T7)', () => {
+  it('renders a SpeakButton, aria-label="Escuchar", for any beat', () => {
+    const html = renderToString(
+      <AdventureClosing adventure={sendero} beat={sendero.closingBeat![0]} onContinue={() => {}} />,
+    )
+    expect(html).toContain('aria-label="Escuchar"')
+  })
+
+  it('the SpeakButton is a SIBLING of the stage button, never nested inside it', () => {
+    const html = renderToString(
+      <AdventureClosing adventure={sendero} beat={sendero.closingBeat![0]} onContinue={() => {}} />,
+    )
+    const stageOpen = html.indexOf('class="cv-closing-stage"')
+    const stageClose = html.indexOf('</button>', stageOpen)
+    const speakOpen = html.indexOf('aria-label="Escuchar"')
+    expect(stageOpen).toBeGreaterThanOrEqual(0)
+    expect(stageClose).toBeGreaterThan(stageOpen)
+    expect(speakOpen).toBeGreaterThan(stageClose)
+  })
+})

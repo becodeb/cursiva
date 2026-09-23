@@ -23,6 +23,8 @@ import { ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART, ZOO_STAR_ART } from '.
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import type { Adventure, ClosingBeat } from '../zoo/adventures'
+import { useNarration } from '../voice/useNarration'
+import SpeakButton from '../voice/SpeakButton'
 
 /* Same stage geometry as `AdventureIntro.tsx`'s `INTRO_CSS`, restated under
    its own class prefix rather than shared, the same reason the two
@@ -30,11 +32,17 @@ import type { Adventure, ClosingBeat } from '../zoo/adventures'
    happen to be identical today, and each is free to diverge without the
    other noticing. See `INTRO_CSS`'s own header for the derivation of every
    number below (the 84dvh landscape clamp, the container-type: inline-size
-   cqw sizing). */
+   cqw sizing) AND for the T7 frame/stage split this file mirrors: sizing
+   lives on `.cv-closing-frame`, the tap on an inset:0 `.cv-closing-stage`
+   overlay, so `SpeakButton` can sit beside it as a sibling rather than a
+   descendant (a button nested inside a button is invalid HTML and would
+   swallow the tap meant for the stage underneath it). */
 const CLOSING_CSS = `
 html, body, #root { margin: 0; height: 100%; }
 .cv-closing { height: 100dvh; display: flex; align-items: center; justify-content: center; background-color: ${SHEET_PAPER}; box-sizing: border-box; padding: 4%; }
-.cv-closing-stage { position: relative; width: min(100%, 620px, 84dvh); aspect-ratio: 1 / 1; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; }
+.cv-closing-frame { position: relative; width: min(100%, 620px, 84dvh); aspect-ratio: 1 / 1; container-type: inline-size; }
+.cv-closing-stage { position: absolute; inset: 0; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; }
+.cv-closing-speak { position: absolute; top: 2%; right: 4%; z-index: 1; }
 .cv-closing-octopus { position: absolute; left: 50%; bottom: 2%; width: 44%; height: auto; transform: translateX(-50%); }
 .cv-closing-bubble { position: absolute; left: 50%; top: 4%; width: 82%; transform: translateX(-50%); }
 .cv-closing-bubble > img { display: block; width: 100%; height: auto; }
@@ -119,17 +127,26 @@ function RescueCelebration() {
  *  does, on its own (and, since T8, only) closing beat. */
 export default function AdventureClosing({ adventure, beat, onContinue }: AdventureClosingProps) {
   const backdrop = backdropFor(adventure.levelIds[adventure.levelIds.length - 1])
+  // Voice narration (docs/18 D1; T7): each beat speaks its own line as soon
+  // as it appears. `GameScreen`'s own 'close' view (this file's own header)
+  // re-renders this SAME component with the NEXT beat rather than
+  // remounting it, so this relies on `useNarration`'s "speaks again when
+  // `line` changes" behaviour, not on a fresh mount.
+  useNarration(beat.line)
   return (
     <main className="cv-closing" style={{ background: backdrop?.quiet ?? SHEET_PAPER }}>
       <style>{CLOSING_CSS}</style>
-      <button type="button" className="cv-closing-stage" onClick={onContinue}>
-        <img src={(beat.figure ?? ZOO_OCTOPUS_BACKPACK_ART).href} alt="" className="cv-closing-octopus" />
-        <span className="cv-closing-bubble">
-          <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-          <CaptionedArt art={beat.art} label={beat.line} size={76} />
-        </span>
-        {adventure.animal !== undefined && <RescueCelebration />}
-      </button>
+      <div className="cv-closing-frame">
+        <button type="button" className="cv-closing-stage" onClick={onContinue}>
+          <img src={(beat.figure ?? ZOO_OCTOPUS_BACKPACK_ART).href} alt="" className="cv-closing-octopus" />
+          <span className="cv-closing-bubble">
+            <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+            <CaptionedArt art={beat.art} label={beat.line} size={76} />
+          </span>
+          {adventure.animal !== undefined && <RescueCelebration />}
+        </button>
+        <SpeakButton line={beat.line} className="cv-closing-speak" />
+      </div>
     </main>
   )
 }

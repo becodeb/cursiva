@@ -74,6 +74,33 @@ describe('PrologueOpening skip control (prologue-opening spec "A Skip Control Is
   })
 })
 
+// Voice narration (docs/18 D1, "Todo se escucha"; T7). `renderToString`
+// never runs `useEffect`, so the actual `speak()` call `useNarration` makes
+// is not observable here (the same limitation this file's own header
+// records for `advancePlate`'s click-driven transition) — these tests only
+// prove the STRUCTURE: a `SpeakButton` exists on every plate, named for a
+// screen reader, and is a sibling of the stage button rather than nested
+// inside it (the same invalid-HTML hazard the skip control's own test
+// above already guards against).
+describe('PrologueOpening voice narration (adventure-flow-and-map-guidance T7)', () => {
+  it('renders a SpeakButton, aria-label="Escuchar", on every plate', () => {
+    for (let i = 0; i < PROLOGUE_PLATES.length; i++) {
+      const html = renderToString(<PrologueOpening from={i} onDone={() => {}} />)
+      expect(html, `plate ${i}`).toContain('aria-label="Escuchar"')
+    }
+  })
+
+  it('the SpeakButton is a SIBLING of the stage button, never nested inside it', () => {
+    const html = renderToString(<PrologueOpening from={0} onDone={() => {}} />)
+    const stageOpen = html.indexOf('class="cv-prologue-stage"')
+    const stageClose = html.indexOf('</button>', stageOpen)
+    const speakOpen = html.indexOf('aria-label="Escuchar"')
+    expect(stageOpen).toBeGreaterThanOrEqual(0)
+    expect(stageClose).toBeGreaterThan(stageOpen)
+    expect(speakOpen).toBeGreaterThan(stageClose)
+  })
+})
+
 describe('prologueRoute (prologue-opening spec "The Opening Is Reachable On Demand Through a Dev-Gated Route")', () => {
   it('?nivel=apertura resolves to from:0, only when dev is true', () => {
     expect(prologueRoute('?nivel=apertura', true)).toEqual({ at: 'prologue', from: 0 })

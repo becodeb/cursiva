@@ -70,6 +70,7 @@ import LevelPlay, {
   eraseResultMessage,
   isOffPath,
   releasedRevealState,
+  resultSpeechLine,
   seedCameraFor,
   shouldFileClue,
   shouldTickClue,
@@ -1583,6 +1584,88 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     // all through the REAL `backdropFor`, so `inkColor` is `undefined` —
     // exactly the byte-identical default every non-world level already had.
     expect(traceCanvasProbe.current?.inkColor).toBeUndefined()
+  })
+})
+
+// Voice narration (docs/18 D1/D24/D26, "Todo se escucha"; adventure-flow-
+// and-map-guidance T7). `resultSpeechLine` is the pure half — directly
+// testable, unlike the `useEffect` that calls `speak()` with its result on
+// a live `attempt`, which needs a real pointer release this harness cannot
+// produce (this file's own header: `onFrame`/`onRelease` are not
+// observable through `renderToString`).
+describe('resultSpeechLine (adventure-flow-and-map-guidance T7)', () => {
+  it('is null for anything that is not an approved attempt, whatever the mode', () => {
+    expect(resultSpeechLine('glass1', 'erase', false)).toBeNull()
+    expect(resultSpeechLine('night1', 'light', false)).toBeNull()
+    expect(resultSpeechLine('test-level', undefined, false)).toBeNull()
+  })
+
+  it('is null for an approved attempt with no reveal mode at all (a routed/lettered level)', () => {
+    expect(resultSpeechLine('test-level', undefined, true)).toBeNull()
+  })
+
+  it('speaks the exact erase success text, matching the on-screen .cv-result-pill wording', () => {
+    expect(resultSpeechLine('glass1', 'erase', true)).toBe(eraseResultMessage('glass1', true))
+    expect(resultSpeechLine('sand1', 'erase', true)).toBe('¡Arena barrida!')
+    expect(resultSpeechLine('glass3', 'erase', true)).toBe('¡Hojas juntadas!')
+    expect(resultSpeechLine('sand3', 'erase', true)).toBe('¡Sendero limpio!')
+  })
+
+  it('speaks the exact light success text, matching the on-screen .cv-result-pill wording', () => {
+    expect(resultSpeechLine('night1', 'light', true)).toBe('¡Descubrimiento brillante!')
+  })
+})
+
+// SpeakButton wiring for the level's own hint (docs/18 D1/D24/D26; T7). This
+// is the fix for D24 (bee: "sin consigna") and D26 (erizo: "sin consigna")
+// — both are drawnPlace levels whose written `.cv-hint` is suppressed by
+// Orchestrator Correction C1, so the button (and the `useNarration` call
+// that speaks it on mount, not observable here) is the ONLY on-screen
+// affordance for their instruction today.
+describe('LevelPlay hint SpeakButton (adventure-flow-and-map-guidance T7)', () => {
+  it('renders a SpeakButton, aria-label="Escuchar", for a drawnPlace level with no written hint (bee)', () => {
+    const html = renderToString(
+      <LevelPlay level={getLevel('bee1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    expect(body).toContain('aria-label="Escuchar"')
+    // D24's own complaint: no written hint at all for this level.
+    expect(body).not.toContain('class="cv-hint"')
+  })
+
+  it('renders a SpeakButton, aria-label="Escuchar", for a drawnPlace level with no written hint (erizo/hedgehog, D26)', () => {
+    const html = renderToString(
+      <LevelPlay level={getLevel('hedgehog1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    expect(body).toContain('aria-label="Escuchar"')
+    expect(body).not.toContain('class="cv-hint"')
+  })
+
+  it('renders a SpeakButton, aria-label="Escuchar", for an ordinary (non-drawnPlace) level too, alongside its written hint', () => {
+    const html = renderToString(
+      <LevelPlay level={makeLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    expect(body).toContain('aria-label="Escuchar"')
+    expect(body).toContain('class="cv-hint"')
+  })
+
+  it('sits inside .cv-head-right, grouped with the title, at the row\'s own right end — never inside .cv-head-wide\'s centred sign/bar slot', () => {
+    const html = renderToString(
+      <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    const rightGroupOpen = body.indexOf('class="cv-head-right"')
+    const speakOpen = body.indexOf('aria-label="Escuchar"')
+    const headClose = body.indexOf('</header>')
+    expect(rightGroupOpen).toBeGreaterThanOrEqual(0)
+    expect(speakOpen).toBeGreaterThan(rightGroupOpen)
+    expect(speakOpen).toBeLessThan(headClose)
+  })
+
+  it('LAYOUT_CSS keeps .cv-head-right from adding height to the row (no min-height/padding of its own)', () => {
+    expect(LAYOUT_CSS).toMatch(/\.cv-head-right\s*\{[^}]*flex:\s*0 0 auto;/)
   })
 })
 

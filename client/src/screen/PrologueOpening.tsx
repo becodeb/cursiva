@@ -21,6 +21,8 @@ import { ZOO_CARETAKER_ART, ZOO_MAP_ART, ZOO_SPEECH_BUBBLE_ART } from '../detect
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import { PROLOGUE_PLATES, advancePlate } from '../zoo/prologue'
+import { useNarration } from '../voice/useNarration'
+import SpeakButton from '../voice/SpeakButton'
 
 /* Same stage geometry as `AdventureIntro.tsx`'s `INTRO_CSS` — see that
    file's header for the derivation of every number below (the 84dvh
@@ -61,6 +63,16 @@ const PROLOGUE_CSS = `
 .cv-prologue-skip .cv-captioned { display: flex; flex-direction: row; align-items: center; gap: 1.6cqw; }
 .cv-prologue-skip .cv-captioned > svg { width: auto; height: 5.4cqw; flex: none; }
 .cv-prologue-skip .cv-caption { font-size: 3.4cqw; line-height: 1; font-weight: 700; color: #1e293b; white-space: nowrap; }
+/* T7 (docs/18 D1): the "hear it again" button, pinned to the bubble's own
+   top-right corner (the bubble spans left 9%-91%, top starts at 4% — see
+   the derivation above .cv-prologue-bubble) rather than the frame's own
+   corner, so it reads as PART of the bubble rather than as a fourth,
+   unrelated control. Never in the bottom-right corner, which is
+   .cv-prologue-skip's own spot. A SIBLING of .cv-prologue-stage, never a
+   descendant — see this file's own header on why a nested button cannot be
+   used here. NOTE: no backticks anywhere in this block, same reason the
+   header above states — this is a template literal. */
+.cv-prologue-speak { position: absolute; top: 2%; right: 4%; z-index: 1; }
 `
 
 export interface PrologueOpeningProps {
@@ -94,6 +106,13 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
   // (task 2.5) — `backdropFor` resolves through the level, not the id this
   // change renamed.
   const backdrop = backdropFor('glass1')
+  // Voice narration (docs/18 D1, "sin voz no se entera de la historia"; T7):
+  // every plate speaks its own line the instant it appears. The FIRST plate
+  // mounts before any tap has happened at all, so `canAutoSpeak()` (inside
+  // `useNarration`) correctly stays silent for it — its own `SpeakButton`
+  // below is the only way that first line is ever heard, and the tap that
+  // advances past it is what makes every LATER plate's own autoplay allowed.
+  useNarration(plate.line)
 
   const handleTap = (): void => {
     const next = advancePlate(index)
@@ -112,6 +131,7 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
             <CaptionedArt art={plate.art} label={plate.line} size={76} />
           </span>
         </button>
+        <SpeakButton line={plate.line} className="cv-prologue-speak" />
         <button type="button" className="cv-prologue-skip" onClick={onDone}>
           <CaptionedArt art={ZOO_MAP_ART} label="Ir al mapa" size={28} />
         </button>

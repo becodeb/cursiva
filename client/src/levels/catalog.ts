@@ -1228,7 +1228,7 @@ const PHASE_1: LevelConfig[] = [
     id: 'bee1',
     phase: 1,
     title: 'La primera flor',
-    hint: 'Dibujá un camino desde la abeja hasta la flor, y despues hasta el panal.',
+    hint: 'Dibujá un camino desde la abeja hasta la flor, y después hasta el panal.',
     kind: 'free',
     surface: 'blank',
     maze: false,
