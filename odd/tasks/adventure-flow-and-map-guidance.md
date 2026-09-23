@@ -98,7 +98,7 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
       of the HUD, finished sector replays from its first level. Route: delegated.
 - [x] **T5 — Enclosure sign out of the art.** The sign moves to the header row, never over the
       sheet. Route: delegated (with T3 or T6).
-- [ ] **T6 — Progress bar instead of PISTAS.** One slot per level of the adventure, the found item
+- [x] **T6 — Progress bar instead of PISTAS.** One slot per level of the adventure, the found item
       (clue art or a star) fills it, the animal's silhouette at the end colours in when rescued;
       the trail's goal shows the item instead of the light bulb when feasible. Route: delegated.
 - [ ] **T7 — Voice narration.** Speech synthesis (es-AR → es-419 → es) for prologue, intro,
@@ -136,6 +136,7 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 | T3+T5 | `caa1b00` | delegated (preparation trigger: LevelPlay 2300+ lines) + one inline CSS fix | `npm test` 82 / 1963; build ok; browser QA at 1280x720/1024x768/844x390: sheet 1252x592 / 996x640 / 824x282 identical before and after success, sign in the back-button row never over the sheet or the button, pill "✓ ¡Vidrio limpio!", "¡Sendero limpio!" on sand3, `cv-next-ready` after success, intro scroll = viewport | RDD off; assess medium (`client/index.html`) → writer self-verification + parent QA |
 | T4 | `c4296a2` | delegated (mapping trigger: ZooMap, sectors, adventures, App + new journey module) + two inline CSS fixes (inline svg made the stage 1200x726; HUD portraits drawn over the montañas) | `npm test` 83 / 1983; build ok; browser QA over 10 progress states × 3 viewports: spotlight target follows the journey order, bubble never over the target and always on-screen, stage exactly 5:3 and centred | RDD off; assess medium (`client/src/App.tsx`, with the two new files declared) → writer self-verification + parent QA |
 | T8 | `3a25097` | delegated (same writer as T4, resumed with the brief) | `npm test` 83 / 2000; build ok; browser: rescue closings for duck/sheep/hedgehog show the animal + 6 stars, night closes with the flashlight; after the bee the map bubble says the onward line (no stale duck rescue) | RDD off; assess medium → writer self-verification + parent QA |
+| T6 | `68663c6` | delegated (same writer as T3/T5, resumed with the brief) | `npm test` 85 / 2016; build ok; browser at 3 viewports × 11 levels: bar centred in the back-button row, never over the sheet or the button; duck sheet 1252x508 → 1252x592; labels "Camino hacia el pato: N de 4"; finishes: clue art (duck 1–3), star (other non-last trails), the animal (last trail) | RDD off; assess medium → writer self-verification + parent QA |
 
 - 2026-09-23: journey QA on `99dd8ad` from an empty store (1280x720): levels played between map
   visits `[0,1,1,1,1,4,4]` — the duck and the sheep now play 4 levels straight; the prologue still
@@ -145,7 +146,11 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 
 ## Next step
 
-T6 (progress bar in the back-button row) in progress; then T7 (voice), T9 (QA + docs/18 status).
+T7 (voice narration) in progress; then T9 (full QA, after-captures, docs/18 status).
+
+T6 notes: `PistasRail` stays only for `Deduction.tsx` (the hen's case summary); the unreachable hen
+trails `trail1..4` no longer show a bar (no adventure row). On `duck-trail4` the finish shows the duck
+(the encounter) rather than its feather clue.
 
 Found in T4 QA and handed to T8: with the spotlight on the estanque after the bee, `mapBubble` still
 announced "¡Encontramos al pato!" (stale news). Still open after T4: the bubble can cover a
