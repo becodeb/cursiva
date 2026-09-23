@@ -3,8 +3,13 @@
 Actualizado el 2026-09-16, verificado contra el código de la rama
 `sdd/prologo-cuidador`, no contra los documentos.
 
-**2026-09-22:** hay una revisión completa jugando desde cero en `docs/18`,
-con el estado de lo que se está arreglando y lo que queda. Leerla primero.
+**2026-09-23:** hay una revisión completa jugando desde cero en `docs/18`, y
+la rama `feat/adventure-flow-and-map-guidance` (sin mergear) implementa su
+§5: la aventura se juega de corrido, la entrada es un nivel por recinto, el
+mapa destaca el próximo lugar, la barra de camino reemplaza a PISTAS, cada
+rescate tiene su cierre y todo se escucha. **Lo que queda está en `docs/18`
+§7**, que reemplaza la lista de §3 de acá para todo lo que toca. Leer `18`
+primero.
 
 ---
 
@@ -127,7 +132,7 @@ entonces se va a tirar cuando esa decisión se tome.
 ## 6. Cómo mirar la app
 
 ```bash
-npm test                       # 82 archivos, 1882 casos
+npm test                       # 86 archivos, 2065 casos (rama feat/adventure-flow-and-map-guidance)
 npm run build                  # tsc --noEmit && vite build
 npm run dev                    # vite
 bash scripts/shot.sh <url> capturas/x.png 1000 600

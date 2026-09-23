@@ -101,13 +101,13 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 - [x] **T6 — Progress bar instead of PISTAS.** One slot per level of the adventure, the found item
       (clue art or a star) fills it, the animal's silhouette at the end colours in when rescued;
       the trail's goal shows the item instead of the light bulb when feasible. Route: delegated.
-- [ ] **T7 — Voice narration.** Speech synthesis (es-AR → es-419 → es) for prologue, intro,
+- [x] **T7 — Voice narration.** Speech synthesis (es-AR → es-419 → es) for prologue, intro,
       closing, map bubble and level hints; speaker button; persisted mute; clip registry for
       future recorded audio. Route: delegated.
 - [x] **T8 — Rescue closings.** Closing beat per animal adventure using the registry's existing
       `closing` lines and the animal art. (The peces intro keeps its chest: an entry icon must
       never name the absent animal — `docs/17` §1.) Route: delegated.
-- [ ] **T9 — Visual QA and doc status.** Full Playwright walkthrough at 1280x720, 1024x768,
+- [x] **T9 — Visual QA and doc status.** Full Playwright walkthrough at 1280x720, 1024x768,
       844x390 (+ portrait guidance), evidence in `capturas/2026-09-22-despues/`, update `docs/18`
       status table. Route: inline.
 
@@ -137,6 +137,8 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 | T4 | `c4296a2` | delegated (mapping trigger: ZooMap, sectors, adventures, App + new journey module) + two inline CSS fixes (inline svg made the stage 1200x726; HUD portraits drawn over the montañas) | `npm test` 83 / 1983; build ok; browser QA over 10 progress states × 3 viewports: spotlight target follows the journey order, bubble never over the target and always on-screen, stage exactly 5:3 and centred | RDD off; assess medium (`client/src/App.tsx`, with the two new files declared) → writer self-verification + parent QA |
 | T8 | `3a25097` | delegated (same writer as T4, resumed with the brief) | `npm test` 83 / 2000; build ok; browser: rescue closings for duck/sheep/hedgehog show the animal + 6 stars, night closes with the flashlight; after the bee the map bubble says the onward line (no stale duck rescue) | RDD off; assess medium → writer self-verification + parent QA |
 | T6 | `68663c6` | delegated (same writer as T3/T5, resumed with the brief) | `npm test` 85 / 2016; build ok; browser at 3 viewports × 11 levels: bar centred in the back-button row, never over the sheet or the button; duck sheet 1252x508 → 1252x592; labels "Camino hacia el pato: N de 4"; finishes: clue art (duck 1–3), star (other non-last trails), the animal (last trail) | RDD off; assess medium → writer self-verification + parent QA |
+| T7 | `83a9250` | delegated (fresh writer; touches five screens + a new voice module) | `npm test` 86 / 2065; build ok; browser with a stubbed speechSynthesis: every screen speaks its line with the es-AR voice (picked over es-ES and en-US), the first prologue plate waits for a tap, mute persists as `{"muted":true}` and silences the next screen; the listen button sits at the right end of the back-button row at 3 viewports, never over the bar, the sign or the sheet | RDD off; assess medium (`catalog.ts`) → writer self-verification + parent QA |
+| T9 | `7fcd395`, `308f516` + docs | inline | full journey from an empty store: map gaps `[0,4,4,4,4]` (prologue, duck, sheep, llama, night→hedgehog chain); e2e suite 33/33 against system Chromium after restoring the result pill's accessible name (the T3 revision had dropped it — 5 e2e failures caught it); after-captures in `capturas/2026-09-22-despues/`; `docs/18` §5 and §7 updated | RDD off |
 
 - 2026-09-23: journey QA on `99dd8ad` from an empty store (1280x720): levels played between map
   visits `[0,1,1,1,1,4,4]` — the duck and the sheep now play 4 levels straight; the prologue still
@@ -146,19 +148,12 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 
 ## Next step
 
-T7 (voice narration) in progress; then T9 (full QA, after-captures, docs/18 status).
+All tasks T0–T9 are done on the branch. Nothing is pushed or merged: that is the user's decision,
+and so is the PR chain strategy (`stacked-to-main` vs `feature-branch-chain`) if the ~3,600 authored
+lines go through PRs. Local `main` is still 3 commits ahead of `origin/main` (the leaves slice of the
+previous session).
 
-T6 notes: `PistasRail` stays only for `Deduction.tsx` (the hen's case summary); the unreachable hen
-trails `trail1..4` no longer show a bar (no adventure row). On `duck-trail4` the finish shows the duck
-(the encounter) rather than its feather clue.
-
-Found in T4 QA and handed to T8: with the spotlight on the estanque after the bee, `mapBubble` still
-announced "¡Encontramos al pato!" (stale news). Still open after T4: the bubble can cover a
-recovered animal standing in a non-target sector (it auto-hides after 10 s and can be dismissed);
-the map's hedgehog is drawn very large over the nocturna scene (registry size 90) — recorded for
-docs/18.
-
-Lesson from T3/T5: the first pass put the sign in its own row and reserved the result row, which
-fixed the shrink but cost the sheet 154 px (987x592 → 730x438 drawing at 1280x720). Browser
-measurement caught it; unit tests could not. Identity chrome goes in the back-button row and
-transient messages overlay the sheet.
+What remains is product work listed in `docs/18` §7 (P1 story decision, P10 art, P2 album, P9 the
+promised peces/tortugas/monos adventures, P5 demos for bee and night, P6 arrival animation, P8
+recorded voice, P13 code-drawn mud, P7 second star, P11 OpenSpec specs, P12 tablet test with kids)
+and the new findings N1–N7.
