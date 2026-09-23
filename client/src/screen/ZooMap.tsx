@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
 import {
   ZOO_BACKPACK_ART,
+  ZOO_CARETAKER_ART,
   ZOO_FOG_ART,
   ZOO_MAP_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
@@ -21,6 +22,7 @@ import {
   ZOO_SPEECH_BUBBLE_ART,
   ZOO_STAR_ART,
 } from '../detective/assets'
+import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 import { placeArt } from '../canvas/placeArt'
 import { isSectorDebug } from '../canvas/devMode'
 import { earnedItems } from '../zoo/backpack'
@@ -41,7 +43,13 @@ import {
   type SectorId,
   type ZooSector,
 } from '../zoo/sectors'
-import { bubblePlacement, mapBubble, type BubbleAnchor } from '../zoo/adventures'
+import {
+  bubblePlacement,
+  everyAdventureFiled,
+  finaleBubblePlacement,
+  mapBubble,
+  type BubbleAnchor,
+} from '../zoo/adventures'
 import { nextJourneyStep } from '../zoo/journey'
 import { getLevel } from '../levels/catalog'
 import { canAutoSpeak, speak } from '../voice/narrator'
@@ -52,6 +60,20 @@ import VoiceToggle from '../voice/VoiceToggle'
  *  `docs/18`). Tapping the Pulpito (`aria-label="Pulpito: escuchar de
  *  nuevo"`) shows it again for another window this same length. */
 const BUBBLE_AUTO_HIDE_MS = 10000
+
+/**
+ * The finale (`promised-animals` task B, `docs/18` §4 "cumplir la promesa
+ * del prólogo"): once `everyAdventureFiled` (`zoo/adventures.ts`) is true and
+ * there is no spotlight step left (`nextJourneyStep` is `null`), the map's
+ * own bubble used to go silent — `bubbleSector` falls back to
+ * `recentlyDiscovered`, which is ALSO `null` in exactly this state (nothing
+ * left is untouched, and nothing left has any unfiled adventure), so the
+ * bubble simply never rendered and the story had no ending. This line, the
+ * caretaker's own portrait (`ZOO_CARETAKER_ART`), and a short
+ * `RescueCelebration` burst are what fill that gap — the Pulpito's own
+ * closing word once there is truly nothing left to do in the whole zoo.
+ * Copy approved verbatim (`odd/tasks/promised-animals.md` task B). */
+const FINALE_LINE = '¡Volvieron todos los animales! Gracias por ayudarme a cuidar el zoológico.'
 
 /** The measured edge colour of `zoo-map.png` (design.md §1) — the letterbox
  *  `xMidYMid meet` leaves on the outer `<svg>` is filled with this, never a
@@ -163,7 +185,14 @@ html, body, #root { margin: 0; height: 100%; }
    everything inside it can be sized in cqw (percent of the BUBBLE's width,
    itself a percent of the stage) and nothing inside needs a px length -
    unchanged from the single-placement version this replaces. */
-.cv-zoo-bubble { position: absolute; container-type: inline-size; }
+.cv-zoo-bubble { position: absolute; container-type: inline-size; isolation: isolate; }
+/* The finale's star burst sits BEHIND the bubble's own picture: the stars
+   were sized for the closing screen's large bubble, and on the map's smaller
+   one a star landed on the caption itself (measured: over "cuidar" at
+   1280x720). Behind the white oval, the stars that fall inside it vanish and
+   only the ones around its edge show. isolation on the bubble keeps the
+   negative z-index from sinking below the map. */
+.cv-zoo-bubble .cv-rescue-celebration { z-index: -1; }
 .cv-zoo-bubble-dismiss { position: absolute; inset: 0; display: block; width: 100%; height: 100%; margin: 0; padding: 0; border: none; background: none; cursor: pointer; }
 .cv-zoo-bubble-dismiss > img { display: block; width: 100%; height: 100%; }
 /* The tail is NOT at the file's own centre: it hangs at ~10% of the width,
@@ -205,6 +234,14 @@ html, body, #root { margin: 0; height: 100%; }
 }
 .cv-zoo-fog-lift { animation: cv-zoo-fog-fade 1.5s ease-out forwards; }
 @media (prefers-reduced-motion: reduce) { .cv-zoo-fog-lift { animation: none; } }
+/* The finale's own short star burst (promised-animals task B): the SAME
+   rules AdventureClosing's rescue beat uses, shared through
+   RescueCelebration.tsx rather than duplicated here - see that module's own
+   header for why position: absolute; inset: 0 scales itself to whichever
+   positioned ancestor it is mounted in (here, .cv-zoo-bubble itself, so the
+   burst reads as scattered around the finale bubble). NOTE: no backticks in
+   this comment either, same reason as the note right below it. */
+${RESCUE_CELEBRATION_CSS}
 /* NOTE: no backticks anywhere in this block - ZOO_CSS is a template
    literal, and one backtick in a CSS comment ends the string. */
 `
@@ -391,8 +428,23 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   const spotlightSector = journeyStep?.sector ?? null
   // When the journey is done, the bubble falls back to `recentlyDiscovered`
   // (today's pre-T4 source) rather than going silent — the task's own
-  // "keep today's behaviour" clause for that one case.
+  // "keep today's behaviour" clause for that one case. `everyAdventureFiled`
+  // is checked SEPARATELY below rather than assumed from `spotlightSector`
+  // being `null` — see that function's own header for why the two are not
+  // the same claim in general, even though today's registry makes them
+  // coincide.
   const bubbleSector = spotlightSector ?? discovered
+  // The finale (`promised-animals` task B): every animal is back AND there
+  // is no journey step left to point at. Before this, `bubbleSector` fell
+  // through to `discovered` (`recentlyDiscovered`) here too — but
+  // `recentlyDiscovered` is ALSO `null` in this exact state (nothing is
+  // untouched, and nothing has any unfiled adventure left), so the map
+  // simply showed no bubble and the story had no ending (`FINALE_LINE`'s own
+  // header). Checked explicitly, not inferred from `bubbleSector` being
+  // `null`, so a future state where `discovered` resolves to something ELSE
+  // while some adventure is still unfiled (`everyAdventureFiled`'s own
+  // caveat) can never show the finale early.
+  const finale = spotlightSector === null && everyAdventureFiled(records)
   const stars = totalStars(records)
   const backpack = earnedItems(records)
   // Every animal standing in the zoo right now, across every sector — the
@@ -402,7 +454,21 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   const openSectors = SECTORS.filter((sector) => sector.hit && isOpen(sector, records))
   const statusText = `Mapa del zoo: ${openSectors.length} sectores abiertos, ${stars} estrellas y ${recovered.length} animales recuperados.`
 
-  const bubblePlaced = bubbleSector?.hit ? bubblePlacement(bubbleSector.hit) : null
+  // The bubble's own content and box, unified over the ordinary (spotlight or
+  // `recentlyDiscovered`-fallback) case and the finale — one value each,
+  // rather than branching again at every render site below. `finaleBubblePlacement`
+  // (`zoo/adventures.ts`) is what actually answers "where does a bubble with
+  // no spotlight target to avoid belong" — see its own header.
+  const bubbleContent = finale
+    ? { art: ZOO_CARETAKER_ART, label: FINALE_LINE }
+    : bubbleSector
+      ? mapBubble(bubbleSector, records, spotlightSector !== null)
+      : null
+  const bubblePlaced = finale
+    ? finaleBubblePlacement()
+    : bubbleSector?.hit
+      ? bubblePlacement(bubbleSector.hit)
+      : null
   // Arrival/dismiss/reopen (D4): the bubble shows the instant its own
   // subject sector changes (a fresh `ZooMap` mount counts as an "arrival" in
   // its own right — `App.tsx` never keeps this component mounted across a
@@ -411,7 +477,10 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // tapping the Pulpito bumps `reopenNonce` to show it again for another
   // full window. `renderToString` never runs effects, so every existing
   // SSR-only test keeps seeing the bubble at its initial (visible) state.
-  const bubbleKey = bubbleSector?.id ?? null
+  // `'finale'` is a key no real `ZooSector.id` can ever collide with, the
+  // same reason `bubbleSector?.id ?? null` (the pre-finale expression) never
+  // collided with a real id either.
+  const bubbleKey = finale ? 'finale' : (bubbleSector?.id ?? null)
   const [bubbleVisible, setBubbleVisible] = useState(true)
   const [reopenNonce, setReopenNonce] = useState(0)
   useEffect(() => {
@@ -423,13 +492,15 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
     // `bubbleVisible`, keyed on the SAME `[bubbleKey, reopenNonce]` pair,
     // rather than going through `useNarration` (whose own "speak again"
     // trigger is the LINE changing, not a re-show of the same line — the
-    // exact case a re-opened bubble is). `bubbleSector`/`records`/
-    // `spotlightSector` are read from this render's own closure rather than
-    // added to the dependency array: `ZooMap` always remounts fresh on
-    // every map visit (this comment block's own next paragraph), so within
-    // one mount none of them changes except in step with `bubbleKey`.
-    if (bubbleSector && canAutoSpeak()) {
-      speak(mapBubble(bubbleSector, records, spotlightSector !== null).label)
+    // exact case a re-opened bubble is). `bubbleContent` is read from this
+    // render's own closure rather than added to the dependency array:
+    // `ZooMap` always remounts fresh on every map visit (this comment
+    // block's own next paragraph), so within one mount it never changes
+    // except in step with `bubbleKey`. Speaking `bubbleContent.label` rather
+    // than re-deriving it from `mapBubble` here is what makes the finale's
+    // own line spoken through this SAME path, with no second speak call.
+    if (bubbleContent && canAutoSpeak()) {
+      speak(bubbleContent.label)
     }
     if (typeof window === 'undefined') return undefined
     const timer = window.setTimeout(() => setBubbleVisible(false), BUBBLE_AUTO_HIDE_MS)
@@ -687,20 +758,24 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
           </div>
         </div>
 
-        {/* The map bubble (T4, D4; content source T8, D27/D28). Its BOX
-            comes from `bubblePlacement`, fed the SPOTLIGHT target's own hit
-            rect — never `discovered`'s — so it always talks about where the
-            story goes NEXT rather than about whichever sector
+        {/* The map bubble (T4, D4; content source T8, D27/D28; the finale
+            branch below, promised-animals task B). Its BOX comes from
+            `bubblePlacement`, fed the SPOTLIGHT target's own hit rect —
+            never `discovered`'s — so it always talks about where the story
+            goes NEXT rather than about whichever sector
             `recentlyDiscovered`'s registry-order fallback last landed on
-            (the same fix the spotlight and the footprints get). Its CONTENT
-            comes from `mapBubble`, fed `bubbleSector` (the spotlight target,
-            or `discovered` once the journey is done) AND
-            `spotlightSector !== null` — T8 moved every rescue's own moment
-            onto its adventure's closing screen, so while there is still a
-            journey stop ahead the bubble always reads onward, never an
-            older sector's rescue line; only the no-journey-step fallback
-            still surfaces a sector's own most-recently-recovered animal. */}
-        {bubbleSector && bubblePlaced && bubbleVisible && (
+            (the same fix the spotlight and the footprints get); the finale
+            has no such target, so it gets `finaleBubblePlacement`'s own
+            answer instead (`zoo/adventures.ts`). Its CONTENT is
+            `bubbleContent`, already resolved above: `mapBubble`'s ordinary
+            onward/rescue-fallback pair while `finale` is false, or the
+            caretaker's own closing line once every animal is back — while
+            there is still a journey stop ahead the bubble always reads
+            onward, never an older sector's rescue line; only the
+            no-journey-step fallback still surfaces a sector's own
+            most-recently-recovered animal, or — once NOTHING is left in the
+            whole zoo — the finale. */}
+        {bubbleContent && bubblePlaced && bubbleVisible && (
           <div
             className={bubbleClassName(bubblePlaced.anchor)}
             style={{
@@ -731,14 +806,24 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
                   picture with a word outside the rail, and
                   `captionAudit`'s `auditCaptions` is what enforces that —
                   only the styling and its source sector changed here.
-                  The picture AND the word both come from `mapBubble`: while
+                  The picture AND the word come from `bubbleContent`: while
                   `spotlightSector` is non-null this is always the onward
                   print and phrase (T8 — the rescue itself is told by the
-                  closing screen instead); only once the journey is done
-                  does this fall back to the sector's own most-recently-
-                  recovered animal, exactly as it always did. */}
-              <CaptionedArt {...mapBubble(bubbleSector, records, spotlightSector !== null)} size={76} />
+                  closing screen instead); once the journey is done this
+                  falls back to the sector's own most-recently-recovered
+                  animal, exactly as it always did — except in the finale,
+                  where it is the caretaker's own closing portrait and
+                  line. */}
+              <CaptionedArt {...bubbleContent} size={76} />
             </button>
+            {/* The finale's own short burst (task B: "recuperar UN animal se
+                tiene que ver" — docs/18 §4.7 item 1 — applied to the whole
+                story). Sibling of the dismiss button, not a child of it: its
+                own CSS (`RescueCelebration.tsx`) is `pointer-events: none`
+                and absolutely positioned over the SAME `.cv-zoo-bubble` box,
+                so it never steals the tap the button needs and never shifts
+                anything else in this bubble's own layout. */}
+            {finale && <RescueCelebration />}
           </div>
         )}
       </div>

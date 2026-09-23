@@ -9,6 +9,7 @@ import ZooMap, { fogClassFor, spotlightHolePath } from './ZooMap'
 import { auditCaptions } from '../detective/captionAudit'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import { hitCentre, SECTORS, type Records } from '../zoo/sectors'
+import { ADVENTURES } from '../zoo/adventures'
 
 function filed(...ids: readonly string[]): Records {
   const out: Record<string, LevelRecord> = {}
@@ -441,6 +442,58 @@ describe('ZooMap spotlight (T4, D5: exactly one place highlighted)', () => {
     )
     expect(html).not.toContain('data-spotlight')
     expect(html).not.toContain('data-next-sector')
+  })
+})
+
+// The finale (promised-animals task B, docs/18 §4 "cumplir la promesa del
+// prólogo"): before this, the exact fixture below rendered NO bubble at all
+// — `bubbleSector` fell through to `discovered` (`recentlyDiscovered`), which
+// is ALSO `null` once nothing is untouched and nothing has unfiled work left
+// (the same state the spotlight test above already proves has no journey
+// step). `allLevelIds` is derived from `ADVENTURES` itself, never a second
+// hardcoded id list — `everyAdventureFiled`'s own discipline, restated here.
+describe('ZooMap finale (promised-animals task B: the story has an ending)', () => {
+  const allLevelIds = ADVENTURES.flatMap((a) => a.levelIds)
+
+  it('shows the caretaker\'s own line and portrait once every adventure is filed', () => {
+    const html = render(filed(...allLevelIds))
+    expect(html).toContain('¡Volvieron todos los animales! Gracias por ayudarme a cuidar el zoológico.')
+    expect(html).toContain('/art/zoo-octopus-caretaker.png')
+  })
+
+  it('does not show the finale merely because a single level anywhere is still missing', () => {
+    const lastLevel = ADVENTURES[ADVENTURES.length - 1].levelIds.at(-1)!
+    const almostEverything = allLevelIds.filter((id) => id !== lastLevel)
+    const html = render(filed(...almostEverything))
+    expect(html).not.toContain('¡Volvieron todos los animales!')
+    expect(html).not.toContain('/art/zoo-octopus-caretaker.png')
+  })
+
+  it('carries no spotlight or next-sector hook in the finale state', () => {
+    const html = render(filed(...allLevelIds))
+    expect(html).not.toContain('data-spotlight')
+    expect(html).not.toContain('data-next-sector')
+  })
+
+  it('still shows a short star burst — the finale reuses RescueCelebration, not a bespoke flourish', () => {
+    const html = render(filed(...allLevelIds))
+    expect(html).toContain('cv-rescue-celebration')
+    const starCount = html.match(/src="\/art\/zoo-star\.png"/g)?.length ?? 0
+    expect(starCount).toBeGreaterThan(0)
+  })
+
+  it('the finale bubble stays dismissible, exactly like every other bubble state', () => {
+    const html = render(filed(...allLevelIds))
+    expect(html).toContain('aria-label="Cerrar el mensaje del Pulpito"')
+  })
+
+  it('keeps auditCaptions green at the finale', () => {
+    expect(auditCaptions(render(filed(...allLevelIds))).uncaptioned).toEqual([])
+  })
+
+  it('introduces no url(#…) reference of its own', () => {
+    const html = render(filed(...allLevelIds), true)
+    expect(html).not.toContain('url(#')
   })
 })
 

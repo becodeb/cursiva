@@ -1108,6 +1108,35 @@ export function demoPlays(level: Pick<LevelConfig, 'demo' | 'spines'>, guideLeve
   return !!level.demo && guideLevel === 'full'
 }
 
+/** The three states a level attempt moves through: `demo` (the line draws
+ * itself), `ready` (traceable), `result` (an attempt just resolved). */
+export type LevelPhase = 'demo' | 'ready' | 'result'
+
+/**
+ * Defect fix (finding N8, "a touch during the demo starts the trace"): the
+ * canvas below used to be `enabled={phase !== 'demo'}`, so `useTraceInput`'s
+ * `pointerdown` handler refused the touch outright for as long as the demo
+ * played (`options.enabled === false` returns before a single point is
+ * captured) — a child who pressed down mid-demo got no ink and no response
+ * at all, and had to lift and press again once `ready` arrived on its own
+ * timer. The first attempt was silently lost.
+ *
+ * The canvas now stays enabled through the whole demo (see the `enabled`
+ * prop below), so that SAME `pointerdown` starts a real stroke immediately —
+ * `useTraceInput.startStroke` captures the first point and fires `onStart`
+ * synchronously, in the same React event, before the next paint. This is the
+ * pure decision `onStart` applies to the phase: a stroke starting during
+ * `demo` ends it right there and moves straight to `ready`, so the very
+ * point already captured keeps accumulating on the next frame — the child
+ * never has to lift and press again, because nothing was ever refused. Any
+ * other phase is returned unchanged: a stroke starting mid-`result` is the
+ * ordinary retry a level already allows and is not this fix's concern, and
+ * `ready` obviously has no demo left to end.
+ */
+export function endDemoOnStrokeStart(phase: LevelPhase): LevelPhase {
+  return phase === 'demo' ? 'ready' : phase
+}
+
 /**
  * The standing line under the sheet, before the child has tried anything.
  *
@@ -1308,7 +1337,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // exists to remove.
   const playDemo = demoPlays(level, guideLevel)
 
-  const [phase, setPhase] = useState<'demo' | 'ready' | 'result'>(playDemo ? 'demo' : 'ready')
+  const [phase, setPhase] = useState<LevelPhase>(playDemo ? 'demo' : 'ready')
   const [attempt, setAttempt] = useState<LevelAttempt | null>(null)
   const [strokes, setStrokes] = useState<ReadonlyArray<ReadonlyArray<TracePoint>>>([])
   const [offPath, setOffPath] = useState(false)
@@ -1706,8 +1735,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     return () => window.clearTimeout(t)
   }, [restarted, resetSignal])
 
-  // A new stroke means the child has moved on; the cue has done its job.
-  const onStart = useCallback((): void => setRestarted(false), [])
+  // A new stroke means the child has moved on; the cue has done its job. It
+  // is ALSO the demo's own end signal (N8, `endDemoOnStrokeStart` above): a
+  // functional `setPhase` update reads the LATEST phase at commit time, so
+  // this callback stays referentially stable (empty deps) without ever
+  // closing over a stale `phase`.
+  const onStart = useCallback((): void => {
+    setRestarted(false)
+    setPhase(endDemoOnStrokeStart)
+  }, [])
 
   // Live corridor feedback (docs/03 §6 "salirse atenúa el trazo, no lo corta"):
   // throttled to ~30 Hz so it never competes with the 60fps ink loop, and it
@@ -2393,7 +2429,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         <TraceCanvas
         key={`${level.id}-${demoRun}`}
         demo={phase === 'demo' ? demos : undefined}
-        enabled={phase !== 'demo'}
+        // N8 fix: this used to be `phase !== 'demo'`, which shut pointer
+        // capture off for the whole demo and silently swallowed a child's
+        // first touch (see `endDemoOnStrokeStart` above for the full story).
+        // The canvas stays enabled through the demo now — `onStart` is what
+        // ends it, from the touch's own stroke-start path.
+        enabled
         multiStroke
         // Guide withdrawal (docs/03 §3). The corridor survives the full and
         // dotted bands; from `minimal` on there is nothing but the start point

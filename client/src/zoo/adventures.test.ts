@@ -14,13 +14,15 @@ import {
   ZOO_ANIMAL_ART,
   ZOO_OCTOPUS_PRINT_ART,
 } from '../detective/assets'
-import { SECTORS, type Records } from './sectors'
+import { PLAZA_CENTRE, SECTORS, type Records } from './sectors'
 import {
   ADVENTURES,
   adventureFor,
   adventureIcon,
   bubblePlacement,
   closingLevel,
+  everyAdventureFiled,
+  finaleBubblePlacement,
   introLevel,
   mapBubble,
 } from './adventures'
@@ -663,6 +665,67 @@ describe('bubblePlacement (adventure-flow-and-map-guidance T4, D4/D7: never over
 
   it('the box is sized from ZOO_SPEECH_BUBBLE_ART\'s own aspect ratio at ~24% of the stage width', () => {
     const placed = bubblePlacement(hits[0])
+    expect(placed.w).toBe(240)
+    expect(placed.h).toBeCloseTo((240 * 372) / 488, 6)
+  })
+})
+
+// The story's own ending condition (promised-animals task B, docs/18 §4
+// "cumplir la promesa del prólogo"). `allLevelIds` is derived from
+// `ADVENTURES` itself, never a second hardcoded id list — the exact
+// discipline `everyAdventureFiled`'s own header requires of ITSELF, restated
+// here so this suite cannot silently drift from the registry either.
+describe('everyAdventureFiled (promised-animals task B: the story\'s ending)', () => {
+  const allLevelIds = ADVENTURES.flatMap((a) => a.levelIds)
+
+  it('is false with no records at all', () => {
+    expect(everyAdventureFiled({})).toBe(false)
+  })
+
+  it('is true once every adventure\'s every level is filed — the entrance cleanups and `night` included, not just the animal rescues', () => {
+    expect(everyAdventureFiled(filed(...allLevelIds))).toBe(true)
+  })
+
+  it('is false when a single level anywhere is still missing, however deep in the registry', () => {
+    // The LAST level of the LAST row: the hardest single omission to notice
+    // by accident, since every earlier row is already complete.
+    const lastLevel = ADVENTURES[ADVENTURES.length - 1].levelIds.at(-1)!
+    const almostEverything = allLevelIds.filter((id) => id !== lastLevel)
+    expect(everyAdventureFiled(filed(...almostEverything))).toBe(false)
+  })
+
+  it('is false when only the FIRST level of one row is missing, even with every other row (including the rest of that same row) filed', () => {
+    const firstAdventure = ADVENTURES[0]
+    const withoutItsIntro = allLevelIds.filter((id) => id !== firstAdventure.levelIds[0])
+    expect(everyAdventureFiled(filed(...withoutItsIntro))).toBe(false)
+  })
+})
+
+describe('finaleBubblePlacement (promised-animals task B: "covers least" with no spotlight target)', () => {
+  it('resolves to a real, fully on-stage box — the four-anchor algorithm never left undefined merely because there is nothing to avoid', () => {
+    const { anchor, ...box } = finaleBubblePlacement()
+    expect(['above-left', 'above-right', 'below-left', 'below-right']).toContain(anchor)
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.y).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.w).toBeLessThanOrEqual(1000)
+    expect(box.y + box.h).toBeLessThanOrEqual(600)
+  })
+
+  it('picks the same anchor `bubblePlacement` already prefers when nothing needs avoiding — the pre-spotlight default, above-left', () => {
+    // A zero-area target overlaps nothing anywhere on the stage (by
+    // definition), so `bubblePlacement`'s own `clear` branch is what
+    // resolves this — the FIRST anchor tried that still fits, never a
+    // hand-picked one. Asserted here by reproducing that exact call, so a
+    // future reordering of `BUBBLE_ANCHORS` changes this expectation too
+    // instead of silently drifting from it.
+    expect(finaleBubblePlacement()).toEqual(
+      bubblePlacement({ x: PLAZA_CENTRE.x, y: PLAZA_CENTRE.y, w: 0, h: 0 }),
+    )
+    expect(finaleBubblePlacement().anchor).toBe('above-left')
+  })
+
+  it('is sized exactly like every other bubble box — the finale is not a special size', () => {
+    const placed = finaleBubblePlacement()
     expect(placed.w).toBe(240)
     expect(placed.h).toBeCloseTo((240 * 372) / 488, 6)
   })

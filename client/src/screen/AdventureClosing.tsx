@@ -7,7 +7,8 @@
 // guidance T8 (docs/18 §4.7 item 1) that is every shipped row: the entrance's
 // four enclosures and `night` (animal-less, no celebration) plus every
 // animal-recovering adventure (duck/sheep/llama/snake/bee/dolphin/hedgehog,
-// each with its own rescue beat AND `RescueCelebration`, below) — reached
+// each with its own rescue beat AND `RescueCelebration`, imported from its
+// own module now that the zoo map's finale reuses it too) — reached
 // ONLY through the `'close'` `GameView` `resolveCloseAction` produces, never
 // through a `GameAction`. The beat sequencing itself lives OUTSIDE this
 // component (`GameScreen`'s own `beat?` field on the `'close'` view, D3):
@@ -19,12 +20,13 @@
 // own SVG `<image href>`. `CLOSING_CSS`'s comments carry NO BACKTICKS — this
 // is a template literal, and one backtick inside a comment ends the string.
 import CaptionedArt from '../detective/CaptionedArt'
-import { ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART, ZOO_STAR_ART } from '../detective/assets'
+import { ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import type { Adventure, ClosingBeat } from '../zoo/adventures'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
+import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 
 /* Same stage geometry as `AdventureIntro.tsx`'s `INTRO_CSS`, restated under
    its own class prefix rather than shared, the same reason the two
@@ -50,24 +52,19 @@ html, body, #root { margin: 0; height: 100%; }
 .cv-closing-bubble .cv-captioned > svg { width: auto; height: 62%; flex: none; }
 .cv-closing-bubble .cv-caption { font-size: 5.6cqw; line-height: 1.16; font-weight: 700; color: #1e293b; text-align: left; }
 /* The rescue celebration (adventure-flow-and-map-guidance T8, docs/18
-   section 4.7 item 1). Absolutely positioned and never affecting layout
-   (inset: 0 on a container that itself contributes nothing to flow) — this
-   is a decorative flourish, not new information the child must not miss.
-   Each star pops in and settles within about a second (fill-mode: forwards
-   holds its END state rather than resetting), then stays still: no loop, no
-   ongoing motion competing with the caption the child is reading.
+   section 4.7 item 1; extracted to RescueCelebration.tsx for promised-animals
+   task B, which reuses it on the zoo map's own finale). Absolutely
+   positioned and never affecting layout (inset: 0 on a container that itself
+   contributes nothing to flow) — this is a decorative flourish, not new
+   information the child must not miss. Each star pops in and settles within
+   about a second (fill-mode: forwards holds its END state rather than
+   resetting), then stays still: no loop, no ongoing motion competing with
+   the caption the child is reading. Purely decorative, no wayfinding meaning
+   (unlike the map's own spotlight ring/badge, ZooMap.tsx, which stay
+   visible-but-still under reduced motion because they carry real
+   information) — reduced motion removes it whole.
    NOTE: no backticks anywhere in this block, same reason ZOO_CSS gives. */
-.cv-closing-celebration { position: absolute; inset: 0; pointer-events: none; }
-.cv-closing-celebration img { position: absolute; width: 9%; height: auto; opacity: 0; animation: cv-closing-celebrate 1s ease-out forwards; }
-@keyframes cv-closing-celebrate {
-  0% { opacity: 0; transform: scale(0.4) rotate(-15deg); }
-  60% { opacity: 1; transform: scale(1.15) rotate(8deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); }
-}
-/* Purely decorative, no wayfinding meaning (unlike the map's own spotlight
-   ring/badge, ZooMap.tsx, which stay visible-but-still under reduced motion
-   because they carry real information) — reduced motion removes it whole. */
-@media (prefers-reduced-motion: reduce) { .cv-closing-celebration { display: none; } }
+${RESCUE_CELEBRATION_CSS}
 `
 
 export interface AdventureClosingProps {
@@ -78,43 +75,6 @@ export interface AdventureClosingProps {
    *  reads `adventure.closingBeat` itself and never advances on its own. */
   beat: ClosingBeat
   onContinue: () => void
-}
-
-/** A handful of positions around `.cv-closing-bubble` (top: 4%, width: 82%,
- *  aspect 488/372, so it spans roughly y 4%-66%) the celebration's stars pop
- *  in at, staggered so the burst reads as scattered rather than a single
- *  flash. Six is "a short burst" (docs/18 §4.7 item 1): enough to register
- *  as a flourish without turning into a field of stars. */
-const CELEBRATION_STARS: readonly { top: string; left: string; delay: string }[] = [
-  { top: '2%', left: '8%', delay: '0s' },
-  { top: '4%', left: '78%', delay: '0.08s' },
-  { top: '24%', left: '2%', delay: '0.16s' },
-  { top: '28%', left: '88%', delay: '0.04s' },
-  { top: '48%', left: '12%', delay: '0.2s' },
-  { top: '50%', left: '74%', delay: '0.12s' },
-]
-
-/** The rescue-only celebration (T8, docs/18 §4.7 item 1: "recuperar un
- *  animal se tiene que ver"): a short burst of the star art around the
- *  bubble, shown once, only when this beat's own adventure recovers an
- *  animal — the closing screen's own moment for "you found them", separate
- *  from a level's ordinary star SCORE (`docs/12` §1; this burst never
- *  changes `totalStars`). Purely decorative: `aria-hidden`, absolutely
- *  positioned so it never shifts the octopus or the bubble, and plain
- *  `<img>` elements — no `url(#…)` reference anywhere. */
-function RescueCelebration() {
-  return (
-    <div className="cv-closing-celebration" aria-hidden="true">
-      {CELEBRATION_STARS.map((spot, i) => (
-        <img
-          key={i}
-          src={ZOO_STAR_ART.href}
-          alt=""
-          style={{ top: spot.top, left: spot.left, animationDelay: spot.delay }}
-        />
-      ))}
-    </div>
-  )
 }
 
 /** The reusable transformation beat (`docs/13` §5 item 6). Reachable ONLY

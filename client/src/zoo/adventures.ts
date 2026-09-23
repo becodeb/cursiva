@@ -18,7 +18,15 @@ import {
   ZOO_OCTOPUS_PRINT_ART,
   ZOO_SPEECH_BUBBLE_ART,
 } from '../detective/assets'
-import { animalPlacements, PLAZA_CENTRE, type Records, type Rect, type SectorId, type ZooSector } from './sectors'
+import {
+  animalPlacements,
+  isFiled,
+  PLAZA_CENTRE,
+  type Records,
+  type Rect,
+  type SectorId,
+  type ZooSector,
+} from './sectors'
 
 /** One id per adventure — the key `zoo/backdrops.ts`'s registry now uses,
  *  and what lets `montañas` carry two adventures where every earlier sector
@@ -425,6 +433,36 @@ export function closingLevel(levelId: string): Adventure | undefined {
   return adventure.levelIds[adventure.levelIds.length - 1] === levelId ? adventure : undefined
 }
 
+/**
+ * The story's own ending condition (`promised-animals` task B, `docs/18` §4
+ * "cumplir la promesa del prólogo" — the same directive the `fish`/`turtles`/
+ * `monkeys` rows above exist to satisfy): true once every adventure's every
+ * level is filed. Derived by walking `ADVENTURES` itself, never a second
+ * hardcoded id list — the same registry-driven guarantee `adventureFor` and
+ * `mapBubble` already rely on, so a future row (a `docs/13` letter G) needs
+ * no matching edit here to keep the finale correct.
+ *
+ * Deliberately over EVERY row, not only the animal-recovering ones: "every
+ * animal is back" is the child-facing framing (`screen/ZooMap.tsx`'s own
+ * finale line), but the entrance's four cleanup enclosures
+ * (`peces`/`tortugas`/`monos`/`sendero`) and `night` are still open loops
+ * until they are filed too — the finale is "nothing is left to do in the
+ * whole zoo", which the prologue's cleanup is as much a part of as any
+ * rescue.
+ *
+ * `nextJourneyStep` (`zoo/journey.ts`) returning `null` is a WEAKER
+ * condition than this one — it can also go `null` while a later `JOURNEY`
+ * stop's sector has simply never opened, which is not the same claim as
+ * "filed". Today's registry happens to make the two coincide (`JOURNEY`
+ * covers every `ADVENTURES` row's own entry level, `journey.test.ts`'s own
+ * guard test proves it), but `screen/ZooMap.tsx`'s finale checks THIS
+ * function explicitly rather than leaning on that coincidence, so a future
+ * change to either registry cannot silently make the ending fire early.
+ */
+export function everyAdventureFiled(records: Records): boolean {
+  return ADVENTURES.every((a) => a.levelIds.every((id) => isFiled(records, id)))
+}
+
 /** What the Pulpito says about the sector the huellas point at, and the
  *  picture that goes with it — the word never travels alone (`docs/12`
  *  §3). The constant onward-pointing line the map already shipped; also
@@ -555,4 +593,27 @@ export function bubblePlacement(targetHit: Rect): BubbleBox {
     clear ??
     candidates.reduce((min, c) => (overlapArea(c.box, targetHit) < overlapArea(min.box, targetHit) ? c : min))
   return { ...chosen.box, anchor: chosen.anchor }
+}
+
+/**
+ * The bubble's own placement for the finale (`everyAdventureFiled` above):
+ * once every animal is back there is no spotlight `targetHit` left to keep
+ * clear of (`screen/ZooMap.tsx`'s `spotlightSector` is `null` in exactly
+ * this state), so `bubblePlacement` has nothing to avoid — which is also the
+ * literal answer to "place it where it covers least": nothing on the stage
+ * is left for it to compete with for space.
+ *
+ * Rather than hand-picking one of the four anchors, this feeds
+ * `bubblePlacement` a ZERO-AREA rect centred on `PLAZA_CENTRE`: `overlapArea`
+ * against a `w: 0, h: 0` target is exactly zero by construction for every
+ * candidate (an empty rectangle intersects nothing), so its `clear` branch
+ * picks the FIRST anchor in `BUBBLE_ANCHORS` order that still fits the
+ * stage — `'above-left'`, the same single position this bubble shipped with
+ * before the four-anchor system existed at all (`bubblePlacement`'s own
+ * header). Reusing the real function, rather than hardcoding that anchor
+ * name here, keeps this placement automatically correct if `BUBBLE_ANCHORS`
+ * or the stage geometry ever change.
+ */
+export function finaleBubblePlacement(): BubbleBox {
+  return bubblePlacement({ x: PLAZA_CENTRE.x, y: PLAZA_CENTRE.y, w: 0, h: 0 })
 }

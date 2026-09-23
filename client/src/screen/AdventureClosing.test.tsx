@@ -160,12 +160,12 @@ describe('AdventureClosing rescue celebration (T8)', () => {
     const html = renderToString(
       <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
     )
-    expect(html).toContain('class="cv-closing-celebration" aria-hidden="true"')
+    expect(html).toContain('class="cv-rescue-celebration" aria-hidden="true"')
     const starCount = html.match(new RegExp(`src="${ZOO_STAR_ART.href}"`, 'g'))?.length ?? 0
     expect(starCount).toBeGreaterThan(0)
   })
 
-  // `not.toContain('cv-closing-celebration')` alone would be vacuously true
+  // `not.toContain('cv-rescue-celebration')` alone would be vacuously true
   // OR false regardless of the actual element: that bare class name is also
   // the CSS SELECTOR text inside the static `<style>` block, present on
   // every render whichever beat is shown. Checking the ELEMENT's own
@@ -177,7 +177,7 @@ describe('AdventureClosing rescue celebration (T8)', () => {
         const html = renderToString(
           <AdventureClosing adventure={adventure} beat={beat} onContinue={() => {}} />,
         )
-        expect(html, id).not.toContain('<div class="cv-closing-celebration"')
+        expect(html, id).not.toContain('<div class="cv-rescue-celebration"')
         expect(html, id).not.toContain(`src="${ZOO_STAR_ART.href}"`)
       }
     }
@@ -188,7 +188,7 @@ describe('AdventureClosing rescue celebration (T8)', () => {
       const html = renderToString(
         <AdventureClosing adventure={adventure} beat={adventure.closingBeat![0]} onContinue={() => {}} />,
       )
-      expect(html, adventure.id).toContain('<div class="cv-closing-celebration"')
+      expect(html, adventure.id).toContain('<div class="cv-rescue-celebration"')
     }
   })
 
@@ -203,9 +203,9 @@ describe('AdventureClosing rescue celebration (T8)', () => {
     const html = renderToString(
       <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
     )
-    expect(html).toContain('.cv-closing-celebration { position: absolute; inset: 0;')
+    expect(html).toContain('.cv-rescue-celebration { position: absolute; inset: 0;')
     expect(html).toContain(
-      '@media (prefers-reduced-motion: reduce) { .cv-closing-celebration { display: none; } }',
+      '@media (prefers-reduced-motion: reduce) { .cv-rescue-celebration { display: none; } }',
     )
   })
 
