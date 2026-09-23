@@ -43,10 +43,10 @@ merged). Forecast ~1,200 authored lines; PR chain strategy deferred to delivery 
 ## Tasks
 
 - [x] **P0 — Feature document + Engram mirror.** Route: inline.
-- [ ] **P1 — Animal art.** Export `pez.png` and `tortuga.png` as zoo animals, add a monkey
+- [x] **P1 — Animal art.** Export `pez.png` and `tortuga.png` as zoo animals, add a monkey
       placeholder source, extend `ZooAnimalId`/`ZOO_ANIMAL_ART`, manifest and registry tests.
       Route: delegated (art pipeline + assets + tests).
-- [ ] **P2 — The fish adventure.** `fish` row over the four garland levels (bubble clues instead of
+- [x] **P2 — The fish adventure.** `fish` row over the four garland levels (bubble clues instead of
       the medusa goal), intro/closing/hints, backdrop, fish back at the entrance, journey stop.
       Route: delegated (same writer as P1).
 - [ ] **P3 — Oval generator + the turtles adventure.** New `ovals` path generator (M/L/C only,
@@ -69,7 +69,8 @@ merged). Forecast ~1,200 authored lines; PR chain strategy deferred to delivery 
 
 | Task | Commit | Route | Checks |
 |------|--------|-------|--------|
+| P1+P2 | `b2d6829` | delegated | `npm test` 86 / 2083; build ok; ghost alpha pez 0.00 %, tortuga 0.38 %; outlines (26,26,26); browser: the 4 fish trails traced at 1280x720 and 844x390, bar "Camino hacia los peces: N de 4", last trail ends at the fish |
 
 ## Next step
 
-Delegate P1 + P2.
+P3 + P4 delegated to the same writer; the fish levels' titles still say "medusa" (folded into P3/P4).
