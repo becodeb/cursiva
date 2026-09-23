@@ -2600,7 +2600,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
          * as it always was pre-T3 — it shows on a short/failed attempt too
          * (the coaching text), not only on success. */}
         {drawnPlace && level.reveal?.mode === 'erase' && attempt && (
-          <p className="cv-result-pill" role="status">
+          <p className="cv-result-pill" role="status" aria-label="Resultado del intento">
             {attempt.approved && (
               <span className="cv-result-check" aria-hidden="true">
                 ✓
@@ -2610,7 +2610,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
           </p>
         )}
         {drawnPlace && level.reveal?.mode === 'light' && attempt && (
-          <p className="cv-result-pill" role="status">
+          <p className="cv-result-pill" role="status" aria-label="Resultado del intento">
             {attempt.approved ? (
               <>
                 <span className="cv-result-check" aria-hidden="true">
