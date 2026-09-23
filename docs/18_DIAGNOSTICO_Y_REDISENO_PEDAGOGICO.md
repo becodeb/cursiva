@@ -188,6 +188,18 @@ futuras que **además cubren patrones que la cursiva necesita y hoy faltan**:
 Los bucles son el hueco más importante: sin ellos no hay `l` ni `e`. Y los monos
 colgados de lianas **son** bucles; no hace falta explicar nada.
 
+**Estado (2026-09-23): hecho**, aprobado por el usuario y en la rama
+`feat/promised-animals` (`odd/tasks/promised-animals.md`):
+
+| Aventura | Niveles | Qué traza el chico | Dónde queda el animal |
+|---|---|---|---|
+| `fish` (peces) | `f2-guirnalda`, `f2-agua2..4` | guirnaldas en U siguiendo burbujas; el último tramo termina en el pez | en la entrada, en su pecera |
+| `turtles` (tortugas) | `turtle1..4` (1 a 4 óvalos) | óvalos que arrancan arriba a la derecha y giran antihorario, como `a`/`o` | en la entrada |
+| `monkeys` (monos) | `monkey1..4` (2 a 4 bucles) | bucles que suben, como `l`/`e` | en la entrada |
+
+Tortugas y monos van últimos en el recorrido del mapa: son el puente a las
+letras. El mono es un placeholder hasta que llegue su dibujo (A6).
+
 ### 4.6 La noche
 
 Hoy la linterna encuentra cofres (D25). Propuesta: de noche se buscan **las
@@ -282,6 +294,7 @@ al pipeline, y pasar el checklist de cinco segundos (`docs/09` §9).
 | A3 | `fondo sendero.png` (versión renovada) | D17 | media |
 | A4 | pistas por animal (lámina) | §4.4 | media |
 | A5 | cosas del erizo para la noche (lámina) | D25, §4.6 | baja |
+| A6 | `mono.png` (hoy es un placeholder gris con la palabra MONO) | §4.5 | alta |
 
 ### A1 — Huella del Pulpito (el rastro del mapa)
 
@@ -369,6 +382,25 @@ side. Fills #d94436, #c9a27e, #9c7a5b.
 
 ---
 
+### A6 — El mono (recorte)
+
+Hoy `art-source/mono.png` es un bloque gris con la palabra MONO: se ve así en
+la barra de camino, en el cierre del rescate y en la entrada del mapa. Pedir un
+mono entero, de costado, del mismo tamaño y estilo que el pez y la tortuga, con
+las patas abajo (el origen del dibujo va en las patas, `docs/09` §9).
+
+```
+<bloque de estilo de docs/09 §9>
+
+A single small cartoon monkey, whole body seen from the side, standing
+on its feet, one arm raised as if about to grab a vine, long curled
+tail. Brown fur fill #8a5a3c, lighter face and belly #e8c39e.
+```
+
+Al volver: guardarlo como `art-source/mono.png` (reemplaza al placeholder),
+correr `python3 scripts/art/build_art.py` y medir el alpha fantasma
+(`docs/17` §3 bis).
+
 ## 7. Lo que queda para seguir (en orden)
 
 Actualizado al cerrar la rama (2026-09-23). Lo que dice "hecho" arriba no se
@@ -377,9 +409,9 @@ repite acá.
 | ID | Qué | Por qué importa | Tipo |
 |---|---|---|---|
 | P1 | Decidir el guion de §4 (sobre todo §4.4 y §4.5) | Todo lo demás cuelga de eso | autora |
-| P10 | Arte A1–A5 (§6). El más visible es A1: las huellas del mapa siguen pareciendo semáforos | El foco ya guía; las huellas todavía no se leen como pisadas | arte |
+| P10 | Arte A1–A6 (§6). El más visible es A1: las huellas del mapa siguen pareciendo semáforos | El foco ya guía; las huellas todavía no se leen como pisadas | arte |
 | P2 | Álbum de animales (§4.7.3): la página con todos los animales, en silueta los que faltan (incluidos peces, tortugas y monos) | La meta larga; hace visible "juntar animales" | código + arte |
-| P9 | Aventuras de peces (reusar los niveles de medusa), monos (bucles) y tortugas (óvalos) — §4.5 | Cumple la promesa del prólogo y cubre los patrones que faltan para la cursiva | guion + código + arte |
+| P9 | ~~Aventuras de peces, monos y tortugas~~ — **hecho** en `feat/promised-animals` (§4.5). Falta el dibujo del mono (A6) | Cumple la promesa del prólogo | arte |
 | P5 | Demo animada en abeja y noche (D24). La consigna ya se escucha; falta que se vea | Mostrar antes de pedir | código |
 | P6 | Llegada del animal al mapa con un saltito, la primera vez | "Recuperar" se ve también en el mapa, no solo en el cierre | código |
 | P8 | Voz grabada: `client/src/voice/narrator.ts` ya busca primero un clip por frase (`VOICE_CLIPS`); falta grabar y registrar los archivos | La voz del navegador es genérica y cambia según el dispositivo | audio |
@@ -398,6 +430,8 @@ repite acá.
 | N4 | El botón verde de jugar del mapa queda encima del pato cuando el foco está en la laguna | registro |
 | N5 | La silueta de las víboras en la barra de camino es muy ancha (el dibujo de la víbora es 4:1) | arte/código |
 | N6 | En desarrollo cada frase se dice dos veces seguidas: es el modo estricto de React montando los efectos dos veces; el `cancel()` corta la primera. En producción pasa una sola vez | ninguno |
+| N8 | Durante la demo animada la hoja ignora el dedo: el primer intento de un chico apurado se pierde sin respuesta. En curso en `feat/promised-animals` | código |
+| N9 | El corredor de las tortugas es marrón casi negro sobre la arena (la ley de contraste de 55 lo obliga): se lee, pero parece huella de neumático. Probar un marrón de arena mojada que siga cumpliendo la ley | diseño |
 | N7 | La suite e2e (`npm run test:e2e -w client`) asume el Chromium de Playwright, que en esta Raspberry (ARM) no existe. Para correrla acá hace falta una config local con `executablePath: '/usr/bin/chromium'` (no está commiteada) | entorno |
 
 ## 8. Cómo mirar
