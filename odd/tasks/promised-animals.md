@@ -54,7 +54,7 @@ merged). Forecast ~1,200 authored lines; PR chain strategy deferred to delivery 
       delegated.
 - [x] **P4 — The monkeys adventure.** `monkey1..4` on `loops`, `monkeys` row in bosque. Route:
       delegated (same writer as P3).
-- [ ] **P5 — QA and docs.** Trace every new level in the browser, replay the journey, captures,
+- [x] **P5 — QA and docs.** Trace every new level in the browser, replay the journey, captures,
       `docs/18` (§4.5, §6 monkey request, §7), `docs/00`. Route: inline.
 
 ## Acceptance criteria
@@ -71,7 +71,11 @@ merged). Forecast ~1,200 authored lines; PR chain strategy deferred to delivery 
 |------|--------|-------|--------|
 | P1+P2 | `b2d6829` | delegated | `npm test` 86 / 2083; build ok; ghost alpha pez 0.00 %, tortuga 0.38 %; outlines (26,26,26); browser: the 4 fish trails traced at 1280x720 and 844x390, bar "Camino hacia los peces: N de 4", last trail ends at the fish |
 | P3+P4 | `f99f3f0` | delegated (same writer) + inline easing of `monkey4` | `npm test` 86 / 2125; build ok; browser: all 8 turtle/monkey trails traced at 1280x720 and 844x390; journey from the map after the dolphins: turtles 4 → rescue → map → monkeys 4 → rescue → map with 10 animals. The new levels are phase 2 (pattern levels, like the other garland/loop drills). `monkey4` keeps 4 rings at corridor 70 instead of 5 at 60 |
+| P5 | `b58aca1` + docs | delegated (finale + N8) + inline CSS fix (finale stars over the caption) | `npm test` 87 / 2143; build ok; e2e 33/33 (system Chromium via a temporary local config); tracing 0.6 s after load (during the demo) completes duck-trail1, turtle2, monkey4 at 1280x720 and 844x390; finale bubble with all 48 levels filed; journey from the map through turtles and monkeys |
 
 ## Next step
 
-P5 in progress: finale on the map when every animal is back, and N8 (a touch during the demo must start the trace) delegated; docs/18 updated (§4.5 status, A6 monkey request, N8, N9).
+Done. Nothing pushed or merged (user decision); this branch is stacked on
+`feat/adventure-flow-and-map-guidance`. What remains is in `docs/18` §7: the monkey drawing (A6)
+and the other art requests, the album (P2), the tone of the turtles' corridor (N9), the optional
+"who opened the gates" arc (§4.8), recorded voice (P8) and a tablet test with children (P12).

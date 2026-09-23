@@ -222,6 +222,11 @@ juego suelto. Requiere arte (A5).
 Las estrellas siguen siendo el puntaje de cada nivel, separadas de los animales
 (`docs/12` §1).
 
+**El final (hecho, `b58aca1`):** cuando vuelven todos los animales, el mapa
+queda sin niebla ni foco y el Pulpito dice "¡Volvieron todos los animales!
+Gracias por ayudarme a cuidar el zoológico." con estrellas. El arco opcional de
+§4.8 (¿quién abrió las puertas?) sigue sin decidir y podría enganchar acá.
+
 ### 4.8 Arco opcional: ¿quién abrió las puertas?
 
 Un misterio que atraviese todo el juego engancha (es lo que hace que un chico
@@ -430,7 +435,7 @@ repite acá.
 | N4 | El botón verde de jugar del mapa queda encima del pato cuando el foco está en la laguna | registro |
 | N5 | La silueta de las víboras en la barra de camino es muy ancha (el dibujo de la víbora es 4:1) | arte/código |
 | N6 | En desarrollo cada frase se dice dos veces seguidas: es el modo estricto de React montando los efectos dos veces; el `cancel()` corta la primera. En producción pasa una sola vez | ninguno |
-| N8 | Durante la demo animada la hoja ignora el dedo: el primer intento de un chico apurado se pierde sin respuesta. En curso en `feat/promised-animals` | código |
+| N8 | ~~Durante la demo la hoja ignoraba el dedo~~ — **hecho** (`b58aca1`): el primer toque corta la demo y empieza el trazo con el mismo gesto | código |
 | N9 | El corredor de las tortugas es marrón casi negro sobre la arena (la ley de contraste de 55 lo obliga): se lee, pero parece huella de neumático. Probar un marrón de arena mojada que siga cumpliendo la ley | diseño |
 | N7 | La suite e2e (`npm run test:e2e -w client`) asume el Chromium de Playwright, que en esta Raspberry (ARM) no existe. Para correrla acá hace falta una config local con `executablePath: '/usr/bin/chromium'` (no está commiteada) | entorno |
 
