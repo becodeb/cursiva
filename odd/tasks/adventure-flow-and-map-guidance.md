@@ -54,9 +54,13 @@ progress cleanup, deleting catalog level ids (they are persisted keys), push / P
 - Visual QA: Playwright driving system Chromium (`executablePath: /usr/bin/chromium`) against the
   dev server on `:5178`; scratch drivers live in `/tmp/cursiva-qa/` (not in the repo); evidence
   PNGs in `capturas/2026-09-22-*` (git-ignored).
-- Receipt-driven review: on (default). After each work-unit commit run
-  `gentle-ai review assess --cwd . --agent claude-code --base-ref <last reviewed boundary> --committed-only --json`.
-  First boundary: branch point `9040d34`.
+- Receipt-driven review: was on by default; **turned off globally by the user on 2026-09-23**
+  (`gentle-ai review mode status` → `off (decided by global)`). Two consent envelopes that were
+  pending at that moment (lineages `review-4545fc3c7d4c6f49`, `review-3bec09516721c09f`) are moot
+  and were never answered. From then on the verification gate's off path applies: after each
+  writer, `gentle-ai review assess --cwd . --json` over the diff decides the tier (passive →
+  structural readback; medium → writer self-verification + parent spot check; high →
+  plus an independent verifier).
 
 ## Delivery
 
@@ -78,11 +82,11 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
       closings, estanque gate, backpack grant and migrations follow; ids stay in the catalog.
       Route: delegated (touches `zoo/adventures.ts`, `zoo/sectors.ts`, `zoo/backpack.ts`,
       `game/openProgressStore.ts` + tests; 4+ files).
-- [ ] **T2 — Continuous adventure flow.** Finishing a non-final level of an adventure goes straight
+- [x] **T2 — Continuous adventure flow.** Finishing a non-final level of an adventure goes straight
       to its next level; the map only after the last level (and its closing). Levels of a sector
       not covered by an adventure row (medusa `f2-*`) continue through their contiguous block.
       Route: delegated with T1 (same writer; landed in the same commit because the tests of both
-      halves share files and each half alone is red). Amendment (in progress): an adventure that
+      halves share files and each half alone is red). Amendment (done, `a2caf27`): an adventure that
       recovers no animal chains into the next adventure of its sector (prologue enclosures flow
       peces → tortugas → monos → sendero without the map; night → hedgehog).
 - [ ] **T3 — Stable level layout.** Reserve the result row from the first render (no sheet
@@ -127,7 +131,8 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 | Task | Commit | Route | Checks | Review assess |
 |------|--------|-------|--------|---------------|
 | T0 | `7e50091` | inline (single doc, QA context lives in the orchestrator) | `git diff --check` clean | passive (`non_executable_only`), no review; boundary → `7e50091` |
-| T1+T2 | `99dd8ad` | delegated (mapping trigger: 12 files) | `npm test` 82 files / 1945 tests; `npm run build` ok; `git diff --check` ok (writer + parent spot check) | medium (`executable_change` `migrateEntrance.ts`), `review_due: slice_budget_reached` (701 lines) → preflight pending |
+| T1+T2 | `99dd8ad` | delegated (mapping trigger: 12 files) | `npm test` 82 files / 1945 tests; `npm run build` ok; `git diff --check` ok (writer + parent spot check) | medium (`executable_change` `migrateEntrance.ts`, a comment-only edit), review due → consent relayed, then RDD disabled by the user: no review |
+| T2 amendment | `a2caf27` | delegated (fresh writer; the first one refused the amendment as a possible injection) | `npm test` 82 / 1953; build ok; journey QA: prologue plays 4 levels with no map trips | covered by the same moot consent; RDD off |
 
 - 2026-09-23: journey QA on `99dd8ad` from an empty store (1280x720): levels played between map
   visits `[0,1,1,1,1,4,4]` — the duck and the sheep now play 4 levels straight; the prologue still
@@ -137,4 +142,4 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 
 ## Next step
 
-Land the chaining amendment, then run the review preflight for `7e50091..HEAD` (review due).
+T3 + T5 (level layout and sign) with one writer, then T4 (map), T6, T8, T7, T9.
