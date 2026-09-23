@@ -10,6 +10,7 @@
 // no filter. Every picture is an `<image href="/art/…">`, the one mechanism
 // that survives this repo's ban (`TraceCanvas.tsx:69-86` — it hydrates
 // BLANK on real devices).
+import { useEffect, useState } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
 import {
   ZOO_BACKPACK_ART,
@@ -35,12 +36,20 @@ import {
   nextAdventure,
   recentlyDiscovered,
   type FootprintMark,
+  type Rect,
   type Records,
   type SectorId,
   type ZooSector,
 } from '../zoo/sectors'
-import { mapBubble } from '../zoo/adventures'
+import { bubblePlacement, mapBubble, type BubbleAnchor } from '../zoo/adventures'
+import { nextJourneyStep } from '../zoo/journey'
 import { getLevel } from '../levels/catalog'
+
+/** How long the map bubble stays up before it hides itself, milliseconds
+ *  (D4: it used to say the same thing forever with no way to dismiss it —
+ *  `docs/18`). Tapping the Pulpito (`aria-label="Pulpito: escuchar de
+ *  nuevo"`) shows it again for another window this same length. */
+const BUBBLE_AUTO_HIDE_MS = 10000
 
 /** The measured edge colour of `zoo-map.png` (design.md §1) — the letterbox
  *  `xMidYMid meet` leaves on the outer `<svg>` is filled with this, never a
@@ -48,52 +57,118 @@ import { getLevel } from '../levels/catalog'
 const ZOO_BACKGROUND = '#76B56A'
 
 const ZOO_CSS = `
-.cv-zoo { height: 100dvh; overflow: hidden; background: ${ZOO_BACKGROUND}; }
+.cv-zoo { height: 100dvh; overflow: hidden; background: ${ZOO_BACKGROUND}; display: flex; align-items: center; justify-content: center; }
 html, body, #root { margin: 0; height: 100%; }
-.cv-zoo-stage { position: relative; width: 100%; max-height: 100%; aspect-ratio: 5 / 3; margin: 0 auto; }
+/* Exactly 5:3 in BOTH width-limited and height-limited viewports (docs/18
+   D4, D7). The previous rule - width: 100%; max-height: 100%; aspect-ratio:
+   5/3 - only reconciled the ratio when WIDTH was the limiting dimension: a
+   browser honours an explicit width before shrinking it to satisfy
+   aspect-ratio under a max-height cap. At 844x390 (height-limited: 100dvh
+   is 390, so the 100%-wide box was 844x390, an 844:390 ~ 2.16:1 box, not
+   5:3) the stage silently stopped being 5:3, so every percent-positioned
+   overlay this file draws (the HUD, the bubble) - which assumes its
+   percentages are relative to a TRUE 5:3 box - drifted off the actual
+   650x390 drawing sitting inside it: the bubble's own top measured at -33px
+   off-screen at that exact viewport.
+   min(100vw, 100dvh * 5/3) picks whichever of "full viewport width" or "the
+   width a full-height 5:3 box would have" is smaller, so the OTHER
+   dimension (aspect-ratio derives it from this one) is always the true 5:3
+   partner: at 844x390 this resolves to exactly 650, matching the drawing
+   pixel for pixel; at 1280x720 it resolves to 1200 (below the 1280 cap),
+   matching the previous width-limited behaviour exactly.
+   .cv-zoo's own flex centring (above) is the other half of D7 - the old
+   block layout only centred the stage HORIZONTALLY (margin: 0 auto); at
+   1024x768 the height-limited stage (1024 x 614.4) was never wrong in
+   ratio, only pinned to the top, leaving a 153.6px green strip below it
+   rather than split evenly top and bottom. */
+.cv-zoo-stage { position: relative; width: min(100vw, calc(100dvh * 5 / 3)); aspect-ratio: 5 / 3; }
+/* An inline svg sits on the text baseline and drags a descender gap under
+   it: the stage measured 1200x726 at 1280x720, 6px taller than 5:3, so the
+   map rode 3px above the viewport and every %-placed overlay drifted with it.
+   Block display removes the gap and the stage is exactly 5:3 again. */
+.cv-zoo-stage > svg { display: block; }
 .cv-zoo-portrait-guidance { display: none; }
 @media (max-width: 559px) and (orientation: portrait) {
   .cv-zoo-stage { display: none; }
-  .cv-zoo-portrait-guidance { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; border: 2px dashed #94a3b8; border-radius: 20px; background: rgba(255,255,255,0.72); color: #1e293b; line-height: 1.3; text-align: center; font-weight: 700; }
+  .cv-zoo-portrait-guidance { height: 100%; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; border: 2px dashed #94a3b8; border-radius: 20px; background: rgba(255,255,255,0.72); color: #1e293b; line-height: 1.3; text-align: center; font-weight: 700; }
   .cv-zoo-portrait-guidance::before { content: "Girá el dispositivo"; display: block; font-size: 30px; margin-bottom: 8px; }
   .cv-zoo-portrait-guidance::after { content: "Para recorrer el zoológico cómodo, usá el juego en horizontal."; display: block; color: #475569; font-size: 18px; font-weight: 600; }
 }
 .cv-zoo-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .cv-zoo-sector-control:focus-visible .cv-zoo-sector-hit { stroke: #1d4ed8; stroke-width: 8; stroke-dasharray: 18 12; }
+.cv-zoo-octopus-control { cursor: pointer; }
+.cv-zoo-octopus-control:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 6px; }
 .cv-zoo-hud { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 2% 3%; box-sizing: border-box; pointer-events: none; }
 .cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
-/* The bocadillo is sized as a FRACTION OF THE STAGE, never in px: the
-   488x372 PNG's intrinsic size is 488 CSS px, which is 49% of the 1000-unit
-   stage at a 1000px-wide viewport and a different fraction at every other
-   one. At 27% it is ~270 x 206 units and lands over the montanas hit
-   (x 360-630, y 22-162) - which is fine and deliberate: montanas is fogged,
-   so there is no drawn content under it to obscure, and the bubble only
-   renders while a sector is newly discovered. container-type: inline-size
-   makes the bubble its own query container, so everything inside it can be
-   sized in cqw (percent of the BUBBLE's width, which is itself a percent of
-   the stage) and nothing inside needs a px length.
-   The tail is NOT at the file's centre: it hangs at ~10% of the width, so a
-   bubble centred on the plaza points at bare grass to the Pulpito's left,
-   which is what the 488px original did too. scaleX(-1) on the IMAGE ONLY
-   mirrors the drawn oval (it is symmetric apart from the tail) and moves the
-   tail to ~90% of the width; the caption inside is a sibling and is NOT
-   transformed, so no text is reversed. left: 39.2% then lands that tail on
-   PLAZA_CENTRE's x, and top: 36% with translate(..., -100%) rests it on the
-   Pulpito's head at y ~ 216 rather than covering his face at y ~ 250.
-   The bubble therefore covers the right of nocturna and the left of
-   montanas (both fogged, no drawn content to obscure) and leaves the
-   estanque - the one OPEN sector, with the pond the huellas point at -
-   entirely clear. It only renders while a sector is newly discovered.
-   NOTE: no backticks anywhere in this block - ZOO_CSS is a template
-   literal, and one backtick in a CSS comment ends the string. */
-.cv-zoo-bubble { position: absolute; left: 39.2%; top: 36%; width: 27%; aspect-ratio: 488 / 372; transform: translate(-50%, -100%); container-type: inline-size; pointer-events: none; }
-.cv-zoo-bubble > img { display: block; width: 100%; height: 100%; transform: scaleX(-1); }
+/* Each HUD group is a pill so it reads as interface, not as scenery: bare
+   portraits at the top centre were drawn straight over the montanas and the
+   animals standing there (measured at 1024x768 once five animals were back),
+   and the snake alone rendered 173px wide at height 40 (aspect 4.32). Square
+   30px boxes with object-fit keep every portrait the same footprint, and an
+   empty group (nothing recovered yet) draws no pill at all. */
+.cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right { background: rgba(255, 255, 255, 0.86); border-radius: 999px; padding: 4px 10px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); }
+.cv-zoo-hud-mid:empty { display: none; }
+.cv-zoo-hud-left img, .cv-zoo-hud-mid img { width: 30px; height: 30px; object-fit: contain; }
+/* The spotlight (T4, D5): a dim layer covers the whole stage except an
+   ellipse around the next destination's own hit-rect, so exactly one place
+   on the map reads as "go here" - drawn as ONE even-odd path
+   (spotlightHolePath, below), never a mask or a clip-path (this repo's own
+   scar, TraceCanvas.tsx's header). The ring and badge around the hole are
+   plain shapes, referencing no def. */
+.cv-zoo-spotlight-ring { animation: cv-zoo-spotlight-pulse 1.6s ease-in-out infinite; }
+@keyframes cv-zoo-spotlight-pulse {
+  0%, 100% { opacity: 0.55; stroke-width: 6; }
+  50% { opacity: 1; stroke-width: 10; }
+}
+@media (prefers-reduced-motion: reduce) { .cv-zoo-spotlight-ring { animation: none; opacity: 0.85; } }
+/* The badge's bounce animates an INNER g's CSS transform, never the OUTER
+   g's: the outer one carries the positional transform="translate(...)"
+   ATTRIBUTE that places the badge at the hit's centre, and a CSS transform
+   on the SAME element replaces that attribute outright rather than
+   composing with it - a real defect class in this codebase (the node jumps
+   to the origin for the animation's duration). Nesting the animated
+   element one level inside the positioned one keeps the two from ever
+   fighting over the same transform. */
+.cv-zoo-spotlight-badge { animation: cv-zoo-spotlight-bounce 1.2s ease-in-out infinite; }
+@keyframes cv-zoo-spotlight-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@media (prefers-reduced-motion: reduce) { .cv-zoo-spotlight-badge { animation: none; } }
+/* The map bubble (docs/18 D4): sized ~24% of the stage width and positioned
+   in one of four fixed quadrants around the Pulpito (bubblePlacement,
+   zoo/adventures.ts), chosen at render time so it never sits on top of the
+   sector the spotlight is pointing at and never runs off the stage.
+   Position (left/top/width/height) is therefore an INLINE style computed
+   from bubblePlacement's own returned box - a static rule cannot know which
+   sector is being pointed at - while mirroring/flipping and the caption's
+   own inset stay plain class rules below, keyed off the anchor's two
+   modifier classes.
+   container-type: inline-size makes the bubble its own query container, so
+   everything inside it can be sized in cqw (percent of the BUBBLE's width,
+   itself a percent of the stage) and nothing inside needs a px length -
+   unchanged from the single-placement version this replaces. */
+.cv-zoo-bubble { position: absolute; container-type: inline-size; }
+.cv-zoo-bubble-dismiss { position: absolute; inset: 0; display: block; width: 100%; height: 100%; margin: 0; padding: 0; border: none; background: none; cursor: pointer; }
+.cv-zoo-bubble-dismiss > img { display: block; width: 100%; height: 100%; }
+/* The tail is NOT at the file's own centre: it hangs at ~10% of the width,
+   near the bottom ~18% of the height. A bubble placed to the LEFT of the
+   Pulpito needs its tail on its own RIGHT side to point at him - the
+   mirrored (scaleX(-1)) position; one placed BELOW him needs the tail at
+   the TOP rather than the bottom - the vertically flipped (scaleY(-1))
+   position. The two modifiers compose (a below-left bubble mirrors AND
+   flips) rather than needing a fourth, hand-authored transform. */
+.cv-zoo-bubble--mirror-x .cv-zoo-bubble-dismiss > img { transform: scaleX(-1); }
+.cv-zoo-bubble--flip-y .cv-zoo-bubble-dismiss > img { transform: scaleY(-1); }
+.cv-zoo-bubble--mirror-x.cv-zoo-bubble--flip-y .cv-zoo-bubble-dismiss > img { transform: scale(-1, -1); }
 /* The oval's readable interior, inset from the drawn outline on all four
-   sides. The tail occupies the bottom ~18% of the file, which is why the box
-   spans 14%-74% rather than filling the bubble - that centres the print and
-   the phrase on the OVAL, which is not the same thing as centring them on
-   the image box. */
+   sides. The tail occupies the bottom ~18% of the file when unflipped,
+   which is why the box spans 14%-74% rather than filling the bubble - that
+   centres the print and the phrase on the OVAL, not on the image box. A
+   flipped bubble (the tail now at the TOP) needs the same inset mirrored
+   top-to-bottom, so the oval stays centred under the flip too. */
 .cv-zoo-bubble .cv-captioned { position: absolute; left: 8%; right: 8%; top: 14%; height: 60%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4cqw; }
+.cv-zoo-bubble--flip-y .cv-captioned { top: 26%; }
 /* width: auto lets the viewBox carry the aspect ratio, the same override
    Deduction.tsx's own .cv-captioned > svg rule already uses. flex: none
    keeps the print from being squeezed to a sliver by the phrase beside it -
@@ -115,6 +190,8 @@ html, body, #root { margin: 0; height: 100%; }
 }
 .cv-zoo-fog-lift { animation: cv-zoo-fog-fade 1.5s ease-out forwards; }
 @media (prefers-reduced-motion: reduce) { .cv-zoo-fog-lift { animation: none; } }
+/* NOTE: no backticks anywhere in this block - ZOO_CSS is a template
+   literal, and one backtick in a CSS comment ends the string. */
 `
 
 /**
@@ -129,6 +206,84 @@ html, body, #root { margin: 0; height: 100%; }
  */
 export function fogClassFor(sectorId: SectorId, discovered: ZooSector | null): string {
   return discovered?.id === sectorId ? 'cv-zoo-fog cv-zoo-fog-lift' : 'cv-zoo-fog'
+}
+
+/** Pad around the target hit-rect the spotlight's own hole extends by,
+ *  viewBox units — big enough that the ring and badge (drawn just outside
+ *  the hole) never overlap the hit's own edge. */
+const SPOTLIGHT_PAD = 30
+
+/**
+ * The spotlight's own dim layer, as a single even-odd `d` attribute: the
+ * whole 1000×600 stage, minus an ellipse around `hit` (padded by
+ * `SPOTLIGHT_PAD`). Two arcs (`A rx ry 0 1 0 …`, twice) draw a closed
+ * ellipse without a second `<circle>`/`<ellipse>` element, so the hole and
+ * the outer rect stay ONE `<path>` — never a `<mask>`/`<clipPath>`
+ * (`TraceCanvas.tsx`'s header, restated at this file's own). Exported and
+ * pure so the hole's geometry — centred on the hit, sized from it — is
+ * directly testable without a renderer.
+ */
+export function spotlightHolePath(hit: Rect, pad = SPOTLIGHT_PAD): string {
+  const { x: cx, y: cy } = hitCentre(hit)
+  const rx = hit.w / 2 + pad
+  const ry = hit.h / 2 + pad
+  const outer = `M 0 0 H 1000 V 600 H 0 Z`
+  const hole = `M ${cx - rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A ${rx} ${ry} 0 1 0 ${cx - rx} ${cy} Z`
+  return `${outer} ${hole}`
+}
+
+/** The pulsing ring drawn just outside the spotlight's own hole — a plain
+ *  `<ellipse>`, never a `url(#…)` reference. `cv-zoo-spotlight-ring`'s own
+ *  animation (`ZOO_CSS`) only touches `opacity`/`stroke-width`, never
+ *  `transform`, so it carries no risk of clobbering a positional transform
+ *  attribute (unlike the badge below, which needs the extra nesting for
+ *  exactly that reason). */
+function SpotlightRing({ hit, pad = SPOTLIGHT_PAD }: { hit: Rect; pad?: number }) {
+  const { x: cx, y: cy } = hitCentre(hit)
+  return (
+    <ellipse
+      className="cv-zoo-spotlight-ring"
+      cx={cx}
+      cy={cy}
+      rx={hit.w / 2 + pad}
+      ry={hit.h / 2 + pad}
+      fill="none"
+      stroke="#ffe066"
+      strokeWidth={8}
+    />
+  )
+}
+
+/** The round "play" badge at the spotlight's own centre. The bounce
+ *  animation (`cv-zoo-spotlight-badge`, `ZOO_CSS`) lands on an INNER `<g>`
+ *  with no `transform` attribute of its own — the OUTER `<g>` carries the
+ *  positional `transform="translate(...)"` attribute that places the whole
+ *  badge at `at`, and a CSS `transform` animated on that SAME element would
+ *  replace the attribute outright rather than compose with it (`ZOO_CSS`'s
+ *  own comment on this exact defect class). */
+function SpotlightBadge({ at }: { at: { x: number; y: number } }) {
+  return (
+    <g transform={`translate(${at.x.toFixed(2)} ${at.y.toFixed(2)})`}>
+      <g className="cv-zoo-spotlight-badge">
+        <circle r={30} fill="#22c55e" stroke="#ffffff" strokeWidth={4} />
+        <path d="M -9 -14 L -9 14 L 15 0 Z" fill="#ffffff" />
+      </g>
+    </g>
+  )
+}
+
+/** The bubble's own modifier classes for `anchor`: `cv-zoo-bubble--mirror-x`
+ *  for the two LEFT anchors (the tail needs to move to the box's own RIGHT
+ *  side to point at the Pulpito, who sits to their right) and
+ *  `cv-zoo-bubble--flip-y` for the two BELOW anchors (the tail needs to move
+ *  from the bottom of the file to the top). `ZOO_CSS`'s own compound
+ *  selector composes both for the one anchor (`below-left`) that needs
+ *  them together, so this never has to special-case a fourth transform. */
+function bubbleClassName(anchor: BubbleAnchor): string {
+  const classes = ['cv-zoo-bubble']
+  if (anchor === 'above-left' || anchor === 'below-left') classes.push('cv-zoo-bubble--mirror-x')
+  if (anchor === 'below-left' || anchor === 'below-right') classes.push('cv-zoo-bubble--flip-y')
+  return classes.join(' ')
 }
 
 /** One footprint, centred on its own point and rotated to face the walked
@@ -207,7 +362,22 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // reviewer is screenshotting.
   const resolvedDebug =
     debug ?? isSectorDebug(typeof window === 'undefined' ? '' : window.location.search)
+  // The ONE-SHOT fog-fade class (`fogClassFor`, above) keeps reading
+  // `recentlyDiscovered` untouched — T4 only changes what the SPOTLIGHT and
+  // the BUBBLE point at, never this pre-existing animation trigger.
   const discovered = recentlyDiscovered(records)
+  // T4's own fix (`docs/18` D4/D5/D28, the "after the sheep it still says
+  // pato" defect): the map's spotlight, footprints and bubble all point at
+  // the STORY's next stop (`zoo/journey.ts`), not at `recentlyDiscovered`'s
+  // own registry-order fallback. `spotlightSector` is `null` exactly when
+  // there is nothing left to guide the child toward — every sector the
+  // ladder reaches is fully filed.
+  const journeyStep = nextJourneyStep(records)
+  const spotlightSector = journeyStep?.sector ?? null
+  // When the journey is done, the bubble falls back to `recentlyDiscovered`
+  // (today's pre-T4 source) rather than going silent — the task's own
+  // "keep today's behaviour" clause for that one case.
+  const bubbleSector = spotlightSector ?? discovered
   const stars = totalStars(records)
   const backpack = earnedItems(records)
   // Every animal standing in the zoo right now, across every sector — the
@@ -216,6 +386,27 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   const recovered = SECTORS.flatMap((sector) => animalPlacements(sector, records))
   const openSectors = SECTORS.filter((sector) => sector.hit && isOpen(sector, records))
   const statusText = `Mapa del zoo: ${openSectors.length} sectores abiertos, ${stars} estrellas y ${recovered.length} animales recuperados.`
+
+  const bubblePlaced = bubbleSector?.hit ? bubblePlacement(bubbleSector.hit) : null
+  // Arrival/dismiss/reopen (D4): the bubble shows the instant its own
+  // subject sector changes (a fresh `ZooMap` mount counts as an "arrival" in
+  // its own right — `App.tsx` never keeps this component mounted across a
+  // trip into a level, `initial={useState}` below always starts `true` on
+  // mount), hides on tap, hides itself after `BUBBLE_AUTO_HIDE_MS`, and
+  // tapping the Pulpito bumps `reopenNonce` to show it again for another
+  // full window. `renderToString` never runs effects, so every existing
+  // SSR-only test keeps seeing the bubble at its initial (visible) state.
+  const bubbleKey = bubbleSector?.id ?? null
+  const [bubbleVisible, setBubbleVisible] = useState(true)
+  const [reopenNonce, setReopenNonce] = useState(0)
+  useEffect(() => {
+    setBubbleVisible(true)
+    if (typeof window === 'undefined') return undefined
+    const timer = window.setTimeout(() => setBubbleVisible(false), BUBBLE_AUTO_HIDE_MS)
+    return () => window.clearTimeout(timer)
+  }, [bubbleKey, reopenNonce])
+  const dismissBubble = () => setBubbleVisible(false)
+  const reopenBubble = () => setReopenNonce((n) => n + 1)
 
   return (
     <main className="cv-zoo">
@@ -308,20 +499,65 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
             />
           ))}
 
-          {/* Footprints from the plaza to whichever sector was recently
-              discovered — only when there is one to point at. */}
-          {discovered?.hit &&
-            footprintTrail(PLAZA_CENTRE, hitCentre(discovered.hit)).map((mark, i) => (
+          {/* The spotlight (T4, D5): dim everything except an ellipse around
+              the journey's own next destination — after fog and recovered
+              animals, BEFORE the footprints, the Pulpito and the hit-rects,
+              so the dim layer sits under the things the child can still
+              read or tap, and the ring/badge sit over the dimmed map. Absent
+              once every sector the ladder reaches is fully filed
+              (`spotlightSector` is `null`). */}
+          {spotlightSector?.hit && (
+            <>
+              <path
+                data-spotlight="true"
+                aria-hidden="true"
+                d={spotlightHolePath(spotlightSector.hit)}
+                fillRule="evenodd"
+                fill="#0b1220"
+                opacity={0.45}
+                style={{ pointerEvents: 'none' }}
+              />
+              <g aria-hidden="true" style={{ pointerEvents: 'none' }}>
+                <SpotlightRing hit={spotlightSector.hit} />
+                <SpotlightBadge at={hitCentre(spotlightSector.hit)} />
+              </g>
+            </>
+          )}
+
+          {/* Footprints from the plaza to the journey's own next
+              destination (T4) — only when there is one to point at. Before
+              T4 this walked to `recentlyDiscovered`'s own sector, which is
+              what let the trail keep pointing at the pond long after the
+              story had moved on to the mountains (`docs/18` D4/D28). */}
+          {spotlightSector?.hit &&
+            footprintTrail(PLAZA_CENTRE, hitCentre(spotlightSector.hit)).map((mark, i) => (
               <Footprint key={`print-${i}`} {...mark} />
             ))}
 
-          {/* The Pulpito with his mochila, in the plaza. Default (box-centre)
-              grip — design.md §7's own worked call. */}
-          <image
-            href={ZOO_OCTOPUS_BACKPACK_ART.href}
-            {...placeArt(ZOO_OCTOPUS_BACKPACK_ART, 150, PLAZA_CENTRE)}
-            preserveAspectRatio="xMidYMid meet"
-          />
+          {/* The Pulpito with his mochila, in the plaza — a keyboard-
+              accessible control (T4, D4) that re-opens the map bubble once
+              it has been dismissed or has auto-hidden, the same
+              role="button"/tabIndex pattern the sector hits below use.
+              Default (box-centre) grip on the image itself — design.md §7's
+              own worked call. */}
+          <g
+            role="button"
+            tabIndex={0}
+            aria-label="Pulpito: escuchar de nuevo"
+            className="cv-zoo-octopus-control"
+            onClick={reopenBubble}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return
+              event.preventDefault()
+              reopenBubble()
+            }}
+          >
+            <image
+              href={ZOO_OCTOPUS_BACKPACK_ART.href}
+              {...placeArt(ZOO_OCTOPUS_BACKPACK_ART, 150, PLAZA_CENTRE)}
+              preserveAspectRatio="xMidYMid meet"
+            />
+          </g>
 
           {/* Transparent hit-rects — the only tappable surface. Tapping an
               open sector opens its NEXT adventure (OD2); a sector whose
@@ -331,6 +567,10 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               key={`hit-${sector.id}`}
               className="cv-zoo-sector-control"
               data-sector-control={sector.id}
+              // QA hook (T4): marks the exact sector the spotlight is
+              // pointing at, so a screenshot pass can assert "exactly one
+              // place is highlighted" without re-deriving the journey.
+              data-next-sector={spotlightSector?.id === sector.id ? 'true' : undefined}
               role="button"
               tabIndex={0}
               aria-label={sectorActionLabel(sector, records)}
@@ -409,25 +649,51 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
           </div>
         </div>
 
-        {discovered && (
-          <div className="cv-zoo-bubble">
-            <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-            {/* `size` is the UNSTYLED height; `ZOO_CSS`'s
-                `.cv-zoo-bubble .cv-captioned > svg` overrides it with a
-                percentage of the bubble so the print tracks the stage. 76
-                is what that percentage resolves to at a 1000-unit stage, so
-                the server-rendered markup already carries the right shape
-                instead of a number the stylesheet silently contradicts. The
-                `CaptionedArt` wrapper itself is NOT optional: it is the only
-                component allowed to pair a picture with a word outside the
-                rail, and `captionAudit`'s `auditCaptions` is what enforces
-                that — only the styling changed here.
-                The picture AND the word both come from `mapBubble` now
-                (duck-undulations-and-sector-backdrop design.md §5): before
-                the sector's own adventure is done it is the onward print and
-                phrase, unchanged; once the animal is recovered it becomes
-                that animal's own picture and closing line. */}
-            <CaptionedArt {...mapBubble(discovered, records)} size={76} />
+        {/* The map bubble (T4, D4). Its BOX comes from `bubblePlacement`,
+            fed the SPOTLIGHT target's own hit rect — never `discovered`'s —
+            so it always talks about where the story goes NEXT rather than
+            about whichever sector `recentlyDiscovered`'s registry-order
+            fallback last landed on (the same fix the spotlight and the
+            footprints get). Its CONTENT still comes from `mapBubble`, fed
+            `bubbleSector` (the spotlight target, or `discovered` once the
+            journey is done — "today's behaviour" for that one case). */}
+        {bubbleSector && bubblePlaced && bubbleVisible && (
+          <div
+            className={bubbleClassName(bubblePlaced.anchor)}
+            style={{
+              left: `${((bubblePlaced.x / 1000) * 100).toFixed(2)}%`,
+              top: `${((bubblePlaced.y / 600) * 100).toFixed(2)}%`,
+              width: `${((bubblePlaced.w / 1000) * 100).toFixed(2)}%`,
+              height: `${((bubblePlaced.h / 600) * 100).toFixed(2)}%`,
+            }}
+          >
+            {/* A button, not a decorative div: tapping ANYWHERE on the
+                bubble dismisses it (D4 — the old bubble said the same thing
+                forever with no way to close it). */}
+            <button
+              type="button"
+              className="cv-zoo-bubble-dismiss"
+              aria-label="Cerrar el mensaje del Pulpito"
+              onClick={dismissBubble}
+            >
+              <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+              {/* `size` is the UNSTYLED height; `ZOO_CSS`'s
+                  `.cv-zoo-bubble .cv-captioned > svg` overrides it with a
+                  percentage of the bubble so the print tracks the stage. 76
+                  is what that percentage resolves to at a 1000-unit stage,
+                  so the server-rendered markup already carries the right
+                  shape instead of a number the stylesheet silently
+                  contradicts. The `CaptionedArt` wrapper itself is NOT
+                  optional: it is the only component allowed to pair a
+                  picture with a word outside the rail, and
+                  `captionAudit`'s `auditCaptions` is what enforces that —
+                  only the styling and its source sector changed here.
+                  The picture AND the word both come from `mapBubble`: before
+                  the sector's own adventure is done it is the onward print
+                  and phrase, unchanged; once the animal is recovered it
+                  becomes that animal's own picture and closing line. */}
+              <CaptionedArt {...mapBubble(bubbleSector, records)} size={76} />
+            </button>
           </div>
         )}
       </div>

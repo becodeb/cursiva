@@ -5,10 +5,10 @@
 // `HomeScreen.test.tsx`/`CaptionedArt.test.tsx` already use.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import ZooMap, { fogClassFor } from './ZooMap'
+import ZooMap, { fogClassFor, spotlightHolePath } from './ZooMap'
 import { auditCaptions } from '../detective/captionAudit'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
-import { SECTORS, type Records } from '../zoo/sectors'
+import { hitCentre, SECTORS, type Records } from '../zoo/sectors'
 
 function filed(...ids: readonly string[]): Records {
   const out: Record<string, LevelRecord> = {}
@@ -55,9 +55,15 @@ describe('ZooMap (zoo-map spec "Image-to-ViewBox Transform and Background")', ()
 
   it('the outer background is the measured green, never white', () => {
     const html = render()
-    expect(html).toContain('fill="#76B56A"')
-    expect(html).not.toContain('fill="#fff')
-    expect(html).not.toContain('fill="white"')
+    // Scoped to the background rect itself (design.md §7's letterbox-fill
+    // decision) rather than a blanket ban on white anywhere on the screen:
+    // the spotlight's own play badge (T4, `docs/18` D5) is legitimately
+    // white (its ring stroke and triangle), the same way the HUD's own
+    // white lettering elsewhere was already never in scope for this claim.
+    const backgroundRect = html.match(/<rect x="0" y="0" width="1000" height="600" fill="[^"]*"/)?.[0]
+    expect(backgroundRect).toContain('fill="#76B56A"')
+    expect(backgroundRect).not.toContain('fill="#fff')
+    expect(backgroundRect).not.toContain('fill="white"')
   })
 })
 
@@ -261,6 +267,125 @@ describe('ZooMap bubble (zoo-map spec "Octopus Phrase Reads as a Closing")', () 
     }
     expect(auditCaptions(render()).uncaptioned).toEqual([])
     expect(auditCaptions(render(records)).uncaptioned).toEqual([])
+  })
+
+  // The documented defect (adventure-flow-and-map-guidance T4,
+  // `odd/tasks/adventure-flow-and-map-guidance.md` "2026-09-23"): once the
+  // sheep is done, the pre-T4 bubble (fed `recentlyDiscovered`) kept saying
+  // "¡Encontramos al pato!" because the estanque still had unfinished work
+  // of its own (the medusa/dolphin blocks), ahead of montañas in registry
+  // order. The bubble is now fed the SPOTLIGHT target's sector instead.
+  it('after the sheep is done, the bubble no longer says the duck was found — it talks about montañas instead', () => {
+    const entrada = SECTORS.find((s) => s.id === 'entrada')!
+    const records: Records = filed(
+      ...entrada.adventureIds,
+      'duck-trail1',
+      'duck-trail2',
+      'duck-trail3',
+      'duck-trail4',
+      'sheep-hill1',
+      'sheep-hill2',
+      'sheep-hill3',
+      'sheep-hill4',
+    )
+    const html = render(records)
+    expect(html).not.toContain('¡Encontramos al pato!')
+    expect(html).toContain('¡Juntamos las ovejas! Ya están en su ladera.')
+  })
+})
+
+describe('ZooMap bubble interactivity (T4: dismissible, re-openable)', () => {
+  it('the bubble is a dismiss button, and the Pulpito is a keyboard-accessible re-open control', () => {
+    const html = render()
+    expect(html).toContain('aria-label="Cerrar el mensaje del Pulpito"')
+    expect(html).toContain('aria-label="Pulpito: escuchar de nuevo"')
+    // The octopus control carries its own role/tabIndex, the same pattern
+    // the sector hits use — asserted narrowly against ITS OWN class so this
+    // cannot pass merely because a sector control happens to exist too.
+    const octopusControlAt = html.indexOf('class="cv-zoo-octopus-control"')
+    expect(octopusControlAt).toBeGreaterThan(-1)
+    const octopusTag = html.slice(html.lastIndexOf('<g', octopusControlAt), octopusControlAt + 200)
+    expect(octopusTag).toContain('role="button"')
+    expect(octopusTag).toContain('tabindex="0"')
+  })
+})
+
+describe('spotlightHolePath (T4, D5)', () => {
+  const hit = { x: 100, y: 50, w: 200, h: 120 }
+
+  it('starts with the outer 1000x600 rect and follows with an ellipse hole centred on the hit', () => {
+    const d = spotlightHolePath(hit)
+    expect(d.startsWith('M 0 0 H 1000 V 600 H 0 Z')).toBe(true)
+    // Two arcs draw the closed ellipse (design: "one path, two A commands").
+    expect(d.match(/A /g)).toHaveLength(2)
+    const { x: cx, y: cy } = hitCentre(hit)
+    expect(d).toContain(`${cx - (hit.w / 2 + 30)} ${cy}`)
+  })
+
+  it('the hole grows with a wider pad, and shrinks with a narrower one', () => {
+    const wide = spotlightHolePath(hit, 60)
+    const narrow = spotlightHolePath(hit, 5)
+    const { x: cx } = hitCentre(hit)
+    // The ellipse's own leftmost x (`cx - rx`) moves further from the
+    // centre as the pad grows.
+    expect(wide).toContain(`${cx - (hit.w / 2 + 60)}`)
+    expect(narrow).toContain(`${cx - (hit.w / 2 + 5)}`)
+  })
+})
+
+describe('ZooMap spotlight (T4, D5: exactly one place highlighted)', () => {
+  it('on a fresh install, the entrance alone carries the spotlight and the next-sector hook', () => {
+    const html = render()
+    expect(html).toContain('data-spotlight="true"')
+    expect(html).toContain('data-next-sector="true"')
+    const marked = [...html.matchAll(/data-sector-control="([^"]+)"[^>]*data-next-sector="true"/g)]
+    // `data-next-sector` sits right after `data-sector-control` in source
+    // order (`ZooMap.tsx`), so this also pins WHICH sector carries it.
+    expect(marked).toHaveLength(1)
+    expect(marked[0][1]).toBe('entrada')
+  })
+
+  // The same fixture and claim as the bubble regression above, checked at
+  // the QA-hook level: the spotlight — not just the bubble's words — must
+  // move on to montañas rather than lingering on the estanque.
+  it('after the sheep is done, the spotlight (and its next-sector hook) moves to montañas', () => {
+    const entrada = SECTORS.find((s) => s.id === 'entrada')!
+    const records: Records = filed(
+      ...entrada.adventureIds,
+      'duck-trail1',
+      'duck-trail2',
+      'duck-trail3',
+      'duck-trail4',
+      'sheep-hill1',
+      'sheep-hill2',
+      'sheep-hill3',
+      'sheep-hill4',
+    )
+    const html = render(records)
+    const marked = [...html.matchAll(/data-sector-control="([^"]+)"[^>]*data-next-sector="true"/g)]
+    expect(marked).toHaveLength(1)
+    expect(marked[0][1]).toBe('montanas')
+  })
+
+  it('once every sector the ladder reaches is fully filed, there is nothing left to spotlight', () => {
+    const entrada = SECTORS.find((s) => s.id === 'entrada')!
+    const estanque = SECTORS.find((s) => s.id === 'estanque')!
+    const montanas = SECTORS.find((s) => s.id === 'montanas')!
+    const nocturna = SECTORS.find((s) => s.id === 'nocturna')!
+    const arena = SECTORS.find((s) => s.id === 'arena')!
+    const bosque = SECTORS.find((s) => s.id === 'bosque')!
+    const html = render(
+      filed(
+        ...entrada.adventureIds,
+        ...estanque.adventureIds,
+        ...montanas.adventureIds,
+        ...nocturna.adventureIds,
+        ...arena.adventureIds,
+        ...bosque.adventureIds,
+      ),
+    )
+    expect(html).not.toContain('data-spotlight')
+    expect(html).not.toContain('data-next-sector')
   })
 })
 

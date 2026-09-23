@@ -507,15 +507,23 @@ export function isOpen(sector: ZooSector, records: Records): boolean {
 }
 
 /**
- * OD2: tapping a finished sector re-enters its LAST adventure, so the one
- * finished sector does not read as inert to a child who just watched its
- * animal appear. `null` only for a sector with no adventures at all — today
- * every fogged sector, and those are never tappable anyway.
+ * OD2: tapping a finished sector re-enters its FIRST adventure (D10,
+ * `docs/18_DIAGNOSTICO_Y_REDISENO_PEDAGOGICO.md` — replacing the earlier
+ * "re-enter the LAST adventure" rule). A sector that carries several
+ * adventures back to back (the entrance's four enclosures; montañas' sheep
+ * then llama) reads as one continuous story, and re-opening on the LAST one
+ * only replayed its own final beat in isolation — for the entrance that
+ * meant the mud path plus its huellas/lupa closing, with no trace of
+ * peces/tortugas/monos ever having happened. Restarting from the FIRST
+ * adventure replays the whole arc, which is what a child tapping a sector
+ * they already finished is actually asking for. `null` only for a sector
+ * with no adventures at all — today every fogged sector, and those are
+ * never tappable anyway.
  */
 export function nextAdventure(sector: ZooSector, records: Records): string | null {
   if (sector.adventureIds.length === 0) return null
   const firstUnfiled = sector.adventureIds.find((id) => !isFiled(records, id))
-  return firstUnfiled ?? sector.adventureIds[sector.adventureIds.length - 1]
+  return firstUnfiled ?? sector.adventureIds[0]
 }
 
 /** Which sector a level id belongs to, if any. `undefined` for a level no

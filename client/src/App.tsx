@@ -226,10 +226,13 @@ const LINK = {
 /** `position: fixed` so it floats above `ZooMap`'s own `.cv-zoo` (100dvh,
  *  `overflow: hidden`) rather than being clipped by it — a corner overlay,
  *  not a layout row, exactly because this control must never compete with
- *  the map's own HUD for space. */
+ *  the map's own HUD for space. Bottom-right, not top-right (`docs/18` D8):
+ *  the star counter lives in the HUD's own top-right corner
+ *  (`.cv-zoo-hud-right`, `screen/ZooMap.tsx`), and this dev-only control
+ *  used to sit directly on top of it. */
 const DEV_RESET_BUTTON: CSSProperties = {
   position: 'fixed',
-  top: 8,
+  bottom: 8,
   right: 8,
   zIndex: 9999,
   padding: '6px 10px',

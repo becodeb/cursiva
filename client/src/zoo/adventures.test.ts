@@ -15,7 +15,15 @@ import {
   ZOO_OCTOPUS_PRINT_ART,
 } from '../detective/assets'
 import { SECTORS, type Records } from './sectors'
-import { ADVENTURES, adventureFor, adventureIcon, closingLevel, introLevel, mapBubble } from './adventures'
+import {
+  ADVENTURES,
+  adventureFor,
+  adventureIcon,
+  bubblePlacement,
+  closingLevel,
+  introLevel,
+  mapBubble,
+} from './adventures'
 
 function filed(...ids: readonly string[]): Records {
   const out: Record<string, LevelRecord> = {}
@@ -437,5 +445,52 @@ describe('the hedgehog adventure (radial-spines, design.md §8.2)', () => {
       art: ZOO_ANIMAL_ART.erizo,
       label: '¡El erizo tiene todas sus espinas!',
     })
+  })
+})
+
+describe('bubblePlacement (adventure-flow-and-map-guidance T4, D4/D7: never over the target, always on-screen)', () => {
+  const hits = SECTORS.filter((s) => s.hit).map((s) => s.hit!)
+
+  it('for every sector hit, the chosen box is fully inside the 1000x600 stage and does not intersect that hit', () => {
+    for (const hit of hits) {
+      const { anchor, ...box } = bubblePlacement(hit)
+      expect(box.x, JSON.stringify(hit)).toBeGreaterThanOrEqual(0)
+      expect(box.y, JSON.stringify(hit)).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.w, JSON.stringify(hit)).toBeLessThanOrEqual(1000)
+      expect(box.y + box.h, JSON.stringify(hit)).toBeLessThanOrEqual(600)
+      const overlapX = Math.min(box.x + box.w, hit.x + hit.w) - Math.max(box.x, hit.x)
+      const overlapY = Math.min(box.y + box.h, hit.y + hit.h) - Math.max(box.y, hit.y)
+      expect(Math.max(0, overlapX) * Math.max(0, overlapY), anchor).toBe(0)
+    }
+  })
+
+  it('picks one of the four documented anchors, never a fifth', () => {
+    for (const hit of hits) {
+      expect(['above-left', 'above-right', 'below-left', 'below-right']).toContain(
+        bubblePlacement(hit).anchor,
+      )
+    }
+  })
+
+  it('different targets can resolve to different anchors — the placement genuinely reacts to the target', () => {
+    const anchors = new Set(hits.map((hit) => bubblePlacement(hit).anchor))
+    expect(anchors.size).toBeGreaterThan(1)
+  })
+
+  it('a target reaching every quadrant still resolves to a real box (smallest-overlap fallback, never undefined)', () => {
+    // A hit spanning the whole stage — the pathological case where all four
+    // anchors intersect it, which `bubblePlacement`'s own `reduce` fallback
+    // exists for.
+    const wholeStage = { x: 0, y: 0, w: 1000, h: 600 }
+    const placed = bubblePlacement(wholeStage)
+    expect(['above-left', 'above-right', 'below-left', 'below-right']).toContain(placed.anchor)
+    expect(placed.w).toBeGreaterThan(0)
+    expect(placed.h).toBeGreaterThan(0)
+  })
+
+  it('the box is sized from ZOO_SPEECH_BUBBLE_ART\'s own aspect ratio at ~24% of the stage width', () => {
+    const placed = bubblePlacement(hits[0])
+    expect(placed.w).toBe(240)
+    expect(placed.h).toBeCloseTo((240 * 372) / 488, 6)
   })
 })

@@ -420,9 +420,9 @@ describe('nextAdventure Resolution (OD2)', () => {
     expect(nextAdventure(estanque, records)).toBe('duck-trail3')
   })
 
-  it('returns the LAST adventure once every one is filed', () => {
+  it('returns the FIRST adventure once every one is filed, so a finished sector replays from the start (D10)', () => {
     const records = filed(...estanque.adventureIds)
-    expect(nextAdventure(estanque, records)).toBe('dolphin4')
+    expect(nextAdventure(estanque, records)).toBe('duck-trail1')
   })
 
   it('returns null for a sector with no adventures', () => {
@@ -433,10 +433,10 @@ describe('nextAdventure Resolution (OD2)', () => {
     expect(nextAdventure(sendero, {})).toBeNull()
   })
 
-  it('returns the first unfiled bee adventure, and the last once bosque is done', () => {
+  it('returns the first unfiled bee adventure, and replays from bee1 once bosque is fully done (D10)', () => {
     expect(nextAdventure(bosque, filed('snake4'))).toBe('bee1')
     expect(nextAdventure(bosque, filed('snake4', 'bee1', 'bee2'))).toBe('bee3')
-    expect(nextAdventure(bosque, filed('snake4', ...bosque.adventureIds))).toBe('bee4')
+    expect(nextAdventure(bosque, filed('snake4', ...bosque.adventureIds))).toBe('bee1')
   })
 })
 

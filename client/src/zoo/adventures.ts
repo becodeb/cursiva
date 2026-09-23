@@ -16,8 +16,9 @@ import {
   SIGN_ART,
   ZOO_ANIMAL_ART,
   ZOO_OCTOPUS_PRINT_ART,
+  ZOO_SPEECH_BUBBLE_ART,
 } from '../detective/assets'
-import { animalPlacements, type Records, type SectorId, type ZooSector } from './sectors'
+import { animalPlacements, PLAZA_CENTRE, type Records, type Rect, type SectorId, type ZooSector } from './sectors'
 
 /** One id per adventure — the key `zoo/backdrops.ts`'s registry now uses,
  *  and what lets `montañas` carry two adventures where every earlier sector
@@ -358,4 +359,77 @@ export function mapBubble(
       animalPlacements(sector, records).some((p) => p.art === ZOO_ANIMAL_ART[a.animal!]),
   ).at(-1)
   return recovered ? { art: ZOO_ANIMAL_ART[recovered.animal], label: recovered.closing } : ONWARD
+}
+
+/**
+ * Where the map bubble sits (`screen/ZooMap.tsx`), one of four fixed
+ * quadrants around the Pulpito's own `PLAZA_CENTRE` — the same corners a
+ * tooltip picks from. `docs/18` D4: the bubble used to have exactly ONE
+ * placement (above-left of the Pulpito), which is why it read as clipped at
+ * 844×390 and why it could sit on top of the very sector it was pointing at.
+ */
+export type BubbleAnchor = 'above-left' | 'above-right' | 'below-left' | 'below-right'
+
+export interface BubbleBox extends Rect {
+  anchor: BubbleAnchor
+}
+
+/** ≈24% of the 1000-unit stage width — smaller than the single fixed
+ *  placement's old 27% (`screen/ZooMap.tsx`'s pre-T4 `ZOO_CSS`), which
+ *  leaves the four anchors below room to move without ever spilling off a
+ *  1000×600 stage (`bubblePlacement`'s own `insideStage` check, proven for
+ *  every sector hit in `adventures.test.ts`). Height follows the source
+ *  file's own aspect ratio, the same convention `Footprint`/`placeArt`
+ *  already use — never a second, independently-guessed number. */
+const BUBBLE_WIDTH = 240
+const BUBBLE_HEIGHT = (BUBBLE_WIDTH * ZOO_SPEECH_BUBBLE_ART.h) / ZOO_SPEECH_BUBBLE_ART.w
+
+/** How far the box's own near corner sits from `PLAZA_CENTRE` — small
+ *  enough that the mirrored/flipped tail (design.md's own ~10%/~91%-of-file
+ *  position) still reads as touching the Pulpito, large enough that the box
+ *  never overlaps his own standing art (150-unit tall, `ZooMap.tsx`). */
+const BUBBLE_GAP = 20
+
+const BUBBLE_ANCHORS: readonly BubbleAnchor[] = ['above-left', 'above-right', 'below-left', 'below-right']
+
+function bubbleBoxFor(anchor: BubbleAnchor): Rect {
+  const left = PLAZA_CENTRE.x - BUBBLE_GAP - BUBBLE_WIDTH
+  const right = PLAZA_CENTRE.x + BUBBLE_GAP
+  const above = PLAZA_CENTRE.y - BUBBLE_GAP - BUBBLE_HEIGHT
+  const below = PLAZA_CENTRE.y + BUBBLE_GAP
+  const onLeft = anchor === 'above-left' || anchor === 'below-left'
+  const onTop = anchor === 'above-left' || anchor === 'above-right'
+  return { x: onLeft ? left : right, y: onTop ? above : below, w: BUBBLE_WIDTH, h: BUBBLE_HEIGHT }
+}
+
+function overlapArea(a: Rect, b: Rect): number {
+  const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x))
+  const oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y))
+  return ox * oy
+}
+
+function insideStage(box: Rect): boolean {
+  return box.x >= 0 && box.y >= 0 && box.x + box.w <= 1000 && box.y + box.h <= 600
+}
+
+/**
+ * The bubble's own box and chosen anchor, so it never sits on top of
+ * `targetHit` (the spotlight's own destination, `screen/ZooMap.tsx`) and
+ * stays fully on-screen at every measured viewport (`docs/18` D4, D7). The
+ * four anchors (`BUBBLE_ANCHORS`, in that order) are tried in turn; the
+ * first that both fits the stage and does not intersect `targetHit` wins.
+ * If all four intersect it (a target hit large or central enough to reach
+ * every quadrant), the one with the SMALLEST overlap area wins instead of
+ * leaving the choice undefined — a corner still has to be picked, and the
+ * least-bad one reads better than an arbitrary fixed default. Pure: no
+ * randomness, no DOM, so `adventures.test.ts` asserts it directly against
+ * every sector's own hit rect.
+ */
+export function bubblePlacement(targetHit: Rect): BubbleBox {
+  const candidates = BUBBLE_ANCHORS.map((anchor) => ({ anchor, box: bubbleBoxFor(anchor) }))
+  const clear = candidates.find((c) => insideStage(c.box) && overlapArea(c.box, targetHit) === 0)
+  const chosen =
+    clear ??
+    candidates.reduce((min, c) => (overlapArea(c.box, targetHit) < overlapArea(min.box, targetHit) ? c : min))
+  return { ...chosen.box, anchor: chosen.anchor }
 }
