@@ -89,14 +89,14 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
       halves share files and each half alone is red). Amendment (done, `a2caf27`): an adventure that
       recovers no animal chains into the next adventure of its sector (prologue enclosures flow
       peces → tortugas → monos → sendero without the map; night → hedgehog).
-- [ ] **T3 — Stable level layout.** Reserve the result row from the first render (no sheet
+- [x] **T3 — Stable level layout.** Reserve the result row from the first render (no sheet
       shrink), global margin reset (intro/prologue), mud success copy, pulsing enabled "Siguiente".
       Route: delegated.
 - [ ] **T4 — Map guidance.** Dim everything except the next destination (even-odd path, no
       mask), pulsing ring + play badge on it, bubble never over the target and never clipped,
       dismissible and re-openable by tapping the Pulpito, stage centred vertically, dev reset out
       of the HUD, finished sector replays from its first level. Route: delegated.
-- [ ] **T5 — Enclosure sign out of the art.** The sign moves to the header row, never over the
+- [x] **T5 — Enclosure sign out of the art.** The sign moves to the header row, never over the
       sheet. Route: delegated (with T3 or T6).
 - [ ] **T6 — Progress bar instead of PISTAS.** One slot per level of the adventure, the found item
       (clue art or a star) fills it, the animal's silhouette at the end colours in when rescued;
@@ -133,6 +133,7 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 | T0 | `7e50091` | inline (single doc, QA context lives in the orchestrator) | `git diff --check` clean | passive (`non_executable_only`), no review; boundary → `7e50091` |
 | T1+T2 | `99dd8ad` | delegated (mapping trigger: 12 files) | `npm test` 82 files / 1945 tests; `npm run build` ok; `git diff --check` ok (writer + parent spot check) | medium (`executable_change` `migrateEntrance.ts`, a comment-only edit), review due → consent relayed, then RDD disabled by the user: no review |
 | T2 amendment | `a2caf27` | delegated (fresh writer; the first one refused the amendment as a possible injection) | `npm test` 82 / 1953; build ok; journey QA: prologue plays 4 levels with no map trips | covered by the same moot consent; RDD off |
+| T3+T5 | `caa1b00` | delegated (preparation trigger: LevelPlay 2300+ lines) + one inline CSS fix | `npm test` 82 / 1963; build ok; browser QA at 1280x720/1024x768/844x390: sheet 1252x592 / 996x640 / 824x282 identical before and after success, sign in the back-button row never over the sheet or the button, pill "✓ ¡Vidrio limpio!", "¡Sendero limpio!" on sand3, `cv-next-ready` after success, intro scroll = viewport | RDD off; assess medium (`client/index.html`) → writer self-verification + parent QA |
 
 - 2026-09-23: journey QA on `99dd8ad` from an empty store (1280x720): levels played between map
   visits `[0,1,1,1,1,4,4]` — the duck and the sheep now play 4 levels straight; the prologue still
@@ -142,4 +143,9 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 
 ## Next step
 
-T3 + T5 (level layout and sign) with one writer, then T4 (map), T6, T8, T7, T9.
+T4 (map guidance) in progress; then T6 (progress bar), T8 (rescue closings), T7 (voice), T9 (QA + docs/18 status).
+
+Lesson from T3/T5: the first pass put the sign in its own row and reserved the result row, which
+fixed the shrink but cost the sheet 154 px (987x592 → 730x438 drawing at 1280x720). Browser
+measurement caught it; unit tests could not. Identity chrome goes in the back-button row and
+transient messages overlay the sheet.
