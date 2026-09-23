@@ -92,7 +92,7 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 - [x] **T3 — Stable level layout.** Reserve the result row from the first render (no sheet
       shrink), global margin reset (intro/prologue), mud success copy, pulsing enabled "Siguiente".
       Route: delegated.
-- [ ] **T4 — Map guidance.** Dim everything except the next destination (even-odd path, no
+- [x] **T4 — Map guidance.** Dim everything except the next destination (even-odd path, no
       mask), pulsing ring + play badge on it, bubble never over the target and never clipped,
       dismissible and re-openable by tapping the Pulpito, stage centred vertically, dev reset out
       of the HUD, finished sector replays from its first level. Route: delegated.
@@ -134,6 +134,7 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 | T1+T2 | `99dd8ad` | delegated (mapping trigger: 12 files) | `npm test` 82 files / 1945 tests; `npm run build` ok; `git diff --check` ok (writer + parent spot check) | medium (`executable_change` `migrateEntrance.ts`, a comment-only edit), review due → consent relayed, then RDD disabled by the user: no review |
 | T2 amendment | `a2caf27` | delegated (fresh writer; the first one refused the amendment as a possible injection) | `npm test` 82 / 1953; build ok; journey QA: prologue plays 4 levels with no map trips | covered by the same moot consent; RDD off |
 | T3+T5 | `caa1b00` | delegated (preparation trigger: LevelPlay 2300+ lines) + one inline CSS fix | `npm test` 82 / 1963; build ok; browser QA at 1280x720/1024x768/844x390: sheet 1252x592 / 996x640 / 824x282 identical before and after success, sign in the back-button row never over the sheet or the button, pill "✓ ¡Vidrio limpio!", "¡Sendero limpio!" on sand3, `cv-next-ready` after success, intro scroll = viewport | RDD off; assess medium (`client/index.html`) → writer self-verification + parent QA |
+| T4 | `c4296a2` | delegated (mapping trigger: ZooMap, sectors, adventures, App + new journey module) + two inline CSS fixes (inline svg made the stage 1200x726; HUD portraits drawn over the montañas) | `npm test` 83 / 1983; build ok; browser QA over 10 progress states × 3 viewports: spotlight target follows the journey order, bubble never over the target and always on-screen, stage exactly 5:3 and centred | RDD off; assess medium (`client/src/App.tsx`, with the two new files declared) → writer self-verification + parent QA |
 
 - 2026-09-23: journey QA on `99dd8ad` from an empty store (1280x720): levels played between map
   visits `[0,1,1,1,1,4,4]` — the duck and the sheep now play 4 levels straight; the prologue still
@@ -143,7 +144,13 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 
 ## Next step
 
-T4 (map guidance) in progress; then T6 (progress bar), T8 (rescue closings), T7 (voice), T9 (QA + docs/18 status).
+T8 (rescue closings; the map bubble stops repeating an old rescue) in progress; then T6 (progress bar), T7 (voice), T9 (QA + docs/18 status).
+
+Found in T4 QA and handed to T8: with the spotlight on the estanque after the bee, `mapBubble` still
+announced "¡Encontramos al pato!" (stale news). Still open after T4: the bubble can cover a
+recovered animal standing in a non-target sector (it auto-hides after 10 s and can be dismissed);
+the map's hedgehog is drawn very large over the nocturna scene (registry size 90) — recorded for
+docs/18.
 
 Lesson from T3/T5: the first pass put the sign in its own row and reserved the result row, which
 fixed the shrink but cost the sheet 154 px (987x592 → 730x438 drawing at 1280x720). Browser
