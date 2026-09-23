@@ -18,6 +18,7 @@ import AdventureClosing from './AdventureClosing'
 import { isDevMode } from '../canvas/devMode'
 import { sectorOf } from '../zoo/sectors'
 import { adventureFor, closingLevel, introLevel } from '../zoo/adventures'
+import { adventureProgress } from '../zoo/progress'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
@@ -543,6 +544,15 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
         key={state.levelId}
         level={level}
         record={store.get(state.levelId)}
+        // T6 (adventure-flow-and-map-guidance): recomputed from `store.all()`
+        // on every render of THIS shell, which is what makes it advance the
+        // instant an attempt is saved — `onAttempt` below both persists the
+        // attempt and bumps `version`, and `version` is this component's own
+        // state, so the bump re-renders this whole function body (a fresh
+        // `store.all()` read, a fresh `adventureProgress` call) and hands
+        // `LevelPlay` a new prop value through the ordinary render cycle —
+        // no separate subscription or local mirror of store state needed.
+        progress={adventureProgress(state.levelId, store.all())}
         onAttempt={(attempt: LevelAttempt) => {
           store.save(state.levelId, applyAttempt(store.get(state.levelId), attempt))
           setVersion((n) => n + 1)

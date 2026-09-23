@@ -159,7 +159,13 @@ describe.each(CASES)('DeductionView rendering — %s case', (_label, kase) => {
     expect(html).toContain('opacity:0.25')
     expect(html).toContain('translateY(24px)')
     expect(html).not.toContain('url(#')
-    expect(html).not.toContain('filter')
+    // `<filter`, not the bare word "filter" (matching `<mask` below): this
+    // screen reuses `LevelPlay.tsx`'s own `LAYOUT_CSS` verbatim for its
+    // `.cv-play` shell, which now legitimately carries a plain CSS `filter`
+    // PROPERTY (`filter: brightness(0)`, T6's animal silhouette, LevelPlay's
+    // own header comment on that rule) — never an SVG `<filter>` PRIMITIVE,
+    // which is what this assertion actually exists to ban.
+    expect(html).not.toContain('<filter')
     expect(html).not.toContain('<mask')
     expect(html).toContain('cv-clue-hint')
     const hint = html.slice(html.indexOf('cv-clue-hint'))

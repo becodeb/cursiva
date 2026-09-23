@@ -15,7 +15,7 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import type { TracePoint } from '../canvas/useTraceInput'
 import type { LevelConfig } from '../levels/types'
-import { EMPTY_RECORD, type LevelAttempt } from '../game/types'
+import { EMPTY_RECORD, type LevelAttempt, type LevelRecord } from '../game/types'
 
 // `TraceCanvas` is replaced with a prop-capturing stub (same SSR-probe idea
 // `canvas/multiStroke.test.ts` uses for a hook): LevelPlay's OWN chrome is
@@ -77,21 +77,24 @@ import LevelPlay, {
 import {
   CARRIER_LENS_ART,
   CLUE_ART,
-  LAMP_ART,
   OCTOPUS_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
   SIGN_ART,
+  ZOO_ANIMAL_ART,
+  ZOO_STAR_ART,
 } from '../detective/assets'
 import { auditCaptions } from '../detective/captionAudit'
 import { INK_COLOR, SHEET_PAPER } from '../canvas/TraceCanvas'
 import type { InkRenderPolicy } from '../canvas/ink'
 import { TORCH_CHALK } from '../zoo/backdrops'
+import { adventureProgress } from '../zoo/progress'
 import { PRINT } from '../detective/palette'
 import { getLevel } from '../levels/catalog'
 import { buildLevelTarget } from '../levels/buildLevel'
 import { spineAnchors } from '../levels/spines'
 import type { RevealConfig } from '../levels/types'
+import type { Records } from '../zoo/sectors'
 
 function makeLevel(over: Partial<LevelConfig> = {}): LevelConfig {
   return {
@@ -141,6 +144,15 @@ function makeWorldOnlyLevel(over: Partial<LevelConfig> = {}): LevelConfig {
  *  night-shaped backdrop. */
 function makeRevealLevel(reveal: RevealConfig, over: Partial<LevelConfig> = {}): LevelConfig {
   return makeLevel({ kind: 'free', surface: 'blank', paths: [], reveal, ...over })
+}
+
+/** A `Records` map with exactly the given ids filed (one approval each) —
+ *  the same shape `adventureProgress` (`zoo/progress.ts`) reads through
+ *  `isFiled`, for the T6 adventure-progress-bar tests below. */
+function filedRecords(ids: readonly string[]): Records {
+  const out: Record<string, LevelRecord> = {}
+  for (const id of ids) out[id] = { ...EMPTY_RECORD, attempts: 1, approvals: 1 }
+  return out
 }
 
 const noop = (): void => undefined
@@ -205,21 +217,25 @@ describe('LevelPlay chrome branch (design.md Orchestrator Correction C1)', () =>
     expect(visible).not.toContain('‹ Volver')
     expect(visible).not.toContain('Borrar')
     expect(visible).not.toContain('Siguiente')
-    // PISTAS is the one allowed word; the licensed `pistas-bar` container
-    // that holds it must itself carry an image — checked, not granted
-    // (`detective/captionAudit.ts`).
+    // T6 (adventure-flow-and-map-guidance) drops "PISTAS" itself — D19: an
+    // abstract word a pre-reader cannot read. `makeDetectiveLevel`'s
+    // synthetic id belongs to no `ADVENTURES` row, so no `progress` bar
+    // renders here either (no `progress` prop is even passed): nothing on
+    // this screen carries a caption at all any more. A real adventure
+    // level's own bar and its caption licence are asserted separately in
+    // the "LevelPlay adventure progress bar" describe block below.
     const audit = auditCaptions(html)
-    expect(audit.captioned).toContain('PISTAS')
+    expect(audit.captioned).toEqual([])
     expect(audit.uncaptioned).toEqual([])
     expect(audit.imagelessContainers).toEqual([])
   })
 
-  it("a detective-trail level's only visible word is PISTAS, and it carries its own image (captionAudit)", () => {
+  it('a detective-trail level with no adventure of its own (and therefore no progress bar) shows no visible word at all', () => {
     const level = makeDetectiveLevel()
     const html = renderToString(
       <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
-    expect(textOf(html)).toBe('PISTAS')
+    expect(textOf(html)).toBe('')
     const audit = auditCaptions(html)
     expect(audit.uncaptioned).toEqual([])
     expect(audit.imagelessContainers).toEqual([])
@@ -611,47 +627,111 @@ describe('LevelPlay icon controls keep an accessible name (C1 removes visible te
   })
 })
 
-describe('LevelPlay PISTAS rail presence (design unit 5/6)', () => {
-  it('renders no rail for an ordinary level (no `clue` config), matching f1-libre (task 10.5)', () => {
-    const html = renderToString(
-      <LevelPlay level={makeLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
-    )
-    expect(html).not.toContain('<aside')
+// The old PISTAS rail presence describe block is replaced by this one
+// (adventure-flow-and-map-guidance T6, docs/18 §4.3-§4.4): the rail's ROLE
+// inside LevelPlay is now `detective/TrailProgressBar.tsx`, driven by the
+// `progress` prop (`zoo/progress.ts`'s `adventureProgress`) rather than by
+// `isCase` alone. `detective/PistasRail.tsx` itself is untouched and keeps
+// its own test file for the hen's unrelated deduction-screen case summary.
+describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)', () => {
+  it('renders no bar for an ordinary level, a world-only level, or a case level with no ADVENTURES row of its own (no `progress` prop reaches any of them)', () => {
+    for (const level of [makeLevel(), makeWorldOnlyLevel(), makeDetectiveLevel()]) {
+      const html = renderToString(
+        <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      // LAYOUT_CSS's own <style> tag always carries the .pistas-bar SELECTOR
+      // (it is a static string), so the negative check has to read the body
+      // only — the same trap the sign/pill tests above already avoid.
+      const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+      expect(body, level.id).not.toContain('pistas-bar')
+    }
   })
 
-  it('renders no rail for a world-only level, even though it is drawn in the detective world (level-engine spec "A Nivel 3 world-only level renders no rail")', () => {
+  it('renders no bar even for a real adventure level when the caller passes no progress (every pre-T6 caller keeps working)', () => {
+    const html = renderToString(
+      <LevelPlay level={getLevel('duck-trail1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    expect(body).not.toContain('pistas-bar')
+  })
+
+  it('a mid-adventure duck trail shows earned clue art for a filed level and drained for the rest, in play order', () => {
+    const progress = adventureProgress('duck-trail2', filedRecords(['duck-trail1']))!
     const html = renderToString(
       <LevelPlay
-        level={makeWorldOnlyLevel()}
+        level={getLevel('duck-trail2')}
         record={EMPTY_RECORD}
         onAttempt={noop}
         onNext={noop}
         onBack={noop}
+        progress={progress}
       />,
     )
-    expect(html).not.toContain('<aside')
+    expect(html).toContain('class="pistas-bar"')
+    expect(html).toContain(CLUE_ART.webfoot.art.earned.href) // duck-trail1, filed
+    expect(html).not.toContain(CLUE_ART.webfoot.art.drained.href)
+    expect(html).toContain(CLUE_ART.breadcrumb.art.drained.href) // duck-trail2, current, unfiled
+    expect(html).not.toContain(CLUE_ART.breadcrumb.art.earned.href)
+    expect(html).toContain(CLUE_ART.bubble.art.drained.href) // duck-trail3, unfiled
+    expect(html).toContain(CLUE_ART.feather.art.drained.href) // duck-trail4, unfiled
   })
 
-  it('a fresh detective trail starts with the rail drained and the lamp off', () => {
-    const level = makeDetectiveLevel()
+  it('marks the level actually being played as current, and gives the bar one accessible name counting filed slots', () => {
+    const progress = adventureProgress('duck-trail2', filedRecords(['duck-trail1']))!
     const html = renderToString(
-      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      <LevelPlay
+        level={getLevel('duck-trail2')}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+        progress={progress}
+      />,
     )
-    expect(html).toContain('<aside')
-    // Every clue the child can see is still in its DRAINED state, the lamp
-    // included. With raster art this is an href check rather than a colour
-    // check, but it pins the same thing: nothing on screen may claim a
-    // reward the child has not earned yet.
-    expect(html).toContain(CLUE_ART.droplet.art.drained.href)
-    expect(html).not.toContain(CLUE_ART.droplet.art.earned.href)
-    expect(html).toContain(LAMP_ART.off.href)
-    expect(html).not.toContain(LAMP_ART.on.href)
-    // The earned droplet colour (POND) must not reach the rail's socket
-    // either — the colour token half of the contract is unchanged.
-    expect(html).not.toContain('#3f6f8f')
+    expect(html).toContain('pistas-slot-shell-current')
+    expect(html).toContain('aria-label="Camino hacia el pato: 1 de 4"')
   })
 
-  it('keeps the PISTAS storage cue outside active tracing and provides a reduced-motion fallback', () => {
+  it('shows the animal as a dark silhouette until rescued, then in colour', () => {
+    const midway = adventureProgress('duck-trail2', filedRecords(['duck-trail1']))!
+    const html = renderToString(
+      <LevelPlay level={getLevel('duck-trail2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={midway} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    expect(body).toContain(`src="${ZOO_ANIMAL_ART.pato.href}"`)
+    expect(body).toContain('class="pistas-animal"')
+    expect(body).not.toContain('pistas-animal-rescued')
+
+    const rescued = adventureProgress(
+      'duck-trail4',
+      filedRecords(['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4']),
+    )!
+    const rescuedHtml = renderToString(
+      <LevelPlay level={getLevel('duck-trail4')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={rescued} />,
+    )
+    expect(rescuedHtml.replace(/<style>[\s\S]*?<\/style>/, '')).toContain('class="pistas-animal pistas-animal-rescued"')
+  })
+
+  it('leaves an animal-less adventure (night) with no end-cap at all', () => {
+    const progress = adventureProgress('night2', {})!
+    expect(progress.animal).toBeUndefined()
+    const html = renderToString(
+      <LevelPlay level={getLevel('night2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={progress} />,
+    )
+    expect(html.replace(/<style>[\s\S]*?<\/style>/, '')).not.toContain('pistas-animal')
+  })
+
+  it('shows a star for a filed level with no clue art yet (sheep), and an empty socket while unfiled — never a dim placeholder star', () => {
+    const progress = adventureProgress('sheep-hill2', filedRecords(['sheep-hill1']))!
+    const html = renderToString(
+      <LevelPlay level={getLevel('sheep-hill2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={progress} />,
+    )
+    // sheep-hill1 (filed, no clue) earns exactly one star image; sheep-hill2
+    // (current, unfiled, no clue) gets no image in its own socket at all.
+    expect(html.split(ZOO_STAR_ART.href).length - 1).toBe(1)
+  })
+
+  it('keeps the flight/store-pop/spark animations reusable from the old rail, with a reduced-motion fallback', () => {
     expect(LAYOUT_CSS).toContain('@media (prefers-reduced-motion: reduce)')
     expect(LAYOUT_CSS).toContain('.pistas-flight { display: none; }')
     expect(LAYOUT_CSS).toContain('pistas-fly-home')
@@ -659,12 +739,12 @@ describe('LevelPlay PISTAS rail presence (design unit 5/6)', () => {
     expect(LAYOUT_CSS).toContain('pistas-slot-spark')
   })
 
-  it('keeps every PISTAS slot visible on narrow portrait screens', () => {
-    expect(LAYOUT_CSS).toContain('@media (max-width: 559px)')
-    expect(LAYOUT_CSS).toContain('max-width: calc(100vw - 24px)')
-    expect(LAYOUT_CSS).toContain('flex-wrap: wrap')
-    expect(LAYOUT_CSS).toContain('flex: 0 0 100%')
-    expect(LAYOUT_CSS).toContain('justify-content: center')
+  it('centres the bar absolutely inside .cv-head, costing that row no height, and hides nothing extra in narrow portrait (the bar is tiny, unlike the old full-width word)', () => {
+    // T6 (orchestrator brief, restating T3/T5's own lesson): a bar in its own
+    // row cost .cv-sheet ~84px of height. This one is absolutely positioned
+    // and centred, the same technique the enclosure sign (T5) already uses.
+    expect(LAYOUT_CSS).toMatch(/\.pistas-bar\s*\{\s*position:\s*absolute;/)
+    expect(LAYOUT_CSS).toContain('.cv-top > .cv-head-wide { flex: 1 1 auto; }')
   })
 })
 
@@ -1066,30 +1146,17 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     expect(art?.size).toBe(96)
   })
 
-  it('sends the lamp as endArt, OFF before the trail is finished', () => {
+  // T6 (adventure-flow-and-map-guidance) drops the generic case lamp: docs/18
+  // §4.3's "the trail's goal shows the item instead of the light bulb when
+  // feasible". `makeDetectiveLevel`'s own default clue (droplet) is what a
+  // plain case level with no ADVENTURES row of its own (the hen's case
+  // included) now shows at the end instead.
+  it("sends the level's own clue art as endArt, drained before the trail is finished", () => {
     render(makeDetectiveLevel())
     const art = traceCanvasProbe.current?.endArt as Art
-    expect(art?.href).toBe(LAMP_ART.off.href)
-    expect(art?.href).not.toBe(LAMP_ART.on.href)
-  })
-
-  it('keeps the sheet lamp separate from the rail lamp: neither is lit on a fresh trail', () => {
-    // Two lamps, two sentences. The rail's means "the clue is filed"; this
-    // one means "you got here". They coincide on a finished trail and are
-    // still not the same statement — this asserts the starting state of both,
-    // which is the only one a server render can observe.
-    const html = renderToString(
-      <LevelPlay
-        level={makeDetectiveLevel()}
-        record={EMPTY_RECORD}
-        onAttempt={noop}
-        onNext={noop}
-        onBack={noop}
-      />,
-    )
-    expect((traceCanvasProbe.current?.endArt as Art)?.href).toBe(LAMP_ART.off.href)
-    expect(html).toContain(LAMP_ART.off.href) // the rail's, unlit too
-    expect(html).not.toContain(LAMP_ART.on.href)
+    expect(art?.href).toBe(CLUE_ART.droplet.art.drained.href)
+    expect(art?.href).not.toBe(CLUE_ART.droplet.art.earned.href)
+    expect(art?.size).toBe(84)
   })
 
   it('sends neither on an ordinary level, which keeps its green dot and its diamonds', () => {
@@ -1105,17 +1172,45 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     expect(art?.href).toBe(goalArt.href)
     expect(art?.w).toBe(goalArt.w)
     expect(art?.h).toBe(goalArt.h)
-    // A creature, peer of the octopus's 96 — never the lamp's 84.
+    // A creature, peer of the octopus's 96 — never the case/adventure marks'
+    // shared 84.
     expect(art?.size).toBe(96)
   })
 
-  it('goalArt WINS over the case lamp when both are present: a level\'s own content beats a default it did not ask for', () => {
+  it("goalArt WINS over the case's own clue art when both are present: a level's own content beats a default it did not ask for", () => {
     const goalArt = { href: '/art/test-goal.png', w: 200, h: 240 }
     render(makeDetectiveLevel({ goalArt }))
     const art = traceCanvasProbe.current?.endArt as Art
     expect(art?.href).toBe(goalArt.href)
-    expect(art?.href).not.toBe(LAMP_ART.off.href)
-    expect(art?.href).not.toBe(LAMP_ART.on.href)
+    expect(art?.href).not.toBe(CLUE_ART.droplet.art.drained.href)
+    expect(art?.href).not.toBe(CLUE_ART.droplet.art.earned.href)
+  })
+
+  // The other two T6 endArt branches — both keyed off a REAL ADVENTURES row,
+  // never off the synthetic `makeDetectiveLevel` fixture (which belongs to
+  // none): the last level of an animal-recovering adventure shows the
+  // encounter itself, even though `duck-trail4` ALSO carries its own clue
+  // (feather) — the encounter wins. Every other routed level of a
+  // multi-level adventure with no clue of its own (sheep has none yet, per
+  // docs/18 §4.4) shows the star instead.
+  it('shows the animal (the encounter) on the LAST level of an animal-recovering adventure, even though it also has a clue', () => {
+    render(getLevel('duck-trail4'))
+    const art = traceCanvasProbe.current?.endArt as Art
+    expect(art?.href).toBe(ZOO_ANIMAL_ART.pato.href)
+    expect(art?.href).not.toBe(CLUE_ART.feather.art.drained.href)
+    expect(art?.size).toBe(84)
+  })
+
+  it('shows the star on every other routed level of a multi-level adventure with no clue of its own (sheep)', () => {
+    for (const id of ['sheep-hill1', 'sheep-hill2', 'sheep-hill3'] as const) {
+      render(getLevel(id))
+      const art = traceCanvasProbe.current?.endArt as Art
+      expect(art?.href, id).toBe(ZOO_STAR_ART.href)
+    }
+    // sheep-hill4 is the adventure's own last level and recovers oveja: the
+    // animal wins over the star fallback there.
+    render(getLevel('sheep-hill4'))
+    expect((traceCanvasProbe.current?.endArt as Art)?.href).toBe(ZOO_ANIMAL_ART.oveja.href)
   })
 
   it('sends the octopus on a world-only level (inDetectiveWorld), but no lamp (endArt stays gated on isCaseTrail alone in S1)', () => {

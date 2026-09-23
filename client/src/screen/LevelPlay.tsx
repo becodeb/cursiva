@@ -30,6 +30,7 @@ import TraceCanvas, {
 } from '../canvas/TraceCanvas'
 import { backdropFor, TORCH_CHALK, TORCH_CHALK_DIM } from '../zoo/backdrops'
 import { adventureFor } from '../zoo/adventures'
+import type { AdventureProgress } from '../zoo/progress'
 import { debugClearedTiles, EMPTY_REVEAL, revealTick, revealTiles, type RevealState } from '../levels/revealGrid'
 import {
   arrangeDebugCount,
@@ -108,12 +109,13 @@ import {
   CLUE_ART,
   GROUND_GRASS,
   GROUND_MUD,
-  LAMP_ART,
   OCTOPUS_ART,
   SIGN_ART,
+  ZOO_ANIMAL_ART,
+  ZOO_STAR_ART,
 } from '../detective/assets'
 import CaptionedArt from '../detective/CaptionedArt'
-import PistasRail, { type PistasSlot } from '../detective/PistasRail'
+import TrailProgressBar from '../detective/TrailProgressBar'
 import { BackIcon, ContinueIcon, ReplayIcon, RetryIcon } from '../detective/icons'
 
 /** Seconds one demonstration sub-path takes, and the gap before the next one. */
@@ -196,16 +198,18 @@ export const CLUE_MARK_SIZE = 28
  * rather than being bisected by it. */
 const OCTOPUS_SIZE = 96
 
-/** Rendered HEIGHT of the lamp standing at the end, a little under the
- * octopus. Both states are drawn from the LIT source (see `build_art.py`'s
- * `SINGLES`), so the unlit bulb carries the same ink contour every other
- * drained mark has and reads at this size without being oversized to
- * compensate for having no contrast of its own. */
-const LAMP_SIZE = 84
+/** Rendered HEIGHT of whatever stands at the route's end, a little under the
+ * octopus at its start (T6, adventure-flow-and-map-guidance: renamed from
+ * `LAMP_SIZE` once the goal stopped being only ever the case lamp — a
+ * case's own clue art, an adventure's animal encounter and its star reward
+ * all share this one size now, the same way the lamp's two states always
+ * did: reads at this size without being oversized to compensate for a
+ * drained mark's own lower contrast). */
+const END_MARK_SIZE = 84
 
 /** Rendered HEIGHT of a level's own `goalArt` (design.md §5) — a creature,
- * peer of {@link OCTOPUS_SIZE}, not of `LAMP_SIZE`: the medusa is Nivel 3's
- * content, not a case default. */
+ * peer of {@link OCTOPUS_SIZE}, not of `END_MARK_SIZE`: the medusa is Nivel
+ * 3's content, not a case default. */
 const GOAL_ART_SIZE = 96
 
 function isSandRevealLevel(levelId: string): boolean {
@@ -583,40 +587,71 @@ html, body, #root { margin: 0; padding: 0; }
   border: 0;
 }
 
-/* PISTAS bar (design unit 5, level-engine spec "PISTAS Rail Chrome"; defect
- * fix: shipped as a vertical column down the right edge, one letter under
- * the next — the user's own sketch writes the word HORIZONTALLY and asked
- * for it at the top, "como una especie de nav bar así no molesta"). A
- * full-width horizontal row above .cv-sheet, drawn big (defect fix:
- * "hacé todo bien grande" — it read too small before). Present only on a
- * detective trail (LevelPlay's own branch) — every other phase renders no
- * PistasRail at all, so its layout is untouched. */
+/* Adventure trail progress bar (adventure-flow-and-map-guidance T6, docs/18
+ * §4.3-§4.4; supersedes the old PISTAS rail — D19: "PISTAS" read as an
+ * abstract word and its light bulb meant "idea", neither said WHO or WHY).
+ * detective/TrailProgressBar.tsx is the new component; it targets these
+ * SAME class names (pistas-bar, pistas-slot-shell, pistas-slot,
+ * pistas-flight and its three keyframes below) on purpose — reusing them
+ * is what keeps the flight-home animation and the caption licence
+ * (captionAudit.ts's CAPTION_CONTAINERS already lists pistas-bar) without
+ * touching either. detective/PistasRail.tsx itself is UNCHANGED and keeps
+ * its OWN, unrelated use of these exact names for the hen's deduction-
+ * screen case summary (screen/Deduction.tsx) — CSS classes are global, but
+ * only one of the two screens is ever mounted at a time, so the
+ * redefinition below (sized and positioned for THIS screen's .cv-head)
+ * never reaches that other screen's own stylesheet.
+ *
+ * It lives centred in .cv-head now, not in its own row above the sheet —
+ * the same move already made for the enclosure sign (T5), for the same
+ * measured reason (T3/T5's lesson, restated in this task's own brief): an
+ * extra row in the flex column cost .cv-sheet ~84px of height. zooSign and
+ * a real progress never both hold for the same level (a signed entrance
+ * enclosure is always a single-level ADVENTURES row, which
+ * adventureProgress returns null for), so the two share this exact centred
+ * slot in .cv-head without ever colliding. */
 .pistas-bar {
-  flex: 0 0 auto;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 18px;
-  margin: 0 auto;
-  padding: 7px 12px 9px;
-  border: 2px solid rgba(63, 111, 143, 0.24);
-  border-radius: 22px;
-  background: rgba(255, 253, 244, 0.88);
-  box-shadow: 0 10px 24px rgba(30, 41, 59, 0.13), inset 0 -3px 0 rgba(63, 111, 143, 0.08);
+  gap: 10px;
+  pointer-events: none;
 }
-.pistas-lamp-row { flex: 0 0 auto; display: flex; }
-/* The word is TYPESET now, not six hand-drawn polylines. Decision D6 ("no
-   font-based text in the rail") was taken when this app declared no typeface
-   at all; it now loads Nunito at the document root, so the constraint that
-   justified drawing letters out of M/L segments is gone. The drawn word could
-   not make a round S — it came out a stepped zig-zag — and a uniform 8-unit
-   monoline is the opposite of §1's "formas gordas y generosas".
-   Weight 800 is the heaviest Nunito ships here, which is what puts it in the
-   same register as the thick-marker art instead of beside it. */
-.pistas-word { flex: 0 0 auto; font-weight: 800; font-size: 84px; line-height: 1;
-  letter-spacing: 0.03em; color: #1e293b; -webkit-font-smoothing: antialiased; }
-.pistas-slots { flex: 0 0 auto; display: flex; flex-direction: row; align-items: center; gap: 12px; }
+.pistas-slots { flex: 0 0 auto; display: flex; flex-direction: row; align-items: center; gap: 6px; }
 .pistas-slot-shell { position: relative; display: inline-flex; align-items: center; justify-content: center; border-radius: 13px; }
+/* The current level's own slot (D20/D21's "no festejo" complaint, restated
+ * for the bar: the child should be able to find "which one is THIS tramo"
+ * at a glance). A thicker ring, not a colour change — colour on this bar is
+ * reserved for "earned", so the current marker has to be shape/weight only.
+ * Static under reduced motion, same convention .cv-next-ready uses. */
+.pistas-slot-shell-current::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 2.5px solid rgba(37, 99, 235, 0.75);
+  border-radius: 16px;
+  animation: pistas-current-pulse 1.6s ease-in-out infinite;
+}
+@keyframes pistas-current-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pistas-slot-shell-current::before { animation: none; opacity: 1; }
+}
+/* The animal being searched for, at the end of the bar (docs/18 §4.3,
+ * "Encuentro"). filter: brightness(0) plus a lowered opacity on a plain
+ * HTML img — never an SVG filter referencing a fragment id, which this
+ * repo's own header comment (canvas/TraceCanvas.tsx) bans for hydrating
+ * blank on a real device; a CSS filter on an img resolves with no
+ * referenced def at all, so nothing here can hit that failure mode. */
+.pistas-animal { display: inline-flex; margin-left: 2px; }
+.pistas-animal img { display: block; filter: brightness(0); opacity: 0.5; }
+.pistas-animal-rescued img { filter: none; opacity: 1; }
 .pistas-slot { display: block; border-radius: 13px; background: rgba(255,255,255,0.42); }
 .pistas-slot-shell-filed .pistas-slot {
   animation: pistas-store-pop 760ms cubic-bezier(.2,.9,.25,1.2) both;
@@ -770,11 +805,12 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-coach { margin: 4px 0 0; font-size: 18px; }
   .cv-btn { min-height: 52px; padding: 0 22px; font-size: 18px; }
   .cv-btn-back { min-height: 48px; }
-  .pistas-bar { gap: 14px; padding: 5px 10px 7px; border-radius: 18px; }
-  .pistas-word { font-size: 62px; }
-  .pistas-lamp-row svg { width: 34px; height: 34px; }
-  .pistas-slots { gap: 8px; }
-  .pistas-slots svg { width: 30px; height: 30px; }
+  .pistas-slots { gap: 5px; }
+  /* Both target viewports at this breakpoint (1280x720, 1024x768) want the
+   * whole bar around 40px tall — the animal end-cap is the tallest element,
+   * so it alone is sized to the target; the slots stay a little under it. */
+  .pistas-slots svg { width: 34px; height: 34px; }
+  .pistas-animal img { height: 40px; }
   /* width: 47px -> ~50px tall, comfortably inside the 48px back button row
    * this breakpoint sets just above (1280x720 and 1024x768 both land here). */
   .cv-level-zoo-sign > svg { width: 47px; }
@@ -812,49 +848,24 @@ html, body, #root { margin: 0; padding: 0; }
   }
   .cv-top { justify-content: flex-start; }
   .cv-top > .cv-head { flex: 0 0 auto; }
-  /* A head that carries the enclosure sign must span the whole row: the sign
-   * is centred on .cv-head's own box, and a head shrunk to the back button
-   * put the sign on top of the button (measured at 844x390). A sign level is
-   * always a drawn place, so there is no hint beside it to share the row. */
-  .cv-top > .cv-head-signed { flex: 1 1 auto; }
+  /* A head that carries the enclosure sign OR the adventure bar must span
+   * the whole row: both are centred on .cv-head's own box, and a head
+   * shrunk to the back button put the sign on top of the button (measured
+   * at 844x390) — the same overlap a bar would hit for the same reason. A
+   * level that shows either is always a drawn place, so there is no hint
+   * beside it to share the row. */
+  .cv-top > .cv-head-wide { flex: 1 1 auto; }
   .cv-title { white-space: nowrap; }
   .cv-hint { flex: 1 1 auto; min-width: 0; }
   .cv-result { flex: 0 1 auto; min-height: 0; min-width: 0; }
   .cv-actions { flex: 0 0 auto; }
 
-  /* The bar is already a horizontal row at every height — a short viewport
-   * only needs it SMALLER, not restructured, so every row reclaimed here
-   * still goes straight into canvas height. */
-  .pistas-bar { gap: 8px; padding: 3px 8px 5px; border-radius: 14px; }
-  .pistas-word { font-size: 36px; }
-  .pistas-lamp-row svg { width: 22px; height: 22px; }
-  .pistas-slots { gap: 5px; }
-  .pistas-slots svg { width: 18px; height: 18px; }
-}
-
-/* Narrow upright phones cannot spend the whole row on a single 84px word.
- * Portrait already replaces active tracing with rotate guidance, so the rail
- * can become a compact two-line tray: lamp + title on the first line, all four
- * slots together on the second. The width cap is the contract here — the rail
- * must stay inside the viewport instead of sliding under Back/actions. */
-@media (max-width: 559px) {
-  .pistas-bar {
-    max-width: calc(100vw - 24px);
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 5px 8px;
-    padding: 5px 8px 7px;
-    border-radius: 16px;
-  }
-  .pistas-word { font-size: 42px; }
-  .pistas-lamp-row svg { width: 24px; height: 24px; }
-  .pistas-slots {
-    flex: 0 0 100%;
-    justify-content: center;
-    gap: 7px;
-  }
-  .pistas-slots svg { width: 28px; height: 28px; }
-  .pistas-slot-shell-filed::after { inset: -5px; border-width: 2px; border-radius: 14px; }
+  /* The bar is already centred at every height — a short viewport only
+   * needs it SMALLER, never restructured, so every pixel reclaimed here
+   * still goes straight into canvas height (844x390 lands here). */
+  .pistas-slots { gap: 4px; }
+  .pistas-slots svg { width: 26px; height: 26px; }
+  .pistas-animal img { height: 32px; }
 }
 `
 
@@ -865,6 +876,17 @@ export interface LevelPlayProps {
   onAttempt: (attempt: LevelAttempt) => void
   onNext: () => void
   onBack: () => void
+  /**
+   * This level's own adventure progress (`zoo/progress.ts`'s
+   * `adventureProgress`), or `undefined`/`null` for a level with no bar to
+   * show (no adventure at all, or a single-level one — see that function's
+   * own doc). OPTIONAL: every caller that predates T6 (every hand-built test
+   * fixture in this file) keeps rendering byte-identically without it.
+   * `GameScreen` recomputes this from the store on every render, which is
+   * what makes it advance the instant an attempt is saved — see that
+   * screen's own `version` bump.
+   */
+  progress?: AdventureProgress | null
 }
 
 /**
@@ -1154,7 +1176,7 @@ function Pillar({
   )
 }
 
-export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: LevelPlayProps) {
+export default function LevelPlay({ level, record, onAttempt, onNext, onBack, progress }: LevelPlayProps) {
   // Building the dense ideal cloud is the expensive part of a level load; it
   // may only re-run when the level or the adaptive width actually changes.
   const target = useMemo(
@@ -1298,8 +1320,17 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
   // `onRelease`'s existing approval signal — never the marks alone (spec
   // scenario "Filing is refused mid-trace", D5): all marks earned but the
   // route not completed must leave both of these exactly where they started.
+  //
+  // [T6, adventure-flow-and-map-guidance] The old rail's OWN local
+  // `clueFiled`/`setClueFiled` state is gone: the new bar's "filed" comes
+  // from `progress` (store-derived, `zoo/progress.ts`), which is what makes
+  // it advance for every slot, not only the current one, and what makes it
+  // recompute correctly across a level change without a local reset effect
+  // to remember. `shouldFileClue` itself is untouched below — it is still
+  // directly unit-tested as the documented rule ("filing rides arc
+  // progress, not approval") even though nothing in this component calls it
+  // as a production decision any more.
   const [clueState, setClueState] = useState<ClueState>(() => emptyClueState(trailClueMarks.length))
-  const [clueFiled, setClueFiled] = useState(false)
   // Whether THIS run has reached the end of the trail — the one thing a
   // detective trail asks (`reachedTrailEnd`). It drives the lamp standing at
   // the end of the route, which lights the moment the child arrives rather
@@ -1422,7 +1453,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     setPhase(playDemo ? 'demo' : 'ready')
     resetSurface()
     setClueState(emptyClueState(trailClueMarks.length))
-    setClueFiled(false)
   }, [level.id, playDemo, resetSurface, trailClueMarks.length])
 
   useEffect(() => {
@@ -1814,12 +1844,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       setAttempt(result)
       setPhase('result')
       if (result.approved) playApprovalTone() // best-effort, approval only
-      // Trail completion lamp and rail filing (spec: detective-mode "Trail
-      // Completion Lamp and Rail Filing"). Filed only ever flips false → true.
-      // Filing now rides ARC PROGRESS, not `result.approved` — see
-      // `shouldFileClue`. `result` is still computed, still shown and still
-      // reported to `onAttempt` exactly as before on every level.
-      if (shouldFileClue(!!clueDef, reachedEndRef.current)) setClueFiled(true)
+      // `result` is reported to `onAttempt` exactly as before on every
+      // level — the parent (`GameScreen`) persists it and bumps its own
+      // `version`, which is what recomputes this level's `progress` prop
+      // (`zoo/progress.ts`) with this attempt's own filing already in it.
       onAttempt(result)
     },
     [target, onAttempt, clueDef, arrangeOpen, level.spines, level.reveal, spinePin, feedback.haptics],
@@ -1855,16 +1883,49 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     [level.kind, target],
   )
   // Registry art standing where the route ends, in place of the two hollow
-  // diamonds AND the case lamp (design.md §5). `goalArt` WINS over the lamp:
-  // a level's own content beats a default it did not ask for. Orthogonal to
-  // `home/caseState.ts`'s lamp — no Nivel 3 id is in any case's `trailIds`,
-  // so it cannot move the office lamp by construction, and `trailLampOn`
-  // stays gated on `isCase` above, so a `goalArt` level never latches it.
+  // diamonds AND (T6, adventure-flow-and-map-guidance) the case lamp itself
+  // — docs/18 §4.3's "the trail's goal shows the item instead of the light
+  // bulb when feasible". Priority, in order:
+  //
+  //  1. `level.goalArt` (design.md §5) WINS over everything below: a
+  //     level's own content beats a default it did not ask for. Orthogonal
+  //     to `home/caseState.ts`'s lamp — no Nivel 3 id is in any case's
+  //     `trailIds`, so it cannot move the office lamp by construction.
+  //  2. The LAST level of an adventure that recovers an animal
+  //     (`zoo/adventures.ts`'s `AdventureSubject.animal`) shows THAT
+  //     animal — the encounter (docs/18 §4.3) — even when the level ALSO
+  //     carries its own clue (`duck-trail4` does: `feather`). The animal is
+  //     what this specific tramo is walking toward; a clue's own drained/
+  //     earned pair would say nothing the last tramo's own payoff needs.
+  //  3. Any OTHER case (clue) level shows its OWN clue's drained/earned
+  //     pair instead of the generic lamp bulb — literally the "something
+  //     the animal left behind" docs/18 §4.4 describes, drained until
+  //     `trailLampOn` (reused byte-for-byte: an arrival, not an approval —
+  //     see that state's own comment above) says the end is reached.
+  //  4. Every OTHER routed level of a multi-level adventure (an
+  //     `ADVENTURES` row with more than one level — the same "single-level
+  //     row" exclusion `zoo/progress.ts`'s `adventureProgress` applies)
+  //     shows the star (`ZOO_STAR_ART`) docs/18 §4.4 already uses in the
+  //     bar itself: reaching it is EARNING it, the same sentence the map's
+  //     own star counter tells.
+  //  5. Everything else (an ordinary letter level, a level in no adventure
+  //     at all) keeps rendering nothing here, byte-identical to before.
+  const adventure = adventureFor(level.id)
+  const isLastOfAnimalAdventure =
+    !!adventure && adventure.animal !== undefined && adventure.levelIds[adventure.levelIds.length - 1] === level.id
+  const isOtherRoutedAdventureLevel = !!adventure && adventure.levelIds.length > 1 && !isLastOfAnimalAdventure
   const endArt = level.goalArt
     ? { ...level.goalArt, size: GOAL_ART_SIZE }
-    : isCase
-      ? { ...(trailLampOn ? LAMP_ART.on : LAMP_ART.off), size: LAMP_SIZE }
-      : undefined
+    : isLastOfAnimalAdventure
+      ? { ...ZOO_ANIMAL_ART[adventure!.animal!], size: END_MARK_SIZE }
+      : clueDef
+        ? {
+            ...(trailLampOn ? CLUE_ART[clueDef.kind].art.earned : CLUE_ART[clueDef.kind].art.drained),
+            size: END_MARK_SIZE,
+          }
+        : isOtherRoutedAdventureLevel
+          ? { ...ZOO_STAR_ART, size: END_MARK_SIZE }
+          : undefined
 
   // The corridor object is memoized so `TraceCanvas` can derive the tapered
   // geometry once per level instead of once per render.
@@ -2144,18 +2205,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     return debugCarrier(level.waypoints, waypointDebugK)
   }, [level.waypoints, waypointDebugK])
 
-  // The rail's slot data. This slice only has visibility into the CURRENT
-  // trail — the other three trails' persisted state is wired once the
-  // catalog and `LevelProgressStore` are in scope (a later slice; see the
-  // deviation note in apply-progress.md). `PistasRail` pads the remaining
-  // slots with drained placeholders on its own.
-  const railSlots = useMemo<PistasSlot[]>(
-    () => (clueDef ? [{ kind: clueDef.kind, filed: clueFiled }] : []),
-    [clueDef, clueFiled],
-  )
-
   const mainClassName = `${ground ? 'cv-play cv-play-ground' : 'cv-play'}${portraitGuidanceActive ? ' cv-play-portrait-guided' : ''}`
   const zooSign = PROLOGUE_ZOO_SIGNS[level.id as keyof typeof PROLOGUE_ZOO_SIGNS]
+  // Named once so both the head's own width class and the bar's render
+  // gate agree on the same truthiness check — `progress` is `undefined` for
+  // every pre-T6 caller and `null` for a real level with nothing to show
+  // (`zoo/progress.ts`'s own return type); both mean the same thing here.
+  const hasProgressBar = !!progress
 
   return (
     <main
@@ -2171,7 +2227,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
     >
       <style>{LAYOUT_CSS}</style>
       <div className="cv-top">
-      <header className={zooSign ? 'cv-head cv-head-signed' : 'cv-head'}>
+      <header className={`cv-head${zooSign || hasProgressBar ? ' cv-head-wide' : ''}`}>
         <button
           type="button"
           onClick={onBack}
@@ -2201,6 +2257,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
             className="cv-level-zoo-sign"
           />
         )}
+        {/* T6 (adventure-flow-and-map-guidance): the adventure progress bar
+         * takes the exact same slot the sign does, for the same reason —
+         * `zooSign` and `progress` never both hold for the same level (a
+         * signed entrance enclosure is always a single-level ADVENTURES
+         * row, which `adventureProgress` returns `null` for), so there is
+         * never a fight over the centre of this row. */}
+        {progress && <TrailProgressBar progress={progress} />}
         {/* No level title in the detective world (Orchestrator Correction C1:
          * "Hace todo bien grande, bien simple la pantalla, sin texto"). Every
          * other phase keeps this heading exactly as shipped — this is a
@@ -2231,11 +2294,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           <span>Para dibujar cómodo, usá el juego en horizontal. Podés volver al mapa con el botón Volver.</span>
         </section>
       )}
-      {/* PISTAS bar (design unit 5, level-engine spec "PISTAS Rail Chrome"):
-       * a horizontal bar across the TOP of the screen, a flex sibling of
-       * `.cv-sheet` — never inside the canvas's viewBox. Present only on a
-       * case trail, never for a world-only level with no clue (D1). */}
-      {isCase && <PistasRail slots={railSlots} lampOn={clueFiled} />}
       <div className="cv-sheet">
         <TraceCanvas
         key={`${level.id}-${demoRun}`}
@@ -2309,13 +2367,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         // "where the letter ends" is real information, not decoration. At the
         // 'none' band it goes too, or `f5-mama` would stop being a memory test.
         endMarker={showMarkers ? endMarker : undefined}
-        // The lamp stands where the route ends, in place of the two diamonds,
-        // UNLESS the level supplies its own `goalArt` (design.md §5) — see
-        // the `endArt` derivation above. The lamp means "llegaste" and is OFF
-        // until this run reaches the end and ON after, a different sentence
-        // from the rail's own lamp (`lampOn={clueFiled}`, "the clue is
-        // filed"); the two coincide on a finished trail but are not the same
-        // statement.
+        // Whatever stands where the route ends (see the `endArt` derivation
+        // above: goalArt, an adventure's own animal, a case's clue, or a
+        // star) is drained/off until `trailLampOn` says this run has
+        // reached the end, then earned/on after — "llegaste", never
+        // "aprobaste" (`trailLampOn`'s own onFrame comment). That is a
+        // different sentence from the BAR's own "filed" state below
+        // (store-derived, approval-gated): the two usually coincide on a
+        // finished trail but are not the same statement.
         endArt={endArt}
         // No arrow in the detective world. The octopus standing at one end and
         // the lamp/goal art at the other already say "from here to there", and

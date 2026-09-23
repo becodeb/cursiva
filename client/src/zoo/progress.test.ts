@@ -1,0 +1,74 @@
+// adventureProgress (adventure-flow-and-map-guidance T6). Pure, no DOM — the
+// same convention `sectors.test.ts`/`stars.test.ts` already follow.
+import { describe, expect, it } from 'vitest'
+import { EMPTY_RECORD, type LevelRecord } from '../game/types'
+import type { Records } from './sectors'
+import { adventureProgress } from './progress'
+
+function recordsFor(filedIds: readonly string[]): Records {
+  const out: Record<string, LevelRecord> = {}
+  for (const id of filedIds) out[id] = { ...EMPTY_RECORD, attempts: 1, approvals: 1 }
+  return out
+}
+
+describe('adventureProgress', () => {
+  it('resolves null for a level belonging to no ADVENTURES row at all (medusa f2-*)', () => {
+    expect(adventureProgress('f2-guirnalda', {})).toBeNull()
+    expect(adventureProgress('f2-agua2', {})).toBeNull()
+  })
+
+  it('resolves null for the entrance (a single-level row): a "1 of 1" bar says nothing new', () => {
+    expect(adventureProgress('glass1', {})).toBeNull()
+    expect(adventureProgress('sand1', {})).toBeNull()
+    expect(adventureProgress('glass3', {})).toBeNull()
+    expect(adventureProgress('sand3', {})).toBeNull()
+  })
+
+  it('reports a mid-adventure duck trail: filed levels, the current one flagged, clues in play order', () => {
+    const progress = adventureProgress('duck-trail2', recordsFor(['duck-trail1']))
+    expect(progress).toEqual({
+      adventureId: 'duck',
+      animal: 'pato',
+      rescued: false,
+      slots: [
+        { levelId: 'duck-trail1', clue: 'webfoot', filed: true, current: false },
+        { levelId: 'duck-trail2', clue: 'breadcrumb', filed: false, current: true },
+        { levelId: 'duck-trail3', clue: 'bubble', filed: false, current: false },
+        { levelId: 'duck-trail4', clue: 'feather', filed: false, current: false },
+      ],
+    })
+  })
+
+  it('leaves clue undefined for an adventure with no clue art yet (sheep): the caller draws a star instead', () => {
+    const progress = adventureProgress('sheep-hill1', {})
+    expect(progress?.animal).toBe('oveja')
+    for (const slot of progress!.slots) {
+      expect(slot.clue, slot.levelId).toBeUndefined()
+    }
+  })
+
+  it('reports rescued once every level of the adventure is filed', () => {
+    const allFour = recordsFor(['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4'])
+    const progress = adventureProgress('duck-trail4', allFour)
+    expect(progress?.rescued).toBe(true)
+    expect(progress?.slots.every((s) => s.filed)).toBe(true)
+    expect(progress?.slots.find((s) => s.current)?.levelId).toBe('duck-trail4')
+  })
+
+  it('is not rescued while any level of the adventure is still unfiled', () => {
+    const progress = adventureProgress('duck-trail4', recordsFor(['duck-trail1', 'duck-trail2', 'duck-trail3']))
+    expect(progress?.rescued).toBe(false)
+  })
+
+  it('leaves animal undefined for an animal-less multi-level adventure (night)', () => {
+    const progress = adventureProgress('night2', {})
+    expect(progress?.adventureId).toBe('night')
+    expect(progress?.animal).toBeUndefined()
+    expect(progress?.slots).toHaveLength(4)
+  })
+
+  it('flags exactly the one level actually being played as current', () => {
+    const progress = adventureProgress('sheep-hill3', {})
+    expect(progress?.slots.map((s) => s.current)).toEqual([false, false, true, false])
+  })
+})
