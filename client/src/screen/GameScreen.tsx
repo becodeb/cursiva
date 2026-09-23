@@ -201,18 +201,19 @@ export type NextAction = GameAction | ExitAction | CloseAction | EnterAction
  * Whether a finished level's adventure has a closing BEAT to show
  * (`zoo/adventures.ts`'s `closingLevel`) — pure, and the mirror of
  * `resolveEnterAction` for the exit side of a run. Tried FIRST by
- * `resolveNextAction`, below, so `glass1`/`sand1`/`glass3`/`sand3` — each
- * now its own enclosure's only, and therefore last, level after
- * adventure-flow-and-map-guidance T1 narrowed every enclosure from two
- * levels to one — resolve to the transformation screen instead of the
- * ordinary "adventure ends" outcome every other finished adventure gets.
- * That outcome is no longer unconditionally a map exit: [T2 amendment]
- * `night` — this same change's other animal-less adventure, carrying no
- * closing beat of its own — chains straight into `hedgehog`'s narrative
- * entry instead (`resolveAfterAdventure`, below), the same rule this
- * function's four enclosures would ALSO hit if any lacked a `closingBeat`.
- * Their old, harder twins (`glass2`/`sand2`/`glass4`/`sand4`) belong to no
- * adventure any more, so this now resolves `null` for them.
+ * `resolveNextAction`, below, so a finished adventure's own last level
+ * resolves to the transformation screen instead of whatever OTHER outcome
+ * (continuing the adventure, chaining to the next one, or a plain map exit)
+ * it would otherwise get. As of adventure-flow-and-map-guidance T8 (docs/18
+ * §4.7 item 1) that is EVERY `ADVENTURES` row — `glass1`/`sand1`/`glass3`/
+ * `sand3` (each its own enclosure's only, and therefore last, level after
+ * T1 narrowed every enclosure from two levels to one), `night4`, and every
+ * animal-recovering adventure's own last level (`duck-trail4`,
+ * `sheep-hill4`, `llama-peak4`, `snake4`, `bee4`, `dolphin4`, `hedgehog4`) —
+ * so this now resolves non-null for all of them. `null` only for a level
+ * belonging to no adventure at all — today the hen's `trail1..4` and the
+ * four entrance ids T1 dropped from every sector (`glass2`/`sand2`/
+ * `glass4`/`sand4`).
  */
 export function resolveCloseAction(
   finishedLevelId: string,
@@ -228,24 +229,26 @@ export function resolveCloseAction(
  * `levelId` rather than trusting a caller-held reference, the same
  * never-stale convention `resolveNextAction` uses. `beat + 1` still inside
  * the beat list advances to it. `levelId` carrying no `closingBeat` at all
- * (`closingLevel` itself `undefined`) exits immediately, unconditionally,
- * exactly as before this change — that degenerate input is never reached by
- * the real UI (the `'close'` view never mounts `AdventureClosing` without a
- * `closingBeat` to show it), and it is NOT trigger (a) of
- * adventure-flow-and-map-guidance T2's amendment ("`advanceClosing` falls
- * off its LAST BEAT"): there is no beat sequence here to fall off of. That
- * trigger is `resolveNextAction`'s own job instead (`night4`, which carries
- * no `closingBeat`, chains through THAT function, not this one).
+ * (`closingLevel` itself `undefined`) exits immediately, unconditionally —
+ * every SHIPPED `ADVENTURES` row carries one as of T8 (`closingLevel`'s own
+ * header), so this degenerate input is reached only by a level belonging to
+ * no adventure at all, never by the real UI (the `'close'` view never
+ * mounts `AdventureClosing` without a `closingBeat` to show it in the first
+ * place).
  *
  * Falling off the end of a REAL, non-empty beat list used to always exit to
  * the map; [T2 amendment] it now defers to `resolveAfterAdventure`, below,
- * so an animal-less closing (peces, tortugas, monos — sendero's own closing
- * is entrada's last, so it still exits) chains straight into the next
- * enclosure's narrative entry instead of dropping the child on the map
- * between every room of the prologue. `records` is new on this signature
- * for exactly that reason: `resolveAfterAdventure` needs it to resolve the
- * NEXT adventure's own entry the same way a tap on the map would
- * (`resolveEnterAction`).
+ * so an animal-less closing (peces, tortugas, monos, and — since T8 gave it
+ * one — night; sendero's own closing is entrada's last, so it still exits)
+ * chains straight into the next adventure's narrative entry instead of
+ * dropping the child on the map between rooms. An animal-recovering
+ * adventure's own closing (T8) never chains — `resolveAfterAdventure`'s own
+ * `animal !== undefined` guard is unconditional — so it falls straight
+ * through to `{ type: 'exit' }` here, landing the child on the map where
+ * their rescued animal now stands, exactly once its one rescue beat is
+ * shown. `records` is on this signature for `resolveAfterAdventure`'s own
+ * need: resolving the NEXT adventure's own entry the same way a tap on the
+ * map would (`resolveEnterAction`).
  */
 export function advanceClosing(
   levelId: string,
@@ -371,23 +374,28 @@ export function resolveAfterAdventure(
  * `nextInSectorBlock`, above. The last id of a no-row block always exits to
  * the map, never to the deduction screen (D2, the auto-route retired long
  * before this change). `docs/12` §3: "Volver de un nivel cae en el mapa."
- * An adventure's own last level with no closing beat instead defers to
- * `resolveAfterAdventure`, below (T2 amendment): an animal-less adventure
- * whose sector opens straight into another adventure right after it (the
- * entrance's four enclosures, the night sector before hedgehog) continues
- * into that adventure's own narrative entry; every other case — an
- * adventure that recovers an animal, or one with nothing left after it in
- * its sector — still exits to the map exactly as before. A level no sector
- * has adopted at all (today the hen's `trail1..4`, and — after this
- * change's T1 — the entrance's four dropped ids
+ *
+ * The `resolveAfterAdventure` call inside the `adventureFor` branch below is
+ * UNREACHABLE for every id `ADVENTURES` ships today (T8, docs/18 §4.7 item
+ * 1): `resolveCloseAction` is tried FIRST (below) and now resolves non-null
+ * for every row's own last level, so this function returns before ever
+ * reaching that call for one. It stays — rather than being deleted — as the
+ * one remaining path that still matters for a HAND-BUILT fixture with no
+ * `closingBeat` (`GameScreen.test.tsx`'s own fixtures) and for a
+ * hypothetical future adventure that ships without one; the actual chaining
+ * a real, closing-bearing animal-less adventure needs (peces → tortugas →
+ * monos → sendero; night → hedgehog) now happens through `advanceClosing`'s
+ * OWN fall-off instead, once its beat list runs out — see that function's
+ * header. A level no sector has adopted at all (today the hen's
+ * `trail1..4`, and — after T1 — the entrance's four dropped ids
  * `glass2`/`sand2`/`glass4`/`sand4`, dev-reachable only) keeps today's
  * `next` behaviour, byte-for-byte.
  *
  * [reveal-grid-entrance-and-night] `resolveCloseAction` is tried FIRST
  * (design.md §6.3): a closing beat is a MORE SPECIFIC outcome than either
- * continuing within an adventure or a plain sector exit, and every one of
- * the entrance's four enclosures is now both (T1) — the closing screen must
- * win.
+ * continuing within an adventure or a plain sector exit, and every
+ * `ADVENTURES` row's own last level is now both (T1, T8) — the closing
+ * screen must win.
  *
  * `records` is kept in the signature to hand to `resolveCloseAction` above,
  * and — since the T2 amendment — to `resolveAfterAdventure` too, for the

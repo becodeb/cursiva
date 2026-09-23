@@ -649,14 +649,19 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
           </div>
         </div>
 
-        {/* The map bubble (T4, D4). Its BOX comes from `bubblePlacement`,
-            fed the SPOTLIGHT target's own hit rect — never `discovered`'s —
-            so it always talks about where the story goes NEXT rather than
-            about whichever sector `recentlyDiscovered`'s registry-order
-            fallback last landed on (the same fix the spotlight and the
-            footprints get). Its CONTENT still comes from `mapBubble`, fed
-            `bubbleSector` (the spotlight target, or `discovered` once the
-            journey is done — "today's behaviour" for that one case). */}
+        {/* The map bubble (T4, D4; content source T8, D27/D28). Its BOX
+            comes from `bubblePlacement`, fed the SPOTLIGHT target's own hit
+            rect — never `discovered`'s — so it always talks about where the
+            story goes NEXT rather than about whichever sector
+            `recentlyDiscovered`'s registry-order fallback last landed on
+            (the same fix the spotlight and the footprints get). Its CONTENT
+            comes from `mapBubble`, fed `bubbleSector` (the spotlight target,
+            or `discovered` once the journey is done) AND
+            `spotlightSector !== null` — T8 moved every rescue's own moment
+            onto its adventure's closing screen, so while there is still a
+            journey stop ahead the bubble always reads onward, never an
+            older sector's rescue line; only the no-journey-step fallback
+            still surfaces a sector's own most-recently-recovered animal. */}
         {bubbleSector && bubblePlaced && bubbleVisible && (
           <div
             className={bubbleClassName(bubblePlaced.anchor)}
@@ -688,11 +693,13 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
                   picture with a word outside the rail, and
                   `captionAudit`'s `auditCaptions` is what enforces that —
                   only the styling and its source sector changed here.
-                  The picture AND the word both come from `mapBubble`: before
-                  the sector's own adventure is done it is the onward print
-                  and phrase, unchanged; once the animal is recovered it
-                  becomes that animal's own picture and closing line. */}
-              <CaptionedArt {...mapBubble(bubbleSector, records)} size={76} />
+                  The picture AND the word both come from `mapBubble`: while
+                  `spotlightSector` is non-null this is always the onward
+                  print and phrase (T8 — the rescue itself is told by the
+                  closing screen instead); only once the journey is done
+                  does this fall back to the sector's own most-recently-
+                  recovered animal, exactly as it always did. */}
+              <CaptionedArt {...mapBubble(bubbleSector, records, spotlightSector !== null)} size={76} />
             </button>
           </div>
         )}

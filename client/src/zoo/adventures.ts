@@ -69,12 +69,18 @@ interface AdventureBase {
   /** The once-per-adventure closing SCREEN (`docs/13` §5 item 6; design.md
    *  §6.2), now an ORDERED, non-empty beat list (add-caretaker-prologue
    *  design.md D3) rendered in sequence by `AdventureClosing`. Distinct
-   *  from `closing` above, which is the map bubble's one-line label and
-   *  stays exactly what it is: a caption cannot carry a transformation.
-   *  ABSENT = no closing screen — `duck`/`sheep`/`llama`, unchanged by this
-   *  field's shape change. A non-empty TUPLE, not `ClosingBeat[]`: an empty
-   *  array is truthy, and `closingLevel`'s `if (!adventure.closingBeat)`
-   *  guard needs the empty case unrepresentable to stay byte-unchanged. */
+   *  from `closing` above, which is the map bubble's own FALLBACK label
+   *  (`mapBubble`, below) and stays exactly what it is: a caption cannot
+   *  carry a transformation. Every shipped row carries one as of
+   *  adventure-flow-and-map-guidance T8 (docs/18 §4.7 item 1: "recovering an
+   *  animal has to be seen") — an animal row's own beat repeats `closing`
+   *  verbatim with the animal's art, and `night`'s repeats its own `closing`
+   *  with the linterna's flashlight art; the field stays optional only
+   *  because a future adventure-less fixture (this file's own tests build
+   *  a few) is still free to omit it. A non-empty TUPLE, not
+   *  `ClosingBeat[]`: an empty array is truthy, and `closingLevel`'s
+   *  `if (!adventure.closingBeat)` guard needs the empty case
+   *  unrepresentable to stay byte-unchanged. */
   closingBeat?: readonly [ClosingBeat, ...ClosingBeat[]]
 }
 
@@ -105,6 +111,18 @@ export const ADVENTURES: readonly Adventure[] = [
     animal: 'pato',
     intro: 'El pato se fue por la laguna. ¿Lo seguimos?',
     closing: '¡Encontramos al pato! Ya está en su laguna.',
+    // The rescue closing (adventure-flow-and-map-guidance T8, docs/18 §4.7
+    // item 1): ONE beat, `closing`'s own line verbatim (approved copy) with
+    // the animal's own art — the moment "recovering an animal" finally gets
+    // to be SEEN, rather than only ever surfacing in the map bubble (D27).
+    // No `figure` override: the standing octopus (`ZOO_OCTOPUS_BACKPACK_ART`,
+    // `AdventureClosing`'s own default) is the caretaker simply presenting
+    // what was found, the same figure every map screenshot already shows
+    // him as — nothing in the registry's three octopus assets reads as "the
+    // Pulpito celebrating" better than that. The magnifier figure
+    // (`OCTOPUS_ART`, sendero's own beat 2) is reserved for "starting to
+    // search", the opposite moment.
+    closingBeat: [{ line: '¡Encontramos al pato! Ya está en su laguna.', art: ZOO_ANIMAL_ART.pato }],
   },
   {
     id: 'sheep',
@@ -113,6 +131,9 @@ export const ADVENTURES: readonly Adventure[] = [
     animal: 'oveja',
     intro: 'Las ovejas se escaparon por la ladera. ¿Las juntamos?',
     closing: '¡Juntamos las ovejas! Ya están en su ladera.',
+    // Rescue closing (T8) — the duck row's own reasoning, restated: one
+    // beat, `closing` verbatim, the animal's own art, default figure.
+    closingBeat: [{ line: '¡Juntamos las ovejas! Ya están en su ladera.', art: ZOO_ANIMAL_ART.oveja }],
   },
   {
     id: 'llama',
@@ -121,6 +142,8 @@ export const ADVENTURES: readonly Adventure[] = [
     animal: 'llama',
     intro: 'Las llamas están en los picos. ¿Subimos a buscarlas?',
     closing: '¡Encontramos a la llama! Ya está en la cumbre.',
+    // Rescue closing (T8) — the duck row's own reasoning, restated.
+    closingBeat: [{ line: '¡Encontramos a la llama! Ya está en la cumbre.', art: ZOO_ANIMAL_ART.llama }],
   },
   // The entrance's four enclosures (add-caretaker-prologue design.md D7,
   // §3; docs/16 §9's script, verbatim). Four rows in place of the two
@@ -219,20 +242,23 @@ export const ADVENTURES: readonly Adventure[] = [
     icon: SECTOR_ADVENTURE_ART.flashlight,
     intro: 'De noche hay cosas escondidas. ¿Las buscamos con la luz?',
     closing: 'Encontramos todo en la oscuridad.',
-    // No `closingBeat` — [corrected] design.md §6.2's own literal assigns
-    // one here, but that directly contradicts the RATIFIED `main-screen`
-    // spec delta's "close GameView Variant and resolveCloseAction"
-    // requirement, which explicitly scopes the close screen to "the
-    // entrance's sand adventure, ending on sand4" and lists `night` BY
-    // NAME among the adventures that must resolve to the ordinary exit
-    // outcome instead — confirmed by `resolveCloseAction`'s own generic,
-    // unconditional implementation (design.md §6.3: any `closingBeat`
-    // triggers it) and by tasks.md's own task 6.5 scenario list
-    // (`resolveCloseAction('night4', …)` MUST return `null`). Both the
-    // spec and the task list agree against design.md's data table here;
-    // see `apply-progress.md`'s Phase 6 section for the full finding. The
-    // linterna is still granted on `night4` through `zoo/backpack.ts`'s
-    // `earnedWhen`, entirely independent of any closing screen.
+    // Rescue-shaped closing, animal-less (adventure-flow-and-map-guidance
+    // T8, docs/18 §4.7 item 1): ONE beat, `closing`'s own line verbatim,
+    // with the SAME flashlight art `zoo/backpack.ts`'s `linterna` item and
+    // this row's own `icon` already use — the linterna is what "finding
+    // everything in the dark" actually means here, so it is also what the
+    // closing shows. [Superseding history: an earlier design (design.md
+    // §6.2) tried assigning `night` a `closingBeat` and was reverted
+    // because the then-current `main-screen` spec named `night` BY NAME
+    // among the adventures that must exit ordinarily — see
+    // `apply-progress.md`'s Phase 6 section. T8 (docs/18 §4.7) explicitly
+    // asks for this row to carry a closing after all; that spec's scoping
+    // is now superseded by this change, not contradicted by an oversight.]
+    // Animal-less, so `resolveAfterAdventure` (`screen/GameScreen.tsx`)
+    // still chains this closing's own fall-off straight into `hedgehog`'s
+    // narrative entry (T2 amendment) — `advanceClosing('night4', 0, …)`
+    // is asserted against that exact chain in `GameScreen.test.tsx`.
+    closingBeat: [{ line: 'Encontramos todo en la oscuridad.', art: SECTOR_ADVENTURE_ART.flashlight }],
   },
   {
     id: 'snake',
@@ -241,14 +267,15 @@ export const ADVENTURES: readonly Adventure[] = [
     animal: 'vibora',
     intro: 'Las víboras se enredaron en la arena. ¿Las ordenamos y las llevamos a su lugar?',
     closing: '¡Las víboras están en su arena!',
-    // No `closingBeat` — `mapBubble`'s own selector filters on
-    // `a.animal !== undefined`, so ANY adventure that recovers an animal
-    // already carries `docs/13` §5 item 6 through the shipped map bubble
-    // the moment its animal is placed (design.md §7.2): the víbora stands
-    // in the arena and the Pulpito's line closes it, exactly as the duck,
-    // the sheep and the llama do — none of which carries a `closingBeat`
-    // either. The once-per-story closing screen stays reserved for the
-    // entrance's sand adventure, which recovers no animal.
+    // Rescue closing (T8) — the duck row's own reasoning, restated: one
+    // beat, `closing` verbatim, the animal's own art, default figure. Before
+    // T8, an animal's rescue was told ONLY by the map bubble
+    // (`mapBubble`'s `a.animal !== undefined` selector, still true today for
+    // the FALLBACK case) — which is exactly D27/D28's complaint (`docs/18`
+    // §4.7): recovering an animal had no on-screen MOMENT, only a line that
+    // sometimes appeared on a screen the child was not necessarily looking
+    // at right then.
+    closingBeat: [{ line: '¡Las víboras están en su arena!', art: ZOO_ANIMAL_ART.vibora }],
   },
   {
     id: 'bee',
@@ -257,11 +284,8 @@ export const ADVENTURES: readonly Adventure[] = [
     animal: 'abeja',
     intro: 'La abeja se perdió entre las flores. ¿La ayudamos a volver al panal?',
     closing: '¡La abeja volvió a su panal!',
-    // No `closingBeat` — the snake row's own reasoning, restated: any
-    // adventure that recovers an animal already carries `docs/13` §5 item 6
-    // through the shipped map bubble the moment its animal is placed. The
-    // once-per-story closing screen stays reserved for the entrance's sand
-    // adventure, which recovers no animal.
+    // Rescue closing (T8) — the snake row's own reasoning, restated.
+    closingBeat: [{ line: '¡La abeja volvió a su panal!', art: ZOO_ANIMAL_ART.abeja }],
   },
   {
     id: 'dolphin',
@@ -270,16 +294,14 @@ export const ADVENTURES: readonly Adventure[] = [
     animal: 'delfin',
     intro: 'Los delfines saltan en fila. ¿Pasamos entre ellos sin tocarlos?',
     closing: '¡Pasamos entre los delfines! Ya están tranquilos en el estanque.',
-    // No `closingBeat` — the snake/bee rows' own reasoning, restated:
-    // `mapBubble`'s filter is `a.animal !== undefined`, so an
-    // animal-recovering adventure already carries `docs/13` §5 item 6
-    // through the shipped map bubble the moment its animal is placed. The
-    // once-per-story closing screen stays reserved for the entrance's sand
-    // adventure, which recovers no animal. Appended at the END of the
-    // registry, matching every prior row (C-H each added one entry here) —
-    // and `mapBubble`'s `.at(-1)` needs `dolphin` only to come AFTER `duck`
-    // in array order for filing `dolphin4` to surface its own closing line
-    // over the duck's, which appending trivially satisfies.
+    // Rescue closing (T8) — the snake/bee rows' own reasoning, restated.
+    // Appended at the END of the registry, matching every prior row (C-H
+    // each added one entry here) — and `mapBubble`'s `.at(-1)` (its
+    // FALLBACK branch only, `isSpotlightTarget` false — see that function's
+    // own header) still needs `dolphin` only to come AFTER `duck` in array
+    // order for filing `dolphin4` to surface its own line over the duck's,
+    // which appending trivially satisfies.
+    closingBeat: [{ line: '¡Pasamos entre los delfines! Ya están tranquilos en el estanque.', art: ZOO_ANIMAL_ART.delfin }],
   },
   {
     id: 'hedgehog',
@@ -288,15 +310,11 @@ export const ADVENTURES: readonly Adventure[] = [
     animal: 'erizo',
     intro: 'Al erizo le faltan las espinas. ¿Se las dibujamos?',
     closing: '¡El erizo tiene todas sus espinas!',
-    // No `closingBeat` — the snake/bee/dolphin rows' own reasoning,
-    // restated: `mapBubble`'s filter is `a.animal !== undefined`, so an
-    // animal-recovering adventure already carries `docs/13` §5 item 6
-    // through the shipped map bubble the moment its animal is placed. The
-    // once-per-story closing screen stays reserved for the entrance's sand
-    // adventure, which recovers no animal. Appended at the END of the
-    // registry (amendment 9's rule for `ADVENTURES` — only relative order
-    // matters here, unlike `catalog.ts`'s real ascending-phase ordering
-    // constraint, design.md §2 D6).
+    // Rescue closing (T8) — the snake/bee/dolphin rows' own reasoning,
+    // restated. Appended at the END of the registry (amendment 9's rule for
+    // `ADVENTURES` — only relative order matters here, unlike `catalog.ts`'s
+    // real ascending-phase ordering constraint, design.md §2 D6).
+    closingBeat: [{ line: '¡El erizo tiene todas sus espinas!', art: ZOO_ANIMAL_ART.erizo }],
   },
 ]
 
@@ -318,8 +336,12 @@ export function introLevel(levelId: string): Adventure | undefined {
 /** The adventure whose LAST `levelIds` entry this is, if it carries a
  *  closing beat — the mirror of `introLevel` (design.md §6.3), and pure for
  *  the same reason. `undefined` for every level that is not an adventure's
- *  own last level, and for an adventure with no `closingBeat` at all
- *  (today `duck`/`sheep`/`llama`, every shipped row). */
+ *  own last level — every SHIPPED row carries a `closingBeat` as of T8
+ *  (see that field's own header), so the only way to resolve `undefined`
+ *  today is via a level belonging to no adventure at all, or to one but not
+ *  its own last level; the guard on `adventure.closingBeat` itself stays
+ *  general, for a hand-built fixture with none (`GameScreen.test.tsx`,
+ *  `AdventureClosing.test.tsx`). */
 export function closingLevel(levelId: string): Adventure | undefined {
   const adventure = adventureFor(levelId)
   if (!adventure || !adventure.closingBeat) return undefined
@@ -328,19 +350,43 @@ export function closingLevel(levelId: string): Adventure | undefined {
 
 /** What the Pulpito says about the sector the huellas point at, and the
  *  picture that goes with it — the word never travels alone (`docs/12`
- *  §3). Before the sector's own adventure is done, the constant
- *  onward-pointing line the map already shipped; once the adventure's
- *  animal is standing in the zoo, the line CLOSES it instead
- *  (`docs/13` §5 item 6) and the picture becomes the recovered animal. */
+ *  §3). The constant onward-pointing line the map already shipped; also
+ *  what an animal's own rescue used to CLOSE into (`docs/13` §5 item 6)
+ *  before T8 gave every rescue its own closing screen — see `mapBubble`'s
+ *  own header for why that branch is now the FALLBACK, not the default. */
 const ONWARD = {
   art: ZOO_OCTOPUS_PRINT_ART,
   label: '¡Mirá! Las huellas van hacia allá. ¿Vamos?',
 } as const
 
+/**
+ * `isSpotlightTarget` true and `sector` non-null means the map's own
+ * spotlight (`nextJourneyStep`, `screen/ZooMap.tsx`) is pointing at
+ * `sector` right now, and `false` is the FALLBACK the map falls back to
+ * once the journey is done. Adventure-flow-and-map-guidance T8 (docs/18
+ * §4.7 item 1, D27/D28) moves each rescue's own moment onto its adventure's
+ * `closingBeat` — the closing screen the child sees the instant they finish
+ * that adventure — so the ONGOING map bubble no longer needs to (or should)
+ * repeat an old rescue: doing so was T4's own found defect (`docs/18`
+ * "2026-09-23" progress note), where finishing the bee still announced the
+ * duck, found long ago, because the spotlight had moved on to the estanque
+ * for an unrelated reason (its medusa block) and the bubble's own
+ * most-recently-recovered lookup does not know how long ago "recently" was.
+ * While there is still a journey stop ahead, the bubble ALWAYS reads
+ * onward — never a rescue, however recent. Only once the journey itself is
+ * exhausted (`isSpotlightTarget` false, the no-more-stops fallback,
+ * `screen/ZooMap.tsx`'s own `discovered` source) does this keep its
+ * pre-T8 behaviour of surfacing the sector's own most-recently-recovered
+ * animal — a real, still-reachable state (every sector fully filed) that
+ * predates any closing screen and has no ongoing journey stop left to talk
+ * about instead.
+ */
 export function mapBubble(
   sector: ZooSector,
   records: Records,
+  isSpotlightTarget = false,
 ): { art: ArtImage; label: string } {
+  if (isSpotlightTarget) return ONWARD
   // `.filter(...).at(-1)`, not `.find(...)`: a sector with more than one
   // adventure (`montañas`: sheep, then llama) must surface the MOST
   // RECENTLY recovered one, in registry order — `.find` always returns the

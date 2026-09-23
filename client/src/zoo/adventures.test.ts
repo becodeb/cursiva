@@ -34,6 +34,15 @@ function filed(...ids: readonly string[]): Records {
 const estanque = SECTORS.find((s) => s.id === 'estanque')!
 const montanas = SECTORS.find((s) => s.id === 'montanas')!
 
+/** A test-local mirror of `mapBubble`'s own private `ONWARD` constant —
+ *  kept private in the module (no other caller needs it) and repeated here
+ *  literally, the same way every other `mapBubble` scenario in this file
+ *  already spells it out rather than importing a shared fixture. */
+const ONWARD_FOR_TEST = {
+  art: ZOO_OCTOPUS_PRINT_ART,
+  label: '¡Mirá! Las huellas van hacia allá. ¿Vamos?',
+} as const
+
 describe('ADVENTURES', () => {
   // Renamed from ten rows to twelve (add-caretaker-prologue design.md D7):
   // the old two-row `glass`/`sand` split regroups into four entrance
@@ -143,12 +152,12 @@ describe('ADVENTURES', () => {
     expect(night.icon).toBe(SECTOR_ADVENTURE_ART.flashlight)
   })
 
-  it("the bee row declares animal:'abeja' and no closingBeat (free-trail-waypoints design.md §9)", () => {
+  it("the bee row declares animal:'abeja' (free-trail-waypoints design.md §9) and its own one-beat rescue closing (adventure-flow-and-map-guidance T8)", () => {
     const bee = ADVENTURES.find((a) => a.id === 'bee')!
     expect(bee.levelIds).toEqual(['bee1', 'bee2', 'bee3', 'bee4'])
     expect(bee.sector).toBe('bosque')
     expect(bee.animal).toBe('abeja')
-    expect(bee.closingBeat).toBeUndefined()
+    expect(bee.closingBeat).toEqual([{ line: bee.closing, art: ZOO_ANIMAL_ART.abeja }])
   })
 })
 
@@ -310,20 +319,30 @@ describe('closingLevel (design.md §6.3, D3, corrected against main-screen spec 
     for (const id of ['glass2', 'sand2', 'glass4', 'sand4']) expect(closingLevel(id), id).toBeUndefined()
   })
 
-  it('resolves undefined for night4 — main-screen spec names it explicitly among the excluded adventures', () => {
-    // design.md §6.2's own literal assigns `night` a `closingBeat`, which
-    // contradicts the RATIFIED `main-screen` spec delta ("close GameView
-    // Variant and resolveCloseAction" lists `night` BY NAME among the
-    // adventures that must resolve to the ordinary exit outcome) and
-    // tasks.md's own task 6.5 scenario list. The spec and the task list
-    // win; `night`'s registry row carries no `closingBeat` — see
-    // `apply-progress.md`'s Phase 6 section.
-    expect(closingLevel('night4')).toBeUndefined()
+  it("resolves night4 to the night adventure (adventure-flow-and-map-guidance T8, docs/18 §4.7 item 1: 'recuperar un animal se tiene que ver' extends to night's own animal-less closing)", () => {
+    // [Superseded history] design.md §6.2's own literal once assigned
+    // `night` a `closingBeat`, which the then-current `main-screen` spec
+    // delta explicitly contradicted (`night` named BY NAME among the
+    // adventures that must resolve to the ordinary exit outcome) — see
+    // `apply-progress.md`'s Phase 6 section for that finding. T8 asks for
+    // this row to carry a closing after all (its own `closingBeat` is now
+    // the linterna's flashlight art plus `night.closing` verbatim), so that
+    // older exclusion is superseded, not silently reintroduced.
+    expect(closingLevel('night4')?.id).toBe('night')
   })
 
-  it('resolves undefined for every pre-existing adventure\'s last level (no closing beat)', () => {
-    for (const id of ['duck-trail4', 'sheep-hill4', 'llama-peak4']) {
-      expect(closingLevel(id)).toBeUndefined()
+  it("resolves every animal-recovering adventure's own last level to itself — every shipped row carries a closingBeat as of T8", () => {
+    for (const id of [
+      'duck-trail4',
+      'sheep-hill4',
+      'llama-peak4',
+      'snake4',
+      'bee4',
+      'dolphin4',
+      'hedgehog4',
+    ]) {
+      const adventure = adventureFor(id)!
+      expect(closingLevel(id), id).toBe(adventure)
     }
   })
 
@@ -334,6 +353,49 @@ describe('closingLevel (design.md §6.3, D3, corrected against main-screen spec 
     for (const id of ['night1', 'night2', 'night3']) {
       expect(closingLevel(id)).toBeUndefined()
     }
+  })
+})
+
+// T8 (adventure-flow-and-map-guidance, docs/18 §4.7 item 1: "Recuperar un
+// animal se tiene que ver") — the registry-level guarantee every other test
+// in this file assumes: an animal row's own rescue closing repeats its
+// `closing` line verbatim (approved copy, never paraphrased) with the
+// animal's own art, and carries no `figure` override (the default standing
+// octopus already reads as "the caretaker presenting what was found").
+describe('rescue closings (T8): every animal-recovering row', () => {
+  const animalAdventures = ADVENTURES.filter((a) => a.animal !== undefined)
+
+  it('covers all seven animal-recovering rows', () => {
+    expect(animalAdventures.map((a) => a.id).sort()).toEqual(
+      ['bee', 'dolphin', 'duck', 'hedgehog', 'llama', 'sheep', 'snake'].sort(),
+    )
+  })
+
+  it("each one's closingBeat is a single beat whose art is its own animal and whose line is its own closing, verbatim, with no figure override", () => {
+    for (const adventure of animalAdventures) {
+      expect(adventure.closingBeat, adventure.id).toHaveLength(1)
+      const [beat] = adventure.closingBeat!
+      expect(beat.line, adventure.id).toBe(adventure.closing)
+      expect(beat.art, adventure.id).toBe(ZOO_ANIMAL_ART[adventure.animal!])
+      expect(beat.figure, adventure.id).toBeUndefined()
+    }
+  })
+})
+
+// T8's other closing (docs/18 §4.7 item 1): `night` recovers no animal, so
+// its own beat repeats `closing` with the SAME flashlight art its `icon`
+// and `zoo/backpack.ts`'s own `linterna` item already use — the linterna is
+// what "finding everything in the dark" means here.
+describe("night's own animal-less closing (T8)", () => {
+  const night = ADVENTURES.find((a) => a.id === 'night')!
+
+  it('is a single beat: closing verbatim, the flashlight art, no figure override', () => {
+    expect(night.closingBeat).toHaveLength(1)
+    const [beat] = night.closingBeat!
+    expect(beat.line).toBe(night.closing)
+    expect(beat.art).toBe(SECTOR_ADVENTURE_ART.flashlight)
+    expect(beat.art).toBe(night.icon)
+    expect(beat.figure).toBeUndefined()
   })
 })
 
@@ -410,14 +472,41 @@ describe('mapBubble', () => {
       label: '¡Pasamos entre los delfines! Ya están tranquilos en el estanque.',
     })
   })
+
+  // T8 (docs/18 §4.7 item 1, D27/D28): once a journey step exists
+  // (`isSpotlightTarget` true), the bubble is ALWAYS onward — the rescue
+  // itself is now told by the closing screen, so repeating it here would be
+  // "stale news" (the exact defect T4's own browser QA found: after the
+  // bee, with the spotlight back on the estanque for its medusa block, the
+  // bubble still announced the long-ago duck).
+  describe('isSpotlightTarget (T8): always onward while there is a journey step ahead', () => {
+    it('records after the bee → onward for the estanque, not the duck rescue from long ago', () => {
+      expect(mapBubble(estanque, filed('duck-trail4'), true)).toEqual(ONWARD_FOR_TEST)
+    })
+
+    it("records after the sheep → onward for montañas — the sheep's own rescue was already told by its closing", () => {
+      expect(mapBubble(montanas, filed('sheep-hill4'), true)).toEqual(ONWARD_FOR_TEST)
+    })
+
+    it("even the LLAMA's own just-recovered line stays onward while isSpotlightTarget is true", () => {
+      expect(mapBubble(montanas, filed('sheep-hill4', 'llama-peak4'), true)).toEqual(ONWARD_FOR_TEST)
+    })
+
+    it('omitting the third argument keeps the pre-T8 fallback behaviour (default false)', () => {
+      expect(mapBubble(estanque, filed('duck-trail4'))).toEqual({
+        art: ZOO_ANIMAL_ART.pato,
+        label: '¡Encontramos al pato! Ya está en su laguna.',
+      })
+    })
+  })
 })
 
 describe('the dolphin adventure (this change, design.md §8)', () => {
   const dolphin = ADVENTURES.find((a) => a.id === 'dolphin')!
 
-  it('declares animal:"delfin" and no closingBeat', () => {
+  it('declares animal:"delfin" and its own one-beat rescue closing (T8)', () => {
     expect(dolphin.animal).toBe('delfin')
-    expect(dolphin.closingBeat).toBeUndefined()
+    expect(dolphin.closingBeat).toEqual([{ line: dolphin.closing, art: ZOO_ANIMAL_ART.delfin }])
   })
 
   it('carries the four dolphin levels, in order, in the estanque sector', () => {
@@ -429,9 +518,9 @@ describe('the dolphin adventure (this change, design.md §8)', () => {
 describe('the hedgehog adventure (radial-spines, design.md §8.2)', () => {
   const hedgehog = ADVENTURES.find((a) => a.id === 'hedgehog')!
 
-  it('declares animal:"erizo" and no closingBeat', () => {
+  it('declares animal:"erizo" and its own one-beat rescue closing (T8)', () => {
     expect(hedgehog.animal).toBe('erizo')
-    expect(hedgehog.closingBeat).toBeUndefined()
+    expect(hedgehog.closingBeat).toEqual([{ line: hedgehog.closing, art: ZOO_ANIMAL_ART.erizo }])
   })
 
   it('carries the four hedgehog levels, in order, in the nocturna sector', () => {

@@ -282,27 +282,24 @@ describe('resolveNextAction (adventure-flow-and-map-guidance T2: "an unfinished 
     }
   })
 
-  it("every ADVENTURES row's own last level resolves to close when the row carries a closingBeat (peces/tortugas/monos/sendero, each after T1); night instead chains into hedgehog's narrative entry (T2 amendment, its own describe block below); every other closingBeat-less row exits (duck-trail4, sheep-hill4, llama-peak4, snake4, bee4, dolphin4, hedgehog4)", () => {
+  it("every ADVENTURES row's own last level resolves to close (adventure-flow-and-map-guidance T8, docs/18 §4.7 item 1: every shipped row carries a closingBeat now) — night4's own chain into hedgehog happens one level deeper, through advanceClosing's fall-off, asserted in that function's own describe block below", () => {
     for (const adventure of ADVENTURES) {
       const last = adventure.levelIds[adventure.levelIds.length - 1]
-      if (adventure.id === 'night') continue // asserted separately: it chains, it does not exit.
-      const expected = adventure.closingBeat
-        ? { type: 'close', levelId: last }
-        : { type: 'exit' }
-      expect(resolveNextAction(last, {}), `${adventure.id}: ${last}`).toEqual(expected)
+      expect(adventure.closingBeat, adventure.id).toBeDefined()
+      expect(resolveNextAction(last, {}), `${adventure.id}: ${last}`).toEqual({
+        type: 'close',
+        levelId: last,
+      })
     }
   })
 
-  it("night4 — no closingBeat, and nocturna's own adventureIds open hedgehog right after it — chains into hedgehog's narrative entry instead of exiting (T2 amendment)", () => {
-    expect(resolveNextAction('night4', {})).toEqual({
-      type: 'enter',
-      view: { view: 'intro', levelId: 'hedgehog1' },
-    })
+  it("night4 now resolves to close (T8) — its own OLD direct chain into hedgehog's narrative entry (T2 amendment) moved to advanceClosing's fall-off, once the (now real) closing beat is shown", () => {
+    expect(resolveNextAction('night4', {})).toEqual({ type: 'close', levelId: 'night4' })
   })
 
-  it('duck-trail4 exits — never routes to deduce (D2: the auto-route is retired)', () => {
+  it('duck-trail4 now closes with its own rescue beat (T8) — never routes to deduce (D2: the auto-route is retired)', () => {
     const action = resolveNextAction('duck-trail4', recordsWith(DUCK_TRAIL_IDS, 1))
-    expect(action).toEqual({ type: 'exit' })
+    expect(action).toEqual({ type: 'close', levelId: 'duck-trail4' })
     expect(action.type).not.toBe('deduce')
   })
 
@@ -467,20 +464,21 @@ describe('resolveCloseAction', () => {
     }
   })
 
-  it('finishing night4 does not resolve to the close view — no closingBeat on that adventure', () => {
-    expect(resolveCloseAction('night4', {})).toBeNull()
+  it('finishing night4 now resolves to the close view (T8: night gained its own animal-less closing beat)', () => {
+    expect(resolveCloseAction('night4', {})).toEqual({ type: 'close', levelId: 'night4' })
   })
 
-  it('finishing llama-peak4/sheep-hill4/duck-trail4 does not resolve to the close view (shipped-behaviour guard)', () => {
+  it('finishing llama-peak4/sheep-hill4/duck-trail4 now resolves to the close view — each carries its own one-beat rescue closing (T8)', () => {
     for (const id of ['llama-peak4', 'sheep-hill4', 'duck-trail4']) {
-      expect(resolveCloseAction(id, {}), id).toBeNull()
+      expect(resolveCloseAction(id, {}), id).toEqual({ type: 'close', levelId: id })
     }
   })
 
-  it('finishing any of snake1..4 does not resolve to the close view — the snake adventure carries no closingBeat', () => {
-    for (const id of ['snake1', 'snake2', 'snake3', 'snake4']) {
+  it('finishing snake1..3 does not resolve to the close view (mid-adventure, not the row\'s own last level); snake4 does (T8: the snake row now carries a rescue closing)', () => {
+    for (const id of ['snake1', 'snake2', 'snake3']) {
       expect(resolveCloseAction(id, {}), id).toBeNull()
     }
+    expect(resolveCloseAction('snake4', {})).toEqual({ type: 'close', levelId: 'snake4' })
   })
 
   // Every enclosure's own level, not just one of them. `resolveCloseAction`
@@ -592,14 +590,37 @@ describe("GameScreen close view (design.md §6.3, D3, main-screen spec 'Adventur
     expect(adventureClosingProbe.current?.beat).toBe(sendero.closingBeat![0])
   })
 
-  it('an unknown/stale close levelId (no closingBeat) falls through to the ordinary play render, never crashes', () => {
+  it('an unknown/stale close levelId (no adventure at all — every real ADVENTURES row carries a closingBeat as of T8) falls through to the ordinary play render, never crashes', () => {
     adventureClosingProbe.current = null
+    const staleId = DETECTIVE_TRAIL_IDS[0]
     expect(() =>
-      renderToString(<GameScreen initial={{ view: 'close', levelId: 'night4' }} onExit={() => {}} />),
+      renderToString(<GameScreen initial={{ view: 'close', levelId: staleId }} onExit={() => {}} />),
     ).not.toThrow()
-    // `night4`'s own adventure carries no `closingBeat` — `AdventureClosing`
-    // must never mount for it.
+    // The hen's own trail levels belong to no `ADVENTURES` row at all
+    // (`adventureFor` resolves `undefined`), so `closingLevel` resolves
+    // `undefined` too and `AdventureClosing` must never mount for it.
     expect(adventureClosingProbe.current).toBeNull()
+  })
+
+  // T8 (docs/18 §4.7 item 1): every animal-recovering adventure now has its
+  // own one-beat rescue closing, mounted the same way the entrance's own
+  // enclosures always were.
+  it("mounts AdventureClosing for an animal adventure's own rescue beat (duck-trail4), and its onContinue exits (an animal row never chains)", () => {
+    let exited = false
+    const duck = ADVENTURES.find((a) => a.id === 'duck')!
+    renderToString(
+      <GameScreen
+        initial={{ view: 'close', levelId: 'duck-trail4' }}
+        onExit={() => {
+          exited = true
+        }}
+      />,
+    )
+    expect(adventureClosingProbe.current?.adventure).toBe(duck)
+    expect(adventureClosingProbe.current?.beat).toBe(duck.closingBeat![0])
+    const onContinue = adventureClosingProbe.current?.onContinue as (() => void) | undefined
+    onContinue?.()
+    expect(exited).toBe(true)
   })
 })
 
@@ -669,7 +690,39 @@ describe('advanceClosing', () => {
     expect(advanceClosing('sand3', 5, {})).toEqual({ type: 'exit' })
   })
 
-  it('a level id with no closingBeat at all exits immediately — not trigger (a) of the T2 amendment, so it never reaches resolveAfterAdventure (this input is never reached by the real UI)', () => {
-    expect(advanceClosing('night4', 0, {})).toEqual({ type: 'exit' })
+  it('a level id belonging to no adventure at all (closingLevel undefined) exits immediately — not trigger (a) of the T2 amendment, so it never reaches resolveAfterAdventure (this input is never reached by the real UI)', () => {
+    expect(advanceClosing(DETECTIVE_TRAIL_IDS[0], 0, {})).toEqual({ type: 'exit' })
+  })
+
+  // T8 (docs/18 §4.7 item 1): night's own new closing beat is animal-less,
+  // so falling off it (like peces/tortugas/monos before it) chains straight
+  // into the next adventure the sector opens — hedgehog's narrative entry —
+  // rather than exiting. This is the "resolveAfterAdventure runs when
+  // advanceClosing falls off the last beat" case the orchestrator's own
+  // brief asks to verify directly.
+  it("night4's own one-beat closing chains into hedgehog's narrative entry from beat 0 (T2 amendment, now reached through T8's own closing beat)", () => {
+    expect(advanceClosing('night4', 0, {})).toEqual({
+      type: 'enter',
+      view: { view: 'intro', levelId: 'hedgehog1' },
+    })
+  })
+
+  // An animal-recovering adventure's own closing never chains — the guard
+  // is `resolveAfterAdventure`'s own `animal !== undefined` check, exercised
+  // here through `advanceClosing` for every shipped animal row at once.
+  it("every animal-recovering adventure's own one-beat closing exits from beat 0 — it never chains (T8)", () => {
+    for (const [levelId, adventureId] of [
+      ['duck-trail4', 'duck'],
+      ['sheep-hill4', 'sheep'],
+      ['llama-peak4', 'llama'],
+      ['snake4', 'snake'],
+      ['bee4', 'bee'],
+      ['dolphin4', 'dolphin'],
+      ['hedgehog4', 'hedgehog'],
+    ] as const) {
+      const adventure = ADVENTURES.find((a) => a.id === adventureId)!
+      expect(adventure.closingBeat, adventureId).toHaveLength(1)
+      expect(advanceClosing(levelId, 0, {}), levelId).toEqual({ type: 'exit' })
+    }
   })
 })

@@ -6,7 +6,13 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import AdventureClosing from './AdventureClosing'
 import { auditCaptions } from '../detective/captionAudit'
-import { CARRIER_LENS_ART, SECTOR_ADVENTURE_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import {
+  CARRIER_LENS_ART,
+  SECTOR_ADVENTURE_ART,
+  ZOO_OCTOPUS_BACKPACK_ART,
+  ZOO_SPEECH_BUBBLE_ART,
+  ZOO_STAR_ART,
+} from '../detective/assets'
 import { ADVENTURES, type Adventure, type ClosingBeat } from '../zoo/adventures'
 
 // Renamed from `sand` (add-caretaker-prologue design.md D7): `sendero` is
@@ -140,5 +146,75 @@ describe('AdventureClosing (main-screen spec "AdventureClosing Screen Renders th
     // `AdventureIntro.test.tsx`'s own header records for `onStart`) — this
     // only proves the prop itself is callable without throwing.
     expect(() => onContinue()).not.toThrow()
+  })
+})
+
+// The rescue celebration (adventure-flow-and-map-guidance T8, docs/18
+// section 4.7 item 1). `renderToString` cannot observe an animation, so
+// these tests only assert what the orchestrator's own brief asks for
+// directly: the celebration renders only for animal adventures.
+describe('AdventureClosing rescue celebration (T8)', () => {
+  const duck = ADVENTURES.find((a) => a.id === 'duck')!
+
+  it('renders the celebration for an animal-recovering adventure — one star image per configured spot, aria-hidden, using ZOO_STAR_ART', () => {
+    const html = renderToString(
+      <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
+    )
+    expect(html).toContain('class="cv-closing-celebration" aria-hidden="true"')
+    const starCount = html.match(new RegExp(`src="${ZOO_STAR_ART.href}"`, 'g'))?.length ?? 0
+    expect(starCount).toBeGreaterThan(0)
+  })
+
+  // `not.toContain('cv-closing-celebration')` alone would be vacuously true
+  // OR false regardless of the actual element: that bare class name is also
+  // the CSS SELECTOR text inside the static `<style>` block, present on
+  // every render whichever beat is shown. Checking the ELEMENT's own
+  // opening tag is what actually distinguishes "rendered" from "not".
+  it('renders no celebration ELEMENT for an animal-less adventure (the four entrance enclosures, and night) — the class name still appears in the static stylesheet either way', () => {
+    for (const id of ['peces', 'tortugas', 'monos', 'sendero', 'night'] as const) {
+      const adventure = ADVENTURES.find((a) => a.id === id)!
+      for (const beat of adventure.closingBeat!) {
+        const html = renderToString(
+          <AdventureClosing adventure={adventure} beat={beat} onContinue={() => {}} />,
+        )
+        expect(html, id).not.toContain('<div class="cv-closing-celebration"')
+        expect(html, id).not.toContain(`src="${ZOO_STAR_ART.href}"`)
+      }
+    }
+  })
+
+  it('renders the celebration ELEMENT for every animal-recovering row, not only the duck', () => {
+    for (const adventure of ADVENTURES.filter((a) => a.animal !== undefined)) {
+      const html = renderToString(
+        <AdventureClosing adventure={adventure} beat={adventure.closingBeat![0]} onContinue={() => {}} />,
+      )
+      expect(html, adventure.id).toContain('<div class="cv-closing-celebration"')
+    }
+  })
+
+  it('introduces no url(#) reference of its own', () => {
+    const html = renderToString(
+      <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
+    )
+    expect(html).not.toContain('url(#')
+  })
+
+  it("is absolutely positioned (no layout shift) and absent entirely under prefers-reduced-motion: reduce", () => {
+    const html = renderToString(
+      <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
+    )
+    expect(html).toContain('.cv-closing-celebration { position: absolute; inset: 0;')
+    expect(html).toContain(
+      '@media (prefers-reduced-motion: reduce) { .cv-closing-celebration { display: none; } }',
+    )
+  })
+
+  it('does not disturb auditCaptions for an animal adventure\'s own beat (decorative-only images, no bare words)', () => {
+    const html = renderToString(
+      <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
+    )
+    const audit = auditCaptions(html)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 })

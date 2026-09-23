@@ -230,33 +230,24 @@ describe('ZooMap bubble (zoo-map spec "Octopus Phrase Reads as a Closing")', () 
     expect(html).not.toContain('¡Encontramos al pato!')
   })
 
-  it('closes with the duck art and line once duck-trail4 is filed', () => {
-    // Row D FOUND an interaction design.md never names (recorded in
-    // apply-progress.md's Phase 5 section): filing `duck-trail4` alone
-    // ALSO opens `montañas` (`unlockedWhen: isFiled(records,
-    // 'duck-trail4')`), which — being brand new — reads as UNTOUCHED
-    // (design.md §7.2) and outranks the estanque's own just-earned closing
-    // line the instant the duck is found. That is a real, always-reachable
-    // state under normal play, not a contrived one — bare
-    // `filed(...entrada.adventureIds, 'duck-trail4')` reproduces it, and it
-    // resolves to montañas' ONWARD phrase, not the duck's closing line
-    // (`mapBubble`'s OWN contract is unaffected and still correctly
-    // asserted in `zoo/adventures.test.ts` — this is purely a
-    // `recentlyDiscovered` sector-selection interaction).
-    //
-    // The duck's closing line is still reachable end to end, the moment
-    // montañas itself is no longer untouched — e.g. the child taps into
-    // the freshly-opened montañas and tries (not yet finishes) its first
-    // level, then returns to the map. That is exactly what this fixture
-    // reproduces: `sheep-hill1` attempted, not approved.
+  // [Superseded by T8, docs/18 §4.7 item 1] Before T8, this exact fixture
+  // (duck-trail4 filed without 1-3, e.g. by the dev seed) surfaced the
+  // duck's own rescue LINE on the map bubble via `mapBubble`'s
+  // most-recently-recovered-animal lookup, because `recentlyDiscovered`
+  // landed back on the estanque (duck-trail1..3 still unfiled). T8 moves
+  // every rescue onto its own closing screen and makes the ongoing bubble
+  // say ONWARD whenever a journey step exists — and one does here (the
+  // duck's own trail is not finished) — so the bubble no longer echoes the
+  // rescue at all, regardless of which sector it is about.
+  it('reads onward, never the duck rescue line, while duck-trail4 is filed but the duck row is not yet finished', () => {
     const entrada = SECTORS.find((s) => s.id === 'entrada')!
     const records: Records = {
       ...filed(...entrada.adventureIds, 'duck-trail4'),
       'sheep-hill1': { ...EMPTY_RECORD, attempts: 1 },
     }
     const html = render(records)
-    expect(html).toContain('¡Encontramos al pato! Ya está en su laguna.')
-    expect(html).not.toContain('¡Mirá! Las huellas van hacia allá. ¿Vamos?')
+    expect(html).not.toContain('¡Encontramos al pato! Ya está en su laguna.')
+    expect(html).toContain('¡Mirá! Las huellas van hacia allá. ¿Vamos?')
   })
 
   it('keeps auditCaptions green before and after the duck is recovered', () => {
@@ -274,8 +265,14 @@ describe('ZooMap bubble (zoo-map spec "Octopus Phrase Reads as a Closing")', () 
   // sheep is done, the pre-T4 bubble (fed `recentlyDiscovered`) kept saying
   // "¡Encontramos al pato!" because the estanque still had unfinished work
   // of its own (the medusa/dolphin blocks), ahead of montañas in registry
-  // order. The bubble is now fed the SPOTLIGHT target's sector instead.
-  it('after the sheep is done, the bubble no longer says the duck was found — it talks about montañas instead', () => {
+  // order. T4 fixed WHICH SECTOR the bubble talks about (the spotlight
+  // target); T8 (docs/18 §4.7 item 1) goes further and stops the ongoing
+  // bubble from repeating ANY rescue at all while a journey step remains —
+  // the sheep's own rescue is now told once, by its own closing screen, the
+  // instant sheep-hill4 is filed, so the map bubble reads onward toward the
+  // llama instead of re-announcing the sheep every time the child looks at
+  // the map afterward.
+  it('after the sheep is done, the bubble reads onward toward the llama — it repeats neither the duck nor the sheep rescue', () => {
     const entrada = SECTORS.find((s) => s.id === 'entrada')!
     const records: Records = filed(
       ...entrada.adventureIds,
@@ -290,7 +287,37 @@ describe('ZooMap bubble (zoo-map spec "Octopus Phrase Reads as a Closing")', () 
     )
     const html = render(records)
     expect(html).not.toContain('¡Encontramos al pato!')
-    expect(html).toContain('¡Juntamos las ovejas! Ya están en su ladera.')
+    expect(html).not.toContain('¡Juntamos las ovejas!')
+    expect(html).toContain('¡Mirá! Las huellas van hacia allá. ¿Vamos?')
+  })
+
+  // The orchestrator's own literal repro (T8 brief): after the bee, the
+  // spotlight sits back on the estanque for its medusa block — a sector
+  // holding the duck's own long-finished rescue — and the pre-T8 bubble
+  // announced that old rescue again ("stale news"). `isSpotlightTarget`
+  // makes the bubble onward-only whenever a journey step remains, so the
+  // estanque's own medusa/dolphin work still ahead never resurrects the
+  // duck's rescue line.
+  it('after the bee is done, the bubble reads onward for the estanque — not the long-ago duck rescue', () => {
+    const entrada = SECTORS.find((s) => s.id === 'entrada')!
+    const montanas = SECTORS.find((s) => s.id === 'montanas')!
+    const nocturna = SECTORS.find((s) => s.id === 'nocturna')!
+    const arena = SECTORS.find((s) => s.id === 'arena')!
+    const bosque = SECTORS.find((s) => s.id === 'bosque')!
+    const records: Records = filed(
+      ...entrada.adventureIds,
+      'duck-trail1',
+      'duck-trail2',
+      'duck-trail3',
+      'duck-trail4',
+      ...montanas.adventureIds,
+      ...nocturna.adventureIds,
+      ...arena.adventureIds,
+      ...bosque.adventureIds,
+    )
+    const html = render(records)
+    expect(html).not.toContain('¡Encontramos al pato!')
+    expect(html).toContain('¡Mirá! Las huellas van hacia allá. ¿Vamos?')
   })
 })
 
