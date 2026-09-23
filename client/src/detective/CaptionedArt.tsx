@@ -38,17 +38,34 @@ export interface CaptionedArtProps {
    * helper and `PistasRail.tsx`'s marks both already use. */
   size: number
   className?: string
+  /**
+   * OPTIONAL vertical crop, in the same units as `size`: when given and
+   * smaller than `size`, the rendered `<svg>` keeps `size`'s full WIDTH but
+   * shows only the TOP `cropHeight` units of it — the `<image>` underneath
+   * still draws at the full `size` (unchanged `x`/`y`/`width`/`height`), so
+   * whatever falls below `cropHeight` in the outer svg's own `viewBox`
+   * simply never enters its visible coordinate window. That is the one crop
+   * technique `TraceCanvas.tsx`'s header allows in this repo (no
+   * `<clipPath>`/`mask`/`url(#…)` anywhere): a plain svg viewBox already
+   * clips whatever it does not cover, with no referenced def to hydrate
+   * blank on the device this repo has scarred comments about.
+   *
+   * Absent = `size`, so the outer svg's `viewBox`/`height` stay byte-
+   * identical to every call site that predates this prop.
+   */
+  cropHeight?: number
 }
 
 /** A picture and its word, welded so neither can ship without the other. */
-export default function CaptionedArt({ art, label, size, className }: CaptionedArtProps) {
+export default function CaptionedArt({ art, label, size, className, cropHeight }: CaptionedArtProps) {
   const width = (size * art.w) / art.h
+  const visibleHeight = cropHeight ?? size
   return (
     <span className={className ? `cv-captioned ${className}` : 'cv-captioned'}>
       <svg
-        viewBox={`${-width / 2} ${-size / 2} ${width} ${size}`}
+        viewBox={`${-width / 2} ${-size / 2} ${width} ${visibleHeight}`}
         width={width}
-        height={size}
+        height={visibleHeight}
         aria-hidden="true"
         focusable="false"
       >

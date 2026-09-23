@@ -63,6 +63,8 @@ vi.mock('../zoo/backdrops', async (importOriginal) => {
 
 import LevelPlay, {
   LAYOUT_CSS,
+  SIGN_CROP_HEIGHT,
+  SIGN_SIZE,
   allRevealTiles,
   drawingBand,
   eraseResultMessage,
@@ -1305,6 +1307,26 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     expect(eraseResultMessage('glass2', false)).toBe('Seguí limpiando el vidrio.')
   })
 
+  // D15/T3: the mud path used to fall through to the glass wording below —
+  // "¡Vidrio limpio!" for a trail with no glass anywhere on it. `sand3` is
+  // `sendero`'s one played level; `sand4` is its harder twin, dropped from
+  // every `ADVENTURES` row by T1 (never deleted from the catalog — level ids
+  // are persisted keys — but claimed by no adventure any more), so both need
+  // covering: one reached through `adventureFor`, the other only through the
+  // explicit id fallback. Every other family (glass, sand, leaves) must stay
+  // exactly as asserted above — this is the fourth family, not a
+  // replacement.
+  it('uses mud attempt wording for the sendero adventure (sand3) and its dropped twin (sand4)', () => {
+    expect(eraseResultMessage('sand3', true)).toBe('¡Sendero limpio!')
+    expect(eraseResultMessage('sand3', false)).toBe('Seguí limpiando el sendero.')
+    expect(eraseResultMessage('sand4', true)).toBe('¡Sendero limpio!')
+    expect(eraseResultMessage('sand4', false)).toBe('Seguí limpiando el sendero.')
+    // sand1/sand2 (the tortugas adventure) must keep the sand wording, never
+    // fall into the new mud branch just because they share the sand* prefix.
+    expect(eraseResultMessage('sand1', true)).toBe('¡Arena barrida!')
+    expect(eraseResultMessage('sand2', true)).toBe('¡Arena barrida!')
+  })
+
   // The leaves slice is copy plus paint: everything the grid scores on is pinned
   // here rather than left to review. `level.reveal`/`rules.minAccuracy` are
   // catalog-level properties, untouched by adventure/sector membership, so
@@ -1469,6 +1491,81 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
   })
 })
 
+describe('LevelPlay stable result row and QA hooks (adventure-flow-and-map-guidance T3)', () => {
+  // T3 revision (orchestrator QA regression): this file's first fix reserved
+  // `.cv-result`'s min-height for the erase/light message from the very
+  // first render, which stopped the shrink-on-success defect (D13) but
+  // introduced a new one — the reservation itself cost `.cv-sheet` a
+  // PERMANENT slice of height instead of only losing it on success
+  // (measured 592px -> 522px tall becoming a flat 522px always, at
+  // 1280x720). The message is now an absolutely positioned overlay INSIDE
+  // `.cv-sheet` (`.cv-result-pill`, gated on `attempt` exactly as it was
+  // pre-T3) instead of a row in the flex column, so nothing is reserved at
+  // all: before any attempt, no such element exists in the markup.
+  it('never renders the erase-level result pill before an attempt exists, so nothing is reserved inside .cv-sheet (D13)', () => {
+    const html = renderToString(
+      <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    expect(body).not.toContain('cv-result-pill')
+    expect(body).toContain('class="cv-sheet"')
+  })
+
+  it('never renders the light-level result pill before an attempt exists either (D13)', () => {
+    const html = renderToString(
+      <LevelPlay level={getLevel('night1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    expect(body).not.toContain('cv-result-pill')
+    expect(body).toContain('class="cv-sheet"')
+  })
+
+  it('defines the result pill as an absolutely positioned, non-interactive overlay, and leaves the non-drawnPlace result row untouched', () => {
+    expect(LAYOUT_CSS).toMatch(/\.cv-result-pill\s*\{\s*position:\s*absolute;/)
+    expect(LAYOUT_CSS).toContain('pointer-events: none;')
+    // The ordinary (non-drawnPlace) pillars/coach section is exactly the
+    // pre-T3 rule — still a reserved flex row with its own min-height,
+    // untouched by this revision.
+    expect(LAYOUT_CSS).toContain(
+      '.cv-result { flex: 0 0 auto; min-height: 96px; display: flex; flex-direction: column; justify-content: center; color: #1e293b; }',
+    )
+  })
+
+  it('stamps the level id onto the root main element for outside-in QA hooks', () => {
+    const glass1Html = renderToString(
+      <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(glass1Html).toContain('data-level-id="glass1"')
+
+    const plainHtml = renderToString(
+      <LevelPlay level={makeLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(plainHtml).toContain(`data-level-id="${makeLevel().id}"`)
+  })
+
+  it('never marks the button cv-next-ready with no attempt, and defines the ready styling in LAYOUT_CSS (D21)', () => {
+    // `attempt` can only become non-null through a live pointer release
+    // (`onRelease`), which this file's own header comment records as
+    // unobservable through a second `renderToString` pass — so the DEFAULT,
+    // pre-attempt render is what a unit test can prove: disabled, never
+    // cv-next-ready. The APPROVED state (cv-next-ready actually visible,
+    // solid green, pulsing) is real-browser-only proof, left to the
+    // orchestrator's visual QA — the same split the sheet's own stable-box
+    // claim above already accepts.
+    const html = renderToString(
+      <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    expect(body).not.toContain('cv-next-ready')
+    expect(body).toContain('cv-btn-off')
+
+    expect(LAYOUT_CSS).toContain('.cv-next-ready {')
+    expect(LAYOUT_CSS).toContain('transform: scale(1.15);')
+    expect(LAYOUT_CSS).toContain('animation: cv-next-pulse 1.4s ease-in-out infinite;')
+    expect(LAYOUT_CSS).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.cv-next-ready \{ animation: none; \}\s*\}/)
+  })
+})
+
 describe('LevelPlay docs/16 wooden zoo signs (finish-mvp-roadmap U14)', () => {
   // Only the three ids adventure-flow-and-map-guidance T1 KEEPS in an
   // `ADVENTURES` row: each still resolves its enclosure's backdrop
@@ -1481,7 +1578,7 @@ describe('LevelPlay docs/16 wooden zoo signs (finish-mvp-roadmap U14)', () => {
     ['glass3', SIGN_ART.monkeys.href, 'MONOS'],
   ] as const
 
-  it.each(signLevels)('%s renders its approved framed CaptionedArt inside the playable sheet', (levelId, href, label) => {
+  it.each(signLevels)('%s renders its approved framed CaptionedArt inside the head row, beside the back button', (levelId, href, label) => {
     const html = renderToString(
       <LevelPlay level={getLevel(levelId)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
@@ -1490,7 +1587,13 @@ describe('LevelPlay docs/16 wooden zoo signs (finish-mvp-roadmap U14)', () => {
     expect(body).toContain('class="cv-captioned cv-level-zoo-sign"')
     expect(body).toContain(`href="${href}"`)
     expect(body).toContain(`<span class="cv-caption">${label}</span>`)
-    expect(body.indexOf('cv-level-zoo-sign')).toBeGreaterThan(body.indexOf('class="cv-sheet"'))
+    // T3 revision (orchestrator QA regression): the sign's own dedicated row
+    // (T5's first pass) cost .cv-sheet a permanent ~84px of height. It now
+    // lives INSIDE .cv-head, right after the back button and still closed
+    // out before .cv-sheet ever opens.
+    expect(body.indexOf('cv-level-zoo-sign')).toBeGreaterThan(body.indexOf('cv-btn-back'))
+    expect(body.indexOf('cv-level-zoo-sign')).toBeLessThan(body.indexOf('</header>'))
+    expect(body.indexOf('</header>')).toBeLessThan(body.indexOf('class="cv-sheet"'))
 
     const audit = auditCaptions(html)
     expect(audit.captioned).toContain(label)
@@ -1522,7 +1625,8 @@ describe('LevelPlay docs/16 wooden zoo signs (finish-mvp-roadmap U14)', () => {
     expect(body).toContain('class="cv-captioned cv-level-zoo-sign"')
     expect(body).toContain(`href="${href}"`)
     expect(body).toContain(`<span class="cv-caption">${label}</span>`)
-    expect(body.indexOf('cv-level-zoo-sign')).toBeGreaterThan(body.indexOf('class="cv-sheet"'))
+    expect(body.indexOf('cv-level-zoo-sign')).toBeGreaterThan(body.indexOf('cv-btn-back'))
+    expect(body.indexOf('cv-level-zoo-sign')).toBeLessThan(body.indexOf('class="cv-sheet"'))
 
     const audit = auditCaptions(html)
     expect(audit.captioned).toContain(label)
@@ -1538,13 +1642,67 @@ describe('LevelPlay docs/16 wooden zoo signs (finish-mvp-roadmap U14)', () => {
     }
   })
 
-  it('overlays the sign without shrinking or intercepting the canvas and clips only the duplicated DOM glyphs', () => {
-    expect(LAYOUT_CSS).toContain('.cv-sheet { position: relative;')
-    expect(LAYOUT_CSS).toContain('.cv-level-zoo-sign {')
-    expect(LAYOUT_CSS).toContain('position: absolute;')
-    expect(LAYOUT_CSS).toContain('pointer-events: none;')
+  it('centres the sign inside the head row (never its own row) and clips only the duplicated DOM glyphs', () => {
+    // T3 revision (orchestrator QA regression): T5's first pass gave the
+    // sign its own row above the sheet, which read correctly in the DOM
+    // shape but cost .cv-sheet a permanent ~84px of height on every
+    // enclosure level (measured 1252x592 -> 1252x438 at 1280x720). It is now
+    // absolutely positioned and centred INSIDE .cv-head — the row the back
+    // button already occupies — so it costs that row nothing and never
+    // reaches .cv-sheet at all.
+    expect(LAYOUT_CSS).toContain('.cv-head { position: relative;')
+    expect(LAYOUT_CSS).toMatch(/\.cv-level-zoo-sign\s*\{\s*position:\s*absolute;\s*left:\s*50%;\s*top:\s*50%;\s*transform:\s*translate\(-50%,\s*-50%\);/)
+    expect(LAYOUT_CSS).toContain('.cv-play-portrait-guided .cv-level-zoo-sign { display: none; }')
+    // The sr-only caption clipping is unchanged by the move.
     expect(LAYOUT_CSS).toContain('.cv-level-zoo-sign .cv-caption {')
     expect(LAYOUT_CSS).toContain('clip: rect(0, 0, 0, 0);')
+  })
+
+  it('keeps the sign markup in the document under portrait guidance, governed by its own cv-level-zoo-sign hide rule (Back stays visible)', () => {
+    vi.stubGlobal('window', {
+      location: { search: '' },
+      matchMedia: () => ({
+        matches: true,
+        media: '',
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    })
+    try {
+      const html = renderToString(
+        <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      expect(html).toContain('cv-play-portrait-guided')
+      expect(html).toContain('cv-level-zoo-sign')
+      // Back stays in normal flow and visible under portrait guidance
+      // (pre-existing contract, unaffected by the sign living in the same
+      // header row now).
+      expect(html).toContain('cv-btn-back')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('crops the sign to SIGN_CROP_HEIGHT via the outer svg viewBox/height, never the image element underneath', () => {
+    const html = renderToString(
+      <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    const svgMatch = body.match(/<svg viewBox="([^"]+)" width="([^"]+)" height="([^"]+)" aria-hidden="true" focusable="false"><image href="\/art\/sign-fish\.png"[^>]*height="(\d+(?:\.\d+)?)"/)
+    expect(svgMatch, body).toBeTruthy()
+    const [, viewBox, , outerHeight, imageHeight] = svgMatch!
+    // The outer svg (and its viewBox) is cropped to SIGN_CROP_HEIGHT...
+    expect(Number(outerHeight)).toBe(SIGN_CROP_HEIGHT)
+    expect(viewBox.trim().split(/\s+/)[3]).toBe(String(SIGN_CROP_HEIGHT))
+    // ...while the image underneath still draws at the full, uncropped
+    // SIGN_SIZE — it is the outer viewBox that stops covering its bottom
+    // slice, never a smaller image.
+    expect(Number(imageHeight)).toBe(SIGN_SIZE)
+    expect(SIGN_CROP_HEIGHT).toBeLessThan(SIGN_SIZE)
   })
 })
 

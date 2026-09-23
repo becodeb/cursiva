@@ -29,6 +29,7 @@ import TraceCanvas, {
   type TraceWaypoints,
 } from '../canvas/TraceCanvas'
 import { backdropFor, TORCH_CHALK, TORCH_CHALK_DIM } from '../zoo/backdrops'
+import { adventureFor } from '../zoo/adventures'
 import { debugClearedTiles, EMPTY_REVEAL, revealTick, revealTiles, type RevealState } from '../levels/revealGrid'
 import {
   arrangeDebugCount,
@@ -152,6 +153,29 @@ const PROLOGUE_ZOO_SIGNS = {
   glass4: { art: SIGN_ART.monkeys, label: 'MONOS' },
 } as const
 
+/** Rendered HEIGHT the enclosure sign is drawn at before {@link SIGN_CROP_HEIGHT}
+ * takes its slice off the bottom (T5, D14). Purely an intrinsic-aspect-ratio
+ * input for `CaptionedArt`'s `<svg viewBox>` — the CSS `width` on
+ * `.cv-level-zoo-sign > svg` is what actually decides the on-screen size at
+ * each `max-height` breakpoint (`height: auto` then derives from this
+ * ratio), the same division of labour every other sized art constant in this
+ * file already leaves to `LAYOUT_CSS`. */
+export const SIGN_SIZE = 128
+
+/** The visible slice of {@link SIGN_SIZE}: crops off the sign's own two
+ * wooden support legs (T5 — "Crop the sign's legs with a nested
+ * `<svg viewBox>` … if that makes the board legibly bigger"). The three
+ * approved files (`sign-fish.png`/`-turtles.png`/`-monkeys.png`, all
+ * ~199x256) are the same template: frame + animal + word fill roughly the
+ * top four fifths, the two legs the bottom fifth (checked by eye against all
+ * three). 82% keeps a couple of points of margin below the frame's own
+ * bottom edge — safe even if that eyeballed split is slightly off — while
+ * still letting the sign's row spend nearly all of its height on the part a
+ * child actually reads, instead of on the props holding the board up.
+ * `CaptionedArt`'s own `<svg viewBox>` is what performs the crop (no
+ * `<clipPath>`/`mask`/`url(#…)`) — see that component's `cropHeight` doc. */
+export const SIGN_CROP_HEIGHT = Math.round(SIGN_SIZE * 0.82)
+
 /** Rendered HEIGHT of a clue mark, in viewBox units on the 1000x600 sheet
  * (docs/09 §3: clue marks are ~20-30 units tall).
  *
@@ -197,12 +221,33 @@ function isLeavesRevealLevel(levelId: string): boolean {
   return levelId === 'glass3' || levelId === 'glass4'
 }
 
+/** The mud path (D15, T3): `sendero`'s one played level is `sand3`
+ *  (`adventureFor('sand3')?.id === 'sendero'`, `zoo/adventures.ts`). `sand4`
+ *  is `sendero`'s harder twin — T1 dropped it from every `ADVENTURES` row
+ *  (never deleted from the catalog, since level ids are persisted keys; it
+ *  is reachable only through the dev `?nivel=` deep link), so it resolves NO
+ *  adventure at all and needs its own explicit check rather than inheriting
+ *  one through the adventure lookup every other family above uses. Keying
+ *  off the adventure (not an id prefix) is the same call `isLeavesRevealLevel`
+ *  already made for `glass3`/`glass4`: the SURFACE decides the wording, and
+ *  `sand*` already names the surface for the sand adventures too, so the
+ *  explicit id here only disambiguates the one id membership cannot reach. */
+function isMudRevealLevel(levelId: string): boolean {
+  return adventureFor(levelId)?.id === 'sendero' || levelId === 'sand4'
+}
+
 export function eraseResultMessage(levelId: string, approved: boolean): string {
   if (isSandRevealLevel(levelId)) {
     return approved ? '¡Arena barrida!' : 'Seguí barriendo la arena.'
   }
   if (isLeavesRevealLevel(levelId)) {
     return approved ? '¡Hojas juntadas!' : 'Seguí juntando las hojas.'
+  }
+  // D15: this used to fall through to the glass wording below, so finishing
+  // the muddy sendero said "¡Vidrio limpio!" — there is no glass anywhere on
+  // this trail.
+  if (isMudRevealLevel(levelId)) {
+    return approved ? '¡Sendero limpio!' : 'Seguí limpiando el sendero.'
   }
   return approved ? '¡Vidrio limpio!' : 'Seguí limpiando el vidrio.'
 }
@@ -477,7 +522,10 @@ html, body, #root { margin: 0; padding: 0; }
  * a single row, which is the only way two sibling rows can be merged without
  * duplicating the markup. */
 .cv-top, .cv-foot { display: contents; }
-.cv-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+/* position: relative is for .cv-level-zoo-sign below: absolutely centring it
+ * on THIS row (not on the viewport, not relative to the back button) needs a
+ * positioned ancestor no bigger than the row itself. */
+.cv-head { position: relative; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cv-title { margin: 0; font-size: 24px; font-weight: 700; color: #1e293b; text-align: right; }
 .cv-hint { flex: 0 0 auto; margin: 0; font-size: 28px; line-height: 1.3; color: #1e293b; }
 .cv-portrait-guidance { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 18px; border: 2px dashed #94a3b8; border-radius: 20px; background: rgba(255,255,255,0.72); color: #1e293b; font-size: 24px; line-height: 1.3; text-align: center; font-weight: 700; }
@@ -486,29 +534,43 @@ html, body, #root { margin: 0; padding: 0; }
 .cv-sheet { position: relative; container-type: size; flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
 /* The canvas is TraceCanvas's own root svg element — no wrapper element
  * exists to put a class on, so it is targeted structurally. It grows to
- * fill the sheet, exactly as it always did. The zoo sign is nested in a span,
- * so TraceCanvas remains the sheet's only direct SVG child and keeps the exact
- * sizing contract it had before U14. */
+ * fill the sheet, exactly as it always did. T5 moved the zoo sign out of
+ * .cv-sheet entirely (it lives in .cv-head now — see .cv-level-zoo-sign
+ * below), so TraceCanvas is the sheet's only direct SVG child and keeps the
+ * exact sizing contract it had before U14; the T3 revision below adds one
+ * more, non-SVG, ABSOLUTELY POSITIONED child (.cv-result-pill) that costs
+ * this rule nothing since it never participates in flex sizing. */
 .cv-sheet > svg { flex: 1 1 auto; min-width: 0; min-height: 0; }
 
-/* docs/16 zoo signage. The approved PNG is the complete wooden sign: animal,
- * word, frame and posts. It sits over a quiet edge of the playable scene, so
- * the canvas keeps its exact size and pointer surface. CaptionedArt still owns
- * the accessible text; its duplicate visual glyphs are clipped because PECES /
- * TORTUGAS / MONOS are already legible inside the authored sign. */
+/* docs/16 zoo signage (T5/D14, revised again by T3's orchestrator QA pass).
+ * The approved PNG is the complete wooden sign: animal, word, frame and two
+ * support legs. Two earlier placements both cost the sheet real height: it
+ * first sat ABSOLUTELY POSITIONED inside .cv-sheet, over the top-left corner
+ * of the very art it was announcing (D14's original complaint); moving it to
+ * its OWN row above the sheet fixed that overlap but cost .cv-sheet a
+ * permanent ~84px of the flex column instead (measured 1252x592 -> 1252x438
+ * at 1280x720). It now lives INSIDE .cv-head — the row the back button
+ * already occupies — sized well under that row's own height and absolutely
+ * centred on it (.cv-head's own position: relative above), so it costs
+ * .cv-head nothing and touches .cv-sheet not at all. pointer-events: none
+ * because it is decorative chrome, never a control. CaptionedArt still owns
+ * the accessible text; its duplicate visual glyphs are clipped because
+ * PECES / TORTUGAS / MONOS are already legible inside the authored sign. */
 .cv-level-zoo-sign {
   position: absolute;
-  z-index: 2;
-  top: 10px;
-  /* TraceCanvas uses a 5:3 viewBox with contain fitting. Half of its visible
-   * width is therefore the smaller of half the sheet width and 5/6 of its
-   * height. Container units keep this placard ten pixels inside that same
-   * visible scene at every supported landscape aspect ratio. */
-  left: calc(50cqw - min(50cqw, 83.333cqh) + 10px);
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: inline-flex;
   pointer-events: none;
 }
-.cv-level-zoo-sign > svg { width: clamp(72px, 9vw, 112px); height: auto; }
+/* height: auto derives from the svg's own intrinsic ratio, which is now
+ * width OVER the level screen's SIGN_CROP_HEIGHT constant, not over the
+ * full uncropped SIGN_SIZE — shrinking this CSS width keeps the CROPPED
+ * board's own proportions, never the legs it no longer draws. Sized to sit
+ * well inside .cv-head's own height (the back button's 56/48/44px min-height
+ * at each breakpoint below), never to define it. */
+.cv-level-zoo-sign > svg { width: 53px; height: auto; }
 .cv-level-zoo-sign .cv-caption {
   position: absolute;
   width: 1px;
@@ -610,11 +672,80 @@ html, body, #root { margin: 0; padding: 0; }
 .cv-pillars { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; }
 .cv-pillar { display: inline-flex; align-items: baseline; gap: 8px; font-size: 24px; font-weight: 600; }
 .cv-coach { margin: 8px 0 0; text-align: center; font-size: 22px; }
+/* T3 revision (orchestrator QA regression): the drawnPlace erase/light
+ * result message used to be a .cv-result row like the one above — first
+ * appearing only on attempt (shrinking the sheet the instant a level
+ * resolved), then reserved from first paint (shrinking the sheet
+ * PERMANENTLY instead). Both cost .cv-sheet real height it must never
+ * lose. This message asks the flex column for nothing: it is an absolutely
+ * positioned pill floating over the bottom-centre of .cv-sheet (which
+ * already carries position: relative), so the sheet's own box is
+ * identical whether the pill is showing or not. White-on-dark-text is
+ * chosen specifically because it must read over ANY of this screen's
+ * backdrops — plain paper, a leaf-litter fill, a night sky — without a
+ * per-backdrop colour override (the old light-mode section needed one;
+ * this does not). pointer-events: none because it is feedback, never a
+ * control, and must never intercept the next attempt's first touch. */
+.cv-result-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 3;
+  margin: 0;
+  max-width: calc(100% - 32px);
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.35);
+  pointer-events: none;
+}
+/* Success only (attempt.approved) — never shown on the neutral "keep
+ * going" coaching text, so a green check never contradicts a message that
+ * says the child is not done yet (docs/01 principle 2: never a mixed
+ * signal). */
+.cv-result-check { color: #16a34a; font-weight: 900; margin-right: 8px; }
 .cv-actions { flex: 0 0 auto; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .cv-btn { min-height: 64px; padding: 0 28px; border-radius: 16px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b; font-size: 20px; font-weight: 600; cursor: pointer; }
 .cv-btn-back { min-height: 56px; padding: 0 18px; }
 .cv-btn-ok { background: #dcfce7; border-color: #86efac; }
 .cv-btn-off { opacity: 0.45; cursor: default; }
+
+/* D21/T3: finishing a level used to change nothing but a small button's own
+ * pale colour — no festejo at all, easy to miss entirely. The enabled
+ * "Siguiente"/chevron now says "now!" on its own: visibly bigger, a solid
+ * (not pale) green, a white glyph instead of the ink-grey every other icon
+ * uses, and a slow pulse that keeps drawing the eye without being loud.
+ * transform: scale (not bigger padding/font-size per breakpoint) so the
+ * 1.15x holds at every .cv-btn size this file already ships, with no
+ * separate override needed inside the max-height queries below.
+ * prefers-reduced-motion keeps the size and colour — the actual affordance
+ * change — and drops only the motion (docs/03's "never a jump scare",
+ * restated for animation rather than sound). */
+.cv-next-ready {
+  transform: scale(1.15);
+  background: #22c55e;
+  border-color: #16a34a;
+  color: #ffffff;
+  animation: cv-next-pulse 1.4s ease-in-out infinite;
+}
+/* ContinueIcon's chevron is drawn with a hardcoded stroke attribute, not
+ * currentColor (see detective/icons.tsx) — a presentation attribute always
+ * loses to an authored CSS rule on the same property, so this repaints it
+ * white without touching that shared, multi-caller icon file. */
+.cv-next-ready path { stroke: #ffffff; }
+@keyframes cv-next-pulse {
+  0%, 100% { transform: scale(1.15); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+  50% { transform: scale(1.22); box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-next-ready { animation: none; }
+}
 
 /* Upright and narrow is genuinely width-limited: show guidance instead of
  * shrinking the play surface into an unusable mini game. Header and actions
@@ -625,6 +756,7 @@ html, body, #root { margin: 0; padding: 0; }
 .cv-play-portrait-guided { gap: 10px; }
 .cv-play-portrait-guided .cv-portrait-guidance { flex-direction: column; }
 .cv-play-portrait-guided .cv-sheet { display: none; }
+.cv-play-portrait-guided .cv-level-zoo-sign { display: none; }
 
 /* Height-constrained but not tiny — the PRIMARY devices, a tablet in landscape
  * and a touch laptop. Full-size chrome eats ~45% of a 700px viewport, so the
@@ -643,6 +775,10 @@ html, body, #root { margin: 0; padding: 0; }
   .pistas-lamp-row svg { width: 34px; height: 34px; }
   .pistas-slots { gap: 8px; }
   .pistas-slots svg { width: 30px; height: 30px; }
+  /* width: 47px -> ~50px tall, comfortably inside the 48px back button row
+   * this breakpoint sets just above (1280x720 and 1024x768 both land here). */
+  .cv-level-zoo-sign > svg { width: 47px; }
+  .cv-result-pill { font-size: 18px; padding: 8px 18px; bottom: 12px; }
 }
 
 /* Short viewport: the chrome gives its room back to the canvas. Buttons stop
@@ -659,8 +795,10 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-coach { margin: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cv-btn { min-height: 44px; padding: 0 16px; font-size: 16px; }
   .cv-btn-back { min-height: 44px; padding: 0 12px; font-size: 16px; }
-  .cv-level-zoo-sign { top: 6px; }
-  .cv-level-zoo-sign > svg { width: clamp(58px, 8vw, 68px); }
+  /* width: 30px -> ~32px tall, comfortably inside the 44px back button row
+   * this breakpoint sets (844x390 lands here). */
+  .cv-level-zoo-sign > svg { width: 30px; }
+  .cv-result-pill { font-size: 15px; padding: 6px 14px; bottom: 8px; }
 
   /* Two rows become one, twice. Every row reclaimed goes straight into canvas
    * height, and on a 390px-tall landscape phone that is the whole budget. */
@@ -674,6 +812,11 @@ html, body, #root { margin: 0; padding: 0; }
   }
   .cv-top { justify-content: flex-start; }
   .cv-top > .cv-head { flex: 0 0 auto; }
+  /* A head that carries the enclosure sign must span the whole row: the sign
+   * is centred on .cv-head's own box, and a head shrunk to the back button
+   * put the sign on top of the button (measured at 844x390). A sign level is
+   * always a drawn place, so there is no hint beside it to share the row. */
+  .cv-top > .cv-head-signed { flex: 1 1 auto; }
   .cv-title { white-space: nowrap; }
   .cv-hint { flex: 1 1 auto; min-width: 0; }
   .cv-result { flex: 0 1 auto; min-height: 0; min-width: 0; }
@@ -2019,10 +2162,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
       className={mainClassName}
       style={backdrop ? { background: backdrop.quiet } : undefined}
       aria-describedby={portraitGuidanceActive ? 'cv-portrait-guidance' : undefined}
+      // QA hook (adventure-flow-and-map-guidance T3): a stable, purely
+      // structural identifier for whichever level is currently mounted, so a
+      // Playwright driver (or any other outside-in probe) can assert "this is
+      // glass1" without depending on visible copy that the detective world
+      // deliberately keeps wordless (C1).
+      data-level-id={level.id}
     >
       <style>{LAYOUT_CSS}</style>
       <div className="cv-top">
-      <header className="cv-head">
+      <header className={zooSign ? 'cv-head cv-head-signed' : 'cv-head'}>
         <button
           type="button"
           onClick={onBack}
@@ -2031,6 +2180,27 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
         >
           {drawnPlace ? <BackIcon /> : '‹ Volver'}
         </button>
+        {/* T3 revision (orchestrator QA regression): the sign used to get its
+         * OWN row above the sheet (T5's first pass), which cost the sheet a
+         * permanent ~84px of height on every enclosure level — measured
+         * 1252x592 -> 1252x438 at 1280x720. Centring it here instead, inside
+         * the row the back button already occupies, costs .cv-head nothing:
+         * it is `position: absolute` (see `.cv-head`'s own `position:
+         * relative` in LAYOUT_CSS) and sized well under the row's own
+         * height, so it never grows `.cv-head` and never touches
+         * `.cv-sheet`'s share of the flex column. Centred on the row's own
+         * width (not "next to the back button"), so it clears the button on
+         * the left at every supported viewport, with the row's right side
+         * left empty on purpose for a later "listen" button. */}
+        {zooSign && (
+          <CaptionedArt
+            art={zooSign.art}
+            label={zooSign.label}
+            size={SIGN_SIZE}
+            cropHeight={SIGN_CROP_HEIGHT}
+            className="cv-level-zoo-sign"
+          />
+        )}
         {/* No level title in the detective world (Orchestrator Correction C1:
          * "Hace todo bien grande, bien simple la pantalla, sin texto"). Every
          * other phase keeps this heading exactly as shipped — this is a
@@ -2067,14 +2237,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
        * case trail, never for a world-only level with no clue (D1). */}
       {isCase && <PistasRail slots={railSlots} lampOn={clueFiled} />}
       <div className="cv-sheet">
-        {zooSign && (
-          <CaptionedArt
-            art={zooSign.art}
-            label={zooSign.label}
-            size={128}
-            className="cv-level-zoo-sign"
-          />
-        )}
         <TraceCanvas
         key={`${level.id}-${demoRun}`}
         demo={phase === 'demo' ? demos : undefined}
@@ -2267,6 +2429,46 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           </g>
         )}
         </TraceCanvas>
+        {/* T3 revision (orchestrator QA regression): this used to be a
+         * `.cv-result` row in `.cv-foot`, first popping into existence on
+         * attempt (shrinking the sheet the instant a level resolved), then
+         * — this file's own earlier fix — ALWAYS reserved from first paint
+         * (which shrank the sheet PERMANENTLY instead, on every enclosure
+         * level: measured 1252x592 -> 1252x438 at 1280x720). Neither is
+         * right: the sheet must be the exact same box before and after an
+         * attempt, and nothing should be reserved for a message that is not
+         * always there. So the message no longer asks the flex column for
+         * space at all — it floats OVER `.cv-sheet` (which already carries
+         * `position: relative`), an absolutely positioned pill, high
+         * contrast against whatever sits behind it (paper, a leaf-litter
+         * fill, a night backdrop), `pointer-events: none` so it can never
+         * steal the next attempt's first touch. Gated on `attempt` exactly
+         * as it always was pre-T3 — it shows on a short/failed attempt too
+         * (the coaching text), not only on success. */}
+        {drawnPlace && level.reveal?.mode === 'erase' && attempt && (
+          <p className="cv-result-pill" role="status">
+            {attempt.approved && (
+              <span className="cv-result-check" aria-hidden="true">
+                ✓
+              </span>
+            )}
+            {eraseResultMessage(level.id, attempt.approved)}
+          </p>
+        )}
+        {drawnPlace && level.reveal?.mode === 'light' && attempt && (
+          <p className="cv-result-pill" role="status">
+            {attempt.approved ? (
+              <>
+                <span className="cv-result-check" aria-hidden="true">
+                  ✓
+                </span>
+                ¡Descubrimiento brillante!
+              </>
+            ) : (
+              `Encontraste ${revealState.lit.size} de ${level.reveal.objects.length}. Volvé a alumbrar las luces que faltan.`
+            )}
+          </p>
+        )}
       </div>
       <div className="cv-foot">
       {/* Pillars and coach copy (accuracy/direction/fluency readouts, the
@@ -2311,22 +2513,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           )}
         </section>
       )}
-      {drawnPlace && level.reveal?.mode === 'erase' && attempt && (
-        <section aria-label="Resultado del intento" className="cv-result">
-          <p className="cv-coach" role="status">
-            {eraseResultMessage(level.id, attempt.approved)}
-          </p>
-        </section>
-      )}
-      {drawnPlace && level.reveal?.mode === 'light' && attempt && (
-        <section aria-label="Resultado del intento" className="cv-result" style={{ color: '#fff7c2', textShadow: '0 2px 8px rgba(0,0,0,0.7)' }}>
-          <p className="cv-coach" role="status">
-            {attempt.approved
-              ? '¡Descubrimiento brillante!'
-              : `Encontraste ${revealState.lit.size} de ${level.reveal.objects.length}. Volvé a alumbrar las luces que faltan.`}
-          </p>
-        </section>
-      )}
       <nav aria-label="Acciones" className="cv-actions">
         <button
           type="button"
@@ -2359,7 +2545,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack }: 
           type="button"
           onClick={onNext}
           disabled={!attempt?.approved}
-          className={`cv-btn ${attempt?.approved ? 'cv-btn-ok' : 'cv-btn-off'}`}
+          // D21/T3: an approved attempt makes this button say "now!" on its
+          // own (`.cv-next-ready` in `LAYOUT_CSS`) instead of only swapping a
+          // pale colour for a slightly less pale one.
+          className={`cv-btn ${attempt?.approved ? 'cv-btn-ok cv-next-ready' : 'cv-btn-off'}`}
           aria-label={drawnPlace ? 'Siguiente' : undefined}
         >
           {drawnPlace ? <ContinueIcon /> : 'Siguiente'}

@@ -30,6 +30,24 @@
       connection.
     -->
     <style>
+      /* Global UA reset (adventure-flow-and-map-guidance T3, D2). LevelPlay's
+         own `LAYOUT_CSS` already resets `html, body, #root` for the level
+         screen, but that stylesheet only mounts while a level is showing —
+         the prologue and the adventure-intro screens (`PrologueOpening.tsx`,
+         `AdventureIntro.tsx`) never render it and carried the browser's own
+         8px `body` margin instead: a visible white frame around their full-
+         bleed `100dvh` art, and a page that scrolled 16px (8px top + 8px
+         bottom) for no content of its own. `ZooMap.tsx` and
+         `AdventureClosing.tsx` already carry this exact rule inline in their
+         own per-screen stylesheets (see `AdventureClosing.test.tsx`'s pinned
+         string) — this is the one place EVERY screen inherits from
+         regardless of which one is mounted, so the two screens missing it
+         stop being a special case instead of gaining a third copy. */
+      html, body, #root {
+        margin: 0;
+        height: 100%;
+      }
+
       @font-face {
         font-family: 'Nunito';
         src: url('/fonts/nunito.woff2') format('woff2-variations');
