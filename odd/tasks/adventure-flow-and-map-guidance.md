@@ -104,7 +104,7 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 - [ ] **T7 — Voice narration.** Speech synthesis (es-AR → es-419 → es) for prologue, intro,
       closing, map bubble and level hints; speaker button; persisted mute; clip registry for
       future recorded audio. Route: delegated.
-- [ ] **T8 — Rescue closings.** Closing beat per animal adventure using the registry's existing
+- [x] **T8 — Rescue closings.** Closing beat per animal adventure using the registry's existing
       `closing` lines and the animal art. (The peces intro keeps its chest: an entry icon must
       never name the absent animal — `docs/17` §1.) Route: delegated.
 - [ ] **T9 — Visual QA and doc status.** Full Playwright walkthrough at 1280x720, 1024x768,
@@ -135,6 +135,7 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 | T2 amendment | `a2caf27` | delegated (fresh writer; the first one refused the amendment as a possible injection) | `npm test` 82 / 1953; build ok; journey QA: prologue plays 4 levels with no map trips | covered by the same moot consent; RDD off |
 | T3+T5 | `caa1b00` | delegated (preparation trigger: LevelPlay 2300+ lines) + one inline CSS fix | `npm test` 82 / 1963; build ok; browser QA at 1280x720/1024x768/844x390: sheet 1252x592 / 996x640 / 824x282 identical before and after success, sign in the back-button row never over the sheet or the button, pill "✓ ¡Vidrio limpio!", "¡Sendero limpio!" on sand3, `cv-next-ready` after success, intro scroll = viewport | RDD off; assess medium (`client/index.html`) → writer self-verification + parent QA |
 | T4 | `c4296a2` | delegated (mapping trigger: ZooMap, sectors, adventures, App + new journey module) + two inline CSS fixes (inline svg made the stage 1200x726; HUD portraits drawn over the montañas) | `npm test` 83 / 1983; build ok; browser QA over 10 progress states × 3 viewports: spotlight target follows the journey order, bubble never over the target and always on-screen, stage exactly 5:3 and centred | RDD off; assess medium (`client/src/App.tsx`, with the two new files declared) → writer self-verification + parent QA |
+| T8 | `3a25097` | delegated (same writer as T4, resumed with the brief) | `npm test` 83 / 2000; build ok; browser: rescue closings for duck/sheep/hedgehog show the animal + 6 stars, night closes with the flashlight; after the bee the map bubble says the onward line (no stale duck rescue) | RDD off; assess medium → writer self-verification + parent QA |
 
 - 2026-09-23: journey QA on `99dd8ad` from an empty store (1280x720): levels played between map
   visits `[0,1,1,1,1,4,4]` — the duck and the sheep now play 4 levels straight; the prologue still
@@ -144,7 +145,7 @@ Route legend: inline = done by the orchestrator; delegated = one bounded writer 
 
 ## Next step
 
-T8 (rescue closings; the map bubble stops repeating an old rescue) in progress; then T6 (progress bar), T7 (voice), T9 (QA + docs/18 status).
+T6 (progress bar in the back-button row) in progress; then T7 (voice), T9 (QA + docs/18 status).
 
 Found in T4 QA and handed to T8: with the spotlight on the estanque after the bee, `mapBubble` still
 announced "¡Encontramos al pato!" (stale news). Still open after T4: the bubble can cover a
