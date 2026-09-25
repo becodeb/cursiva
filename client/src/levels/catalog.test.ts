@@ -873,13 +873,15 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
     // Ceiling (design.md §2 D5, "computed from the real anchor chords"):
     // half the smallest chord between two REAL, adjacent generated anchors —
     // not the circle approximation `2·r_min·sinΔθ/2` would give, since the
-    // profile's per-anchor radii vary along the arc. Margins recorded in
-    // design.md §8: 3.5 / 2.9 / 1.1 / 1.5.
+    // profile's per-anchor radii vary along the arc. T3 (2026-09-25 tablet
+    // playtest) revised both `count` and `baseRadius` on every hedgehog
+    // level (`catalog.ts`'s own T3 comment on the family has the full
+    // rationale) — margins recomputed against the NEW counts/radii below.
     const margins: Record<string, number> = {
-      hedgehog1: 3.5,
-      hedgehog2: 2.9,
-      hedgehog3: 1.1,
-      hedgehog4: 1.5,
+      hedgehog1: 4.5,
+      hedgehog2: 3.1,
+      hedgehog3: 2.9,
+      hedgehog4: 8.7,
     }
     for (const id of HEDGEHOG_IDS) {
       const cfg = getLevel(id).spines!
