@@ -991,12 +991,20 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
           <circle cx={sheetBounds.x + sheetBounds.width * 0.5} cy={sheetBounds.y + sheetBounds.height * 0.45} r={Math.min(sheetBounds.width, sheetBounds.height) * 0.58} fill={NIGHT_SUCCESS_WASH} opacity={0.2} />
         </g>
       )}
-      {nightVeil && hiddenArt.map((obj, idx) => (
-        <g key={`night-visible-hint-${idx}`} data-night-visible-hint="true">
-          <circle cx={obj.x} cy={obj.y} r={Math.max(19, obj.size * 0.32)} fill={NIGHT_HINT} opacity={0.28} />
-          <circle cx={obj.x} cy={obj.y} r={Math.max(44, obj.size * 0.72)} fill="none" stroke={NIGHT_HINT} strokeWidth={5} opacity={0.2} />
-        </g>
-      ))}
+      {/* Defect fix (play-test 2026-09-25, T2 item 2: "a circle/halo already
+          marks where each hidden object is"). This group used to render a
+          filled circle plus a ring at every UNFOUND object's exact (x, y),
+          AFTER `reveal.tiles.map(...)` above — i.e. drawn on TOP of the dark
+          veil rects, so it was visible from the very first frame regardless
+          of the torch's position. Nothing in the mechanic needs it: the
+          torch's own falloff (`data-night-torch`, `data-night-hint` above —
+          that one stays UNDER the veil, so it only bleeds through once a
+          tile near the object is already partly lit by real searching) and
+          the level's hint text are what the search is supposed to run on.
+          Removed outright rather than dimmed or gated: there was no
+          solvability need for a permanent position marker, only a leftover
+          hint layer nobody had reason to keep once the torch mechanic was
+          shipped. */}
       {revealedArt.map((obj, idx) => {
         const box = clampArtBox(placeArt(obj, obj.size * (nightVeil ? 1.16 : 1), { x: obj.x, y: obj.y }), sheetBounds)
         return (

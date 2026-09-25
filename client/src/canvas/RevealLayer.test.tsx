@@ -66,7 +66,13 @@ describe('RevealLayer', () => {
       ],
     }
     const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
-    expect(html).toContain('data-night-visible-hint="true"')
+    // Defect fix (T2 item 2, "a circle/halo already marks where each hidden
+    // object is"): `data-night-visible-hint` used to render a permanent
+    // marker over EVERY unfound object, on top of the dark veil — removed
+    // outright, so an unfound object (`sector-leaf`, `revealed: false`) now
+    // carries no rendered position hint at all.
+    expect(html).not.toContain('data-night-visible-hint')
+    expect(html).toContain('data-night-hint="true"')
     expect(html).toContain('data-night-torch="true"')
     expect(html).toContain('data-night-discovery="true"')
     expect(html).not.toContain('url(#')

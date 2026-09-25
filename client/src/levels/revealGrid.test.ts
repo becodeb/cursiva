@@ -253,4 +253,64 @@ describe('revealTiles', () => {
     const tiles = revealTiles(ERASE, state, 1000)
     expect(tiles.length).toBe(ERASE.cols * ERASE.rows - state.cleared.size)
   })
+
+  // T2 item 3 ("when the child discovers an object, it stays lit — the
+  // darkness is permanently removed in a radius around the found object,
+  // instead of the light only following the finger").
+  describe('light mode — a found object stays lit', () => {
+    const light: Extract<RevealConfig, { mode: 'light' }> = {
+      mode: 'light',
+      cols: 10,
+      rows: 6,
+      radius: 100,
+      objects: [
+        { art: { href: '/art/x.png', w: 1, h: 1 }, size: 50, x: 200, y: 200 },
+        { art: { href: '/art/y.png', w: 1, h: 1 }, size: 50, x: 800, y: 400 },
+      ],
+    }
+
+    it('before anything is found, the finger lifting re-covers everything (baseline)', () => {
+      // (500, 300) is outside `radius` of both objects — nothing latches.
+      const untouched = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000)
+      expect(untouched.lit.size).toBe(0)
+      const released = revealTick(untouched, [], false, light, 1000)
+      const tiles = revealTiles(light, released, 1000)
+      expect(tiles.length).toBe(light.cols * light.rows)
+      for (const t of tiles) expect(t.opacity).toBe(1)
+    })
+
+    it('once object 0 is found, its own tile stays revealed after the torch lifts', () => {
+      let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000)
+      expect(state.lit.has(0)).toBe(true)
+      state = revealTick(state, [], false, light, 1000) // finger lifts — torch off
+      expect(state.point).toBeNull()
+
+      const tiles = revealTiles(light, state, 1000)
+      // Tile (2,2) of a 10x6 grid over 1000x600 (tile 100x100): centre
+      // (250, 250), 70.7 units from the found object — still lit (opacity
+      // below the fully-covering 1) even with no live torch point.
+      const nearFound = tiles.find((t) => t.x === 200 && t.y === 200)
+      expect(nearFound).toBeDefined()
+      expect(nearFound?.opacity).toBeLessThan(1)
+
+      // A tile far from BOTH objects (top-right corner) stays fully dark —
+      // the fix lights a radius around what was found, not the whole sheet.
+      const farAway = tiles.find((t) => t.x === 900 && t.y === 0)
+      expect(farAway?.opacity).toBe(1)
+    })
+
+    it('the found object\'s own radius matches the search radius it was found with', () => {
+      let state = revealTick(EMPTY_REVEAL, [{ x: 800, y: 400 }], true, light, 1000)
+      state = revealTick(state, [], false, light, 1000)
+      expect(state.lit.has(1)).toBe(true)
+
+      const tiles = revealTiles(light, state, 1000)
+      const at = (x: number, y: number) => tiles.find((t) => t.x === x && t.y === y)?.opacity
+      // Exactly `lightOpacity` at each sampled distance from (800, 400):
+      // tile (8,4) centre (850, 450) is ~70.7 away, tile (0,0) centre
+      // (50, 50) is far past `radius`.
+      expect(at(800, 400)).toBeLessThan(1)
+      expect(at(0, 0)).toBe(1)
+    })
+  })
 })
