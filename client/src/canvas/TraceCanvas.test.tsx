@@ -1395,14 +1395,23 @@ describe('TraceCanvas inkColor / inkDimColor (the child\'s line is MUD on a trai
   })
 })
 
-describe('TraceCanvas artCorridor prop (trace-canvas spec: renders above the channel, below the ink)', () => {
+describe('TraceCanvas artCorridor prop (trace-canvas spec: the drawn body IS the corridor — no channel stroke underneath)', () => {
   const backdrop = { href: '/art/sector-sand-background.png', quiet: '#d6cbba', channel: '#3b332b' }
   const corridor = { paths: ['M 100 300 L 900 300'], width: 60 }
   const artCorridor = [
     { href: '/art/sector-snake-medium.png', box: { x: 200, y: 250, width: 200, height: 46 } },
   ]
 
-  it('the corridor images render after the channel stroke and before the ink', () => {
+  it('renders no channel stroke at all — only the corridor image, and the guide after it', () => {
+    // `artCorridor` populated used to also paint `corridor` as a
+    // `backdrop.channel`-coloured stroke UNDER the image, meant to be fully
+    // hidden by it. Found on a screenshot instead poking a sliver out past
+    // the drawn body's own outline at the wave's tightest curves (the
+    // stroke follows the FITTED spine, which tracks the real drawn
+    // centreline only to within a few viewBox units) — a stray dark mark
+    // riding the snake, not the redundant-but-invisible layer it was meant
+    // to be. An art-corridor level's own body already IS the channel
+    // (`levels/artCorridor.ts`'s own header), so nothing paints one.
     const html = renderToString(
       <TraceCanvas
         backdrop={backdrop}
@@ -1411,14 +1420,17 @@ describe('TraceCanvas artCorridor prop (trace-canvas spec: renders above the cha
         guide="M 0 0 L 100 100"
       />,
     )
-    const channelIdx = html.indexOf('#3b332b')
     const corridorImgIdx = html.indexOf('/art/sector-snake-medium.png')
     const guideIdx = html.indexOf('M 0 0 L 100 100')
-    expect(channelIdx).toBeGreaterThan(-1)
+    expect(html).not.toContain('#3b332b')
     expect(corridorImgIdx).toBeGreaterThan(-1)
     expect(guideIdx).toBeGreaterThan(-1)
-    expect(corridorImgIdx).toBeGreaterThan(channelIdx)
     expect(guideIdx).toBeGreaterThan(corridorImgIdx)
+  })
+
+  it('WITHOUT artCorridor, the very same corridor/backdrop still paints its channel stroke — this is a per-level exemption, not a global regression', () => {
+    const html = renderToString(<TraceCanvas backdrop={backdrop} corridor={corridor} guide="M 0 0 L 100 100" />)
+    expect(html).toContain('#3b332b')
   })
 
   it('no artCorridor prop renders no corridor-layer image', () => {
