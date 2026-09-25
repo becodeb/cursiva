@@ -27,6 +27,7 @@ import type { Adventure, ClosingBeat } from '../zoo/adventures'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
+import { BUBBLE_POP_CSS } from './BubblePop'
 
 /* Same stage geometry as `AdventureIntro.tsx`'s `INTRO_CSS`, restated under
    its own class prefix rather than shared, the same reason the two
@@ -45,9 +46,29 @@ html, body, #root { margin: 0; height: 100%; }
 .cv-closing-frame { position: relative; width: min(100%, 620px, 84dvh); aspect-ratio: 1 / 1; container-type: inline-size; }
 .cv-closing-stage { position: absolute; inset: 0; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; }
 .cv-closing-speak { position: absolute; top: 2%; right: 4%; z-index: 1; }
-.cv-closing-octopus { position: absolute; left: 50%; bottom: 2%; width: 44%; height: auto; transform: translateX(-50%); }
+/* T8 item 1 (odd/tasks/prewriting-stage-completion.md): idle life, using
+   only the existing art — see PrologueOpening.tsx's own header for why
+   breathing restates the static translateX(-50%) in its own keyframes while
+   the occasional blink lives on the nested, transform-free .cv-octopus-life
+   image instead. NO BACKTICKS in this block — one inside a comment ends
+   this template literal early (this file's own header). */
+.cv-closing-octopus { position: absolute; left: 50%; bottom: 2%; width: 44%; height: auto; transform: translateX(-50%); animation: cv-octopus-breathe 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes cv-octopus-breathe {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.02) translateY(-1%); }
+}
+.cv-octopus-life { display: block; width: 100%; height: auto; animation: cv-octopus-blink 6.4s ease-in-out infinite; transform-origin: 50% 50%; }
+@keyframes cv-octopus-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.82); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-closing-octopus { animation: none; }
+  .cv-octopus-life { animation: none; }
+}
+${BUBBLE_POP_CSS}
 .cv-closing-bubble { position: absolute; left: 50%; top: 4%; width: 82%; transform: translateX(-50%); }
-.cv-closing-bubble > img { display: block; width: 100%; height: auto; }
+.cv-closing-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
 .cv-closing-bubble .cv-captioned { position: absolute; left: 10%; right: 10%; top: 16%; height: 58%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4cqw; }
 .cv-closing-bubble .cv-captioned > svg { width: auto; height: 62%; flex: none; }
 .cv-closing-bubble .cv-caption { font-size: 5.6cqw; line-height: 1.16; font-weight: 700; color: #1e293b; text-align: left; }
@@ -98,10 +119,19 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
       <style>{CLOSING_CSS}</style>
       <div className="cv-closing-frame">
         <button type="button" className="cv-closing-stage" onClick={onContinue}>
-          <img src={(beat.figure ?? ZOO_OCTOPUS_BACKPACK_ART).href} alt="" className="cv-closing-octopus" />
+          <span className="cv-closing-octopus">
+            <img src={(beat.figure ?? ZOO_OCTOPUS_BACKPACK_ART).href} alt="" className="cv-octopus-life" />
+          </span>
           <span className="cv-closing-bubble">
-            <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-            <CaptionedArt art={beat.art} label={beat.line} size={76} />
+            {/* Keyed on the line (T8 item 2): a beat advance re-renders THIS
+                SAME component (this file's own header, above) rather than
+                remounting it, so the key is what forces the pop-in to replay
+                on each beat — `useNarration`, unaffected by this child
+                remounting, keeps deciding on its own when to speak. */}
+            <span key={beat.line} className="cv-bubble-pop">
+              <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+              <CaptionedArt art={beat.art} label={beat.line} size={76} />
+            </span>
           </span>
           {adventure.animal !== undefined && <RescueCelebration />}
         </button>

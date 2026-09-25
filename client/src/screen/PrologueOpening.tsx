@@ -23,6 +23,7 @@ import { backdropFor } from '../zoo/backdrops'
 import { PROLOGUE_PLATES, advancePlate } from '../zoo/prologue'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
+import { BUBBLE_POP_CSS } from './BubblePop'
 
 /* Same stage geometry as `AdventureIntro.tsx`'s `INTRO_CSS` — see that
    file's header for the derivation of every number below (the 84dvh
@@ -53,9 +54,35 @@ const PROLOGUE_CSS = `
    36% taller than the backpack octopus does and its head disappears behind
    the bubble. Height is what has to be pinned here, because what the layout
    actually needs is for the figure to stop below the bubble. */
-.cv-prologue-octopus { position: absolute; left: 50%; bottom: 2%; height: 44%; width: auto; transform: translateX(-50%); }
+/* T8 item 1 (odd/tasks/prewriting-stage-completion.md): idle life, using
+   only the existing art. Breathing lives on THIS box (the one that already
+   carries the static translateX(-50%) centring), so its own keyframes
+   restate that translateX in every frame — animating transform replaces the
+   whole property rather than composing with a separate static rule
+   (BubblePop.ts's own header explains the same defect class). The
+   occasional blink is a SEPARATE animation on the nested .cv-octopus-life
+   image instead, which carries no static transform of its own to protect —
+   two animations on ONE transform property would fight each other the
+   same way, so each lives on its own element. NO BACKTICKS in this block —
+   see this file's own top-of-file note: one inside a comment ends the
+   template literal early. */
+.cv-prologue-octopus { position: absolute; left: 50%; bottom: 2%; height: 44%; width: auto; transform: translateX(-50%); animation: cv-octopus-breathe 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes cv-octopus-breathe {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.02) translateY(-1%); }
+}
+.cv-octopus-life { display: block; height: 100%; width: auto; animation: cv-octopus-blink 6.4s ease-in-out infinite; transform-origin: 50% 50%; }
+@keyframes cv-octopus-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.82); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-prologue-octopus { animation: none; }
+  .cv-octopus-life { animation: none; }
+}
+${BUBBLE_POP_CSS}
 .cv-prologue-bubble { position: absolute; left: 50%; top: 4%; width: 82%; transform: translateX(-50%); }
-.cv-prologue-bubble > img { display: block; width: 100%; height: auto; }
+.cv-prologue-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
 .cv-prologue-bubble .cv-captioned { position: absolute; left: 10%; right: 10%; top: 16%; height: 58%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4cqw; }
 .cv-prologue-bubble .cv-captioned > svg { width: auto; height: 62%; flex: none; }
 .cv-prologue-bubble .cv-caption { font-size: 5.6cqw; line-height: 1.16; font-weight: 700; color: #1e293b; text-align: left; }
@@ -125,10 +152,18 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
       <style>{PROLOGUE_CSS}</style>
       <div className="cv-prologue-frame">
         <button type="button" className="cv-prologue-stage" onClick={handleTap}>
-          <img src={ZOO_CARETAKER_ART.href} alt="" className="cv-prologue-octopus" />
+          <span className="cv-prologue-octopus">
+            <img src={ZOO_CARETAKER_ART.href} alt="" className="cv-octopus-life" />
+          </span>
           <span className="cv-prologue-bubble">
-            <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-            <CaptionedArt art={plate.art} label={plate.line} size={76} />
+            {/* Keyed on the line itself (T8 item 2): a fresh key on every
+                plate forces React to remount this span, replaying the
+                pop-in — while `useNarration` above, unaffected by this
+                child remounting, keeps deciding on its own when to speak. */}
+            <span key={plate.line} className="cv-bubble-pop">
+              <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+              <CaptionedArt art={plate.art} label={plate.line} size={76} />
+            </span>
           </span>
         </button>
         <SpeakButton line={plate.line} className="cv-prologue-speak" />
