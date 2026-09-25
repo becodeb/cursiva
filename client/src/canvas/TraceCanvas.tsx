@@ -1258,11 +1258,24 @@ export default function TraceCanvas({
         // `url(#…)`.
         <SpineLayer spines={spines} sheetBounds={sheetBounds} />
       )}
-      {corridor && (mazeOn || ground || !!backdrop) && (
+      {corridor && !artCorridor && (mazeOn || ground || !!backdrop) && (
         // MAZE (docs/01 fase 1: "senderos y laberintos … sin tocar los
         // bordes"). The sheet is filled solid and the corridor is painted BACK
         // OVER it in the paper colour, so the child sees a channel through a
         // field instead of a grey line on open paper.
+        //
+        // `!artCorridor`: this block paints the WALKABLE-CHANNEL colour along
+        // the level's own centreline, `corridor.width` wide, UNDER the art —
+        // on an art-corridor level the drawn body already IS the channel
+        // (`levels/artCorridor.ts`'s own header), so painting a second one
+        // underneath is redundant at best. At worst it is visible: the
+        // channel follows the FITTED spine `d`, which tracks the real drawn
+        // body only to within a few viewBox units (`artCorridor.ts`'s own
+        // `residual`), so at the wave's tightest curves the painted band
+        // pokes a sliver out past the body's own black outline — the
+        // `backdrop.channel` colour is dark earth, not sand, so it reads as
+        // a stray dark mark riding the snake rather than as paper showing
+        // through. Screenshot on `snake1`'s own start piece, `?nivel=snake1`.
         //
         // GROUND WITHOUT A MAZE runs this too, and the `|| ground` is not a
         // convenience. The two flags used to move together because every level
@@ -1370,10 +1383,14 @@ export default function TraceCanvas({
           )}
         </g>
       )}
-      {corridor && !mazeOn && !backdrop && (
+      {corridor && !artCorridor && !mazeOn && !backdrop && (
         // Walkable channel (docs/08 §2), UNDER everything else so the ruled
         // pauta and the ink both read on top of it. A tapered corridor is the
         // same channel cut into width-varying pieces (`corridorTaper`).
+        // `!artCorridor`: same reason as the block above — no art-corridor
+        // level actually reaches this branch today (every one authors a
+        // `backdrop`), kept in step so a future one that did not would not
+        // reopen the same poke-through.
         <g>
           {corridorPieces
             ? corridorPieces.map((piece, idx) => (
