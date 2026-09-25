@@ -248,17 +248,27 @@ function crossesBody(stroke: readonly Point[], anchor: SpineAnchor, cfg: SpineCo
 /**
  * Measures 2-5 jointly, against the anchor measure 1 already selected. All
  * four must hold for the anchor to fill — no partial credit.
+ *
+ * `reversed` (T3, 2026-09-25 tablet playtest): true when measure 1 matched
+ * the anchor against the stroke's LAST point rather than its first — the
+ * child drew tip→base instead of base→tip. Nothing about which end the
+ * finger touched down on is part of what a spine IS, and catching it here
+ * is cheap: measures 3-5 (straightness, length, body-crossing) read chord
+ * MAGNITUDE and per-point distances, both direction-agnostic already; only
+ * measure 2's chord VECTOR needs to be reoriented before it is compared to
+ * the anchor's outward normal.
  */
 function passesRemainingMeasures(
   stroke: readonly Point[],
   anchor: SpineAnchor,
   cfg: SpineConfig,
+  reversed: boolean,
 ): boolean {
   if (stroke.length < 2) return false
   const p0 = stroke[0]
   const pEnd = stroke[stroke.length - 1]
-  const dx = pEnd.x - p0.x
-  const dy = pEnd.y - p0.y
+  const dx = reversed ? p0.x - pEnd.x : pEnd.x - p0.x
+  const dy = reversed ? p0.y - pEnd.y : pEnd.y - p0.y
   const chord = Math.hypot(dx, dy)
 
   // Measure 2 — outward direction within tolDeg of the anchor's own normal.
@@ -282,6 +292,20 @@ function passesRemainingMeasures(
  * order, all five measures per design.md §3.4's table. Monotone — `filled`
  * only ever grows — and returns the SAME REFERENCE when no stroke in this
  * call fills a new anchor.
+ *
+ * Measure 1's `baseRadius` (T3, 2026-09-25 tablet playtest — "a well-drawn
+ * spine is rejected when it does not start exactly on the small start
+ * dot"): every `cfg.rules.baseRadius` this repo ships is now sized with a
+ * six-year-old's tablet fingertip in mind, not a stylus — see
+ * `levels/catalog.ts`'s hedgehog-family comment for the exact numbers and
+ * the geometric ceiling (`2·baseRadius ≤` the nearest two anchors' own
+ * chord) that bounds how generous it can ever be.
+ *
+ * A stroke may also be drawn REVERSED (tip→base): if the FIRST point is not
+ * within radius of any unfilled anchor, the LAST point is tried instead,
+ * and `passesRemainingMeasures` is told so it reorients the chord the same
+ * way a forward stroke's own p0→pEnd already reads. Forward is tried first
+ * and wins ties, since it is how most strokes are actually drawn.
  */
 export function spineSettle(
   prev: SpineState,
@@ -293,9 +317,14 @@ export function spineSettle(
   let changed = false
   for (const stroke of strokes) {
     if (stroke.length === 0) continue
-    const idx = nearestUnfilledAnchor(anchors, filled, stroke[0], cfg.rules.baseRadius)
+    let idx = nearestUnfilledAnchor(anchors, filled, stroke[0], cfg.rules.baseRadius)
+    let reversed = false
+    if (idx === null && stroke.length > 1) {
+      idx = nearestUnfilledAnchor(anchors, filled, stroke[stroke.length - 1], cfg.rules.baseRadius)
+      reversed = idx !== null
+    }
     if (idx === null) continue
-    if (!passesRemainingMeasures(stroke, anchors[idx], cfg)) continue
+    if (!passesRemainingMeasures(stroke, anchors[idx], cfg, reversed)) continue
     const next = new Set(filled)
     next.add(idx)
     filled = next
@@ -320,6 +349,11 @@ export function spineScore(strokes: ReadonlyArray<ReadonlyArray<Point>>, cfg: Sp
  * The live fold: `aiming` only, never scoreable. The nearest unfilled anchor
  * to the CURRENT stroke's base, or `null` while not drawing / out of every
  * anchor's radius. Returns the SAME REFERENCE when nothing flips.
+ *
+ * Mirrors `spineSettle`'s own reverse-stroke fallback (T3): while the child
+ * is still mid-stroke drawing tip→base, the live highlight should already
+ * point at the anchor the release will credit, rather than sitting dark
+ * until lift only to jump to "filled" with no live feedback in between.
  */
 export function spineAim(
   prev: SpineState,
@@ -332,7 +366,10 @@ export function spineAim(
     return { filled: prev.filled, aiming: null }
   }
   const anchors = spineAnchors(cfg)
-  const idx = nearestUnfilledAnchor(anchors, prev.filled, points[0], cfg.rules.baseRadius)
+  let idx = nearestUnfilledAnchor(anchors, prev.filled, points[0], cfg.rules.baseRadius)
+  if (idx === null && points.length > 1) {
+    idx = nearestUnfilledAnchor(anchors, prev.filled, points[points.length - 1], cfg.rules.baseRadius)
+  }
   if (idx === prev.aiming) return prev
   return { filled: prev.filled, aiming: idx }
 }
@@ -344,6 +381,26 @@ export interface SpineMark {
   readonly x: number
   readonly y: number
   readonly filled: boolean
+  /** True for exactly the lowest-index unfilled anchor (T3, "isn't
+   *  intuitive" — a level with no live indication of what to draw next).
+   *  Render-only, mutually exclusive with `filled` by construction: see
+   *  {@link nextSpineIndex}. */
+  readonly next: boolean
+}
+
+/**
+ * The lowest-index anchor not yet filled — "where to draw next". Anchor
+ * order is the SAME generator order `spineAnchors` always returns (also the
+ * order the demonstration and `?debug=espinas:<k>` fill in), so "lowest
+ * index" reads as the natural next step rather than an arbitrary pick.
+ * `null` once every anchor is filled — nothing left to point at.
+ */
+export function nextSpineIndex(cfg: SpineConfig, state: SpineState): number | null {
+  const anchors = spineAnchors(cfg)
+  for (let i = 0; i < anchors.length; i++) {
+    if (!state.filled.has(i)) return i
+  }
+  return null
 }
 
 /**
@@ -353,10 +410,12 @@ export interface SpineMark {
  * lies entirely on the night band rather than half over the body.
  */
 export function spineMarks(cfg: SpineConfig, state: SpineState): readonly SpineMark[] {
+  const hint = nextSpineIndex(cfg, state)
   return spineAnchors(cfg).map((a, i) => ({
     x: a.x + SPINE_MARK_R * a.nx,
     y: a.y + SPINE_MARK_R * a.ny,
     filled: state.filled.has(i),
+    next: i === hint,
   }))
 }
 

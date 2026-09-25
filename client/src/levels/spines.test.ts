@@ -3,12 +3,14 @@
 // convention `waypoints.test.ts` follows.
 import { describe, expect, it } from 'vitest'
 import type { Point } from '../letters/types'
+import { getLevel } from './catalog'
 import {
   DEMO_SPINES,
   EMPTY_SPINES,
   SPINE_MARK_R,
   debugSpineStrokes,
   debugSpines,
+  nextSpineIndex,
   seedSpines,
   spineAim,
   spineAnchors,
@@ -150,6 +152,81 @@ describe('measure 1 — base proximity, nearest-unfilled, deterministic greedy a
     const settled = spineSettle(prev, [stroke], cfg)
     expect(settled.filled.has(2)).toBe(true)
     expect(settled.filled.has(1)).toBe(true) // still filled, untouched
+  })
+})
+
+describe('measure 1 — off-centre start tolerance and reverse strokes (T3, 2026-09-25 tablet playtest)', () => {
+  it('regression: a stroke starting ~25 units off the real hedgehog1 start dot is accepted (was rejected before T3)', () => {
+    // The user's own report: "a well-drawn spine is rejected when it does
+    // not start exactly on the small start dot" — 20-30 viewBox units off.
+    // This runs against the REAL shipped hedgehog1 config, not a fixture,
+    // so it fails again the instant catalog.ts's baseRadius regresses.
+    const cfg = getLevel('hedgehog1').spines!
+    const anchors = spineAnchors(cfg)
+    const anchor = anchors[0]
+    const offsetStart: Point = { x: anchor.x + anchor.ny * 25, y: anchor.y - anchor.nx * 25 } // tangential, 25 units off
+    const len = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+    const stroke: Point[] = [
+      offsetStart,
+      { x: offsetStart.x + anchor.nx * len, y: offsetStart.y + anchor.ny * len },
+    ]
+    const settled = spineSettle(EMPTY_SPINES, [stroke], cfg)
+    expect(settled.filled.has(0)).toBe(true)
+  })
+
+  it('still rejects a stroke that starts well outside baseRadius — the tolerance is generous, not unlimited', () => {
+    const cfg = makeConfig()
+    const anchors = spineAnchors(cfg)
+    const anchor = anchors[0]
+    const farStart: Point = { x: anchor.x + anchor.ny * (cfg.rules.baseRadius + 40), y: anchor.y - anchor.nx * (cfg.rules.baseRadius + 40) }
+    const stroke = [farStart, { x: farStart.x + anchor.nx * midLen(cfg), y: farStart.y + anchor.ny * midLen(cfg) }]
+    const settled = spineSettle(EMPTY_SPINES, [stroke], cfg)
+    expect(settled).toBe(EMPTY_SPINES)
+  })
+
+  it('accepts a spine drawn tip→base (reversed) exactly as it would base→tip', () => {
+    const cfg = makeConfig()
+    const anchors = spineAnchors(cfg)
+    const forward = idealStroke(anchors[3], midLen(cfg))
+    const reversed = [forward[1], forward[0]] // same two points, opposite order
+    const settled = spineSettle(EMPTY_SPINES, [reversed], cfg)
+    expect(settled.filled.has(3)).toBe(true)
+  })
+
+  it('tries forward first: when the FIRST point matches an unfilled anchor, that one wins even if the last point is also in range of another', () => {
+    const cfg = makeConfig({ rules: { ...makeConfig().rules, baseRadius: 500 } })
+    const anchors = spineAnchors(cfg)
+    const stroke = idealStroke(anchors[2], midLen(cfg)) // base at anchor 2, tip far from anchor 2 but within the huge radius of others
+    const settled = spineSettle(EMPTY_SPINES, [stroke], cfg)
+    expect(settled.filled.has(2)).toBe(true)
+    expect(settled.filled.size).toBe(1)
+  })
+
+  it('a reversed stroke still respects every other measure (direction, once reoriented)', () => {
+    const cfg = makeConfig()
+    const anchors = spineAnchors(cfg)
+    const a = anchors[5]
+    const len = midLen(cfg)
+    // Reversed AND tangential (measure 2 must still fail): base end near the
+    // anchor, tip end rotated 90° off the outward normal.
+    const tangent = { x: -a.ny, y: a.nx }
+    const tip = { x: a.x + tangent.x * len, y: a.y + tangent.y * len }
+    const reversedTangential = [tip, { x: a.x, y: a.y }]
+    const settled = spineSettle(EMPTY_SPINES, [reversedTangential], cfg)
+    expect(settled).toBe(EMPTY_SPINES)
+  })
+})
+
+describe('spineAim — reverse-stroke fallback (T3)', () => {
+  it('aims at the anchor near the LAST point when the first point matches nothing', () => {
+    const cfg = makeConfig()
+    const anchors = spineAnchors(cfg)
+    const points = [
+      { x: anchors[2].x + anchors[2].nx * midLen(cfg), y: anchors[2].y + anchors[2].ny * midLen(cfg) },
+      { x: anchors[2].x, y: anchors[2].y },
+    ]
+    const state = spineAim(EMPTY_SPINES, points, true, cfg)
+    expect(state.aiming).toBe(2)
   })
 })
 
@@ -395,6 +472,45 @@ describe('spineMarks — render projection', () => {
       expect(m.y).toBeCloseTo(anchors[i].y + SPINE_MARK_R * anchors[i].ny, 6)
       expect(m.filled).toBe(i === 0)
     })
+  })
+
+  it('marks exactly the lowest-index unfilled anchor as next, mutually exclusive with filled (T3)', () => {
+    const cfg = makeConfig()
+    const state = spineSettle(EMPTY_SPINES, [idealStroke(spineAnchors(cfg)[0], midLen(cfg))], cfg)
+    const marks = spineMarks(cfg, state)
+    marks.forEach((m, i) => {
+      expect(m.next).toBe(i === 1) // 0 is filled, 1 is the next lowest unfilled
+      expect(m.filled && m.next).toBe(false)
+    })
+  })
+
+  it('no mark is next once every anchor is filled', () => {
+    const cfg = makeConfig({ count: 3 })
+    const anchors = spineAnchors(cfg)
+    const state = spineSettle(
+      EMPTY_SPINES,
+      anchors.map((a) => idealStroke(a, midLen(cfg))),
+      cfg,
+    )
+    expect(spineMarks(cfg, state).every((m) => !m.next)).toBe(true)
+  })
+})
+
+describe('nextSpineIndex — the "draw here next" hint (T3)', () => {
+  it('returns 0 on EMPTY_SPINES — anchor order is generator order', () => {
+    const cfg = makeConfig()
+    expect(nextSpineIndex(cfg, EMPTY_SPINES)).toBe(0)
+  })
+
+  it('returns the lowest unfilled index, not the most recently filled', () => {
+    const state = { filled: new Set([0, 2]), aiming: null }
+    expect(nextSpineIndex(makeConfig(), state)).toBe(1)
+  })
+
+  it('returns null once every anchor is filled', () => {
+    const cfg = makeConfig({ count: 2 })
+    const state = { filled: new Set([0, 1]), aiming: null }
+    expect(nextSpineIndex(cfg, state)).toBeNull()
   })
 })
 

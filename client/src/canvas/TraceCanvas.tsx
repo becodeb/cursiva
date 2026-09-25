@@ -514,6 +514,10 @@ export interface TraceSpineMark {
   x: number
   y: number
   filled: boolean
+  /** T3 (radial-spines' "draw here next" hint) — optional so every existing
+   *  fixture literal (`{ x, y, filled }`, no `next`) still type-checks;
+   *  `SpineLayer` treats absent the same as `false`. */
+  next?: boolean
 }
 
 /**

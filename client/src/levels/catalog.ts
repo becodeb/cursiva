@@ -1452,6 +1452,35 @@ const PHASE_1: LevelConfig[] = [
   // Appended at the END of the phase-1 block, after `dolphin4` and before
   // `f2-guirnalda` — NOT at the end of `LEVELS` (`catalog.test.ts:121-127`
   // requires ascending phases; design.md §2 D6).
+  //
+  // T3 revision (2026-09-25 tablet playtest, `odd/tasks/prewriting-stage-
+  // completion.md`): the user hit two separate complaints on a real tablet.
+  // First, "a well-drawn spine is rejected when it does not start exactly
+  // on the small start dot" — `baseRadius` (measure 1's start-point cutoff)
+  // was tuned to the geometric CEILING (`spines.test.ts`'s own "2·baseRadius
+  // ≤ min neighbour chord" invariant) with almost no margin, so a completely
+  // ordinary ~20-30 viewBox-unit miss of a six-year-old's fingertip already
+  // fell outside it on hedgehog2-4 (28/26/26). A hard single-point cutoff
+  // needs MORE headroom than `TolTouch` (26, `canvas/validation/constants
+  // .ts`) — that constant is an AVERAGE-distance tolerance over a whole
+  // resampled path, forgiving by construction; missing the ONE literal pixel
+  // a stroke must begin inside has no such averaging to fall back on.
+  // Second, "gets repetitive": 5+7+10+14=36 spines across the family, the
+  // last level demanding every one of 14 at `minAccuracy: 100`. Anchor
+  // COUNT is also the lever that raises the ceiling above (fewer anchors on
+  // the same arc space them farther apart), so cutting it buys the bigger
+  // `baseRadius` directly instead of trading against it: 4+5+7+9=25 (-30%),
+  // with the steepest cut on hedgehog4 (14→9, -36%, the one level that
+  // tolerates zero misses). `tolDeg` widens by roughly the same proportion
+  // ("roughly follows the spine direction" — the task's own words) so a
+  // stroke that is merely off by a few degrees is not punished on top of a
+  // near-miss start. `straightness`/`lenMin`/`lenMax` are UNCHANGED: the
+  // complaint was never about how straight or how long a spine had to be.
+  // `spines.ts`'s `spineSettle` also now accepts a spine drawn tip→base
+  // (reversed) — cheap, since it reuses measure 1 on the OTHER endpoint —
+  // so "which end the finger touched down on" stops being a hidden rule a
+  // six-year-old cannot know at all. See `catalog.test.ts`'s own updated
+  // margins for the exact new baseRadius ceilings.
   {
     id: 'hedgehog1',
     phase: 1,
@@ -1475,8 +1504,8 @@ const PHASE_1: LevelConfig[] = [
       pose: 'profile',
       body: { centre: { x: 440, y: 440 }, height: 260 },
       arc: { from: 200, to: 380 },
-      count: 5,
-      rules: { baseRadius: 38, tolDeg: 40, straightness: 0.8, lenMin: 220, lenMax: 290 },
+      count: 4,
+      rules: { baseRadius: 48, tolDeg: 45, straightness: 0.8, lenMin: 220, lenMax: 290 },
     },
   },
   {
@@ -1499,8 +1528,8 @@ const PHASE_1: LevelConfig[] = [
       pose: 'profile',
       body: { centre: { x: 450, y: 400 }, height: 270 },
       arc: { from: 200, to: 380 },
-      count: 7,
-      rules: { baseRadius: 28, tolDeg: 34, straightness: 0.84, lenMin: 150, lenMax: 230 },
+      count: 5,
+      rules: { baseRadius: 40, tolDeg: 38, straightness: 0.84, lenMin: 150, lenMax: 230 },
     },
   },
   {
@@ -1523,8 +1552,8 @@ const PHASE_1: LevelConfig[] = [
       pose: 'profile',
       body: { centre: { x: 460, y: 380 }, height: 340 },
       arc: { from: 200, to: 380 },
-      count: 10,
-      rules: { baseRadius: 26, tolDeg: 28, straightness: 0.88, lenMin: 95, lenMax: 160 },
+      count: 7,
+      rules: { baseRadius: 36, tolDeg: 32, straightness: 0.88, lenMin: 95, lenMax: 160 },
     },
   },
   {
@@ -1547,8 +1576,8 @@ const PHASE_1: LevelConfig[] = [
       pose: 'curled',
       body: { centre: { x: 500, y: 300 }, height: 300 },
       arc: { from: 65, to: 365 },
-      count: 14,
-      rules: { baseRadius: 26, tolDeg: 22, straightness: 0.92, lenMin: 60, lenMax: 105 },
+      count: 9,
+      rules: { baseRadius: 34, tolDeg: 27, straightness: 0.92, lenMin: 60, lenMax: 105 },
     },
   },
 ]

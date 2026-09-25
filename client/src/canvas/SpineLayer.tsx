@@ -11,6 +11,18 @@
 // (`docs/09` §4, §1's "un color plano por forma"): no stroke, no second
 // shape, no movement.
 //
+// T3 (2026-09-25 tablet playtest, "isn't intuitive"/"pop" feedback): the
+// next-to-draw anchor and a freshly-filled anchor get a `className` only —
+// never a new inline `fill`/`stroke`/`r` attribute, so every byte this file
+// used to emit (and every test that parses those exact bytes) is unchanged;
+// the visual difference lives entirely in `LAYOUT_CSS` (LevelPlay.tsx). No
+// new colour either (`TraceCanvas.tsx`'s own rule in this mode: colour
+// means a clue was EARNED) — the "next" hint pulses the SAME dim stroke via
+// `opacity`, and the "filled" pop scales via CSS `transform` with
+// `transform-box: fill-box` set (an SVG `<circle>` has no bounding-box
+// origin at its own centre by default; without that property the scale
+// visibly jumps toward the sheet's (0,0) for the animation's duration).
+//
 // The body `<image>` passes through `clampArtBox` like every other art
 // layer — `spines.body` is ALREADY the exact box `levels/spines.ts`'s
 // `spineBody` computed, so the layer never recomputes placement
@@ -40,6 +52,7 @@ export function SpineLayer({ spines, sheetBounds }: SpineLayerProps) {
           cy={mark.y}
           r={spines.markRadius}
           fill={mark.filled ? spines.earned : spines.dim}
+          className={mark.filled ? 'cv-spine-mark-filled' : mark.next ? 'cv-spine-mark-next' : undefined}
         />
       ))}
       {spines.rings?.map((ring, idx) => (

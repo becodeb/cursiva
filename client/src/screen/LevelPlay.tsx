@@ -836,6 +836,49 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-next-ready { animation: none; }
 }
 
+/* T3 (2026-09-25 tablet playtest, hedgehog/'radial-spines'): the spine
+ * marks used to be a flat dim/earned 'fill' swap with no live hint of
+ * WHICH anchor to draw next — a six-year-old had to guess or hunt. Neither
+ * rule below touches 'fill', 'stroke' or 'r' as an SVG ATTRIBUTE (only as a
+ * CSS property), so SpineLayer.test.tsx's byte-level parsing of those
+ * exact attributes stays unchanged — see the file header comment.
+ * '.cv-spine-mark-next' marks the lowest-index unfilled anchor
+ * (nextSpineIndex, levels/spines.ts) with a gentle stroke pulse on the
+ * SAME dim mark — never a new colour (this mode's own rule: colour means a
+ * clue was earned) and never 'transform', so there is no SVG
+ * transform-origin concern here at all. */
+.cv-spine-mark-next {
+  stroke: #f2efe6; /* TORCH_CHALK (zoo/backdrops.ts) — must match if that ever changes */
+  stroke-width: 3;
+  animation: cv-spine-next-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cv-spine-next-pulse {
+  0%, 100% { stroke-opacity: 0.3; }
+  50% { stroke-opacity: 0.95; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-spine-mark-next { animation: none; stroke-opacity: 0.8; }
+}
+/* '.cv-spine-mark-filled' gives the fill swap a one-shot "pop" the instant
+ * an anchor is earned, instead of a silent colour change alone.
+ * 'transform-box: fill-box' is load-bearing: an SVG shape's default
+ * transform origin is the OUTER svg's (0,0), not its own centre, so a bare
+ * 'transform: scale(...)' here would visibly jump the mark toward the
+ * sheet's corner for the animation's duration instead of scaling in place. */
+.cv-spine-mark-filled {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cv-spine-pop 380ms cubic-bezier(.2,.9,.25,1.2) both;
+}
+@keyframes cv-spine-pop {
+  0% { transform: scale(.55); }
+  60% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-spine-mark-filled { animation: none; }
+}
+
 /* Upright and narrow is genuinely width-limited: show guidance instead of
  * shrinking the play surface into an unusable mini game. Header and actions
  * stay outside this block, so Back/Return and keyboard navigation are never
