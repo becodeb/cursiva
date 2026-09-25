@@ -3,7 +3,7 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { LIGHT_BAND_RATIOS } from '../levels/revealGrid'
-import { marginBands, RevealLayer } from './RevealLayer'
+import { marginBands, marginGridTiles, RevealLayer } from './RevealLayer'
 import type { TraceReveal } from './TraceCanvas'
 
 const sheetBounds = { x: 0, y: 0, width: 1000, height: 600 }
@@ -861,6 +861,60 @@ describe('marginBands (T7 rework, "the art is drawn twice") — the outer-margin
   })
 })
 
+describe('marginGridTiles (T7 rework #2, "the cleaning margins show seams") — grid-aligned, not a few big rects', () => {
+  it('returns [] when outer and inner coincide (no growth)', () => {
+    expect(marginGridTiles(sheetBounds, sheetBounds, 100, 100)).toEqual([])
+  })
+
+  it('every returned tile lands EXACTLY on the real grid\'s own lines — the property marginBands could not give boundaryLoops', () => {
+    const outer = { x: 0, y: -50, width: 1000, height: 700 } // grown by 50 top+bottom, under one 100-tall cell
+    const tiles = marginGridTiles(outer, sheetBounds, 100, 100)
+    for (const t of tiles) {
+      // x/y offsets from sheetBounds's own origin are exact multiples of
+      // the cell size — the SAME grid the real tiles sit on, not an
+      // arbitrary rectangle.
+      // Math.abs: a negative row/col (above/left of sheetBounds's own
+      // origin) gives JS's signed-zero "-0" modulo result, which is still
+      // exactly on the grid line — Object.is(-0, 0) is false, so plain
+      // .toBe(0) would fail on those tiles for a reason that has nothing
+      // to do with alignment.
+      expect(Math.abs((t.x - sheetBounds.x) % 100)).toBe(0)
+      expect(Math.abs((t.y - sheetBounds.y) % 100)).toBe(0)
+      expect(t.w).toBe(100)
+      expect(t.h).toBe(100)
+    }
+  })
+
+  it('rounds a sub-cell margin UP to one full extra row/column rather than a partial sliver', () => {
+    const outer = { x: 0, y: -50, width: 1000, height: 700 } // only 50 of margin, half a 100-tall cell
+    const tiles = marginGridTiles(outer, sheetBounds, 100, 100)
+    // One full row of 10 cells above (y=-100) and one below (y=600) —
+    // never a 50-tall partial cell.
+    const topRow = tiles.filter((t) => t.y === -100)
+    const bottomRow = tiles.filter((t) => t.y === 600)
+    expect(topRow.length).toBe(10)
+    expect(bottomRow.length).toBe(10)
+    expect(tiles.length).toBe(20)
+  })
+
+  it('never emits a tile inside sheetBounds — the real reveal.tiles already cover that ground', () => {
+    const outer = { x: -150, y: -150, width: 1300, height: 900 }
+    const tiles = marginGridTiles(outer, sheetBounds, 100, 100)
+    for (const t of tiles) {
+      const insideSheet =
+        t.x >= sheetBounds.x && t.x + t.w <= sheetBounds.x + sheetBounds.width &&
+        t.y >= sheetBounds.y && t.y + t.h <= sheetBounds.y + sheetBounds.height
+      expect(insideSheet).toBe(false)
+    }
+  })
+
+  it('is a no-op guard against a non-positive cell size', () => {
+    const outer = { x: 0, y: -50, width: 1000, height: 700 }
+    expect(marginGridTiles(outer, sheetBounds, 0, 100)).toEqual([])
+    expect(marginGridTiles(outer, sheetBounds, 100, -1)).toEqual([])
+  })
+})
+
 describe('RevealLayer displayBounds (T7 rework) — the outer margin and the expanded night veil', () => {
   const displayBounds = { x: 0, y: -50, width: 1000, height: 700 }
 
@@ -948,11 +1002,17 @@ describe('RevealLayer displayBounds (T7 rework) — the outer margin and the exp
     }
   })
 
-  it('the plain per-tile fallback (no visual policy) keeps the flat margin patch — it has no silhouette generator to merge into', () => {
+  it('the plain per-tile fallback (no visual policy) keeps the flat margin patch, grid-tiled at the SAME 100x100 cell size as the real tile — it has no silhouette generator to merge into', () => {
     const reveal: TraceReveal = { fill: '#7a6a58', tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }] }
     const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />)
-    expect((html.match(/data-reveal-margin="true"/g) ?? []).length).toBe(2) // top + bottom, height-only growth
+    // displayBounds grows sheetBounds (1000x600) by 50 on each of the top/
+    // bottom edges only (height-only growth) — under one 100-tall cell, so
+    // marginGridTiles rounds UP to one full extra row of 10 cells above
+    // AND one below (never a partial-cell sliver) — 20 margin tiles total.
+    const margins = (html.match(/data-reveal-margin="true"/g) ?? []).length
+    expect(margins).toBe(20)
     expect(html).toMatch(/data-reveal-margin="true"[^>]*fill="#7a6a58"/)
+    expect(html).toMatch(/data-reveal-margin="true"[^>]*width="100"[^>]*height="100"/)
   })
 
   it('the night veil grows its OWN full-cover darkness to displayBounds instead of a separate margin patch — hole positions untouched', () => {

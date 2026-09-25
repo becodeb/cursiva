@@ -180,6 +180,56 @@ export function marginBands(outer: ArtBox, inner: ArtBox): ArtBox[] {
   return bands
 }
 
+/**
+ * The margin, tiled at the SAME cell size (`cellWidth`/`cellHeight`) and on
+ * the SAME grid lines as the real reveal grid (anchored to `sheetBounds`'s
+ * own origin) — what `marginBands`' own few large rectangles cannot give
+ * `boundaryLoops`: its edge-cancellation only merges tiles whose edges land
+ * EXACTLY on top of each other, so a large margin band's one long edge
+ * never cancels against fifteen separate 66.7-unit real-grid edges — found
+ * by looking at the actual render (a bizarre oval blob, not a clean
+ * rectangular frontier), not by inspection alone. Extending the SAME grid
+ * instead means every margin cell's edge either cancels against its real-
+ * grid neighbour (inside `sheetBounds`) or against its own margin neighbour
+ * (elsewhere in the margin), exactly like the real grid already does for
+ * itself.
+ *
+ * Cells whose grid position falls inside `sheetBounds` are skipped (the
+ * real `reveal.tiles` already cover that ground, cleared or not); every
+ * other cell needed to reach `displayBounds`'s own edge is included, always
+ * one full cell past it in every direction so a margin narrower than one
+ * cell (a small resize) still tiles cleanly rather than leaving a sliver.
+ */
+export function marginGridTiles(
+  displayBounds: ArtBox,
+  sheetBounds: ArtBox,
+  cellWidth: number,
+  cellHeight: number,
+): TraceRevealTile[] {
+  if (!(cellWidth > 0) || !(cellHeight > 0)) return []
+  const sheetCols = Math.max(1, Math.round(sheetBounds.width / cellWidth))
+  const sheetRows = Math.max(1, Math.round(sheetBounds.height / cellHeight))
+  const firstCol = Math.floor((displayBounds.x - sheetBounds.x) / cellWidth)
+  const lastCol = Math.ceil((displayBounds.x + displayBounds.width - sheetBounds.x) / cellWidth) - 1
+  const firstRow = Math.floor((displayBounds.y - sheetBounds.y) / cellHeight)
+  const lastRow = Math.ceil((displayBounds.y + displayBounds.height - sheetBounds.y) / cellHeight) - 1
+  const tiles: TraceRevealTile[] = []
+  for (let row = firstRow; row <= lastRow; row++) {
+    const insideRow = row >= 0 && row < sheetRows
+    for (let col = firstCol; col <= lastCol; col++) {
+      if (insideRow && col >= 0 && col < sheetCols) continue // the real grid already covers this cell
+      tiles.push({
+        x: sheetBounds.x + col * cellWidth,
+        y: sheetBounds.y + row * cellHeight,
+        w: cellWidth,
+        h: cellHeight,
+        opacity: 1,
+      })
+    }
+  }
+  return tiles
+}
+
 const GLASS_GRIME_FILL = '#64726b'
 const GLASS_FOG_STROKE = '#dcecf0'
 const GLASS_DROPLET_FILL = '#eef8fb'
@@ -891,19 +941,25 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }
   // multi-pass silhouette (body + deep wash + rim stroke), a hard seam at
   // exactly the old `sheetBounds` edge. Fixed by feeding the SAME organic
   // generator (`boundaryLoops`/`fogSilhouettePath`/`sandSilhouettePath`/
-  // `leafSilhouettePath`) a few extra, non-scoring "margin tiles" spanning
-  // `displayBounds` minus `sheetBounds` (`marginBands`, this file's own T7
-  // export) ALONGSIDE the real remaining ones — one continuous boundary, one
-  // continuous fill/opacity, no seam, because it is the SAME path. Never
-  // scored: `marginTiles` never reaches `evaluateLevel`/`revealGrid.ts`, only
-  // this render. `reveal.tiles.length > 0` gates it OFF the instant the
-  // REAL grid finishes — "the extra area clears together with the rest" —
-  // by falling back to the bare (now also empty) `reveal.tiles`, which is
-  // exactly what already makes `fogPath`/`sandPath`/etc render nothing at
-  // real completion.
+  // `leafSilhouettePath`) a few extra, non-scoring "margin tiles" ALONGSIDE
+  // the real remaining ones — one continuous boundary, one continuous
+  // fill/opacity, no seam, because it is the SAME path.
+  //
+  // `marginGridTiles`, not `marginBands`: the margin has to be tiled at the
+  // SAME cell size and grid lines as the real tiles (`reveal.tiles[0]`'s own
+  // `w`/`h`) — `marginGridTiles`'s own header explains why a few large
+  // rectangles broke `boundaryLoops`' edge-cancellation outright (a
+  // self-intersecting oval blob, not a clean frontier).
+  //
+  // Never scored: `marginTiles` never reaches `evaluateLevel`/
+  // `revealGrid.ts`, only this render. `reveal.tiles.length > 0` gates it
+  // OFF the instant the REAL grid finishes — "the extra area clears
+  // together with the rest" — by falling back to the bare (now also empty)
+  // `reveal.tiles`, which is exactly what already makes `fogPath`/
+  // `sandPath`/etc render nothing at real completion.
   const marginTiles: TraceRevealTile[] =
     reveal.tiles.length > 0 && !nightVeil
-      ? marginBands(displayBounds, sheetBounds).map((b) => ({ x: b.x, y: b.y, w: b.width, h: b.height, opacity: 1 }))
+      ? marginGridTiles(displayBounds, sheetBounds, reveal.tiles[0].w, reveal.tiles[0].h)
       : []
   const tilesWithMargin = marginTiles.length > 0 ? [...reveal.tiles, ...marginTiles] : reveal.tiles
   const fogPath = glassFog ? fogSilhouettePath(tilesWithMargin) : ''
