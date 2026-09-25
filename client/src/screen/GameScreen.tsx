@@ -3,7 +3,7 @@
 // every attempt, and routes to the next level on approval. All navigation goes
 // through the pure `nextView` reducer so the flow is node-testable without a DOM
 // (same pattern as MainScreen's `nextWord`/`flowWord`).
-import { useState, type ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import LevelMap from './LevelMap'
 import LevelPlay from './LevelPlay'
 import Deduction from './Deduction'
@@ -552,39 +552,65 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
 
   if (state.view === 'play' || state.view === 'intro' || state.view === 'close') {
     const level = getLevel(state.levelId)
+    // Named (not inline) so `SKIP_LEVEL_BUTTON` below can drive the SAME two
+    // steps a real pass drives — persisting an attempt, then resolving where
+    // it leads — instead of a dev-only button faking either one on its own.
+    const handleAttempt = (attempt: LevelAttempt): void => {
+      store.save(state.levelId, applyAttempt(store.get(state.levelId), attempt))
+      setVersion((n) => n + 1)
+    }
+    const handleNext = (): void => {
+      // `resolveNextAction` returns `NextAction` — `GameAction` widened
+      // by the THREE outcomes `nextView` cannot express (design.md §6,
+      // §6.3; adventure-flow-and-map-guidance T2 amendment). This is the
+      // single point that has to discriminate before dispatching, so
+      // `dispatch` never silently becomes the fallback for "leave the
+      // shell", "show the transformation" or "enter the next adventure".
+      const action = resolveNextAction(state.levelId, store.all())
+      if (action.type === 'exit') onExit()
+      else if (action.type === 'close') setState({ view: 'close', levelId: action.levelId })
+      else if (action.type === 'enter') setState(action.view)
+      else dispatch(action)
+    }
     return (
-      <LevelPlay
-        key={state.levelId}
-        level={level}
-        record={store.get(state.levelId)}
-        // T6 (adventure-flow-and-map-guidance): recomputed from `store.all()`
-        // on every render of THIS shell, which is what makes it advance the
-        // instant an attempt is saved — `onAttempt` below both persists the
-        // attempt and bumps `version`, and `version` is this component's own
-        // state, so the bump re-renders this whole function body (a fresh
-        // `store.all()` read, a fresh `adventureProgress` call) and hands
-        // `LevelPlay` a new prop value through the ordinary render cycle —
-        // no separate subscription or local mirror of store state needed.
-        progress={adventureProgress(state.levelId, store.all())}
-        onAttempt={(attempt: LevelAttempt) => {
-          store.save(state.levelId, applyAttempt(store.get(state.levelId), attempt))
-          setVersion((n) => n + 1)
-        }}
-        onNext={() => {
-          // `resolveNextAction` returns `NextAction` — `GameAction` widened
-          // by the THREE outcomes `nextView` cannot express (design.md §6,
-          // §6.3; adventure-flow-and-map-guidance T2 amendment). This is the
-          // single point that has to discriminate before dispatching, so
-          // `dispatch` never silently becomes the fallback for "leave the
-          // shell", "show the transformation" or "enter the next adventure".
-          const action = resolveNextAction(state.levelId, store.all())
-          if (action.type === 'exit') onExit()
-          else if (action.type === 'close') setState({ view: 'close', levelId: action.levelId })
-          else if (action.type === 'enter') setState(action.view)
-          else dispatch(action)
-        }}
-        onBack={onExit}
-      />
+      <>
+        <LevelPlay
+          key={state.levelId}
+          level={level}
+          record={store.get(state.levelId)}
+          // T6 (adventure-flow-and-map-guidance): recomputed from `store.all()`
+          // on every render of THIS shell, which is what makes it advance the
+          // instant an attempt is saved — `onAttempt` below both persists the
+          // attempt and bumps `version`, and `version` is this component's own
+          // state, so the bump re-renders this whole function body (a fresh
+          // `store.all()` read, a fresh `adventureProgress` call) and hands
+          // `LevelPlay` a new prop value through the ordinary render cycle —
+          // no separate subscription or local mirror of store state needed.
+          progress={adventureProgress(state.levelId, store.all())}
+          onAttempt={handleAttempt}
+          onNext={handleNext}
+          onBack={onExit}
+        />
+        {/* Dev-only "skip level" (prewriting-stage-completion T5): the SAME
+         * gate `resetDevProgress`'s own button uses (`isDevMode()` — dev
+         * server OR `?dev`), so re-testing a deploy after a change never
+         * needs a real pass. Routes through `handleAttempt`/`handleNext`
+         * above rather than faking `state` directly, so the adventure flow
+         * (next level, closing, map, progress save) is exactly what a real
+         * approved attempt produces — only `SKIP_ATTEMPT` below is synthetic. */}
+        {state.view === 'play' && isDevMode() && (
+          <button
+            type="button"
+            onClick={() => {
+              handleAttempt(SKIP_ATTEMPT)
+              handleNext()
+            }}
+            style={DEV_SKIP_BUTTON}
+          >
+            Saltar nivel (dev)
+          </button>
+        )}
+      </>
     )
   }
 
@@ -626,4 +652,43 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
     {footer}
     </>
   )
+}
+
+/** A synthetic FULL PASS (prewriting-stage-completion T5): every pillar at
+ * its best value, `approved: true`, `failedPillar: null` — the one shape
+ * `evaluateLevel.ts` produces on a clean stroke. Fed to `handleAttempt`
+ * above through the exact same `applyAttempt` fold a real release uses, so
+ * skipping counts as one ordinary approval (raising `approvals`, advancing
+ * `streakPass`) rather than a distinct, untested code path. */
+export const SKIP_ATTEMPT: LevelAttempt = {
+  accuracy: 100,
+  directionOk: true,
+  wrongDirection: false,
+  fluency: 100,
+  extraLifts: 0,
+  approved: true,
+  failedPillar: null,
+}
+
+/** `position: fixed`, bottom-right — `App.tsx`'s own `DEV_RESET_BUTTON`,
+ * verbatim (same reasoning: floats above the level's own chrome instead of
+ * competing for flex space, and bottom-right stays clear of `.cv-head`'s
+ * back/title/listen row at the top and `.cv-actions`'s centred row at the
+ * bottom, at both 1024x768 and 844x390 — verified with screenshots, not
+ * assumed from the CSS alone). Never rendered at the same time as the map's
+ * own reset button (mutually exclusive shells), so the shared corner is
+ * never contested. */
+const DEV_SKIP_BUTTON: CSSProperties = {
+  position: 'fixed',
+  bottom: 8,
+  right: 8,
+  zIndex: 9999,
+  padding: '6px 10px',
+  fontSize: 12,
+  fontWeight: 600,
+  borderRadius: 8,
+  border: '1px solid #94a3b8',
+  background: 'rgba(255,255,255,0.85)',
+  color: '#334155',
+  cursor: 'pointer',
 }

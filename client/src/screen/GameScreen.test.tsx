@@ -29,7 +29,7 @@
 // unchanged. The `nextView` reducer's OWN `deduce` branch is untouched
 // below — it is still reachable directly (the deep-link path,
 // `initialView`), just no longer through `resolveNextAction`.
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderToString } from 'react-dom/server'
 
 // `AdventureIntro` is replaced with a prop-capturing stub (the same SSR-probe
@@ -64,11 +64,14 @@ import GameScreen, {
   resolveCloseAction,
   resolveEnterAction,
   resolveNextAction,
+  SKIP_ATTEMPT,
   type GameView,
 } from './GameScreen'
 import { nextLevelId } from '../levels/catalog'
 import { EMPTY_RECORD, DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, type LevelRecord } from '../game/types'
 import { ADVENTURES } from '../zoo/adventures'
+import { applyAttempt } from '../game/adaptiveTolerance'
+import * as devMode from '../canvas/devMode'
 
 const playing = (levelId: string): GameView => ({ view: 'play', levelId })
 const deduceDuck: GameView = { view: 'deduce', caseId: 'duck' }
@@ -454,6 +457,57 @@ describe('GameScreen intro view (duck-undulations-and-sector-backdrop design.md 
     // documents: a state update after a completed `renderToString` call is a
     // no-op on the server, so a re-render cannot be observed here.
     expect(onStart).not.toThrow()
+  })
+})
+
+// prewriting-stage-completion T5: a dev-only "skip level" control, gated by
+// the EXACT same `isDevMode()` `App.tsx`'s "Reiniciar progreso (dev)" button
+// already uses (`import.meta.env.DEV || ?dev`). Under vitest `import.meta.
+// env.DEV` is always true (`MODE` is `'test'`, never `'production'`), so the
+// real function can never be exercised as "off" through the URL alone here
+// — the same reason `ZooMap.test.tsx`'s own `debug` override prop exists for
+// `isSectorDebug`. `vi.spyOn` on the module namespace, instead, drives BOTH
+// branches without adding a parallel override prop this screen has never
+// needed (`GameScreen` already takes a full `initial: GameView`, which is
+// its own equivalent seam).
+describe('GameScreen dev-only "skip level" button (prewriting-stage-completion T5)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('is present on the play view when isDevMode() is true', () => {
+    vi.spyOn(devMode, 'isDevMode').mockReturnValue(true)
+    const html = renderToString(<GameScreen initial={playing('glass1')} onExit={() => {}} />)
+    expect(html).toContain('Saltar nivel (dev)')
+  })
+
+  it('is absent on the play view when isDevMode() is false', () => {
+    vi.spyOn(devMode, 'isDevMode').mockReturnValue(false)
+    const html = renderToString(<GameScreen initial={playing('glass1')} onExit={() => {}} />)
+    expect(html).not.toContain('Saltar nivel (dev)')
+  })
+
+  it('is absent on the intro view even when isDevMode() is true — only shown "while playing a level"', () => {
+    vi.spyOn(devMode, 'isDevMode').mockReturnValue(true)
+    const html = renderToString(
+      <GameScreen initial={{ view: 'intro', levelId: 'duck-trail1' }} onExit={() => {}} />,
+    )
+    expect(html).not.toContain('Saltar nivel (dev)')
+  })
+
+  // `handleAttempt`/`handleNext` (the button's own onClick) are the SAME
+  // closures wired to `LevelPlay`'s `onAttempt`/`onNext` props above — this
+  // repo's harness cannot observe a click's effect through `renderToString`
+  // (this file's own header), so what IS asserted here is that `SKIP_ATTEMPT`
+  // is a genuine full pass: folded through the real `applyAttempt` (the exact
+  // function `handleAttempt` calls), it records one approval, never a faked
+  // record shape bypassing that function.
+  it('SKIP_ATTEMPT, folded through applyAttempt, records exactly one real approval', () => {
+    expect(SKIP_ATTEMPT.approved).toBe(true)
+    const next = applyAttempt(EMPTY_RECORD, SKIP_ATTEMPT)
+    expect(next.approvals).toBe(1)
+    expect(next.attempts).toBe(1)
+    expect(next.streakFail).toBe(0)
   })
 })
 
