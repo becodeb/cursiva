@@ -5,7 +5,7 @@
 // mode-side (readyMs in guidedTrace), not asserted here.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import TraceCanvas, { DEMO_STROKE, expandHeightToAspect, expandToAspect, type DrawDemo } from './TraceCanvas'
+import TraceCanvas, { DEMO_STROKE, fitCameraContentWithInsets, fitContentWithInsets, type DrawDemo } from './TraceCanvas'
 import { placeArt } from './placeArt'
 import { getLevel } from '../levels/catalog'
 import { buildLevelTarget } from '../levels/buildLevel'
@@ -1781,70 +1781,96 @@ describe('TraceCanvas spine layer (radial-spines spec: "Spine Layer Renders as P
   })
 })
 
-describe('TraceCanvas expandToAspect / expandHeightToAspect (T7 rework, "the art is drawn twice")', () => {
+describe('TraceCanvas fitContentWithInsets / fitCameraContentWithInsets (T7 rework #2, "nothing playable sits under a button")', () => {
   const box = { x: 10, y: 20, width: 200, height: 100 } // aspect 2
 
-  it('expandToAspect grows HEIGHT, symmetric around the same centre, when the box reads wider than the target', () => {
-    // Target aspect 1 (narrower than the box's own 2): height must grow to
-    // 200 (width / 1), i.e. by 100, split evenly above and below.
-    const grown = expandToAspect(box, 1)
-    expect(grown.width).toBe(200) // the short axis is height, x/width untouched
-    expect(grown.height).toBe(200)
-    expect(grown.x).toBe(10)
-    expect(grown.y).toBe(-30) // 20 - (200-100)/2
+  it('zero insets reduces to fitting the box into the whole container, centred (the T7-rework-#1 behaviour)', () => {
+    // Container 200x200 (aspect 1, narrower than the box's own 2): height
+    // must grow to 200 (width / 1), i.e. by 100, split evenly above/below.
+    const grown = fitContentWithInsets(box, 200, 200)
+    expect(grown).toEqual({ x: 10, y: -30, width: 200, height: 200 }) // 20 - (200-100)/2
     // Centre preserved: (x + width/2, y + height/2) unchanged.
     expect(grown.x + grown.width / 2).toBe(box.x + box.width / 2)
     expect(grown.y + grown.height / 2).toBe(box.y + box.height / 2)
   })
 
-  it('expandToAspect grows WIDTH, symmetric around the same centre, when the box reads narrower than the target', () => {
-    // Target aspect 4 (wider than the box's own 2): width must grow to 400
-    // (height * 4), i.e. by 200, split evenly left and right.
-    const grown = expandToAspect(box, 4)
-    expect(grown.height).toBe(100) // the short axis is width, y/height untouched
-    expect(grown.width).toBe(400)
-    expect(grown.y).toBe(20)
-    expect(grown.x).toBe(-90) // 10 - (400-200)/2
+  it('zero insets, container narrower than the box: grows WIDTH instead, still centred', () => {
+    // Container 100x100 (aspect 1 again, but box width alone already
+    // exceeds container width — width is the binding/short axis here).
+    const grown = fitContentWithInsets(box, 400, 100)
+    expect(grown).toEqual({ x: -90, y: 20, width: 400, height: 100 }) // 10 - (400-200)/2
     expect(grown.x + grown.width / 2).toBe(box.x + box.width / 2)
     expect(grown.y + grown.height / 2).toBe(box.y + box.height / 2)
   })
 
-  it('expandToAspect returns the SAME box, unchanged, when the aspect already matches', () => {
-    expect(expandToAspect(box, 2)).toEqual(box)
+  it('non-zero insets shift the content OFF the container centre, into the centre of the SAFE rectangle instead', () => {
+    // Container 200x200, top inset 20 (a header row): the safe rectangle is
+    // now 200x180. k = min(200/200, 180/100) = 1 (width-bound, same as the
+    // zero-insets case). The returned box still fills the FULL container
+    // (200x200 in content units, since k=1), but its y shifts so the
+    // content lands centred in the shrunk 180-tall safe band instead.
+    const grown = fitContentWithInsets(box, 200, 200, { top: 20, bottom: 0, left: 0, right: 0 })
+    expect(grown.width).toBe(200)
+    expect(grown.height).toBe(200)
+    expect(grown.x).toBe(10) // no horizontal inset: x unchanged from the zero-insets case
+    expect(grown.y).toBe(-40) // 20 - 20 - (180-100)/2, ten units lower than the -30 zero-insets case
+    // The safe band itself (grown.y+insetTop .. grown.y+height-insetBottom)
+    // is centred on the content box's own centre.
+    const safeTop = grown.y + 20
+    const safeBottom = grown.y + grown.height - 0
+    expect((safeTop + safeBottom) / 2).toBe(box.y + box.height / 2)
   })
 
-  it('expandToAspect is a no-op guard against non-finite/non-positive input, never leaking NaN/Infinity into a viewBox', () => {
-    expect(expandToAspect(box, 0)).toEqual(box)
-    expect(expandToAspect(box, -1)).toEqual(box)
-    expect(expandToAspect(box, NaN)).toEqual(box)
-    expect(expandToAspect({ ...box, width: 0 }, 2)).toEqual({ ...box, width: 0 })
-    expect(expandToAspect({ ...box, height: 0 }, 2)).toEqual({ ...box, height: 0 })
+  it('left/right insets shift the content horizontally the same way', () => {
+    const grown = fitContentWithInsets(box, 400, 100, { top: 0, bottom: 0, left: 40, right: 0 })
+    expect(grown.width).toBe(400)
+    expect(grown.height).toBe(100)
+    expect(grown.y).toBe(20)
+    const safeLeft = grown.x + 40
+    const safeRight = grown.x + grown.width - 0
+    expect((safeLeft + safeRight) / 2).toBe(box.x + box.width / 2)
   })
 
-  it('expandHeightToAspect matches expandToAspect exactly when height is already the short axis (the camera case that matters)', () => {
-    expect(expandHeightToAspect(box, 1)).toEqual(expandToAspect(box, 1))
+  it('is a no-op guard against non-finite/non-positive/degenerate input, never leaking NaN/Infinity into a viewBox', () => {
+    expect(fitContentWithInsets(box, 0, 200)).toEqual(box)
+    expect(fitContentWithInsets(box, 200, -1)).toEqual(box)
+    expect(fitContentWithInsets(box, NaN, 200)).toEqual(box)
+    expect(fitContentWithInsets({ ...box, width: 0 }, 200, 200)).toEqual({ ...box, width: 0 })
+    // Insets that consume the whole container leave no safe rectangle to fit into.
+    expect(fitContentWithInsets(box, 200, 200, { top: 250, bottom: 0, left: 0, right: 0 })).toEqual(box)
   })
 
-  it('expandHeightToAspect NEVER grows width — a target aspect wider than the box is accepted as-is, not compensated', () => {
-    // scrolling-camera's own reason (expandHeightToAspect's own header): the
-    // moving window's x/width belong to the rAF loop alone.
-    const grown = expandHeightToAspect(box, 4)
+  it('fitCameraContentWithInsets matches fitContentWithInsets exactly when insets are zero and height is the short axis', () => {
+    expect(fitCameraContentWithInsets(box, 200, 200)).toEqual(fitContentWithInsets(box, 200, 200))
+  })
+
+  it('fitCameraContentWithInsets NEVER grows or shifts width — a container narrower than the box is accepted as-is', () => {
+    // scrolling-camera's own reason (this function's own header): the
+    // moving window's x/width belong to the rAF loop alone. left/right
+    // insets are not even part of its own type signature.
+    const grown = fitCameraContentWithInsets(box, 50, 200) // container width 50 < box.width 200
     expect(grown.width).toBe(box.width)
     expect(grown.x).toBe(box.x)
-    expect(grown.height).toBe(box.height) // box.width / 4 = 50 < box.height, so max() keeps box.height
-    expect(grown.y).toBe(box.y)
   })
 
-  it('expandHeightToAspect is the same guard against non-finite/non-positive input', () => {
-    expect(expandHeightToAspect(box, 0)).toEqual(box)
-    expect(expandHeightToAspect(box, NaN)).toEqual(box)
-    expect(expandHeightToAspect({ ...box, width: 0 }, 2)).toEqual({ ...box, width: 0 })
+  it('fitCameraContentWithInsets shifts the content vertically for a top/bottom inset, width/x still untouched', () => {
+    const grown = fitCameraContentWithInsets(box, 200, 200, { top: 20, bottom: 0 })
+    expect(grown.width).toBe(box.width)
+    expect(grown.x).toBe(box.x)
+    expect(grown.height).toBe(200) // container height / k, k = 200/200 = 1
+    expect(grown.y).toBe(-40) // same shifted centring as the generic function's own inset test above
   })
 
-  // The container's real aspect ratio is measured via ResizeObserver
+  it('fitCameraContentWithInsets is the same guard against non-finite/non-positive input', () => {
+    expect(fitCameraContentWithInsets(box, 0, 200)).toEqual(box)
+    expect(fitCameraContentWithInsets(box, 200, NaN)).toEqual(box)
+    expect(fitCameraContentWithInsets({ ...box, width: 0 }, 200, 200)).toEqual({ ...box, width: 0 })
+  })
+
+  // The container's real CSS-pixel size is measured via ResizeObserver
   // (real-browser-only, same split this file's own rAF-driven ink loop
   // already lives by) — absent in `renderToString`'s node environment, so
-  // `containerAspect` stays `null` and the SVG's own `viewBox`/backdrop
+  // `containerSize` stays `null` and the SVG's own `viewBox`/backdrop
   // sizing stay BYTE-IDENTICAL to before this rework, whether or not a
   // backdrop and `fit="contain"` are both passed. The approved-and-
   // expanded render is real-browser-only proof, left to the orchestrator's

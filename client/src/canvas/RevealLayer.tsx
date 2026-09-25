@@ -885,12 +885,38 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }
   // raked pile ends in whole blades, a shape sand's erosion cannot produce;
   // mud has no such distinct silhouette need.
   const mud = reveal.visual === 'mud'
-  const fogPath = glassFog ? fogSilhouettePath(reveal.tiles) : ''
-  const sandLoops = sand ? boundaryLoops(reveal.tiles) : []
+  // T7 rework #2 (orchestrator review, "the cleaning margins show seams"):
+  // the flat single-colour margin patch this file's own earlier T7 commit
+  // added read as a visibly DIFFERENT tone/texture from the real grid's own
+  // multi-pass silhouette (body + deep wash + rim stroke), a hard seam at
+  // exactly the old `sheetBounds` edge. Fixed by feeding the SAME organic
+  // generator (`boundaryLoops`/`fogSilhouettePath`/`sandSilhouettePath`/
+  // `leafSilhouettePath`) a few extra, non-scoring "margin tiles" spanning
+  // `displayBounds` minus `sheetBounds` (`marginBands`, this file's own T7
+  // export) ALONGSIDE the real remaining ones — one continuous boundary, one
+  // continuous fill/opacity, no seam, because it is the SAME path. Never
+  // scored: `marginTiles` never reaches `evaluateLevel`/`revealGrid.ts`, only
+  // this render. `reveal.tiles.length > 0` gates it OFF the instant the
+  // REAL grid finishes — "the extra area clears together with the rest" —
+  // by falling back to the bare (now also empty) `reveal.tiles`, which is
+  // exactly what already makes `fogPath`/`sandPath`/etc render nothing at
+  // real completion.
+  const marginTiles: TraceRevealTile[] =
+    reveal.tiles.length > 0 && !nightVeil
+      ? marginBands(displayBounds, sheetBounds).map((b) => ({ x: b.x, y: b.y, w: b.width, h: b.height, opacity: 1 }))
+      : []
+  const tilesWithMargin = marginTiles.length > 0 ? [...reveal.tiles, ...marginTiles] : reveal.tiles
+  const fogPath = glassFog ? fogSilhouettePath(tilesWithMargin) : ''
+  const sandLoops = sand ? boundaryLoops(tilesWithMargin) : []
   const sandPath = sand ? sandSilhouettePath(sandLoops) : ''
-  const leafLoops = leaves ? boundaryLoops(reveal.tiles) : []
-  const leafPath = leaves ? leafSilhouettePath(leafLoops, sheetBounds) : ''
-  const mudLoops = mud ? boundaryLoops(reveal.tiles) : []
+  const leafLoops = leaves ? boundaryLoops(tilesWithMargin) : []
+  // `displayBounds`, not `sheetBounds`: this is the frontier's OWN outer-
+  // border test (`onSheetEdge`/`sheetSides`) — with the margin merged in,
+  // the true outer border moved to `displayBounds`'s own edge, so THAT is
+  // the box whose sides may never retreat, not the old (now interior)
+  // `sheetBounds` edge.
+  const leafPath = leaves ? leafSilhouettePath(leafLoops, displayBounds) : ''
+  const mudLoops = mud ? boundaryLoops(tilesWithMargin) : []
   const mudPath = mud ? sandSilhouettePath(mudLoops) : ''
   const streaks = glassFog ? wholePaneStreaks(sheetBounds) : []
   const droplets = glassFog ? wholePaneDroplets(sheetBounds) : []
@@ -909,29 +935,28 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }
   // found object or the live torch lights exactly the same spot it always
   // did; only how far the surrounding darkness now reaches changes.
   const nightVeilGeometry = nightVeilHolesList ? nightVeilLayers(nightVeilHolesList, displayBounds) : null
-  // Every OTHER policy (glass/sand/leaves/mud, and the plain per-tile
-  // fallback) keeps its pile/tile geometry scored against `sheetBounds`
-  // alone (untouched), and gets this flat patch for the margin
-  // `displayBounds` added beyond it — `[]` when there is no growth, the
-  // pre-T7 case. One flat fill per policy, matching that policy's own
-  // "fully covered" tone, so nothing outside the scored grid ever reads as
-  // cleaner than what the child has actually not touched yet.
-  const margin = nightVeil ? [] : marginBands(displayBounds, sheetBounds)
-  const marginFill = glassFog ? reveal.fill : sand ? SAND_BASE : leaves ? LEAF_BASE : mud ? MUD_BASE : reveal.fill
-  const marginOpacity = glassFog ? 0.78 : 1
+  // The plain per-tile fallback ONLY (no `visual` policy at all — an
+  // untextured `mode:'erase'` level, if one is ever shipped): none of the
+  // four named policies above apply, so there is no silhouette generator to
+  // merge the margin into. Falls back to the flat single-fill patch this
+  // file's own earlier T7 commit used for every policy — same "clears
+  // together" gate (`reveal.tiles.length > 0`, via `marginTiles` above,
+  // already computed for this exact case since `plainFallback` is neither
+  // glass/sand/leaves/mud).
+  const plainFallback = !glassFog && !sand && !leaves && !mud && !nightVeil
+  const plainMargin = plainFallback ? marginTiles : []
 
   return (
     <g pointerEvents="none">
-      {margin.map((band, idx) => (
+      {plainMargin.map((tile, idx) => (
         <rect
           key={`reveal-margin-${idx}`}
           data-reveal-margin="true"
-          x={band.x}
-          y={band.y}
-          width={band.width}
-          height={band.height}
-          fill={marginFill}
-          opacity={marginOpacity}
+          x={tile.x}
+          y={tile.y}
+          width={tile.w}
+          height={tile.h}
+          fill={reveal.fill}
         />
       ))}
       {hiddenArt.map((obj, idx) => (

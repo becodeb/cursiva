@@ -872,29 +872,87 @@ describe('RevealLayer displayBounds (T7 rework) — the outer margin and the exp
     expect(withDefault).not.toContain('data-reveal-margin')
   })
 
-  it('the glass margin patch uses reveal.fill at the same 0.78 opacity the silhouette itself paints at', () => {
+  // T7 rework #2 (orchestrator review, "the cleaning margins show seams"):
+  // a separate flat-fill rect read as a visibly different tone/texture from
+  // the real grid's own multi-pass silhouette — a hard seam at the old
+  // `sheetBounds` edge. Fixed by merging synthetic, non-scoring "margin
+  // tiles" INTO the same organic generator instead, so the margin is part
+  // of the SAME continuous path/fill/opacity as the real grid — never a
+  // second, differently-toned shape.
+  /** The lowest Y coordinate any M/C/Q command in `d` mentions — every
+   *  generator here (`organicLoopPath`'s jitter+bezier, `erodedSandLoopPath`'s
+   *  noise+quadratic, `lobedLeafLoopPath`'s lobes) perturbs the exact grid
+   *  corner, so asserting an EXACT literal like "-50" is fragile; the real
+   *  claim is "the boundary reaches well past the original sheetBounds edge
+   *  (y=0), into displayBounds's own (y=-50)". */
+  function minPathY(d: string): number {
+    const ys = [...d.matchAll(/-?\d+(?:\.\d+)?/g)].map(Number)
+    // Every coordinate pair in this file's own path commands is "x y" —
+    // odd-indexed numbers are the Y half of each pair (0-indexed: index 1,
+    // 3, 5, ...). Good enough for a MIN over the whole path regardless of
+    // command type, since M/C/Q here are always emitted as whole pairs.
+    return Math.min(...ys.filter((_, i) => i % 2 === 1))
+  }
+
+  it('glass: the margin merges into the SAME silhouette path as the real grid — no separate patch, one continuous shape', () => {
     const reveal: TraceReveal = { fill: '#64726b', tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }] }
-    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />)
-    expect((html.match(/data-reveal-margin="true"/g) ?? []).length).toBe(2) // top + bottom, height-only growth
-    expect(html).toMatch(/data-reveal-margin="true"[^>]*fill="#64726b"[^>]*opacity="0\.78"/)
+    const withoutMargin = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+    const withMargin = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />)
+    expect(withMargin).not.toContain('data-reveal-margin') // no separate patch for a policy with a generator
+    // Still exactly ONE silhouette path (body pass) — the margin extended
+    // it, it did not add a second shape.
+    expect((withMargin.match(/data-fog-silhouette="glass"/g) ?? []).length).toBe(1)
+    const silhouette = withMargin.match(/data-fog-silhouette="glass" d="([^"]+)"/)?.[1] ?? ''
+    // The merged path reaches well up past displayBounds's own top edge
+    // (y=-50), past sheetBounds's own y=0 the un-merged path is bounded by.
+    expect(minPathY(silhouette)).toBeLessThan(-30)
+    const silhouetteWithoutMargin = withoutMargin.match(/data-fog-silhouette="glass" d="([^"]+)"/)?.[1] ?? ''
+    // Small jitter (up to ~5.5 units, `organicLoopPath`'s own constant) can
+    // still nudge a corner slightly past the exact grid edge — the real
+    // claim is "nowhere near the -50 margin", not "never negative".
+    expect(minPathY(silhouetteWithoutMargin)).toBeGreaterThan(-10)
   })
 
-  it('the sand/leaves/mud margin patches use each policy\'s own opaque base tone, not reveal.fill', () => {
+  it('sand/leaves/mud: same merge, and the leaf frontier\'s own border test moves to displayBounds (the margin is now the true outer edge)', () => {
+    const wideTiles = [{ x: 0, y: 0, w: 1000, h: 600, opacity: 1 }] // one big remaining tile, easy to reason about
     const sandHtml = renderToString(
-      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'sand', tiles: [] }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
+      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'sand', tiles: wideTiles }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
     )
-    expect(sandHtml).toMatch(/data-reveal-margin="true"[^>]*fill="#c4945c"/) // SAND_BASE
-    expect(sandHtml).not.toMatch(/data-reveal-margin="true"[^>]*fill="#7a6a58"/)
+    expect(sandHtml).not.toContain('data-reveal-margin')
+    const sandPath = sandHtml.match(/data-sand-silhouette="true" d="([^"]+)"/)?.[1] ?? ''
+    expect(minPathY(sandPath)).toBeLessThan(-30)
 
     const leafHtml = renderToString(
-      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'leaves', tiles: [] }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
+      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'leaves', tiles: wideTiles }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
     )
-    expect(leafHtml).toMatch(/data-reveal-margin="true"[^>]*fill="#6e7a4a"/) // LEAF_BASE
+    expect(leafHtml).not.toContain('data-reveal-margin')
+    expect(leafHtml).toContain('data-leaf-silhouette="true"')
 
     const mudHtml = renderToString(
-      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'mud', tiles: [] }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
+      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'mud', tiles: wideTiles }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
     )
-    expect(mudHtml).toMatch(/data-reveal-margin="true"[^>]*fill="#5a4632"/) // MUD_BASE
+    expect(mudHtml).not.toContain('data-reveal-margin')
+    const mudPath = mudHtml.match(/data-mud-silhouette="true" d="([^"]+)"/)?.[1] ?? ''
+    expect(minPathY(mudPath)).toBeLessThan(-30)
+  })
+
+  it('"the extra area clears together with the rest": once reveal.tiles is empty (the real grid is done), nothing renders at all — no margin left dirty', () => {
+    for (const visual of ['sand', 'leaves', 'mud'] as const) {
+      const html = renderToString(
+        <RevealLayer reveal={{ fill: '#7a6a58', visual, tiles: [] }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
+      )
+      expect(html).not.toContain('data-reveal-margin')
+      expect(html).not.toContain('data-sand-drift')
+      expect(html).not.toContain('data-leaf-litter')
+      expect(html).not.toContain('data-mud-drift')
+    }
+  })
+
+  it('the plain per-tile fallback (no visual policy) keeps the flat margin patch — it has no silhouette generator to merge into', () => {
+    const reveal: TraceReveal = { fill: '#7a6a58', tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }] }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />)
+    expect((html.match(/data-reveal-margin="true"/g) ?? []).length).toBe(2) // top + bottom, height-only growth
+    expect(html).toMatch(/data-reveal-margin="true"[^>]*fill="#7a6a58"/)
   })
 
   it('the night veil grows its OWN full-cover darkness to displayBounds instead of a separate margin patch — hole positions untouched', () => {
