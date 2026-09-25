@@ -1017,12 +1017,25 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
+    // Defect fix (play-test 2026-09-25, T2 item 1: "a single tap anywhere
+    // turns the whole level to day"): the chest used to sit at (500, 300) —
+    // the sheet's exact geometric centre, which is also where a curious
+    // child's very first blind touch on an all-dark screen is most likely to
+    // land. With only ONE object (R4) and this family's widest radius (200,
+    // R5's own frame-budget ceiling for a 15x9 grid, not a gameplay choice —
+    // see the archived `2026-09-13-reveal-grid-entrance-and-night/design.md`
+    // §5.2), that first touch already sat inside the find radius, so the
+    // level ended before any searching happened. Moved off-centre so the
+    // obvious first tap misses (distance to the old centre point is ~358,
+    // well past `radius: 200`) and the child has to move the torch — the
+    // search `docs/13` §2 calls for. `radius`/grid/family ordering (R1-R8)
+    // are unchanged.
     reveal: {
       mode: 'light',
       cols: 15,
       rows: 9,
       radius: 200,
-      objects: [{ art: SECTOR_ADVENTURE_ART.chest, size: 96, x: 500, y: 300 }],
+      objects: [{ art: SECTOR_ADVENTURE_ART.chest, size: 96, x: 180, y: 460 }],
     },
   },
   {

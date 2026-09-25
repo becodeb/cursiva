@@ -248,13 +248,28 @@ export function revealTiles(reveal: RevealConfig, state: RevealState, width: num
       if (reveal.mode === 'erase') {
         opacity = state.cleared.has(tileIndex(col, row, cols)) ? 0 : 1
       } else {
-        if (state.point === null) {
-          opacity = 1
-        } else {
-          const cx = (col + 0.5) * tileW
-          const cy = (row + 0.5) * tileH
-          const d = Math.hypot(cx - state.point.x, cy - state.point.y)
-          opacity = lightOpacity(d, reveal.radius)
+        const cx = (col + 0.5) * tileW
+        const cy = (row + 0.5) * tileH
+        opacity = state.point === null ? 1 : lightOpacity(Math.hypot(cx - state.point.x, cy - state.point.y), reveal.radius)
+        // Defect fix (play-test 2026-09-25, T2 item 3: "when the child
+        // discovers an object, it stays lit"). Before this, a tile's
+        // opacity depended ONLY on the LIVE torch point, so the instant the
+        // finger lifted every tile snapped back to `1` (fully dark) even
+        // around an object already latched into `state.lit` — the object's
+        // own picture kept showing (`revealedArt` renders above the veil,
+        // unconditionally), but the clearing around it did not, so a found
+        // chest read as a lit sprite floating in total black. Each FOUND
+        // object now also contributes its own falloff, exactly like the
+        // live point (same `reveal.radius`, so a found object's clearing is
+        // the same size the torch needed to find it) — and it never resets,
+        // because `state.lit` is latched (never shrinks) for the rest of
+        // the attempt. `Math.min` takes whichever source reveals the tile
+        // MORE (lower opacity = less covering), so the live torch and every
+        // permanent find compose rather than race.
+        for (const oi of state.lit) {
+          const obj = reveal.objects[oi]
+          const foundOpacity = lightOpacity(Math.hypot(cx - obj.x, cy - obj.y), reveal.radius)
+          if (foundOpacity < opacity) opacity = foundOpacity
         }
       }
       if (opacity <= 0) continue

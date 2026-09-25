@@ -18,6 +18,7 @@ import type { LevelRecord } from '../game/types'
 import { migrateDuckCase } from '../game/migrateDuckCase'
 import { BAND_INSET, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget } from './buildLevel'
 import { routeExtrema, vertexArtPoints } from './dolphinExtrema'
+import { EMPTY_REVEAL, revealTick } from './revealGrid'
 import { clueCountFor } from '../detective/clues'
 import {
   DEGRADED_LEVEL_IDS,
@@ -1583,6 +1584,30 @@ describe('LEVELS — the reveal grid, twelve authored levels (design.md §5, ame
       const r = revealOf(id)
       expect(1000 / r.cols, id).toBeCloseTo(600 / r.rows, 10)
     }
+  })
+
+  // Regression (play-test 2026-09-25, T2 item 1): "a single tap anywhere
+  // turns the whole level to day — the hidden chest is found without
+  // searching." `night1` carries exactly one object (R4) at this family's
+  // widest radius (200, R5's own frame-budget ceiling — not a gameplay
+  // choice, see the archived `2026-09-13-reveal-grid-entrance-and-night/
+  // design.md` §5.2/§5.4). With one object, finding it IS completing the
+  // level, so it must not sit within reach of the sheet's own centre — the
+  // spot a child's first blind touch on an all-dark screen is most likely to
+  // land on.
+  it('T2 regression: night1\'s only object is out of reach of a centred first tap', () => {
+    const reveal = revealOf('night1')
+    if (reveal.mode !== 'light') throw new Error("night1: expected mode 'light'")
+    expect(reveal.objects).toHaveLength(1)
+    const [obj] = reveal.objects
+    const centre = { x: 500, y: 300 } // sheet centre, 1000x600
+    const distance = Math.hypot(obj.x - centre.x, obj.y - centre.y)
+    expect(distance).toBeGreaterThan(reveal.radius)
+
+    // End-to-end: a single still touch at the sheet's centre — the reported
+    // "tap anywhere" — must not latch the object through the real fold.
+    const tapped = revealTick(EMPTY_REVEAL, [centre], true, reveal, MIN_VIEWBOX_WIDTH)
+    expect(tapped.lit.size).toBe(0)
   })
 
   it('the catalog opens with glass1..4 immediately followed by sand1..4, then f1-libre', () => {
