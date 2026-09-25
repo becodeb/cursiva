@@ -56,8 +56,8 @@ merge + push so the deploy updates and they can test).
 | T1 | Snakes: align the corridor with the snake art so a child can pass `snake1..4` | `fix/snakes-corridor-alignment` | delegated (4+ files to map, writer trigger) | pending | |
 | T2 | Flashlight: the first tap must not reveal everything; no halo giving away hidden objects; a found object stays lit in a radius around it | `fix/night-flashlight` | delegated | pending | |
 | T3 | Hedgehog: accept a spine that starts near (not exactly on) the start dot; make it less repetitive and clearer | `fix/hedgehog-spines` | delegated | pending | |
-| T4 | Mud of the path enclosure (`sand3`) drawn in code like the sand and the leaves, not flat squares | `fix/cleaning-levels` | delegated | pending | |
-| T6 | Cleaning levels (glass, sand, mud): the finger only cleans: no ink line, no drawing of any kind (user, 2026-09-25: "que solo limpie pasar el dedo, no que deje un trazo ni dibuje") | `fix/cleaning-levels` | delegated (same writer as T4) | pending | |
+| T4 | Mud of the path enclosure (`sand3`) drawn in code like the sand and the leaves, not flat squares | `fix/cleaning-levels` | delegated | done | `1b4ef97` — new `visual: 'mud'` RevealLayer policy (pebbles, puddles, eroded silhouette); `npm test`/`npm run build` green; browser QA (`?nivel=sand3`, glass1/sand1/glass3 for regression) in `capturas/2026-09-25-tanda1/` |
+| T6 | Cleaning levels (glass, sand, mud): the finger only cleans: no ink line, no drawing of any kind (user, 2026-09-25: "que solo limpie pasar el dedo, no que deje un trazo ni dibuje") | `fix/cleaning-levels` | delegated (same writer as T4) | done | `bf92bf9` — `resolveInkPolicy('erase')` now returns `'none'` (was `'live-only'`); verified `data-ink-policy="none"`, empty `d` mid-drag on glass1/sand1/glass3/sand3; flashlight (`'light'`) untouched |
 | T5 | Dev-only "skip level" button in level play, visible in dev builds or with `?dev` (same gate as the progress reset) | `feat/dev-skip-level` | delegated | pending | |
 
 ## Later batches (planned, not started)
