@@ -41,6 +41,53 @@ export interface ArtBox {
 }
 
 /**
+ * Where a standing character's feet belong beside an art-corridor piece's
+ * TRACED END, instead of ON the route's own point
+ * (`TraceCanvas.tsx`'s `TraceStandingArt.at` carries this out to the render
+ * site; `screen/LevelPlay.tsx` is the one caller). An art-corridor route runs
+ * down the drawn body's OWN centreline, so a character planted there with
+ * its feet at that point stands chest-deep in the animal, its own height
+ * rising straight up over the head — found on `snake1`'s start octopus
+ * (diagnostic doc N3).
+ *
+ * `at` is inverse-rotated into `piece`'s own local (pre-rotation) frame —
+ * the exact inverse of `levels/artCorridor.ts`'s own `rotate → translate`,
+ * so this works whatever the piece's rotation (an upright `snake1` piece, a
+ * `snake3` column standing on `rotate: -90`, alike). Only the local Y (the
+ * across-the-body axis, unaffected by which end is traced) survives the
+ * round trip; the local X is replaced outright by a point `margin` BEFORE
+ * the box's own near edge (`atStart`) or past its far edge (`!atStart`) —
+ * off the SHORT axis of the piece's own bounding box, where a single family
+ * member's own drawn body is the only thing in frame (`snakeHorizontalPieces`'s
+ * three rows sit under 35 units apart vertically — far too little clearance
+ * to stand below one without also standing on the next — while every piece's
+ * own box is at least 375 units long along this axis, `snakeVerticalPieces`'s
+ * own shortest span). Then rotated back to screen space.
+ */
+export function standBesideArtCorridor(
+  at: { x: number; y: number },
+  piece: { box: ArtBox; rotate: number; pivot: { x: number; y: number } },
+  margin: number,
+  atStart: boolean,
+): { x: number; y: number } {
+  const rad = (piece.rotate * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  const dx = at.x - piece.pivot.x
+  const dy = at.y - piece.pivot.y
+  // Inverse rotation (screen → local): rotate by −rad.
+  const localY = -dx * sin + dy * cos
+  const localX = atStart
+    ? piece.box.x - margin - piece.pivot.x
+    : piece.box.x + piece.box.width + margin - piece.pivot.x
+  // Forward rotation (local → screen) of (localX, localY).
+  return {
+    x: piece.pivot.x + localX * cos - localY * sin,
+    y: piece.pivot.y + localX * sin + localY * cos,
+  }
+}
+
+/**
  * The `<image>` box that puts `art`'s grip point exactly on `center`, at a
  * rendered height of `height` and the file's own aspect ratio. Width follows
  * from `art.w`/`art.h`, so a non-square file is never stretched to a shared

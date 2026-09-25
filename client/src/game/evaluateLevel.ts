@@ -17,11 +17,61 @@ import { K, TolPen, TolTouch } from '../canvas/validation/constants'
 import { fluencyScore } from '../canvas/validation/fluency'
 import { score } from '../canvas/validation/score'
 import type { TracePoint } from '../canvas/useTraceInput'
+import type { Point } from '../letters/types'
 import { revealScore } from '../levels/revealGrid'
 import { spineScore } from '../levels/spines'
 import { waypointScore } from '../levels/waypoints'
 import type { LevelTarget } from '../levels/types'
 import type { LevelAttempt } from './types'
+
+/** Total arc length of a point list — the sum of consecutive chord distances. */
+function strokeLength(points: ReadonlyArray<Point>): number {
+  let total = 0
+  for (let i = 1; i < points.length; i++) {
+    total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
+  }
+  return total
+}
+
+/**
+ * Accuracy-scoring points for possibly MULTIPLE strokes, arc-length-
+ * proportioned PER STROKE — `resample` never sees the gap between two
+ * strokes as if it were drawn ink.
+ *
+ * `resample(all, k)` on the naive concatenation of every stroke's points
+ * treats a deliberate pen lift (`rules.mustBeContinuous: false` — e.g. one
+ * route per art-corridor piece, `snake1..4`) as arc length: with `k` fixed
+ * samples laid out over the WHOLE concatenated length, a wide gap between
+ * two strokes (the snake pieces sit ~350-475 viewBox units apart on the
+ * sheet, each piece's own route only 320-640 units long) starves the real
+ * strokes of samples and wastes the rest scoring empty sand between the
+ * pieces — nowhere near `target.ideal`. This is the actual cause of
+ * "snakes: impossible to pass": even a mathematically perfect trace of the
+ * engine's own `target.routes` (every snake piece's own centreline, exactly)
+ * scored accuracy 52, below `snake1`'s `minAccuracy: 55` — about a third of
+ * `K`'s 64 samples landed in the two inter-snake gaps, tens of viewBox units
+ * from any ideal-band point. The art itself was never misaligned; the score
+ * was measuring the child's ability to draw a fourth, imaginary snake made
+ * of empty sand between the real three.
+ *
+ * A single stroke takes the exact previous path — `resample(stroke, k)` —
+ * so every existing single-stroke level scores bit-for-bit the same as
+ * before this fix.
+ */
+export function resampleForScoring(strokes: ReadonlyArray<ReadonlyArray<Point>>, k: number): Point[] {
+  if (strokes.length <= 1) return resample(strokes[0] ? [...strokes[0]] : [], k)
+  const lengths = strokes.map(strokeLength)
+  const total = lengths.reduce((a, b) => a + b, 0)
+  if (total === 0) return []
+  const out: Point[] = []
+  for (let i = 0; i < strokes.length; i++) {
+    const stroke = strokes[i]
+    if (stroke.length < 2 || lengths[i] === 0) continue
+    const share = Math.max(2, Math.round((k * lengths[i]) / total))
+    out.push(...resample([...stroke], share))
+  }
+  return out
+}
 
 /**
  * Corridor width the DESIGN-FIXED tolerances were calibrated against (the
@@ -149,7 +199,7 @@ export function evaluateLevel(
 
   // ── Pilar 1: precisión — ¿se mantuvo dentro del camino? ────────────────────
   const tolerance = toleranceFor(target.corridorWidth, pointerType)
-  const accuracy = Math.round(score(resample(all, K), target.ideal, tolerance))
+  const accuracy = Math.round(score(resampleForScoring(strokes, K), target.ideal, tolerance))
 
   // ── Pilar 2: sentido — ¿el recorrido fue en el orden correcto? ─────────────
   const order = checkCheckpointOrder(all, target.checkpoints)

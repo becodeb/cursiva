@@ -413,6 +413,22 @@ export interface TraceStandingArt {
   h: number
   /** Rendered HEIGHT in viewBox units. Width follows from the aspect ratio. */
   size: number
+  /**
+   * Where the feet actually land, when it differs from the route's own
+   * marker point. Absent on every ordinary route, where "on the point" (the
+   * grip's whole reason to exist, above) is exactly where a character should
+   * stand.
+   *
+   * An art-corridor route is the one place it is not: `target.start` sits on
+   * the drawn body's OWN centreline (the traced path is the animal's spine),
+   * so a character planted there with its feet at that point stands chest-
+   * deep in the animal and its 96-unit body rises straight up over the head
+   * (`snake1`'s start octopus, found on a screenshot — the diagnostic doc's
+   * N3). Every other route lies on open ground, where the marker point
+   * already IS where feet belong. `screen/LevelPlay.tsx` sets this only for
+   * an art-corridor level's start art, offset onto the sand beside the body.
+   */
+  at?: { x: number; y: number }
 }
 
 /**
@@ -1554,7 +1570,7 @@ export default function TraceCanvas({
         <image
           href={startArt.href}
           {...clampArtBox(
-            placeArt({ ...startArt, grip: STANDING_GRIP }, startArt.size, startMarker),
+            placeArt({ ...startArt, grip: STANDING_GRIP }, startArt.size, startArt.at ?? startMarker),
             sheetBounds,
           )}
           preserveAspectRatio="xMidYMid meet"

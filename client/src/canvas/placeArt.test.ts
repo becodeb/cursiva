@@ -2,7 +2,15 @@
 // Its Grip, Not Its Bounding Box"). Pure function, no DOM.
 import { describe, expect, it } from 'vitest'
 import { CARRIER_LENS_ART } from '../detective/assets'
-import { clampArtBox, DEFAULT_GRIP, placeArt, STANDING_GRIP } from './placeArt'
+import { buildLevelTarget } from '../levels/buildLevel'
+import { getLevel } from '../levels/catalog'
+import {
+  clampArtBox,
+  DEFAULT_GRIP,
+  placeArt,
+  standBesideArtCorridor,
+  STANDING_GRIP,
+} from './placeArt'
 
 describe('placeArt (design.md §7: "placeArt() lives in canvas/, takes a structural shape")', () => {
   it('with no declared grip, centres the box on `center`', () => {
@@ -142,6 +150,50 @@ describe('clampArtBox (standing art may not be cut in half by the edge of the sh
     // bounded by half its own width (~52 units on a 1000-unit sheet).
     expect(box.x - raw.x).toBeLessThanOrEqual(raw.width / 2)
     expect(box.y + box.height).toBeCloseTo(feet.y) // the vertical axis never moved
+  })
+})
+
+describe('standBesideArtCorridor (N3: the start octopus must not stand ON the drawn body)', () => {
+  const piece = { box: { x: 100, y: 50, width: 200, height: 80 }, rotate: 0, pivot: { x: 200, y: 90 } }
+
+  it('for an unrotated piece, moves before the box on X and keeps the given Y', () => {
+    const at = { x: 150, y: 77 }
+    expect(standBesideArtCorridor(at, piece, 30, true)).toEqual({ x: piece.box.x - 30, y: at.y })
+  })
+
+  it('the opposite end (atStart: false) moves past the box’s FAR edge instead', () => {
+    const at = { x: 150, y: 77 }
+    expect(standBesideArtCorridor(at, piece, 30, false)).toEqual({
+      x: piece.box.x + piece.box.width + 30,
+      y: at.y,
+    })
+  })
+
+  it('rotates the offset WITH the piece — a rotate:-90 column shifts on Y, not X', () => {
+    const column = { box: { x: 0, y: 0, width: 100, height: 40 }, rotate: -90, pivot: { x: 50, y: 20 } }
+    const at = { x: 50, y: 20 } // exactly on the pivot
+    // Local X (the piece's own long axis) is what a `rotate: -90` piece maps
+    // onto screen Y — the same axis `standBesideArtCorridor`'s own doc names.
+    const result = standBesideArtCorridor(at, column, 10, true)
+    expect(result.x).toBeCloseTo(50, 9)
+    expect(result.y).toBeCloseTo(80, 9)
+  })
+
+  it('snake1: clears the whole small-snake box, on the open sand to its left', () => {
+    const target = buildLevelTarget(getLevel('snake1'))
+    const piece0 = target.artCorridor![0]
+    const start = target.start!
+    const at = standBesideArtCorridor(start, piece0, 112, true)
+    // Before this fix, the octopus stood exactly at `start` — inside the
+    // box, on the drawn body's own centreline (N3).
+    expect(start.x).toBeGreaterThan(piece0.box.x)
+    expect(start.x).toBeLessThan(piece0.box.x + piece0.box.width)
+    // After it, the octopus's feet clear the box's own left edge...
+    expect(at.x).toBeLessThan(piece0.box.x)
+    // ...while staying on the sheet, and at the same height as the spine —
+    // beside the snake's head, not below the whole animal.
+    expect(at.x).toBeGreaterThan(0)
+    expect(at.y).toBe(start.y)
   })
 })
 
