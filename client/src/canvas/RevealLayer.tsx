@@ -13,8 +13,122 @@
 // any tile at opacity 0 (`levels/revealGrid.ts`'s `revealTiles` projection,
 // design.md §1.5): this layer never filters, it only renders what it is
 // given.
+//
+// T9 (round flashlight, `odd/tasks/prewriting-stage-completion.md`): a
+// `light`-mode veil is the ONE exception to "one `<rect>` per tile" above.
+// `revealTiles` no longer tiles a grid for `light` mode — each entry in
+// `reveal.tiles` is now one ACTIVE source's own bounding square (found
+// object or live torch, `levels/revealGrid.ts`'s own header), and this file
+// turns that list into ROUND darkness: plain `<path>`s, `fillRule="evenodd"`
+// (allowed — it is a fill rule, not a fragment reference), never `<mask>`/
+// `<clipPath>`/`url(#…)`. The batch-1 fix (`38919bc`) made a found object's
+// own clearing latch forever; what stayed square was the SHAPE of that
+// clearing (grid tiles), not whether it persisted — this only changes the
+// shape.
 import { clampArtBox, placeArt, type ArtBox } from './placeArt'
+import { LIGHT_BAND_RATIOS } from '../levels/revealGrid'
 import type { TraceReveal, TraceRevealTile } from './TraceCanvas'
+
+/**
+ * T9: `reveal.tiles` for a `light` reveal is a list of source bounding
+ * squares (`levels/revealGrid.ts`'s own header), not grid cells. This
+ * losslessly reconstructs the circle each square encodes — `x/y` is the
+ * top-left corner, `w === h === 2 * radius` — the exact inverse of how
+ * `revealTiles` built the square from `{ cx, cy, radius }` in the first
+ * place.
+ *
+ * One exception: `screen/LevelPlay.tsx`'s completion frame bypasses
+ * `revealTiles` entirely and passes `allRevealTiles`'s full COLS x ROWS grid
+ * at `opacity: 0` instead (a pre-existing, untouched convention this file
+ * cannot reach into `LevelPlay.tsx` to change). A real active source is
+ * always emitted at `opacity: 1` (`revealTiles`'s light branch, hardcoded —
+ * see its own header), so a non-empty list where EVERY entry reads
+ * `opacity <= 0` is unambiguously that bypass, not a zero-radius source; it
+ * decodes to `null` — NO veil at all, not even the solid base rect, exactly
+ * the "everything already found, stop darkening" state that frame means.
+ * An EMPTY list is the other, unrelated case (no torch, nothing found yet):
+ * it returns `[]`, an array, which `nightVeilLayers` below turns into a
+ * SOLID base rect with zero holes — full darkness, correctly distinct from
+ * the `null` "no veil" case despite both starting from an empty-ish input.
+ */
+function nightVeilHoles(tiles: readonly TraceRevealTile[]): readonly { cx: number; cy: number; radius: number }[] | null {
+  if (tiles.length > 0 && tiles.every((t) => t.opacity <= 0)) return null
+  return tiles.map((t) => ({ cx: t.x + t.w / 2, cy: t.y + t.h / 2, radius: t.w / 2 }))
+}
+
+/** Bezier control-point offset for a quarter-circle arc, the standard
+ *  constant (4/3 * (sqrt(2) - 1)) for approximating a circle with four
+ *  cubic curves within ~0.03% of true radius — plainly accurate enough for
+ *  a lighting veil. Plain `M`/`C` path data, the same commands this file's
+ *  other silhouettes already emit (`organicLoopPath` et al.) — no `<circle>`
+ *  element, because this shape has to live inside a compound
+ *  `fillRule="evenodd"` path to punch a hole (a separate `<circle>` element
+ *  cannot subtract from a `<path>`; that would need `<mask>`/`<clipPath>`,
+ *  this file's own ban, header above). */
+const CIRCLE_KAPPA = 0.5522847498307936
+
+/** One circle, as a closed `M` + four `C` subpath — `Z` so it composes
+ *  cleanly with another subpath under `fillRule="evenodd"` (a rect with a
+ *  circle hole, or two concentric circles forming a ring). */
+function circlePath(cx: number, cy: number, r: number): string {
+  const k = r * CIRCLE_KAPPA
+  return (
+    `M ${cx - r} ${cy} ` +
+    `C ${cx - r} ${cy - k}, ${cx - k} ${cy - r}, ${cx} ${cy - r} ` +
+    `C ${cx + k} ${cy - r}, ${cx + r} ${cy - k}, ${cx + r} ${cy} ` +
+    `C ${cx + r} ${cy + k}, ${cx + k} ${cy + r}, ${cx} ${cy + r} ` +
+    `C ${cx - k} ${cy + r}, ${cx - r} ${cy + k}, ${cx - r} ${cy} Z`
+  )
+}
+
+/** The sheet-wide dark path, the SAME `M`/`H`/`V`/`H`/`Z` rectangle
+ *  `data-night-success-glow`'s wash already uses (below) — one shared
+ *  formula rather than a second literal. */
+function sheetRectPath(bounds: ArtBox): string {
+  return `M ${bounds.x} ${bounds.y} H ${bounds.x + bounds.width} V ${bounds.y + bounds.height} H ${bounds.x} Z`
+}
+
+/**
+ * The round flashlight veil (T9, `odd/tasks/prewriting-stage-completion.md`):
+ * one full-sheet dark path with a round hole per active source, plus three
+ * concentric semi-transparent rings per source for the soft radial falloff
+ * `lightOpacity` already defines in five steps — carved geometrically
+ * instead of folded per grid tile, which is what let the OLD tile-based
+ * veil (`38919bc`) read as square. `LIGHT_BAND_RATIOS` is outer-to-inner
+ * (`levels/revealGrid.ts`'s own header): band 0 (0.75 opacity) sits between
+ * ratios [0] and [1], band 1 (0.5) between [1] and [2], band 2 (0.25)
+ * between [2] and [3]; inside ratio [3] is a true hole (no fill at all,
+ * opacity 0 — `lightOpacity`'s own centre value).
+ *
+ * Every source shares the SAME four `<path>` elements (one base, three
+ * rings) rather than one set per source: each ring's `d` concatenates that
+ * band's annulus for every hole, so node count stays flat at 4 regardless
+ * of how many objects are found or whether the torch is held — the old
+ * grid rendered up to `cols x rows` (135-240) `<rect>`s for this same
+ * level. `evenodd` composes correctly source-by-source because the
+ * catalog's own object placements keep each source's radius clear of every
+ * other (`levels/catalog.ts`'s night1-4 entries) — the one case this does
+ * NOT guarantee is the live torch revisiting a spot right on top of an
+ * already-found object, where overlapping holes can misfire back to a
+ * shade darker for the overlap sliver; accepted as a minor, rare visual
+ * edge rather than switching to a canvas raster (this file's own ban on
+ * anything mask/filter-shaped rules that out) or a full per-pixel distance
+ * field (well past what this level of polish needs).
+ */
+function nightVeilLayers(
+  holes: readonly { cx: number; cy: number; radius: number }[],
+  sheetBounds: ArtBox,
+): { basePath: string; rings: readonly { opacity: number; d: string }[] } {
+  const basePath = [sheetRectPath(sheetBounds), ...holes.map((h) => circlePath(h.cx, h.cy, h.radius * LIGHT_BAND_RATIOS[0]))].join(' ')
+  const bandOpacities = [0.75, 0.5, 0.25]
+  const rings = bandOpacities.map((opacity, band) => ({
+    opacity,
+    d: holes
+      .map((h) => `${circlePath(h.cx, h.cy, h.radius * LIGHT_BAND_RATIOS[band])} ${circlePath(h.cx, h.cy, h.radius * LIGHT_BAND_RATIOS[band + 1])}`)
+      .join(' '),
+  }))
+  return { basePath, rings }
+}
 
 export interface RevealLayerProps {
   reveal: TraceReveal
@@ -745,6 +859,8 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
   const mudPuddles = mud ? wholePaneMudPuddles(sheetBounds) : []
   const hiddenArt = reveal.art?.filter((obj) => !obj.revealed) ?? []
   const revealedArt = reveal.art?.filter((obj) => obj.revealed) ?? []
+  const nightVeilHolesList = nightVeil ? nightVeilHoles(reveal.tiles) : null
+  const nightVeilGeometry = nightVeilHolesList ? nightVeilLayers(nightVeilHolesList, sheetBounds) : null
 
   return (
     <g pointerEvents="none">
@@ -960,31 +1076,44 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
           )}
         </g>
       )}
-      {reveal.tiles.map((tile) => (
-        <rect
-          key={stableTileId(tile)}
-          data-fog-tile-id={stableTileId(tile)}
-          x={tile.x}
-          y={tile.y}
-          width={tile.w}
-          height={tile.h}
-          fill={reveal.fill}
-          // Defect found by reading `capturas/d/glass1.png`, `sand2-revelado.png`
-          // and `night2-linterna.png` (Phase 7.6): adjacent tiles sit at
-          // fractional device pixels (a 1000-wide sheet over 15 columns is
-          // 66.67 per tile), so two antialiased edges meeting at a fractional
-          // pixel composite to a visible lighter hairline - a rendering
-          // artifact, not a geometry gap; the tiles genuinely abut. A plain
-          // presentation attribute, not a `url(#...)` reference.
-          shapeRendering="crispEdges"
-          // `leaves`/`mud` join `glassFog`/`sand` for the same reason: the visible
-          // surface is the silhouette above, so these rects stay invisible
-          // state/counting sentinels (reveal-grid spec, "Reveal Layer Renders as
-          // Plain Rects With No Fragment Reference"). Count, keys, and geometry
-          // are untouched, so folding and scoring cannot move.
-          {...(glassFog || sand || leaves || mud ? { opacity: 0 } : tile.opacity < 1 ? { opacity: tile.opacity } : {})}
-        />
-      ))}
+      {nightVeil ? (
+        nightVeilGeometry && (
+          <g data-night-veil="round">
+            <path data-night-veil-base="true" d={nightVeilGeometry.basePath} fill={reveal.fill} fillRule="evenodd" />
+            {nightVeilGeometry.rings.map((ring, idx) =>
+              ring.d ? (
+                <path key={`night-veil-ring-${idx}`} data-night-veil-ring={idx} d={ring.d} fill={reveal.fill} fillRule="evenodd" opacity={ring.opacity} />
+              ) : null,
+            )}
+          </g>
+        )
+      ) : (
+        reveal.tiles.map((tile) => (
+          <rect
+            key={stableTileId(tile)}
+            data-fog-tile-id={stableTileId(tile)}
+            x={tile.x}
+            y={tile.y}
+            width={tile.w}
+            height={tile.h}
+            fill={reveal.fill}
+            // Defect found by reading `capturas/d/glass1.png`, `sand2-revelado.png`
+            // and `night2-linterna.png` (Phase 7.6): adjacent tiles sit at
+            // fractional device pixels (a 1000-wide sheet over 15 columns is
+            // 66.67 per tile), so two antialiased edges meeting at a fractional
+            // pixel composite to a visible lighter hairline - a rendering
+            // artifact, not a geometry gap; the tiles genuinely abut. A plain
+            // presentation attribute, not a `url(#...)` reference.
+            shapeRendering="crispEdges"
+            // `leaves`/`mud` join `glassFog`/`sand` for the same reason: the visible
+            // surface is the silhouette above, so these rects stay invisible
+            // state/counting sentinels (reveal-grid spec, "Reveal Layer Renders as
+            // Plain Rects With No Fragment Reference"). Count, keys, and geometry
+            // are untouched, so folding and scoring cannot move.
+            {...(glassFog || sand || leaves || mud ? { opacity: 0 } : tile.opacity < 1 ? { opacity: tile.opacity } : {})}
+          />
+        ))
+      )}
       {nightVeil && reveal.light?.complete && (
         <g data-night-success-glow="true">
           <path d={`M ${sheetBounds.x} ${sheetBounds.y} H ${sheetBounds.x + sheetBounds.width} V ${sheetBounds.y + sheetBounds.height} H ${sheetBounds.x} Z`} fill={NIGHT_SUCCESS_WASH} opacity={0.16} />

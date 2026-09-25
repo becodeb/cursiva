@@ -15,6 +15,7 @@ import { backdropFor } from '../zoo/backdrops'
 import { adventureIcon, type Adventure } from '../zoo/adventures'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
+import { BUBBLE_POP_CSS } from './BubblePop'
 
 /* The frame is a percentage box with container-type: inline-size, the same
    fix the zoo map's own bubble uses (ZooMap.tsx's ZOO_CSS): everything
@@ -51,9 +52,29 @@ const INTRO_CSS = `
 .cv-intro { height: 100dvh; display: flex; align-items: center; justify-content: center; background-color: ${SHEET_PAPER}; box-sizing: border-box; padding: 4%; }
 .cv-intro-frame { position: relative; width: min(100%, 620px, 84dvh); aspect-ratio: 1 / 1; container-type: inline-size; }
 .cv-intro-stage { position: absolute; inset: 0; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; }
-.cv-intro-octopus { position: absolute; left: 50%; bottom: 2%; width: 44%; height: auto; transform: translateX(-50%); }
+/* T8 item 1 (odd/tasks/prewriting-stage-completion.md): idle life, using
+   only the existing art — see PrologueOpening.tsx's own header for why
+   breathing restates the static translateX(-50%) in its own keyframes while
+   the occasional blink lives on the nested, transform-free .cv-octopus-life
+   image instead. NO BACKTICKS in this block — one inside a comment ends
+   this template literal early (this file's own header). */
+.cv-intro-octopus { position: absolute; left: 50%; bottom: 2%; width: 44%; height: auto; transform: translateX(-50%); animation: cv-octopus-breathe 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes cv-octopus-breathe {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.02) translateY(-1%); }
+}
+.cv-octopus-life { display: block; width: 100%; height: auto; animation: cv-octopus-blink 6.4s ease-in-out infinite; transform-origin: 50% 50%; }
+@keyframes cv-octopus-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.82); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-intro-octopus { animation: none; }
+  .cv-octopus-life { animation: none; }
+}
+${BUBBLE_POP_CSS}
 .cv-intro-bubble { position: absolute; left: 50%; top: 4%; width: 82%; transform: translateX(-50%); }
-.cv-intro-bubble > img { display: block; width: 100%; height: auto; }
+.cv-intro-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
 .cv-intro-bubble .cv-captioned { position: absolute; left: 10%; right: 10%; top: 16%; height: 58%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4cqw; }
 .cv-intro-bubble .cv-captioned > svg { width: auto; height: 62%; flex: none; }
 .cv-intro-bubble .cv-caption { font-size: 5.6cqw; line-height: 1.16; font-weight: 700; color: #1e293b; text-align: left; }
@@ -85,10 +106,17 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
       <style>{INTRO_CSS}</style>
       <div className="cv-intro-frame">
         <button type="button" className="cv-intro-stage" onClick={onStart}>
-          <img src={ZOO_OCTOPUS_BACKPACK_ART.href} alt="" className="cv-intro-octopus" />
+          <span className="cv-intro-octopus">
+            <img src={ZOO_OCTOPUS_BACKPACK_ART.href} alt="" className="cv-octopus-life" />
+          </span>
           <span className="cv-intro-bubble">
-            <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-            <CaptionedArt art={adventureIcon(adventure)} label={adventure.intro} size={76} />
+            {/* Keyed on the line (T8 item 2), same reasoning
+                `PrologueOpening.tsx` gives — this screen only ever shows
+                one line per mount, so the pop-in plays once, on arrival. */}
+            <span key={adventure.intro} className="cv-bubble-pop">
+              <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+              <CaptionedArt art={adventureIcon(adventure)} label={adventure.intro} size={76} />
+            </span>
           </span>
         </button>
         <SpeakButton line={adventure.intro} className="cv-intro-speak" />

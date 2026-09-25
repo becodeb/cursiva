@@ -21,6 +21,7 @@ import { openProgressStore } from './game/openProgressStore'
 import { isDevMode, seededProgressIds, shouldSeedRecoveredDuck } from './canvas/devMode'
 import { EMPTY_RECORD } from './game/types'
 import type { LevelRecord } from './game/types'
+import ScreenTransition from './screen/ScreenTransition'
 
 /** Which shell is on screen. `game` carries where to open it, which is how
  * the map's own routing decision (`nextAdventure`) reaches the game without
@@ -42,6 +43,29 @@ type Shell =
  *  store after `openProgressStore()` is exactly a fresh install). */
 export function firstVisit(records: Readonly<Record<string, LevelRecord>>): boolean {
   return Object.keys(records).length === 0
+}
+
+/**
+ * The identity `ScreenTransition` (prewriting-stage-completion T8 item 4)
+ * keys its wrapper by, at the SHELL level: stable across an in-place update
+ * of the same shell (a prologue plate advancing, a `GameScreen` internal
+ * view switch — that screen keys its OWN transitions separately,
+ * `GameScreen.tsx`'s own `screenTransitionKey`), different whenever the
+ * shell itself actually changes. `trip` (`App`'s own state, bumped on every
+ * `onEnter` from the map) is what makes re-entering the game shell from the
+ * map replay the fade even though `shell.at` reads `'game'` both times.
+ */
+export function shellTransitionKey(shell: Shell, trip: number): string {
+  switch (shell.at) {
+    case 'prologue':
+      return 'prologue'
+    case 'map':
+      return 'map'
+    case 'workbench':
+      return 'workbench'
+    case 'game':
+      return `game:${trip}`
+  }
 }
 
 /** The map is a resume control, so it needs the persisted records — but only
@@ -154,12 +178,16 @@ export default function App() {
   }
 
   if (shell.at === 'prologue') {
-    return <PrologueOpening from={shell.from} onDone={goToMap} />
+    return (
+      <ScreenTransition screenKey={shellTransitionKey(shell, trip)}>
+        <PrologueOpening from={shell.from} onDone={goToMap} />
+      </ScreenTransition>
+    )
   }
 
   if (shell.at === 'map') {
     return (
-      <>
+      <ScreenTransition screenKey={shellTransitionKey(shell, trip)}>
         <ZooMap
           records={records}
           onEnter={(levelId: string) => {
@@ -176,7 +204,7 @@ export default function App() {
             Reiniciar progreso (dev)
           </button>
         )}
-      </>
+      </ScreenTransition>
     )
   }
 
@@ -197,10 +225,10 @@ export default function App() {
 
   if (shell.at === 'workbench') {
     return (
-      <>
+      <ScreenTransition screenKey={shellTransitionKey(shell, trip)}>
         <MainScreen store={store} />
         {toggle}
-      </>
+      </ScreenTransition>
     )
   }
 
@@ -211,7 +239,11 @@ export default function App() {
   // deduction's back control) lands on the zoo map, never the internal level
   // map (design.md §8, "onExit, a prop, not a GameAction") — `goToMap` is
   // the only function that can reach `{ at: 'map' }`.
-  return <GameScreen key={trip} initial={shell.initial} footer={toggle} onExit={goToMap} />
+  return (
+    <ScreenTransition screenKey={shellTransitionKey(shell, trip)}>
+      <GameScreen key={trip} initial={shell.initial} footer={toggle} onExit={goToMap} />
+    </ScreenTransition>
+  )
 }
 
 const LINK = {

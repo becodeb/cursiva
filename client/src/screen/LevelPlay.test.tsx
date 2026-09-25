@@ -1502,7 +1502,12 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
       <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
     const reveal = traceCanvasProbe.current?.reveal as { tiles: unknown[]; art?: { revealed?: boolean }[]; light?: unknown }
-    expect(reveal.tiles.length).toBe(light.cols * light.rows)
+    // T9 (`fix/flashlight-round-light`, `odd/tasks/prewriting-stage-completion.md`):
+    // `revealTiles`'s `light` branch no longer tiles the grid — a fresh
+    // `EMPTY_REVEAL` (nothing found, torch off) has zero active sources, so
+    // `reveal.tiles` is empty rather than `cols * rows` (`levels/revealGrid.test.ts`
+    // covers the source-square contract this superseded).
+    expect(reveal.tiles.length).toBe(0)
     expect(reveal.art).toHaveLength(1)
     expect(reveal.art?.[0].revealed).toBe(false)
     expect(reveal.light).toBeNull()

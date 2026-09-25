@@ -1,7 +1,7 @@
 // Star derivation tests (proposal OD1, zoo-map spec "Star Derivation").
 import { describe, expect, it } from 'vitest'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
-import { starsFor, totalStars } from './stars'
+import { starsFor, starsIncreased, totalStars } from './stars'
 import type { Records } from './sectors'
 
 function record(approvals: number): LevelRecord {
@@ -49,5 +49,24 @@ describe('totalStars', () => {
       'llama-peak4': record(1),
     }
     expect(totalStars(records)).toBe(6)
+  })
+})
+
+// `starsIncreased` (prewriting-stage-completion T8 item 3: the map's star
+// pill pops and flashes only on a genuine rise).
+describe('starsIncreased', () => {
+  it('is false the very first time a total is seen (previous is null)', () => {
+    expect(starsIncreased(null, 0)).toBe(false)
+    expect(starsIncreased(null, 5)).toBe(false)
+  })
+
+  it('is true only when the current total is strictly greater', () => {
+    expect(starsIncreased(3, 4)).toBe(true)
+    expect(starsIncreased(0, 1)).toBe(true)
+  })
+
+  it('is false for an unchanged total, and false for a drop (the dev reset)', () => {
+    expect(starsIncreased(4, 4)).toBe(false)
+    expect(starsIncreased(4, 0)).toBe(false)
   })
 })

@@ -2,6 +2,7 @@
 // Rects With No Fragment Reference"). Node environment, no DOM.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { LIGHT_BAND_RATIOS } from '../levels/revealGrid'
 import { RevealLayer } from './RevealLayer'
 import type { TraceReveal } from './TraceCanvas'
 
@@ -23,28 +24,96 @@ describe('RevealLayer', () => {
     expect((html.match(/<rect/g) ?? []).length).toBe(totalTiles - clearedCount)
   })
 
-  it('emits exactly five opacity strings and no sixth for a light grid', () => {
-    const reveal: TraceReveal = {
-      fill: '#12161f',
-      tiles: [
-        { x: 0, y: 0, w: 50, h: 50, opacity: 0.25 },
-        { x: 50, y: 0, w: 50, h: 50, opacity: 0.5 },
-        { x: 100, y: 0, w: 50, h: 50, opacity: 0.75 },
-        { x: 150, y: 0, w: 50, h: 50, opacity: 1 },
-      ],
-    }
-    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
-    expect(html).toContain('opacity="0.25"')
-    expect(html).toContain('opacity="0.5"')
-    expect(html).toContain('opacity="0.75"')
-    // opacity 1 is the default covering state — never emitted as an attribute.
-    expect(html).not.toContain('opacity="1"')
-    expect((html.match(/opacity="/g) ?? []).length).toBe(3)
+  // T9 (`odd/tasks/prewriting-stage-completion.md`): the flashlight's
+  // permanently-lit area reads as ROUND and soft, not tile-stepped. Since
+  // `38919bc`, `levels/revealGrid.ts`'s `revealTiles` no longer tiles a grid
+  // for `light` mode — each `TraceReveal.tiles` entry is one active source's
+  // own bounding SQUARE (`x/y` top-left, `w === h === 2 * radius`), and this
+  // layer reconstructs the circle and punches a round hole (plus three
+  // falloff rings) into one full-sheet dark `<path>`, `fillRule="evenodd"`.
+  describe('round flashlight veil (T9)', () => {
+    it('there are no holes before anything is found — solid darkness, one plain rect path', () => {
+      const reveal: TraceReveal = { fill: '#12161f', tiles: [] }
+      const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+      expect(html).toContain('data-night-veil-base="true"')
+      expect(html).not.toContain('data-night-veil-ring')
+      // The base path is exactly the sheet rectangle — no circle subpath
+      // (every circle this file emits starts with a "C " command right
+      // after its opening "M", so a bare rect path has none).
+      const base = html.match(/data-night-veil-base="true" d="([^"]+)"/)?.[1] ?? ''
+      expect(base).toBe(`M ${sheetBounds.x} ${sheetBounds.y} H ${sheetBounds.x + sheetBounds.width} V ${sheetBounds.y + sheetBounds.height} H ${sheetBounds.x} Z`)
+      expect((html.match(/<path/g) ?? []).length).toBe(1)
+      expect(html).not.toContain('<rect')
+    })
+
+    it('cuts a round hole of the right radius at the right centre for one active source', () => {
+      const radius = 50
+      const cx = 300
+      const cy = 200
+      const reveal: TraceReveal = { fill: '#12161f', tiles: [{ x: cx - radius, y: cy - radius, w: radius * 2, h: radius * 2, opacity: 1 }] }
+      const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+      const base = html.match(/data-night-veil-base="true" d="([^"]+)"/)?.[1] ?? ''
+      // The hole circle's own leftmost point, `circlePath`'s own `M` command:
+      // `M (cx - holeR) cy` where `holeR = radius * LIGHT_BAND_RATIOS[0]`.
+      const holeR = radius * LIGHT_BAND_RATIOS[0]
+      expect(base).toContain(`M ${cx - holeR} ${cy}`)
+      // Exactly one hole cut into the base (the sheet rect's own "M", plus
+      // this circle's own "M" — two total).
+      expect((base.match(/M /g) ?? []).length).toBe(2)
+
+      // Three falloff rings, each an annulus at this source's own centre,
+      // outer-then-inner ratio pair per `LIGHT_BAND_RATIOS`.
+      const rings = [...html.matchAll(/data-night-veil-ring="(\d)" d="([^"]+)"/g)]
+      expect(rings).toHaveLength(3)
+      const expectedOpacity = ['0.75', '0.5', '0.25']
+      rings.forEach(([, band, d], idx) => {
+        expect(band).toBe(String(idx))
+        const outerR = radius * LIGHT_BAND_RATIOS[idx]
+        const innerR = radius * LIGHT_BAND_RATIOS[idx + 1]
+        expect(d).toContain(`M ${cx - outerR} ${cy}`)
+        expect(d).toContain(`M ${cx - innerR} ${cy}`)
+        expect(html).toContain(`opacity="${expectedOpacity[idx]}"`)
+      })
+      expect(html).not.toContain('<rect')
+    })
+
+    it('keeps node count flat at 4 paths (one base, three rings) for multiple active sources', () => {
+      const reveal: TraceReveal = {
+        fill: '#12161f',
+        tiles: [
+          { x: 100, y: 100, w: 100, h: 100, opacity: 1 },
+          { x: 600, y: 300, w: 80, h: 80, opacity: 1 },
+          { x: 400, y: 50, w: 60, h: 60, opacity: 1 },
+        ],
+      }
+      const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+      // Would have been up to `cols x rows` (135-240) individual <rect>s
+      // under the old tile-grid fold this layer used before T9.
+      expect((html.match(/<path data-night-veil-(base|ring)/g) ?? []).length).toBe(4)
+    })
+
+    it('the completion frame (`allRevealTiles`\' full grid at opacity 0) renders no veil at all, not solid darkness', () => {
+      // `screen/LevelPlay.tsx` bypasses `revealTiles` once every object is
+      // found and feeds the whole cols x rows grid back at opacity 0 — this
+      // layer must read that as "nothing to darken", not as zero active
+      // sources (which would mean the OPPOSITE: full darkness, the level's
+      // very first frame).
+      const reveal: TraceReveal = {
+        fill: '#12161f',
+        tiles: [
+          { x: 0, y: 0, w: 100, h: 100, opacity: 0 },
+          { x: 100, y: 0, w: 100, h: 100, opacity: 0 },
+        ],
+      }
+      const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+      expect(html).not.toContain('data-night-veil')
+      expect(html).not.toContain('<rect')
+    })
   })
 
   it('renders hidden-object images UNDER the tiles', () => {
     const reveal: TraceReveal = {
-      fill: '#12161f',
+      fill: '#7a6a58',
       tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }],
       art: [{ href: '/art/sector-chest.png', w: 200, h: 180, size: 96, x: 500, y: 300 }],
     }
@@ -53,6 +122,19 @@ describe('RevealLayer', () => {
     const rectIdx = html.indexOf('<rect')
     expect(imageIdx).toBeGreaterThanOrEqual(0)
     expect(rectIdx).toBeGreaterThan(imageIdx)
+  })
+
+  it('renders hidden-object images UNDER the round night veil too', () => {
+    const reveal: TraceReveal = {
+      fill: '#12161f',
+      tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }],
+      art: [{ href: '/art/sector-chest.png', w: 200, h: 180, size: 96, x: 500, y: 300 }],
+    }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+    const imageIdx = html.indexOf('href="/art/sector-chest.png"')
+    const veilIdx = html.indexOf('data-night-veil-base')
+    expect(imageIdx).toBeGreaterThanOrEqual(0)
+    expect(veilIdx).toBeGreaterThan(imageIdx)
   })
 
   it('keeps night hints, torch, discovered art, and completion celebration visible without fragment references', () => {
@@ -94,9 +176,16 @@ describe('RevealLayer', () => {
     )
     expect(complete).toContain('data-night-celebration="true"')
     expect(complete).toContain('data-night-success-glow="true"')
-    expect(complete).toContain('opacity="0"')
-    expect((complete.match(/<rect/g) ?? []).length).toBe(2)
-    expect((complete.match(/data-fog-tile-id=/g) ?? []).length).toBe(2)
+    // T9: the completion frame's tiles are `allRevealTiles`'s full grid at
+    // opacity 0 (`screen/LevelPlay.tsx`, untouched by this task) — this
+    // layer reads that as "nothing to darken" and renders NO veil markup at
+    // all, not a set of invisible opacity-0 sentinels (there is nothing
+    // downstream left that reads `data-fog-tile-id` for a light reveal to
+    // preserve, `screen/LevelPlay.tsx`/`canvas/RevealLayer.tsx` are its only
+    // two producers/consumers).
+    expect(complete).not.toContain('data-night-veil')
+    expect(complete).not.toContain('<rect')
+    expect(complete).not.toContain('data-fog-tile-id=')
   })
 
   it('introduces zero forbidden fragment references', () => {
