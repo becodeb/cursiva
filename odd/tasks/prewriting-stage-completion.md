@@ -90,6 +90,8 @@ stays, restyled.
 - 2026-09-25: T8 (batch 2) done in `feat/character-life-animations`. Resumed after a container restart killed the previous writer mid full-suite run; its uncommitted work was already essentially complete, reviewed against this task and committed as `773dc0b`. See the T8 evidence cell above.
 - 2026-09-25: T7 first pass (`a9af067`) rejected by orchestrator review — the `.cv-backdrop-fill` approach drew the art twice (picture-in-picture, mismatched seams). Second pass (`364ceef`+`5abab0e`, after merging `main`'s T8+T9 in `8a875ad`) fixed that with an expanded-viewBox approach inside `TraceCanvas.tsx`, but a second review found the art still did not fill the screen (flat header/footer bands remained) and the cleaning margin showed a seam. Third pass (`e193d26`, `c9d79f4`, `741b92d`) made `.cv-sheet` truly fill the viewport with all chrome floating above it, fit content into the viewport minus the chrome's own measured insets, grid-aligned the cleaning margin into the real silhouette (fixing a self-intersecting-blob bug found along the way), and restyled the map's own HUD pills/voice toggle to match. Re-verified against 7 named families at all 4 required viewports plus the map; no flat bands, no seams. T7 done. Not merged to `main` yet.
 
+- 2026-09-26: batch 2 done (T7-T9) and pushed. T7 took two review rounds: the first drew the art twice (a cover copy behind the unchanged sheet), the second still left flat header/footer bands; the final version makes the sheet `inset:0` and fits the content inside the chrome's measured insets. Open from batch 2: the map keeps flat green bands (fixed 5:3 stage); the path bar reads faint over busy art at 844x390; the dev reset button is still a plain pill (dev-only).
+
 ## Next step
 
-Batch 2 writers running; the user tests batches 1 and 2 together.
+The user tests batches 1 and 2 on the deploy; then batch 3 (collect along the path + detective loop).
