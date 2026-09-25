@@ -12,6 +12,7 @@
 // BLANK on real devices).
 import { useEffect, useState } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
+import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import {
   ZOO_BACKPACK_ART,
   ZOO_CARETAKER_ART,
@@ -130,8 +131,20 @@ html, body, #root { margin: 0; height: 100%; }
    animals standing there (measured at 1024x768 once five animals were back),
    and the snake alone rendered 173px wide at height 40 (aspect 4.32). Square
    30px boxes with object-fit keep every portrait the same footprint, and an
-   empty group (nothing recovered yet) draws no pill at all. */
-.cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right { background: rgba(255, 255, 255, 0.86); border-radius: 999px; padding: 4px 10px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); }
+   empty group (nothing recovered yet) draws no pill at all.
+
+   T7 rework #2 (orchestrator review, "restyle them to the same marker
+   style as the level chrome and the sound button"): warm paper fill and a
+   thick dark outline instead of a translucent white pill with a drop
+   shadow, matching screen/LevelPlay.tsx's own .cv-result-pill and
+   voice/SpeakButton.tsx's restyle — the shadow drops outright per
+   docs/09_GUIA_DE_ESTILO_VISUAL.md section 1 (flat fills, no
+   sombreado/volumen/brillo). SHEET_PAPER is imported rather than restated
+   as a literal here, unlike SpeakButton.tsx's own restatement: this file
+   already imports across the canvas/ boundary (placeArt, devMode) so a
+   third import adds no new layering, where voice/ deliberately stays a
+   leaf module. */
+.cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right { background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; border-radius: 999px; padding: 4px 10px; }
 .cv-zoo-hud-mid:empty { display: none; }
 .cv-zoo-hud-left img, .cv-zoo-hud-mid img { width: 30px; height: 30px; object-fit: contain; }
 /* T8 item 3 (odd/tasks/prewriting-stage-completion.md): the star pill pops
