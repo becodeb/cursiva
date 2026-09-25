@@ -53,7 +53,7 @@ merge + push so the deploy updates and they can test).
 
 | ID | Task | Branch | Route | Status | Evidence |
 |---|---|---|---|---|---|
-| T1 | Snakes: align the corridor with the snake art so a child can pass `snake1..4` | `fix/snakes-corridor-alignment` | delegated (4+ files to map, writer trigger) | pending | |
+| T1 | Snakes: align the corridor with the snake art so a child can pass `snake1..4` | `fix/snakes-corridor-alignment` | delegated (4+ files to map, writer trigger) | done | `4d28716` — `evaluateLevel` resampled all strokes as one arc, so a third of the samples fell on sand between snakes (a perfect trace scored 0-52); now per-stroke. `2bae9bb` — the dark channel paint under art corridors poked out of the snake outline (the "misalignment" the user saw); gated off for `artCorridor`. Start octopus no longer covers the head on snake1/2/4 (snake3 unchanged). Full suite and build green on main |
 | T2 | Flashlight: the first tap must not reveal everything; no halo giving away hidden objects; a found object stays lit in a radius around it | `fix/night-flashlight` | delegated | done | `38919bc` — night1's only chest sat at the sheet centre inside the 200-unit find radius, so any first tap won (moved to (180,460)); the on-top `data-night-visible-hint` halo removed; found objects keep their own falloff in `revealTiles`. Full suite 2147 green, build green, QA screenshots in the branch worktree. Open: the lit area is tile-stepped, not round (batch 2) |
 | T3 | Hedgehog: accept a spine that starts near (not exactly on) the start dot; make it less repetitive and clearer | `fix/hedgehog-spines` | delegated | done | commit `2ce1e92` on `fix/hedgehog-spines`; `npx vitest run --maxWorkers=2` on the 4 touched files: 342 passed; `npm test -- --maxWorkers=2`: 2154 passed (87 files); `npm run build`: clean; `git diff --check`: clean; browser QA (system Chromium, 1024x768, `?nivel=hedgehog1`/`?nivel=hedgehog4&dev`) in `capturas/2026-09-25-tanda1/`: an off-centre (~25 viewBox units) first stroke on hedgehog1 is accepted (`02-hedgehog1-01-after-offcentre-first-spine.png`), and both hedgehog1 (4 spines, was 5) and hedgehog4 (9 spines, was 14) complete to a green "Siguiente" (`03-hedgehog1-02-final.png`, `06-hedgehog4-02-final.png`) |
 | T4 | Mud of the path enclosure (`sand3`) drawn in code like the sand and the leaves, not flat squares | `fix/cleaning-levels` | delegated | done | `1b4ef97` — new `visual: 'mud'` RevealLayer policy (pebbles, puddles, eroded silhouette); `npm test`/`npm run build` green; browser QA (`?nivel=sand3`, glass1/sand1/glass3 for regression) in `capturas/2026-09-25-tanda1/` |
@@ -76,7 +76,9 @@ merge + push so the deploy updates and they can test).
 ## Progress
 
 - 2026-09-25: `main` fast-forwarded to `a1b1eed` and pushed. Batch 1 started.
+- 2026-09-25: batch 1 done (T1-T6) and pushed. Machine note: five parallel writers exhausted RAM+swap on the Pi (22 other Claude sessions hold ~3.9 GB); T3/T5 were stopped and resumed from their worktrees. Run at most 3 writers at once and vitest with `--maxWorkers=2`.
+- Open from batch 1: the flashlight's lit area is tile-stepped, not round; snake3's start octopus; the mud puddle tint reads grey; night levels have no hint at all while dark (check with a child).
 
 ## Next step
 
-Launch the T1, T2, T3, T4+T6 and T5 writers in parallel worktrees.
+The user tests batch 1 on the deploy; then batch 2 (screen and UI).
