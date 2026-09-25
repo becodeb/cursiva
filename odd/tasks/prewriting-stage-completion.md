@@ -57,7 +57,7 @@ merge + push so the deploy updates and they can test).
 | T2 | Flashlight: the first tap must not reveal everything; no halo giving away hidden objects; a found object stays lit in a radius around it | `fix/night-flashlight` | delegated | pending | |
 | T3 | Hedgehog: accept a spine that starts near (not exactly on) the start dot; make it less repetitive and clearer | `fix/hedgehog-spines` | delegated | pending | |
 | T4 | Mud of the path enclosure (`sand3`) drawn in code like the sand and the leaves, not flat squares | `fix/cleaning-levels` | delegated | pending | |
-| T6 | Cleaning levels (glass, sand, mud): the finger leaves no ink line, only the cleaning itself (user, 2026-09-25) | `fix/cleaning-levels` | delegated (same writer as T4) | pending | |
+| T6 | Cleaning levels (glass, sand, mud): the finger only cleans: no ink line, no drawing of any kind (user, 2026-09-25: "que solo limpie pasar el dedo, no que deje un trazo ni dibuje") | `fix/cleaning-levels` | delegated (same writer as T4) | pending | |
 | T5 | Dev-only "skip level" button in level play, visible in dev builds or with `?dev` (same gate as the progress reset) | `feat/dev-skip-level` | delegated | pending | |
 
 ## Later batches (planned, not started)
