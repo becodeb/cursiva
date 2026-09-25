@@ -67,6 +67,99 @@ const ROOTS_GUIDE_Y = 540 // descender guide: bottom of the roots zone
  * channel IS exposed sheet, so it must be exactly this value. */
 export const SHEET_PAPER = '#fdfcf7'
 
+/** How much of the container's own CSS-pixel edges the chrome (back/sound
+ *  button row, the actions row) claims — `fitContentWithInsets`'s own
+ *  contract below. All four default to 0 (no insets — every pre-T7-rework-#2
+ *  caller). */
+export interface SafeInsets {
+  top: number
+  bottom: number
+  left: number
+  right: number
+}
+
+const NO_INSETS: SafeInsets = { top: 0, bottom: 0, left: 0, right: 0 }
+
+/**
+ * T7 rework #2 (orchestrator review, "the art still does NOT fill the
+ * screen... the chrome sits on flat bands"): the level SVG now fills the
+ * WHOLE viewport (`position: fixed; inset: 0` — `LevelPlay.tsx`'s own
+ * `.cv-sheet`), with every button floating over the art rather than on a
+ * flat-colour row that reserved its own strip of the layout. This function
+ * is what keeps the PLAYABLE content (corridor, markers, the octopus) clear
+ * of that floating chrome regardless: it fits `box` into the container
+ * MINUS `insets` (in CSS px — the chrome's own measured footprint), THEN
+ * expands the returned viewBox to the container's FULL aspect ratio, so the
+ * backdrop `<image>` (sized to this same returned box) still covers every
+ * pixel of the viewport, including behind the chrome — only the CONTENT
+ * avoids sitting under a button.
+ *
+ * The maths: `k` (content-units-to-CSS-px) is the largest scale that fits
+ * `box` inside the SAFE rectangle (`container` minus `insets`) — an
+ * ordinary "contain" fit, just against the safe rectangle instead of the
+ * whole container. Given that single `k`, the returned viewBox is sized so
+ * the FULL container maps to it 1:1 (`container / k`), and positioned so
+ * `box` lands centred within the safe rectangle's own CSS-pixel bounds —
+ * never within the full container, which is what would put content back
+ * under the chrome. `insets` of all zero reduces exactly to fitting `box`
+ * into the whole container, centred — the T7-rework-#1 behaviour.
+ *
+ * Degenerate input (non-positive container/box dimensions, or insets that
+ * consume the whole container) returns `box` unchanged rather than NaN or
+ * an inverted rectangle.
+ */
+export function fitContentWithInsets(
+  box: ArtBox,
+  containerWidth: number,
+  containerHeight: number,
+  insets: SafeInsets = NO_INSETS,
+): ArtBox {
+  if (!(containerWidth > 0) || !(containerHeight > 0) || !(box.width > 0) || !(box.height > 0)) return box
+  const safeWidth = containerWidth - insets.left - insets.right
+  const safeHeight = containerHeight - insets.top - insets.bottom
+  if (!(safeWidth > 0) || !(safeHeight > 0)) return box
+  const k = Math.min(safeWidth / box.width, safeHeight / box.height)
+  if (!(k > 0) || !Number.isFinite(k)) return box
+  const width = containerWidth / k
+  const height = containerHeight / k
+  const safeContentWidth = safeWidth / k
+  const safeContentHeight = safeHeight / k
+  const x = box.x - insets.left / k - (safeContentWidth - box.width) / 2
+  const y = box.y - insets.top / k - (safeContentHeight - box.height) / 2
+  return { x, y, width, height }
+}
+
+/**
+ * `fitContentWithInsets`'s own maths, WIDTH LOCKED — the scrolling-camera
+ * capability needs this split: `box.x`/`box.width` there are the moving
+ * WINDOW (`originX`/`camera.viewWidth`), imperatively rewritten every frame
+ * by the rAF loop below, never by this function. Growing or shifting width
+ * here would mean the loop and this call could disagree about the window's
+ * own extent — an unrelated resize firing between frames would either fight
+ * the live scroll or silently widen the world window mid-run, changing how
+ * much of the corridor is visible ahead of the child. Left/right insets are
+ * therefore not honoured either (there is no width left to make room with);
+ * only the vertical placement (top/bottom insets) and the vertical growth
+ * needed to fill the container's own height are computed. `box.width`
+ * fixes `k` (it must map to the FULL container width, edge to edge — the
+ * whole point of this rework), so unlike the generic function above there
+ * is no "fit into a safe width" choice being made on that axis at all.
+ */
+export function fitCameraContentWithInsets(
+  box: ArtBox,
+  containerWidth: number,
+  containerHeight: number,
+  insets: Pick<SafeInsets, 'top' | 'bottom'> = NO_INSETS,
+): ArtBox {
+  if (!(containerWidth > 0) || !(containerHeight > 0) || !(box.width > 0) || !(box.height > 0)) return box
+  const k = containerWidth / box.width
+  const height = Math.max(box.height, containerHeight / k)
+  const safeHeight = Math.max(1, containerHeight - insets.top - insets.bottom)
+  const safeContentHeight = Math.min(height, safeHeight / k)
+  const y = box.y - insets.top / k - (safeContentHeight - box.height) / 2
+  return { x: box.x, y, width: box.width, height }
+}
+
 /** The animated demo stroke's shipped colour — chalk-blue, readable over
  * paper. Extracted from the inline literal so `backdrop?.channel`'s own
  * contrast rule (design.md §3.2) can name it: `#0284c7` clears the paper by
@@ -800,6 +893,19 @@ export interface TraceCanvasProps {
    *
    * Same value-change contract as `clearSignal`, for the same reason. */
   resetSignal?: number
+  /**
+   * T7 rework #2 (`odd/tasks/prewriting-stage-completion.md`, "nothing
+   * playable sits under a button"): the floating chrome's own measured CSS-
+   * pixel footprint on each edge of the container — `LevelPlay.tsx` owns
+   * the actual measurement (its header/footer rows' own `ResizeObserver`s)
+   * and hands the four numbers down here. All four default to 0 (no
+   * insets, the T7-rework-#1 behaviour) — only meaningful under `fit
+   * ="contain"` with a `backdrop` (`fitContentWithInsets`'s own guard).
+   */
+  insetTop?: number
+  insetBottom?: number
+  insetLeft?: number
+  insetRight?: number
 }
 
 export default function TraceCanvas({
@@ -851,12 +957,40 @@ export default function TraceCanvas({
   spines,
   camera,
   resetSignal,
+  insetTop,
+  insetBottom,
+  insetLeft,
+  insetRight,
 }: TraceCanvasProps) {
   // `contain` letterboxes inside its box, so the CSS background would paint the
   // whole box instead of the sheet. The paper becomes a viewBox-space rect so
   // the visible paper is exactly the sheet, whatever the box shape.
   const contain = fit === 'contain'
   const svgRef = useRef<SVGSVGElement | null>(null)
+  // T7 rework (`odd/tasks/prewriting-stage-completion.md`, "the art is drawn
+  // twice" / "the art still does NOT fill the screen"): the container's own
+  // on-screen CSS-pixel size, measured via `ResizeObserver` rather than
+  // assumed — `LevelPlay.tsx`'s own `.cv-sheet` is `position: fixed; inset:
+  // 0` (rework #2), so this IS the viewport, but no fixed constant could
+  // stand in for it across every device this app runs on regardless. `null`
+  // before the first measurement (SSR, and the very first client paint) is
+  // the exact "no expansion" default `fitContentWithInsets`/
+  // `fitCameraContentWithInsets` both already treat as a no-op (their own
+  // `containerWidth > 0` guard) — a level rendered before layout settles is
+  // BYTE-IDENTICAL to before this rework, the same real-browser-only split
+  // this file's own rAF-driven ink loop already lives by.
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null)
+  useEffect(() => {
+    if (!contain) return undefined
+    const el = svgRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const observer = new ResizeObserver((entries) => {
+      const box = entries[0]?.contentRect
+      if (box && box.width > 0 && box.height > 0) setContainerSize({ width: box.width, height: box.height })
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [contain])
   const inkRef = useRef<SVGPathElement | null>(null)
   const drawingRef = useRef(false)
   const { bind, pointsRef, clearStrokes, abortStroke, isDrawing } = useTraceInput(svgRef, {
@@ -938,6 +1072,52 @@ export default function TraceCanvas({
   cameraRef.current = camera
   const viewBoxWidthRef = useRef(viewBoxWidth)
   viewBoxWidthRef.current = viewBoxWidth
+  // The WINDOW — the exact rectangle the `<svg>`'s own `viewBox` attribute
+  // and the backdrop `<image>` were already sized to before this rework
+  // (`camera?.originX ?? 0` / `camera?.viewWidth ?? viewBoxWidth`,
+  // `viewBoxY`/`viewBoxHeight`) — named once here instead of staying two
+  // separate inline literals, so the expansion below and the plain render
+  // read the exact same box.
+  const windowBounds: ArtBox = {
+    x: camera?.originX ?? 0,
+    y: viewBoxY,
+    width: camera?.viewWidth ?? viewBoxWidth,
+    height: viewBoxHeight,
+  }
+  // T7 rework #2: fit the WINDOW into the container MINUS the chrome's own
+  // safe insets, then expand to the container's FULL aspect ratio — the
+  // backdrop `<image>` below (sized to THIS box, with the SAME `xMidYMid
+  // slice` fit it always used) covers every pixel of the viewport as one
+  // continuous picture, INCLUDING behind the chrome, while the PLAYABLE
+  // content stays clear of it (`fitContentWithInsets`'s own header). Gated
+  // on `backdrop`: a level with no backdrop image has nothing to extend, so
+  // its `viewBox` stays byte-identical to before. A camera level grows
+  // HEIGHT ONLY and ignores left/right insets (`fitCameraContentWithInsets`'s
+  // own header) — the moving window's WIDTH stays exactly what the rAF loop
+  // already scrolls.
+  const insets: SafeInsets = {
+    top: insetTop ?? 0,
+    bottom: insetBottom ?? 0,
+    left: insetLeft ?? 0,
+    right: insetRight ?? 0,
+  }
+  const displayBounds: ArtBox =
+    contain && backdrop && containerSize
+      ? camera
+        ? fitCameraContentWithInsets(windowBounds, containerSize.width, containerSize.height, insets)
+        : fitContentWithInsets(windowBounds, containerSize.width, containerSize.height, insets)
+      : windowBounds
+  // Mirrored into refs for the SAME reason `viewBoxWidthRef`/`cameraRef`
+  // are above: the rAF loop's camera branch (below) imperatively rewrites
+  // the live `viewBox` attribute every frame, inside a `useEffect` whose
+  // own dependency array does not include these — reading the bare closure
+  // values (as the pre-T7 code did, when they were always constant for a
+  // level's whole mount) would go stale the instant a resize changes
+  // `containerSize` mid-run.
+  const displayYRef = useRef(displayBounds.y)
+  displayYRef.current = displayBounds.y
+  const displayHeightRef = useRef(displayBounds.height)
+  displayHeightRef.current = displayBounds.height
   // The backdrop `<image>` itself, mutated the SAME way the `<svg>`'s own
   // `viewBox` is (post-verify amendment A4, design.md §3): pinned to the
   // WINDOW on a camera level, so the lagoon's banks and reeds stay in frame
@@ -1069,7 +1249,13 @@ export default function TraceCanvas({
         })
         if (next !== cameraXRef.current) {
           cameraXRef.current = next
-          svg.setAttribute('viewBox', `${next} ${viewBoxY} ${cam.viewWidth} ${viewBoxHeight}`)
+          // `displayYRef`/`displayHeightRef`, not the bare `viewBoxY`/
+          // `viewBoxHeight` closure values — T7 rework, see their own
+          // declaration comment above: only WIDTH is pinned to `cam
+          // .viewWidth` (`fitCameraContentWithInsets`'s own contract), the
+          // vertical expansion can still change after this effect's own
+          // setup if a resize updates `containerSize` mid-run.
+          svg.setAttribute('viewBox', `${next} ${displayYRef.current} ${cam.viewWidth} ${displayHeightRef.current}`)
           // The backdrop image's `x` follows the SAME origin, one statement
           // later, so the lagoon and the window can never disagree about
           // where the camera is (post-verify amendment A4, design.md §3).
@@ -1156,10 +1342,11 @@ export default function TraceCanvas({
   return (
     <svg
       ref={svgRef}
-      // The WINDOW, not the world. Without a camera this is the shipped
-      // expression exactly: `camera` is absent, so the origin is 0 and the
-      // width is `viewBoxWidth` (`scrolling-camera` capability).
-      viewBox={`${camera?.originX ?? 0} ${viewBoxY} ${camera?.viewWidth ?? viewBoxWidth} ${viewBoxHeight}`}
+      // The WINDOW, not the world — grown to `displayBounds` (T7 rework)
+      // when a backdrop needs the extra room; byte-identical to the old
+      // inline expression (`camera?.originX ?? 0`/`viewBoxY`/`camera
+      // ?.viewWidth ?? viewBoxWidth`/`viewBoxHeight`) whenever it is not.
+      viewBox={`${displayBounds.x} ${displayBounds.y} ${displayBounds.width} ${displayBounds.height}`}
       width="100%"
       height={contain ? '100%' : undefined}
       // The SVG default, spelled out: `contain` depends on it to scale the
@@ -1210,20 +1397,27 @@ export default function TraceCanvas({
         // no `<mask>`, `<pattern>`, `<clipPath>`, `<defs>`, `useId`, no
         // `url(#…)` (this file's own scar, above).
         <g pointerEvents="none">
-          <rect x={0} y={viewBoxY} width={viewBoxWidth} height={viewBoxHeight} fill={backdrop.quiet} />
-          {/* Pinned to the WINDOW, not the world, on a camera level
-              (post-verify amendment A4, design.md §3): `x`/`width` mirror the
-              `<svg>`'s own `viewBox` expression above exactly — `camera`
-              absent falls back to `0`/`viewBoxWidth`, so a non-camera level's
-              markup is untouched. The rAF loop mutates `x` imperatively,
-              in step with the `viewBox` write, via `backdropImgRef`. */}
+          <rect x={displayBounds.x} y={displayBounds.y} width={displayBounds.width} height={displayBounds.height} fill={backdrop.quiet} />
+          {/* Sized to `displayBounds` (T7 rework), the SAME box the `<svg>`'s
+              own `viewBox` above uses — `xMidYMid slice`, already centred on
+              that box, is what turns "the window grew" into "more of the
+              SAME picture is now visible", never a second independently-fit
+              copy (`fitContentWithInsets`'s own header). Byte-identical to
+              the old window-sized rect whenever `displayBounds` has not
+              grown. The rAF loop mutates `x` imperatively, in step with the
+              `viewBox` write, via `backdropImgRef` — only `x` ever needs to,
+              since a camera level's own width/height are pinned
+              (`fitCameraContentWithInsets`'s own contract: width never
+              moves, height only through `displayYRef`/`displayHeightRef`,
+              which React's ordinary re-render already keeps this JSX in
+              sync with). */}
           <image
             ref={backdropImgRef}
             href={backdrop.href}
-            x={camera?.originX ?? 0}
-            y={viewBoxY}
-            width={camera?.viewWidth ?? viewBoxWidth}
-            height={viewBoxHeight}
+            x={displayBounds.x}
+            y={displayBounds.y}
+            width={displayBounds.width}
+            height={displayBounds.height}
             preserveAspectRatio="xMidYMid slice"
           />
         </g>
@@ -1236,7 +1430,13 @@ export default function TraceCanvas({
         // only thing between the backdrop and the guides. Plain `<rect>`s,
         // this file's own scar (above): no `<mask>`, `<pattern>`,
         // `<clipPath>`, `<defs>`, `useId`, no `url(#…)`.
-        <RevealLayer reveal={reveal} sheetBounds={sheetBounds} />
+        //
+        // `displayBounds` (T7 rework): the expanded window, so the night
+        // veil's own full-cover darkness and the cleaning policies' outer
+        // margin patch (`RevealLayer`'s own header) reach the same area the
+        // backdrop `<image>` now covers — never leaving unclean/undark art
+        // visible in the margin `sheetBounds` alone would leave uncovered.
+        <RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />
       )}
       {waypoints && (
         // The waypoint fold's render projection (`free-trail-waypoints`

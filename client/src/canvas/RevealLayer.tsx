@@ -133,8 +133,101 @@ function nightVeilLayers(
 export interface RevealLayerProps {
   reveal: TraceReveal
   /** The visible sheet band, for `clampArtBox` — the same `sheetBounds`
-   *  every other art layer in `TraceCanvas.tsx` clamps against. */
+   *  every other art layer in `TraceCanvas.tsx` clamps against. Also what
+   *  `reveal.tiles` itself is scored/positioned against — NEVER grown, so
+   *  scoring and geometry stay exactly where they were before the T7
+   *  rework below. */
   sheetBounds: ArtBox
+  /**
+   * T7 rework (`odd/tasks/prewriting-stage-completion.md`, "the art is
+   * drawn twice"): the EXPANDED window `TraceCanvas.tsx`'s own backdrop
+   * `<image>` now covers, when it grew past `sheetBounds` to fill the
+   * viewport. Defaults to `sheetBounds` (no margin, no growth) — every
+   * existing caller (`RevealLayer.test.tsx`, a level with no backdrop) is
+   * byte-identical without passing it.
+   *
+   * Used two ways, never for `reveal.tiles` positioning itself: the night
+   * veil's own full-cover darkness grows to this box (so the child never
+   * sees a lit ring of backdrop peeking past a small dark rectangle), and
+   * every OTHER policy (glass/sand/leaves/mud, and the plain per-tile
+   * fallback) gets a flat "outer margin" patch covering exactly
+   * `displayBounds` minus `sheetBounds` (`marginBands` below) — the pile
+   * silhouette itself stays scored against `sheetBounds` alone, so the
+   * margin is a separate, permanently-covered band, never a wider grid.
+   */
+  displayBounds?: ArtBox
+}
+
+/**
+ * The frame `outer` minus `inner`, as up to four non-overlapping bands (top,
+ * bottom, left, right) — standard border-box decomposition, used for the T7
+ * rework's "outer margin" veil patch (`RevealLayerProps.displayBounds`'s own
+ * header). Top/bottom span `outer`'s FULL width (covering the corners too);
+ * left/right span only `inner`'s height, so the four never overlap. Returns
+ * `[]` when the two boxes coincide (no growth — every pre-T7 caller). Pure,
+ * no dependency on `reveal` or any policy.
+ */
+export function marginBands(outer: ArtBox, inner: ArtBox): ArtBox[] {
+  const bands: ArtBox[] = []
+  if (inner.y > outer.y) bands.push({ x: outer.x, y: outer.y, width: outer.width, height: inner.y - outer.y })
+  const innerBottom = inner.y + inner.height
+  const outerBottom = outer.y + outer.height
+  if (outerBottom > innerBottom) bands.push({ x: outer.x, y: innerBottom, width: outer.width, height: outerBottom - innerBottom })
+  if (inner.x > outer.x) bands.push({ x: outer.x, y: inner.y, width: inner.x - outer.x, height: inner.height })
+  const innerRight = inner.x + inner.width
+  const outerRight = outer.x + outer.width
+  if (outerRight > innerRight) bands.push({ x: innerRight, y: inner.y, width: outerRight - innerRight, height: inner.height })
+  return bands
+}
+
+/**
+ * The margin, tiled at the SAME cell size (`cellWidth`/`cellHeight`) and on
+ * the SAME grid lines as the real reveal grid (anchored to `sheetBounds`'s
+ * own origin) — what `marginBands`' own few large rectangles cannot give
+ * `boundaryLoops`: its edge-cancellation only merges tiles whose edges land
+ * EXACTLY on top of each other, so a large margin band's one long edge
+ * never cancels against fifteen separate 66.7-unit real-grid edges — found
+ * by looking at the actual render (a bizarre oval blob, not a clean
+ * rectangular frontier), not by inspection alone. Extending the SAME grid
+ * instead means every margin cell's edge either cancels against its real-
+ * grid neighbour (inside `sheetBounds`) or against its own margin neighbour
+ * (elsewhere in the margin), exactly like the real grid already does for
+ * itself.
+ *
+ * Cells whose grid position falls inside `sheetBounds` are skipped (the
+ * real `reveal.tiles` already cover that ground, cleared or not); every
+ * other cell needed to reach `displayBounds`'s own edge is included, always
+ * one full cell past it in every direction so a margin narrower than one
+ * cell (a small resize) still tiles cleanly rather than leaving a sliver.
+ */
+export function marginGridTiles(
+  displayBounds: ArtBox,
+  sheetBounds: ArtBox,
+  cellWidth: number,
+  cellHeight: number,
+): TraceRevealTile[] {
+  if (!(cellWidth > 0) || !(cellHeight > 0)) return []
+  const sheetCols = Math.max(1, Math.round(sheetBounds.width / cellWidth))
+  const sheetRows = Math.max(1, Math.round(sheetBounds.height / cellHeight))
+  const firstCol = Math.floor((displayBounds.x - sheetBounds.x) / cellWidth)
+  const lastCol = Math.ceil((displayBounds.x + displayBounds.width - sheetBounds.x) / cellWidth) - 1
+  const firstRow = Math.floor((displayBounds.y - sheetBounds.y) / cellHeight)
+  const lastRow = Math.ceil((displayBounds.y + displayBounds.height - sheetBounds.y) / cellHeight) - 1
+  const tiles: TraceRevealTile[] = []
+  for (let row = firstRow; row <= lastRow; row++) {
+    const insideRow = row >= 0 && row < sheetRows
+    for (let col = firstCol; col <= lastCol; col++) {
+      if (insideRow && col >= 0 && col < sheetCols) continue // the real grid already covers this cell
+      tiles.push({
+        x: sheetBounds.x + col * cellWidth,
+        y: sheetBounds.y + row * cellHeight,
+        w: cellWidth,
+        h: cellHeight,
+        opacity: 1,
+      })
+    }
+  }
+  return tiles
 }
 
 const GLASS_GRIME_FILL = '#64726b'
@@ -826,7 +919,7 @@ function wholePaneLeafRakes(sheetBounds: ArtBox): readonly { path: string; probe
   })
 }
 
-export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
+export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }: RevealLayerProps) {
   const glassFog = isGlassFog(reveal.fill)
   const nightVeil = isNightVeil(reveal.fill)
   const sand = reveal.visual === 'sand'
@@ -842,12 +935,44 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
   // raked pile ends in whole blades, a shape sand's erosion cannot produce;
   // mud has no such distinct silhouette need.
   const mud = reveal.visual === 'mud'
-  const fogPath = glassFog ? fogSilhouettePath(reveal.tiles) : ''
-  const sandLoops = sand ? boundaryLoops(reveal.tiles) : []
+  // T7 rework #2 (orchestrator review, "the cleaning margins show seams"):
+  // the flat single-colour margin patch this file's own earlier T7 commit
+  // added read as a visibly DIFFERENT tone/texture from the real grid's own
+  // multi-pass silhouette (body + deep wash + rim stroke), a hard seam at
+  // exactly the old `sheetBounds` edge. Fixed by feeding the SAME organic
+  // generator (`boundaryLoops`/`fogSilhouettePath`/`sandSilhouettePath`/
+  // `leafSilhouettePath`) a few extra, non-scoring "margin tiles" ALONGSIDE
+  // the real remaining ones — one continuous boundary, one continuous
+  // fill/opacity, no seam, because it is the SAME path.
+  //
+  // `marginGridTiles`, not `marginBands`: the margin has to be tiled at the
+  // SAME cell size and grid lines as the real tiles (`reveal.tiles[0]`'s own
+  // `w`/`h`) — `marginGridTiles`'s own header explains why a few large
+  // rectangles broke `boundaryLoops`' edge-cancellation outright (a
+  // self-intersecting oval blob, not a clean frontier).
+  //
+  // Never scored: `marginTiles` never reaches `evaluateLevel`/
+  // `revealGrid.ts`, only this render. `reveal.tiles.length > 0` gates it
+  // OFF the instant the REAL grid finishes — "the extra area clears
+  // together with the rest" — by falling back to the bare (now also empty)
+  // `reveal.tiles`, which is exactly what already makes `fogPath`/
+  // `sandPath`/etc render nothing at real completion.
+  const marginTiles: TraceRevealTile[] =
+    reveal.tiles.length > 0 && !nightVeil
+      ? marginGridTiles(displayBounds, sheetBounds, reveal.tiles[0].w, reveal.tiles[0].h)
+      : []
+  const tilesWithMargin = marginTiles.length > 0 ? [...reveal.tiles, ...marginTiles] : reveal.tiles
+  const fogPath = glassFog ? fogSilhouettePath(tilesWithMargin) : ''
+  const sandLoops = sand ? boundaryLoops(tilesWithMargin) : []
   const sandPath = sand ? sandSilhouettePath(sandLoops) : ''
-  const leafLoops = leaves ? boundaryLoops(reveal.tiles) : []
-  const leafPath = leaves ? leafSilhouettePath(leafLoops, sheetBounds) : ''
-  const mudLoops = mud ? boundaryLoops(reveal.tiles) : []
+  const leafLoops = leaves ? boundaryLoops(tilesWithMargin) : []
+  // `displayBounds`, not `sheetBounds`: this is the frontier's OWN outer-
+  // border test (`onSheetEdge`/`sheetSides`) — with the margin merged in,
+  // the true outer border moved to `displayBounds`'s own edge, so THAT is
+  // the box whose sides may never retreat, not the old (now interior)
+  // `sheetBounds` edge.
+  const leafPath = leaves ? leafSilhouettePath(leafLoops, displayBounds) : ''
+  const mudLoops = mud ? boundaryLoops(tilesWithMargin) : []
   const mudPath = mud ? sandSilhouettePath(mudLoops) : ''
   const streaks = glassFog ? wholePaneStreaks(sheetBounds) : []
   const droplets = glassFog ? wholePaneDroplets(sheetBounds) : []
@@ -860,10 +985,36 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
   const hiddenArt = reveal.art?.filter((obj) => !obj.revealed) ?? []
   const revealedArt = reveal.art?.filter((obj) => obj.revealed) ?? []
   const nightVeilHolesList = nightVeil ? nightVeilHoles(reveal.tiles) : null
-  const nightVeilGeometry = nightVeilHolesList ? nightVeilLayers(nightVeilHolesList, sheetBounds) : null
+  // T7 rework: the night darkness's own full-sheet rectangle grows to
+  // `displayBounds` (`RevealLayerProps`'s own header) — the hole positions
+  // (`nightVeilHolesList`, absolute `cx`/`cy`/`radius`) are untouched, so a
+  // found object or the live torch lights exactly the same spot it always
+  // did; only how far the surrounding darkness now reaches changes.
+  const nightVeilGeometry = nightVeilHolesList ? nightVeilLayers(nightVeilHolesList, displayBounds) : null
+  // The plain per-tile fallback ONLY (no `visual` policy at all — an
+  // untextured `mode:'erase'` level, if one is ever shipped): none of the
+  // four named policies above apply, so there is no silhouette generator to
+  // merge the margin into. Falls back to the flat single-fill patch this
+  // file's own earlier T7 commit used for every policy — same "clears
+  // together" gate (`reveal.tiles.length > 0`, via `marginTiles` above,
+  // already computed for this exact case since `plainFallback` is neither
+  // glass/sand/leaves/mud).
+  const plainFallback = !glassFog && !sand && !leaves && !mud && !nightVeil
+  const plainMargin = plainFallback ? marginTiles : []
 
   return (
     <g pointerEvents="none">
+      {plainMargin.map((tile, idx) => (
+        <rect
+          key={`reveal-margin-${idx}`}
+          data-reveal-margin="true"
+          x={tile.x}
+          y={tile.y}
+          width={tile.w}
+          height={tile.h}
+          fill={reveal.fill}
+        />
+      ))}
       {hiddenArt.map((obj, idx) => (
         <image
           key={`reveal-art-hidden-${idx}`}
@@ -1115,9 +1266,13 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
         ))
       )}
       {nightVeil && reveal.light?.complete && (
+        // T7 rework: `displayBounds`, not `sheetBounds` — the completion
+        // wash is decorative chrome over the SAME area the darkness itself
+        // just covered (above), so it grows with it rather than leaving a
+        // smaller glow floating inside a bigger picture.
         <g data-night-success-glow="true">
-          <path d={`M ${sheetBounds.x} ${sheetBounds.y} H ${sheetBounds.x + sheetBounds.width} V ${sheetBounds.y + sheetBounds.height} H ${sheetBounds.x} Z`} fill={NIGHT_SUCCESS_WASH} opacity={0.16} />
-          <circle cx={sheetBounds.x + sheetBounds.width * 0.5} cy={sheetBounds.y + sheetBounds.height * 0.45} r={Math.min(sheetBounds.width, sheetBounds.height) * 0.58} fill={NIGHT_SUCCESS_WASH} opacity={0.2} />
+          <path d={sheetRectPath(displayBounds)} fill={NIGHT_SUCCESS_WASH} opacity={0.16} />
+          <circle cx={displayBounds.x + displayBounds.width * 0.5} cy={displayBounds.y + displayBounds.height * 0.45} r={Math.min(displayBounds.width, displayBounds.height) * 0.58} fill={NIGHT_SUCCESS_WASH} opacity={0.2} />
         </g>
       )}
       {/* Defect fix (play-test 2026-09-25, T2 item 2: "a circle/halo already

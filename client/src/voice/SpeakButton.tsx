@@ -20,10 +20,21 @@ import { SpeakerIcon } from './icons'
 /** 44 CSS px in every dimension — the shipped child tap-target floor this
  *  whole app already uses for a control that is meant to be pressed on
  *  purpose (`screen/LevelPlay.tsx`'s own `.cv-btn`/`.cv-btn-back` share the
- *  same floor at their narrowest breakpoint). The colours match
- *  `screen/ZooMap.tsx`'s HUD pills (`rgba(255, 255, 255, 0.86)` background,
- *  the same drop shadow) so this button reads as the SAME kind of chrome
- *  wherever it lands, never as a fourth, differently-styled control. */
+ *  same floor at their narrowest breakpoint).
+ *
+ *  T7 rework (`odd/tasks/prewriting-stage-completion.md`, "restyle the
+ *  sound button in the same marker style"): warm paper fill, thick dark
+ *  outline, no shadow — `docs/09_GUIA_DE_ESTILO_VISUAL.md` §1's own rule
+ *  ("Nada de sombreado, ni volumen, ni brillo") — the SAME identity
+ *  `screen/LevelPlay.tsx`'s `.cv-btn` already carries, restated here
+ *  rather than imported: this component is deliberately leaf-level
+ *  (`voice/`), never importing from `canvas/` for one colour literal,
+ *  the same restatement-over-cross-import call `zoo/backdrops.ts`'s own
+ *  `LEAF_BASE` comment makes for `LEAF_LITTER`. This is still the ONE
+ *  shared identity across all five screens this component mounts on
+ *  (prologue/intro/closing/map/level) — none of them has its OWN, still
+ *  white-pill "hear it again" button left to disagree with. */
+const SHEET_PAPER = '#fdfcf7'
 const BASE_STYLE: CSSProperties = {
   width: 44,
   height: 44,
@@ -31,9 +42,8 @@ const BASE_STYLE: CSSProperties = {
   minHeight: 44,
   boxSizing: 'border-box',
   borderRadius: '50%',
-  border: '1px solid #cbd5e1',
-  background: 'rgba(255, 255, 255, 0.92)',
-  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.18)',
+  border: '3px solid #1a1a1a',
+  background: SHEET_PAPER,
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',

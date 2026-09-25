@@ -3,7 +3,7 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { LIGHT_BAND_RATIOS } from '../levels/revealGrid'
-import { RevealLayer } from './RevealLayer'
+import { marginBands, marginGridTiles, RevealLayer } from './RevealLayer'
 import type { TraceReveal } from './TraceCanvas'
 
 const sheetBounds = { x: 0, y: 0, width: 1000, height: 600 }
@@ -826,5 +826,209 @@ describe('RevealLayer', () => {
     const crispCount = (html.match(/shape-rendering="crispEdges"/g) ?? []).length
     expect(rectCount).toBe(2)
     expect(crispCount).toBe(rectCount)
+  })
+})
+
+describe('marginBands (T7 rework, "the art is drawn twice") — the outer-margin veil patch geometry', () => {
+  it('returns [] when outer and inner coincide (no growth — every pre-T7 caller)', () => {
+    expect(marginBands(sheetBounds, sheetBounds)).toEqual([])
+  })
+
+  it('grown on height only: two bands (top, bottom), each spanning the FULL outer width', () => {
+    const outer = { x: 0, y: -50, width: 1000, height: 700 } // sheetBounds grown by 50 each side
+    const bands = marginBands(outer, sheetBounds)
+    expect(bands).toEqual([
+      { x: 0, y: -50, width: 1000, height: 50 }, // top
+      { x: 0, y: 600, width: 1000, height: 50 }, // bottom
+    ])
+  })
+
+  it('grown on width only: two bands (left, right), each spanning only the INNER height', () => {
+    const outer = { x: -80, y: 0, width: 1160, height: 600 }
+    const bands = marginBands(outer, sheetBounds)
+    expect(bands).toEqual([
+      { x: -80, y: 0, width: 80, height: 600 }, // left
+      { x: 1000, y: 0, width: 80, height: 600 }, // right
+    ])
+  })
+
+  it('the four bands, together with the inner box, exactly tile the outer box with no gap and no overlap (both axes grown)', () => {
+    const outer = { x: -20, y: -30, width: 1040, height: 660 }
+    const bands = marginBands(outer, sheetBounds)
+    expect(bands.length).toBe(4)
+    const totalArea = bands.reduce((sum, b) => sum + b.width * b.height, 0) + sheetBounds.width * sheetBounds.height
+    expect(totalArea).toBe(outer.width * outer.height)
+  })
+})
+
+describe('marginGridTiles (T7 rework #2, "the cleaning margins show seams") — grid-aligned, not a few big rects', () => {
+  it('returns [] when outer and inner coincide (no growth)', () => {
+    expect(marginGridTiles(sheetBounds, sheetBounds, 100, 100)).toEqual([])
+  })
+
+  it('every returned tile lands EXACTLY on the real grid\'s own lines — the property marginBands could not give boundaryLoops', () => {
+    const outer = { x: 0, y: -50, width: 1000, height: 700 } // grown by 50 top+bottom, under one 100-tall cell
+    const tiles = marginGridTiles(outer, sheetBounds, 100, 100)
+    for (const t of tiles) {
+      // x/y offsets from sheetBounds's own origin are exact multiples of
+      // the cell size — the SAME grid the real tiles sit on, not an
+      // arbitrary rectangle.
+      // Math.abs: a negative row/col (above/left of sheetBounds's own
+      // origin) gives JS's signed-zero "-0" modulo result, which is still
+      // exactly on the grid line — Object.is(-0, 0) is false, so plain
+      // .toBe(0) would fail on those tiles for a reason that has nothing
+      // to do with alignment.
+      expect(Math.abs((t.x - sheetBounds.x) % 100)).toBe(0)
+      expect(Math.abs((t.y - sheetBounds.y) % 100)).toBe(0)
+      expect(t.w).toBe(100)
+      expect(t.h).toBe(100)
+    }
+  })
+
+  it('rounds a sub-cell margin UP to one full extra row/column rather than a partial sliver', () => {
+    const outer = { x: 0, y: -50, width: 1000, height: 700 } // only 50 of margin, half a 100-tall cell
+    const tiles = marginGridTiles(outer, sheetBounds, 100, 100)
+    // One full row of 10 cells above (y=-100) and one below (y=600) —
+    // never a 50-tall partial cell.
+    const topRow = tiles.filter((t) => t.y === -100)
+    const bottomRow = tiles.filter((t) => t.y === 600)
+    expect(topRow.length).toBe(10)
+    expect(bottomRow.length).toBe(10)
+    expect(tiles.length).toBe(20)
+  })
+
+  it('never emits a tile inside sheetBounds — the real reveal.tiles already cover that ground', () => {
+    const outer = { x: -150, y: -150, width: 1300, height: 900 }
+    const tiles = marginGridTiles(outer, sheetBounds, 100, 100)
+    for (const t of tiles) {
+      const insideSheet =
+        t.x >= sheetBounds.x && t.x + t.w <= sheetBounds.x + sheetBounds.width &&
+        t.y >= sheetBounds.y && t.y + t.h <= sheetBounds.y + sheetBounds.height
+      expect(insideSheet).toBe(false)
+    }
+  })
+
+  it('is a no-op guard against a non-positive cell size', () => {
+    const outer = { x: 0, y: -50, width: 1000, height: 700 }
+    expect(marginGridTiles(outer, sheetBounds, 0, 100)).toEqual([])
+    expect(marginGridTiles(outer, sheetBounds, 100, -1)).toEqual([])
+  })
+})
+
+describe('RevealLayer displayBounds (T7 rework) — the outer margin and the expanded night veil', () => {
+  const displayBounds = { x: 0, y: -50, width: 1000, height: 700 }
+
+  it('defaults displayBounds to sheetBounds — every pre-T7 caller renders byte-identical (no margin, no growth)', () => {
+    const reveal: TraceReveal = { fill: '#64726b', tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }] }
+    const withDefault = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+    const withExplicitSame = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={sheetBounds} />)
+    expect(withDefault).toBe(withExplicitSame)
+    expect(withDefault).not.toContain('data-reveal-margin')
+  })
+
+  // T7 rework #2 (orchestrator review, "the cleaning margins show seams"):
+  // a separate flat-fill rect read as a visibly different tone/texture from
+  // the real grid's own multi-pass silhouette — a hard seam at the old
+  // `sheetBounds` edge. Fixed by merging synthetic, non-scoring "margin
+  // tiles" INTO the same organic generator instead, so the margin is part
+  // of the SAME continuous path/fill/opacity as the real grid — never a
+  // second, differently-toned shape.
+  /** The lowest Y coordinate any M/C/Q command in `d` mentions — every
+   *  generator here (`organicLoopPath`'s jitter+bezier, `erodedSandLoopPath`'s
+   *  noise+quadratic, `lobedLeafLoopPath`'s lobes) perturbs the exact grid
+   *  corner, so asserting an EXACT literal like "-50" is fragile; the real
+   *  claim is "the boundary reaches well past the original sheetBounds edge
+   *  (y=0), into displayBounds's own (y=-50)". */
+  function minPathY(d: string): number {
+    const ys = [...d.matchAll(/-?\d+(?:\.\d+)?/g)].map(Number)
+    // Every coordinate pair in this file's own path commands is "x y" —
+    // odd-indexed numbers are the Y half of each pair (0-indexed: index 1,
+    // 3, 5, ...). Good enough for a MIN over the whole path regardless of
+    // command type, since M/C/Q here are always emitted as whole pairs.
+    return Math.min(...ys.filter((_, i) => i % 2 === 1))
+  }
+
+  it('glass: the margin merges into the SAME silhouette path as the real grid — no separate patch, one continuous shape', () => {
+    const reveal: TraceReveal = { fill: '#64726b', tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }] }
+    const withoutMargin = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+    const withMargin = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />)
+    expect(withMargin).not.toContain('data-reveal-margin') // no separate patch for a policy with a generator
+    // Still exactly ONE silhouette path (body pass) — the margin extended
+    // it, it did not add a second shape.
+    expect((withMargin.match(/data-fog-silhouette="glass"/g) ?? []).length).toBe(1)
+    const silhouette = withMargin.match(/data-fog-silhouette="glass" d="([^"]+)"/)?.[1] ?? ''
+    // The merged path reaches well up past displayBounds's own top edge
+    // (y=-50), past sheetBounds's own y=0 the un-merged path is bounded by.
+    expect(minPathY(silhouette)).toBeLessThan(-30)
+    const silhouetteWithoutMargin = withoutMargin.match(/data-fog-silhouette="glass" d="([^"]+)"/)?.[1] ?? ''
+    // Small jitter (up to ~5.5 units, `organicLoopPath`'s own constant) can
+    // still nudge a corner slightly past the exact grid edge — the real
+    // claim is "nowhere near the -50 margin", not "never negative".
+    expect(minPathY(silhouetteWithoutMargin)).toBeGreaterThan(-10)
+  })
+
+  it('sand/leaves/mud: same merge, and the leaf frontier\'s own border test moves to displayBounds (the margin is now the true outer edge)', () => {
+    const wideTiles = [{ x: 0, y: 0, w: 1000, h: 600, opacity: 1 }] // one big remaining tile, easy to reason about
+    const sandHtml = renderToString(
+      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'sand', tiles: wideTiles }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
+    )
+    expect(sandHtml).not.toContain('data-reveal-margin')
+    const sandPath = sandHtml.match(/data-sand-silhouette="true" d="([^"]+)"/)?.[1] ?? ''
+    expect(minPathY(sandPath)).toBeLessThan(-30)
+
+    const leafHtml = renderToString(
+      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'leaves', tiles: wideTiles }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
+    )
+    expect(leafHtml).not.toContain('data-reveal-margin')
+    expect(leafHtml).toContain('data-leaf-silhouette="true"')
+
+    const mudHtml = renderToString(
+      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'mud', tiles: wideTiles }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
+    )
+    expect(mudHtml).not.toContain('data-reveal-margin')
+    const mudPath = mudHtml.match(/data-mud-silhouette="true" d="([^"]+)"/)?.[1] ?? ''
+    expect(minPathY(mudPath)).toBeLessThan(-30)
+  })
+
+  it('"the extra area clears together with the rest": once reveal.tiles is empty (the real grid is done), nothing renders at all — no margin left dirty', () => {
+    for (const visual of ['sand', 'leaves', 'mud'] as const) {
+      const html = renderToString(
+        <RevealLayer reveal={{ fill: '#7a6a58', visual, tiles: [] }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
+      )
+      expect(html).not.toContain('data-reveal-margin')
+      expect(html).not.toContain('data-sand-drift')
+      expect(html).not.toContain('data-leaf-litter')
+      expect(html).not.toContain('data-mud-drift')
+    }
+  })
+
+  it('the plain per-tile fallback (no visual policy) keeps the flat margin patch, grid-tiled at the SAME 100x100 cell size as the real tile — it has no silhouette generator to merge into', () => {
+    const reveal: TraceReveal = { fill: '#7a6a58', tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }] }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />)
+    // displayBounds grows sheetBounds (1000x600) by 50 on each of the top/
+    // bottom edges only (height-only growth) — under one 100-tall cell, so
+    // marginGridTiles rounds UP to one full extra row of 10 cells above
+    // AND one below (never a partial-cell sliver) — 20 margin tiles total.
+    const margins = (html.match(/data-reveal-margin="true"/g) ?? []).length
+    expect(margins).toBe(20)
+    expect(html).toMatch(/data-reveal-margin="true"[^>]*fill="#7a6a58"/)
+    expect(html).toMatch(/data-reveal-margin="true"[^>]*width="100"[^>]*height="100"/)
+  })
+
+  it('the night veil grows its OWN full-cover darkness to displayBounds instead of a separate margin patch — hole positions untouched', () => {
+    const reveal: TraceReveal = {
+      fill: '#12161f',
+      tiles: [{ x: 480, y: 250, w: 100, h: 100, opacity: 1 }], // one active source, centre (530, 300)
+    }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />)
+    expect(html).not.toContain('data-reveal-margin') // night uses its own base rect, not the generic patch
+    const base = html.match(/data-night-veil-base="true" d="([^"]+)"/)?.[1] ?? ''
+    // Grows to displayBounds's own rectangle...
+    expect(base.startsWith(`M ${displayBounds.x} ${displayBounds.y} H ${displayBounds.x + displayBounds.width} V ${displayBounds.y + displayBounds.height} H ${displayBounds.x} Z`)).toBe(true)
+    // ...and the hole is still centred on the SAME (530, 300) — absolute
+    // content coordinates, unaffected by how far the darkness now reaches.
+    // circlePath's own M is (cx - r, cy); the base rect's hole radius is
+    // the source's own 50 scaled by LIGHT_BAND_RATIOS[0] (0.875).
+    expect(base).toContain(`M ${530 - 50 * LIGHT_BAND_RATIOS[0]} 300`)
   })
 })

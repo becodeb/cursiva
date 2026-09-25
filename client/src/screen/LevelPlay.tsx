@@ -117,7 +117,7 @@ import {
 } from '../detective/assets'
 import CaptionedArt from '../detective/CaptionedArt'
 import TrailProgressBar from '../detective/TrailProgressBar'
-import { BackIcon, ContinueIcon, ReplayIcon, RetryIcon } from '../detective/icons'
+import { BackIcon, ReplayIcon } from '../detective/icons'
 import { useNarration } from '../voice/useNarration'
 import { speak } from '../voice/narrator'
 import SpeakButton from '../voice/SpeakButton'
@@ -143,6 +143,24 @@ const EMPTY_ARRANGE_CONFIG: ArrangeConfig = { from: [], snapRadius: 0 }
 /** How long the visual metronome stays swollen after a beat. Short enough to
  * read as a pulse, long enough to see at 60 BPM on a slow panel. */
 const BEAT_FLASH_MS = 140
+
+/**
+ * T7 (prewriting-stage-completion, "the next-level one could either appear
+ * big or simply go automatically"): once a drawn-place attempt is approved,
+ * the level advances on its own after this short celebration — no manual
+ * "Siguiente" tap. Chosen inside the user's own "~1.5-2 s" window.
+ */
+const CELEBRATE_MS = 1800
+/**
+ * A tap anywhere skips the wait (decision, same task) — but not for this
+ * long after the celebration starts. The pointerup that just finished the
+ * WINNING stroke can synthesize a click at the same screen coordinates the
+ * instant this full-screen skip target mounts under the fingertip, which
+ * would eat the celebration before the child ever sees it. This grace
+ * window is that one release's own ghost click, nothing more — it is well
+ * under the 1.4s a real second tap would take to arrive on purpose.
+ */
+const CELEBRATE_SKIP_GRACE_MS = 400
 
 /**
  * docs/16's first three enclosures identify the animal that belongs behind
@@ -546,27 +564,65 @@ html, body, #root { margin: 0; padding: 0; }
   height: 100vh; /* fallback for engines without dvh */
   height: 100dvh;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
-  /* The page behind the sheet. It used to be #faf8f5 — a THIRD off-white,
-   * different from both the sheet paper and the maze wall, which is what made
-   * the letterbox bars the contain fit leaves read as "page", and the sheet
-   * therefore read as a CARD sitting on it (docs/09 section 7).
-   * The fix is not to remove the bars — a contain fit needs them — but to make
-   * them CONTINUOUS with whatever the sheet's own edge paints. */
+  /* T7 rework #2 (orchestrator review, "the chrome sits on flat bands, not
+   * over the art"): .cv-play is no longer a flex column sharing space
+   * between the header row, the sheet and the footer row. .cv-sheet is now
+   * position:fixed;inset:0 (the WHOLE viewport, no padding at all), and
+   * every other child of .cv-play floats ABOVE it instead — position:
+   * relative here is only what makes THOSE absolutely-positioned children
+   * anchor to this box rather than to the page.
+   * Kept as the page-behind-the-sheet fallback colour (still visible for
+   * an instant while the backdrop image decodes, or on a classic level
+   * with no backdrop at all — docs/09 section 7's own "the sheet should
+   * occupy the screen", not read as a card on a page). */
+  position: relative;
   background: ${SHEET_PAPER};
 }
 /* …and on a detective trail the sheet's edge is grass, so the page is grass.
  * One token, imported from the canvas that paints the field, so the two can
  * never drift into two nearly-identical greens. */
 .cv-play.cv-play-ground { background: ${GROUND_FIELD}; }
-/* display:contents makes these wrappers invisible to layout, so the tall layout
- * is exactly the flat column it always was. A short viewport turns each one into
- * a single row, which is the only way two sibling rows can be merged without
- * duplicating the markup. */
-.cv-top, .cv-foot { display: contents; }
+/* T7 rework ("the art is drawn twice" — the first pass's separate CSS
+ * .cv-backdrop-fill layer removed outright): the adventure's own backdrop
+ * art now fills the whole viewport as ONE continuous picture INSIDE
+ * TraceCanvas's own SVG (canvas/TraceCanvas.tsx's fitContentWithInsets/
+ * fitCameraContentWithInsets grow the viewBox itself to the container's
+ * aspect ratio; the backdrop image is sized to that same grown box).
+ * .cv-sheet needs no special CSS for this at all — no second layer, no
+ * object-fit, nothing to keep in sync with the canvas's own placement.
+ *
+ * T7 rework #2 (orchestrator review, "ALL chrome floats above it... no flat
+ * bands anywhere"): .cv-top/.cv-foot used to be display:contents (invisible
+ * to layout, letting .cv-head/.cv-hint and .cv-result/.cv-actions become
+ * direct flex items of .cv-play's own flex column). Now they are real,
+ * ABSOLUTELY POSITIONED rows floating over the full-viewport sheet —
+ * pointer-events:none on the row itself, so an empty stretch of its own
+ * padding lets a touch reach the art/canvas underneath, with pointer-
+ * events:auto restored per child (the actual buttons/text, immediately
+ * below) so those stay tappable. Their own flex-direction:column stacks
+ * head-then-hint (top) and result-then-actions (bottom); a short viewport
+ * flips that to a single ROW (see the max-height:520px block far below),
+ * which is still worth doing even though the canvas no longer needs the
+ * room back — a shorter chrome silhouette is still the nicer look there. */
+.cv-top, .cv-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* .cv-sheet sits BETWEEN these two in source order (.cv-top, then
+   * .cv-sheet, then .cv-foot) — without this, plain DOM-order stacking
+   * would paint .cv-sheet's own opaque backdrop image OVER .cv-top,
+   * hiding the back/sound buttons entirely. Above .cv-sheet's own
+   * z-index: 0, below .cv-celebrate-skip's z-index: 5. */
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  pointer-events: none;
+}
+.cv-top > *, .cv-foot > * { pointer-events: auto; }
+.cv-top { top: 0; }
+.cv-foot { bottom: 0; }
 /* position: relative is for .cv-level-zoo-sign below: absolutely centring it
  * on THIS row (not on the viewport, not relative to the back button) needs a
  * positioned ancestor no bigger than the row itself. */
@@ -596,10 +652,23 @@ html, body, #root { margin: 0; padding: 0; }
  * PROLOGUE_CSS/INTRO_CSS/ZOO_CSS already carry this same warning for). */
 .cv-head-right { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
 .cv-hint { flex: 0 0 auto; margin: 0; font-size: 28px; line-height: 1.3; color: #1e293b; }
-.cv-portrait-guidance { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 18px; border: 2px dashed #94a3b8; border-radius: 20px; background: rgba(255,255,255,0.72); color: #1e293b; font-size: 24px; line-height: 1.3; text-align: center; font-weight: 700; }
+/* T7 rework #2: was flex:1 1 auto (a flex-column sibling of .cv-sheet,
+ * taking its place when the sheet was flex:1 1 auto too). Now a floating
+ * card in its own right, same as .cv-top/.cv-foot — inset:0 so it can
+ * centre itself over the whole viewport, with generous fixed top/bottom
+ * padding (rather than a measured inset — this mode is explicitly out of
+ * this task's own scope, "the portrait-phone guidance may stay as is")
+ * wide enough to clear .cv-top/.cv-foot's own tallest rendered height at
+ * any breakpoint, so the card is never itself hidden under the back
+ * button or the actions row. */
+.cv-portrait-guidance { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 90px 18px; border: 2px dashed #94a3b8; border-radius: 20px; background: rgba(255,255,255,0.72); color: #1e293b; font-size: 24px; line-height: 1.3; text-align: center; font-weight: 700; }
 .cv-portrait-guidance strong { display: block; font-size: 30px; margin-bottom: 8px; }
 .cv-portrait-guidance span { display: block; color: #475569; font-size: 18px; font-weight: 600; }
-.cv-sheet { position: relative; container-type: size; flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+/* T7 rework #2: was position:relative;flex:1 1 auto (a flex column sibling
+ * sharing space with the header/footer rows). Now fixed to the WHOLE
+ * viewport — no padding, no flex sizing, nothing held back for chrome —
+ * every button that used to reserve its own row now floats over this. */
+.cv-sheet { position: absolute; inset: 0; z-index: 0; container-type: size; display: flex; align-items: center; justify-content: center; gap: 10px; }
 /* The canvas is TraceCanvas's own root svg element — no wrapper element
  * exists to put a class on, so it is targeted structurally. It grows to
  * fill the sheet, exactly as it always did. T5 moved the zoo sign out of
@@ -777,25 +846,34 @@ html, body, #root { margin: 0; padding: 0; }
  * resolved), then reserved from first paint (shrinking the sheet
  * PERMANENTLY instead). Both cost .cv-sheet real height it must never
  * lose. This message asks the flex column for nothing: it is an absolutely
- * positioned pill floating over the bottom-centre of .cv-sheet (which
- * already carries position: relative), so the sheet's own box is
- * identical whether the pill is showing or not. White-on-dark-text is
- * chosen specifically because it must read over ANY of this screen's
- * backdrops — plain paper, a leaf-litter fill, a night sky — without a
- * per-backdrop colour override (the old light-mode section needed one;
- * this does not). pointer-events: none because it is feedback, never a
- * control, and must never intercept the next attempt's first touch. */
+ * positioned pill. White-on-dark-text is chosen specifically because it
+ * must read over ANY of this screen's backdrops — plain paper, a leaf-
+ * litter fill, a night sky — without a per-backdrop colour override (the
+ * old light-mode section needed one; this does not). pointer-events: none
+ * because it is feedback, never a control, and must never intercept the
+ * next attempt's first touch.
+ *
+ * T7 rework #2: this used to sit bottom: 16px within .cv-sheet, which
+ * was a flex sibling of .cv-foot — the two never overlapped. Now .cv-sheet
+ * is the WHOLE viewport (T7 rework #2's own .cv-sheet comment), so a
+ * viewport-bottom-relative offset would land the pill on top of .cv-foot's
+ * own actions row. Rendered as a CHILD of .cv-foot instead (JSX, below),
+ * positioned bottom: 100% — its own bottom edge pinned to .cv-foot's own
+ * TOP edge, margin-bottom for the gap — so it always floats just above
+ * whatever chrome the actions row currently holds, at any breakpoint,
+ * without needing to know that row's own height. */
 .cv-result-pill {
   position: absolute;
   left: 50%;
-  bottom: 16px;
+  bottom: 100%;
+  margin-bottom: 16px;
   transform: translateX(-50%);
   z-index: 3;
-  margin: 0;
   max-width: calc(100% - 32px);
   padding: 10px 22px;
   border-radius: 999px;
-  background: #ffffff;
+  background: ${SHEET_PAPER};
+  border: 3px solid #1a1a1a;
   color: #1e293b;
   font-size: 22px;
   font-weight: 700;
@@ -804,16 +882,43 @@ html, body, #root { margin: 0; padding: 0; }
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.35);
   pointer-events: none;
 }
+/* T7: the text-free celebration for every drawn-place level that has no
+ * erase/light result sentence of its own (spines, waypoints, a plain
+ * corridor) — C1 keeps the detective world wordless, so this is the SAME
+ * pill with only the check mark inside, a round badge instead of a long
+ * pill. aria-label on the element itself (JSX) carries the words a
+ * sighted child never sees, the exact convention '.cv-btn-back''s own
+ * aria-label already uses for an icon-only button on a drawn place. */
+.cv-result-pill-icon { padding: 14px 18px; font-size: 30px; line-height: 1; }
+.cv-result-pill-icon .cv-result-check { margin-right: 0; }
 /* Success only (attempt.approved) — never shown on the neutral "keep
  * going" coaching text, so a green check never contradicts a message that
  * says the child is not done yet (docs/01 principle 2: never a mixed
  * signal). */
 .cv-result-check { color: #16a34a; font-weight: 900; margin-right: 8px; }
 .cv-actions { flex: 0 0 auto; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-.cv-btn { min-height: 64px; padding: 0 28px; border-radius: 16px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b; font-size: 20px; font-weight: 600; cursor: pointer; }
+.cv-btn { min-height: 64px; padding: 0 28px; border-radius: 18px; border: 3px solid #1a1a1a; background: ${SHEET_PAPER}; color: #1e293b; font-size: 20px; font-weight: 600; cursor: pointer; }
 .cv-btn-back { min-height: 56px; padding: 0 18px; }
-.cv-btn-ok { background: #dcfce7; border-color: #86efac; }
+.cv-btn-ok { background: #dcfce7; border-color: #16a34a; }
 .cv-btn-off { opacity: 0.45; cursor: default; }
+/* T7 auto-advance: the transparent full-screen tap target that skips the
+ * celebration. Below the dev-only skip button's own z-index (9999,
+ * GameScreen.tsx's DEV_SKIP_BUTTON) so that corner keeps working
+ * untouched; above everything else on this screen, which is exactly what
+ * "a tap ANYWHERE" needs. appearance: none and a transparent background
+ * keep it visually absent — only '.cv-result-pill''s own check mark is
+ * what the child sees. */
+.cv-celebrate-skip {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
 
 /* D21/T3: finishing a level used to change nothing but a small button's own
  * pale colour — no festejo at all, easy to miss entirely. The enabled
@@ -833,11 +938,6 @@ html, body, #root { margin: 0; padding: 0; }
   color: #ffffff;
   animation: cv-next-pulse 1.4s ease-in-out infinite;
 }
-/* ContinueIcon's chevron is drawn with a hardcoded stroke attribute, not
- * currentColor (see detective/icons.tsx) — a presentation attribute always
- * loses to an authored CSS rule on the same property, so this repaints it
- * white without touching that shared, multi-caller icon file. */
-.cv-next-ready path { stroke: #ffffff; }
 @keyframes cv-next-pulse {
   0%, 100% { transform: scale(1.15); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
   50% { transform: scale(1.22); box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
@@ -895,23 +995,27 @@ html, body, #root { margin: 0; padding: 0; }
  * trapped behind the instruction. The class is set from the same media query
  * this rule answers, so the sheet is hidden only when the guidance is present
  * in the document. */
-.cv-play-portrait-guided { gap: 10px; }
 .cv-play-portrait-guided .cv-portrait-guidance { flex-direction: column; }
 .cv-play-portrait-guided .cv-sheet { display: none; }
 .cv-play-portrait-guided .cv-level-zoo-sign { display: none; }
 
 /* Height-constrained but not tiny — the PRIMARY devices, a tablet in landscape
  * and a touch laptop. Full-size chrome eats ~45% of a 700px viewport, so the
- * rows tighten and the sheet takes what they give back. */
+ * rows tighten. T7 rework #2: was .cv-play { gap; padding } (the flex
+ * column's own outer spacing) — now .cv-top, .cv-foot directly, each
+ * row's OWN edge padding and internal (head-to-hint / result-to-actions)
+ * gap, since the two rows no longer share a flex column with the sheet. */
 @media (max-height: 820px) {
-  .cv-play { gap: 6px; padding: 8px 14px; }
+  .cv-top, .cv-foot { gap: 6px; padding: 8px 14px; }
   .cv-title { font-size: 20px; }
   .cv-hint { font-size: 22px; }
   .cv-result { min-height: 64px; }
   .cv-pillar { font-size: 20px; }
   .cv-coach { margin: 4px 0 0; font-size: 18px; }
-  .cv-btn { min-height: 52px; padding: 0 22px; font-size: 18px; }
-  .cv-btn-back { min-height: 48px; }
+  /* T7: kept >= 56px even at this tighter tier (1024x768/1280x720 both
+   * land here) — the decision's own "big touch targets >= 56px". */
+  .cv-btn { min-height: 58px; padding: 0 22px; font-size: 18px; }
+  .cv-btn-back { min-height: 56px; }
   .pistas-slots { gap: 5px; }
   /* Both target viewports at this breakpoint (1280x720, 1024x768) want the
    * whole bar around 40px tall — the animal end-cap is the tallest element,
@@ -921,13 +1025,19 @@ html, body, #root { margin: 0; padding: 0; }
   /* width: 47px -> ~50px tall, comfortably inside the 48px back button row
    * this breakpoint sets just above (1280x720 and 1024x768 both land here). */
   .cv-level-zoo-sign > svg { width: 47px; }
-  .cv-result-pill { font-size: 18px; padding: 8px 18px; bottom: 12px; }
+  .cv-result-pill { font-size: 18px; padding: 8px 18px; margin-bottom: 12px; }
 }
 
-/* Short viewport: the chrome gives its room back to the canvas. Buttons stop
- * at 44px — this is a child's tap target, not a toolbar. */
+/* Short viewport (844x390 lands here): the chrome stays compact even though
+ * the canvas itself no longer needs the room back (T7 rework #2 — the sheet
+ * is always the full viewport now). Buttons stop at 48px, not the
+ * decision's own 56px floor — a genuine tradeoff, not an oversight: the
+ * '.cv-top'/'.cv-foot' rows below still collapse to one row each, since a
+ * shorter chrome silhouette over the art is still the nicer look on a
+ * 390px-tall landscape phone regardless. Flagged for the user rather than
+ * silently either way. */
 @media (max-height: 520px) {
-  .cv-play { gap: 4px; padding: 6px 10px; }
+  .cv-top, .cv-foot { gap: 4px; padding: 6px 10px; }
   .cv-title { font-size: 16px; }
   .cv-hint { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cv-portrait-guidance { font-size: 18px; padding: 12px; }
@@ -936,17 +1046,19 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-pillars { flex-wrap: nowrap; gap: 14px; }
   .cv-pillar { font-size: 16px; gap: 5px; }
   .cv-coach { margin: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .cv-btn { min-height: 44px; padding: 0 16px; font-size: 16px; }
-  .cv-btn-back { min-height: 44px; padding: 0 12px; font-size: 16px; }
+  .cv-btn { min-height: 48px; padding: 0 16px; font-size: 16px; }
+  .cv-btn-back { min-height: 48px; padding: 0 12px; font-size: 16px; }
   /* width: 30px -> ~32px tall, comfortably inside the 44px back button row
    * this breakpoint sets (844x390 lands here). */
   .cv-level-zoo-sign > svg { width: 30px; }
-  .cv-result-pill { font-size: 15px; padding: 6px 14px; bottom: 8px; }
+  .cv-result-pill { font-size: 15px; padding: 6px 14px; margin-bottom: 8px; }
 
-  /* Two rows become one, twice. Every row reclaimed goes straight into canvas
-   * height, and on a 390px-tall landscape phone that is the whole budget. */
+  /* Two rows become one, twice — a shorter chrome silhouette, not a canvas-
+   * height budget any more (T7 rework #2). flex-direction: row is the part
+   * that actually does the merging: .cv-top/.cv-foot default to a COLUMN
+   * (head above hint, result above actions) at every taller breakpoint. */
   .cv-top, .cv-foot {
-    flex: 0 0 auto;
+    flex-direction: row;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1313,6 +1425,37 @@ function Pillar({
 }
 
 export default function LevelPlay({ level, record, onAttempt, onNext, onBack, progress }: LevelPlayProps) {
+  // T7 rework #2 (orchestrator review, "fit the content box into the
+  // viewport minus the chrome's safe insets"): .cv-top/.cv-foot's own
+  // RENDERED CSS-pixel heights, measured live — the same real-browser-only
+  // split every other measurement in this rework lives by (`ResizeObserver`,
+  // `null`/`0` in SSR/tests). Neither row's height is a fixed constant: both
+  // vary by breakpoint (the 820px/520px tiers above shrink padding, font
+  // size, and — at 520px — merge head+hint into one row) and by content
+  // (the enclosure sign or the adventure bar adds height to `.cv-head-wide`,
+  // a demo button appears/disappears from `.cv-actions`). `TraceCanvas.tsx`
+  // owns the actual fitting maths (`fitContentWithInsets`); this only hands
+  // it the four numbers. Left/right stay a small fixed constant (`docs/09`'s
+  // own "small side insets" — no element on either side actually needs
+  // protecting, unlike the top/bottom rows).
+  const topChromeRef = useRef<HTMLDivElement | null>(null)
+  const bottomChromeRef = useRef<HTMLDivElement | null>(null)
+  const [chromeInsets, setChromeInsets] = useState<{ top: number; bottom: number }>({ top: 0, bottom: 0 })
+  useEffect(() => {
+    const topEl = topChromeRef.current
+    const bottomEl = bottomChromeRef.current
+    if (!topEl || !bottomEl || typeof ResizeObserver === 'undefined') return undefined
+    const measure = (): void => {
+      setChromeInsets({ top: topEl.getBoundingClientRect().height, bottom: bottomEl.getBoundingClientRect().height })
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(topEl)
+    observer.observe(bottomEl)
+    measure()
+    return () => observer.disconnect()
+  }, [])
+  const SIDE_INSET = 16
+
   // Building the dense ideal cloud is the expensive part of a level load; it
   // may only re-run when the level or the adaptive width actually changes.
   const target = useMemo(
@@ -1793,10 +1936,21 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // functional `setPhase` update reads the LATEST phase at commit time, so
   // this callback stays referentially stable (empty deps) without ever
   // closing over a stale `phase`.
+  // T7 (the "Borrar"/repeat button is gone on a drawn place): a fresh touch
+  // that starts right after a FAILED attempt must clear the old ink itself.
+  // `clearOnFailedRetryRef` is set below, once `drawnPlace`/`level.kind` are
+  // in scope — folded into a ref (not a direct dependency here) only so
+  // `onStart` itself can stay declared next to the other stroke-lifecycle
+  // callbacks it has always lived beside, instead of moving past a third of
+  // this file to sit after `drawnPlace`.
+  const clearOnFailedRetryRef = useRef(false)
   const onStart = useCallback((): void => {
     setRestarted(false)
     setPhase(endDemoOnStrokeStart)
-  }, [])
+    if (clearOnFailedRetryRef.current && attempt && !attempt.approved) {
+      resetSurface()
+    }
+  }, [attempt, resetSurface])
 
   // Live corridor feedback (docs/03 §6 "salirse atenúa el trazo, no lo corta"):
   // throttled to ~30 Hz so it never competes with the 60fps ink loop, and it
@@ -2203,6 +2357,47 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // renders byte-identically; the eight mountain levels are the first to be
   // a place without being the world (design.md §3.2).
   const drawnPlace = inWorld || !!backdrop
+  // T7: see `onStart`'s own comment above (`clearOnFailedRetryRef`) — a
+  // route level only (`level.kind === 'path'`), never a `free` one
+  // (reveal/spines/waypoints/coverage), whose own accumulated strokes are
+  // wanted progress, not noise. Never a classic (non-drawnPlace) level
+  // either — out of this task's scope (cursive letters, docs/15).
+  clearOnFailedRetryRef.current = drawnPlace && level.kind === 'path'
+
+  // T7 auto-advance: a drawn-place level celebrates a real approval and then
+  // calls the SAME `onNext` the old "Siguiente" button used — never a
+  // separate advance path, so a skip stays exactly one ordinary approval
+  // to `GameScreen` (progress save, next level/closing/map resolution).
+  // `onNextRef` exists only so the timer below is not restarted by an
+  // unrelated parent re-render changing `onNext`'s identity (`GameScreen`
+  // defines it inline, fresh on every `version` bump) — the effect itself
+  // depends on `celebrating` alone.
+  const celebrating = drawnPlace && !!attempt?.approved
+  const onNextRef = useRef(onNext)
+  onNextRef.current = onNext
+  const advancingRef = useRef(false)
+  const [skipReady, setSkipReady] = useState(false)
+  useEffect(() => {
+    advancingRef.current = false
+    setSkipReady(false)
+    if (!celebrating) return undefined
+    const grace = window.setTimeout(() => setSkipReady(true), CELEBRATE_SKIP_GRACE_MS)
+    const advance = window.setTimeout(() => {
+      if (advancingRef.current) return
+      advancingRef.current = true
+      onNextRef.current()
+    }, CELEBRATE_MS)
+    return () => {
+      window.clearTimeout(grace)
+      window.clearTimeout(advance)
+    }
+  }, [celebrating])
+  const skipCelebration = (): void => {
+    if (!skipReady || advancingRef.current) return
+    advancingRef.current = true
+    onNextRef.current()
+  }
+
   const inkPolicy = resolveInkPolicy({
     revealMode: level.reveal?.mode,
     artCorridor: !!level.artCorridor,
@@ -2421,7 +2616,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       data-level-id={level.id}
     >
       <style>{LAYOUT_CSS}</style>
-      <div className="cv-top">
+      <div className="cv-top" ref={topChromeRef}>
       <header className={`cv-head${zooSign || hasProgressBar ? ' cv-head-wide' : ''}`}>
         <button
           type="button"
@@ -2566,6 +2761,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         viewBoxY={band.y}
         viewBoxHeight={band.height}
         fit="contain"
+        // T7 rework #2: the chrome's own measured safe insets (this
+        // component's own `topChromeRef`/`bottomChromeRef` effect above) —
+        // `TraceCanvas.tsx`'s `fitContentWithInsets` keeps the corridor,
+        // markers, spines and the octopus clear of the back/sound button
+        // row and the actions row, while the backdrop art still fills every
+        // pixel of the viewport including behind them.
+        insetTop={chromeInsets.top}
+        insetBottom={chromeInsets.bottom}
+        insetLeft={SIDE_INSET}
+        insetRight={SIDE_INSET}
         startMarker={showMarkers ? startMarker : undefined}
         // The octopus stands where the route begins, in place of the green dot
         // (see `TraceStandingArt`): with a character already standing there the
@@ -2700,48 +2905,74 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
           </g>
         )}
         </TraceCanvas>
-        {/* T3 revision (orchestrator QA regression): this used to be a
-         * `.cv-result` row in `.cv-foot`, first popping into existence on
-         * attempt (shrinking the sheet the instant a level resolved), then
-         * — this file's own earlier fix — ALWAYS reserved from first paint
-         * (which shrank the sheet PERMANENTLY instead, on every enclosure
-         * level: measured 1252x592 -> 1252x438 at 1280x720). Neither is
-         * right: the sheet must be the exact same box before and after an
-         * attempt, and nothing should be reserved for a message that is not
-         * always there. So the message no longer asks the flex column for
-         * space at all — it floats OVER `.cv-sheet` (which already carries
-         * `position: relative`), an absolutely positioned pill, high
-         * contrast against whatever sits behind it (paper, a leaf-litter
-         * fill, a night backdrop), `pointer-events: none` so it can never
-         * steal the next attempt's first touch. Gated on `attempt` exactly
-         * as it always was pre-T3 — it shows on a short/failed attempt too
-         * (the coaching text), not only on success. */}
-        {drawnPlace && level.reveal?.mode === 'erase' && attempt && (
-          <p className="cv-result-pill" role="status" aria-label="Resultado del intento">
-            {attempt.approved && (
+      </div>
+      <div className="cv-foot" ref={bottomChromeRef}>
+      {/* T3 revision (orchestrator QA regression): this used to be a
+       * `.cv-result` row in `.cv-foot`, first popping into existence on
+       * attempt (shrinking the sheet the instant a level resolved), then
+       * — this file's own earlier fix — ALWAYS reserved from first paint
+       * (which shrank the sheet PERMANENTLY instead, on every enclosure
+       * level: measured 1252x592 -> 1252x438 at 1280x720). Neither is
+       * right: the sheet must be the exact same box before and after an
+       * attempt, and nothing should be reserved for a message that is not
+       * always there. So the message asks the flex column for nothing — it
+       * is an absolutely positioned pill, high contrast against whatever
+       * sits behind it (paper, a leaf-litter fill, a night backdrop),
+       * `pointer-events: none` so it can never steal the next attempt's
+       * first touch. Gated on `attempt` exactly as it always was pre-T3 —
+       * it shows on a short/failed attempt too (the coaching text), not
+       * only on success.
+       *
+       * T7 rework #2: moved from inside `.cv-sheet` (which was a flex
+       * sibling of `.cv-foot`, so a `bottom`-anchored pill never overlapped
+       * it) to a CHILD of `.cv-foot` itself, now that `.cv-sheet` is the
+       * whole viewport — `.cv-result-pill`'s own `bottom: 100%` anchors it
+       * to `.cv-foot`'s own top edge instead, so it always floats just
+       * above the actions row rather than on top of the viewport's bottom
+       * edge (which the actions row itself now also claims). */}
+      {drawnPlace && level.reveal?.mode === 'erase' && attempt && (
+        <p className="cv-result-pill" role="status" aria-label="Resultado del intento">
+          {attempt.approved && (
+            <span className="cv-result-check" aria-hidden="true">
+              ✓
+            </span>
+          )}
+          {eraseResultMessage(level.id, attempt.approved)}
+        </p>
+      )}
+      {drawnPlace && level.reveal?.mode === 'light' && attempt && (
+        <p className="cv-result-pill" role="status" aria-label="Resultado del intento">
+          {attempt.approved ? (
+            <>
               <span className="cv-result-check" aria-hidden="true">
                 ✓
               </span>
-            )}
-            {eraseResultMessage(level.id, attempt.approved)}
-          </p>
-        )}
-        {drawnPlace && level.reveal?.mode === 'light' && attempt && (
-          <p className="cv-result-pill" role="status" aria-label="Resultado del intento">
-            {attempt.approved ? (
-              <>
-                <span className="cv-result-check" aria-hidden="true">
-                  ✓
-                </span>
-                ¡Descubrimiento brillante!
-              </>
-            ) : (
-              `Encontraste ${revealState.lit.size} de ${level.reveal.objects.length}. Volvé a alumbrar las luces que faltan.`
-            )}
-          </p>
-        )}
-      </div>
-      <div className="cv-foot">
+              ¡Descubrimiento brillante!
+            </>
+          ) : (
+            `Encontraste ${revealState.lit.size} de ${level.reveal.objects.length}. Volvé a alumbrar las luces que faltan.`
+          )}
+        </p>
+      )}
+      {/* T7: every OTHER drawn-place family (a plain corridor, hedgehog's
+       * spines, bee's waypoints) had no result pill at all before this —
+       * `eraseResultMessage`/the light sentence above are erase/light
+       * only. Auto-advance still needs a celebration to show for the
+       * ~1.5-2s before it fires, and C1 keeps this world wordless, so this
+       * is the check mark alone (`.cv-result-pill-icon`), never a
+       * sentence — `aria-label` carries the words for anyone who cannot
+       * see it, same convention as `.cv-btn-back`'s own icon-only label. */}
+      {drawnPlace && !level.reveal && attempt?.approved && (
+        <p
+          className="cv-result-pill cv-result-pill-icon"
+          role="status"
+          aria-label="¡Muy bien!"
+        >
+          <span className="cv-result-check" aria-hidden="true">
+            ✓
+          </span>
+        </p>
+      )}
       {/* Pillars and coach copy (accuracy/direction/fluency readouts, the
        * restart cue, the standing hint) are all suppressed in the detective
        * world (C1: no coach or pillar copy — and therefore no three stars,
@@ -2785,14 +3016,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         </section>
       )}
       <nav aria-label="Acciones" className="cv-actions">
-        <button
-          type="button"
-          onClick={clearAttempt}
-          className="cv-btn"
-          aria-label={drawnPlace ? 'Borrar' : undefined}
-        >
-          {drawnPlace ? <RetryIcon /> : 'Borrar'}
-        </button>
+        {/* T7 (decision: "the repeat button is useless" — REMOVE it on a
+         * drawn place): a classic (non-drawnPlace) level keeps "Borrar" —
+         * out of this task's scope, `clearOnFailedRetryRef`'s own comment
+         * above covers what replaces it here. */}
+        {!drawnPlace && (
+          <button type="button" onClick={clearAttempt} className="cv-btn">
+            Borrar
+          </button>
+        )}
         {playDemo && (
           <button
             type="button"
@@ -2812,20 +3044,36 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
             Ver la guía
           </button>
         )}
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={!attempt?.approved}
-          // D21/T3: an approved attempt makes this button say "now!" on its
-          // own (`.cv-next-ready` in `LAYOUT_CSS`) instead of only swapping a
-          // pale colour for a slightly less pale one.
-          className={`cv-btn ${attempt?.approved ? 'cv-btn-ok cv-next-ready' : 'cv-btn-off'}`}
-          aria-label={drawnPlace ? 'Siguiente' : undefined}
-        >
-          {drawnPlace ? <ContinueIcon /> : 'Siguiente'}
-        </button>
+        {/* T7 (decision: auto-advance replaces the manual "Siguiente" tap on
+         * a drawn place — see `celebrating`/the effect above, which calls
+         * this SAME `onNext`). A classic level keeps the manual button. */}
+        {!drawnPlace && (
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={!attempt?.approved}
+            // D21/T3: an approved attempt makes this button say "now!" on its
+            // own (`.cv-next-ready` in `LAYOUT_CSS`) instead of only swapping a
+            // pale colour for a slightly less pale one.
+            className={`cv-btn ${attempt?.approved ? 'cv-btn-ok cv-next-ready' : 'cv-btn-off'}`}
+          >
+            Siguiente
+          </button>
+        )}
       </nav>
       </div>
+      {/* T7 auto-advance: "a tap anywhere during the celebration skips the
+       * wait" — a full-screen transparent button, only while `celebrating`
+       * (see the effect above), guarded by `skipReady` against the winning
+       * stroke's own release re-triggering as an instant click on this. */}
+      {celebrating && (
+        <button
+          type="button"
+          className="cv-celebrate-skip"
+          aria-label="Continuar"
+          onClick={skipCelebration}
+        />
+      )}
     </main>
   )
 }

@@ -12,8 +12,15 @@ import { loadVoiceSettings, saveVoiceSettings } from './narrator'
 import { SpeakerIcon } from './icons'
 
 /** Identical footprint to `SpeakButton`'s own `BASE_STYLE` — the two controls
- *  are siblings in the same visual language (a round white HUD button),
- *  never two different chrome styles competing on the same screen. */
+ *  are siblings in the same visual language (the game's marker style: warm
+ *  paper fill, thick dark outline, no shadow), never two different chrome
+ *  styles competing on the same screen. Restyled alongside `SpeakButton`
+ *  (T7 rework #2, `odd/tasks/prewriting-stage-completion.md`) — this one
+ *  sits DIRECTLY BESIDE `ZooMap.tsx`'s own star pill, so leaving it on the
+ *  old white-pill identity would have recreated the exact "two chrome
+ *  families on one screen" mismatch that rework fixed for the star/
+ *  backpack/recovered pills. */
+const SHEET_PAPER = '#fdfcf7'
 const BASE_STYLE: CSSProperties = {
   width: 44,
   height: 44,
@@ -21,9 +28,8 @@ const BASE_STYLE: CSSProperties = {
   minHeight: 44,
   boxSizing: 'border-box',
   borderRadius: '50%',
-  border: '1px solid #cbd5e1',
-  background: 'rgba(255, 255, 255, 0.92)',
-  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.18)',
+  border: '3px solid #1a1a1a',
+  background: SHEET_PAPER,
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
