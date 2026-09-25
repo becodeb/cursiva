@@ -8,8 +8,8 @@ import { buildLevelTarget } from '../levels/buildLevel'
 import { LEGACY_PHASE_1, getLevel } from '../levels/catalog'
 import { coverageScore } from '../levels/coverage'
 import type { LevelConfig, LevelTarget } from '../levels/types'
-import { TolPen, TolTouch } from '../canvas/validation/constants'
-import { evaluateLevel, toleranceFor } from './evaluateLevel'
+import { K, TolPen, TolTouch } from '../canvas/validation/constants'
+import { evaluateLevel, resampleForScoring, toleranceFor } from './evaluateLevel'
 import { spineAnchors, spineScore, type SpineConfig } from '../levels/spines'
 import { waypointScore, type WaypointConfig } from '../levels/waypoints'
 
@@ -147,6 +147,55 @@ describe('evaluateLevel — accuracy pillar', () => {
   it('reports accuracy as an integer', () => {
     const attempt = evaluateLevel([offsetStroke(travesia, 20)], travesia, 'pen')
     expect(Number.isInteger(attempt.accuracy)).toBe(true)
+  })
+})
+
+describe('resampleForScoring — multi-stroke accuracy (the art-corridor gap bug, snake1..4)', () => {
+  it('is bit-identical to resample(stroke, k) for a single stroke', () => {
+    const stroke = perfectStroke(travesia)
+    expect(resampleForScoring([stroke], K)).toEqual(resample(stroke, K))
+    expect(resampleForScoring([], K)).toEqual(resample([], K))
+  })
+
+  it('never spends a sample bridging a WIDE gap between two strokes', () => {
+    // Two short, real strokes far apart on the sheet — the exact shape of an
+    // art-corridor level's routes, `mustBeContinuous: false`: the child lifts
+    // the finger between pieces on purpose.
+    const near = { x: 100, y: 100 }
+    const far = { x: 900, y: 100 }
+    const a = [near, { x: near.x + 20, y: near.y }]
+    const b = [far, { x: far.x + 20, y: far.y }]
+    const points = resampleForScoring([a, b], K)
+    // Every sample lands within the 20-unit span of ONE of the two strokes —
+    // never in the 780-unit gap between them, the way naive
+    // `resample([...a, ...b], K)` would spend a third of its samples doing.
+    for (const p of points) {
+      const nearA = p.x >= near.x - 1 && p.x <= near.x + 21
+      const nearB = p.x >= far.x - 1 && p.x <= far.x + 21
+      expect(nearA || nearB).toBe(true)
+    }
+  })
+
+  it('a perfect trace of every snake1..4 route now clears its own minAccuracy — it did not before this fix', () => {
+    // Regression for "snakes: impossible to pass" (odd/tasks/prewriting-
+    // stage-completion.md, T1): even a mathematically perfect trace of the
+    // engine's OWN routes used to fail, because `resample(all, K)` on the
+    // naive concatenation burned samples on the empty sand between pieces.
+    // `snake3` (three separate ~200-400-unit gaps) hit this hardest: a
+    // perfect trace scored accuracy 0 against the OLD `resample(all, K)`.
+    for (const id of ['snake1', 'snake2', 'snake3', 'snake4']) {
+      const target = buildLevelTarget(getLevel(id))
+      let t = 0
+      const strokes = target.routes.map((route) =>
+        resample([...route.polyline], 240).map((p) => {
+          t += 16
+          return { x: p.x, y: p.y, t }
+        }),
+      )
+      const attempt = evaluateLevel(strokes, target, 'touch')
+      expect(attempt.accuracy).toBeGreaterThanOrEqual(target.config.rules.minAccuracy)
+      expect(attempt.approved).toBe(true)
+    }
   })
 })
 

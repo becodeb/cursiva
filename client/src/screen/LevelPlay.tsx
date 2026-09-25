@@ -42,6 +42,7 @@ import {
   waypointDebugCount,
 } from '../canvas/devMode'
 import { seedCameraOrigin } from '../canvas/camera'
+import { standBesideArtCorridor } from '../canvas/placeArt'
 import {
   EMPTY_WAYPOINTS,
   debugCarrier,
@@ -200,6 +201,15 @@ export const CLUE_MARK_SIZE = 28
  * canvas's `TraceStandingArt` contract — so it waits AT the start of the route
  * rather than being bisected by it. */
 const OCTOPUS_SIZE = 96
+
+/** How far before an art-corridor piece's own drawn box the start octopus's
+ *  feet land (`standBesideArtCorridor`). The margin has to clear the whole
+ *  standing character on whichever screen axis the piece's rotation maps it
+ *  to (its own width unrotated, its own height on a `rotate: -90` column) —
+ *  `OCTOPUS_SIZE` itself covers the larger of the two, plus a 16-unit gap so
+ *  a mere edge touch still reads as standing beside the animal, not against
+ *  it. */
+const OCTOPUS_STAND_MARGIN = OCTOPUS_SIZE + 16
 
 /** Rendered HEIGHT of whatever stands at the route's end, a little under the
  * octopus at its start (T6, adventure-flow-and-map-guidance: renamed from
@@ -1989,6 +1999,22 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // it — the carrier-visibility repair, general (design.md §2.2). Byte-
   // identical to `target.polyline[0]` for every level that predates this.
   const startMarker = target.start
+  // Where the start octopus's FEET actually land, on an art-corridor level:
+  // beside the first piece's drawn body, not on the route's own point (which
+  // sits on the body's centreline — `TraceStandingArt.at`'s own doc, N3).
+  // Every other level keeps `undefined`, so `startArt` falls back to
+  // `startMarker` exactly as it always has.
+  const startArtAt = useMemo(() => {
+    const piece0 = target.artCorridor?.[0]
+    // Scoped to an UNROTATED piece (`snake1`/`snake2`/`snake4`'s shared
+    // small snake): the "before the box" side maps to a plain horizontal
+    // shift there, verified clear of the sheet and of the next piece down.
+    // A rotated piece (`snake3`'s vertical column) maps that same side to a
+    // different screen axis this fix was not verified against — it keeps
+    // the unmoved default rather than risk an unverified placement.
+    if (!piece0 || !startMarker || piece0.rotate) return undefined
+    return standBesideArtCorridor(startMarker, piece0, OCTOPUS_STAND_MARGIN, true)
+  }, [target.artCorridor, startMarker])
   const directionArrow = useMemo(() => directionArrowOf(target), [target])
   // Where the route ends. A `kind: 'free'` level has no route, so it gets no
   // goal — and no start dot and no arrow either, which is why the standing line
@@ -2495,9 +2521,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // The octopus stands where the route begins, in place of the green dot
         // (see `TraceStandingArt`): with a character already standing there the
         // dot says nothing the octopus does not. Every non-detective level
-        // passes nothing and keeps its dot.
+        // passes nothing and keeps its dot. On an art-corridor level `at`
+        // moves its feet beside the drawn body instead of onto it (N3).
         startArt={
-          drawnPlace ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE } : undefined
+          drawnPlace ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE, at: startArtAt } : undefined
         }
         // Shown wherever the start dot is shown (docs/03 §3): from phase 3 on,
         // "where the letter ends" is real information, not decoration. At the
