@@ -23,10 +23,11 @@ import {
   ZOO_STAR_ART,
 } from '../detective/assets'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
+import { BUBBLE_POP_CSS } from './BubblePop'
 import { placeArt } from '../canvas/placeArt'
 import { isSectorDebug } from '../canvas/devMode'
 import { earnedItems } from '../zoo/backpack'
-import { totalStars } from '../zoo/stars'
+import { recordSeenStars, seenStars, starsIncreased, totalStars } from '../zoo/stars'
 import {
   PLAZA,
   PLAZA_CENTRE,
@@ -133,6 +134,31 @@ html, body, #root { margin: 0; height: 100%; }
 .cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right { background: rgba(255, 255, 255, 0.86); border-radius: 999px; padding: 4px 10px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); }
 .cv-zoo-hud-mid:empty { display: none; }
 .cv-zoo-hud-left img, .cv-zoo-hud-mid img { width: 30px; height: 30px; object-fit: contain; }
+/* T8 item 3 (odd/tasks/prewriting-stage-completion.md): the star pill pops
+   and flashes once, the instant stars reads higher than the session
+   remembers (zoo/stars.ts's starsIncreased/seenStars — ZooMap remounts
+   fresh on every map visit, so this is what makes "you just earned a star"
+   survive the trip back from a level). position: relative here is what lets
+   .cv-zoo-star-spark (below) overlay the pill rather than the whole HUD
+   row. NO BACKTICKS in this block — one inside a comment ends this
+   template literal early (this file's own top-of-file note). */
+.cv-zoo-hud-right { position: relative; }
+.cv-zoo-star-pop > svg { animation: cv-zoo-star-pop-scale 450ms ease-out; transform-origin: 50% 50%; }
+@keyframes cv-zoo-star-pop-scale {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+.cv-zoo-star-spark { position: absolute; inset: -8px; border-radius: 999px; pointer-events: none; opacity: 0; background: radial-gradient(circle, rgba(242, 211, 119, 0.9) 0%, rgba(242, 211, 119, 0) 70%); animation: cv-zoo-star-spark-flash 550ms ease-out; }
+@keyframes cv-zoo-star-spark-flash {
+  0% { opacity: 0; transform: scale(0.5); }
+  35% { opacity: 0.9; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-zoo-star-pop > svg { animation: none; }
+  .cv-zoo-star-spark { display: none; }
+}
 /* T7 (docs/18 D1/§3): the mute toggle sits beside the star pill rather than
    INSIDE it — .cv-zoo-hud-right-group is the actual space-between child now
    (replacing .cv-zoo-hud-right in that role), a plain flex row with no pill
@@ -186,6 +212,13 @@ html, body, #root { margin: 0; height: 100%; }
    itself a percent of the stage) and nothing inside needs a px length -
    unchanged from the single-placement version this replaces. */
 .cv-zoo-bubble { position: absolute; container-type: inline-size; isolation: isolate; }
+/* T8 item 2: the bubble's own pop-in (BubblePop.ts). Applied directly to
+   .cv-zoo-bubble-dismiss — unlike the three stage screens' own bubble box,
+   this one carries no static positional transform of its own (its own
+   mirror/flip rules below target the nested img instead), so there is no
+   composition fight to nest around. NO BACKTICKS in this block — one
+   inside a comment ends this template literal early. */
+${BUBBLE_POP_CSS}
 /* The finale's star burst sits BEHIND the bubble's own picture: the stars
    were sized for the closing screen's large bubble, and on the map's smaller
    one a star landed on the caption itself (measured: over "cuidar" at
@@ -446,6 +479,11 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // caveat) can never show the finale early.
   const finale = spotlightSector === null && everyAdventureFiled(records)
   const stars = totalStars(records)
+  // T8 item 3: "just earned a star" is a comparison against what the child
+  // was shown LAST time the map was up (`zoo/stars.ts`'s own header on why
+  // that memory has to live outside React state). Read BEFORE recording, so
+  // the comparison always sees the OLD total.
+  const starsJustIncreased = starsIncreased(seenStars(), stars)
   const backpack = earnedItems(records)
   // Every animal standing in the zoo right now, across every sector — the
   // SVG world shows each one at its own `animalSpot`; the HUD row below
@@ -508,6 +546,15 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   }, [bubbleKey, reopenNonce])
   const dismissBubble = () => setBubbleVisible(false)
   const reopenBubble = () => setReopenNonce((n) => n + 1)
+  // T8 item 3: records THIS render's total as "seen" so the NEXT map visit's
+  // own comparison (`starsJustIncreased`, above) has something to compare
+  // against. `renderToString` never runs effects (this file's own header,
+  // repeated on every effect here), so an SSR-only test can never observe
+  // this updating the session memory — `starsIncreased` itself is the
+  // directly-testable half (`zoo/stars.test.ts`).
+  useEffect(() => {
+    recordSeenStars(stars)
+  }, [stars])
 
   return (
     <main className="cv-zoo">
@@ -752,8 +799,18 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
             <div className="cv-zoo-hud-right">
               {/* The ONLY way a number may sit beside a picture in this app —
                   `CaptionedArt`'s `label` is required at type level, which is
-                  what makes a bare "12" impossible to ship by accident. */}
-              <CaptionedArt art={ZOO_STAR_ART} label={String(stars)} size={40} />
+                  what makes a bare "12" impossible to ship by accident.
+                  T8 item 3: `cv-zoo-star-pop` only while `starsJustIncreased`
+                  (a genuine rise since the session last showed a total) — the
+                  ordinary case (an unchanged count, or the very first map
+                  this session) never pops. */}
+              <CaptionedArt
+                art={ZOO_STAR_ART}
+                label={String(stars)}
+                size={40}
+                className={starsJustIncreased ? 'cv-zoo-star-pop' : undefined}
+              />
+              {starsJustIncreased && <span className="cv-zoo-star-spark" aria-hidden="true" />}
             </div>
           </div>
         </div>
@@ -787,10 +844,17 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
           >
             {/* A button, not a decorative div: tapping ANYWHERE on the
                 bubble dismisses it (D4 — the old bubble said the same thing
-                forever with no way to close it). */}
+                forever with no way to close it). Keyed on the label (T8
+                item 2): a fresh key each time the TEXT changes forces React
+                to remount this button, replaying `cv-bubble-pop`'s own
+                pop-in — a re-show of the SAME text (Pulpito tapped again
+                before auto-hide) already remounts the whole bubble `<div>`
+                above (`bubbleVisible` going false-then-true), so this key
+                never needs to do that job too. */}
             <button
+              key={bubbleContent.label}
               type="button"
-              className="cv-zoo-bubble-dismiss"
+              className="cv-zoo-bubble-dismiss cv-bubble-pop"
               aria-label="Cerrar el mensaje del Pulpito"
               onClick={dismissBubble}
             >

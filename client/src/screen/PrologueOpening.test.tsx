@@ -119,3 +119,41 @@ describe('prologueRoute (prologue-opening spec "The Opening Is Reachable On Dema
     expect(prologueRoute('', true)).toBeNull()
   })
 })
+
+// T8 items 1-2 (odd/tasks/prewriting-stage-completion.md): idle life on the
+// caretaker, and the bubble's own pop-in. `renderToString` cannot observe an
+// animation (this file's own header repeats the limitation every describe
+// block above already states) — these tests assert the STATIC structure the
+// brief asks for directly: the animation classes exist, each carries a
+// reduced-motion override, and the bubble is wrapped by a fresh key so a
+// text change would remount it.
+describe('PrologueOpening idle life and bubble pop-in (prewriting-stage-completion T8)', () => {
+  it('the caretaker breathes, and blinks, on every plate — both disabled under reduced motion', () => {
+    for (let i = 0; i < PROLOGUE_PLATES.length; i++) {
+      const html = renderToString(<PrologueOpening from={i} onDone={() => {}} />)
+      expect(html, `plate ${i}`).toContain('class="cv-prologue-octopus"')
+      expect(html, `plate ${i}`).toContain('class="cv-octopus-life"')
+      expect(html, `plate ${i}`).toContain('cv-octopus-breathe')
+      expect(html, `plate ${i}`).toContain('cv-octopus-blink')
+      expect(html, `plate ${i}`).toContain('@media (prefers-reduced-motion: reduce)')
+    }
+  })
+
+  it('the bubble pops in on every plate, disabled under reduced motion', () => {
+    for (let i = 0; i < PROLOGUE_PLATES.length; i++) {
+      const html = renderToString(<PrologueOpening from={i} onDone={() => {}} />)
+      expect(html, `plate ${i}`).toContain('class="cv-bubble-pop"')
+      expect(html, `plate ${i}`).toContain('cv-bubble-pop-in')
+      expect(html, `plate ${i}`).toContain('@media (prefers-reduced-motion: reduce) { .cv-bubble-pop')
+    }
+  })
+
+  it('every plate still passes the caption audit with the extra wrapping span', () => {
+    for (let i = 0; i < PROLOGUE_PLATES.length; i++) {
+      const html = renderToString(<PrologueOpening from={i} onDone={() => {}} />)
+      const audit = auditCaptions(html)
+      expect(audit.uncaptioned, `plate ${i}`).toEqual([])
+      expect(audit.imagelessContainers, `plate ${i}`).toEqual([])
+    }
+  })
+})

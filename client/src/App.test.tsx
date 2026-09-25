@@ -27,7 +27,7 @@ vi.mock('./screen/ZooMap', () => ({
   },
 }))
 
-import App, { firstVisit, resolveShell } from './App'
+import App, { firstVisit, resolveShell, shellTransitionKey } from './App'
 import { applyAttempt } from './game/adaptiveTolerance'
 import { openProgressStore } from './game/openProgressStore'
 import { EMPTY_RECORD, type LevelAttempt, type LevelRecord } from './game/types'
@@ -243,3 +243,22 @@ function fakeElement(tagName: string): FakeElement {
   node.ownerDocument = node
   return node
 }
+
+// `shellTransitionKey` (prewriting-stage-completion T8 item 4): the pure
+// identity `ScreenTransition` remounts its wrapper on at the SHELL level.
+describe('shellTransitionKey (prewriting-stage-completion T8 item 4)', () => {
+  it('gives the prologue, the map and the workbench their own stable key, independent of trip', () => {
+    expect(shellTransitionKey({ at: 'prologue' }, 0)).toBe('prologue')
+    expect(shellTransitionKey({ at: 'prologue' }, 7)).toBe('prologue')
+    expect(shellTransitionKey({ at: 'map' }, 0)).toBe('map')
+    expect(shellTransitionKey({ at: 'map' }, 7)).toBe('map')
+    expect(shellTransitionKey({ at: 'workbench' }, 3)).toBe('workbench')
+  })
+
+  it('the game shell key changes with trip — re-entering from the map replays the fade', () => {
+    const first = shellTransitionKey({ at: 'game' }, 1)
+    const second = shellTransitionKey({ at: 'game' }, 2)
+    expect(first).not.toBe(second)
+    expect(shellTransitionKey({ at: 'game' }, 1)).toBe(first)
+  })
+})

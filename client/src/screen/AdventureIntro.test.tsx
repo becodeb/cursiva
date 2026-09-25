@@ -141,3 +141,23 @@ describe('AdventureIntro voice narration (adventure-flow-and-map-guidance T7)', 
     expect(speakOpen).toBeGreaterThan(stageClose)
   })
 })
+
+// T8 items 1-2 (odd/tasks/prewriting-stage-completion.md): idle life on the
+// octopus, and the bubble's own pop-in.
+describe('AdventureIntro idle life and bubble pop-in (prewriting-stage-completion T8)', () => {
+  it('the octopus breathes, and blinks — both disabled under reduced motion', () => {
+    const html = renderToString(<AdventureIntro adventure={adventure} onStart={() => {}} />)
+    expect(html).toContain('class="cv-intro-octopus"')
+    expect(html).toContain('class="cv-octopus-life"')
+    expect(html).toContain('cv-octopus-breathe')
+    expect(html).toContain('cv-octopus-blink')
+    expect(html).toContain('@media (prefers-reduced-motion: reduce)')
+  })
+
+  it('the bubble pops in, disabled under reduced motion', () => {
+    const html = renderToString(<AdventureIntro adventure={adventure} onStart={() => {}} />)
+    expect(html).toContain('class="cv-bubble-pop"')
+    expect(html).toContain('cv-bubble-pop-in')
+    expect(html).toContain('@media (prefers-reduced-motion: reduce) { .cv-bubble-pop')
+  })
+})

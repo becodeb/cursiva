@@ -245,3 +245,41 @@ describe('AdventureClosing voice narration (adventure-flow-and-map-guidance T7)'
     expect(speakOpen).toBeGreaterThan(stageClose)
   })
 })
+
+// T8 items 1-2 (odd/tasks/prewriting-stage-completion.md): idle life on the
+// figure, and the bubble's own pop-in — replayed on EVERY beat, since a beat
+// change re-renders this same component (this file's own header) rather
+// than remounting it.
+describe('AdventureClosing idle life and bubble pop-in (prewriting-stage-completion T8)', () => {
+  it('the figure breathes, and blinks — both disabled under reduced motion', () => {
+    const html = renderToString(
+      <AdventureClosing adventure={sendero} beat={sendero.closingBeat![0]} onContinue={() => {}} />,
+    )
+    expect(html).toContain('class="cv-closing-octopus"')
+    expect(html).toContain('class="cv-octopus-life"')
+    expect(html).toContain('cv-octopus-breathe')
+    expect(html).toContain('cv-octopus-blink')
+    expect(html).toContain('@media (prefers-reduced-motion: reduce)')
+  })
+
+  it('the bubble pops in on every beat of a multi-beat closing, disabled under reduced motion', () => {
+    for (const beat of sendero.closingBeat!) {
+      const html = renderToString(<AdventureClosing adventure={sendero} beat={beat} onContinue={() => {}} />)
+      expect(html, beat.line).toContain('class="cv-bubble-pop"')
+      expect(html, beat.line).toContain('cv-bubble-pop-in')
+      expect(html, beat.line).toContain('@media (prefers-reduced-motion: reduce) { .cv-bubble-pop')
+    }
+  })
+
+  it('still renders the dynamic figure href (beat.figure override) inside the breathing wrapper', () => {
+    const beat = sendero.closingBeat![1]
+    expect(beat.figure).toBeDefined()
+    const html = renderToString(<AdventureClosing adventure={sendero} beat={beat} onContinue={() => {}} />)
+    expect(html).toContain(`src="${beat.figure!.href}"`)
+    expect(html).not.toContain(`src="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
+    const wrapperOpen = html.indexOf('class="cv-closing-octopus"')
+    const imgOpen = html.indexOf('<img', wrapperOpen)
+    expect(wrapperOpen).toBeGreaterThanOrEqual(0)
+    expect(imgOpen).toBeGreaterThan(wrapperOpen)
+  })
+})

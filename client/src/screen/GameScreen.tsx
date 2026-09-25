@@ -19,6 +19,7 @@ import { isDevMode } from '../canvas/devMode'
 import { sectorOf } from '../zoo/sectors'
 import { adventureFor, closingLevel, introLevel } from '../zoo/adventures'
 import { adventureProgress } from '../zoo/progress'
+import ScreenTransition from './ScreenTransition'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
@@ -33,6 +34,33 @@ export type GameView =
   | { view: 'intro'; levelId: string }
   | { view: 'deduce'; caseId: string }
   | { view: 'close'; levelId: string; beat?: number }
+
+/**
+ * The identity `ScreenTransition` (prewriting-stage-completion T8 item 4)
+ * keys its wrapper by: stable across an IN-PLACE update of the same screen,
+ * different whenever the VISIBLE screen actually changes — see
+ * `ScreenTransition.tsx`'s own header for why that distinction is what
+ * keeps a narrated line from ever speaking twice or being cut. `beat` is
+ * deliberately EXCLUDED from the `'close'` key: `AdventureClosing` is
+ * re-rendered with the next beat in place (this file's own `'close'` branch,
+ * design.md D3), never remounted, and the transition wrapper must not fight
+ * that — a key that changed per beat would force a remount `useNarration`
+ * never asked for.
+ */
+export function screenTransitionKey(view: GameView): string {
+  switch (view.view) {
+    case 'map':
+      return 'map'
+    case 'intro':
+      return `intro:${view.levelId}`
+    case 'play':
+      return `play:${view.levelId}`
+    case 'close':
+      return `close:${view.levelId}`
+    case 'deduce':
+      return `deduce:${view.caseId}`
+  }
+}
 
 /**
  * Navigation intents. `next` carries the ALREADY-RESOLVED successor id (null =
@@ -504,10 +532,12 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
     const adventure = introLevel(state.levelId)
     if (adventure) {
       return (
-        <AdventureIntro
-          adventure={adventure}
-          onStart={() => dispatch({ type: 'play', levelId: state.levelId })}
-        />
+        <ScreenTransition screenKey={screenTransitionKey(state)}>
+          <AdventureIntro
+            adventure={adventure}
+            onStart={() => dispatch({ type: 'play', levelId: state.levelId })}
+          />
+        </ScreenTransition>
       )
     }
     // Unknown/stale id: fall through to the ordinary play render below,
@@ -534,16 +564,18 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
       const index = state.beat ?? 0
       const beat = adventure.closingBeat![index] ?? adventure.closingBeat![0]
       return (
-        <AdventureClosing
-          adventure={adventure}
-          beat={beat}
-          onContinue={() => {
-            const action = advanceClosing(state.levelId, index, store.all())
-            if (action.type === 'exit') onExit()
-            else if (action.type === 'enter') setState(action.view)
-            else setState({ view: 'close', levelId: state.levelId, beat: action.beat })
-          }}
-        />
+        <ScreenTransition screenKey={screenTransitionKey(state)}>
+          <AdventureClosing
+            adventure={adventure}
+            beat={beat}
+            onContinue={() => {
+              const action = advanceClosing(state.levelId, index, store.all())
+              if (action.type === 'exit') onExit()
+              else if (action.type === 'enter') setState(action.view)
+              else setState({ view: 'close', levelId: state.levelId, beat: action.beat })
+            }}
+          />
+        </ScreenTransition>
       )
     }
     // Unknown/stale id: fall through to the ordinary play render below, the
@@ -573,7 +605,7 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
       else dispatch(action)
     }
     return (
-      <>
+      <ScreenTransition screenKey={screenTransitionKey(state)}>
         <LevelPlay
           key={state.levelId}
           level={level}
@@ -610,7 +642,7 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
             Saltar nivel (dev)
           </button>
         )}
-      </>
+      </ScreenTransition>
     )
   }
 
@@ -623,34 +655,36 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
     const kase = DETECTIVE_CASES.find((k) => k.id === state.caseId) ?? DETECTIVE_CASES[0]
     const solvedId = caseSolvedId(kase.id)
     return (
-      <Deduction
-        kase={kase}
-        solved={store.get(solvedId).approvals >= 1}
-        onSolved={() => {
-          store.save(solvedId, { ...EMPTY_RECORD, approvals: 1 })
-          setVersion((n) => n + 1)
-        }}
-        onExit={onExit}
-      />
+      <ScreenTransition screenKey={screenTransitionKey(state)}>
+        <Deduction
+          kase={kase}
+          solved={store.get(solvedId).approvals >= 1}
+          onSolved={() => {
+            store.save(solvedId, { ...EMPTY_RECORD, approvals: 1 })
+            setVersion((n) => n + 1)
+          }}
+          onExit={onExit}
+        />
+      </ScreenTransition>
     )
   }
 
   return (
-    <>
-    <LevelMap
-      key={version}
-      store={store}
-      finished={state.finished}
-      onPlay={(levelId) => dispatch({ type: 'play', levelId })}
-      onReset={() => {
-        store.reset()
-        setVersion((n) => n + 1)
-        dispatch({ type: 'reset' })
-      }}
-      onToggleTestMode={() => setVersion((n) => n + 1)}
-    />
-    {footer}
-    </>
+    <ScreenTransition screenKey={screenTransitionKey(state)}>
+      <LevelMap
+        key={version}
+        store={store}
+        finished={state.finished}
+        onPlay={(levelId) => dispatch({ type: 'play', levelId })}
+        onReset={() => {
+          store.reset()
+          setVersion((n) => n + 1)
+          dispatch({ type: 'reset' })
+        }}
+        onToggleTestMode={() => setVersion((n) => n + 1)}
+      />
+      {footer}
+    </ScreenTransition>
   )
 }
 

@@ -64,6 +64,7 @@ import GameScreen, {
   resolveCloseAction,
   resolveEnterAction,
   resolveNextAction,
+  screenTransitionKey,
   SKIP_ATTEMPT,
   type GameView,
 } from './GameScreen'
@@ -801,5 +802,41 @@ describe('advanceClosing', () => {
       expect(adventure.closingBeat, adventureId).toHaveLength(1)
       expect(advanceClosing(levelId, 0, {}), levelId).toEqual({ type: 'exit' })
     }
+  })
+})
+
+// `screenTransitionKey` (prewriting-stage-completion T8 item 4): the pure
+// identity `ScreenTransition` remounts its wrapper on, keeping a real screen
+// switch and a same-screen in-place update tellable apart without a DOM.
+describe('screenTransitionKey (prewriting-stage-completion T8 item 4)', () => {
+  it('gives every view a key that includes its own discriminating id', () => {
+    expect(screenTransitionKey({ view: 'map', finished: false })).toBe('map')
+    expect(screenTransitionKey({ view: 'map', finished: true })).toBe('map')
+    expect(screenTransitionKey({ view: 'intro', levelId: 'glass1' })).toBe('intro:glass1')
+    expect(screenTransitionKey({ view: 'play', levelId: 'glass1' })).toBe('play:glass1')
+    expect(screenTransitionKey({ view: 'close', levelId: 'sand4' })).toBe('close:sand4')
+    expect(screenTransitionKey({ view: 'deduce', caseId: 'duck' })).toBe('deduce:duck')
+  })
+
+  it('two different views never collide on the same key', () => {
+    const keys = [
+      screenTransitionKey({ view: 'map', finished: false }),
+      screenTransitionKey({ view: 'intro', levelId: 'glass1' }),
+      screenTransitionKey({ view: 'play', levelId: 'glass1' }),
+      screenTransitionKey({ view: 'close', levelId: 'glass1' }),
+      screenTransitionKey({ view: 'deduce', caseId: 'glass1' }),
+    ]
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  // The load-bearing case: a closing beat advancing must NOT change the key,
+  // or the transition wrapper would force a remount `AdventureClosing`'s own
+  // "re-rendered with the next beat, never remounted" contract (this file's
+  // own header on `advanceClosing`) never asked for — and a remount here
+  // would double-fire `useNarration`'s mount-time speak.
+  it('a beat change within the SAME closing screen keeps the SAME key', () => {
+    const beat0 = screenTransitionKey({ view: 'close', levelId: 'sand4', beat: 0 })
+    const beat1 = screenTransitionKey({ view: 'close', levelId: 'sand4', beat: 1 })
+    expect(beat1).toBe(beat0)
   })
 })

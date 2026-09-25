@@ -523,3 +523,33 @@ describe('ZooMap accessibility (finish-mvp-roadmap U5)', () => {
     expect(focusableSectors).not.toContain('sendero')
   })
 })
+
+// T8 items 2-3 (odd/tasks/prewriting-stage-completion.md): the Pulpito
+// bubble's own pop-in, and the star pill's pop+sparkle. `renderToString`
+// never runs `useEffect` (this file's own header repeats the limitation
+// every other describe block above already states), so the session memory
+// `starsIncreased` compares against (`zoo/stars.ts`) is never written from
+// an SSR-only test — every render in THIS file therefore sees "no earlier
+// total", the documented never-flash-on-first-paint case.
+describe('ZooMap bubble pop-in and star sparkle (prewriting-stage-completion T8)', () => {
+  it('the bubble dismiss button pops in, disabled under reduced motion', () => {
+    const html = render(filed(...estanque.adventureIds))
+    expect(html).toContain('class="cv-zoo-bubble-dismiss cv-bubble-pop"')
+    expect(html).toContain('cv-bubble-pop-in')
+    expect(html).toContain('@media (prefers-reduced-motion: reduce) { .cv-bubble-pop')
+  })
+
+  it('the star pop/sparkle CSS exists, and is disabled under reduced motion', () => {
+    const html = render()
+    expect(html).toContain('cv-zoo-star-pop-scale')
+    expect(html).toContain('cv-zoo-star-spark-flash')
+    expect(html).toContain('.cv-zoo-star-pop > svg { animation: none; }')
+    expect(html).toContain('.cv-zoo-star-spark { display: none; }')
+  })
+
+  it('never pops or sparkles the star on an ordinary render (no earlier total to compare against yet)', () => {
+    const html = render(filed(...estanque.adventureIds))
+    expect(html).not.toContain('cv-zoo-star-pop"')
+    expect(html).not.toContain('class="cv-zoo-star-spark"')
+  })
+})
