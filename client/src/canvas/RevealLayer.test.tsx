@@ -3,7 +3,7 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { LIGHT_BAND_RATIOS } from '../levels/revealGrid'
-import { RevealLayer } from './RevealLayer'
+import { marginBands, RevealLayer } from './RevealLayer'
 import type { TraceReveal } from './TraceCanvas'
 
 const sheetBounds = { x: 0, y: 0, width: 1000, height: 600 }
@@ -826,5 +826,91 @@ describe('RevealLayer', () => {
     const crispCount = (html.match(/shape-rendering="crispEdges"/g) ?? []).length
     expect(rectCount).toBe(2)
     expect(crispCount).toBe(rectCount)
+  })
+})
+
+describe('marginBands (T7 rework, "the art is drawn twice") — the outer-margin veil patch geometry', () => {
+  it('returns [] when outer and inner coincide (no growth — every pre-T7 caller)', () => {
+    expect(marginBands(sheetBounds, sheetBounds)).toEqual([])
+  })
+
+  it('grown on height only: two bands (top, bottom), each spanning the FULL outer width', () => {
+    const outer = { x: 0, y: -50, width: 1000, height: 700 } // sheetBounds grown by 50 each side
+    const bands = marginBands(outer, sheetBounds)
+    expect(bands).toEqual([
+      { x: 0, y: -50, width: 1000, height: 50 }, // top
+      { x: 0, y: 600, width: 1000, height: 50 }, // bottom
+    ])
+  })
+
+  it('grown on width only: two bands (left, right), each spanning only the INNER height', () => {
+    const outer = { x: -80, y: 0, width: 1160, height: 600 }
+    const bands = marginBands(outer, sheetBounds)
+    expect(bands).toEqual([
+      { x: -80, y: 0, width: 80, height: 600 }, // left
+      { x: 1000, y: 0, width: 80, height: 600 }, // right
+    ])
+  })
+
+  it('the four bands, together with the inner box, exactly tile the outer box with no gap and no overlap (both axes grown)', () => {
+    const outer = { x: -20, y: -30, width: 1040, height: 660 }
+    const bands = marginBands(outer, sheetBounds)
+    expect(bands.length).toBe(4)
+    const totalArea = bands.reduce((sum, b) => sum + b.width * b.height, 0) + sheetBounds.width * sheetBounds.height
+    expect(totalArea).toBe(outer.width * outer.height)
+  })
+})
+
+describe('RevealLayer displayBounds (T7 rework) — the outer margin and the expanded night veil', () => {
+  const displayBounds = { x: 0, y: -50, width: 1000, height: 700 }
+
+  it('defaults displayBounds to sheetBounds — every pre-T7 caller renders byte-identical (no margin, no growth)', () => {
+    const reveal: TraceReveal = { fill: '#64726b', tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }] }
+    const withDefault = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+    const withExplicitSame = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={sheetBounds} />)
+    expect(withDefault).toBe(withExplicitSame)
+    expect(withDefault).not.toContain('data-reveal-margin')
+  })
+
+  it('the glass margin patch uses reveal.fill at the same 0.78 opacity the silhouette itself paints at', () => {
+    const reveal: TraceReveal = { fill: '#64726b', tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }] }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />)
+    expect((html.match(/data-reveal-margin="true"/g) ?? []).length).toBe(2) // top + bottom, height-only growth
+    expect(html).toMatch(/data-reveal-margin="true"[^>]*fill="#64726b"[^>]*opacity="0\.78"/)
+  })
+
+  it('the sand/leaves/mud margin patches use each policy\'s own opaque base tone, not reveal.fill', () => {
+    const sandHtml = renderToString(
+      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'sand', tiles: [] }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
+    )
+    expect(sandHtml).toMatch(/data-reveal-margin="true"[^>]*fill="#c4945c"/) // SAND_BASE
+    expect(sandHtml).not.toMatch(/data-reveal-margin="true"[^>]*fill="#7a6a58"/)
+
+    const leafHtml = renderToString(
+      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'leaves', tiles: [] }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
+    )
+    expect(leafHtml).toMatch(/data-reveal-margin="true"[^>]*fill="#6e7a4a"/) // LEAF_BASE
+
+    const mudHtml = renderToString(
+      <RevealLayer reveal={{ fill: '#7a6a58', visual: 'mud', tiles: [] }} sheetBounds={sheetBounds} displayBounds={displayBounds} />,
+    )
+    expect(mudHtml).toMatch(/data-reveal-margin="true"[^>]*fill="#5a4632"/) // MUD_BASE
+  })
+
+  it('the night veil grows its OWN full-cover darkness to displayBounds instead of a separate margin patch — hole positions untouched', () => {
+    const reveal: TraceReveal = {
+      fill: '#12161f',
+      tiles: [{ x: 480, y: 250, w: 100, h: 100, opacity: 1 }], // one active source, centre (530, 300)
+    }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />)
+    expect(html).not.toContain('data-reveal-margin') // night uses its own base rect, not the generic patch
+    const base = html.match(/data-night-veil-base="true" d="([^"]+)"/)?.[1] ?? ''
+    // Grows to displayBounds's own rectangle...
+    expect(base.startsWith(`M ${displayBounds.x} ${displayBounds.y} H ${displayBounds.x + displayBounds.width} V ${displayBounds.y + displayBounds.height} H ${displayBounds.x} Z`)).toBe(true)
+    // ...and the hole is still centred on the SAME (530, 300) — absolute
+    // content coordinates, unaffected by how far the darkness now reaches.
+    // circlePath's own M is (cx - r, cy); the base rect's hole radius is
+    // the source's own 50 scaled by LIGHT_BAND_RATIOS[0] (0.875).
+    expect(base).toContain(`M ${530 - 50 * LIGHT_BAND_RATIOS[0]} 300`)
   })
 })

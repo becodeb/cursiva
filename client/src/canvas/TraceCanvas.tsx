@@ -67,6 +67,60 @@ const ROOTS_GUIDE_Y = 540 // descender guide: bottom of the roots zone
  * channel IS exposed sheet, so it must be exactly this value. */
 export const SHEET_PAPER = '#fdfcf7'
 
+/**
+ * Grows `box` on its SHORT axis only, symmetric around its own centre, until
+ * its aspect ratio (width/height) matches `targetAspect` — the T7 rework
+ * (`odd/tasks/prewriting-stage-completion.md`, "the image should fill the
+ * screen"): the content's own coordinates never move, only the RECTANGLE
+ * drawn around them grows, so scoring/geometry stay untouched. The backdrop
+ * `<image>` is sized to this SAME box with `xMidYMid slice`, already
+ * centred on it, so recomputing the fit for a bigger box that shares the
+ * exact centre is mathematically identical to enlarging the ALREADY-VISIBLE
+ * crop around its own centre only as far as the growth demands — never a
+ * second, independently-fit copy (the picture-in-picture defect this
+ * replaces).
+ *
+ * A non-finite/non-positive `targetAspect`, or a box with zero area, returns
+ * `box` unchanged — no NaN/Infinity can reach a `viewBox` attribute.
+ */
+export function expandToAspect(box: ArtBox, targetAspect: number): ArtBox {
+  if (!(targetAspect > 0) || !(box.width > 0) || !(box.height > 0)) return box
+  const boxAspect = box.width / box.height
+  if (boxAspect > targetAspect) {
+    // Box reads WIDER than the target: height is the short axis.
+    const height = box.width / targetAspect
+    return { x: box.x, y: box.y - (height - box.height) / 2, width: box.width, height }
+  }
+  if (boxAspect < targetAspect) {
+    // Box reads NARROWER than the target: width is the short axis.
+    const width = box.height * targetAspect
+    return { x: box.x - (width - box.width) / 2, y: box.y, width, height: box.height }
+  }
+  return box
+}
+
+/**
+ * `expandToAspect`'s own math, WIDTH LOCKED — the scrolling-camera capability
+ * needs this split: `box.x`/`box.width` there are the moving WINDOW
+ * (`originX`/`camera.viewWidth`), imperatively rewritten every frame by the
+ * rAF loop below, never by this function. Growing width here would mean the
+ * loop and this call could disagree about the window's own extent — an
+ * unrelated resize firing between frames would either fight the live scroll
+ * or silently widen the world window mid-run, changing how much of the
+ * corridor is visible ahead of the child. Growing HEIGHT only never touches
+ * that axis, so it is always safe to recompute on every render, and it is
+ * also the only axis every shipped camera level's own backdrop (a wide
+ * lagoon, `zoo/backdrops.ts`) genuinely needs at the required viewports —
+ * the world window is already wider than any of them. Never returns a
+ * height smaller than `box.height`: a target aspect wider than the box's
+ * own is accepted as-is (no width to grow into), never shrunk to compensate.
+ */
+export function expandHeightToAspect(box: ArtBox, targetAspect: number): ArtBox {
+  if (!(targetAspect > 0) || !(box.width > 0) || !(box.height > 0)) return box
+  const height = Math.max(box.height, box.width / targetAspect)
+  return { x: box.x, y: box.y - (height - box.height) / 2, width: box.width, height }
+}
+
 /** The animated demo stroke's shipped colour — chalk-blue, readable over
  * paper. Extracted from the inline literal so `backdrop?.channel`'s own
  * contrast rule (design.md §3.2) can name it: `#0284c7` clears the paper by
@@ -857,6 +911,30 @@ export default function TraceCanvas({
   // the visible paper is exactly the sheet, whatever the box shape.
   const contain = fit === 'contain'
   const svgRef = useRef<SVGSVGElement | null>(null)
+  // T7 rework (`odd/tasks/prewriting-stage-completion.md`, "the art is drawn
+  // twice"): the container's own on-screen aspect ratio (width/height),
+  // measured via `ResizeObserver` rather than assumed — the SVG's own CSS
+  // box (`width:100%, height:100%` under `contain`) is driven by its FLEX
+  // parent, which varies by viewport and by how much room the header/footer
+  // chrome rows claim at each breakpoint (`LevelPlay.tsx`'s own `LAYOUT_CSS`
+  // media queries), so no fixed constant could stand in for it. `null`
+  // before the first measurement (SSR, and the very first client paint) is
+  // the exact "no expansion" default `expandToAspect`/`expandHeightToAspect`
+  // both already treat as a no-op — a level rendered before layout settles
+  // is BYTE-IDENTICAL to before this rework, the same real-browser-only
+  // split this file's own rAF-driven ink loop already lives by.
+  const [containerAspect, setContainerAspect] = useState<number | null>(null)
+  useEffect(() => {
+    if (!contain) return undefined
+    const el = svgRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const observer = new ResizeObserver((entries) => {
+      const box = entries[0]?.contentRect
+      if (box && box.width > 0 && box.height > 0) setContainerAspect(box.width / box.height)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [contain])
   const inkRef = useRef<SVGPathElement | null>(null)
   const drawingRef = useRef(false)
   const { bind, pointsRef, clearStrokes, abortStroke, isDrawing } = useTraceInput(svgRef, {
@@ -938,6 +1016,44 @@ export default function TraceCanvas({
   cameraRef.current = camera
   const viewBoxWidthRef = useRef(viewBoxWidth)
   viewBoxWidthRef.current = viewBoxWidth
+  // The WINDOW — the exact rectangle the `<svg>`'s own `viewBox` attribute
+  // and the backdrop `<image>` were already sized to before this rework
+  // (`camera?.originX ?? 0` / `camera?.viewWidth ?? viewBoxWidth`,
+  // `viewBoxY`/`viewBoxHeight`) — named once here instead of staying two
+  // separate inline literals, so the expansion below and the plain render
+  // read the exact same box.
+  const windowBounds: ArtBox = {
+    x: camera?.originX ?? 0,
+    y: viewBoxY,
+    width: camera?.viewWidth ?? viewBoxWidth,
+    height: viewBoxHeight,
+  }
+  // T7 rework: grow the WINDOW to the container's own aspect ratio, so the
+  // backdrop `<image>` below — sized to THIS box, with the SAME `xMidYMid
+  // slice` fit it always used — covers the whole viewport as one
+  // continuous picture instead of leaving letterbox bars for a separate CSS
+  // layer to paper over (the picture-in-picture defect this replaces).
+  // Gated on `backdrop`: a level with no backdrop image has nothing to
+  // extend, so its `viewBox` stays byte-identical to before. A camera level
+  // grows HEIGHT ONLY (`expandHeightToAspect`'s own header) — the moving
+  // window's WIDTH stays exactly what the rAF loop already scrolls.
+  const displayBounds: ArtBox =
+    contain && backdrop && containerAspect !== null
+      ? camera
+        ? expandHeightToAspect(windowBounds, containerAspect)
+        : expandToAspect(windowBounds, containerAspect)
+      : windowBounds
+  // Mirrored into refs for the SAME reason `viewBoxWidthRef`/`cameraRef`
+  // are above: the rAF loop's camera branch (below) imperatively rewrites
+  // the live `viewBox` attribute every frame, inside a `useEffect` whose
+  // own dependency array does not include these — reading the bare closure
+  // values (as the pre-T7 code did, when they were always constant for a
+  // level's whole mount) would go stale the instant a resize changes
+  // `containerAspect` mid-run.
+  const displayYRef = useRef(displayBounds.y)
+  displayYRef.current = displayBounds.y
+  const displayHeightRef = useRef(displayBounds.height)
+  displayHeightRef.current = displayBounds.height
   // The backdrop `<image>` itself, mutated the SAME way the `<svg>`'s own
   // `viewBox` is (post-verify amendment A4, design.md §3): pinned to the
   // WINDOW on a camera level, so the lagoon's banks and reeds stay in frame
@@ -1069,7 +1185,13 @@ export default function TraceCanvas({
         })
         if (next !== cameraXRef.current) {
           cameraXRef.current = next
-          svg.setAttribute('viewBox', `${next} ${viewBoxY} ${cam.viewWidth} ${viewBoxHeight}`)
+          // `displayYRef`/`displayHeightRef`, not the bare `viewBoxY`/
+          // `viewBoxHeight` closure values — T7 rework, see their own
+          // declaration comment above: only WIDTH is pinned to `cam
+          // .viewWidth` (`expandHeightToAspect`'s own contract), the
+          // vertical expansion can still change after this effect's own
+          // setup if a resize updates `containerAspect` mid-run.
+          svg.setAttribute('viewBox', `${next} ${displayYRef.current} ${cam.viewWidth} ${displayHeightRef.current}`)
           // The backdrop image's `x` follows the SAME origin, one statement
           // later, so the lagoon and the window can never disagree about
           // where the camera is (post-verify amendment A4, design.md §3).
@@ -1156,10 +1278,11 @@ export default function TraceCanvas({
   return (
     <svg
       ref={svgRef}
-      // The WINDOW, not the world. Without a camera this is the shipped
-      // expression exactly: `camera` is absent, so the origin is 0 and the
-      // width is `viewBoxWidth` (`scrolling-camera` capability).
-      viewBox={`${camera?.originX ?? 0} ${viewBoxY} ${camera?.viewWidth ?? viewBoxWidth} ${viewBoxHeight}`}
+      // The WINDOW, not the world — grown to `displayBounds` (T7 rework)
+      // when a backdrop needs the extra room; byte-identical to the old
+      // inline expression (`camera?.originX ?? 0`/`viewBoxY`/`camera
+      // ?.viewWidth ?? viewBoxWidth`/`viewBoxHeight`) whenever it is not.
+      viewBox={`${displayBounds.x} ${displayBounds.y} ${displayBounds.width} ${displayBounds.height}`}
       width="100%"
       height={contain ? '100%' : undefined}
       // The SVG default, spelled out: `contain` depends on it to scale the
@@ -1210,20 +1333,27 @@ export default function TraceCanvas({
         // no `<mask>`, `<pattern>`, `<clipPath>`, `<defs>`, `useId`, no
         // `url(#…)` (this file's own scar, above).
         <g pointerEvents="none">
-          <rect x={0} y={viewBoxY} width={viewBoxWidth} height={viewBoxHeight} fill={backdrop.quiet} />
-          {/* Pinned to the WINDOW, not the world, on a camera level
-              (post-verify amendment A4, design.md §3): `x`/`width` mirror the
-              `<svg>`'s own `viewBox` expression above exactly — `camera`
-              absent falls back to `0`/`viewBoxWidth`, so a non-camera level's
-              markup is untouched. The rAF loop mutates `x` imperatively,
-              in step with the `viewBox` write, via `backdropImgRef`. */}
+          <rect x={displayBounds.x} y={displayBounds.y} width={displayBounds.width} height={displayBounds.height} fill={backdrop.quiet} />
+          {/* Sized to `displayBounds` (T7 rework), the SAME box the `<svg>`'s
+              own `viewBox` above uses — `xMidYMid slice`, already centred on
+              that box, is what turns "the window grew" into "more of the
+              SAME picture is now visible", never a second independently-fit
+              copy (`expandToAspect`'s own header). Byte-identical to the old
+              window-sized rect whenever `displayBounds` has not grown. The
+              rAF loop mutates `x` imperatively, in step with the `viewBox`
+              write, via `backdropImgRef` — only `x` ever needs to, since a
+              camera level's own width/height are pinned
+              (`expandHeightToAspect`'s own contract: width never moves,
+              height only through `displayYRef`/`displayHeightRef`, which
+              React's ordinary re-render already keeps this JSX in sync
+              with). */}
           <image
             ref={backdropImgRef}
             href={backdrop.href}
-            x={camera?.originX ?? 0}
-            y={viewBoxY}
-            width={camera?.viewWidth ?? viewBoxWidth}
-            height={viewBoxHeight}
+            x={displayBounds.x}
+            y={displayBounds.y}
+            width={displayBounds.width}
+            height={displayBounds.height}
             preserveAspectRatio="xMidYMid slice"
           />
         </g>
@@ -1236,7 +1366,13 @@ export default function TraceCanvas({
         // only thing between the backdrop and the guides. Plain `<rect>`s,
         // this file's own scar (above): no `<mask>`, `<pattern>`,
         // `<clipPath>`, `<defs>`, `useId`, no `url(#…)`.
-        <RevealLayer reveal={reveal} sheetBounds={sheetBounds} />
+        //
+        // `displayBounds` (T7 rework): the expanded window, so the night
+        // veil's own full-cover darkness and the cleaning policies' outer
+        // margin patch (`RevealLayer`'s own header) reach the same area the
+        // backdrop `<image>` now covers — never leaving unclean/undark art
+        // visible in the margin `sheetBounds` alone would leave uncovered.
+        <RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />
       )}
       {waypoints && (
         // The waypoint fold's render projection (`free-trail-waypoints`

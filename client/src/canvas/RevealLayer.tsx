@@ -133,8 +133,51 @@ function nightVeilLayers(
 export interface RevealLayerProps {
   reveal: TraceReveal
   /** The visible sheet band, for `clampArtBox` — the same `sheetBounds`
-   *  every other art layer in `TraceCanvas.tsx` clamps against. */
+   *  every other art layer in `TraceCanvas.tsx` clamps against. Also what
+   *  `reveal.tiles` itself is scored/positioned against — NEVER grown, so
+   *  scoring and geometry stay exactly where they were before the T7
+   *  rework below. */
   sheetBounds: ArtBox
+  /**
+   * T7 rework (`odd/tasks/prewriting-stage-completion.md`, "the art is
+   * drawn twice"): the EXPANDED window `TraceCanvas.tsx`'s own backdrop
+   * `<image>` now covers, when it grew past `sheetBounds` to fill the
+   * viewport. Defaults to `sheetBounds` (no margin, no growth) — every
+   * existing caller (`RevealLayer.test.tsx`, a level with no backdrop) is
+   * byte-identical without passing it.
+   *
+   * Used two ways, never for `reveal.tiles` positioning itself: the night
+   * veil's own full-cover darkness grows to this box (so the child never
+   * sees a lit ring of backdrop peeking past a small dark rectangle), and
+   * every OTHER policy (glass/sand/leaves/mud, and the plain per-tile
+   * fallback) gets a flat "outer margin" patch covering exactly
+   * `displayBounds` minus `sheetBounds` (`marginBands` below) — the pile
+   * silhouette itself stays scored against `sheetBounds` alone, so the
+   * margin is a separate, permanently-covered band, never a wider grid.
+   */
+  displayBounds?: ArtBox
+}
+
+/**
+ * The frame `outer` minus `inner`, as up to four non-overlapping bands (top,
+ * bottom, left, right) — standard border-box decomposition, used for the T7
+ * rework's "outer margin" veil patch (`RevealLayerProps.displayBounds`'s own
+ * header). Top/bottom span `outer`'s FULL width (covering the corners too);
+ * left/right span only `inner`'s height, so the four never overlap. Returns
+ * `[]` when the two boxes coincide (no growth — every pre-T7 caller). Pure,
+ * no dependency on `reveal` or any policy.
+ */
+export function marginBands(outer: ArtBox, inner: ArtBox): ArtBox[] {
+  const bands: ArtBox[] = []
+  if (inner.y > outer.y) bands.push({ x: outer.x, y: outer.y, width: outer.width, height: inner.y - outer.y })
+  const innerBottom = inner.y + inner.height
+  const outerBottom = outer.y + outer.height
+  if (outerBottom > innerBottom) bands.push({ x: outer.x, y: innerBottom, width: outer.width, height: outerBottom - innerBottom })
+  if (inner.x > outer.x) bands.push({ x: outer.x, y: inner.y, width: inner.x - outer.x, height: inner.height })
+  const innerRight = inner.x + inner.width
+  const outerRight = outer.x + outer.width
+  if (outerRight > innerRight) bands.push({ x: innerRight, y: inner.y, width: outerRight - innerRight, height: inner.height })
+  return bands
 }
 
 const GLASS_GRIME_FILL = '#64726b'
@@ -826,7 +869,7 @@ function wholePaneLeafRakes(sheetBounds: ArtBox): readonly { path: string; probe
   })
 }
 
-export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
+export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }: RevealLayerProps) {
   const glassFog = isGlassFog(reveal.fill)
   const nightVeil = isNightVeil(reveal.fill)
   const sand = reveal.visual === 'sand'
@@ -860,10 +903,37 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
   const hiddenArt = reveal.art?.filter((obj) => !obj.revealed) ?? []
   const revealedArt = reveal.art?.filter((obj) => obj.revealed) ?? []
   const nightVeilHolesList = nightVeil ? nightVeilHoles(reveal.tiles) : null
-  const nightVeilGeometry = nightVeilHolesList ? nightVeilLayers(nightVeilHolesList, sheetBounds) : null
+  // T7 rework: the night darkness's own full-sheet rectangle grows to
+  // `displayBounds` (`RevealLayerProps`'s own header) — the hole positions
+  // (`nightVeilHolesList`, absolute `cx`/`cy`/`radius`) are untouched, so a
+  // found object or the live torch lights exactly the same spot it always
+  // did; only how far the surrounding darkness now reaches changes.
+  const nightVeilGeometry = nightVeilHolesList ? nightVeilLayers(nightVeilHolesList, displayBounds) : null
+  // Every OTHER policy (glass/sand/leaves/mud, and the plain per-tile
+  // fallback) keeps its pile/tile geometry scored against `sheetBounds`
+  // alone (untouched), and gets this flat patch for the margin
+  // `displayBounds` added beyond it — `[]` when there is no growth, the
+  // pre-T7 case. One flat fill per policy, matching that policy's own
+  // "fully covered" tone, so nothing outside the scored grid ever reads as
+  // cleaner than what the child has actually not touched yet.
+  const margin = nightVeil ? [] : marginBands(displayBounds, sheetBounds)
+  const marginFill = glassFog ? reveal.fill : sand ? SAND_BASE : leaves ? LEAF_BASE : mud ? MUD_BASE : reveal.fill
+  const marginOpacity = glassFog ? 0.78 : 1
 
   return (
     <g pointerEvents="none">
+      {margin.map((band, idx) => (
+        <rect
+          key={`reveal-margin-${idx}`}
+          data-reveal-margin="true"
+          x={band.x}
+          y={band.y}
+          width={band.width}
+          height={band.height}
+          fill={marginFill}
+          opacity={marginOpacity}
+        />
+      ))}
       {hiddenArt.map((obj, idx) => (
         <image
           key={`reveal-art-hidden-${idx}`}
@@ -1115,9 +1185,13 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
         ))
       )}
       {nightVeil && reveal.light?.complete && (
+        // T7 rework: `displayBounds`, not `sheetBounds` — the completion
+        // wash is decorative chrome over the SAME area the darkness itself
+        // just covered (above), so it grows with it rather than leaving a
+        // smaller glow floating inside a bigger picture.
         <g data-night-success-glow="true">
-          <path d={`M ${sheetBounds.x} ${sheetBounds.y} H ${sheetBounds.x + sheetBounds.width} V ${sheetBounds.y + sheetBounds.height} H ${sheetBounds.x} Z`} fill={NIGHT_SUCCESS_WASH} opacity={0.16} />
-          <circle cx={sheetBounds.x + sheetBounds.width * 0.5} cy={sheetBounds.y + sheetBounds.height * 0.45} r={Math.min(sheetBounds.width, sheetBounds.height) * 0.58} fill={NIGHT_SUCCESS_WASH} opacity={0.2} />
+          <path d={sheetRectPath(displayBounds)} fill={NIGHT_SUCCESS_WASH} opacity={0.16} />
+          <circle cx={displayBounds.x + displayBounds.width * 0.5} cy={displayBounds.y + displayBounds.height * 0.45} r={Math.min(displayBounds.width, displayBounds.height) * 0.58} fill={NIGHT_SUCCESS_WASH} opacity={0.2} />
         </g>
       )}
       {/* Defect fix (play-test 2026-09-25, T2 item 2: "a circle/halo already

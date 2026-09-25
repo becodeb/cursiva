@@ -575,39 +575,20 @@ html, body, #root { margin: 0; padding: 0; }
    * The fix is not to remove the bars — a contain fit needs them — but to make
    * them CONTINUOUS with whatever the sheet's own edge paints. */
   background: ${SHEET_PAPER};
-  /* Stacking context for '.cv-backdrop-fill' below (T7): every ordinary
-   * child of '.cv-play' is normal flow / z-index:auto, which already paints
-   * above a 'position:fixed; z-index:0' sibling — this only has to exist so
-   * that ordering is asserted, not accidental. */
-  position: relative;
-  z-index: 1;
 }
 /* …and on a detective trail the sheet's edge is grass, so the page is grass.
  * One token, imported from the canvas that paints the field, so the two can
  * never drift into two nearly-identical greens. */
 .cv-play.cv-play-ground { background: ${GROUND_FIELD}; }
-/* T7 ("the image should fill 100%… unless it looks bad"): the adventure's
- * own backdrop art, full-viewport and cover-cropped, behind EVERY layer of
- * chrome and behind '.cv-sheet' itself. '.cv-sheet' still lets TraceCanvas
- * render its OWN contained (never cropped) copy of the same picture at the
- * corridor's exact scale — the 'contain' fit's preserveAspectRatio
- * "xMidYMid meet" is what keeps the corridor geometry fully on screen
- * (never true of a slice/cover fit), so that inner copy cannot move to
- * this rule. This layer is what used to be the flat 'background:
- * backdrop.quiet' fill in the letterbox bars around it (still the <main>
- * inline style's own fallback while the image decodes) — now every pixel
- * of the viewport the sheet does not cover shows the SAME scene
- * continuing, not a flat colour band. */
-.cv-backdrop-fill {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 0;
-  pointer-events: none;
-}
-/* display:contents makes these wrappers invisible to layout, so the tall layout
+/* T7 rework ("the art is drawn twice" — the first pass's separate CSS
+ * .cv-backdrop-fill layer removed outright): the adventure's own backdrop
+ * art now fills the whole viewport as ONE continuous picture INSIDE
+ * TraceCanvas's own SVG (canvas/TraceCanvas.tsx's expandToAspect/
+ * expandHeightToAspect grow the viewBox itself to the container's aspect
+ * ratio; the backdrop image is sized to that same grown box). .cv-sheet
+ * needs no special CSS for this at all — no second layer, no object-fit,
+ * nothing to keep in sync with the canvas's own placement.
+ * display:contents makes these wrappers invisible to layout, so the tall layout
  * is exactly the flat column it always was. A short viewport turns each one into
  * a single row, which is the only way two sibling rows can be merged without
  * duplicating the markup. */
@@ -2552,16 +2533,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       data-level-id={level.id}
     >
       <style>{LAYOUT_CSS}</style>
-      {/* T7 ("the image should fill the screen"): the SAME picture
-       * `backdropEntry` hands `TraceCanvas` for its own contained copy, now
-       * ALSO behind everything as a full-viewport cover crop — see
-       * `.cv-backdrop-fill`'s own LAYOUT_CSS comment for why the two never
-       * need to be pixel-aligned. `alt=""`/`aria-hidden`: purely decorative,
-       * the level's own hint already carries the accessible narration
-       * (`useNarration` above). */}
-      {backdropEntry && (
-        <img className="cv-backdrop-fill" src={backdropEntry.art.href} alt="" aria-hidden="true" />
-      )}
       <div className="cv-top">
       <header className={`cv-head${zooSign || hasProgressBar ? ' cv-head-wide' : ''}`}>
         <button

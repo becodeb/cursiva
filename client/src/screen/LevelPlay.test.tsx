@@ -1812,11 +1812,16 @@ describe('LevelPlay stable result row and QA hooks (adventure-flow-and-map-guida
 })
 
 describe('LevelPlay T7 (prewriting-stage-completion): full-viewport backdrop, marker-style chrome, auto-advance', () => {
-  // The backdrop fill is pure `level.id -> backdropFor` derivation, no
-  // pointer state involved, so — unlike `attempt` above — it IS observable
-  // from a single `renderToString` pass.
-  it('renders the adventure backdrop as a full-viewport image behind the chrome, decorative only', () => {
-    const html = renderToString(
+  // T7 REWORK (orchestrator review, "the art is drawn twice"): the separate
+  // CSS `.cv-backdrop-fill` layer is gone. The full-viewport picture is now
+  // entirely `TraceCanvas`'s own concern (`canvas/TraceCanvas.tsx`'s
+  // `expandToAspect`/`expandHeightToAspect`, exercised directly by
+  // `TraceCanvas.test.tsx`) — LevelPlay's own job shrinks to handing it the
+  // SAME `backdrop` prop it always did, which `traceCanvasProbe` (this
+  // file's own header) lets this test read directly instead of guessing at
+  // rendered pixels.
+  it('hands TraceCanvas the adventure backdrop exactly as before — the full-viewport fill is entirely the canvas\'s own concern now', () => {
+    renderToString(
       <LevelPlay
         level={getLevel('duck-trail2')}
         record={EMPTY_RECORD}
@@ -1825,27 +1830,20 @@ describe('LevelPlay T7 (prewriting-stage-completion): full-viewport backdrop, ma
         onBack={noop}
       />,
     )
-    expect(html).toContain('class="cv-backdrop-fill"')
-    expect(html).toContain(`src="${SECTOR_BACKGROUND_ART.lagoon.href}"`)
-    // Decorative: an empty alt and aria-hidden, so the accessible narration
-    // stays owned by the level's own hint (`useNarration`), never doubled.
-    expect(html).toMatch(/<img class="cv-backdrop-fill" src="[^"]+" alt="" aria-hidden="true"/)
+    const backdrop = traceCanvasProbe.current?.backdrop as { href: string } | undefined
+    expect(backdrop?.href).toBe(SECTOR_BACKGROUND_ART.lagoon.href)
   })
 
-  it('renders no backdrop image for a classic (non-drawnPlace) level or a world-only one with no adventure backdrop', () => {
-    // LAYOUT_CSS's own <style> block names the class in its selector
-    // regardless of whether the element renders, so the style tag has to
-    // come out first — the same strip every other body-only assertion in
-    // this file already applies.
-    const plainHtml = renderToString(
+  it('passes no backdrop to TraceCanvas for a classic (non-drawnPlace) level or a world-only one with no adventure backdrop', () => {
+    renderToString(
       <LevelPlay level={makeLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
-    expect(plainHtml.replace(/<style>[\s\S]*?<\/style>/, '')).not.toContain('cv-backdrop-fill')
+    expect(traceCanvasProbe.current?.backdrop).toBeUndefined()
 
-    const worldHtml = renderToString(
+    renderToString(
       <LevelPlay level={makeWorldOnlyLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
-    expect(worldHtml.replace(/<style>[\s\S]*?<\/style>/, '')).not.toContain('cv-backdrop-fill')
+    expect(traceCanvasProbe.current?.backdrop).toBeUndefined()
   })
 
   it('styles every shared button and the result pill in the marker style — warm paper, thick dark outline, never a generic white pill', () => {

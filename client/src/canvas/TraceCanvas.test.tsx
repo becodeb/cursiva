@@ -5,7 +5,7 @@
 // mode-side (readyMs in guidedTrace), not asserted here.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import TraceCanvas, { DEMO_STROKE, type DrawDemo } from './TraceCanvas'
+import TraceCanvas, { DEMO_STROKE, expandHeightToAspect, expandToAspect, type DrawDemo } from './TraceCanvas'
 import { placeArt } from './placeArt'
 import { getLevel } from '../levels/catalog'
 import { buildLevelTarget } from '../levels/buildLevel'
@@ -1778,5 +1778,83 @@ describe('TraceCanvas spine layer (radial-spines spec: "Spine Layer Renders as P
     const lagoonMaze = renderToString(<TraceCanvas corridor={corridor} maze backdrop={lagoon} />)
     expect(lagoonMaze).toContain(`href="${lagoon.href}"`)
     expect(lagoonMaze).not.toContain(spines.body.href)
+  })
+})
+
+describe('TraceCanvas expandToAspect / expandHeightToAspect (T7 rework, "the art is drawn twice")', () => {
+  const box = { x: 10, y: 20, width: 200, height: 100 } // aspect 2
+
+  it('expandToAspect grows HEIGHT, symmetric around the same centre, when the box reads wider than the target', () => {
+    // Target aspect 1 (narrower than the box's own 2): height must grow to
+    // 200 (width / 1), i.e. by 100, split evenly above and below.
+    const grown = expandToAspect(box, 1)
+    expect(grown.width).toBe(200) // the short axis is height, x/width untouched
+    expect(grown.height).toBe(200)
+    expect(grown.x).toBe(10)
+    expect(grown.y).toBe(-30) // 20 - (200-100)/2
+    // Centre preserved: (x + width/2, y + height/2) unchanged.
+    expect(grown.x + grown.width / 2).toBe(box.x + box.width / 2)
+    expect(grown.y + grown.height / 2).toBe(box.y + box.height / 2)
+  })
+
+  it('expandToAspect grows WIDTH, symmetric around the same centre, when the box reads narrower than the target', () => {
+    // Target aspect 4 (wider than the box's own 2): width must grow to 400
+    // (height * 4), i.e. by 200, split evenly left and right.
+    const grown = expandToAspect(box, 4)
+    expect(grown.height).toBe(100) // the short axis is width, y/height untouched
+    expect(grown.width).toBe(400)
+    expect(grown.y).toBe(20)
+    expect(grown.x).toBe(-90) // 10 - (400-200)/2
+    expect(grown.x + grown.width / 2).toBe(box.x + box.width / 2)
+    expect(grown.y + grown.height / 2).toBe(box.y + box.height / 2)
+  })
+
+  it('expandToAspect returns the SAME box, unchanged, when the aspect already matches', () => {
+    expect(expandToAspect(box, 2)).toEqual(box)
+  })
+
+  it('expandToAspect is a no-op guard against non-finite/non-positive input, never leaking NaN/Infinity into a viewBox', () => {
+    expect(expandToAspect(box, 0)).toEqual(box)
+    expect(expandToAspect(box, -1)).toEqual(box)
+    expect(expandToAspect(box, NaN)).toEqual(box)
+    expect(expandToAspect({ ...box, width: 0 }, 2)).toEqual({ ...box, width: 0 })
+    expect(expandToAspect({ ...box, height: 0 }, 2)).toEqual({ ...box, height: 0 })
+  })
+
+  it('expandHeightToAspect matches expandToAspect exactly when height is already the short axis (the camera case that matters)', () => {
+    expect(expandHeightToAspect(box, 1)).toEqual(expandToAspect(box, 1))
+  })
+
+  it('expandHeightToAspect NEVER grows width — a target aspect wider than the box is accepted as-is, not compensated', () => {
+    // scrolling-camera's own reason (expandHeightToAspect's own header): the
+    // moving window's x/width belong to the rAF loop alone.
+    const grown = expandHeightToAspect(box, 4)
+    expect(grown.width).toBe(box.width)
+    expect(grown.x).toBe(box.x)
+    expect(grown.height).toBe(box.height) // box.width / 4 = 50 < box.height, so max() keeps box.height
+    expect(grown.y).toBe(box.y)
+  })
+
+  it('expandHeightToAspect is the same guard against non-finite/non-positive input', () => {
+    expect(expandHeightToAspect(box, 0)).toEqual(box)
+    expect(expandHeightToAspect(box, NaN)).toEqual(box)
+    expect(expandHeightToAspect({ ...box, width: 0 }, 2)).toEqual({ ...box, width: 0 })
+  })
+
+  // The container's real aspect ratio is measured via ResizeObserver
+  // (real-browser-only, same split this file's own rAF-driven ink loop
+  // already lives by) — absent in `renderToString`'s node environment, so
+  // `containerAspect` stays `null` and the SVG's own `viewBox`/backdrop
+  // sizing stay BYTE-IDENTICAL to before this rework, whether or not a
+  // backdrop and `fit="contain"` are both passed. The approved-and-
+  // expanded render is real-browser-only proof, left to the orchestrator's
+  // visual QA (`capturas/`, git-ignored).
+  it('SSR safety: contain fit + a backdrop render the exact pre-rework viewBox (no ResizeObserver in node)', () => {
+    const lagoon = { href: '/art/sector-lagoon-background.png', quiet: '#b4c5d0' }
+    const html = renderToString(
+      <TraceCanvas viewBoxWidth={1000} viewBoxY={100} viewBoxHeight={300} fit="contain" backdrop={lagoon} />,
+    )
+    expect(html).toContain('viewBox="0 100 1000 300"')
+    expect(html).toContain(`x="0" y="100" width="1000" height="300" fill="${lagoon.quiet}"`)
   })
 })
