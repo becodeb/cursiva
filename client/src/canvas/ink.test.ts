@@ -74,8 +74,8 @@ describe('ink render policy', () => {
     expect(['settled', 'live-only', 'none'].sort()).toEqual(['live-only', 'none', 'settled'])
   })
 
-  it('resolves reveal erase to live-only and reveal light to none', () => {
-    expect(resolveInkPolicy({ revealMode: 'erase' })).toBe('live-only')
+  it('resolves every reveal-grid mode (erase and light) to no child ink (T6, 2026-09-25: the finger only cleans, it never draws)', () => {
+    expect(resolveInkPolicy({ revealMode: 'erase' })).toBe('none')
     expect(resolveInkPolicy({ revealMode: 'light' })).toBe('none')
   })
 

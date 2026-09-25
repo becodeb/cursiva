@@ -1558,12 +1558,12 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
 
 
 
-  it('resolves inkPolicy to live-only for erase reveal levels', () => {
+  it('resolves inkPolicy to none for erase reveal levels (T6: the finger only cleans, no ink trail)', () => {
     const level = makeRevealLevel(erase)
     renderToString(
       <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
-    expect(traceCanvasProbe.current?.inkPolicy satisfies unknown).toBe('live-only' satisfies InkRenderPolicy)
+    expect(traceCanvasProbe.current?.inkPolicy satisfies unknown).toBe('none' satisfies InkRenderPolicy)
   })
 
   it('resolves inkPolicy to none for light reveal levels', () => {

@@ -34,8 +34,14 @@ export interface InkPolicySurface {
 }
 
 export function resolveInkPolicy(surface: InkPolicySurface): InkRenderPolicy {
-  if (surface.revealMode === 'light') return 'none'
-  if (surface.revealMode === 'erase') return 'live-only'
+  // Every reveal-grid level — 'erase' (glass1/sand1/glass3/sand3, the
+  // cleaning levels) as much as 'light' (night/flashlight) — draws no child
+  // ink at all: the finger only cleans/lights, it never leaves a mark (user,
+  // 2026-09-25: "que solo limpie pasar el dedo, no que deje un trazo ni
+  // dibuje"). 'erase' used to resolve to 'live-only' (a stroke while
+  // dragging that vanished on release) — that was still a drawn line, just a
+  // temporary one, and the child saw it as scribbling on the glass/sand/mud.
+  if (surface.revealMode === 'light' || surface.revealMode === 'erase') return 'none'
   return 'settled'
 }
 
