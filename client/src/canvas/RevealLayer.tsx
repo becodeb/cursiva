@@ -48,6 +48,17 @@ const LEAF_BASE = '#6e7a4a'
 const LEAF_DEEP = '#4d5733'
 const LEAF_RIM = '#9aa861'
 const LEAF_DRY = '#b07a3c'
+// The mud pile's own paints (T4, `sand3`/`sendero`'s path enclosure), render-
+// local peers of the `SAND_*`/`LEAF_*` rows above. `backdrops.ts`'s `PATH_MUD`
+// (`#75634c`) is the flat veil colour this policy REPLACES — restating it here
+// would tie this file's own decoration tones to that constant's own reasons
+// (the 55-luma veil law), which have nothing to do with this policy's reasons
+// (wet earth reads as wet through tonal variety, not through one flat fill).
+const MUD_BASE = '#5a4632'
+const MUD_DEEP = '#392c1f'
+const MUD_EDGE = '#8c7355'
+const MUD_PUDDLE = '#8fa0aa'
+const MUD_PEBBLE = '#332a20'
 
 type Point = { x: number; y: number }
 type Edge = { a: Point; b: Point }
@@ -510,6 +521,53 @@ function wholePaneSandSweeps(sheetBounds: ArtBox): readonly { path: string; anch
   })
 }
 
+/** Small stones sitting in the mud, the wet-earth peer of `wholePaneSandCues`'s
+ *  `rock` variant. `sand3`'s grid is denser than `sand1`'s (20x12 vs 10x6), so
+ *  this stays a fixed pane-wide count rather than scaling with `cols`/`rows` —
+ *  the same design `wholePaneSandCues` already makes, and the same reason: a
+ *  cell-count-scaled scatter would make the decoration density (not just the
+ *  reveal grid) part of a level's difficulty tuning. */
+function wholePaneMudPebbles(sheetBounds: ArtBox): readonly {
+  cx: number
+  cy: number
+  rx: number
+  ry: number
+  rotate: number
+}[] {
+  const { x, y, width, height } = sheetBounds
+  return Array.from({ length: 24 }, (_, idx) => {
+    const fx = (0.06 + idx * 0.61803398875) % 0.91
+    const fy = (0.09 + idx * 0.38196601125 + (idx % 4) * 0.06) % 0.85
+    return {
+      cx: x + width * (0.04 + fx),
+      cy: y + height * (0.07 + fy),
+      rx: 2.4 + (idx % 4) * 1.15,
+      ry: 1.6 + (idx % 3) * 0.85,
+      rotate: -30 + ((idx * 43) % 73),
+    }
+  })
+}
+
+/** Small puddles catching the sky, the one wet-specific decoration neither
+ *  sand nor leaves carries (mud is what stays wet after the rest of the
+ *  entrance dries). Bigger and far sparser than a pebble — a puddle reads at
+ *  a glance, it does not need repetition to be legible (docs/09 §5's own
+ *  "does it survive repeated" test is about a THIRTY-times mark; six puddles
+ *  scattered over one enclosure floor is not that kind of mark). */
+function wholePaneMudPuddles(sheetBounds: ArtBox): readonly { cx: number; cy: number; rx: number; ry: number }[] {
+  const { x, y, width, height } = sheetBounds
+  return Array.from({ length: 6 }, (_, idx) => {
+    const fx = (0.14 + idx * 0.5395) % 0.76
+    const fy = (0.18 + idx * 0.4213) % 0.68
+    return {
+      cx: x + width * (0.08 + fx),
+      cy: y + height * (0.1 + fy),
+      rx: 9 + (idx % 3) * 4.5,
+      ry: 4.5 + (idx % 2) * 2.5,
+    }
+  })
+}
+
 /** How many blades the pane carries. Raised from 44 by real-browser visual QA
  *  (system Chromium, 30 cells over three viewports): at `844x390` — the
  *  realistic play viewport, where a 1000-unit viewBox lands at roughly 0.45
@@ -662,17 +720,29 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
   // never inferred from `reveal.fill`: a future adventure reusing `LEAF_LITTER`
   // must not silently inherit this pile. The sand policy holds the same line.
   const leaves = reveal.visual === 'leaves'
+  // The mud policy (T4, `sand3`/`sendero`): a third `boundaryLoops`-driven
+  // silhouette, sharing sand's OWN erosion geometry (`erodedSandLoopPath` via
+  // `sandSilhouettePath`) rather than a fourth curve generator — wet earth and
+  // dry sand erode into the same kind of ragged, noise-pushed frontier; only
+  // the paint differs. `leaves` earned its own `lobedLeafLoopPath` because a
+  // raked pile ends in whole blades, a shape sand's erosion cannot produce;
+  // mud has no such distinct silhouette need.
+  const mud = reveal.visual === 'mud'
   const fogPath = glassFog ? fogSilhouettePath(reveal.tiles) : ''
   const sandLoops = sand ? boundaryLoops(reveal.tiles) : []
   const sandPath = sand ? sandSilhouettePath(sandLoops) : ''
   const leafLoops = leaves ? boundaryLoops(reveal.tiles) : []
   const leafPath = leaves ? leafSilhouettePath(leafLoops, sheetBounds) : ''
+  const mudLoops = mud ? boundaryLoops(reveal.tiles) : []
+  const mudPath = mud ? sandSilhouettePath(mudLoops) : ''
   const streaks = glassFog ? wholePaneStreaks(sheetBounds) : []
   const droplets = glassFog ? wholePaneDroplets(sheetBounds) : []
   const sandCues = sand ? wholePaneSandCues(sheetBounds) : []
   const sandSweeps = sand ? wholePaneSandSweeps(sheetBounds) : []
   const leafCues = leaves ? wholePaneLeafCues(sheetBounds) : []
   const leafRakes = leaves ? wholePaneLeafRakes(sheetBounds) : []
+  const mudPebbles = mud ? wholePaneMudPebbles(sheetBounds) : []
+  const mudPuddles = mud ? wholePaneMudPuddles(sheetBounds) : []
   const hiddenArt = reveal.art?.filter((obj) => !obj.revealed) ?? []
   const revealedArt = reveal.art?.filter((obj) => obj.revealed) ?? []
 
@@ -834,6 +904,62 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
           )}
         </g>
       )}
+      {mud && mudPath && (
+        <g data-mud-drift="true">
+          {/* Same three-pass layering as sand/leaves: body, a deep wet wash,
+              a lighter rim where the mud catches the light — flat fills at
+              varying opacity, no gradients (docs/09 §1/§4). */}
+          <path
+            data-mud-silhouette="true"
+            d={mudPath}
+            fill={MUD_BASE}
+            fillRule="evenodd"
+            stroke={MUD_BASE}
+            strokeWidth={52}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path d={mudPath} fill={MUD_DEEP} fillRule="evenodd" opacity={0.3} />
+          <path
+            d={mudPath}
+            fill="none"
+            stroke={MUD_EDGE}
+            strokeWidth={12}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.45}
+          />
+          {mudPuddles.map((puddle, idx) =>
+            pointInAnyTile(reveal.tiles, puddle.cx, puddle.cy) ? (
+              <ellipse
+                key={`mud-puddle-${idx}`}
+                data-mud-puddle="true"
+                cx={puddle.cx}
+                cy={puddle.cy}
+                rx={puddle.rx}
+                ry={puddle.ry}
+                fill={MUD_PUDDLE}
+                opacity={0.4}
+              />
+            ) : null,
+          )}
+          {mudPebbles.map((pebble, idx) =>
+            pointInAnyTile(reveal.tiles, pebble.cx, pebble.cy) ? (
+              <ellipse
+                key={`mud-pebble-${idx}`}
+                data-mud-pebble="true"
+                cx={pebble.cx}
+                cy={pebble.cy}
+                rx={pebble.rx}
+                ry={pebble.ry}
+                fill={MUD_PEBBLE}
+                opacity={0.72}
+                transform={`rotate(${pebble.rotate} ${pebble.cx} ${pebble.cy})`}
+              />
+            ) : null,
+          )}
+        </g>
+      )}
       {reveal.tiles.map((tile) => (
         <rect
           key={stableTileId(tile)}
@@ -851,12 +977,12 @@ export function RevealLayer({ reveal, sheetBounds }: RevealLayerProps) {
           // artifact, not a geometry gap; the tiles genuinely abut. A plain
           // presentation attribute, not a `url(#...)` reference.
           shapeRendering="crispEdges"
-          // `leaves` joins `glassFog`/`sand` for the same reason: the visible
+          // `leaves`/`mud` join `glassFog`/`sand` for the same reason: the visible
           // surface is the silhouette above, so these rects stay invisible
           // state/counting sentinels (reveal-grid spec, "Reveal Layer Renders as
           // Plain Rects With No Fragment Reference"). Count, keys, and geometry
           // are untouched, so folding and scoring cannot move.
-          {...(glassFog || sand || leaves ? { opacity: 0 } : tile.opacity < 1 ? { opacity: tile.opacity } : {})}
+          {...(glassFog || sand || leaves || mud ? { opacity: 0 } : tile.opacity < 1 ? { opacity: tile.opacity } : {})}
         />
       ))}
       {nightVeil && reveal.light?.complete && (

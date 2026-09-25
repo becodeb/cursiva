@@ -237,6 +237,75 @@ describe('RevealLayer', () => {
     )
     expect(asGlass).not.toContain('data-leaf-litter="true"')
     expect((asGlass.match(/data-fog-silhouette="glass"/g) ?? []).length).toBe(1)
+
+    const asMud = renderToString(
+      <RevealLayer reveal={{ fill: '#75634c', visual: 'mud', tiles: leafTiles }} sheetBounds={sheetBounds} />,
+    )
+    expect(asMud).not.toContain('data-leaf-litter="true"')
+    expect(asMud).not.toContain('data-sand-drift="true"')
+    expect(asMud).toContain('data-mud-drift="true"')
+  })
+
+  // The mud policy (T4, `sand3`/`sendero`'s path enclosure), the flat-brown-
+  // squares fix. Asserted in the same shape as the sand block above — mud
+  // reuses sand's OWN erosion geometry (`erodedSandLoopPath`), so the path
+  // stays `Q`-only exactly like sand's does.
+  it('renders explicit mud as one organic drift while keeping one invisible rect sentinel per remaining tile', () => {
+    const reveal: TraceReveal = {
+      fill: '#75634c',
+      visual: 'mud',
+      tiles: [
+        { x: 0, y: 0, w: 100, h: 100, opacity: 1 },
+        { x: 100, y: 0, w: 100, h: 100, opacity: 1 },
+        { x: 0, y: 100, w: 100, h: 100, opacity: 1 },
+      ],
+    }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+
+    expect(html).toContain('data-mud-drift="true"')
+    expect((html.match(/data-mud-silhouette="true"/g) ?? []).length).toBe(1)
+    const mudPath = html.match(/data-mud-silhouette="true" d="([^"]+)"/)?.[1] ?? ''
+    expect((mudPath.match(/Q /g) ?? []).length).toBeGreaterThan(12)
+    expect(mudPath).not.toContain('C ')
+
+    expect((html.match(/data-fog-tile-id=/g) ?? []).length).toBe(reveal.tiles.length)
+    expect((html.match(/<rect/g) ?? []).length).toBe(reveal.tiles.length)
+    expect((html.match(/opacity="0"/g) ?? []).length).toBe(reveal.tiles.length)
+    expect((html.match(/data-mud-pebble="true"/g) ?? []).length).toBeGreaterThan(0)
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<defs')
+    expect(html).not.toContain('url(#')
+  })
+
+  it('does not infer mud polish from the veil colour alone', () => {
+    const reveal: TraceReveal = {
+      fill: '#75634c',
+      tiles: [{ x: 0, y: 0, w: 100, h: 100, opacity: 1 }],
+    }
+    const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+    expect(html).not.toContain('data-mud-drift="true"')
+  })
+
+  it('drops mud puddles/pebbles that no longer sit over a covered tile, without moving the survivors', () => {
+    // Same coarse 5x3 fixture `leafTiles` uses (200-unit cells): wide enough
+    // rows/columns that a partial top row still catches some of the pane-wide
+    // scatter — sand3's own real 20x12 grid (50-unit cells) is too fine for a
+    // one-row slice to reliably contain any of the fixed-count decoration
+    // this generator scatters, the same reason the leaf-cue test above does
+    // not use `glass3`'s real grid either.
+    const full = renderToString(
+      <RevealLayer reveal={{ fill: '#75634c', visual: 'mud', tiles: leafTiles }} sheetBounds={sheetBounds} />,
+    )
+    const partialTiles = leafTiles.slice(0, 5) // the top row survives
+    const partial = renderToString(
+      <RevealLayer reveal={{ fill: '#75634c', visual: 'mud', tiles: partialTiles }} sheetBounds={sheetBounds} />,
+    )
+    const pebbles = (html: string) => html.match(/data-mud-pebble="true"[^>]*/g) ?? []
+    expect(pebbles(partial).length).toBeGreaterThan(0)
+    expect(pebbles(partial).length).toBeLessThan(pebbles(full).length)
+    expect((partial.match(/<rect/g) ?? []).length).toBe(partialTiles.length)
   })
 
   it('drops leaf cues that no longer sit over a covered tile, without moving the survivors', () => {

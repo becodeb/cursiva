@@ -2239,6 +2239,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       fill: backdropEntry?.tile ?? SHEET_PAPER,
       ...(isSandRevealLevel(level.id) ? { visual: 'sand' as const } : {}),
       ...(isLeavesRevealLevel(level.id) ? { visual: 'leaves' as const } : {}),
+      // T4: the mud path (`sand3`/`sendero`, plus its dropped harder twin
+      // `sand4`) used to fall through to the plain flat-fill tile contract —
+      // the flat brown squares the user compared unfavourably to the drawn
+      // sand and leaves. `isMudRevealLevel` is the SAME discriminant
+      // `eraseResultMessage` above already uses for the mud wording.
+      ...(isMudRevealLevel(level.id) ? { visual: 'mud' as const } : {}),
       tiles,
       art,
       light,

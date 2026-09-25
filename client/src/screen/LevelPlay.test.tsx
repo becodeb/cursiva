@@ -1410,6 +1410,25 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     }
   })
 
+  // T4: `sand3` is `sendero`'s own played level, `sand4` its dropped harder
+  // twin (only reachable through the dev `?nivel=` deep link) — both drawn as
+  // mud, never as the plain flat-fill tile contract.
+  it('opts only sand3 and sand4 into the typed mud visual policy', () => {
+    for (const id of ['sand3', 'sand4'] as const) {
+      renderToString(
+        <LevelPlay level={getLevel(id)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      expect((traceCanvasProbe.current?.reveal as { visual?: string }).visual, id).toBe('mud')
+    }
+
+    for (const id of ['sand1', 'sand2'] as const) {
+      renderToString(
+        <LevelPlay level={getLevel(id)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      expect((traceCanvasProbe.current?.reveal as { visual?: string }).visual, id).toBe('sand')
+    }
+  })
+
   it('uses leaves attempt wording for glass3/glass4 while glass1/glass2 keep the glass wording', () => {
     expect(eraseResultMessage('glass3', true)).toBe('¡Hojas juntadas!')
     expect(eraseResultMessage('glass3', false)).toBe('Seguí juntando las hojas.')
