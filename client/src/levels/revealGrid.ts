@@ -208,6 +208,42 @@ export function revealTick(
   return { ...prev, point: { x: head.x, y: head.y }, lit, seen: points.length }
 }
 
+/**
+ * T9 (round flashlight, `odd/tasks/prewriting-stage-completion.md`): one
+ * active light source for a `light`-mode reveal — either a FOUND object
+ * (`state.lit`, latched forever, T2's own rule) or the live torch point.
+ * `radius` is carried per source (always `reveal.radius` today, the level's
+ * own constant) rather than assumed shared, so a future level could vary it
+ * per object without this shape changing.
+ */
+export interface RevealLightSource {
+  readonly cx: number
+  readonly cy: number
+  readonly radius: number
+}
+
+/**
+ * Every active source for a `light` reveal, pure. Replaces the OLD job
+ * `revealTiles`'s light branch did alone (folding `state.lit`/`state.point`
+ * straight into a `cols x rows` grid, design.md §1's original tiling): T9
+ * moved the actual darkness geometry to `canvas/RevealLayer.tsx` (round
+ * holes, not squares), and this is the seam between the two — the ONE place
+ * that still reads `RevealState`/`RevealConfig` to decide WHERE the light
+ * is, before any rendering shape is chosen.
+ */
+export function lightSources(
+  reveal: Extract<RevealConfig, { mode: 'light' }>,
+  state: RevealState,
+): readonly RevealLightSource[] {
+  const sources: RevealLightSource[] = []
+  for (const idx of state.lit) {
+    const obj = reveal.objects[idx]
+    if (obj) sources.push({ cx: obj.x, cy: obj.y, radius: reveal.radius })
+  }
+  if (state.point) sources.push({ cx: state.point.x, cy: state.point.y, radius: reveal.radius })
+  return sources
+}
+
 /** The torch: 1 at the rim, 0 at the centre, in five steps.
  *  `q = round(clamp(d / radius, 0, 1) * 4) / 4`. A float opacity is
  *  unassertable in this harness (`renderToString` would give
@@ -219,6 +255,19 @@ export function lightOpacity(d: number, radius: number): number {
   const clamped = Math.max(0, Math.min(1, ratio))
   return Math.round(clamped * 4) / 4
 }
+
+/**
+ * T9: the four RADIAL band boundaries `lightOpacity` already implies —
+ * restated as ratios rather than re-derived, so `canvas/RevealLayer.tsx`'s
+ * round darkness geometry can carve the SAME five steps
+ * (`0, 0.25, 0.5, 0.75, 1`) that `lightOpacity` rounds `ratio * 4` to,
+ * radially instead of per tile. `lightOpacity` rounds to the NEAREST
+ * quarter, so the boundary between two adjacent steps sits exactly halfway
+ * between them: `0.125, 0.375, 0.625, 0.875`. Ordered OUTER to INNER
+ * (widest reach first) because that is the order the darkest-to-lightest
+ * bands are carved in.
+ */
+export const LIGHT_BAND_RATIOS = [0.875, 0.625, 0.375, 0.125] as const
 
 /** One render-ready tile: the geometry `TraceRevealTile` needs, structurally
  *  (`canvas/TraceCanvas.tsx`'s convention — this file imports nothing from
@@ -234,8 +283,42 @@ export interface RevealTile {
   opacity: number
 }
 
-/** Pure projection from fold state to render tiles. No React, no DOM. */
+/**
+ * Pure projection from fold state to render tiles. No React, no DOM.
+ *
+ * `erase` mode is unchanged: a `cols x rows` grid, one entry per tile still
+ * covered (design.md §1's original tiling — `canvas/RevealLayer.tsx`'s
+ * fog/sand/leaves/mud policies all trace a silhouette AROUND this exact
+ * shape via `boundaryLoops`, so it has to stay literal grid geometry).
+ *
+ * `light` mode does NOT tile the grid any more (T9,
+ * `odd/tasks/prewriting-stage-completion.md`): the old per-tile fold made
+ * the found-object glow read as tile-stepped squares instead of a round
+ * torch. Each entry here is now one ACTIVE source's own bounding SQUARE —
+ * `x/y` its top-left corner, `w === h === 2 * radius` — which
+ * `canvas/RevealLayer.tsx` reconstructs losslessly back into a circle
+ * (`cx = x + w/2`, `cy = y + h/2`, `radius = w/2`) and turns into round
+ * darkness geometry there (`TraceRevealTile`'s `{x,y,w,h,opacity}` shape,
+ * `canvas/TraceCanvas.tsx`, is untouched — this is a new MEANING for light
+ * mode, not a new field, so nothing outside this file's boundary had to
+ * change). `opacity` carries no information for this branch (kept at `1`,
+ * the harmless default) — the ring/band opacities are a rendering-only
+ * concern `RevealLayer` derives itself from each source's own `radius`.
+ * Zero active sources correctly returns `[]`: `RevealLayer` always paints
+ * the base full-sheet dark regardless of this list, so an empty list means
+ * zero holes in it, not zero darkness.
+ */
 export function revealTiles(reveal: RevealConfig, state: RevealState, width: number): readonly RevealTile[] {
+  if (reveal.mode === 'light') {
+    return lightSources(reveal, state).map((s) => ({
+      x: s.cx - s.radius,
+      y: s.cy - s.radius,
+      w: s.radius * 2,
+      h: s.radius * 2,
+      opacity: 1,
+    }))
+  }
+
   const { cols, rows } = reveal
   const w = width > 0 ? width : 1
   const tileW = w / cols
@@ -244,34 +327,7 @@ export function revealTiles(reveal: RevealConfig, state: RevealState, width: num
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      let opacity: number
-      if (reveal.mode === 'erase') {
-        opacity = state.cleared.has(tileIndex(col, row, cols)) ? 0 : 1
-      } else {
-        const cx = (col + 0.5) * tileW
-        const cy = (row + 0.5) * tileH
-        opacity = state.point === null ? 1 : lightOpacity(Math.hypot(cx - state.point.x, cy - state.point.y), reveal.radius)
-        // Defect fix (play-test 2026-09-25, T2 item 3: "when the child
-        // discovers an object, it stays lit"). Before this, a tile's
-        // opacity depended ONLY on the LIVE torch point, so the instant the
-        // finger lifted every tile snapped back to `1` (fully dark) even
-        // around an object already latched into `state.lit` — the object's
-        // own picture kept showing (`revealedArt` renders above the veil,
-        // unconditionally), but the clearing around it did not, so a found
-        // chest read as a lit sprite floating in total black. Each FOUND
-        // object now also contributes its own falloff, exactly like the
-        // live point (same `reveal.radius`, so a found object's clearing is
-        // the same size the torch needed to find it) — and it never resets,
-        // because `state.lit` is latched (never shrinks) for the rest of
-        // the attempt. `Math.min` takes whichever source reveals the tile
-        // MORE (lower opacity = less covering), so the live torch and every
-        // permanent find compose rather than race.
-        for (const oi of state.lit) {
-          const obj = reveal.objects[oi]
-          const foundOpacity = lightOpacity(Math.hypot(cx - obj.x, cy - obj.y), reveal.radius)
-          if (foundOpacity < opacity) opacity = foundOpacity
-        }
-      }
+      const opacity = state.cleared.has(tileIndex(col, row, cols)) ? 0 : 1
       if (opacity <= 0) continue
       tiles.push({ x: col * tileW, y: row * tileH, w: tileW, h: tileH, opacity })
     }

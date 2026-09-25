@@ -12,6 +12,7 @@ import {
   clearedTiles,
   debugClearedTiles,
   lightOpacity,
+  lightSources,
   revealScore,
   revealTick,
   revealTiles,
@@ -184,10 +185,12 @@ describe('revealTick — incremental fold', () => {
       expect(revealScore(strokes, { reveal: light }, 1000)).toBe(100)
     })
 
-    it('no active point renders every tile at full covering opacity', () => {
+    // T9 (`odd/tasks/prewriting-stage-completion.md`): `revealTiles`'s
+    // `light` branch no longer tiles the grid — see the `revealTiles`
+    // describe block below for the source-square contract this superseded.
+    it('no active point and nothing found yields an empty tile list — no holes before anything is found', () => {
       const tiles = revealTiles(light, EMPTY_REVEAL, 1000)
-      expect(tiles.length).toBe(light.cols * light.rows)
-      for (const t of tiles) expect(t.opacity).toBe(1)
+      expect(tiles).toEqual([])
     })
   })
 })
@@ -256,8 +259,15 @@ describe('revealTiles', () => {
 
   // T2 item 3 ("when the child discovers an object, it stays lit — the
   // darkness is permanently removed in a radius around the found object,
-  // instead of the light only following the finger").
-  describe('light mode — a found object stays lit', () => {
+  // instead of the light only following the finger") + T9 (round, not
+  // tile-stepped, `odd/tasks/prewriting-stage-completion.md`): `light`
+  // mode's `revealTiles` no longer tiles a grid at all — each entry is now
+  // one active source's own bounding SQUARE (`x/y` top-left corner,
+  // `w === h === 2 * radius`), which `canvas/RevealLayer.tsx` alone turns
+  // into round darkness. This describe block is the data-layer half of that
+  // contract; `canvas/RevealLayer.test.tsx`'s "round flashlight veil (T9)"
+  // block covers the geometry `RevealLayer` derives from it.
+  describe('light mode — source bounding squares (T9)', () => {
     const light: Extract<RevealConfig, { mode: 'light' }> = {
       mode: 'light',
       cols: 10,
@@ -269,48 +279,46 @@ describe('revealTiles', () => {
       ],
     }
 
-    it('before anything is found, the finger lifting re-covers everything (baseline)', () => {
+    it('before anything is found, the finger lifting re-covers everything — no active sources, no squares', () => {
       // (500, 300) is outside `radius` of both objects — nothing latches.
       const untouched = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000)
       expect(untouched.lit.size).toBe(0)
       const released = revealTick(untouched, [], false, light, 1000)
-      const tiles = revealTiles(light, released, 1000)
-      expect(tiles.length).toBe(light.cols * light.rows)
-      for (const t of tiles) expect(t.opacity).toBe(1)
+      expect(lightSources(light, released)).toEqual([])
+      expect(revealTiles(light, released, 1000)).toEqual([])
     })
 
-    it('once object 0 is found, its own tile stays revealed after the torch lifts', () => {
+    it('once object 0 is found, its own bounding square stays after the torch lifts', () => {
       let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000)
       expect(state.lit.has(0)).toBe(true)
       state = revealTick(state, [], false, light, 1000) // finger lifts — torch off
       expect(state.point).toBeNull()
 
+      expect(lightSources(light, state)).toEqual([{ cx: 200, cy: 200, radius: 100 }])
       const tiles = revealTiles(light, state, 1000)
-      // Tile (2,2) of a 10x6 grid over 1000x600 (tile 100x100): centre
-      // (250, 250), 70.7 units from the found object — still lit (opacity
-      // below the fully-covering 1) even with no live torch point.
-      const nearFound = tiles.find((t) => t.x === 200 && t.y === 200)
-      expect(nearFound).toBeDefined()
-      expect(nearFound?.opacity).toBeLessThan(1)
-
-      // A tile far from BOTH objects (top-right corner) stays fully dark —
-      // the fix lights a radius around what was found, not the whole sheet.
-      const farAway = tiles.find((t) => t.x === 900 && t.y === 0)
-      expect(farAway?.opacity).toBe(1)
+      expect(tiles).toEqual([{ x: 100, y: 100, w: 200, h: 200, opacity: 1 }])
     })
 
-    it('the found object\'s own radius matches the search radius it was found with', () => {
+    it("the found object's own square carries the SAME radius it was found with", () => {
       let state = revealTick(EMPTY_REVEAL, [{ x: 800, y: 400 }], true, light, 1000)
       state = revealTick(state, [], false, light, 1000)
       expect(state.lit.has(1)).toBe(true)
 
-      const tiles = revealTiles(light, state, 1000)
-      const at = (x: number, y: number) => tiles.find((t) => t.x === x && t.y === y)?.opacity
-      // Exactly `lightOpacity` at each sampled distance from (800, 400):
-      // tile (8,4) centre (850, 450) is ~70.7 away, tile (0,0) centre
-      // (50, 50) is far past `radius`.
-      expect(at(800, 400)).toBeLessThan(1)
-      expect(at(0, 0)).toBe(1)
+      const [source] = lightSources(light, state)
+      expect(source).toEqual({ cx: 800, cy: 400, radius: light.radius })
+      const [tile] = revealTiles(light, state, 1000)
+      expect(tile).toEqual({ x: 700, y: 300, w: 200, h: 200, opacity: 1 })
+    })
+
+    it('a live torch point contributes its own square alongside every already-found object', () => {
+      let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000) // finds object 0
+      state = revealTick(state, [], false, light, 1000) // lift
+      state = revealTick(state, [{ x: 500, y: 300 }], true, light, 1000) // torch elsewhere, holding
+
+      expect(lightSources(light, state)).toEqual([
+        { cx: 200, cy: 200, radius: 100 }, // found object 0, latched
+        { cx: 500, cy: 300, radius: 100 }, // live torch point
+      ])
     })
   })
 })
