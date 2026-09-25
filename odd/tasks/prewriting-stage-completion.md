@@ -60,11 +60,20 @@ merge + push so the deploy updates and they can test).
 | T6 | Cleaning levels (glass, sand, mud): the finger only cleans: no ink line, no drawing of any kind (user, 2026-09-25: "que solo limpie pasar el dedo, no que deje un trazo ni dibuje") | `fix/cleaning-levels` | delegated (same writer as T4) | done | `bf92bf9` — `resolveInkPolicy('erase')` now returns `'none'` (was `'live-only'`); verified `data-ink-policy="none"`, empty `d` mid-drag on glass1/sand1/glass3/sand3; flashlight (`'light'`) untouched |
 | T5 | Dev-only "skip level" button in level play, visible in dev builds or with `?dev` (same gate as the progress reset) | `feat/dev-skip-level` | delegated | done | `client/src/screen/GameScreen.tsx`: button gated by the existing `isDevMode()` (same gate as `App.tsx`'s "Reiniciar progreso (dev)"), routed through the real `handleAttempt`/`handleNext` closures via a synthetic full-pass `SKIP_ATTEMPT` folded through `applyAttempt` — same completion path a real pass uses (progress saved, next level, closings, map, focus advance). `?dev` survives navigation for free: this SPA never mutates `window.location`, so `isDevMode()`'s live read of `window.location.search` stays valid across every screen without extra persistence. Intro/closing screens are single-tap (`.cv-intro-stage`, `.cv-closing-stage`). Tests: `client/src/screen/GameScreen.test.tsx` (present/absent by `isDevMode()` via `vi.spyOn`, absent on intro view, `SKIP_ATTEMPT` folds to one real approval through `applyAttempt`). Checks: `npx vitest run --maxWorkers=2 src/screen/GameScreen.test.tsx` → 65 passed; full suite `npx vitest run --maxWorkers=2` → 2147 passed (87 files); `npm run build` → OK; `git diff --check` → clean. Browser QA on a `vite preview` production build (port 5196), system Chromium headless `--disable-gpu`, empty localStorage, `?dev`: walked prologue skip → map → full `entrada` adventure (glass1→sand1→glass3→sand3) via the skip button at every level → back on the map, `?dev` still in the URL, at both 1024x768 and 844x390; confirmed the button is absent (count 0) without `?dev` on the same build. Screenshots in `capturas/2026-09-25-tanda1/` (git-ignored, not committed): `prod-01..05-*`. Commits: `3cfdea0` (code+tests), docs commit follows. |
 
+## Batch 2: screen and UI (three writers, disjoint files)
+
+Decisions taken by the orchestrator (user delegated, 2026-09-25; revisit after their test): auto-advance
+after a short success celebration (a tap skips the wait); the "repeat" button goes; the demo (play) button
+stays, restyled.
+
+| ID | Task | Branch | Route | Status | Evidence |
+|---|---|---|---|---|---|
+| T7 | Level screen: the backdrop art fills 100% of the viewport (the playable sheet may shrink relative to the art; nothing clipped at 1024x768, 1180x820, 768x1024, 844x390); chrome floats over the art in the game's marker style (`docs/09`); drop "repeat"; auto-advance after the success celebration, tap to skip | `feat/fullscreen-level-ui` | delegated (writer trigger) | pending | |
+| T8 | Life and feedback outside the level screen: Pulpito breathing/blinking on prologue, intro and closing; speech-bubble pop-in; star-counter flash on the map when a star is won; short transitions between screens | `feat/character-life-animations` | delegated (must not touch `LevelPlay.tsx`/`TraceCanvas.tsx`) | pending | |
+| T9 | Flashlight: the permanently lit area around a found object is round and soft, not tile-stepped | `fix/flashlight-round-light` | delegated (`RevealLayer.tsx`/`revealGrid.ts` only) | pending | |
+
 ## Later batches (planned, not started)
 
-- Batch 2, screen and UI: full-screen art; UI in the game's style; drop "repeat"; auto-advance or a
-  big "next"; cheap animations (Pulpito breathing/blinking, speech-bubble pop, star flash, screen
-  transitions).
 - Batch 3, mechanics: collect along the path (items persist after leaving the line, the last one ends
   the level; sheep on the peaks); detective loop per animal (levels 1-3 collect clues with no
   silhouette in the bar, then choose among three animals reusing `screen/Deduction.tsx`, level 4
@@ -77,8 +86,8 @@ merge + push so the deploy updates and they can test).
 
 - 2026-09-25: `main` fast-forwarded to `a1b1eed` and pushed. Batch 1 started.
 - 2026-09-25: batch 1 done (T1-T6) and pushed. Machine note: five parallel writers exhausted RAM+swap on the Pi (22 other Claude sessions hold ~3.9 GB); T3/T5 were stopped and resumed from their worktrees. Run at most 3 writers at once and vitest with `--maxWorkers=2`.
-- Open from batch 1: the flashlight's lit area is tile-stepped, not round; snake3's start octopus; the mud puddle tint reads grey; night levels have no hint at all while dark (check with a child).
+- Open from batch 1: the white guide line on the first snake is not centred on the body (user; to be redone with the snake mechanic in batch 3); the flashlight's lit area is tile-stepped, not round; snake3's start octopus; the mud puddle tint reads grey; night levels have no hint at all while dark (check with a child).
 
 ## Next step
 
-The user tests batch 1 on the deploy; then batch 2 (screen and UI).
+Batch 2 writers running; the user tests batches 1 and 2 together.
