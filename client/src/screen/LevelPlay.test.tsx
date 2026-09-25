@@ -580,14 +580,23 @@ describe('LevelPlay icon controls keep an accessible name (C1 removes visible te
     // The child sees glyphs; a screen reader still hears a named control.
     // aria-label is not visible text, so stripping the labels would have been
     // an accessibility regression, not compliance with the brief.
-    for (const name of ['Volver', 'Borrar', 'Ver de nuevo', 'Siguiente']) {
+    //
+    // T7 (prewriting-stage-completion): "Borrar"/"Siguiente" are gone from a
+    // drawn place — the repeat button was removed outright (a fresh touch
+    // after a failed attempt clears the sheet itself, see `LevelPlay.tsx`'s
+    // `clearOnFailedRetryRef`) and "Siguiente" is now an automatic advance
+    // (the `celebrating` effect calling the same `onNext`), not a button —
+    // so there is no control left to name for either word.
+    for (const name of ['Volver', 'Ver de nuevo']) {
       expect(html, `icon control missing its accessible name: ${name}`).toContain(
         `aria-label="${name}"`,
       )
     }
-    // And none of those words is on screen as text.
+    // And neither is on screen as text, nor as a leftover accessible name.
     expect(textOf(html)).not.toContain('Borrar')
     expect(textOf(html)).not.toContain('Siguiente')
+    expect(html).not.toContain('aria-label="Borrar"')
+    expect(html).not.toContain('aria-label="Siguiente"')
   })
 
   it('names every icon-only control on a world-only level too, with no PISTAS-related label leaking in', () => {
@@ -600,13 +609,16 @@ describe('LevelPlay icon controls keep an accessible name (C1 removes visible te
         onBack={noop}
       />,
     )
-    for (const name of ['Volver', 'Borrar', 'Ver de nuevo', 'Siguiente']) {
+    // T7: same repeat/auto-advance removal as the detective-trail case above.
+    for (const name of ['Volver', 'Ver de nuevo']) {
       expect(html, `icon control missing its accessible name: ${name}`).toContain(
         `aria-label="${name}"`,
       )
     }
     expect(textOf(html)).not.toContain('Borrar')
     expect(textOf(html)).not.toContain('Siguiente')
+    expect(html).not.toContain('aria-label="Borrar"')
+    expect(html).not.toContain('aria-label="Siguiente"')
   })
 
   it('leaves a non-detective level naming its controls by their visible text', () => {
@@ -1765,17 +1777,115 @@ describe('LevelPlay stable result row and QA hooks (adventure-flow-and-map-guida
     // solid green, pulsing) is real-browser-only proof, left to the
     // orchestrator's visual QA — the same split the sheet's own stable-box
     // claim above already accepts.
+    //
+    // T7 (prewriting-stage-completion): a DRAWN PLACE (e.g. `glass1`) no
+    // longer renders this button at all — approval now auto-advances
+    // through `onNext` instead of waiting for a tap (see `celebrating` in
+    // `LevelPlay.tsx`). `.cv-next-ready`/`.cv-btn-off` only survive for a
+    // classic (non-drawnPlace) level, which keeps the manual button.
     const html = renderToString(
-      <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      <LevelPlay level={makeLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
     const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
     expect(body).not.toContain('cv-next-ready')
     expect(body).toContain('cv-btn-off')
 
+    // And a drawn place renders neither class for this button, because it
+    // renders no such button at all.
+    const drawnHtml = renderToString(
+      <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const drawnBody = drawnHtml.replace(/<style>[\s\S]*?<\/style>/, '')
+    expect(drawnBody).not.toContain('cv-next-ready')
+    expect(drawnBody).not.toContain('cv-btn-off')
+
     expect(LAYOUT_CSS).toContain('.cv-next-ready {')
     expect(LAYOUT_CSS).toContain('transform: scale(1.15);')
     expect(LAYOUT_CSS).toContain('animation: cv-next-pulse 1.4s ease-in-out infinite;')
     expect(LAYOUT_CSS).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.cv-next-ready \{ animation: none; \}\s*\}/)
+  })
+})
+
+describe('LevelPlay T7 (prewriting-stage-completion): full-viewport backdrop, marker-style chrome, auto-advance', () => {
+  // The backdrop fill is pure `level.id -> backdropFor` derivation, no
+  // pointer state involved, so — unlike `attempt` above — it IS observable
+  // from a single `renderToString` pass.
+  it('renders the adventure backdrop as a full-viewport image behind the chrome, decorative only', () => {
+    const html = renderToString(
+      <LevelPlay
+        level={getLevel('duck-trail2')}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect(html).toContain('class="cv-backdrop-fill"')
+    expect(html).toContain(`src="${SECTOR_BACKGROUND_ART.lagoon.href}"`)
+    // Decorative: an empty alt and aria-hidden, so the accessible narration
+    // stays owned by the level's own hint (`useNarration`), never doubled.
+    expect(html).toMatch(/<img class="cv-backdrop-fill" src="[^"]+" alt="" aria-hidden="true"/)
+  })
+
+  it('renders no backdrop image for a classic (non-drawnPlace) level or a world-only one with no adventure backdrop', () => {
+    // LAYOUT_CSS's own <style> block names the class in its selector
+    // regardless of whether the element renders, so the style tag has to
+    // come out first — the same strip every other body-only assertion in
+    // this file already applies.
+    const plainHtml = renderToString(
+      <LevelPlay level={makeLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(plainHtml.replace(/<style>[\s\S]*?<\/style>/, '')).not.toContain('cv-backdrop-fill')
+
+    const worldHtml = renderToString(
+      <LevelPlay level={makeWorldOnlyLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(worldHtml.replace(/<style>[\s\S]*?<\/style>/, '')).not.toContain('cv-backdrop-fill')
+  })
+
+  it('styles every shared button and the result pill in the marker style — warm paper, thick dark outline, never a generic white pill', () => {
+    // `.cv-btn` is the base every remaining chrome button shares (back,
+    // demo/play, and — on a classic level only — Borrar/Siguiente), so
+    // asserting it once covers all of them without re-asserting per button.
+    expect(LAYOUT_CSS).toMatch(/\.cv-btn \{[^}]*border: 3px solid #1a1a1a;[^}]*\}/)
+    expect(LAYOUT_CSS).toMatch(new RegExp(`\\.cv-btn \\{[^}]*background: ${SHEET_PAPER};[^}]*\\}`))
+    expect(LAYOUT_CSS).not.toMatch(/\.cv-btn \{[^}]*background: #ffffff;/)
+    expect(LAYOUT_CSS).toMatch(/\.cv-result-pill \{[^}]*border: 3px solid #1a1a1a;[^}]*\}/)
+    expect(LAYOUT_CSS).toMatch(new RegExp(`\\.cv-result-pill \\{[^}]*background: ${SHEET_PAPER};[^}]*\\}`))
+  })
+
+  it('drops the repeat ("Borrar") button entirely on a drawn place, keeping it only on a classic level', () => {
+    const drawnHtml = renderToString(
+      <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(drawnHtml.replace(/<style>[\s\S]*?<\/style>/, '')).not.toContain('Borrar')
+
+    const classicHtml = renderToString(
+      <LevelPlay level={makeLevel()} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(classicHtml).toContain('Borrar')
+  })
+
+  it('renders no celebration pill or skip target before any attempt is made, and defines both in LAYOUT_CSS', () => {
+    // `celebrating` (`drawnPlace && attempt?.approved`) is false on every
+    // fresh mount — the same "default, pre-attempt render" constraint the
+    // cv-next-ready test above documents. The approved-and-celebrating
+    // render (the check-mark pill, the full-screen skip target actually
+    // appearing) is real-browser-only proof, left to the orchestrator's
+    // visual QA and the browser trace-to-completion run.
+    const html = renderToString(
+      <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    expect(body).not.toContain('cv-result-pill-icon')
+    expect(body).not.toContain('cv-celebrate-skip')
+
+    expect(LAYOUT_CSS).toContain('.cv-result-pill-icon {')
+    expect(LAYOUT_CSS).toContain('.cv-celebrate-skip {')
+    // The skip target sits under the dev-only skip button's own z-index
+    // (`GameScreen.tsx`'s `DEV_SKIP_BUTTON`, 9999) so that corner keeps
+    // working untouched, and above everything else on this screen.
+    expect(LAYOUT_CSS).toMatch(/\.cv-celebrate-skip \{[^}]*z-index: 5;[^}]*\}/)
   })
 })
 
