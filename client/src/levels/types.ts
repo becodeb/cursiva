@@ -14,6 +14,11 @@ import type { WaypointConfig } from './waypoints'
 // erases this at compile time, so `types.ts` never depends on
 // `levels/spines.ts` at runtime.
 import type { SpineConfig } from './spines'
+// [collect-along-path, T17] `import type` only — the same reason
+// `SpineConfig` above is type-only: `verbatimModuleSyntax` erases this at
+// compile time, so `types.ts` never depends on `levels/collect.ts` at
+// runtime.
+import type { CollectConfig } from './collect'
 
 export type Phase = 1 | 2 | 3 | 4 | 5
 
@@ -253,6 +258,19 @@ export interface LevelConfig {
    *  keeps `f1-libre`, the twelve reveal levels and the four bee levels
    *  bit-identical. */
   spines?: SpineConfig
+  /** Collectibles standing ON this level's route — items sit at (or, for
+   *  `'peaks'`, are derived from) points along the route and are earned by
+   *  ARC PROGRESS as the child traces, in route order, kept even if the
+   *  finger leaves the corridor or lifts (`docs/19` §2.2). The level's own
+   *  PASS/FAIL still runs through `evaluateLevel` for the internal
+   *  accuracy/order/fluency measurements (`docs/01` §6), but a collect
+   *  level's actual approval is decided by the LAST item being collected
+   *  instead (`levels/collect.ts`'s `isCollectComplete`) —
+   *  `screen/LevelPlay.tsx` overrides `result.approved` on release, once,
+   *  for exactly the levels that author this field. Additive and absent on
+   *  every level that predates it, the same convention `vertexArt`/
+   *  `goalArt` established. */
+  collect?: CollectConfig
 }
 
 /** The camera's own authored parameters (`scrolling-camera` capability).
