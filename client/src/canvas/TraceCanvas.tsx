@@ -565,7 +565,19 @@ export interface TraceReveal {
    * discovered objects may be celebrated above it. */
   art?: readonly { href: string; w: number; h: number; size: number; x: number; y: number; revealed?: boolean }[]
   /** The live torch point for light reveal levels. Null when the finger is up. */
-  light?: { x: number; y: number; radius: number; complete: boolean } | null
+  light?: {
+    x: number
+    y: number
+    radius: number
+    complete: boolean
+    /** T10 (`odd/tasks/prewriting-stage-completion.md`, "add animations to
+     *  the darkness"): `[0, 1]`, only meaningful when `complete` is true —
+     *  how far the scene-wide completion wash has grown outward. Absent (or
+     *  `1`) means either not complete yet, or complete and already fully
+     *  grown; `canvas/RevealLayer.tsx` is the one reader, since it alone
+     *  knows the screen it has to grow to fill (`displayBounds`). */
+    growth?: number
+  } | null
 }
 
 /** One art-corridor piece's own render box (art-corridor spec, "Art Corridor

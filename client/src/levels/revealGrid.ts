@@ -114,6 +114,20 @@ export interface RevealState {
   /** Objects found (light), by index into `RevealConfig.objects`. Latched:
    *  the light does not persist, the FINDING does. */
   readonly lit: ReadonlySet<number>
+  /** T10 (`odd/tasks/prewriting-stage-completion.md`, "add animations to the
+   *  darkness"): the `now` (ms, `onFrame`'s own clock) each index in `lit`
+   *  first latched — the seam `canvas/RevealLayer.tsx`'s growth easing reads
+   *  to grow a just-found object's light from 0 over `LIGHT_FOUND_GROWTH_MS`
+   *  instead of popping it in at full size. Never removes an entry (`lit`
+   *  itself is latched forever, so this is too) and is read-only past the
+   *  tick that set it. */
+  readonly litAt: ReadonlyMap<number, number>
+  /** T10: `now` the level FIRST reached "every object found", or `null`
+   *  before that (or for a non-`light`/no-objects reveal). Latched exactly
+   *  once, the same way `lit` latches each index — the seam the completion
+   *  wash's own outward growth (`LIGHT_COMPLETE_GROWTH_MS`) times itself
+   *  from, instead of jumping straight from dark to fully lit. */
+  readonly completeAt: number | null
   /** The live point, or `null` with the finger up — the light goes out. */
   readonly point: { x: number; y: number } | null
   /** How many points of the CURRENT stroke are already folded. The fold
@@ -125,6 +139,8 @@ export interface RevealState {
 export const EMPTY_REVEAL: RevealState = {
   cleared: new Set(),
   lit: new Set(),
+  litAt: new Map(),
+  completeAt: null,
   point: null,
   seen: 0,
 }
@@ -152,6 +168,14 @@ function objectLitByWindow(obj: RevealObject, radius: number, window: ReadonlyAr
  * `drawing === false` resets `seen = 0` and `point = null` — the same
  * pen-lift rule `coverage.ts` already states: no segment is drawn across a
  * lift, and light mode's torch goes out with the finger.
+ *
+ * `now` (T10, `odd/tasks/prewriting-stage-completion.md`): the caller's own
+ * frame clock (`onFrame`'s `timeMs`, or one fixed `Date.now()` for an
+ * instant full-stroke replay — `releasedRevealState`'s own convention),
+ * required rather than defaulted so every stamp this function writes is
+ * exactly the caller's own clock, never a hidden one this module reads for
+ * itself (this file stays pure — no `Date.now()`/`performance.now()` call
+ * anywhere in it).
  */
 export function revealTick(
   prev: RevealState,
@@ -159,6 +183,7 @@ export function revealTick(
   drawing: boolean,
   reveal: RevealConfig,
   width: number,
+  now: number,
 ): RevealState {
   if (!drawing) {
     if (prev.point === null && prev.seen === 0) return prev
@@ -188,24 +213,34 @@ export function revealTick(
 
   // light mode
   let mutableLit: Set<number> | null = null
+  let mutableLitAt: Map<number, number> | null = null
   if (window.length > 0) {
     for (let oi = 0; oi < reveal.objects.length; oi++) {
       if (prev.lit.has(oi)) continue
       if (objectLitByWindow(reveal.objects[oi], reveal.radius, window)) {
         if (mutableLit === null) mutableLit = new Set(prev.lit)
+        if (mutableLitAt === null) mutableLitAt = new Map(prev.litAt)
         mutableLit.add(oi)
+        mutableLitAt.set(oi, now)
       }
     }
   }
   const latchChanged = mutableLit !== null
   const lit = mutableLit ?? prev.lit
+  const litAt = mutableLitAt ?? prev.litAt
+  // T10: latched once, the instant `lit` first reaches every object — the
+  // SAME tick that grew `lit` to that size, never a later idle pass (a
+  // re-tick with no new object found can only ever see `lit` unchanged, so
+  // `completeAt` cannot drift once set).
+  const completeAt =
+    prev.completeAt === null && reveal.objects.length > 0 && lit.size >= reveal.objects.length ? now : prev.completeAt
 
   const moved =
     prev.point === null || Math.hypot(head.x - prev.point.x, head.y - prev.point.y) > REVEAL_EPSILON
 
   if (!moved && !latchChanged) return prev
 
-  return { ...prev, point: { x: head.x, y: head.y }, lit, seen: points.length }
+  return { ...prev, point: { x: head.x, y: head.y }, lit, litAt, completeAt, seen: points.length }
 }
 
 /**
@@ -223,6 +258,64 @@ export interface RevealLightSource {
 }
 
 /**
+ * T10 (`odd/tasks/prewriting-stage-completion.md`, "add animations to the
+ * darkness"): how long a just-found object's own light takes to grow from 0
+ * to `reveal.radius`, and how long the final "everyone's been found" wash
+ * takes to grow outward until the whole scene is lit. Both are eased, never
+ * linear (`growthFraction` below) — a linear grow reads as mechanical at
+ * this duration, the same reason `canvas/screen/BubblePop.ts`'s own pop-in
+ * is not linear either.
+ */
+export const LIGHT_FOUND_GROWTH_MS = 400
+export const LIGHT_COMPLETE_GROWTH_MS = 1400
+
+/**
+ * Eases elapsed time into `[0, 1]`, monotonically non-decreasing in
+ * `elapsedMs` (strictly increasing until it saturates at 1) — the property
+ * `revealGrid.test.ts` holds this to directly, since a grow that ever moved
+ * backward would read as a flicker, not a glow. `reducedMotion` snaps
+ * straight to `1`: the fraction this file hands out is a TARGET size, and a
+ * reduced-motion viewer is owed the finished frame immediately, not a
+ * frozen mid-grow one (docs/01's own accessibility line, restated for a
+ * fraction rather than a CSS `animation`).
+ */
+export function growthFraction(elapsedMs: number, durationMs: number, reducedMotion: boolean): number {
+  if (reducedMotion || durationMs <= 0) return 1
+  const t = Math.max(0, Math.min(1, elapsedMs / durationMs))
+  return 1 - (1 - t) * (1 - t) // easeOutQuad — fast start, settling in, never overshoots 1
+}
+
+/**
+ * True while ANY growth this file drives is still under way at `nowMs` — a
+ * just-found object short of `LIGHT_FOUND_GROWTH_MS`, or the scene-wide
+ * completion wash short of `LIGHT_COMPLETE_GROWTH_MS`. The one thing
+ * `screen/LevelPlay.tsx`'s own `onFrame` needs to decide whether THIS frame
+ * is worth spending a `setState` on to re-sample the clock (`design.md`
+ * §1.6's frame-cost discipline, restated for an animation instead of a
+ * tile): every other frame while nothing is growing costs nothing here.
+ */
+export function isLightAnimating(state: RevealState, nowMs: number): boolean {
+  for (const foundAt of state.litAt.values()) {
+    if (nowMs - foundAt < LIGHT_FOUND_GROWTH_MS) return true
+  }
+  return state.completeAt !== null && nowMs - state.completeAt < LIGHT_COMPLETE_GROWTH_MS
+}
+
+/**
+ * The completion wash's own progress, `[0, 1]` — `0` before every object is
+ * found (or on a reveal with no `completeAt` yet), `1` once the outward grow
+ * has run its full `LIGHT_COMPLETE_GROWTH_MS`. `canvas/RevealLayer.tsx` is
+ * the one reader: it owns `displayBounds`, so it is the one place that can
+ * turn this bare fraction into an actual target radius (the corner of the
+ * screen farthest from each found object) — this file has no such box to
+ * grow toward, only the clock.
+ */
+export function completionGrowthFraction(state: RevealState, nowMs: number, reducedMotion: boolean): number {
+  if (state.completeAt === null) return 0
+  return growthFraction(nowMs - state.completeAt, LIGHT_COMPLETE_GROWTH_MS, reducedMotion)
+}
+
+/**
  * Every active source for a `light` reveal, pure. Replaces the OLD job
  * `revealTiles`'s light branch did alone (folding `state.lit`/`state.point`
  * straight into a `cols x rows` grid, design.md §1's original tiling): T9
@@ -230,15 +323,31 @@ export interface RevealLightSource {
  * holes, not squares), and this is the seam between the two — the ONE place
  * that still reads `RevealState`/`RevealConfig` to decide WHERE the light
  * is, before any rendering shape is chosen.
+ *
+ * `nowMs`/`reducedMotion` (T10): a FOUND object's own radius grows from 0
+ * over `LIGHT_FOUND_GROWTH_MS`, timed from `state.litAt`, defaulting to
+ * `nowMs = Infinity` so every pre-T10 caller (this file's own
+ * `revealScore`, every existing test) keeps getting the full radius
+ * immediately — `growthFraction(Infinity, ...)` clamps to `1` regardless of
+ * `reducedMotion`. The live torch point is NOT grown: only a newly-found
+ * object's glow ramps in (the task's own brief only asks for that one and
+ * the scene-wide completion wash — dragging the torch itself stays
+ * instantaneous, exactly as shipped).
  */
 export function lightSources(
   reveal: Extract<RevealConfig, { mode: 'light' }>,
   state: RevealState,
+  nowMs: number = Infinity,
+  reducedMotion: boolean = false,
 ): readonly RevealLightSource[] {
   const sources: RevealLightSource[] = []
   for (const idx of state.lit) {
     const obj = reveal.objects[idx]
-    if (obj) sources.push({ cx: obj.x, cy: obj.y, radius: reveal.radius })
+    if (!obj) continue
+    const foundAt = state.litAt.get(idx)
+    const elapsed = foundAt === undefined ? Infinity : nowMs - foundAt
+    const radius = reveal.radius * growthFraction(elapsed, LIGHT_FOUND_GROWTH_MS, reducedMotion)
+    if (radius > 0) sources.push({ cx: obj.x, cy: obj.y, radius })
   }
   if (state.point) sources.push({ cx: state.point.x, cy: state.point.y, radius: reveal.radius })
   return sources
@@ -255,19 +364,6 @@ export function lightOpacity(d: number, radius: number): number {
   const clamped = Math.max(0, Math.min(1, ratio))
   return Math.round(clamped * 4) / 4
 }
-
-/**
- * T9: the four RADIAL band boundaries `lightOpacity` already implies —
- * restated as ratios rather than re-derived, so `canvas/RevealLayer.tsx`'s
- * round darkness geometry can carve the SAME five steps
- * (`0, 0.25, 0.5, 0.75, 1`) that `lightOpacity` rounds `ratio * 4` to,
- * radially instead of per tile. `lightOpacity` rounds to the NEAREST
- * quarter, so the boundary between two adjacent steps sits exactly halfway
- * between them: `0.125, 0.375, 0.625, 0.875`. Ordered OUTER to INNER
- * (widest reach first) because that is the order the darkest-to-lightest
- * bands are carved in.
- */
-export const LIGHT_BAND_RATIOS = [0.875, 0.625, 0.375, 0.125] as const
 
 /** One render-ready tile: the geometry `TraceRevealTile` needs, structurally
  *  (`canvas/TraceCanvas.tsx`'s convention — this file imports nothing from
@@ -308,9 +404,15 @@ export interface RevealTile {
  * the base full-sheet dark regardless of this list, so an empty list means
  * zero holes in it, not zero darkness.
  */
-export function revealTiles(reveal: RevealConfig, state: RevealState, width: number): readonly RevealTile[] {
+export function revealTiles(
+  reveal: RevealConfig,
+  state: RevealState,
+  width: number,
+  nowMs: number = Infinity,
+  reducedMotion: boolean = false,
+): readonly RevealTile[] {
   if (reveal.mode === 'light') {
-    return lightSources(reveal, state).map((s) => ({
+    return lightSources(reveal, state, nowMs, reducedMotion).map((s) => ({
       x: s.cx - s.radius,
       y: s.cy - s.radius,
       w: s.radius * 2,

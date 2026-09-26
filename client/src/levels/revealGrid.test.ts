@@ -7,7 +7,12 @@ import { describe, expect, it } from 'vitest'
 import type { Point } from '../letters/types'
 import { coverageScore } from './coverage'
 import {
+  completionGrowthFraction,
   EMPTY_REVEAL,
+  growthFraction,
+  isLightAnimating,
+  LIGHT_COMPLETE_GROWTH_MS,
+  LIGHT_FOUND_GROWTH_MS,
   REVEAL_EPSILON,
   clearedTiles,
   debugClearedTiles,
@@ -96,20 +101,20 @@ describe('revealTick — incremental fold', () => {
     for (let windowSize = 1; windowSize <= 200; windowSize++) {
       let state = EMPTY_REVEAL
       for (let i = windowSize; i <= stroke.length; i += windowSize) {
-        state = revealTick(state, stroke.slice(0, i), true, ERASE, 1000)
+        state = revealTick(state, stroke.slice(0, i), true, ERASE, 1000, 0)
       }
       // Fold the tail, if the stroke length is not a multiple of windowSize.
-      state = revealTick(state, stroke, true, ERASE, 1000)
+      state = revealTick(state, stroke, true, ERASE, 1000, 0)
       expect(state.cleared.size, `window ${windowSize}`).toBe(whole.size)
       for (const idx of whole) expect(state.cleared.has(idx), `window ${windowSize} tile ${idx}`).toBe(true)
     }
   })
 
   it('no segment crosses a pen lift', () => {
-    const before = revealTick(EMPTY_REVEAL, [{ x: 10, y: 10 }, { x: 990, y: 590 }], true, ERASE, 1000)
-    const lifted = revealTick(before, [], false, ERASE, 1000)
+    const before = revealTick(EMPTY_REVEAL, [{ x: 10, y: 10 }, { x: 990, y: 590 }], true, ERASE, 1000, 0)
+    const lifted = revealTick(before, [], false, ERASE, 1000, 0)
     // A fresh stroke starting far away must not join across the lift.
-    const after = revealTick(lifted, [{ x: 500, y: 300 }], true, ERASE, 1000)
+    const after = revealTick(lifted, [{ x: 500, y: 300 }], true, ERASE, 1000, 0)
     const wholeAsOneStroke = clearedTiles(
       [[{ x: 10, y: 10 }, { x: 990, y: 590 }], [{ x: 500, y: 300 }]],
       { cols: ERASE.cols, rows: ERASE.rows, width: 1000, radius: ERASE.radius },
@@ -121,14 +126,14 @@ describe('revealTick — incremental fold', () => {
 
   it('returns the SAME reference when nothing flips', () => {
     const config: Extract<RevealConfig, { mode: 'erase' }> = { mode: 'erase', cols: 10, rows: 6, radius: 5 }
-    const state = revealTick(EMPTY_REVEAL, [{ x: 50, y: 50 }], true, config, 1000)
+    const state = revealTick(EMPTY_REVEAL, [{ x: 50, y: 50 }], true, config, 1000, 0)
     // A second sample landing in the SAME already-cleared tile changes nothing.
-    const again = revealTick(state, [{ x: 50, y: 50 }, { x: 52, y: 52 }], true, config, 1000)
+    const again = revealTick(state, [{ x: 50, y: 50 }, { x: 52, y: 52 }], true, config, 1000, 0)
     expect(again).toBe(state)
   })
 
   it('!drawing is idempotent once already reset', () => {
-    const reset = revealTick(EMPTY_REVEAL, [], false, ERASE, 1000)
+    const reset = revealTick(EMPTY_REVEAL, [], false, ERASE, 1000, 0)
     expect(reset).toBe(EMPTY_REVEAL)
   })
 
@@ -145,34 +150,36 @@ describe('revealTick — incremental fold', () => {
     }
 
     it('REVEAL_EPSILON suppresses an idle re-render with no latch change', () => {
-      const state = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000)
+      const state = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000, 0)
       const idle = revealTick(
         state,
         [{ x: 500, y: 300 }, { x: 500 + REVEAL_EPSILON / 2, y: 300 }],
         true,
         light,
         1000,
+        0,
       )
       expect(idle).toBe(state)
     })
 
     it('a move beyond REVEAL_EPSILON updates the point', () => {
-      const state = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000)
+      const state = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000, 0)
       const moved = revealTick(
         state,
         [{ x: 500, y: 300 }, { x: 500 + REVEAL_EPSILON * 5, y: 300 }],
         true,
         light,
         1000,
+        0,
       )
       expect(moved).not.toBe(state)
       expect(moved.point).toEqual({ x: 500 + REVEAL_EPSILON * 5, y: 300 })
     })
 
     it('an object stays lit after the light moves away — latch ≡ whole-stroke revealScore', () => {
-      let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000)
+      let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, 0)
       expect(state.lit.has(0)).toBe(true)
-      state = revealTick(state, [{ x: 200, y: 200 }, { x: 900, y: 590 }], true, light, 1000)
+      state = revealTick(state, [{ x: 200, y: 200 }, { x: 900, y: 590 }], true, light, 1000, 0)
       expect(state.lit.has(0)).toBe(true) // still found
       expect(state.lit.has(1)).toBe(false) // never approached
 
@@ -252,7 +259,7 @@ describe('revealTiles', () => {
   })
 
   it('a cleared tile is absent from the list', () => {
-    const state = revealTick(EMPTY_REVEAL, [{ x: 50, y: 50 }], true, ERASE, 1000)
+    const state = revealTick(EMPTY_REVEAL, [{ x: 50, y: 50 }], true, ERASE, 1000, 0)
     const tiles = revealTiles(ERASE, state, 1000)
     expect(tiles.length).toBe(ERASE.cols * ERASE.rows - state.cleared.size)
   })
@@ -281,17 +288,17 @@ describe('revealTiles', () => {
 
     it('before anything is found, the finger lifting re-covers everything — no active sources, no squares', () => {
       // (500, 300) is outside `radius` of both objects — nothing latches.
-      const untouched = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000)
+      const untouched = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000, 0)
       expect(untouched.lit.size).toBe(0)
-      const released = revealTick(untouched, [], false, light, 1000)
+      const released = revealTick(untouched, [], false, light, 1000, 0)
       expect(lightSources(light, released)).toEqual([])
       expect(revealTiles(light, released, 1000)).toEqual([])
     })
 
     it('once object 0 is found, its own bounding square stays after the torch lifts', () => {
-      let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000)
+      let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, 0)
       expect(state.lit.has(0)).toBe(true)
-      state = revealTick(state, [], false, light, 1000) // finger lifts — torch off
+      state = revealTick(state, [], false, light, 1000, 0) // finger lifts — torch off
       expect(state.point).toBeNull()
 
       expect(lightSources(light, state)).toEqual([{ cx: 200, cy: 200, radius: 100 }])
@@ -300,8 +307,8 @@ describe('revealTiles', () => {
     })
 
     it("the found object's own square carries the SAME radius it was found with", () => {
-      let state = revealTick(EMPTY_REVEAL, [{ x: 800, y: 400 }], true, light, 1000)
-      state = revealTick(state, [], false, light, 1000)
+      let state = revealTick(EMPTY_REVEAL, [{ x: 800, y: 400 }], true, light, 1000, 0)
+      state = revealTick(state, [], false, light, 1000, 0)
       expect(state.lit.has(1)).toBe(true)
 
       const [source] = lightSources(light, state)
@@ -311,14 +318,158 @@ describe('revealTiles', () => {
     })
 
     it('a live torch point contributes its own square alongside every already-found object', () => {
-      let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000) // finds object 0
-      state = revealTick(state, [], false, light, 1000) // lift
-      state = revealTick(state, [{ x: 500, y: 300 }], true, light, 1000) // torch elsewhere, holding
+      let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, 0) // finds object 0
+      state = revealTick(state, [], false, light, 1000, 0) // lift
+      state = revealTick(state, [{ x: 500, y: 300 }], true, light, 1000, 0) // torch elsewhere, holding
 
       expect(lightSources(light, state)).toEqual([
         { cx: 200, cy: 200, radius: 100 }, // found object 0, latched
         { cx: 500, cy: 300, radius: 100 }, // live torch point
       ])
     })
+  })
+})
+
+// T10 (`odd/tasks/prewriting-stage-completion.md`, "add animations to the
+// darkness"): a found object's own glow grows from 0 over
+// `LIGHT_FOUND_GROWTH_MS`, and the scene-wide completion wash grows over
+// `LIGHT_COMPLETE_GROWTH_MS` once every object is found — both eased off
+// this same `growthFraction`.
+describe('growthFraction — the T10 grow-in easing', () => {
+  it('is monotonically non-decreasing in elapsedMs, strictly increasing until it saturates', () => {
+    let prev = growthFraction(0, 400, false)
+    expect(prev).toBe(0)
+    for (let elapsed = 1; elapsed <= 500; elapsed += 1) {
+      const next = growthFraction(elapsed, 400, false)
+      expect(next).toBeGreaterThanOrEqual(prev)
+      if (elapsed < 400) expect(next).toBeGreaterThan(prev)
+      prev = next
+    }
+  })
+
+  it('reaches exactly 1 once elapsed time meets the duration, and clamps there', () => {
+    expect(growthFraction(400, 400, false)).toBe(1)
+    expect(growthFraction(4000, 400, false)).toBe(1)
+  })
+
+  it('never goes negative for a negative elapsed (e.g. a clock read slightly before the stamp)', () => {
+    expect(growthFraction(-50, 400, false)).toBe(0)
+  })
+
+  it('reducedMotion snaps straight to 1 regardless of elapsed time', () => {
+    expect(growthFraction(0, 400, true)).toBe(1)
+    expect(growthFraction(-50, 400, true)).toBe(1)
+  })
+
+  it('a non-positive duration is treated as already finished', () => {
+    expect(growthFraction(0, 0, false)).toBe(1)
+    expect(growthFraction(100, -1, false)).toBe(1)
+  })
+})
+
+describe('lightSources/revealTiles — T10 found-object grow-in', () => {
+  const light: Extract<RevealConfig, { mode: 'light' }> = {
+    mode: 'light',
+    cols: 10,
+    rows: 6,
+    radius: 100,
+    objects: [{ art: { href: '/art/x.png', w: 1, h: 1 }, size: 50, x: 200, y: 200 }],
+  }
+
+  it('a just-found object starts at radius 0 and grows toward the full radius over LIGHT_FOUND_GROWTH_MS', () => {
+    const foundAt = 1000
+    // Lift the finger right after finding it, so the live torch (which
+    // would otherwise ALSO sit at this exact spot, at full radius) drops
+    // out and the found object's own grow-in is the only source left to
+    // observe.
+    let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, foundAt)
+    state = revealTick(state, [], false, light, 1000, foundAt)
+    expect(state.litAt.get(0)).toBe(foundAt)
+
+    // The instant it is found, its radius has not grown at all yet — a
+    // zero-radius source contributes nothing, so it is simply absent.
+    expect(lightSources(light, state, foundAt, false)).toEqual([])
+
+    const midGrow = lightSources(light, state, foundAt + LIGHT_FOUND_GROWTH_MS / 2, false)
+    expect(midGrow).toHaveLength(1)
+    expect(midGrow[0].radius).toBeGreaterThan(0)
+    expect(midGrow[0].radius).toBeLessThan(light.radius)
+
+    const doneGrowing = lightSources(light, state, foundAt + LIGHT_FOUND_GROWTH_MS, false)
+    expect(doneGrowing).toEqual([{ cx: 200, cy: 200, radius: light.radius }])
+  })
+
+  it('defaults (no nowMs passed) to the full radius immediately — every pre-T10 caller stays byte-identical', () => {
+    let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, 0)
+    state = revealTick(state, [], false, light, 1000, 0)
+    expect(lightSources(light, state)).toEqual([{ cx: 200, cy: 200, radius: light.radius }])
+    expect(revealTiles(light, state, 1000)).toEqual([{ x: 100, y: 100, w: 200, h: 200, opacity: 1 }])
+  })
+
+  it('reducedMotion skips the grow-in and shows the found object at full radius right away', () => {
+    const foundAt = 1000
+    let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, foundAt)
+    state = revealTick(state, [], false, light, 1000, foundAt)
+    expect(lightSources(light, state, foundAt, true)).toEqual([{ cx: 200, cy: 200, radius: light.radius }])
+  })
+})
+
+describe('isLightAnimating / completionGrowthFraction — the T10 completion wash', () => {
+  const light: Extract<RevealConfig, { mode: 'light' }> = {
+    mode: 'light',
+    cols: 10,
+    rows: 6,
+    radius: 100,
+    objects: [
+      { art: { href: '/art/x.png', w: 1, h: 1 }, size: 50, x: 200, y: 200 },
+      { art: { href: '/art/y.png', w: 1, h: 1 }, size: 50, x: 800, y: 400 },
+    ],
+  }
+
+  it('completeAt latches the instant the last object is found, never before', () => {
+    let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, 1000)
+    expect(state.completeAt).toBeNull()
+    state = revealTick(state, [], false, light, 1000, 1200)
+    state = revealTick(state, [{ x: 800, y: 400 }], true, light, 1000, 1500)
+    expect(state.completeAt).toBe(1500)
+  })
+
+  it('completionGrowthFraction is 0 before completion, regardless of the clock', () => {
+    const state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, 1000)
+    expect(completionGrowthFraction(state, 999999, false)).toBe(0)
+  })
+
+  it('completionGrowthFraction grows from 0 to 1 over LIGHT_COMPLETE_GROWTH_MS after completeAt', () => {
+    let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, 1000)
+    state = revealTick(state, [], false, light, 1000, 1200)
+    state = revealTick(state, [{ x: 800, y: 400 }], true, light, 1000, 1500)
+    expect(state.completeAt).toBe(1500)
+
+    expect(completionGrowthFraction(state, 1500, false)).toBe(0)
+    expect(completionGrowthFraction(state, 1500 + LIGHT_COMPLETE_GROWTH_MS / 2, false)).toBeGreaterThan(0)
+    expect(completionGrowthFraction(state, 1500 + LIGHT_COMPLETE_GROWTH_MS / 2, false)).toBeLessThan(1)
+    expect(completionGrowthFraction(state, 1500 + LIGHT_COMPLETE_GROWTH_MS, false)).toBe(1)
+  })
+
+  it('isLightAnimating is true while a found object is still growing in, false once settled', () => {
+    const state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, 1000)
+    expect(isLightAnimating(state, 1000)).toBe(true)
+    expect(isLightAnimating(state, 1000 + LIGHT_FOUND_GROWTH_MS - 1)).toBe(true)
+    expect(isLightAnimating(state, 1000 + LIGHT_FOUND_GROWTH_MS)).toBe(false)
+  })
+
+  it('isLightAnimating is true while the completion wash is still growing, false once settled', () => {
+    let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, 1000)
+    state = revealTick(state, [], false, light, 1000, 1200)
+    state = revealTick(state, [{ x: 800, y: 400 }], true, light, 1000, 1500)
+    // Well past both objects' own individual grow-ins, but still inside the
+    // completion wash's own window.
+    const midCompletion = 1500 + LIGHT_COMPLETE_GROWTH_MS / 2
+    expect(isLightAnimating(state, midCompletion)).toBe(true)
+    expect(isLightAnimating(state, 1500 + LIGHT_COMPLETE_GROWTH_MS)).toBe(false)
+  })
+
+  it('isLightAnimating is false at rest — nothing found, no finger down', () => {
+    expect(isLightAnimating(EMPTY_REVEAL, 123456)).toBe(false)
   })
 })
