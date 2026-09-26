@@ -862,6 +862,10 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     demo: true,
     vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    // T17 (docs/19 §2.2, §3.4): one sheep collected per peak plus one more
+    // at the route's end — `'peaks'` derives both from the SAME apexes
+    // `vertexArt` above already stands the sheep pictures on.
+    collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
   },
   {
     id: 'sheep-hill2',
@@ -880,6 +884,7 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
   },
   {
     id: 'sheep-hill3',
@@ -898,6 +903,7 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
   },
   {
     id: 'sheep-hill4',
@@ -917,6 +923,7 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
   },
   {
     id: 'llama-peak1',
@@ -936,6 +943,9 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     demo: true,
     vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    // T17 (docs/19 §2.2, §3.4): same mechanic as the sheep, one llama per
+    // peak plus one at the end.
+    collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
   },
   {
     id: 'llama-peak2',
@@ -954,6 +964,7 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
   },
   {
     id: 'llama-peak3',
@@ -972,6 +983,7 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
   },
   {
     id: 'llama-peak4',
@@ -991,6 +1003,7 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
   },
   // ───────────────────────────────────────────────────────────────────────
   // The night sector (`docs/12`, design.md §5): four `mode: 'light'`

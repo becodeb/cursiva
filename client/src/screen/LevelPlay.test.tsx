@@ -549,7 +549,7 @@ describe('LevelPlay — sheep-hill3 stands the octopus without a direction arrow
     expect(traceCanvasProbe.current?.ground).toBeUndefined()
   })
 
-  it('passes vertexArt with 3 apexes, one per authored peak', () => {
+  it('passes vertexArt with 4 points: 3 apexes, one per authored peak, plus one at the route’s end (T17: sheep-hill3 now also authors `collect`, and vertexArt reuses the SAME collectItems positions)', () => {
     renderToString(
       <LevelPlay
         level={getLevel('sheep-hill3')}
@@ -563,7 +563,7 @@ describe('LevelPlay — sheep-hill3 stands the octopus without a direction arrow
       | { href: string; at: readonly { x: number; y: number }[] }
       | undefined
     expect(vertexArt).toBeDefined()
-    expect(vertexArt!.at).toHaveLength(3)
+    expect(vertexArt!.at).toHaveLength(4)
     expect(vertexArt!.href).toBe('/art/sector-sheep.png')
   })
 })
@@ -733,12 +733,19 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
     expect(html.replace(/<style>[\s\S]*?<\/style>/, '')).not.toContain('pistas-animal')
   })
 
-  it('shows a star for a filed level with no clue art yet (sheep), and an empty socket while unfiled — never a dim placeholder star', () => {
-    const progress = adventureProgress('sheep-hill2', filedRecords(['sheep-hill1']))!
+  it('shows a star for a filed level with no clue art yet (turtle), and an empty socket while unfiled — never a dim placeholder star', () => {
+    // T17 moved this fixture from sheep-hill2/sheep-hill1 to turtle2/turtle1:
+    // sheep-hill now authors `collect` and therefore renders `CollectBar`
+    // instead of `TrailProgressBar` in this exact slot (see the
+    // `CollectBar` describe block below) — turtle is still a plain,
+    // clue-less multi-level adventure untouched by T17, so it is what this
+    // test's own ORIGINAL intent (the star/empty-socket contract on
+    // `TrailProgressBar` itself) actually needs.
+    const progress = adventureProgress('turtle2', filedRecords(['turtle1']))!
     const html = renderToString(
-      <LevelPlay level={getLevel('sheep-hill2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={progress} />,
+      <LevelPlay level={getLevel('turtle2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={progress} />,
     )
-    // sheep-hill1 (filed, no clue) earns exactly one star image; sheep-hill2
+    // turtle1 (filed, no clue) earns exactly one star image; turtle2
     // (current, unfiled, no clue) gets no image in its own socket at all.
     expect(html.split(ZOO_STAR_ART.href).length - 1).toBe(1)
   })
@@ -1032,6 +1039,105 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
     const worldGround = render(makeWorldOnlyLevel()) as { grass: Layer; mud: Layer } | undefined
     expect(worldGround?.grass.marks.length).toBeGreaterThan(20)
     expect(worldGround?.mud.marks.length).toBeGreaterThan(3)
+  })
+})
+
+describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', () => {
+  it('sheep-hill1 shows CollectBar (not TrailProgressBar) with every item un-collected before any attempt, and no pillar/coach section at all', () => {
+    const level = getLevel('sheep-hill1')
+    const html = renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    // sheep-hill1 has 2 peaks + 1 end item = 3 sockets, all empty.
+    expect(html.split('data-filed="true"').length - 1).toBe(0)
+    expect(html.split('data-filed="false"').length - 1).toBe(3)
+    // No "Resultado del intento" pillar/coach section at all (T17: a
+    // collect level's pass/fail is not decided by those pillars, so
+    // showing them — or a possible fail state — would contradict `docs/01`
+    // "no failure feedback").
+    expect(html).not.toContain('aria-label="Resultado del intento"')
+  })
+
+  it("collecting only PART of the route still refuses approval on release, even with a full, accurate stroke: collection gates passing, not evaluateLevel's own pillars", () => {
+    const level = getLevel('sheep-hill1')
+    const target = buildLevelTarget(level)
+    const onAttempt = vi.fn<(a: LevelAttempt) => void>()
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={onAttempt} onNext={noop} onBack={noop} />,
+    )
+    const props = traceCanvasProbe.current
+    const onFrame = props?.onFrame as (points: TracePoint[], drawing: boolean, timeMs: number) => void
+    const onRelease = props?.onRelease as (
+      points: TracePoint[],
+      pointerType: string,
+      all: TracePoint[][],
+    ) => void
+    // One sample near the START of the route only — collects at most the
+    // first item, never the last (the end-of-route item).
+    onFrame([target.polyline[1]], true, 200)
+    // A full, accurate stroke tracing the WHOLE route — `evaluateLevel`
+    // itself would approve this by construction (a maze corridor at 0
+    // minFluency), which is exactly why this is the decoupling proof.
+    const stroke: TracePoint[] = target.polyline.map((p) => ({ x: p.x, y: p.y }))
+    onRelease(stroke, 'touch', [stroke])
+    expect(onAttempt).toHaveBeenCalledTimes(1)
+    const result = onAttempt.mock.calls[0][0]
+    expect(result.approved).toBe(false)
+    expect(result.failedPillar).toBeNull()
+  })
+
+  it('collecting every item (the finger reaching the very end of the route) approves on release, regardless of the stroke passed to onRelease', () => {
+    const level = getLevel('sheep-hill1')
+    const target = buildLevelTarget(level)
+    const onAttempt = vi.fn<(a: LevelAttempt) => void>()
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={onAttempt} onNext={noop} onBack={noop} />,
+    )
+    const props = traceCanvasProbe.current
+    const onFrame = props?.onFrame as (points: TracePoint[], drawing: boolean, timeMs: number) => void
+    const onRelease = props?.onRelease as (
+      points: TracePoint[],
+      pointerType: string,
+      all: TracePoint[][],
+    ) => void
+    // Walk the whole route, in order, well past the ~30Hz throttle each
+    // time — the same convention the pre-existing wiring tests above use.
+    let t = 200
+    for (const p of target.polyline) {
+      onFrame([p], true, t)
+      t += 200
+    }
+    const stroke: TracePoint[] = [{ x: 0, y: 0 }] // deliberately trivial/inaccurate
+    onRelease(stroke, 'touch', [stroke])
+    expect(onAttempt).toHaveBeenCalledTimes(1)
+    expect(onAttempt.mock.calls[0][0].approved).toBe(true)
+  })
+
+  it('resetOnContact (a wall touch) does not wipe already-collected items: restartRun runs through onFrame without throwing after a partial collection', () => {
+    const level = getLevel('sheep-hill1')
+    const target = buildLevelTarget(level)
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const onFrame = traceCanvasProbe.current?.onFrame as (
+      points: TracePoint[],
+      drawing: boolean,
+      timeMs: number,
+    ) => void
+    // Reach the first item on-route, then jump far off the corridor —
+    // `resetOnContact` needs several consecutive off-path samples
+    // (`contactTick`'s own debounce) to actually fire; this only proves the
+    // whole path (tick, then a wall contact, then more ticks) runs without
+    // throwing, which is what a `CollectState` wiped mid-tick by a naive
+    // reset would risk regressing into.
+    onFrame([target.polyline[1]], true, 200)
+    const half = (target.corridorWidth || 60) / 2
+    for (let i = 0; i < 6; i++) {
+      expect(() =>
+        onFrame([{ x: target.polyline[1].x + half * 10, y: target.polyline[1].y + half * 10 }], true, 400 + i * 200),
+      ).not.toThrow()
+    }
+    expect(() => onFrame([target.polyline[1]], true, 2000)).not.toThrow()
   })
 })
 
