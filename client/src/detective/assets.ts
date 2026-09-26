@@ -233,6 +233,17 @@ export const ANIMAL_SILHOUETTE_ART: Readonly<Partial<Record<ZooAnimalId, ArtImag
   erizo: { href: '/art/hedgehog-profile-silhouette.png', w: 448, h: 306 },
   oveja: { href: '/art/sector-sheep-silhouette.png', w: 420, h: 448 },
   llama: { href: '/art/sector-llama-silhouette.png', w: 299, h: 448 },
+  // [T27, `docs/19` §3 monos row] `abeja` joins the deduction lineup as one
+  // of the `monkeys` case's two distractors — reused BY REFERENCE from
+  // `ZOO_ANIMAL_SILHOUETTE_ART.abeja` (the SAME real bee silhouette file
+  // the notebook already draws), the same "never a second derivation"
+  // convention `pato` above already follows. `mono` is deliberately absent
+  // here: its own derived silhouette is a featureless placeholder sign
+  // block (`PLACEHOLDER_ZOO_ANIMALS`'s own header), so `Deduction.tsx`
+  // branches around ever calling `silhouetteArtFor('mono')` and draws
+  // `PawPrintIcon` instead — adding a "silhouette" here would only give
+  // that broken picture a technically-valid lookup.
+  abeja: { href: '/art/sector-bee-silhouette.png', w: 256, h: 230 },
 }
 
 /** Throws by name rather than rendering `undefined` — the same "fail loud,
@@ -272,7 +283,10 @@ export const ZOO_ANIMAL_SILHOUETTE_ART: Readonly<Partial<Record<ZooAnimalId, Art
   oveja: ANIMAL_SILHOUETTE_ART.oveja,
   llama: ANIMAL_SILHOUETTE_ART.llama,
   vibora: { href: '/art/sector-snake-medium-silhouette.png', w: 492, h: 114 },
-  abeja: { href: '/art/sector-bee-silhouette.png', w: 256, h: 230 },
+  // [T27] By reference to `ANIMAL_SILHOUETTE_ART.abeja` — the SAME file,
+  // never a second derivation — now that the `monkeys` deduction lineup
+  // needs it too.
+  abeja: ANIMAL_SILHOUETTE_ART.abeja,
   delfin: { href: '/art/sector-dolphin-silhouette.png', w: 448, h: 418 },
   erizo: ANIMAL_SILHOUETTE_ART.erizo,
   pez: { href: '/art/animal-pez-silhouette.png', w: 448, h: 358 },

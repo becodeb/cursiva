@@ -414,3 +414,54 @@ describe('invariant: the shipped duck-trail3/duck-trail4 collect config (crests,
     }
   })
 })
+
+// [T27, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §2.3/§3 monos
+// row] `monkey3`/`monkey4` gather the recovered monkey family along the
+// `loops()` route's own crests, once the `monkeys` case's deduction (past
+// `monkey1`/`monkey2`) is solved — `'crests'`, not `'peaks'`: measured
+// directly against these two shipped routes (`duck-trail3`/`4`'s own
+// header measured the identical failure for a smooth wave), `routeApexes`
+// finds ZERO apexes on either — `loops()`'s upstroke/downstroke controls
+// keep the flattened polyline's apex ON the top line across more than one
+// sample, so no point is STRICTLY lower than both its immediate neighbours.
+// `waveCrestArcs`'s window-based comparison finds exactly one crest per loop.
+describe('invariant: the shipped monkey3/monkey4 collect config (crests, four loops each)', () => {
+  const IDS = ['monkey3', 'monkey4']
+
+  it("authors collect: { items: 'crests' } — routeApexes finds NOTHING on either shipped route", () => {
+    for (const id of IDS) {
+      const level = getLevel(id)
+      expect(level.collect, id).toBeDefined()
+      expect(level.collect!.items, id).toBe('crests')
+      const target = buildLevelTarget(level)
+      expect(routeApexes(target.polyline), id).toHaveLength(0)
+      expect(waveCrestArcs(target.polyline), id).toHaveLength(4)
+    }
+  })
+
+  it('derives exactly one item per loop crest plus one final item at the end', () => {
+    for (const id of IDS) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const items = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
+      expect(items, id).toHaveLength(5)
+      const last = target.polyline[target.polyline.length - 1]
+      expect(items[items.length - 1].x, id).toBeCloseTo(last.x, 6)
+      expect(items[items.length - 1].y, id).toBeCloseTo(last.y, 6)
+      expect(items[items.length - 1].arc, id).toBeCloseTo(trailEndArc(target.length, level.corridorWidth), 6)
+      // Ascending by construction (collectTick's monotone-order guarantee).
+      for (let i = 1; i < items.length; i++) expect(items[i].arc, id).toBeGreaterThan(items[i - 1].arc)
+    }
+  })
+
+  it('completing the whole route collects every monkey, same invariant the sheep/llama/duck families already prove', () => {
+    for (const id of IDS) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const items = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
+      const state = collectTick(emptyCollectState(items.length), target.length, items)
+      expect(isCollectComplete(state), id).toBe(true)
+      expect(collectedCount(state), id).toBe(items.length)
+    }
+  })
+})

@@ -9,6 +9,7 @@ import {
   clueKindsOf,
   nightCaseOptions,
   resolveCase,
+  resolveMonkeysCase,
   resolveNightDiscards,
 } from './cases'
 
@@ -140,5 +141,89 @@ describe('nightCaseOptions/resolveCase (the live lineup Deduction.tsx actually r
     for (const animal of resolved.options) {
       expect(ANIMAL_SILHOUETTE_ART[animal], `no silhouette for a resolved option: ${animal}`).toBeDefined()
     }
+  })
+})
+
+// [T27, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §2.3/§3 monos
+// row] The `monkeys` case: culprit `mono` (a `PLACEHOLDER_ZOO_ANIMALS`
+// entry, so `Deduction.tsx` branches around calling `silhouetteArtFor` for
+// it — never checked here the way the night sweep above checks every
+// resolved option has a REAL silhouette), two FIXED distractors (erizo,
+// abeja — never swapped for a different animal, unlike night's priority
+// list), and a progress-resolved FRAMING for each: "ya rescatado" once
+// genuinely met, a real clue-based verdict otherwise.
+const monkeysCase = DETECTIVE_CASES.find((k) => k.id === 'monkeys')!
+
+describe('the monkeys case (docs/19 §2.3/§3 monos row)', () => {
+  it('culprit is mono, options are exactly [mono, erizo, abeja], answer closes the case', () => {
+    expect(monkeysCase.culprit).toBe('mono')
+    expect(monkeysCase.options).toEqual(['mono', 'erizo', 'abeja'])
+  })
+
+  it('the static entry names the ordinary "ya rescatado" hint for both distractors', () => {
+    expect(monkeysCase.hint.erizo).toMatch(/ya lo encontramos/)
+    expect(monkeysCase.hint.abeja).toMatch(/ya volvió a su panal/)
+  })
+
+  it('carries exactly the two stand-in clue kinds monkey1/monkey2 author, pairwise distinct', () => {
+    expect(clueKindsOf(monkeysCase)).toEqual(['feather', 'corn'])
+  })
+})
+
+describe('resolveMonkeysCase / resolveCase (the live framing Deduction.tsx actually renders)', () => {
+  it('options never change with progress — only night ever swaps who appears', () => {
+    expect(resolveMonkeysCase(monkeysCase, rescuedOnly([])).options).toEqual(monkeysCase.options)
+    expect(resolveMonkeysCase(monkeysCase, rescuedOnly(['erizo', 'abeja'])).options).toEqual(
+      monkeysCase.options,
+    )
+  })
+
+  it('the ordinary path (both already rescued): both distractors are "ya rescatado", no clue verdict needed', () => {
+    const resolved = resolveMonkeysCase(monkeysCase, rescuedOnly(['erizo', 'abeja']))
+    expect(resolved.rescuedDistractors).toEqual(['erizo', 'abeja'])
+    expect(resolved.ruledOutBy).toEqual({})
+    expect(resolved.hint.erizo).toBe(monkeysCase.hint.erizo)
+    expect(resolved.hint.abeja).toBe(monkeysCase.hint.abeja)
+  })
+
+  it('a non-linear session that has rescued neither: both fall back to a real clue-based verdict', () => {
+    const resolved = resolveMonkeysCase(monkeysCase, rescuedOnly([]))
+    expect(resolved.rescuedDistractors).toEqual([])
+    expect(resolved.ruledOutBy).toEqual({ erizo: 'corn', abeja: 'feather' })
+    expect(resolved.hint.erizo).toMatch(/no come bananas/)
+    expect(resolved.hint.abeja).toMatch(/no come bananas/)
+  })
+
+  it('mixed progress: only the unrescued one falls back, the other still reads "ya rescatado"', () => {
+    const onlyErizo = resolveMonkeysCase(monkeysCase, rescuedOnly(['erizo']))
+    expect(onlyErizo.rescuedDistractors).toEqual(['erizo'])
+    expect(onlyErizo.ruledOutBy).toEqual({ abeja: 'feather' })
+    expect(onlyErizo.hint.erizo).toBe(monkeysCase.hint.erizo)
+    expect(onlyErizo.hint.abeja).toMatch(/no come bananas/)
+
+    const onlyAbeja = resolveMonkeysCase(monkeysCase, rescuedOnly(['abeja']))
+    expect(onlyAbeja.rescuedDistractors).toEqual(['abeja'])
+    expect(onlyAbeja.ruledOutBy).toEqual({ erizo: 'corn' })
+    expect(onlyAbeja.hint.abeja).toBe(monkeysCase.hint.abeja)
+    expect(onlyAbeja.hint.erizo).toMatch(/no come bananas/)
+  })
+
+  it('every fallback verdict is one of this case\'s own carried clue kinds (cases.test.ts\'s generic invariant, restated for the resolved branch)', () => {
+    const carried = new Set(clueKindsOf(monkeysCase))
+    const resolved = resolveMonkeysCase(monkeysCase, rescuedOnly([]))
+    for (const kind of Object.values(resolved.ruledOutBy)) {
+      expect(carried.has(kind!), `${kind} is not among monkeys' own clues`).toBe(true)
+    }
+    // Pairwise distinct, the same "no clue kind rules out more than one
+    // animal" invariant every static case's own ruledOutBy satisfies.
+    const verdicts = Object.values(resolved.ruledOutBy)
+    expect(new Set(verdicts).size).toBe(verdicts.length)
+  })
+
+  it('resolveCase routes id "monkeys" through resolveMonkeysCase; every other case stays untouched', () => {
+    const duck = DETECTIVE_CASES.find((k) => k.id === 'duck')!
+    expect(resolveCase(duck, rescuedOnly([]))).toBe(duck)
+    const resolved = resolveCase(monkeysCase, rescuedOnly([]))
+    expect(resolved).toEqual(resolveMonkeysCase(monkeysCase, rescuedOnly([])))
   })
 })

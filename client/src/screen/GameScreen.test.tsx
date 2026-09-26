@@ -400,6 +400,33 @@ describe("resolveNextAction: the duck's deduction gate sits between duck-trail2 
   })
 })
 
+// [T27, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §2.3/§3 monos
+// row] The monkeys' own deduction gate (`zoo/adventures.ts`'s `deduction: {
+// after: 'monkey2', caseId: 'monkeys' }`) — the SAME generic mechanism the
+// duck's own gate above exercises, restated for a fourth case.
+describe("resolveNextAction: the monkeys' deduction gate sits between monkey2 and monkey3", () => {
+  it('unsolved: finishing monkey2 detours to deduce, carrying monkey3 as afterLevelId', () => {
+    expect(resolveNextAction('monkey2', {})).toEqual({
+      type: 'deduce',
+      caseId: 'monkeys',
+      afterLevelId: 'monkey3',
+    })
+  })
+
+  it("solved (monkeys-deduce filed): a replay of monkey2 continues straight to monkey3, never re-asking a solved case", () => {
+    const records = recordsWith(['monkeys-deduce'], 1)
+    expect(resolveNextAction('monkey2', records)).toEqual({ type: 'next', levelId: 'monkey3' })
+  })
+
+  it('monkey1 (not the gate) is unaffected, solved or not', () => {
+    expect(resolveNextAction('monkey1', {})).toEqual({ type: 'next', levelId: 'monkey2' })
+    expect(resolveNextAction('monkey1', recordsWith(['monkeys-deduce'], 1))).toEqual({
+      type: 'next',
+      levelId: 'monkey2',
+    })
+  })
+})
+
 describe("nextView: deduce carries afterLevelId through (T21)", () => {
   it('threads afterLevelId from the action into the view, so GameScreen can resume the adventure once solved', () => {
     expect(

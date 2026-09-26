@@ -30,6 +30,7 @@
 import { useState, type CSSProperties } from 'react'
 import {
   CLUE_ART,
+  PLACEHOLDER_ZOO_ANIMALS,
   silhouetteArtFor,
   ZOO_ANIMAL_ART,
   ZOO_CARETAKER_ART,
@@ -39,7 +40,7 @@ import {
 } from '../detective/assets'
 import { clueKindsOf, type DetectiveCase } from '../detective/cases'
 import CaptionedArt from '../detective/CaptionedArt'
-import { BackIcon } from '../detective/icons'
+import { BackIcon, PawPrintIcon } from '../detective/icons'
 import { LAYOUT_CSS } from './LevelPlay'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
@@ -360,7 +361,18 @@ function Animal({
   // "preserves referential identity" guarantee), so this is a behaviour-
   // preserving generalisation, not a different picture.
   const revealed = state.closed && id === kase.culprit
-  const art = revealed ? ZOO_ANIMAL_ART[id] : silhouetteArtFor(id)
+  // [T27, `docs/19` §3 monos row] A placeholder animal's own derived
+  // silhouette is a featureless block (`PLACEHOLDER_ZOO_ANIMALS`'s own
+  // header) — `silhouetteArtFor` would either throw (`mono` has no entry
+  // in `ANIMAL_SILHOUETTE_ART` at all) or, worse, succeed and render that
+  // broken picture. Before the reveal, a placeholder animal draws
+  // `PawPrintIcon` instead — `screen/DetectiveNotebook.tsx`'s own "missing
+  // page" treatment, restated for the lineup. Once REVEALED (the culprit,
+  // case closed) it still shows its real `ZOO_ANIMAL_ART` — there is
+  // nothing else to show for an animal actually caught, same as the
+  // notebook's own rescued-but-placeholder page.
+  const placeholder = !revealed && PLACEHOLDER_ZOO_ANIMALS.has(id)
+  const art = revealed ? ZOO_ANIMAL_ART[id] : placeholder ? undefined : silhouetteArtFor(id)
   // A wrong pick is gentle (`docs/01` principle 2: no red, no failure
   // sound): the ONLY animation is this one soft shake, on the animal just
   // picked — never a permanent state, so it plays exactly once per wrong
@@ -377,12 +389,23 @@ function Animal({
         disabled={state.closed}
         onClick={() => onPick(id)}
       >
-        <CaptionedArt
-          art={art}
-          label={ANIMAL_LABEL[id]}
-          size={ANIMAL_SIZE}
-          className={revealed ? 'cv-reveal-pop' : undefined}
-        />
+        {art ? (
+          <CaptionedArt
+            art={art}
+            label={ANIMAL_LABEL[id]}
+            size={ANIMAL_SIZE}
+            className={revealed ? 'cv-reveal-pop' : undefined}
+          />
+        ) : (
+          <span className="cv-captioned">
+            {/* `.cv-captioned > svg` (this file's own CSS, below) sizes
+                ANY svg here via `--cv-animal`, the same responsive rule
+                `CaptionedArt`'s own svg already rides — no extra class
+                needed for this one to match its siblings' size. */}
+            <PawPrintIcon />
+            <span className="cv-caption">{ANIMAL_LABEL[id]}</span>
+          </span>
+        )}
       </button>
     </div>
   )
