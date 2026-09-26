@@ -346,6 +346,50 @@ export function spineScore(strokes: ReadonlyArray<ReadonlyArray<Point>>, cfg: Sp
 }
 
 /**
+ * T13 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest #2: "a
+ * line that isn't a spine could disappear when I lift the finger"): which
+ * INDICES of `strokes` actually earned an anchor — the same information
+ * `spineSettle`'s own `filled` set carries, restated per-STROKE rather than
+ * per-anchor, so a render layer can show only the strokes that are real
+ * spines and let every other one fade away instead of sitting on the sheet
+ * forever as unexplained scribble.
+ *
+ * Deliberately a SEPARATE small walk rather than a `spineSettle` return-shape
+ * change: `spineSettle` folds INCREMENTALLY against a caller-supplied `prev`
+ * and returns the SAME reference when nothing new fills (a contract several
+ * callers/tests already depend on); this always folds fresh from EMPTY,
+ * `spineScore`'s own convention (the live fold never feeds either). Both
+ * still call the exact same measure functions — `nearestUnfilledAnchor` and
+ * `passesRemainingMeasures`, this file's one place measures 1-5 are decided —
+ * so what counts as a spine cannot drift between the two callers; only the
+ * bookkeeping loop (which needs the stroke's own index, `spineSettle` never
+ * does) is restated.
+ */
+export function acceptedSpineStrokeIndices(
+  strokes: ReadonlyArray<ReadonlyArray<Point>>,
+  cfg: SpineConfig,
+): ReadonlySet<number> {
+  const anchors = spineAnchors(cfg)
+  const filled = new Set<number>()
+  const accepted = new Set<number>()
+  for (let i = 0; i < strokes.length; i++) {
+    const stroke = strokes[i]
+    if (stroke.length === 0) continue
+    let idx = nearestUnfilledAnchor(anchors, filled, stroke[0], cfg.rules.baseRadius)
+    let reversed = false
+    if (idx === null && stroke.length > 1) {
+      idx = nearestUnfilledAnchor(anchors, filled, stroke[stroke.length - 1], cfg.rules.baseRadius)
+      reversed = idx !== null
+    }
+    if (idx === null) continue
+    if (!passesRemainingMeasures(stroke, anchors[idx], cfg, reversed)) continue
+    filled.add(idx)
+    accepted.add(i)
+  }
+  return accepted
+}
+
+/**
  * The live fold: `aiming` only, never scoreable. The nearest unfilled anchor
  * to the CURRENT stroke's base, or `null` while not drawing / out of every
  * anchor's radius. Returns the SAME REFERENCE when nothing flips.

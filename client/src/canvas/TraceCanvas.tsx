@@ -709,6 +709,22 @@ export interface TraceSpines {
    *  child ever sees. */
   rings?: readonly { x: number; y: number; radius: number }[]
   ringStroke?: string
+  /** T13 (tablet playtest #2, "a stroke that isn't a spine could disappear
+   *  when I lift the finger"): a just-released stroke that did NOT settle
+   *  into a spine, rendered here as fading ink — never through
+   *  `TraceCanvasProps.completedStrokes`, which paints every entry at the
+   *  SAME fixed opacity forever and has no per-entry fade. Points, not a
+   *  pre-built path: `SpineLayer` runs it through the same `inkPath(trace
+   *  Ink(...))` pipeline `screen/LevelPlay.tsx` already imports from
+   *  `canvas/ink.ts`, so a rejected stroke looks exactly like the ink it
+   *  just was before it fades. Absent = nothing fading, every existing
+   *  caller's byte-identical default. */
+  fading?: readonly { id: number; points: readonly { x: number; y: number }[] }[]
+  /** Stroke colour for `fading` entries — the caller's own ink colour
+   *  (`INK_COLOR`, this file), so a fading rejected stroke reads as the
+   *  ink it just was rather than the chalk `dim`/`earned` marks use.
+   *  Required only alongside `fading`. */
+  fadingColor?: string
 }
 
 /** The WINDOW, when it is narrower than the world (`scrolling-camera`

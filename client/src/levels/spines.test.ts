@@ -8,6 +8,7 @@ import {
   DEMO_SPINES,
   EMPTY_SPINES,
   SPINE_MARK_R,
+  acceptedSpineStrokeIndices,
   debugSpineStrokes,
   debugSpines,
   nextSpineIndex,
@@ -389,6 +390,43 @@ describe('spineScore — recomputes purely from the complete settled stroke list
     const rejected: Point[] = [{ x: -9999, y: -9999 }, { x: -9999 + 10, y: -9999 }]
     const after = spineScore([...goodStrokes, rejected], cfg)
     expect(after).toBe(before)
+  })
+})
+
+describe('acceptedSpineStrokeIndices (T13, tablet playtest #2: "a line that isn\'t a spine could disappear")', () => {
+  it('reports the index of every stroke that actually filled an anchor, in order', () => {
+    const cfg = makeConfig({ count: 8 })
+    const anchors = spineAnchors(cfg)
+    const strokes = [idealStroke(anchors[0], midLen(cfg)), idealStroke(anchors[2], midLen(cfg))]
+    expect(acceptedSpineStrokeIndices(strokes, cfg)).toEqual(new Set([0, 1]))
+  })
+
+  it('excludes a rejected stroke\'s own index, without disturbing the strokes around it', () => {
+    const cfg = makeConfig({ count: 8 })
+    const anchors = spineAnchors(cfg)
+    const rejected: Point[] = [{ x: -9999, y: -9999 }, { x: -9999 + 10, y: -9999 }]
+    const strokes = [idealStroke(anchors[0], midLen(cfg)), rejected, idealStroke(anchors[1], midLen(cfg))]
+    expect(acceptedSpineStrokeIndices(strokes, cfg)).toEqual(new Set([0, 2]))
+  })
+
+  it('the accepted COUNT always agrees with spineScore\'s own filled.size (same measures, same result)', () => {
+    const cfg = makeConfig({ count: 8 })
+    const anchors = spineAnchors(cfg)
+    const rejected: Point[] = [{ x: -9999, y: -9999 }, { x: -9999 + 10, y: -9999 }]
+    const strokes = [
+      idealStroke(anchors[0], midLen(cfg)),
+      rejected,
+      idealStroke(anchors[1], midLen(cfg)),
+      idealStroke(anchors[3], midLen(cfg)),
+    ]
+    const settled = spineSettle(EMPTY_SPINES, strokes, cfg)
+    expect(acceptedSpineStrokeIndices(strokes, cfg).size).toBe(settled.filled.size)
+  })
+
+  it('empty strokes and an empty list are both handled with an empty result', () => {
+    const cfg = makeConfig()
+    expect(acceptedSpineStrokeIndices([], cfg)).toEqual(new Set())
+    expect(acceptedSpineStrokeIndices([[]], cfg)).toEqual(new Set())
   })
 })
 

@@ -312,6 +312,22 @@ describe('RevealLayer', () => {
     // light, so there is nothing left for a second highlight to add.
     expect(html).not.toContain('data-night-torch')
     expect(html).toContain('data-night-discovery="true"')
+    // T12 defect fix (tablet playtest 2026-09-26, item 2: "found things have
+    // a semi-transparent yellow circle around them... looks very
+    // artificial"). `data-night-discovery` used to also render two soft
+    // discs (`#fce97a` then `#fffbe6`) centred on every FOUND object. The
+    // veil's own hole is what shows it was found; a found object now renders
+    // as ONLY its own `<image>`, no extra circle.
+    expect(html).not.toContain('#fce97a')
+    expect(html).not.toContain('#fffbe6')
+    // Structural: the discovery group itself now wraps ONLY the found
+    // object's own `<image>` — no `<circle>` glow left inside it at all.
+    const discoveryGroup = html.slice(
+      html.indexOf('data-night-discovery="true"'),
+      html.indexOf('</g>', html.indexOf('data-night-discovery="true"')),
+    )
+    expect(discoveryGroup).toContain('<image')
+    expect(discoveryGroup).not.toContain('<circle')
     expect(html).not.toContain('url(#')
     expect(html).not.toContain('<mask')
 

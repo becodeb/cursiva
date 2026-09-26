@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TraceCanvas, {
   GROUND_FIELD,
+  INK_COLOR,
   SHEET_PAPER,
   type DrawDemo,
   type TraceBackdrop,
@@ -65,6 +66,7 @@ import {
 import {
   EMPTY_SPINES,
   SPINE_MARK_R,
+  acceptedSpineStrokeIndices,
   debugSpineStrokes,
   seedSpines,
   spineAim,
@@ -134,6 +136,21 @@ import SpeakButton from '../voice/SpeakButton'
 /** Seconds one demonstration sub-path takes, and the gap before the next one. */
 const DEMO_DURATION_S = 1.6
 const DEMO_STEP_S = 1.7
+/**
+ * T13 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest #2: "the
+ * animation that shows you what to do is very slow"): the hedgehog demo
+ * plays at roughly 2x the shared `DEMO_DURATION_S`/`DEMO_STEP_S` pace above —
+ * a spine is one short straight stroke, not a routed corridor shape, so it
+ * reads fine drawn quickly. Kept SEPARATE from the shared constants rather
+ * than lowering them: every OTHER level with a `demo` (a routed letter/word)
+ * still plays at the original pace, byte-identical.
+ */
+const SPINE_DEMO_DURATION_S = 0.8
+const SPINE_DEMO_STEP_S = 0.85
+/** T13: how long a rejected (non-spine) stroke's ink stays visible while it
+ *  fades (`.cv-spine-fading`, `LAYOUT_CSS` below) before `SpineLayer` stops
+ *  being asked to render it at all. */
+const SPINE_REJECT_FADE_MS = 300
 /**
  * Live off-path sampling period (~30 Hz): the 60fps ink loop owns the frame.
  *
@@ -546,6 +563,12 @@ export function releasedRevealState(
   reveal: LevelConfig['reveal'],
   snapshot: ReadonlyArray<ReadonlyArray<TracePoint>>,
   width: number,
+  // T12: defaults to `EMPTY_REVEAL` so every EXISTING caller (this file's
+  // own tests included) that predates the replay-on-lift fix stays
+  // byte-identical — the one caller that actually needs to preserve
+  // timestamps (`onRelease`, this file) passes `revealStateRef.current`
+  // explicitly.
+  prev: RevealState = EMPTY_REVEAL,
 ): RevealState | null {
   if (!reveal) return null
   // One shared clock for the whole instant replay (T10's own `now` param on
@@ -570,7 +593,31 @@ export function releasedRevealState(
     next = revealTick(next, stroke, true, reveal, width, now)
     next = revealTick(next, [], false, reveal, width, now)
   }
-  return next
+  // T12 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest #2:
+  // "once I discover something it stays lit, but when I lift my finger it
+  // goes dark for a second and the animation plays again"): the raw re-fold
+  // above ALWAYS restarts from `EMPTY_REVEAL`, so `revealTick` stamps
+  // `litAt`/`completeAt` at THIS release's own `now` for every object still
+  // lit and for `completeAt` whenever every object is still found — even a
+  // release that found nothing new, anywhere on the sheet, long after the
+  // real grow-in already finished. Left alone, that replays a found object's
+  // own grow-in (and the scene-wide completion wash) on every single stroke
+  // release, not only the one that actually found something. `prev` is the
+  // live incremental fold (`revealStateRef.current`, this function's one
+  // caller) — its `litAt`/`completeAt` are the REAL first-found timestamps,
+  // stamped once by the live `onFrame` ticks that ran while the child was
+  // actually drawing/lighting, so they are preserved for every index this
+  // raw re-score agrees was already lit before this release; only a index
+  // that is NEWLY lit by this exact re-score (not in `prev.lit`) keeps the
+  // fresh `next` stamp, and `completeAt` only takes `next`'s fresh stamp the
+  // FIRST time the level completes (`prev.completeAt` is still `null`).
+  const litAt = new Map(next.litAt)
+  for (const idx of next.lit) {
+    const priorAt = prev.litAt.get(idx)
+    if (priorAt !== undefined) litAt.set(idx, priorAt)
+  }
+  const completeAt = prev.completeAt ?? next.completeAt
+  return { ...next, litAt, completeAt }
 }
 
 export function allRevealTiles(reveal: NonNullable<LevelConfig['reveal']>, width: number): Array<TraceReveal['tiles'][number]> {
@@ -1093,6 +1140,28 @@ html, body, #root { margin: 0; padding: 0; }
 @media (prefers-reduced-motion: reduce) {
   .cv-spine-mark-filled { animation: none; }
 }
+/* T13 (tablet playtest #2, "a line that isn't a spine could disappear when I
+ * lift the finger"): a rejected stroke's own ink ('SpineLayer''s 'fading'
+ * entries) plays this ONCE on mount — a '@keyframes' animation, not a CSS
+ * transition, on purpose: a transition needs the element to paint at its
+ * START value on one frame before the engine can animate toward a DIFFERENT
+ * value set on a later frame ('TraceCanvas.tsx''s own reset-fade needs
+ * exactly that two-step dance for this reason), while a keyframe animation
+ * runs from 0% the instant the element exists — no second render, no flip
+ * flag, nothing else this file has to own. 'forwards' keeps the element
+ * sitting at 0 opacity for whatever few milliseconds pass before
+ * 'onRelease''s own timeout drops the entry from 'fadingSpineStrokes'
+ * entirely. */
+.cv-spine-fading {
+  animation: cv-spine-reject-fade 300ms ease-out forwards;
+}
+@keyframes cv-spine-reject-fade {
+  0% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-spine-fading { animation: none; opacity: 0; }
+}
 
 /* Upright and narrow is genuinely width-limited: show guidance instead of
  * shrinking the play surface into an unusable mini game. Header and actions
@@ -1607,17 +1676,22 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // centreHorizontally`); for a routeless `spines` level with `demo: true`
   // it is the generator's own first-k anchor→tip segments (the demo
   // repair, `radial-spines` capability, design.md §2 D3).
+  // T13: `level.spines` alone picks the faster pace — never `target.kind` or
+  // anything about the shape of `demoPaths` itself, so a future routeless
+  // family that is NOT spines keeps the original shared pace by default.
+  const demoStepS = level.spines ? SPINE_DEMO_STEP_S : DEMO_STEP_S
+  const demoDurationS = level.spines ? SPINE_DEMO_DURATION_S : DEMO_DURATION_S
   const demos = useMemo<DrawDemo[]>(
     () =>
       target.demoPaths.map((d, idx) => ({
         d,
-        delay: idx * DEMO_STEP_S,
-        duration: DEMO_DURATION_S,
+        delay: idx * demoStepS,
+        duration: demoDurationS,
         strokeWidth: 12,
       })),
-    [target.demoPaths],
+    [target.demoPaths, demoStepS, demoDurationS],
   )
-  const demoMs = target.demoPaths.length * DEMO_STEP_S * 1000 + 300
+  const demoMs = target.demoPaths.length * demoStepS * 1000 + 300
 
   // docs/03 §3. Everything the surface shows is a function of this, so it is
   // computed once and read all the way down.
@@ -1795,6 +1869,27 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // state survives untouched regardless of any live sample.
   const spinePin = !!level.spines && spineDebugCount(debugSearch) !== null
 
+  // T13 (tablet playtest #2, "a stroke that isn't a spine could disappear
+  // when I lift"): rejected strokes fading out via `SpineLayer` — a small
+  // list rather than a single slot, so two rejections in quick succession
+  // each get their OWN fade instead of the second silently replacing the
+  // first mid-animation. `fadingSpineIdRef` hands out stable keys (never
+  // reused, so a stale timeout can never remove the wrong entry); the
+  // pending-timeout set exists only so unmount can cancel every outstanding
+  // one instead of letting it fire a `setState` on an unmounted screen.
+  const [fadingSpineStrokes, setFadingSpineStrokes] = useState<
+    readonly { id: number; points: readonly TracePoint[] }[]
+  >([])
+  const fadingSpineIdRef = useRef(0)
+  const fadingSpineTimeoutsRef = useRef<Set<number>>(new Set())
+  useEffect(() => {
+    const timeouts = fadingSpineTimeoutsRef.current
+    return () => {
+      for (const t of timeouts) window.clearTimeout(t)
+      timeouts.clear()
+    }
+  }, [])
+
   // The camera's own world x-origin (`scrolling-camera` capability). ONE
   // initialiser, `seedCameraFor`, called from mount (this `useState`
   // initializer), `resetSurface` below, AND `restartRun` — `seedArrangeState`'s
@@ -1829,6 +1924,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // above, restated (`radial-spines` capability, design.md §6).
     spineRef.current = initialSpineState(level.spines, debugSearch)
     setSpineState(spineRef.current)
+    // T13: a rejected stroke's fade resets with the run too — otherwise a
+    // fade already in flight would keep counting down and vanish over the
+    // FRESH attempt's own first spines.
+    for (const t of fadingSpineTimeoutsRef.current) window.clearTimeout(t)
+    fadingSpineTimeoutsRef.current.clear()
+    setFadingSpineStrokes([])
     // The arrangement resets to its deterministic scatter with the run —
     // `docs/13` §6's "posibilidad de reinicio", free (object-arrange spec).
     // THROUGH `seedArrangeState`, never `initialArrange` directly, or this
@@ -2005,6 +2106,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     setOffPath(false)
     setAttempt(null)
     setStrokes([])
+    // T13: same reset as `resetSurface` — dead today (this function's own
+    // comment below: unreachable for a `spines` level), kept only so it
+    // cannot silently reproduce the waypoint fold's own bug the moment
+    // either ever becomes reachable together.
+    for (const t of fadingSpineTimeoutsRef.current) window.clearTimeout(t)
+    fadingSpineTimeoutsRef.current.clear()
+    setFadingSpineStrokes([])
     setArrangeState(seedArrangeState())
     // `restartRun` does NOT call `resetSurface` — it duplicates a subset of
     // its resets inline — so the camera's own reseed (design.md §2.4: "back
@@ -2297,17 +2405,40 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // release rather than mid-stroke.
       if (level.spines && !spinePin) {
         const next = spineSettle(spineRef.current, snapshot, level.spines)
-        if (next !== spineRef.current) {
-          const grew = next.filled.size > spineRef.current.filled.size
+        const grew = next !== spineRef.current
+        if (grew) {
           spineRef.current = next
           setSpineState(next)
-          if (grew && feedback.haptics) pulseOnLeaving(false, true)
+          if (feedback.haptics) pulseOnLeaving(false, true)
+        }
+        // T13 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest
+        // #2: "a stroke that isn't a spine could be erased as soon as I
+        // lift the finger"): the stroke just released is the LAST entry of
+        // `snapshot` (one new stroke per release); `grew` already says
+        // whether ANY stroke settled a new anchor this call, and because
+        // every earlier stroke in `snapshot` was already re-walked and
+        // resolved on a PRIOR release (accepted strokes stay accepted,
+        // rejected ones fail the same deterministic measures again), a miss
+        // here means this exact new stroke was the rejected one. It is
+        // never added to `strokes` as permanent ink for THIS reason — that
+        // filtering lives in `shownStrokes` (`acceptedSpineStrokeIndices`,
+        // `levels/spines.ts`) — instead it fades out through `SpineLayer`
+        // (`fadingSpineStrokes` below, `LAYOUT_CSS`'s `.cv-spine-fading`).
+        const lastStroke = snapshot[snapshot.length - 1]
+        if (!grew && lastStroke && lastStroke.length > 0) {
+          const id = ++fadingSpineIdRef.current
+          setFadingSpineStrokes((prev) => [...prev, { id, points: lastStroke }])
+          const timeout = window.setTimeout(() => {
+            fadingSpineTimeoutsRef.current.delete(timeout)
+            setFadingSpineStrokes((prev) => prev.filter((f) => f.id !== id))
+          }, SPINE_REJECT_FADE_MS)
+          fadingSpineTimeoutsRef.current.add(timeout)
         }
       }
       // RAW points, always. `snapshot` is the captured stroke, never the
       // rail-warped copy the canvas draws — scoring the assist would make
       // accuracy a measurement of the rail instead of the child (see `rail.ts`).
-      const releasedReveal = releasedRevealState(level.reveal, snapshot, target.viewBoxWidth)
+      const releasedReveal = releasedRevealState(level.reveal, snapshot, target.viewBoxWidth, revealStateRef.current)
       if (releasedReveal) setRevealState(releasedReveal)
       const result = evaluateLevel(snapshot, target, pointerType)
       setAttempt(result)
@@ -2424,10 +2555,26 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // Settled ink of previous strokes, pulled the SAME way the live ink was, so
   // an assisted attempt does not visibly snap back the instant the finger
   // lifts. `strokes` itself stays raw — it is what was scored.
-  const shownStrokes = useMemo(
-    () => (inkWarp ? strokes.map((stroke) => stroke.map((p) => inkWarp(p))) : strokes),
-    [strokes, inkWarp],
-  )
+  const shownStrokes = useMemo(() => {
+    // T13 (tablet playtest #2): on a hedgehog level, permanent settled ink
+    // shows ONLY the strokes that actually became spines — never a raw
+    // stroke count check, always the exact same measures `spineScore` itself
+    // scores with (`acceptedSpineStrokeIndices`, `levels/spines.ts`), so a
+    // stroke can never render as permanent ink here while `evaluateLevel`
+    // simultaneously treats it as unscored. `strokes` itself (the state
+    // `onRelease` sets from the canvas's own full captured list) is
+    // UNCHANGED — still every stroke ever drawn this attempt, exactly what
+    // `evaluateLevel` scores — this filtering is render-only. A rejected
+    // stroke is never silently dropped with no feedback: it fades through
+    // `SpineLayer` instead (`fadingSpineStrokes` above) the instant it is
+    // released, precisely because it is never in this list to begin with.
+    let base = strokes
+    if (level.spines) {
+      const accepted = acceptedSpineStrokeIndices(strokes, level.spines)
+      base = strokes.filter((_, idx) => accepted.has(idx))
+    }
+    return inkWarp ? base.map((stroke) => stroke.map((p) => inkWarp(p))) : base
+  }, [strokes, inkWarp, level.spines])
   const fluencyEvaluated = level.rules.minFluency > 0
   // Same cost as the ideal grid and the same inputs, so it rides along.
   const band = useMemo(
@@ -2711,8 +2858,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       earned: TORCH_CHALK,
       rings: spineDebugK !== null ? spineRings(level.spines) : undefined,
       ringStroke: TORCH_CHALK,
+      // T13: rejected strokes fading out (`fadingSpineStrokes`, `onRelease`
+      // above) — absent whenever none are currently fading, so every level
+      // without a rejection in flight renders byte-identical to before.
+      fading: fadingSpineStrokes.length > 0 ? fadingSpineStrokes : undefined,
+      fadingColor: INK_COLOR,
     }
-  }, [level.spines, spineState, spineDebugK])
+  }, [level.spines, spineState, spineDebugK, fadingSpineStrokes])
 
   // The spines themselves. There is no "spine" shape anywhere in
   // `SpineLayer` — the spine the child sees IS their own settled ink, drawn

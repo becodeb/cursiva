@@ -1587,6 +1587,95 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
     expect(state?.point).toBeNull()
   })
 
+  it('T12: a later release that finds nothing new preserves litAt/completeAt instead of replaying the grow-in (no replay on lift)', () => {
+    // Regression for tablet playtest #2: "once I discover something it stays
+    // lit, but when I lift my finger it goes dark for a second and the
+    // animation plays again". `releasedRevealState` used to restart its
+    // re-fold from `EMPTY_REVEAL` on EVERY release and stamp `litAt`/
+    // `completeAt` at THAT release's own `now` — so a second release with no
+    // new find (the finger lifting somewhere else entirely) still replayed
+    // every already-found object's grow-in and the completion wash.
+    const twoObjects: RevealConfig = {
+      mode: 'light',
+      cols: 15,
+      rows: 9,
+      radius: 170,
+      objects: [
+        { art: CARRIER_LENS_ART, size: 96, x: 260, y: 180 },
+        { art: CARRIER_LENS_ART, size: 96, x: 740, y: 420 },
+      ],
+    }
+    const nowSpy = vi.spyOn(performance, 'now')
+    try {
+      nowSpy.mockReturnValue(1000)
+      const first = releasedRevealState(
+        twoObjects,
+        [[{ x: 260, y: 180 }, { x: 740, y: 420 }]],
+        1000,
+      )!
+      expect(first.lit.size).toBe(2)
+      expect(first.litAt.get(0)).toBe(1000)
+      expect(first.litAt.get(1)).toBe(1000)
+      expect(first.completeAt).toBe(1000)
+
+      // A LATER release, clock ticked far forward, snapshot grown by one
+      // stroke that lands nowhere near either object (a lift elsewhere).
+      nowSpy.mockReturnValue(9000)
+      const second = releasedRevealState(
+        twoObjects,
+        [[{ x: 260, y: 180 }, { x: 740, y: 420 }], [{ x: 10, y: 10 }]],
+        1000,
+        first,
+      )!
+      expect(second.lit.size).toBe(2)
+      // Preserved, NOT restamped to 9000.
+      expect(second.litAt.get(0)).toBe(1000)
+      expect(second.litAt.get(1)).toBe(1000)
+      expect(second.completeAt).toBe(1000)
+    } finally {
+      nowSpy.mockRestore()
+    }
+  })
+
+  it('T12: still stamps a NEWLY found object fresh, without disturbing an earlier find\'s own timestamp', () => {
+    const twoObjects: RevealConfig = {
+      mode: 'light',
+      cols: 15,
+      rows: 9,
+      radius: 170,
+      objects: [
+        { art: CARRIER_LENS_ART, size: 96, x: 260, y: 180 },
+        { art: CARRIER_LENS_ART, size: 96, x: 740, y: 420 },
+      ],
+    }
+    const nowSpy = vi.spyOn(performance, 'now')
+    try {
+      nowSpy.mockReturnValue(1000)
+      // Only the FIRST object is found this release.
+      const first = releasedRevealState(twoObjects, [[{ x: 260, y: 180 }]], 1000)!
+      expect(first.lit.size).toBe(1)
+      expect(first.litAt.get(0)).toBe(1000)
+      expect(first.completeAt).toBeNull()
+
+      nowSpy.mockReturnValue(5000)
+      const second = releasedRevealState(
+        twoObjects,
+        [[{ x: 260, y: 180 }], [{ x: 740, y: 420 }]],
+        1000,
+        first,
+      )!
+      expect(second.lit.size).toBe(2)
+      // The first object's own original find time survives...
+      expect(second.litAt.get(0)).toBe(1000)
+      // ...while the object found ONLY on this release gets the fresh stamp.
+      expect(second.litAt.get(1)).toBe(5000)
+      // First time reaching "every object found" — stamped fresh, not null.
+      expect(second.completeAt).toBe(5000)
+    } finally {
+      nowSpy.mockRestore()
+    }
+  })
+
   it('keeps one zero-opacity sentinel rect per tile for completed light reveal states', () => {
     const tiles = allRevealTiles(light, 1000)
     expect(tiles).toHaveLength(light.cols * light.rows)
@@ -2360,6 +2449,40 @@ describe('LevelPlay ?debug=espinas:<k> reaches the SCREEN\'s spines prop (radial
   it('adds no spine strokes to a level that has no spines field', () => {
     const level = makeLevel({ kind: 'free', paths: [] })
     expect(strokesOf(renderWithSearch(level, '?debug=espinas:3'))).toHaveLength(0)
+  })
+})
+
+describe('LevelPlay hedgehog demo plays roughly 2x faster (T13, tablet playtest #2: "very slow")', () => {
+  const demoOf = (probe: Record<string, unknown> | null) =>
+    (probe?.demo ?? []) as readonly { delay: number; duration: number }[]
+
+  it('gives a spines level a demo step/duration close to half the shared routed-level pace', () => {
+    const hedgehog = getLevel('hedgehog1') // demo: true, spines.count === 4
+    const html = renderToString(
+      <LevelPlay level={hedgehog} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(html).toBeTruthy() // the demo phase renders without throwing
+    const demo = demoOf(traceCanvasProbe.current)
+    expect(demo.length).toBeGreaterThan(0)
+    // Each spine's own draw finishes comfortably under a second.
+    expect(demo[0].duration).toBeLessThanOrEqual(1)
+    expect(demo[0].duration).toBeCloseTo(0.8, 5)
+    if (demo.length > 1) {
+      expect(demo[1].delay - demo[0].delay).toBeCloseTo(0.85, 5)
+    }
+  })
+
+  it('leaves an ordinary routed level\'s demo pace untouched (1.6s duration, 1.7s step)', () => {
+    const routed = makeLevel({ demo: true })
+    renderToString(
+      <LevelPlay level={routed} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const demo = demoOf(traceCanvasProbe.current)
+    expect(demo.length).toBeGreaterThan(0)
+    expect(demo[0].duration).toBeCloseTo(1.6, 5)
+    if (demo.length > 1) {
+      expect(demo[1].delay - demo[0].delay).toBeCloseTo(1.7, 5)
+    }
   })
 })
 
