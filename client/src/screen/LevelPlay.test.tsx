@@ -66,6 +66,8 @@ import LevelPlay, {
   SIGN_CROP_HEIGHT,
   SIGN_SIZE,
   allRevealTiles,
+  celebrationHold,
+  celebrationKindFor,
   drawingBand,
   eraseResultMessage,
   isOffPath,
@@ -1132,6 +1134,61 @@ describe('drawingBand — the pauta clamp only applies where a pauta exists', ()
   })
 })
 
+describe('T15 (prewriting-stage-completion, Batch 2.6): celebrationKindFor / celebrationHold — the post-approval hold depends on what the child just finished', () => {
+  // The user's own report: "in some levels it's very fast, like the
+  // flashlight one: I want to see a bit of what happened. In the ones where
+  // something is discovered at the end it should take a bit longer." The
+  // live timer this drives (`LevelPlay`'s own `celebrating` effect) needs a
+  // real attempt and a real browser clock to observe — this file's own SSR
+  // harness cannot drive either (this file's own header comment) — so the
+  // DECISION the timer reads is pinned here directly instead, the same split
+  // `drawingBand` above already uses.
+
+  it('classifies a routed/waypoint/spine/free-with-no-reveal level as "path"', () => {
+    expect(celebrationKindFor(getLevel('duck-trail1'))).toBe('path') // routed maze
+    expect(celebrationKindFor(getLevel('turtle1'))).toBe('path') // routed loop
+    expect(celebrationKindFor(getLevel('bee1'))).toBe('path') // waypoints, no reveal
+    expect(celebrationKindFor(makeLevel())).toBe('path') // plain letter drill
+  })
+
+  it('classifies every erase-mode reveal level (glass/sand/mud/leaves) as "reveal-erase"', () => {
+    for (const id of ['glass1', 'glass3', 'sand1']) {
+      expect(celebrationKindFor(getLevel(id)), id).toBe('reveal-erase')
+    }
+  })
+
+  it('classifies a light-mode reveal level (the flashlight/night family) as "reveal-light"', () => {
+    expect(celebrationKindFor(getLevel('night2'))).toBe('reveal-light')
+  })
+
+  it('celebrationHold: a path level keeps the short CELEBRATE_MS hold (~1.8s) with no start delay', () => {
+    const hold = celebrationHold(getLevel('duck-trail1'))
+    expect(hold).toEqual({ startDelayMs: 0, holdMs: 1800 })
+  })
+
+  it('celebrationHold: an erase-reveal level (glass/sand) holds ~4s with no start delay — there is no growth animation to wait out', () => {
+    const hold = celebrationHold(getLevel('glass1'))
+    expect(hold).toEqual({ startDelayMs: 0, holdMs: 4000 })
+  })
+
+  it('celebrationHold: a light-reveal level (night) holds ~4s AFTER the completion-growth animation (LIGHT_COMPLETE_GROWTH_MS, 1.4s) finishes — never during it', () => {
+    const hold = celebrationHold(getLevel('night2'))
+    expect(hold.startDelayMs).toBe(1400)
+    expect(hold.holdMs).toBe(4000)
+    // Total time on screen from approval to auto-advance is therefore
+    // longer for night than for any other reveal — the animation is never
+    // cut off, and the child still gets a full ~4s hold once it settles.
+    expect(hold.startDelayMs + hold.holdMs).toBe(5400)
+  })
+
+  it('every reveal kind (erase or light) holds strictly longer than every path level', () => {
+    const pathHold = celebrationHold(getLevel('duck-trail1'))
+    const eraseHold = celebrationHold(getLevel('glass1'))
+    const lightHold = celebrationHold(getLevel('night2'))
+    expect(eraseHold.startDelayMs + eraseHold.holdMs).toBeGreaterThan(pathHold.startDelayMs + pathHold.holdMs)
+    expect(lightHold.startDelayMs + lightHold.holdMs).toBeGreaterThan(pathHold.startDelayMs + pathHold.holdMs)
+  })
+})
 
 describe('LevelPlay stands the octopus at the start and the lamp at the end', () => {
   const render = (level: LevelConfig): void => {

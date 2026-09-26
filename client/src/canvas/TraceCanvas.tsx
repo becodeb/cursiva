@@ -120,6 +120,15 @@ export function fitContentWithInsets(
   if (!(safeWidth > 0) || !(safeHeight > 0)) return box
   const k = Math.min(safeWidth / box.width, safeHeight / box.height)
   if (!(k > 0) || !Number.isFinite(k)) return box
+  // T14 (`odd/tasks/prewriting-stage-completion.md`, Batch 2.6, "the image
+  // fills the screen now, but it's VERY cropped"): `width`/`height` below is
+  // the MINIMUM-ZOOM COVER box — see `coverAspectRatio`'s own header just
+  // below this function for the property that makes it one: this ratio is
+  // ALWAYS `containerWidth / containerHeight`, for ANY `box`/`insets`, which
+  // is exactly "the backdrop is scaled to cover the viewport at the minimum
+  // zoom, independent of how big the content is" stated as an algebraic fact
+  // rather than a hope. `box`/`insets` only ever move `k` (the zoom level)
+  // and the CENTRING below — never this ratio.
   const width = containerWidth / k
   const height = containerHeight / k
   const safeContentWidth = safeWidth / k
@@ -127,6 +136,45 @@ export function fitContentWithInsets(
   const x = box.x - insets.left / k - (safeContentWidth - box.width) / 2
   const y = box.y - insets.top / k - (safeContentHeight - box.height) / 2
   return { x, y, width, height }
+}
+
+/**
+ * T14's own guarantee, named and pure so it can be asserted directly instead
+ * of trusted as an emergent property of `fitContentWithInsets`'s arithmetic
+ * above: for ANY positive `containerWidth`/`containerHeight`, that
+ * function's returned box (the barring the degenerate-input fallback, which
+ * returns `box` unchanged and is never reached by a real container) has
+ * `width / height === containerWidth / containerHeight` — proved by the
+ * algebra (`width = containerWidth / k`, `height = containerHeight / k`,
+ * same `k` on both), not merely observed. `coverAspectRatio` exists so a
+ * test can pin that proof as a property across many `box`/`insets` inputs,
+ * which is the literal meaning of "independent of how big the content is".
+ */
+export function coverAspectRatio(containerWidth: number, containerHeight: number): number {
+  return containerWidth / containerHeight
+}
+
+/** Backdrop art is a raster whose own intrinsic aspect ratio decides how
+ *  much of it a `preserveAspectRatio="xMidYMid slice"` cover fit can show
+ *  (`docs/09_GUIA_DE_ESTILO_VISUAL.md` §9's background variant: every sector
+ *  backdrop is authored full-bleed landscape 3:2, `1536×1024`). */
+export const BACKDROP_IMAGE_ASPECT = 1536 / 1024
+
+/**
+ * T14: the fraction of a `imageAspect`-shaped source image a
+ * `preserveAspectRatio="…slice"` COVER fit leaves visible inside a
+ * `boxAspect`-shaped box — the two exact numbers `fitContentWithInsets`'
+ * design note above claims (~88.9% at 4:3, "the minimum possible crop") and
+ * this task's own acceptance thresholds are checked against. A cover fit
+ * always fills the SMALLER-relative-to-image axis exactly and crops only
+ * the other one, so the visible fraction is always `min(boxAspect /
+ * imageAspect, imageAspect / boxAspect)` — symmetric, and `1` exactly when
+ * the two aspects match.
+ */
+export function coverVisibleFraction(boxAspect: number, imageAspect: number): number {
+  if (!(boxAspect > 0) || !(imageAspect > 0)) return 0
+  const ratio = boxAspect / imageAspect
+  return ratio > 1 ? 1 / ratio : ratio
 }
 
 /**
