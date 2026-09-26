@@ -487,6 +487,12 @@ export function releasedRevealState(
   reveal: LevelConfig['reveal'],
   snapshot: ReadonlyArray<ReadonlyArray<TracePoint>>,
   width: number,
+  // T12: defaults to `EMPTY_REVEAL` so every EXISTING caller (this file's
+  // own tests included) that predates the replay-on-lift fix stays
+  // byte-identical — the one caller that actually needs to preserve
+  // timestamps (`onRelease`, this file) passes `revealStateRef.current`
+  // explicitly.
+  prev: RevealState = EMPTY_REVEAL,
 ): RevealState | null {
   if (!reveal) return null
   // One shared clock for the whole instant replay (T10's own `now` param on
@@ -511,7 +517,31 @@ export function releasedRevealState(
     next = revealTick(next, stroke, true, reveal, width, now)
     next = revealTick(next, [], false, reveal, width, now)
   }
-  return next
+  // T12 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest #2:
+  // "once I discover something it stays lit, but when I lift my finger it
+  // goes dark for a second and the animation plays again"): the raw re-fold
+  // above ALWAYS restarts from `EMPTY_REVEAL`, so `revealTick` stamps
+  // `litAt`/`completeAt` at THIS release's own `now` for every object still
+  // lit and for `completeAt` whenever every object is still found — even a
+  // release that found nothing new, anywhere on the sheet, long after the
+  // real grow-in already finished. Left alone, that replays a found object's
+  // own grow-in (and the scene-wide completion wash) on every single stroke
+  // release, not only the one that actually found something. `prev` is the
+  // live incremental fold (`revealStateRef.current`, this function's one
+  // caller) — its `litAt`/`completeAt` are the REAL first-found timestamps,
+  // stamped once by the live `onFrame` ticks that ran while the child was
+  // actually drawing/lighting, so they are preserved for every index this
+  // raw re-score agrees was already lit before this release; only a index
+  // that is NEWLY lit by this exact re-score (not in `prev.lit`) keeps the
+  // fresh `next` stamp, and `completeAt` only takes `next`'s fresh stamp the
+  // FIRST time the level completes (`prev.completeAt` is still `null`).
+  const litAt = new Map(next.litAt)
+  for (const idx of next.lit) {
+    const priorAt = prev.litAt.get(idx)
+    if (priorAt !== undefined) litAt.set(idx, priorAt)
+  }
+  const completeAt = prev.completeAt ?? next.completeAt
+  return { ...next, litAt, completeAt }
 }
 
 export function allRevealTiles(reveal: NonNullable<LevelConfig['reveal']>, width: number): Array<TraceReveal['tiles'][number]> {
@@ -2248,7 +2278,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // RAW points, always. `snapshot` is the captured stroke, never the
       // rail-warped copy the canvas draws — scoring the assist would make
       // accuracy a measurement of the rail instead of the child (see `rail.ts`).
-      const releasedReveal = releasedRevealState(level.reveal, snapshot, target.viewBoxWidth)
+      const releasedReveal = releasedRevealState(level.reveal, snapshot, target.viewBoxWidth, revealStateRef.current)
       if (releasedReveal) setRevealState(releasedReveal)
       const result = evaluateLevel(snapshot, target, pointerType)
       setAttempt(result)

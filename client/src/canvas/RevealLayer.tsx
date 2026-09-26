@@ -365,7 +365,6 @@ const GLASS_DROPLET_FILL = '#eef8fb'
 const GLASS_FROST = '#edf7fa'
 const GLASS_EDGE = '#b8cbd0'
 const NIGHT_VEIL_FILL = '#12161f'
-const NIGHT_FOUND_GLOW = '#fce97a'
 const NIGHT_HINT = '#f7d66b'
 const NIGHT_SUCCESS_WASH = '#ffe88a'
 const SAND_BASE = '#c4945c'
@@ -1463,16 +1462,25 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }
           solvability need for a permanent position marker, only a leftover
           hint layer nobody had reason to keep once the torch mechanic was
           shipped. */}
+      {/* T12 defect fix (tablet playtest 2026-09-26, item 2: "found things
+          have a semi-transparent yellow circle around them; it looks very
+          artificial, not like light"). This used to render, for every FOUND
+          object under `nightVeil`, two soft yellow discs (`NIGHT_FOUND_GLOW`
+          then `#fffbe6`) centred on the object, under its own `<image>`. The
+          veil's own hole (`data-night-veil`/`-ring` above, T9/T10) already IS
+          the light that found it — a real torch does not paint a coloured
+          disc on what it illuminates, it just illuminates it — so this was a
+          second, redundant "found" cue on top of the one the mechanic
+          already gives, and the one the user actually saw as artificial.
+          Removed outright, the same call T2 made for the old always-on
+          object-position halo and the T10 defect fix made for the torch's
+          own decorative glow (both above): nothing here needs a coloured
+          light source drawn on top of it, only the veil's own darkness
+          needs to already be gone. */}
       {revealedArt.map((obj, idx) => {
         const box = clampArtBox(placeArt(obj, obj.size * (nightVeil ? 1.16 : 1), { x: obj.x, y: obj.y }), sheetBounds)
         return (
           <g key={`reveal-art-found-${idx}`} data-night-discovery="true">
-            {nightVeil && (
-              <>
-                <circle cx={obj.x} cy={obj.y} r={Math.max(42, obj.size * 0.72)} fill={NIGHT_FOUND_GLOW} opacity={reveal.light?.complete && completionSettled ? 0.38 : 0.25} />
-                <circle cx={obj.x} cy={obj.y} r={Math.max(28, obj.size * 0.5)} fill="#fffbe6" opacity={reveal.light?.complete && completionSettled ? 0.5 : 0.22} />
-              </>
-            )}
             <image href={obj.href} {...box} preserveAspectRatio="xMidYMid meet" opacity={nightVeil ? 1 : undefined} />
           </g>
         )
