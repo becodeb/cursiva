@@ -417,8 +417,13 @@ export const ADVENTURES: readonly Adventure[] = [
     levelIds: ['turtle1', 'turtle2', 'turtle3', 'turtle4'],
     sector: 'arena',
     animal: 'tortuga',
-    intro: 'Las tortugas se escaparon del recinto y se fueron a dar vueltas por la arena. ¿Seguimos sus vueltas?',
-    closing: '¡Encontramos a las tortugas! Ya volvieron a su recinto.',
+    // T28 (`docs/19` §3, recipe B): the canonical story line for this row —
+    // "se escondieron en su caparazón, demos la vuelta a cada una" — sets up
+    // the loop mechanic directly (no deduction in recipe B, the place
+    // already says who it is), matching `collect: { items: 'loops' }` on
+    // every `turtle1..4` level.
+    intro: 'Se escondieron en su caparazón. Demos la vuelta a cada una.',
+    closing: '¡Asomaron la cabeza! Ya volvieron a su recinto.',
     // Rescue closing (T8) — the snake row's own reasoning, restated: one
     // beat, `closing` verbatim, the animal's own art, default figure.
     //
@@ -430,7 +435,7 @@ export const ADVENTURES: readonly Adventure[] = [
     // the turtle's own placement lives in `entrada` (`zoo/sectors.ts`'s
     // `entrada.animals`), not `arena` — the whole "each rescued animal goes
     // back to ITS OWN enclosure" rule, restated a second time.
-    closingBeat: [{ line: '¡Encontramos a las tortugas! Ya volvieron a su recinto.', art: ZOO_ANIMAL_ART.tortuga }],
+    closingBeat: [{ line: '¡Asomaron la cabeza! Ya volvieron a su recinto.', art: ZOO_ANIMAL_ART.tortuga }],
   },
   {
     id: 'bee',

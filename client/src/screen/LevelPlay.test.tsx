@@ -713,29 +713,36 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
     expect(html).toContain('aria-label="Camino: 1 de 4"')
   })
 
-  it('shows the animal as a dark silhouette until rescued, then in colour (turtle: a real adventure with no deduction gate)', () => {
+  it('shows the animal as a dark silhouette until rescued, then in colour (hedgehog: a real adventure with no deduction gate)', () => {
     // [T21] This used to be the duck; the duck adventure now declares a
     // `deduction` gate (`zoo/adventures.ts`) and `adventureProgress`
     // withholds its `animal` on purpose (`zoo/progress.ts`'s own header),
     // so `TrailProgressBar` never draws an end-cap for it any more — see the
-    // dedicated `resolveNextAction`/`Deduction` routing tests instead. The
-    // turtle is a plain, clue-less multi-level adventure with no such gate,
-    // the same substitution the star/socket test above already made.
-    const midway = adventureProgress('turtle2', filedRecords(['turtle1']))!
+    // dedicated `resolveNextAction`/`Deduction` routing tests instead.
+    // [T28] This fixture then moved to turtle, and now moves again: T28
+    // (`odd/tasks/prewriting-stage-completion.md`) authors `collect` on
+    // every `turtle1..4` level, so `LevelPlay` now renders `CollectBar`
+    // (this exact level's own item sockets) instead of `TrailProgressBar`'s
+    // adventure-wide animal end-cap in that slot — see the `CollectBar`
+    // describe block below for turtle's own current coverage. Hedgehog is a
+    // plain, clue-less, collect-less multi-level adventure with no
+    // deduction gate on its own row, the same substitution this test has
+    // needed twice now.
+    const midway = adventureProgress('hedgehog2', filedRecords(['hedgehog1']))!
     const html = renderToString(
-      <LevelPlay level={getLevel('turtle2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={midway} />,
+      <LevelPlay level={getLevel('hedgehog2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={midway} />,
     )
     const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
-    expect(body).toContain(`src="${ZOO_ANIMAL_ART.tortuga.href}"`)
+    expect(body).toContain(`src="${ZOO_ANIMAL_ART.erizo.href}"`)
     expect(body).toContain('class="pistas-animal"')
     expect(body).not.toContain('pistas-animal-rescued')
 
     const rescued = adventureProgress(
-      'turtle4',
-      filedRecords(['turtle1', 'turtle2', 'turtle3', 'turtle4']),
+      'hedgehog4',
+      filedRecords(['hedgehog1', 'hedgehog2', 'hedgehog3', 'hedgehog4']),
     )!
     const rescuedHtml = renderToString(
-      <LevelPlay level={getLevel('turtle4')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={rescued} />,
+      <LevelPlay level={getLevel('hedgehog4')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={rescued} />,
     )
     expect(rescuedHtml.replace(/<style>[\s\S]*?<\/style>/, '')).toContain('class="pistas-animal pistas-animal-rescued"')
   })
@@ -749,19 +756,20 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
     expect(html.replace(/<style>[\s\S]*?<\/style>/, '')).not.toContain('pistas-animal')
   })
 
-  it('shows a star for a filed level with no clue art yet (turtle), and an empty socket while unfiled — never a dim placeholder star', () => {
-    // T17 moved this fixture from sheep-hill2/sheep-hill1 to turtle2/turtle1:
-    // sheep-hill now authors `collect` and therefore renders `CollectBar`
-    // instead of `TrailProgressBar` in this exact slot (see the
-    // `CollectBar` describe block below) — turtle is still a plain,
-    // clue-less multi-level adventure untouched by T17, so it is what this
-    // test's own ORIGINAL intent (the star/empty-socket contract on
-    // `TrailProgressBar` itself) actually needs.
-    const progress = adventureProgress('turtle2', filedRecords(['turtle1']))!
+  it('shows a star for a filed level with no clue art yet (hedgehog), and an empty socket while unfiled — never a dim placeholder star', () => {
+    // T17 moved this fixture from sheep-hill2/sheep-hill1 to turtle2/turtle1;
+    // T28 then moved turtle itself onto `collect` (`CollectBar` instead of
+    // `TrailProgressBar` in this exact slot — see the `CollectBar` describe
+    // block below for turtle's own coverage). Hedgehog is a plain,
+    // clue-less, collect-less multi-level adventure untouched by either
+    // task, so it is what this test's own ORIGINAL intent (the
+    // star/empty-socket contract on `TrailProgressBar` itself) actually
+    // needs.
+    const progress = adventureProgress('hedgehog2', filedRecords(['hedgehog1']))!
     const html = renderToString(
-      <LevelPlay level={getLevel('turtle2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={progress} />,
+      <LevelPlay level={getLevel('hedgehog2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={progress} />,
     )
-    // turtle1 (filed, no clue) earns exactly one star image; turtle2
+    // hedgehog1 (filed, no clue) earns exactly one star image; hedgehog2
     // (current, unfiled, no clue) gets no image in its own socket at all.
     expect(html.split(ZOO_STAR_ART.href).length - 1).toBe(1)
   })
@@ -1347,6 +1355,59 @@ describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', (
   })
 })
 
+// The turtles' own collect wiring (T28, `odd/tasks/prewriting-stage-
+// completion.md`; `docs/19` §3, recipe B: "cada vuelta hace asomar una
+// tortuga"). The generic mechanics (collection gates approval, an already-
+// collected item's picture disappears from the path, `resetOnContact`
+// resilience) are already proven above against sheep-hill/llama-peak, and
+// `levels/collect.test.ts`'s own invariant suite proves the per-loop
+// derivation against all four shipped routes directly — this block only
+// checks the LevelPlay-level wiring turtle adds nothing new to reach.
+describe('LevelPlay collect-along-the-path wiring — turtles (T28, docs/19 §3, recipe B)', () => {
+  it('turtle1 shows CollectBar with its single loop item un-collected before any attempt, and no pillar/coach section at all', () => {
+    const html = renderToString(
+      <LevelPlay level={getLevel('turtle1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    // A single ring: exactly 1 socket, empty — completing the one loop both
+    // makes the turtle peek out and finishes the level.
+    expect(html.split('data-filed="true"').length - 1).toBe(0)
+    expect(html.split('data-filed="false"').length - 1).toBe(1)
+    expect(html).not.toContain('aria-label="Resultado del intento"')
+  })
+
+  it('turtle3 shows exactly 3 sockets — one per authored ring', () => {
+    const html = renderToString(
+      <LevelPlay level={getLevel('turtle3')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(html.split('data-filed=').length - 1).toBe(3)
+  })
+
+  it('completing every loop (the finger reaching the very end of the route) approves turtle4 on release, regardless of the stroke passed to onRelease', () => {
+    const level = getLevel('turtle4')
+    const target = buildLevelTarget(level)
+    const onAttempt = vi.fn<(a: LevelAttempt) => void>()
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={onAttempt} onNext={noop} onBack={noop} />,
+    )
+    const props = traceCanvasProbe.current
+    const onFrame = props?.onFrame as (points: TracePoint[], drawing: boolean, timeMs: number) => void
+    const onRelease = props?.onRelease as (
+      points: TracePoint[],
+      pointerType: string,
+      all: TracePoint[][],
+    ) => void
+    let t = 200
+    for (const p of target.polyline) {
+      onFrame([p], true, t)
+      t += 200
+    }
+    const stroke: TracePoint[] = [{ x: 0, y: 0 }] // deliberately trivial/inaccurate
+    onRelease(stroke, 'touch', [stroke])
+    expect(onAttempt).toHaveBeenCalledTimes(1)
+    expect(onAttempt.mock.calls[0][0].approved).toBe(true)
+  })
+})
+
 describe('shouldTickClue (defect fix: clue collection gated on inside/outside)', () => {
   it('ticks when there are marks to collect and the fingertip is inside', () => {
     expect(shouldTickClue(true, false)).toBe(true)
@@ -1601,16 +1662,20 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     expect(traceCanvasProbe.current?.endArt).toBeUndefined()
   })
 
-  it('shows the star on every other routed level of a multi-level adventure with no clue of its own and no goalArt (turtle)', () => {
+  it('shows the star on every other routed level of a multi-level adventure with no clue of its own and no goalArt (hedgehog)', () => {
     // T17 moved this fixture off sheep-hill1..3: those levels now author
     // their own `goalArt` (docs/19 §3.4 — the route's end shows the same
     // sheep the last collection pops, not the adventure star), which WINS
     // over this exact fallback by design (`endArt`'s own priority list,
-    // `LevelPlay.tsx`). Turtle is still a plain, clue-less, goalArt-less
-    // multi-level adventure, so it is what this test's ORIGINAL intent (the
-    // star fallback itself) actually needs; see the sheep's own goalArt
-    // coverage in the "T17" describe block below.
-    for (const id of ['turtle1', 'turtle2', 'turtle3'] as const) {
+    // `LevelPlay.tsx`). It then moved onto turtle1..3; T28 authors `collect`
+    // on every `turtle1..4` level (`collectDef` now short-circuits `endArt`
+    // to `undefined` before the star fallback is ever reached — see that
+    // function's own T17-follow-up comment). Hedgehog is still a plain,
+    // clue-less, collect-less, goalArt-less multi-level adventure, so it is
+    // what this test's ORIGINAL intent (the star fallback itself) actually
+    // needs; see the sheep's own goalArt coverage in the "T17" describe
+    // block below, and the turtle's own coverage in the "T28" describe block.
+    for (const id of ['hedgehog1', 'hedgehog2', 'hedgehog3'] as const) {
       render(getLevel(id))
       const art = traceCanvasProbe.current?.endArt as Art
       expect(art?.href, id).toBe(ZOO_STAR_ART.href)

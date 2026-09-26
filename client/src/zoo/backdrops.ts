@@ -107,6 +107,22 @@ export const TORCH_CHALK_DIM = '#989896'
  *  (26) rather than reading as another outline. */
 export const SAND_HOLLOW = '#3b332b'
 
+/** The turtles' own corridor channel (N9, `docs/18` §7 / `odd/tasks/
+ *  prewriting-stage-completion.md` T28): "el corredor de las tortugas es
+ *  marrón casi negro sobre la arena […] parece huella de neumático". Unlike
+ *  `snake`'s own `SAND_HOLLOW` — mostly hidden under the drawn snake body art
+ *  — the turtles' corridor is a PLAIN painted band with nothing drawn over
+ *  it, so its raw colour is what the child actually sees for the whole
+ *  route: `SAND_HOLLOW`'s own luma (52) read as a tyre mark rather than wet
+ *  sand. A separate constant (never touching `SAND_HOLLOW` itself, which
+ *  `snake` still uses unchanged) — a warmer, lighter brown, measured against
+ *  the SAME 55-luma law (`docs/09:158`): luma 116, clearing the sand's own
+ *  `brightest` (255) by 139, clearing the arena's own `TORCH_CHALK` ink (239)
+ *  by 123, and clearing the art's near-black contour (26) by 90 — comfortably
+ *  above the noise floor either colour choice already stayed above, but
+ *  bright and warm enough to read as damp sand rather than a dark stripe. */
+export const WET_SAND_HOLLOW = '#8a6f52'
+
 /** The leaf veil over the monos enclosure (add-caretaker-prologue design.md
  *  D6). Luma 113 clears the renewed background's sampled `brightest` (249)
  *  by 136 and `INK_COLOR` (40) by 73 — both past the 55-luma law.
@@ -249,21 +265,23 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // file, same measured `quiet`/`brightest`, same `corridorRows`, DIFFERENT
   // adventure because this one is a painted band (`ovals()`, no drawn
   // corridor art) rather than the snake's own cutout pieces. `channel:
-  // SAND_HOLLOW` for the same reason `snake` needs it — `SHEET_PAPER`
-  // already fails the sand's own `brightest` (255) by the exact "goes red"
-  // proof `backdrops.test.ts` runs for `tortugas` — and `ink`/`inkDim`
-  // reuse `TORCH_CHALK`/`TORCH_CHALK_DIM` for a reason `snake`'s own L1-L4
-  // tests do NOT cover: unlike the snake, this row has no drawn art of its
-  // own to protect the ink from, but `SAND_HOLLOW`'s own luma (52) still
-  // fails the 55-luma law against the default slate ink by 12 — measured,
-  // not assumed, and asserted directly in `backdrops.test.ts` for THIS row
-  // rather than only inherited from `snake`'s.
+  // WET_SAND_HOLLOW` (N9, T28 — that constant's own header has the full
+  // measurement and the "tyre mark" rationale) rather than `snake`'s own
+  // `SAND_HOLLOW`: `SHEET_PAPER` already fails the sand's own `brightest`
+  // (255) by the exact "goes red" proof `backdrops.test.ts` runs for
+  // `tortugas`, so SOME dark-enough channel is still required — `ink`/
+  // `inkDim` still reuse `TORCH_CHALK`/`TORCH_CHALK_DIM` for hue consistency
+  // with the rest of the arena (the snake's own reason), though at
+  // `WET_SAND_HOLLOW`'s own lighter luma the default slate ink would
+  // ALSO clear the law now (measured directly in `backdrops.test.ts`) — the
+  // override is kept for a consistent line colour across the sector, not
+  // because it is the only admissible one any more.
   turtles: {
     art: SECTOR_BACKGROUND_ART.sand,
     quiet: '#f9cf86',
     brightest: '#ffffff',
     corridorRows: { top: 51, bottom: 973 },
-    channel: SAND_HOLLOW,
+    channel: WET_SAND_HOLLOW,
     ink: TORCH_CHALK,
     inkDim: TORCH_CHALK_DIM,
   },

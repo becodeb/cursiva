@@ -25,6 +25,7 @@ import {
   HAZARD_STARFISH_ART,
   HEDGEHOG_ART,
   SECTOR_ADVENTURE_ART,
+  ZOO_ANIMAL_ART,
 } from '../detective/assets'
 import { buildWord } from '../letters/combinations'
 import { LETTER_REGISTRY } from '../letters/registry'
@@ -2028,6 +2029,11 @@ const PHASE_2: LevelConfig[] = [
   // and multiply — inside `catalog.test.ts`'s own required 50-70 band for
   // any phase-2 level whose beat is not silenced.
   //
+  // T28 (`odd/tasks/prewriting-stage-completion.md`; `docs/19` §3 recipe B,
+  // "cada vuelta hace asomar una tortuga"): every level here also authors
+  // `collect: { items: 'loops', ... }` — see `levels/collect.ts`'s
+  // `collectItemsFromLoops` and each level's own comment below.
+  //
   // Sizes (`rx`/`corridorWidth`; `ry` is fixed at 150) are chosen, not
   // merely approximated, against TWO measured guards (`paths.test.ts`,
   // `catalog.test.ts`): `ovalTurnRadius(rx, ry) > corridorWidth/2 −
@@ -2060,6 +2066,14 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
+    // T28 (`odd/tasks/prewriting-stage-completion.md`; `docs/19` §3, recipe
+    // B: "cada vuelta hace asomar una tortuga"). `items: 'loops'`
+    // (`levels/collect.ts`'s `collectItemsFromLoops`) places one turtle at
+    // each ring's own closure plus a final item at the route's end — a
+    // single ring authors exactly one item, so finishing the one loop here
+    // both makes the turtle peek out AND finishes the level in the same
+    // motion.
+    collect: { items: 'loops', art: ZOO_ANIMAL_ART.tortuga, size: 48 },
   },
   {
     id: 'turtle2',
@@ -2082,6 +2096,8 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
+    // T28: same mechanic as turtle1's own `collect` — see its comment.
+    collect: { items: 'loops', art: ZOO_ANIMAL_ART.tortuga, size: 48 },
   },
   {
     id: 'turtle3',
@@ -2103,6 +2119,8 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
+    // T28: same mechanic as turtle1's own `collect` — see its comment.
+    collect: { items: 'loops', art: ZOO_ANIMAL_ART.tortuga, size: 48 },
   },
   {
     id: 'turtle4',
@@ -2126,6 +2144,8 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
+    // T28: same mechanic as turtle1's own `collect` — see its comment.
+    collect: { items: 'loops', art: ZOO_ANIMAL_ART.tortuga, size: 48 },
   },
   // ───────────────────────────────────────────────────────────────────────
   // The monkeys' own family (P4, `odd/tasks/promised-animals.md`): the Rulo

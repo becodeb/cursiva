@@ -267,17 +267,19 @@ export function waveCrestArcs(
  * sheep-hill/llama-peak convention this task ships, right for a RIDGE.
  * `items: 'crests'` derives positions from {@link waveCrestArcs} instead —
  * the duck family's own smooth wave routes, where `'peaks'` finds nothing
- * (that function's own header has the full measurement). Both plus one
- * final item at the route's own end (`trailEndArc`'s tolerance, same
- * reasoning `collectItemsFromPeaks` already documents). An explicit
- * ascending array of arc-length FRACTIONS (0..1 of the route's length) stays
- * the escape hatch for a future adventure whose collectibles are neither —
- * `resolveCollectItems` below turns any of the three shapes into the same
+ * (that function's own header has the full measurement). `items: 'loops'`
+ * derives positions from {@link collectItemsFromLoops} — the turtles' own
+ * `ovals()` routes (T28), one item per closed loop. All three plus one final
+ * item at the route's own end (`trailEndArc`'s tolerance, same reasoning
+ * `collectItemsFromPeaks` already documents). An explicit ascending array of
+ * arc-length FRACTIONS (0..1 of the route's length) stays the escape hatch
+ * for a future adventure whose collectibles are none of the three —
+ * `resolveCollectItems` below turns any of the four shapes into the same
  * `CollectItem[]` the engine scores against, so `LevelPlay`/`collectTick`
  * never need to know which one a level chose.
  */
 export interface CollectConfig {
-  readonly items: readonly number[] | 'peaks' | 'crests'
+  readonly items: readonly number[] | 'peaks' | 'crests' | 'loops'
   readonly art: ArtImage
   readonly size: number
 }
@@ -301,6 +303,125 @@ function collectItemsFromWaveCrests(
   return items
 }
 
+/**
+ * Places one item at each internal CLOSURE of a `paths.ts`'s `ovals()` route
+ * — the point where a ring's own traversal returns to exactly the (x, y) it
+ * started that ring from — plus one FINAL item at the route's own end
+ * (`docs/19` §3, the turtles' own recipe B row: "cada vuelta hace asomar una
+ * tortuga", each loop makes a turtle peek out; T28,
+ * `odd/tasks/prewriting-stage-completion.md`).
+ *
+ * WHY A CLOSURE MATCH, NOT A GEOMETRIC EXTREMUM. `ovals()`'s own header
+ * proves each ring is a closed 360° sweep that begins and ends at the exact
+ * same clock-1 point (`clockPoint(cx, 1)`, called once for the ring's `M`
+ * and once more for its closing `C`'s own endpoint — the SAME pure function
+ * call, so `paths.ts`'s `r2` two-decimal rounding lands on the identical
+ * float both times, and `flattenPathD` copies a `C` command's own literal
+ * endpoint rather than re-deriving it). `routeApexes`/`waveCrestArcs` (this
+ * module's other two derivations) both hunt for a smooth LOCAL EXTREMUM,
+ * which an ellipse's own closure point is NOT (its own leftmost point,
+ * reached mid-ring, is a real smooth minimum of `x` — a SEPARATE feature a
+ * `waveCrestArcs`-style window search would also catch, over-counting by one
+ * per ring). A ring's own start/close pair is instead a POINT REVISIT:
+ * nothing else on a simple ellipse sweep, or on the short connecting curve
+ * between two rings (always moving strictly rightward in `x`), ever returns
+ * to a coordinate it already visited. Scanning forward from each still-open
+ * reference point for the next later point matching it (bit-for-bit, since
+ * both sides of the match come from the same rounded float) finds exactly
+ * one match per ring — the ring's own closure — and none inside a connector,
+ * with no dependency on `ovals()`'s specific clock-based parametrisation
+ * beyond "each ring is a closed loop back to its own start".
+ *
+ * The LAST ring's own closure is never reported by this internal scan (its
+ * match IS the route's final point, with nothing left afterward to search
+ * from) — it is folded into the trailing FINAL item instead, `trailEndArc`
+ * tolerance and all, the same construction {@link collectItemsFromPeaks} and
+ * {@link collectItemsFromWaveCrests} already use and for the identical
+ * reason (a live fingertip essentially never lands on the mathematically
+ * exact last vertex).
+ *
+ * A single ring (`turtle1`) reports zero internal closures — nothing to find
+ * before the route's own end — so it authors exactly ONE item: the whole
+ * point of "one loop, one turtle".
+ */
+export function collectItemsFromLoops(
+  polyline: ReadonlyArray<{ x: number; y: number }>,
+  length: number,
+  corridorWidth: number,
+): readonly CollectItem[] {
+  if (polyline.length < 3 || length <= 0) return []
+  const arcAt: number[] = [0]
+  for (let i = 1; i < polyline.length; i++) {
+    arcAt.push(arcAt[i - 1] + Math.hypot(polyline[i].x - polyline[i - 1].x, polyline[i].y - polyline[i - 1].y))
+  }
+  const closures = loopClosureIndices(polyline, arcAt)
+  // Every closure this scan finds IS a ring's own start/end pair, in
+  // ascending order — except the very last one, which is the FINAL ring's
+  // own closure (the route's last point) and belongs to the trailing item
+  // below instead, its own tolerance and all.
+  const internal = closures.slice(0, -1)
+  const items: CollectItem[] = internal.map((index) => ({
+    x: polyline[index].x,
+    y: polyline[index].y,
+    arc: arcAt[index],
+  }))
+  const last = polyline[polyline.length - 1]
+  items.push({ x: last.x, y: last.y, arc: Math.max(0, trailEndArc(length, corridorWidth)) })
+  return items
+}
+
+/** A minimum arc-length gap between a candidate reference point and its own
+ *  match, well under the shortest ring circumference any authored `ovals()`
+ *  level ships (turtle4's own tightest ring is ≈745 units — Ramanujan's
+ *  approximation over `rx: 75, ry: 150` — `docs/19` §3) and well over the
+ *  sub-unit spacing between adjacent flattened samples — rules out ever
+ *  matching a point against its own immediate neighbour instead of a
+ *  genuine later revisit. */
+const LOOP_CLOSURE_MIN_ARC_GAP = 50
+/** How close two points must be, in squared sheet units, to count as the
+ *  SAME point — {@link collectItemsFromLoops}'s own header explains why an
+ *  exact (bit-level, modulo `r2`'s rounding) match is expected, not merely a
+ *  close one; this tolerance only guards against an unrelated flattening
+ *  detail landing a hair off `t = 1`. */
+const LOOP_CLOSURE_EPSILON_SQ = 1e-4
+
+/**
+ * Scans the polyline left to right; for each still-open reference index,
+ * finds the EARLIEST later index (at least {@link LOOP_CLOSURE_MIN_ARC_GAP}
+ * of arc further along) landing on the same point, records it as a closure,
+ * and resumes scanning from just past it — {@link collectItemsFromLoops}'s
+ * own header has the full geometric argument for why this finds exactly one
+ * match per ring and none inside a connector. A reference point with no
+ * later match (every point past the FINAL ring's own start) is simply
+ * skipped, one index at a time.
+ */
+function loopClosureIndices(
+  polyline: ReadonlyArray<{ x: number; y: number }>,
+  arcAt: readonly number[],
+): readonly number[] {
+  const closures: number[] = []
+  let p = 0
+  while (p < polyline.length - 1) {
+    let found = -1
+    for (let j = p + 1; j < polyline.length; j++) {
+      if (arcAt[j] - arcAt[p] < LOOP_CLOSURE_MIN_ARC_GAP) continue
+      const dx = polyline[j].x - polyline[p].x
+      const dy = polyline[j].y - polyline[p].y
+      if (dx * dx + dy * dy <= LOOP_CLOSURE_EPSILON_SQ) {
+        found = j
+        break
+      }
+    }
+    if (found === -1) {
+      p += 1
+      continue
+    }
+    closures.push(found)
+    p = found + 1
+  }
+  return closures
+}
+
 /** Turns a level's authored `CollectConfig` into the `CollectItem[]` the
  * engine actually scores against, against this level's OWN built route
  * (`LevelTarget.polyline`/`LevelTarget.length` — the centred, derived
@@ -321,6 +442,7 @@ export function resolveCollectItems(
 ): readonly CollectItem[] {
   if (config.items === 'peaks') return collectItemsFromPeaks(polyline, length, corridorWidth)
   if (config.items === 'crests') return collectItemsFromWaveCrests(polyline, length, corridorWidth)
+  if (config.items === 'loops') return collectItemsFromLoops(polyline, length, corridorWidth)
   if (polyline.length < 2 || length <= 0) return []
   return config.items.map((fraction) => {
     const arc = fraction * length
