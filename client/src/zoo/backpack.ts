@@ -10,7 +10,10 @@ import { isFiled, type Records, type SectorId } from './sectors'
 export interface BackpackItem {
   id: string
   art: ArtImage
-  /** Which sector grants it. */
+  /** Which sector's own story this tool belongs to — NOT necessarily the
+   *  sector whose level ID sits in `earnedWhen` (T23: `linterna` is granted
+   *  by a `montanas` level, `llama-peak4`, precisely because it must be in
+   *  the backpack BEFORE `nocturna` — its own sector — ever opens). */
   grantedBy: SectorId
   /** Every one filed ⇒ the item is in the backpack — the same declarative
    *  shape `ZooAnimal.appearsWhen` uses, for the same structural-test
@@ -31,23 +34,33 @@ export interface BackpackItem {
 
 /** Four entries: the Andean hat (row C, `docs/13` §2), the lupa and the
  * linterna (row D, design.md §7.1), and the arena's cart (`snake-drag-and-
- * art-corridor` design.md §7.1). `llama-peak4` rather than all eight
- * sheep/llama ids for the hat — the hat belongs to the LLAMA adventure
- * specifically, and `llama-peak4` is also the sector's own last level, so
- * both readings land on the same id. Same reading for `sand3`/`night4`/
- * `snake4`: each is its own adventure's last level, and the caretaking/
- * searching story earns the tool at the exact moment the adventure closes.
- * (`sand3` replaces `sand4` here after adventure-flow-and-map-guidance T1
- * narrowed the sendero to one level — `earnedWhenLegacy` below is what
- * keeps a returning child's already-earned lupa from regressing.)
- * The Pulpito does not WEAR any of them (design.md §4.4) — a worn accessory
- * needs a composited sprite that does not exist. */
+ * art-corridor` design.md §7.1). The Pulpito does not WEAR any of them
+ * (design.md §4.4) — a worn accessory needs a composited sprite that does
+ * not exist.
+ *
+ * [T23, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §5.1] Tools
+ * are handed out BEFORE the adventure that uses them, not as a reward once
+ * it is over — the pre-T23 reading below granted the hat and the linterna
+ * at the exact moment they stop mattering. `andean-hat.earnedWhen` moved
+ * from `['llama-peak4']` to `['sheep-hill4']`: the hat is used in the
+ * LLAMA adventure but earned at the end of the SHEEP one — `docs/19` §5.1's
+ * own row ("el gorro de pastor (fin de las ovejas, se usa en las
+ * llamas)") — and `sheep-hill4` is filed strictly before `llama-peak4` ever
+ * can be (both adventures share the `montanas` sector, sheep first in
+ * `zoo/sectors.ts`'s own `adventureIds` play order). `linterna.earnedWhen`
+ * moved from `['night4']` to `['llama-peak4']` — the exact level that opens
+ * `nocturna` (`zoo/sectors.ts`'s own `unlockedWhen`), so the flashlight
+ * sits in the backpack the instant the night sector becomes reachable,
+ * before `night1` is ever played. `sand3`/`snake4`: each is still its own
+ * adventure's last level and stays unchanged (the lupa and the carrito are
+ * out of this task's scope — only the hat and the linterna were reported as
+ * mistimed). */
 export const BACKPACK_ITEMS: readonly BackpackItem[] = [
   {
     id: 'andean-hat',
     art: ANDEAN_HAT_ART,
     grantedBy: 'montanas',
-    earnedWhen: ['llama-peak4'],
+    earnedWhen: ['sheep-hill4'],
   },
   {
     id: 'lupa',
@@ -60,7 +73,7 @@ export const BACKPACK_ITEMS: readonly BackpackItem[] = [
     id: 'linterna',
     art: SECTOR_ADVENTURE_ART.flashlight,
     grantedBy: 'nocturna',
-    earnedWhen: ['night4'],
+    earnedWhen: ['llama-peak4'],
   },
   // The arena's own reward (`snake-drag-and-art-corridor`, design.md §7.1):
   // the row's own verb is "llevarla a un lugar adecuado" — a cart to carry

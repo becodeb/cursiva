@@ -129,6 +129,15 @@ ${BUBBLE_POP_CSS}
    .cv-intro-frame inside .cv-intro, pinned to the SCREEN's own top
    corner instead. */
 .cv-intro-speak { position: absolute; top: ${STAGE_MARGIN_PCT}%; right: ${STAGE_MARGIN_PCT}%; z-index: 2; }
+/* T23 (odd/tasks/prewriting-stage-completion.md, docs/19 §5.1): the tool
+   handoff badge — a small captioned picture in the OPPOSITE top corner from
+   the "hear it again" button, so the two never collide. Deliberately its
+   own tiny element rather than a second image inside .cv-intro-bubble
+   (this file's own header explains why that bubble's placement math is not
+   safe to extend). NO BACKTICKS in this block -- one inside a comment ends
+   this template literal early (this file's own top-of-file note). */
+.cv-intro-tool { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; }
+.cv-intro-tool .cv-caption { font-size: 14px; font-weight: 700; color: #1e293b; }
 `
 
 export interface AdventureIntroProps {
@@ -136,17 +145,30 @@ export interface AdventureIntroProps {
   onStart: () => void
 }
 
+/**
+ * The line this screen speaks (`odd/tasks/prewriting-stage-completion.md`
+ * T23): the adventure's own `intro`, plus the tool's own handoff line in
+ * the SAME utterance when this row hands one out — never a second
+ * `useNarration` call, which would double-fire on the same mount. Exported
+ * as a pure function so the concatenation is directly testable without a
+ * DOM (`renderToString` never runs `useNarration`'s own effect).
+ */
+export function introSpokenLine(adventure: Adventure): string {
+  return adventure.introTool ? `${adventure.intro} ${adventure.introTool.line}` : adventure.intro
+}
+
 /** The reusable narrative entry (`docs/13` §5 item 1). No `aria-label` on
  * the button — the caption inside already names it, and an `aria-label`
  * would override the only sentence on the screen. */
 export default function AdventureIntro({ adventure, onStart }: AdventureIntroProps) {
   const backdrop = backdropFor(adventure.levelIds[0])
+  const spokenLine = introSpokenLine(adventure)
   // Voice narration (docs/18 D1; T7): this screen is always reached by a
   // tap (leaving the previous screen), so `canAutoSpeak()` is already true
   // by the time this fires — unlike the prologue's very first plate, this
   // line autoplays for real, and `SpeakButton` below is only "hear it
   // again", never the sole way to hear it in the first place.
-  useNarration(adventure.intro)
+  useNarration(spokenLine)
   // T18: the stance (`docs/19` §4.1) — which bottom corner he stands in,
   // and therefore which side the bubble opens toward.
   const stance = resolvePulpitoStance(adventure.introStance)
@@ -210,7 +232,17 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
           </span>
         </button>
       </div>
-      <SpeakButton line={adventure.intro} className="cv-intro-speak" />
+      {/* T23 (odd/tasks/prewriting-stage-completion.md, docs/19 §5.1): the
+          tool handoff badge — outside `.cv-intro-frame` entirely, a sibling
+          of it and of `SpeakButton`, pinned to the opposite top corner. The
+          spoken line already carries `introTool.line` (`spokenLine`,
+          above); this is the picture half of the same handoff. */}
+      {adventure.introTool && (
+        <div className="cv-intro-tool">
+          <CaptionedArt art={adventure.introTool.art} label={adventure.introTool.label} size={56} />
+        </div>
+      )}
+      <SpeakButton line={spokenLine} className="cv-intro-speak" />
     </main>
   )
 }

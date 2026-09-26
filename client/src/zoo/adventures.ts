@@ -9,6 +9,7 @@
 // already follow, so every decision here is testable with no DOM.
 import type { ArtImage, ZooAnimalId } from '../detective/assets'
 import {
+  ANDEAN_HAT_ART,
   CARRIER_LENS_ART,
   CART_ART,
   OCTOPUS_ART,
@@ -119,6 +120,29 @@ export interface AdventureDeduction {
   readonly caseId: string
 }
 
+/**
+ * A tool handed to the child on THIS adventure's own entry screen, before it
+ * starts (`odd/tasks/prewriting-stage-completion.md` T23, `docs/19` §5.1:
+ * "antes de la aventura que la usa" — the hat before the llamas, the
+ * linterna before the night). `zoo/backpack.ts`'s own `earnedWhen` for the
+ * SAME tool already moves so the backpack/notebook show it received in
+ * time; this is the visible, spoken HANDOFF on the entry screen itself.
+ * Absent means no tool is handed on this screen — every row but the ones
+ * this task moves.
+ */
+export interface AdventureTool {
+  /** A short, single-word caption under the tool's own picture — the ONLY
+   *  new visible text this adds to `AdventureIntro`, so `CaptionedArt`'s own
+   *  required `label` stays satisfied without touching the screen's
+   *  carefully-tuned speech-bubble geometry (`bubbleFit.ts`) at all. */
+  label: string
+  art: ArtImage
+  /** Appended to `adventure.intro` in the SAME spoken utterance
+   *  (`AdventureIntro.tsx`'s `introSpokenLine`) — never a second
+   *  `useNarration` call on the same mount. */
+  line: string
+}
+
 interface AdventureBase {
   id: AdventureId
   /** In play order. `levelIds[0]` is where the narrative entry shows
@@ -134,6 +158,11 @@ interface AdventureBase {
   /** The entry screen's own stance (T18, `docs/19` §4) — absent means
    *  `DEFAULT_PULPITO_STANCE`. See `ClosingBeat.stance`'s own comment. */
   introStance?: PulpitoStance
+  /** A tool handed to the child on this SAME entry screen, before the
+   *  adventure starts (T23, `docs/19` §5.1) — see `AdventureTool`'s own
+   *  header. Absent on every row but the one whose tool this task moves
+   *  earlier. */
+  introTool?: AdventureTool
   /** His line on the map once this adventure's animal is standing in the
    *  zoo (`zoo-map` spec, "Octopus Phrase Reads as a Closing"). */
   closing: string
@@ -219,6 +248,20 @@ export const ADVENTURES: readonly Adventure[] = [
     sector: 'montanas',
     animal: 'llama',
     intro: 'Las llamas están en los picos. ¿Subimos a buscarlas?',
+    // [T23, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §5.1] The
+    // hat is earned at the end of the SHEEP adventure (`zoo/backpack.ts`'s
+    // own `earnedWhen: ['sheep-hill4']`) but used in THIS one — handed here,
+    // on the entry screen, rather than silently sitting in the backpack
+    // with no moment of its own. A separate badge from the speech bubble
+    // (`AdventureIntro.tsx`'s own `.cv-intro-tool`), never inside it — the
+    // bubble's placement math is tuned for exactly one picture and one
+    // caption (`bubbleFit.ts`'s own header) and this task has no standing
+    // to re-tune it for a second image.
+    introTool: {
+      label: 'Gorro',
+      art: ANDEAN_HAT_ART,
+      line: 'Antes de subir, ponete el gorro de pastor.',
+    },
     closing: '¡Encontramos a la llama! Ya está en la cumbre.',
     // Rescue closing (T8) — the duck row's own reasoning, restated.
     closingBeat: [{ line: '¡Encontramos a la llama! Ya está en la cumbre.', art: ZOO_ANIMAL_ART.llama }],

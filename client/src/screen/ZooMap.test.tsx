@@ -10,6 +10,7 @@ import { auditCaptions } from '../detective/captionAudit'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import { hitCentre, SECTORS, type Records } from '../zoo/sectors'
 import { ADVENTURES } from '../zoo/adventures'
+import { totalStars } from '../zoo/stars'
 
 function filed(...ids: readonly string[]): Records {
   const out: Record<string, LevelRecord> = {}
@@ -183,10 +184,30 @@ describe('ZooMap (HUD is DOM, outside the svg)', () => {
     expect(audit.uncaptioned).not.toEqual([])
   })
 
-  it('shows the star count next to the star image, captioned', () => {
-    const html = render(filed(...estanque.adventureIds))
-    expect(html).toContain('/art/zoo-star.png')
-    expect(html).toContain('class="cv-caption">')
+  // [T23, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §5.2
+  // decision 2(a)] The star pill is hidden in this stage —
+  // `STARS_VISIBLE_IN_HUD` (`zoo/stars.ts`) gates it off — even though
+  // `totalStars` above still computes a real, non-zero number for these
+  // very same filed records (`zoo/stars.test.ts` proves the derivation
+  // itself is untouched).
+  it('never renders the star pill while STARS_VISIBLE_IN_HUD is off, though stars are still being earned', () => {
+    const records = filed(...estanque.adventureIds)
+    expect(totalStars(records)).toBeGreaterThan(0)
+    const html = render(records)
+    expect(html).not.toContain('/art/zoo-star.png')
+    expect(html).not.toContain('cv-zoo-hud-right"')
+  })
+
+  // T23: the backpack pill is now a real button that opens the notebook —
+  // closed by default (no `DetectiveNotebook` markup on a fresh mount), and
+  // no "recovered animals" row duplicating what the map itself already
+  // draws (`docs/19` §5.3: "el mapa y la libreta ya lo dicen").
+  it('renders the backpack as an openable button, with no notebook open and no recovered-animals HUD row by default', () => {
+    const html = render(filed('duck-trail4'))
+    expect(html).toContain('aria-label="Abrir la libreta del detective"')
+    expect(html).toContain('class="cv-zoo-hud-left"')
+    expect(html).not.toContain('class="cv-notebook"')
+    expect(html).not.toContain('class="cv-zoo-hud-mid"')
   })
 
   // T7 (docs/18 D1/§3 "Todo se escucha"): the persisted mute switch. There is

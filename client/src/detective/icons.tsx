@@ -89,3 +89,21 @@ export function ContinueIcon() {
     </IconSvg>
   )
 }
+
+/** Closes an overlay (`screen/DetectiveNotebook.tsx`, T23,
+ *  `odd/tasks/prewriting-stage-completion.md`): a plain X, two crossed
+ *  strokes — the same wordless-glyph convention every other icon in this
+ *  file follows (aria-hidden, named by the button that wraps it). */
+export function CloseIcon() {
+  return (
+    <IconSvg>
+      <path
+        d="M11,11 L29,29 M29,11 L11,29"
+        fill="none"
+        stroke={ICON_INK}
+        strokeWidth={ICON_STROKE_WIDTH}
+        strokeLinecap="round"
+      />
+    </IconSvg>
+  )
+}

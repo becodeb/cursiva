@@ -1,12 +1,23 @@
 // Star derivation tests (proposal OD1, zoo-map spec "Star Derivation").
 import { describe, expect, it } from 'vitest'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
-import { starsFor, starsIncreased, totalStars } from './stars'
+import { STARS_VISIBLE_IN_HUD, starsFor, starsIncreased, totalStars } from './stars'
 import type { Records } from './sectors'
 
 function record(approvals: number): LevelRecord {
   return { ...EMPTY_RECORD, approvals }
 }
+
+// T23 (`odd/tasks/prewriting-stage-completion.md`, `docs/19` §5.2 decision
+// 2(a)): the flag `screen/ZooMap.tsx` gates its star pill on. Off in this
+// stage; `starsFor`/`totalStars` below are untouched by it — they still
+// compute and the store still keeps every approval, so flipping this one
+// constant back to `true` is the whole reversal, no data migration.
+describe('STARS_VISIBLE_IN_HUD', () => {
+  it('is off in this stage — the map hides the star pill, but keeps deriving stars', () => {
+    expect(STARS_VISIBLE_IN_HUD).toBe(false)
+  })
+})
 
 describe('starsFor', () => {
   it.each([
