@@ -220,7 +220,12 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // + 4 ANIMAL_SILHOUETTE_ART (T21, prewriting-stage-completion.md): a
     // solid-fill derived silhouette per deduction animal, shown before the
     // case is solved.
-    expect(REGISTERED.length).toBe(98)
+    // + 3 more ANIMAL_SILHOUETTE_ART (T25, `docs/19` §3.2): erizo/oveja/
+    // llama, the night case's own culprit and two of its progress-computed
+    // "already rescued" discard candidates (`detective/cases.ts`'s
+    // `resolveNightDiscards`) — vaca/gato already had one from the duck/hen
+    // cases.
+    expect(REGISTERED.length).toBe(101)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })

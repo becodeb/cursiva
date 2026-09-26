@@ -29,14 +29,13 @@
 // this file.
 import { useState, type CSSProperties } from 'react'
 import {
-  ANIMAL_ART,
-  ANIMAL_SILHOUETTE_ART,
   CLUE_ART,
+  silhouetteArtFor,
+  ZOO_ANIMAL_ART,
   ZOO_CARETAKER_ART,
   ZOO_SPEECH_BUBBLE_ART,
-  type AnimalId,
   type ArtImage,
-  type ClueKind,
+  type ZooAnimalId,
 } from '../detective/assets'
 import { clueKindsOf, type DetectiveCase } from '../detective/cases'
 import CaptionedArt from '../detective/CaptionedArt'
@@ -159,14 +158,21 @@ function Art({ art, size }: { art: ArtImage; size: number }) {
  * visual language `voice/SpeakButton.tsx`/`voice/VoiceToggle.tsx`/
  * `screen/ZooMap.tsx`'s HUD pills already use (`docs/09` §1: no shading, no
  * gradient, no shadow) — never `PistasRail`'s own labelled rail, which this
- * screen no longer mounts. Every kind `clueKindsOf(kase)` names is already
- * EARNED by the time this screen shows (the case's own pistas levels are
- * done), so there is no drained state to represent here. */
-function ClueChip({ kind }: { kind: ClueKind }) {
+ * screen no longer mounts. Every picture this row shows is already EARNED by
+ * the time this screen shows (the case's own pistas levels are done), so
+ * there is no drained state to represent here.
+ *
+ * Takes the picture directly rather than a `ClueKind` (T25,
+ * `odd/tasks/prewriting-stage-completion.md`): the night case's own chips
+ * (`DetectiveCase.clueArt`) are naturalistic props with no honest
+ * `ClueKind`/`CLUE_ART` colour token, and the render call below already
+ * resolves either source to one `ArtImage` list before this component ever
+ * sees it. */
+function ClueChip({ art }: { art: ArtImage }) {
   return (
     <span className="cv-deduction-chip">
       <svg viewBox="-18 -18 36 36" width={32} height={32} aria-hidden="true" focusable="false">
-        <Art art={CLUE_ART[kind].art.earned} size={32} />
+        <Art art={art} size={32} />
       </svg>
     </span>
   )
@@ -176,12 +182,28 @@ function ClueChip({ kind }: { kind: ClueKind }) {
  * normal Spanish case ("Pato", not "PATO") on purpose — see `.cv-caption`'s
  * `text-transform: uppercase` below for why the directive's ALL-CAPS
  * vocabulary (`PECES`/`TORTUGAS`/`PATO`) is applied as a paint rule instead
- * of stored as a literal uppercase string. */
-const ANIMAL_LABEL: Readonly<Record<AnimalId, string>> = {
+ * of stored as a literal uppercase string. Widened from `AnimalId` to the
+ * full `ZooAnimalId` (T25, `docs/19` §3.2): the night case's lineup can show
+ * erizo, oveja or llama alongside the original barnyard quartet. Populated
+ * for every `ZooAnimalId` rather than left `Partial` (`TrailProgressBar.tsx`'s
+ * own `ANIMAL_NAME` is Partial for a narrative SENTENCE fragment, but this is
+ * a caption under a picture the child is looking straight at — never worth
+ * a silent gap) — cheap and future-proofs the fish/monkey cases `docs/19`
+ * §2.3 still has to build. */
+const ANIMAL_LABEL: Readonly<Record<ZooAnimalId, string>> = {
   gallina: 'Gallina',
   pato: 'Pato',
   vaca: 'Vaca',
   gato: 'Gato',
+  oveja: 'Oveja',
+  llama: 'Llama',
+  vibora: 'Víbora',
+  abeja: 'Abeja',
+  delfin: 'Delfín',
+  erizo: 'Erizo',
+  pez: 'Pez',
+  tortuga: 'Tortuga',
+  mono: 'Mono',
 }
 
 /**
@@ -192,12 +214,22 @@ const ANIMAL_LABEL: Readonly<Record<AnimalId, string>> = {
 export const DEDUCTION_OPENING_LINE = '¿Quién dejó todo esto?'
 
 /** Pulpito's short line once the case is closed, one per possible culprit —
- * every case in the registry names a real `AnimalId`, so this stays total. */
-export const DEDUCTION_SOLVED_LINE: Readonly<Record<AnimalId, string>> = {
+ * every case in the registry names a real `ZooAnimalId` (widened from
+ * `AnimalId`, T25), so this stays total. */
+export const DEDUCTION_SOLVED_LINE: Readonly<Record<ZooAnimalId, string>> = {
   pato: '¡Era el pato!',
   gallina: '¡Era la gallina!',
   vaca: '¡Era la vaca!',
   gato: '¡Era el gato!',
+  oveja: '¡Eran las ovejas!',
+  llama: '¡Era la llama!',
+  vibora: '¡Eran las víboras!',
+  abeja: '¡Era la abeja!',
+  delfin: '¡Eran los delfines!',
+  erizo: '¡Era el erizo!',
+  pez: '¡Eran los peces!',
+  tortuga: '¡Eran las tortugas!',
+  mono: '¡Eran los monos!',
 }
 
 /**
@@ -247,7 +279,7 @@ export function deductionHint(kase: DetectiveCase, state: DeductionState): strin
 export interface DeductionState {
   /** Distractors the child has already picked, in pick order. Permanent —
    * ruling an animal out is a deduction, not a mistake to take back. */
-  dismissed: readonly AnimalId[]
+  dismissed: readonly ZooAnimalId[]
   /** The culprit has been picked (spec scenario "Correct pick closes the case"). */
   closed: boolean
 }
@@ -275,8 +307,8 @@ export function initialDeductionState(solved = false): DeductionState {
  */
 export function pickAnimal(
   state: DeductionState,
-  animal: AnimalId,
-  culprit: AnimalId,
+  animal: ZooAnimalId,
+  culprit: ZooAnimalId,
 ): DeductionState {
   if (state.closed) return state
   if (animal === culprit) return { ...state, closed: true }
@@ -291,7 +323,7 @@ export function pickAnimal(
  * by a node test: the harness cannot see inside a `setState` updater, so the
  * decision that gates `onSolved()` has to live out here.
  */
-export function solvesCase(state: DeductionState, animal: AnimalId, culprit: AnimalId): boolean {
+export function solvesCase(state: DeductionState, animal: ZooAnimalId, culprit: ZooAnimalId): boolean {
   return !state.closed && animal === culprit
 }
 
@@ -310,20 +342,25 @@ function Animal({
   state,
   onPick,
 }: {
-  id: AnimalId
+  id: ZooAnimalId
   kase: DetectiveCase
   state: DeductionState
-  onPick: (animal: AnimalId) => void
+  onPick: (animal: ZooAnimalId) => void
 }) {
   const dismissed = state.dismissed.includes(id)
-  // [T21] `docs/19` §7 slice 3: every option stands as a SILHOUETTE
-  // (`ANIMAL_SILHOUETTE_ART`, a real derived PNG — `assets.ts`'s own header
-  // — never a runtime CSS/SVG filter) until the culprit is actually picked;
-  // only then does IT ALONE swap to its full-colour picture ("the silhouette
-  // fills with colour and the duck peeks out"). A dismissed distractor never
-  // reveals — it was RULED OUT, not identified.
+  // [T21; widened T25] `docs/19` §7 slice 3: every option stands as a
+  // SILHOUETTE (`ANIMAL_SILHOUETTE_ART`/`silhouetteArtFor`, a real derived
+  // PNG — `assets.ts`'s own header — never a runtime CSS/SVG filter) until
+  // the culprit is actually picked; only then does IT ALONE swap to its
+  // full-colour picture ("the silhouette fills with colour and the duck
+  // peeks out"). A dismissed distractor never reveals — it was RULED OUT,
+  // not identified. `ZOO_ANIMAL_ART`, not `ANIMAL_ART`: it resolves every
+  // `ZooAnimalId` (erizo/oveja/llama included, T25) and — for the original
+  // four — is the exact SAME object `ANIMAL_ART` was (`assets.ts`'s own
+  // "preserves referential identity" guarantee), so this is a behaviour-
+  // preserving generalisation, not a different picture.
   const revealed = state.closed && id === kase.culprit
-  const art = revealed ? ANIMAL_ART[id] : ANIMAL_SILHOUETTE_ART[id]
+  const art = revealed ? ZOO_ANIMAL_ART[id] : silhouetteArtFor(id)
   // A wrong pick is gentle (`docs/01` principle 2: no red, no failure
   // sound): the ONLY animation is this one soft shake, on the animal just
   // picked — never a permanent state, so it plays exactly once per wrong
@@ -510,7 +547,7 @@ ${BUBBLE_POP_CSS}
 export interface DeductionViewProps {
   kase: DetectiveCase
   state: DeductionState
-  onPick: (animal: AnimalId) => void
+  onPick: (animal: ZooAnimalId) => void
   onExit: () => void
 }
 
@@ -570,9 +607,15 @@ export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProp
       </header>
       <div className="cv-deduction-content">
         <div className="cv-deduction-chips">
-          {clueKindsOf(kase).map((kind) => (
-            <ClueChip key={kind} kind={kind} />
-          ))}
+          {/* [T25] The night case supplies its own chip pictures directly
+              (`clueArt`, naturalistic props with no honest `ClueKind`
+              colour token) — every other case still derives one `ClueKind`
+              per pistas level (`clueKindsOf`'s default path), unchanged. */}
+          {(kase.clueArt ?? clueKindsOf(kase).map((kind) => CLUE_ART[kind].art.earned)).map(
+            (art, i) => (
+              <ClueChip key={i} art={art} />
+            ),
+          )}
         </div>
         <div className="cv-deduction-cards">
           <div className={lineupWidthClass(kase.options.length)}>

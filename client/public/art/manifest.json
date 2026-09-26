@@ -311,6 +311,12 @@
     "h": 306,
     "w": 448
   },
+  "hedgehog-profile-silhouette": {
+    "bytes": 15190,
+    "file": "art/hedgehog-profile-silhouette.png",
+    "h": 306,
+    "w": 448
+  },
   "home-desk": {
     "bytes": 74832,
     "file": "art/home-desk.png",
@@ -425,6 +431,12 @@
     "h": 448,
     "w": 299
   },
+  "sector-llama-silhouette": {
+    "bytes": 16600,
+    "file": "art/sector-llama-silhouette.png",
+    "h": 448,
+    "w": 299
+  },
   "sector-monkeys-background": {
     "brightest": "#f7fdea",
     "bytes": 3141847,
@@ -500,6 +512,12 @@
   "sector-sheep": {
     "bytes": 83158,
     "file": "art/sector-sheep.png",
+    "h": 448,
+    "w": 420
+  },
+  "sector-sheep-silhouette": {
+    "bytes": 7055,
+    "file": "art/sector-sheep-silhouette.png",
     "h": 448,
     "w": 420
   },

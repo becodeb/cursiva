@@ -19,7 +19,13 @@
 // export itself stays in `detective/assets.ts`, still registered in
 // `artManifest.test.ts`'s `REGISTERED` table — it ships no orphaned file,
 // it simply has no consumer left in this catalog.
-import { ANIMAL_ART, FLOWER_ART, HAZARD_STARFISH_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
+import {
+  ANIMAL_ART,
+  FLOWER_ART,
+  HAZARD_STARFISH_ART,
+  HEDGEHOG_ART,
+  SECTOR_ADVENTURE_ART,
+} from '../detective/assets'
 import { buildWord } from '../letters/combinations'
 import { LETTER_REGISTRY } from '../letters/registry'
 import type { LetterConfig } from '../letters/types'
@@ -1086,14 +1092,26 @@ const PHASE_1: LevelConfig[] = [
   // ───────────────────────────────────────────────────────────────────────
   // The night sector (`docs/12`, design.md §5): four `mode: 'light'`
   // reveal-grid levels, the last four entries of phase 1 — `docs/13` §2's
-  // "búsqueda más intencional" step, expressed as a rising hidden-object
-  // count (1, 2, 3, 3 — R4) rather than a widening area. No ordering is
-  // required or asserted against `sand4` (design.md §5.4, ratified amendment
-  // A2: an erase radius accumulates cleared area across an attempt, a light
-  // radius does not persist anything, so the two are not comparable
-  // quantities). Objects reference `SECTOR_ADVENTURE_ART.chest/.stone/.leaf`
-  // (design.md §3.4) — their only consumer, landed in the same commit as
-  // their `SINGLES` row and registry entry (task 4.4-4.6).
+  // "búsqueda más intencional" step. No ordering is required or asserted
+  // against `sand4` (design.md §5.4, ratified amendment A2: an erase radius
+  // accumulates cleared area across an attempt, a light radius does not
+  // persist anything, so the two are not comparable quantities).
+  //
+  // [T25, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §3.2]
+  // SUPERSEDES the original design's arbitrary rising hidden-object count
+  // (1, 2, 3, 3 — R4) with the night CASE's own story: what is hidden is
+  // specifically the erizo's own belongings (a leaf, a bitten apple, a
+  // mushroom), found before the deduction ever asks "who eats these at
+  // night?" — so the counts are now 1/2/2/1 (`night4` drops to ONE object,
+  // the curled erizo itself, `docs/19`'s own reveal at the end of the
+  // sector), not a difficulty curve. `detective/cases.ts`'s `night` case
+  // reads these same three concepts (leaf/apple/mushroom) as its own chip
+  // row (`DetectiveCase.clueArt`) — see that case's own header for the
+  // apple/mushroom art stand-ins (`docs/20` B12 is still pending; `leaf`/
+  // `stone` fill in until then, flagged there for the author). `chest` is
+  // dropped from this family entirely: a treasure chest has nothing to do
+  // with a hedgehog (`docs/19`'s own diagnosis of the pre-T25 design:
+  // "cofres y piedras que no tienen que ver con nadie").
   // ───────────────────────────────────────────────────────────────────────
   {
     id: 'night1',
@@ -1124,12 +1142,16 @@ const PHASE_1: LevelConfig[] = [
     // well past `radius: 200`) and the child has to move the torch — the
     // search `docs/13` §2 calls for. `radius`/grid/family ordering (R1-R8)
     // are unchanged.
+    // T25 (`docs/19` §3.2): a leaf, the erizo's own first trace — the real
+    // art already exists (✓). Position/radius unchanged from the pre-T25
+    // fix (the "first blind tap" defect note above still applies: this spot
+    // sits ~358 units from centre, well past `radius: 200`).
     reveal: {
       mode: 'light',
       cols: 15,
       rows: 9,
       radius: 200,
-      objects: [{ art: SECTOR_ADVENTURE_ART.chest, size: 96, x: 180, y: 460 }],
+      objects: [{ art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 180, y: 460 }],
     },
   },
   {
@@ -1148,13 +1170,18 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
+    // T25 (`docs/19` §3.2): a bitten apple and another leaf. No apple art
+    // yet (`docs/20` B12) — stood in with the leaf art again (`detective/
+    // cases.ts`'s `night` case entry has the same flag): the story still
+    // reads as "another one of the erizo's things" either way. Positions/
+    // radius unchanged from the pre-T25 config.
     reveal: {
       mode: 'light',
       cols: 15,
       rows: 9,
       radius: 170,
       objects: [
-        { art: SECTOR_ADVENTURE_ART.stone, size: 72, x: 260, y: 180 },
+        { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 260, y: 180 },
         { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 740, y: 420 },
       ],
     },
@@ -1162,8 +1189,13 @@ const PHASE_1: LevelConfig[] = [
   {
     id: 'night3',
     phase: 1,
-    title: 'Tres en la oscuridad',
-    hint: 'Buscá las tres cosas escondidas en la oscuridad.',
+    // T25 (`docs/19` §3.2 table): this level finds a mushroom (stood in
+    // with `stone`, `docs/20` B12 pending) and another apple (`leaf`
+    // stand-in, same reason as `night2`) — two things, not three; the
+    // title/hint below were "tres"/"las tres" before this task dropped the
+    // unrelated `chest` object (this family's own header comment).
+    title: 'Dos cosas más en la oscuridad',
+    hint: 'Buscá las dos cosas escondidas en la oscuridad.',
     kind: 'free',
     surface: 'blank',
     maze: false,
@@ -1181,17 +1213,20 @@ const PHASE_1: LevelConfig[] = [
       rows: 12,
       radius: 140,
       objects: [
-        { art: SECTOR_ADVENTURE_ART.chest, size: 96, x: 200, y: 140 },
-        { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 500, y: 440 },
-        { art: SECTOR_ADVENTURE_ART.stone, size: 72, x: 820, y: 200 },
+        { art: SECTOR_ADVENTURE_ART.stone, size: 72, x: 200, y: 140 },
+        { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 820, y: 200 },
       ],
     },
   },
   {
     id: 'night4',
     phase: 1,
-    title: 'La linterna chiquita',
-    hint: 'La luz es más chica: buscá bien de cerca.',
+    // T25 (`docs/19` §3.2): this is where the erizo itself turns up, curled
+    // up from the fright — the night case's own rescue, not one more
+    // hidden-object level. ONE object now (was three unrelated props), so
+    // the title/hint no longer promise a search among several things.
+    title: 'Algo se mueve en la oscuridad',
+    hint: 'La luz es más chica: alumbrá bien de cerca.',
     kind: 'free',
     surface: 'blank',
     maze: false,
@@ -1203,16 +1238,15 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
+    // Off-centre for the same reason `night1`'s own fix documents (~322
+    // units from the sheet's (500, 300) centre, well past `radius: 110`): a
+    // curious first blind tap must not win the level outright.
     reveal: {
       mode: 'light',
       cols: 20,
       rows: 12,
       radius: 110,
-      objects: [
-        { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 140, y: 480 },
-        { art: SECTOR_ADVENTURE_ART.chest, size: 96, x: 520, y: 120 },
-        { art: SECTOR_ADVENTURE_ART.stone, size: 72, x: 880, y: 380 },
-      ],
+      objects: [{ art: HEDGEHOG_ART.curled, size: 120, x: 220, y: 460 }],
     },
   },
   // Víboras en la arena (`docs/13` §8 row E, `snake-drag-and-art-corridor`;

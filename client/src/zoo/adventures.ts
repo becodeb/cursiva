@@ -11,6 +11,7 @@ import type { ArtImage, ZooAnimalId } from '../detective/assets'
 import {
   CARRIER_LENS_ART,
   CART_ART,
+  HEDGEHOG_ART,
   OCTOPUS_ART,
   SECTOR_ADVENTURE_ART,
   SIGN_ART,
@@ -316,19 +317,27 @@ export const ADVENTURES: readonly Adventure[] = [
   {
     id: 'night',
     levelIds: ['night1', 'night2', 'night3', 'night4'],
+    // [T25, `docs/19` §2.3/§3.2] "La noche y el erizo son un solo caso
+    // repartido en dos aventuras": after `night3` — the case's own last
+    // pistas level (`detective/cases.ts`'s `night.trailIds`) — the flow
+    // detours into the `night` case's deduction (erizo/pato/oveja, the two
+    // distractors resolved from progress) before continuing to `night4`,
+    // where the curled erizo is the reveal-grid's own find.
+    deduction: { after: 'night3', caseId: 'night' },
     sector: 'nocturna',
     icon: SECTOR_ADVENTURE_ART.flashlight,
     intro: 'De noche hay cosas escondidas. ¿Las buscamos con la luz?',
-    closing: 'Encontramos todo en la oscuridad.',
+    closing: '¡Ahí está el erizo, hecho una bolita!',
     // Rescue-shaped closing, animal-less (adventure-flow-and-map-guidance
     // T8, docs/18 §4.7 item 1): ONE beat, `closing`'s own line verbatim,
-    // with the SAME flashlight art `zoo/backpack.ts`'s `linterna` item and
-    // this row's own `icon` already use — the linterna is what "finding
-    // everything in the dark" actually means here, so it is also what the
-    // closing shows. [Superseding history: an earlier design (design.md
-    // §6.2) tried assigning `night` a `closingBeat` and was reverted
-    // because the then-current `main-screen` spec named `night` BY NAME
-    // among the adventures that must exit ordinarily — see
+    // with the curled erizo's own art (`night4`'s reveal-grid find) — T25
+    // (`docs/19` §3.2) replaces the earlier generic "encontramos todo en la
+    // oscuridad" line with one that names what was actually found, so this
+    // closing and `hedgehog`'s own intro (below) read as ONE story instead
+    // of two unrelated beats. [Superseding history: an earlier design
+    // (design.md §6.2) tried assigning `night` a `closingBeat` and was
+    // reverted because the then-current `main-screen` spec named `night` BY
+    // NAME among the adventures that must exit ordinarily — see
     // `apply-progress.md`'s Phase 6 section. T8 (docs/18 §4.7) explicitly
     // asks for this row to carry a closing after all; that spec's scoping
     // is now superseded by this change, not contradicted by an oversight.]
@@ -336,7 +345,7 @@ export const ADVENTURES: readonly Adventure[] = [
     // still chains this closing's own fall-off straight into `hedgehog`'s
     // narrative entry (T2 amendment) — `advanceClosing('night4', 0, …)`
     // is asserted against that exact chain in `GameScreen.test.tsx`.
-    closingBeat: [{ line: 'Encontramos todo en la oscuridad.', art: SECTOR_ADVENTURE_ART.flashlight }],
+    closingBeat: [{ line: '¡Ahí está el erizo, hecho una bolita!', art: HEDGEHOG_ART.curled }],
   },
   {
     id: 'snake',
@@ -456,7 +465,13 @@ export const ADVENTURES: readonly Adventure[] = [
     levelIds: ['hedgehog1', 'hedgehog2', 'hedgehog3', 'hedgehog4'],
     sector: 'nocturna',
     animal: 'erizo',
-    intro: 'Al erizo le faltan las espinas. ¿Se las dibujamos?',
+    // T25 (`docs/19` §3.2, "recipe C" table row): continues the SAME beat
+    // `night`'s own closing just ended on ("¡Ahí está el erizo, hecho una
+    // bolita!") rather than re-introducing him as if for the first time —
+    // the two adventures are one case split in two, and the line has to
+    // read that way. Replaces the earlier "Al erizo le faltan las espinas.
+    // ¿Se las dibujamos?", which opened as a fresh scene instead.
+    intro: 'Del susto se hizo bolita. Si le acomodamos las espinas, se anima a salir.',
     closing: '¡El erizo tiene todas sus espinas!',
     // Rescue closing (T8) — the snake/bee/dolphin rows' own reasoning,
     // restated. Appended at the END of the registry (amendment 9's rule for
@@ -524,6 +539,26 @@ export function closingLevel(levelId: string): Adventure | undefined {
  */
 export function everyAdventureFiled(records: Records): boolean {
   return ADVENTURES.every((a) => a.levelIds.every((id) => isFiled(records, id)))
+}
+
+/**
+ * True once EVERY level of the `ADVENTURES` row that recovers `animal` is
+ * filed — `everyAdventureFiled`'s own per-row test, generalised to one
+ * animal. `false` for an animal no row recovers (`gallina`/`vaca`/`gato`,
+ * the duck/hen cases' own barnyard decoys, and every `ZooAnimalId` no
+ * `Adventure.animal` names yet) since there is no row to check.
+ *
+ * What `detective/cases.ts`'s night case uses to discard an option only once
+ * the child has genuinely met it (`odd/tasks/prewriting-stage-completion.md`
+ * T25, `docs/19` §2.3/§3.2: "¿El pato? No: el pato ya está en su laguna") —
+ * `screen/GameScreen.tsx` is the one caller, passed as a bound predicate to
+ * `resolveCase`/`resolveNightDiscards` so `detective/cases.ts` itself never
+ * has to import `zoo/adventures.ts` (keeps the case registry a leaf module,
+ * the same layering `cases.ts`'s own header already follows).
+ */
+export function isRescued(records: Records, animal: ZooAnimalId): boolean {
+  const adventure = ADVENTURES.find((a) => a.animal === animal)
+  return !!adventure && adventure.levelIds.every((id) => isFiled(records, id))
 }
 
 /** What the Pulpito says about the sector the huellas point at, and the

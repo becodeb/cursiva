@@ -1187,13 +1187,19 @@ def main() -> None:
               f'{manifest[grey_key]["bytes"] / 1024:6.1f} KB')
 
     # --- Deduction-screen animal silhouettes (T21, prewriting-stage-
-    # completion.md). A SECOND pass over the animal cutouts SINGLES already
-    # emitted above (`animal-pato.png`/`animal-gallina.png`/`animal-vaca.png`/
-    # `animal-gato.png`, `fill=None` so they ship in full authored colour): a
-    # copy of the shipped file, `recolour`'d to one flat `INK` fill with
+    # completion.md; T25 widens this to the NIGHT case's own lineup). A
+    # SECOND pass over cutouts SINGLES already emitted above
+    # (`animal-pato.png`/`animal-gallina.png`/`animal-vaca.png`/
+    # `animal-gato.png`, `fill=None` so they ship in full authored colour;
+    # `hedgehog-profile.png`/`sector-sheep.png`/`sector-llama.png`,
+    # `fill='contour'` so they keep an ink/fill split of their own): a copy of
+    # the shipped file, `recolour`'d to one flat `INK` fill with
     # `keep_ink=False` -- `recolour`'s own docstring names exactly this case
     # ("art that is already a bare silhouette with no contour of its own,
-    # where an ink/fill split would find no fill"). The result is a real
+    # where an ink/fill split would find no fill"), and `keep_ink=False`
+    # sends EVERY opaque pixel to `fill` regardless of whether the source had
+    # an ink/fill split to begin with, so the `contour`-mode trio silhouettes
+    # exactly as flat as the `fill=None` quartet. The result is a real
     # derived PNG, alpha-identical to the coloured original, never a runtime
     # CSS/SVG filter -- `Deduction.tsx` shows this file until the child picks
     # the right animal, then swaps to the coloured one (the "silhouette fills
@@ -1203,11 +1209,23 @@ def main() -> None:
     # this function and touching no shared code, so it can never collide with
     # another writer's own derivation elsewhere in this file (the snake
     # greyscale pass, `docs/19` §3.1).
+    #
+    # `hedgehog-profile.png` (erizo, the night case's own culprit) and
+    # `sector-sheep.png`/`sector-llama.png` (oveja/llama, two of the night
+    # case's progress-computed "already rescued" discard candidates --
+    # `detective/cases.ts`'s `resolveNightDiscards`, `docs/19` §2.3/§3.2) are
+    # the T25 addition: the night lineup can show erizo, pato, oveja, llama,
+    # vaca or gato depending on what the child has actually rescued by then,
+    # so every one of those six needs a silhouette, not just the original
+    # four `AnimalId`s.
     for animal_file in (
         'animal-pato.png',
         'animal-gallina.png',
         'animal-vaca.png',
         'animal-gato.png',
+        'hedgehog-profile.png',
+        'sector-sheep.png',
+        'sector-llama.png',
     ):
         img = png.read_png(os.path.join(OUT, animal_file))
         recolour(img, INK, keep_ink=False)
