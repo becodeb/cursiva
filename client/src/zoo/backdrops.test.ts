@@ -18,6 +18,7 @@ import {
   SPINE_BACKDROPS,
   TORCH_CHALK,
   WAYPOINT_BACKDROPS,
+  WET_SAND_HOLLOW,
   backdropFor,
 } from './backdrops'
 
@@ -72,9 +73,11 @@ const CHANNEL_BACKDROPS = {
   // — same group, same reasoning, no `channel` of its own.
   fish: ADVENTURE_BACKDROP.fish!,
   // The turtles row (`promised-animals` P3) — a plain painted band over the
-  // sand, `channel: SAND_HOLLOW` declared, same group as `snake`'s own
-  // BACKDROP (not its `corridorArt`, which is what `ART_CORRIDOR_BACKDROPS`
-  // below is for).
+  // sand, `channel: WET_SAND_HOLLOW` declared (N9, T28 — a lighter, warmer
+  // brown than `snake`'s own `SAND_HOLLOW`, since this row has no drawn
+  // corridor art to hide the raw channel colour under), same group as
+  // `snake`'s own BACKDROP (not its `corridorArt`, which is what
+  // `ART_CORRIDOR_BACKDROPS` below is for).
   turtles: ADVENTURE_BACKDROP.turtles!,
   // The monkeys row (`promised-animals` P4) — a plain painted band over the
   // forest, no `channel` override needed (its own header explains why).
@@ -267,17 +270,35 @@ describe('ADVENTURE_BACKDROP luma law (docs/09:158)', () => {
   })
 
   // The turtles row (`promised-animals` P3) is the first PLAIN-channel row
-  // (no drawn art corridor of its own, unlike `snake`) ever painted in
-  // `SAND_HOLLOW`. The child's own ink is drawn ON that channel, not on the
-  // sand pixels directly, so the relevant law is ink-vs-channel — a
-  // question `snake`'s own L1-L4 tests never actually ask (theirs is about
-  // the drawn snake body's own darkest/brightest, a different concern). Not
-  // just declared here — checked, going both ways: the default slate fails,
-  // and the row's own chosen `ink` clears it.
-  it('goes red for the default slate ink against SAND_HOLLOW, and TORCH_CHALK clears it — why the turtles row overrides ink at all', () => {
-    expect(Math.abs(luma(INK_COLOR) - luma(SAND_HOLLOW))).toBeLessThan(MIN_BACKDROP_CONTRAST)
-    expect(Math.abs(luma(TORCH_CHALK) - luma(SAND_HOLLOW))).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
+  // (no drawn art corridor of its own, unlike `snake`) ever painted in a
+  // dedicated channel colour. The child's own ink is drawn ON that channel,
+  // not on the sand pixels directly, so the relevant law is ink-vs-channel —
+  // a question `snake`'s own L1-L4 tests never actually ask (theirs is about
+  // the drawn snake body's own darkest/brightest, a different concern).
+  //
+  // N9 (`docs/18` §7, T28): the row's channel moved from `SAND_HOLLOW`
+  // (near-black, read as a tyre mark on the plain band) to `WET_SAND_HOLLOW`
+  // (lighter, warmer) — this row's own regression guard, distinct from
+  // `snake`'s (which keeps `SAND_HOLLOW` unchanged, asserted in the snake
+  // describe block above). At `WET_SAND_HOLLOW`'s own luma (116) the default
+  // slate ink ALSO clears the law now (unlike `SAND_HOLLOW`'s old 52) — kept
+  // on `TORCH_CHALK` anyway for one consistent line colour across the arena,
+  // not because the override is still the only admissible choice.
+  it('turtles keeps WET_SAND_HOLLOW as its channel (N9), distinct from the snake row, and TORCH_CHALK clears the law against it', () => {
+    expect(ADVENTURE_BACKDROP.turtles!.channel).toBe(WET_SAND_HOLLOW)
+    expect(ADVENTURE_BACKDROP.turtles!.channel).not.toBe(SAND_HOLLOW)
+    expect(Math.abs(luma(TORCH_CHALK) - luma(WET_SAND_HOLLOW))).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
     expect(ADVENTURE_BACKDROP.turtles!.ink).toBe(TORCH_CHALK)
+  })
+
+  it('N9: WET_SAND_HOLLOW clears the sand’s own brightest and the default slate ink both — no longer the near-black tyre-mark tone', () => {
+    expect(Math.abs(luma(WET_SAND_HOLLOW) - luma(ADVENTURE_BACKDROP.turtles!.brightest))).toBeGreaterThanOrEqual(
+      MIN_BACKDROP_CONTRAST,
+    )
+    expect(Math.abs(luma(INK_COLOR) - luma(WET_SAND_HOLLOW))).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
+    // Measurably lighter and warmer than the old channel it replaces on this
+    // row — the numeric proof N9 asked for, not merely a different hex.
+    expect(luma(WET_SAND_HOLLOW)).toBeGreaterThan(luma(SAND_HOLLOW))
   })
 
   it('clears the luma law against both mountain backdrops with CHANNEL_STONE', () => {

@@ -48,7 +48,7 @@ const ANIMAL_COPY: Readonly<Partial<Record<ZooAnimalId, AnimalCopy>>> = {
   },
   erizo: { spot: 'con sus espinas', line: '¡El erizo tiene todas sus espinas!' },
   pez: { spot: 'en su pecera', line: '¡Encontramos a los peces! Ya volvieron a su pecera.' },
-  tortuga: { spot: 'en su recinto', line: '¡Encontramos a las tortugas! Ya volvieron a su recinto.' },
+  tortuga: { spot: 'en su recinto', line: '¡Asomaron la cabeza! Ya volvieron a su recinto.' },
   mono: { spot: 'en sus sogas', line: '¡Encontramos a los monos! Ya volvieron a sus sogas.' },
 }
 

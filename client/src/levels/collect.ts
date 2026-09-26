@@ -284,16 +284,19 @@ export function waveCrestArcs(
  * standing picture AND a collect item at the same spot would draw it twice,
  * the same rule `sheep-hill1`'s own T17 comment states).
  *
+ * T28 adds `items: 'loops'` — {@link collectItemsFromLoops}, the turtles'
+ * own `ovals()` routes, one item per closed loop.
+ *
  * Every mode plus one final item at the route's own end (`trailEndArc`'s
  * tolerance, same reasoning `collectItemsFromPeaks` already documents). An
  * explicit ascending array of arc-length FRACTIONS (0..1 of the route's
  * length) stays the escape hatch for a future adventure whose collectibles
- * are none of the above — `resolveCollectItems` below turns any of the five
+ * are none of the above — `resolveCollectItems` below turns any of the six
  * shapes into the same `CollectItem[]` the engine scores against, so
  * `LevelPlay`/`collectTick` never need to know which one a level chose.
  */
 export interface CollectConfig {
-  readonly items: readonly number[] | 'peaks' | 'crests' | 'troughs' | 'extrema'
+  readonly items: readonly number[] | 'peaks' | 'crests' | 'troughs' | 'extrema' | 'loops'
   readonly art: ArtImage
   readonly size: number
 }
@@ -345,6 +348,169 @@ function collectItemsFromExtrema(
   return items
 }
 
+/**
+ * Places one item at the CENTRE of each ring of a `paths.ts`'s `ovals()`
+ * route, plus a trailing FINAL item using the route's own end tolerance
+ * (`docs/19` §3, the turtles' own recipe B row: "cada vuelta hace asomar una
+ * tortuga", each loop makes a turtle peek out; T28,
+ * `odd/tasks/prewriting-stage-completion.md`).
+ *
+ * WHY THE CENTRE, NOT THE CLOSURE POINT ITSELF (found in a live browser QA
+ * pass, not guessed): a ring's own closure sits at the SAME (x, y) as that
+ * ring's own START — clock 1, upper-right — and for the FIRST ring, that is
+ * also where the octopus stands (`LevelPlay.tsx`'s own start marker). Placing
+ * the turtle there put it directly behind the octopus for every level's
+ * first loop, so completing that loop never visibly "made a turtle peek
+ * out" — it just flew away from a spot nothing was ever seen standing on.
+ * The ring's own CENTRE has no such collision (the octopus never stands
+ * inside the drawn ring), reads as the turtle sitting inside its own
+ * traced shell — the stronger reading of "asoma la cabeza" the task's own
+ * brief asks for — and is unaffected by wherever the octopus happens to be.
+ *
+ * WHY A CLOSURE MATCH TO FIND EACH RING'S OWN SPAN, NOT A GEOMETRIC
+ * EXTREMUM. `ovals()`'s own header proves each ring is a closed 360° sweep
+ * that begins and ends at the exact same clock-1 point (`clockPoint(cx,
+ * 1)`, called once for the ring's `M` and once more for its closing `C`'s
+ * own endpoint — the SAME pure function call, so `paths.ts`'s `r2`
+ * two-decimal rounding lands on the identical float both times, and
+ * `flattenPathD` copies a `C` command's own literal endpoint rather than
+ * re-deriving it). `routeApexes`/`waveCrestArcs` (this module's other two
+ * derivations) both hunt for a smooth LOCAL EXTREMUM, which an ellipse's
+ * own closure point is NOT (its own leftmost point, reached mid-ring, is a
+ * real smooth minimum of `x` — a SEPARATE feature a `waveCrestArcs`-style
+ * window search would also catch, over-counting by one per ring). A ring's
+ * own start/close pair is instead a POINT REVISIT: nothing else on a simple
+ * ellipse sweep, or on the short connecting curve between two rings (always
+ * moving strictly rightward in `x`), ever returns to a coordinate it
+ * already visited. Scanning forward from each still-open reference point
+ * for the next later point matching it (bit-for-bit, since both sides of
+ * the match come from the same rounded float) finds exactly one span per
+ * ring — from that ring's own start to its own closure — and none inside a
+ * connector, with no dependency on `ovals()`'s specific clock-based
+ * parametrisation beyond "each ring is a closed loop back to its own
+ * start". Each ring's own CENTRE then falls straight out of that span's own
+ * bounding box: exactly `(cx, cy)` for a true ellipse, since its bounding
+ * box is exactly `[cx − rx, cx + rx] × [cy − ry, cy + ry]`.
+ *
+ * The LAST ring's own centre still stands at the FINAL item's own position
+ * (a turtle really does peek out of the last loop too) but that item's ARC
+ * carries `trailEndArc`'s tolerance instead of the ring's own closure arc —
+ * the same construction {@link collectItemsFromPeaks} and
+ * {@link collectItemsFromWaveCrests} already use and for the identical
+ * reason (a live fingertip essentially never lands on the mathematically
+ * exact last vertex).
+ *
+ * A single ring (`turtle1`) reports exactly one span — its own — so it
+ * authors exactly ONE item, standing at that one ring's own centre: the
+ * whole point of "one loop, one turtle".
+ */
+export function collectItemsFromLoops(
+  polyline: ReadonlyArray<{ x: number; y: number }>,
+  length: number,
+  corridorWidth: number,
+): readonly CollectItem[] {
+  if (polyline.length < 3 || length <= 0) return []
+  const arcAt: number[] = [0]
+  for (let i = 1; i < polyline.length; i++) {
+    arcAt.push(arcAt[i - 1] + Math.hypot(polyline[i].x - polyline[i - 1].x, polyline[i].y - polyline[i - 1].y))
+  }
+  const spans = loopSpans(polyline, arcAt)
+  if (spans.length === 0) {
+    // No ring detected at all (a degenerate or non-looping input) — fall
+    // back to the same bare trailing item every other derivation authors
+    // for a route with nothing else to place.
+    const last = polyline[polyline.length - 1]
+    return [{ x: last.x, y: last.y, arc: Math.max(0, trailEndArc(length, corridorWidth)) }]
+  }
+  return spans.map((span, i) => {
+    const centre = boundingBoxCentre(polyline, span.startIndex, span.closeIndex)
+    const isLast = i === spans.length - 1
+    return {
+      x: centre.x,
+      y: centre.y,
+      arc: isLast ? Math.max(0, trailEndArc(length, corridorWidth)) : arcAt[span.closeIndex],
+    }
+  })
+}
+
+/** The centre of the axis-aligned bounding box of `polyline[from..to]`
+ *  (inclusive) — exactly `(cx, cy)` for a true `ovals()` ring, since an
+ *  ellipse's own bounding box is exactly `[cx − rx, cx + rx] × [cy − ry, cy
+ *  + ry]`. */
+function boundingBoxCentre(
+  polyline: ReadonlyArray<{ x: number; y: number }>,
+  from: number,
+  to: number,
+): { x: number; y: number } {
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  for (let i = from; i <= to; i++) {
+    const p = polyline[i]
+    if (p.x < minX) minX = p.x
+    if (p.x > maxX) maxX = p.x
+    if (p.y < minY) minY = p.y
+    if (p.y > maxY) maxY = p.y
+  }
+  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
+}
+
+/** A minimum arc-length gap between a candidate reference point and its own
+ *  match, well under the shortest ring circumference any authored `ovals()`
+ *  level ships (turtle4's own tightest ring is ≈745 units — Ramanujan's
+ *  approximation over `rx: 75, ry: 150` — `docs/19` §3) and well over the
+ *  sub-unit spacing between adjacent flattened samples — rules out ever
+ *  matching a point against its own immediate neighbour instead of a
+ *  genuine later revisit. */
+const LOOP_CLOSURE_MIN_ARC_GAP = 50
+/** How close two points must be, in squared sheet units, to count as the
+ *  SAME point — {@link collectItemsFromLoops}'s own header explains why an
+ *  exact (bit-level, modulo `r2`'s rounding) match is expected, not merely a
+ *  close one; this tolerance only guards against an unrelated flattening
+ *  detail landing a hair off `t = 1`. */
+const LOOP_CLOSURE_EPSILON_SQ = 1e-4
+
+/**
+ * Scans the polyline left to right; for each still-open reference index,
+ * finds the EARLIEST later index (at least {@link LOOP_CLOSURE_MIN_ARC_GAP}
+ * of arc further along) landing on the same point, and records the SPAN
+ * from the reference index to that match as one ring — including the FINAL
+ * ring, whose own closure IS the route's last point, so every authored ring
+ * (not merely the internal ones) comes back with its own span.
+ * {@link collectItemsFromLoops}'s own header has the full geometric
+ * argument for why this finds exactly one span per ring and none inside a
+ * connector. A reference point with no later match is simply skipped, one
+ * index at a time — never reached in practice for a well-formed `ovals()`
+ * route, since every ring (including the last) closes onto itself.
+ */
+function loopSpans(
+  polyline: ReadonlyArray<{ x: number; y: number }>,
+  arcAt: readonly number[],
+): readonly { startIndex: number; closeIndex: number }[] {
+  const spans: { startIndex: number; closeIndex: number }[] = []
+  let p = 0
+  while (p < polyline.length - 1) {
+    let found = -1
+    for (let j = p + 1; j < polyline.length; j++) {
+      if (arcAt[j] - arcAt[p] < LOOP_CLOSURE_MIN_ARC_GAP) continue
+      const dx = polyline[j].x - polyline[p].x
+      const dy = polyline[j].y - polyline[p].y
+      if (dx * dx + dy * dy <= LOOP_CLOSURE_EPSILON_SQ) {
+        found = j
+        break
+      }
+    }
+    if (found === -1) {
+      p += 1
+      continue
+    }
+    spans.push({ startIndex: p, closeIndex: found })
+    p = found + 1
+  }
+  return spans
+}
+
 /** Turns a level's authored `CollectConfig` into the `CollectItem[]` the
  * engine actually scores against, against this level's OWN built route
  * (`LevelTarget.polyline`/`LevelTarget.length` — the centred, derived
@@ -367,6 +533,7 @@ export function resolveCollectItems(
   if (config.items === 'crests') return collectItemsFromWaveCrests(polyline, length, corridorWidth)
   if (config.items === 'troughs') return collectItemsFromExtrema(polyline, length, corridorWidth, 'trough')
   if (config.items === 'extrema') return collectItemsFromExtrema(polyline, length, corridorWidth)
+  if (config.items === 'loops') return collectItemsFromLoops(polyline, length, corridorWidth)
   if (polyline.length < 2 || length <= 0) return []
   return config.items.map((fraction) => {
     const arc = fraction * length

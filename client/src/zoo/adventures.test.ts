@@ -198,15 +198,17 @@ describe('ADVENTURES', () => {
   })
 
   // The Ola letter family's own rescue (P3, `odd/tasks/promised-animals.md`).
-  it("the turtles row claims turtle1..4, recovers `tortuga`, and carries the approved intro/closing copy verbatim", () => {
+  // T28 (`docs/19` §3, recipe B) replaced this row's intro/closing copy with
+  // the approved story line ("se escondieron en su caparazón…") that primes
+  // the loop-collect mechanic (`levels/catalog.ts`'s `turtle1..4`, `collect:
+  // { items: 'loops' }`).
+  it("the turtles row claims turtle1..4, recovers `tortuga`, and carries the T28-approved intro/closing copy verbatim", () => {
     const turtles = ADVENTURES.find((a) => a.id === 'turtles')!
     expect(turtles.levelIds).toEqual(['turtle1', 'turtle2', 'turtle3', 'turtle4'])
     expect(turtles.sector).toBe('arena')
     expect(turtles.animal).toBe('tortuga')
-    expect(turtles.intro).toBe(
-      'Las tortugas se escaparon del recinto y se fueron a dar vueltas por la arena. ¿Seguimos sus vueltas?',
-    )
-    expect(turtles.closing).toBe('¡Encontramos a las tortugas! Ya volvieron a su recinto.')
+    expect(turtles.intro).toBe('Se escondieron en su caparazón. Demos la vuelta a cada una.')
+    expect(turtles.closing).toBe('¡Asomaron la cabeza! Ya volvieron a su recinto.')
     expect(turtles.closingBeat).toEqual([{ line: turtles.closing, art: ZOO_ANIMAL_ART.tortuga }])
   })
 
