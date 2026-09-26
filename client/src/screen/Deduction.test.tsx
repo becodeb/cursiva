@@ -152,7 +152,7 @@ describe.each(CASES)('DeductionView rendering — %s case', (_label, kase) => {
     expect(html).not.toContain('<aside')
   })
 
-  it("a dismissed distractor drains, drops, and emphasises its OWN case's discriminating clue", () => {
+  it("a dismissed distractor drains and drops; its discriminating clue shows in Pulpito's OWN bubble instead of a second icon", () => {
     const distractor = Object.keys(kase.ruledOutBy)[0] as AnimalId
     const clueKind = kase.ruledOutBy[distractor]!
     const state: DeductionState = { dismissed: [distractor], closed: false }
@@ -168,12 +168,12 @@ describe.each(CASES)('DeductionView rendering — %s case', (_label, kase) => {
     // which is what this assertion actually exists to ban.
     expect(html).not.toContain('<filter')
     expect(html).not.toContain('<mask')
-    expect(html).toContain('cv-clue-hint')
-    const hint = html.slice(html.indexOf('cv-clue-hint'))
-    expect(hint).toContain(CLUE_ART[clueKind].art.earned.href)
-    // Only one clue-hint icon exists (for the one dismissed animal).
-    const hints = html.match(/cv-clue-hint/g) ?? []
-    expect(hints.length).toBe(1)
+    // [T21 follow-up] `cv-clue-hint` — a small icon floating under the
+    // dismissed animal's own caption, disconnected from any sentence — is
+    // gone: the SAME clue art now shows inside Pulpito's own bubble,
+    // beside the reason that rules the animal out (deductionHint).
+    expect(html).not.toContain('cv-clue-hint')
+    expect(html).toContain(CLUE_ART[clueKind].art.earned.href)
   })
 
   it('once the case is closed, every one of its choices is disabled', () => {
@@ -355,14 +355,6 @@ describe('DeductionView rendering — case-independent layout', () => {
       <DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />,
     )
     expect(html).toContain('min-height: 64px')
-  })
-
-  it('a never-picked animal shows no dismissal styling and no clue hint', () => {
-    const distractor = Object.keys(DUCK.ruledOutBy)[0] as AnimalId
-    const state: DeductionState = { dismissed: [distractor], closed: false }
-    const html = renderToString(<DeductionView kase={DUCK} state={state} onPick={noop} onExit={noop} />)
-    const hints = html.match(/cv-clue-hint/g) ?? []
-    expect(hints.length).toBe(1)
   })
 
   it('the back control keeps an accessible name and no visible label', () => {

@@ -23,8 +23,10 @@ import {
 } from './pulpitoStance'
 import { ADVENTURES, adventureIcon } from '../zoo/adventures'
 import { PROLOGUE_PLATES } from '../zoo/prologue'
-import { ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
-import type { ArtImage } from '../detective/assets'
+import { ANIMAL_ART, CARRIER_LENS_ART, CLUE_ART, ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
+import type { ArtImage, AnimalId } from '../detective/assets'
+import { DETECTIVE_CASES } from '../detective/cases'
+import { DEDUCTION_OPENING_LINE, DEDUCTION_SOLVED_LINE } from './Deduction'
 
 const SQUARE_ART: ArtImage = { w: 442, h: 448, href: '/art/fixture-square.png' }
 const WIDE_ART: ArtImage = { w: 900, h: 260, href: '/art/fixture-wide.png' }
@@ -117,6 +119,32 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
   // happens to have wired it into yet.
   for (const plate of PROLOGUE_PLATES) {
     cases.push({ id: `prologue: ${plate.line}`, text: plate.line, art: plate.art })
+  }
+  // [T21 follow-up, orchestrator screenshot review 2026-09-26: "every
+  // deduction line must pass the SAME fit check T18's test uses"]
+  // screen/Deduction.tsx's own Pulpito bubble reuses this exact
+  // placeAndFitBubble engine (deductionHint's own {text, art} pairs) — the
+  // opening question (once, case-independent), every case's own per-
+  // distractor hint line (with its OWN discriminating clue art, the same
+  // pairing deductionHint returns), and every case's own solved line (with
+  // the culprit's full-colour art).
+  cases.push({ id: 'deduction: opening', text: DEDUCTION_OPENING_LINE, art: CARRIER_LENS_ART })
+  for (const kase of DETECTIVE_CASES) {
+    for (const [animal, kind] of Object.entries(kase.ruledOutBy)) {
+      const hintText = kase.hint[animal as AnimalId]
+      if (hintText && kind) {
+        cases.push({
+          id: `deduction: ${kase.id} hint (${animal})`,
+          text: hintText,
+          art: CLUE_ART[kind].art.earned,
+        })
+      }
+    }
+    cases.push({
+      id: `deduction: ${kase.id} solved`,
+      text: DEDUCTION_SOLVED_LINE[kase.culprit],
+      art: ANIMAL_ART[kase.culprit],
+    })
   }
 
   it('the registry sweep actually covers every shipped adventure (sanity: not accidentally empty)', () => {
