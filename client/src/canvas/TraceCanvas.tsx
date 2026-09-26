@@ -728,6 +728,28 @@ export interface TraceArtCorridorPiece {
   /** Degrees, about the box's own centre. Absent = 0 (no `transform`
    *  attribute at all, so an unrotated piece's markup stays plain). */
   rotate?: number
+  /**
+   * T20 (`odd/tasks/prewriting-stage-completion.md`, docs/19 §3.1): the
+   * colour-follows-the-finger mechanic. When present, `href` above is the
+   * GREY base image and `colourHref` is the same picture in colour;
+   * `ArtCorridorLayer.tsx` windows `colourHref` in over the grey base,
+   * revealed from the head, through a nested `<svg>` whose own width is
+   * `progress` of the box's — see that file's header for why a nested `<svg>`
+   * and not a slice array or a CSS mask. Absent `colourHref`/`progress`
+   * (every non-snake art-corridor consumer today) renders exactly as before:
+   * one plain `<image>`, no nested `<svg>` at all.
+   */
+  colourHref?: string
+  /** `[0, 1]`. Only meaningful together with `colourHref`. */
+  progress?: number
+  /**
+   * T20: this is the next piece the child should wake (docs/19 §3.1 point 5,
+   * "the Pulpito points at which one is next and it pulses softly") — a
+   * gentle opacity pulse (`.cv-snake-next`, `screen/LevelPlay.tsx`'s
+   * `LAYOUT_CSS`), never a colour or transform, so a rotated piece
+   * (`snake3`'s vertical family) has no transform-origin concern.
+   */
+  next?: boolean
 }
 
 export type TraceArtCorridor = readonly TraceArtCorridorPiece[]

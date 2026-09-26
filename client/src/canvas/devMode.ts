@@ -239,3 +239,25 @@ export function collectDebugCount(search: string): number | null {
   if (!Number.isFinite(k)) return null
   return k
 }
+
+/**
+ * `?debug=vibora:<k>` (T20, `odd/tasks/prewriting-stage-completion.md`,
+ * docs/19 §3.1's colour-follows-the-finger mechanic). NOT dev-gated — the
+ * same reason every other `*DebugCount` above is not: it paints render
+ * state (the first k snake pieces already fully coloured), adds no control
+ * and persists nothing, and must work against the EXACT build being
+ * screenshotted. `arrangeDebugCount`'s body, verbatim. This repo's SSR-only
+ * test harness cannot drive a live finger along a snake's own wavy corridor
+ * either, so this flag is also what a unit test uses to observe "a
+ * completed piece stays coloured" from a single render, the same reason
+ * `espinas:<k>`/`juntado:<k>` exist for their own mechanics. Malformed
+ * input, a missing flag, or a non-numeric count all return `null`, never
+ * throw.
+ */
+export function snakeColourDebugCount(search: string): number | null {
+  const arg = debugArg(search, 'vibora')
+  if (arg === null) return null
+  const k = Number(arg)
+  if (!Number.isFinite(k)) return null
+  return k
+}

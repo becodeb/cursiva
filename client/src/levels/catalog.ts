@@ -182,9 +182,27 @@ function snakeHorizontalPieces(): readonly ArtCorridorPiece[] {
     // overlap, down from ~59). C3/C4 was chosen over full quiet-band
     // containment because it is a scoring-safety constraint (two routes
     // read as one below it), not a visual one.
-    { art: SECTOR_ADVENTURE_ART.snakeSmall, spine: 'snakeSmall', span: 520, at: { x: 446.04, y: 152.7 } },
-    { art: SECTOR_ADVENTURE_ART.snakeMedium, spine: 'snakeMedium', span: 640, at: { x: 446.04, y: 332.9 } },
-    { art: SECTOR_ADVENTURE_ART.snakeLarge, spine: 'snakeLarge', span: 760, at: { x: 446.04, y: 507.3 } },
+    {
+      art: SECTOR_ADVENTURE_ART.snakeSmall,
+      greyArt: SECTOR_ADVENTURE_ART.snakeSmallGrey,
+      spine: 'snakeSmall',
+      span: 520,
+      at: { x: 446.04, y: 152.7 },
+    },
+    {
+      art: SECTOR_ADVENTURE_ART.snakeMedium,
+      greyArt: SECTOR_ADVENTURE_ART.snakeMediumGrey,
+      spine: 'snakeMedium',
+      span: 640,
+      at: { x: 446.04, y: 332.9 },
+    },
+    {
+      art: SECTOR_ADVENTURE_ART.snakeLarge,
+      greyArt: SECTOR_ADVENTURE_ART.snakeLargeGrey,
+      spine: 'snakeLarge',
+      span: 760,
+      at: { x: 446.04, y: 507.3 },
+    },
   ]
 }
 
@@ -200,6 +218,7 @@ function snakeVerticalPieces(): readonly ArtCorridorPiece[] {
     // — corrected by measuring so `layOutPaths`'s `tx` clears R6's 0.5 bound.
     {
       art: SECTOR_ADVENTURE_ART.snakeSmall,
+      greyArt: SECTOR_ADVENTURE_ART.snakeSmallGrey,
       spine: 'snakeSmall',
       span: 374.4,
       at: { x: 197.95, y: 300 },
@@ -207,6 +226,7 @@ function snakeVerticalPieces(): readonly ArtCorridorPiece[] {
     },
     {
       art: SECTOR_ADVENTURE_ART.snakeMedium,
+      greyArt: SECTOR_ADVENTURE_ART.snakeMediumGrey,
       spine: 'snakeMedium',
       span: 460.8,
       at: { x: 497.95, y: 300 },
@@ -214,6 +234,7 @@ function snakeVerticalPieces(): readonly ArtCorridorPiece[] {
     },
     {
       art: SECTOR_ADVENTURE_ART.snakeLarge,
+      greyArt: SECTOR_ADVENTURE_ART.snakeLargeGrey,
       spine: 'snakeLarge',
       span: 547.2,
       at: { x: 797.95, y: 300 },
@@ -225,50 +246,6 @@ function snakeVerticalPieces(): readonly ArtCorridorPiece[] {
 /** Live feedback shared by all four snake levels (design.md §6.1's frozen
  *  shape). */
 const SNAKE_FEEDBACK: LevelFeedback = { tone: true, haptics: true, metronomeBpm: 0, rail: false }
-
-/** Scatter points for `snakeHorizontalPieces()`. Corrected TWICE now, both
- *  times by a screenshot, both times because the check that would have
- *  caught it does not exist (see `catalog.test.ts`'s new "every arrange.from
- *  scatter point stays fully ON THE SHEET" test, which now checks BOTH axes
- *  instead of only the one the first correction happened to fix):
- *
- *  1. (task 8.7/8.8) The FIRST authored values sat at `y ≈ 560-580`, close
- *     enough to the sheet's own bottom edge that a capture showed the
- *     scattered pieces mostly clipped below the canvas.
- *  2. (this correction) Fixing (1) only checked the Y axis. The X centres
- *     chosen then (250/500/750) never accounted for each piece's OWN width
- *     (520/640/760) — `large` alone is 76% of the sheet's default 1000-unit
- *     width, so centring it at 750 ran its box from 370 to 1130, clipping
- *     130 units off the RIGHT edge; `small` at 250 clipped 10 units off the
- *     LEFT. A reviewer's screenshot caught this a second time. The values
- *     below keep every piece's own full-width box inside `[0, 1000]`, which
- *     is why `large` sits closest to centre (500): it is the one piece with
- *     almost no room to move at all (`[120, 880]` is close to its own
- *     `[0, 1000]` ceiling). */
-function snakeHorizontalScatter(): readonly { x: number; y: number }[] {
-  return [
-    { x: 350, y: 200 },
-    { x: 620, y: 320 },
-    { x: 500, y: 450 },
-  ]
-}
-
-/** Scatter points for `snakeVerticalPieces()`. `y = 300` matches the
- *  columns' own vertical centre (a vertical piece is nearly as tall as the
- *  sheet itself; any other `y` clips it — this was checked from the start).
- *  `x` values are distinct from the three home columns (198/498/798) but,
- *  per the SAME correction `snakeHorizontalScatter` above needed, chosen to
- *  keep each piece's own UNROTATED width (`large`'s own span, 547, since a
- *  scattered piece renders unrotated — `LevelPlay.tsx`'s `arrangeRenderPieces`
- *  call) fully inside `[0, 1000]`: `large` at the original 700 left only
- *  26 units of margin on the right (`[426, 974]`); 650 gives 76. */
-function snakeVerticalScatter(): readonly { x: number; y: number }[] {
-  return [
-    { x: 300, y: 300 },
-    { x: 500, y: 300 },
-    { x: 650, y: 300 },
-  ]
-}
 
 /** Level ids that fell back to a degraded path at import time (diagnostics). */
 const degraded: string[] = []
@@ -1138,19 +1115,27 @@ const PHASE_1: LevelConfig[] = [
       ],
     },
   },
-  // Víboras en la arena (`docs/13` §8 row E, `snake-drag-and-art-corridor`).
-  // The arena sector's own four levels: the art corridor IS the drawn
-  // snake, fitted at build time (design.md §1), and `snake2..4` gate
-  // tracing behind arranging the three pieces smallest to largest first
-  // (`object-arrange` capability). `enforceOrder: true` on all four is the
-  // only rule that requires every one of the three snakes to be traced —
-  // accuracy alone is scored as nearest-neighbour distance to the UNION of
-  // the three bands (design.md §0 A3).
+  // Víboras en la arena (`docs/13` §8 row E, `snake-drag-and-art-corridor`;
+  // T20 `odd/tasks/prewriting-stage-completion.md`, docs/19 §3.1 dropped the
+  // drag step). The arena sector's own four levels: the art corridor IS the
+  // drawn snake, fitted at build time (design.md §1). The three pieces now
+  // start already in their FINAL corridor position on every level — no
+  // `arrange` config anywhere in this family any more — and the seriation
+  // `docs/13` §2 originally taught through dragging (smallest snake first)
+  // is carried instead by `enforceOrder: true` (scoring: the child must
+  // trace small→medium→large) together with the colour-follows-the-finger
+  // mechanic's own "next to wake" pulse (`screen/snakeColour.ts`'s
+  // `nextWakingIndex`, `canvas/ArtCorridorLayer.tsx`'s `.cv-snake-next`) —
+  // the Pulpito-less stand-in for docs/19's "El Pulpito señala cuál sigue".
+  // `enforceOrder: true` on all four is the only rule that requires every
+  // one of the three snakes to be traced — accuracy alone is scored as
+  // nearest-neighbour distance to the UNION of the three bands (design.md
+  // §0 A3).
   {
     id: 'snake1',
     phase: 1,
     title: 'Tres víboras en la arena',
-    hint: 'Mirá cómo se mueven las tres víboras y después seguilas vos.',
+    hint: 'Las víboras están grises. Acariciálas de la cabeza a la cola.',
     kind: 'path',
     surface: 'blank',
     maze: false,
@@ -1173,8 +1158,12 @@ const PHASE_1: LevelConfig[] = [
   {
     id: 'snake2',
     phase: 1,
-    title: 'Ordená y seguí',
-    hint: 'Arrastrá cada víbora a su lugar, de la más chica a la más grande.',
+    title: 'De la más chica a la más grande',
+    // T20: no more "arrastrá" — the drag/arrange step is gone (docs/19
+    // §3.1). The seriation lesson (`docs/13` §2's "encontrar la más chica")
+    // now comes from tracing them in size order while the colour mechanic
+    // shows which one is awake.
+    hint: 'Acariciá primero la más chica, después la mediana y la más grande.',
     kind: 'path',
     surface: 'blank',
     maze: false,
@@ -1187,16 +1176,12 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     artCorridor: snakeHorizontalPieces(),
-    arrange: {
-      from: snakeHorizontalScatter(),
-      snapRadius: 60,
-    },
   },
   {
     id: 'snake3',
     phase: 1,
     title: 'Víboras paradas',
-    hint: 'Las víboras están de pie. Ordenalas y después seguilas de abajo hacia arriba.',
+    hint: 'Están de pie. Acariciálas de abajo arriba, de más chica a más grande.',
     kind: 'path',
     surface: 'blank',
     maze: false,
@@ -1215,16 +1200,12 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     artCorridor: snakeVerticalPieces(),
-    arrange: {
-      from: snakeVerticalScatter(),
-      snapRadius: 60,
-    },
   },
   {
     id: 'snake4',
     phase: 1,
     title: 'El desierto angosto',
-    hint: 'El camino es más angosto ahora. Ordená y seguí con mucho cuidado.',
+    hint: 'El camino es angosto. Con cuidado, de la más chica a la más grande.',
     kind: 'path',
     surface: 'blank',
     maze: false,
@@ -1244,10 +1225,6 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     artCorridor: snakeHorizontalPieces(),
-    arrange: {
-      from: snakeHorizontalScatter(),
-      snapRadius: 60,
-    },
   },
   // Las abejas en el bosque (`docs/13` §8 row F, `free-trail-waypoints`).
   // The forest's own four levels: no route at all — the child invents the

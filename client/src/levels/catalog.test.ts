@@ -1782,15 +1782,19 @@ describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
     }
   })
 
-  it('R4: arrange is absent on snake1 and present on snake2..4; demo is present on snake1 only', () => {
-    expect(getLevel('snake1').arrange).toBeUndefined()
-    expect(getLevel('snake1').demo).toBe(true)
-    for (const id of ['snake2', 'snake3', 'snake4'] as const) {
+  it('R4 (T20, docs/19 §3.1 — the drag level is gone): arrange is absent on all four; demo is present on snake1 only; every piece carries its own greyArt', () => {
+    for (const id of SNAKE_IDS) {
       const level = getLevel(id)
-      expect(level.arrange, id).toBeDefined()
-      expect(level.arrange?.from.length, id).toBe(3)
-      expect(level.arrange?.snapRadius, id).toBeGreaterThan(0)
-      expect(level.demo, id).toBeUndefined()
+      expect(level.arrange, id).toBeUndefined()
+      expect(level.demo, id).toBe(id === 'snake1' ? true : undefined)
+      for (const piece of level.artCorridor!) {
+        expect(piece.greyArt, `${id}/${piece.spine}`).toBeDefined()
+        expect(piece.greyArt!.w, `${id}/${piece.spine}: greyArt matches art's own w/h`).toBe(piece.art.w)
+        expect(piece.greyArt!.h, `${id}/${piece.spine}`).toBe(piece.art.h)
+        expect(piece.greyArt!.href, `${id}/${piece.spine}: greyArt must be a DIFFERENT file`).not.toBe(
+          piece.art.href,
+        )
+      }
     }
   })
 
@@ -1919,31 +1923,8 @@ describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
     }
   })
 
-  it('every arrange.from scatter point sits fully inside the SHIPPED sheet, on BOTH axes (regression: a screenshot caught the scatter points clipped twice — first off the bottom edge, then off the right edge, because the first fix only checked Y)', () => {
-    for (const id of ['snake2', 'snake3', 'snake4'] as const) {
-      const level = getLevel(id)
-      const target = buildLevelTarget(level)
-      const pieces = level.artCorridor!
-      const scatter = level.arrange!.from
-      expect(scatter.length).toBe(3)
-      for (let i = 0; i < scatter.length; i++) {
-        const piece = pieces[i]
-        // A scattered (not yet placed) piece always renders UNROTATED
-        // (`levels/arrange.ts`'s `arrangeRenderPieces`), so its on-screen
-        // box uses `span` as its WIDTH regardless of `piece.rotate` — the
-        // exact axis the first correction's test never checked.
-        const width = piece.span
-        const height = (piece.span * piece.art.h) / piece.art.w
-        const left = scatter[i].x - width / 2
-        const right = scatter[i].x + width / 2
-        const top = scatter[i].y - height / 2
-        const bottom = scatter[i].y + height / 2
-        expect(left, `${id} piece ${i} left`).toBeGreaterThanOrEqual(0)
-        expect(right, `${id} piece ${i} right`).toBeLessThanOrEqual(target.viewBoxWidth)
-        expect(top, `${id} piece ${i} top`).toBeGreaterThanOrEqual(0)
-        expect(bottom, `${id} piece ${i} bottom`).toBeLessThanOrEqual(600)
-      }
-    }
+  it('T20 (docs/19 §3.1): no snake level authors an arrange config any more — the drag/order step is gone', () => {
+    for (const id of SNAKE_IDS) expect(getLevel(id).arrange, id).toBeUndefined()
   })
 
   it("snake1/snake2's horizontal boxes sit as close to fondo arena.png's own quiet sand band as C3/C4 allows — the SMALL snake fully inside it, the LARGE one's remaining rock overlap bounded and disclosed, not silently regressed (docs/13 §4 decision 3, design.md §3.6)", () => {

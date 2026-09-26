@@ -968,6 +968,139 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
     expect(onAttempt.mock.calls[0][0].approved).toBe(true)
   })
 
+  describe('T20 (docs/19 §3.1): the snake colour-follows-the-finger mechanic', () => {
+    type SnakePiece = { href: string; colourHref?: string; progress?: number; next?: boolean }
+
+    function renderSnake(id: 'snake1' | 'snake2' | 'snake3' | 'snake4') {
+      renderToString(
+        <LevelPlay
+          level={getLevel(id)}
+          record={EMPTY_RECORD}
+          onAttempt={noop}
+          onNext={noop}
+          onBack={noop}
+        />,
+      )
+    }
+
+    function pieces(): readonly SnakePiece[] {
+      return traceCanvasProbe.current?.artCorridor as readonly SnakePiece[]
+    }
+
+    it('starts every piece grey (href is the grey art) with a colourHref and zero progress, and marks only the first (smallest) as next', () => {
+      renderSnake('snake1')
+      const p = pieces()
+      expect(p.length).toBe(3)
+      for (const piece of p) {
+        expect(piece.href).toMatch(/-grey\.png$/)
+        expect(piece.colourHref).toBeDefined()
+        expect(piece.colourHref).not.toMatch(/-grey\.png$/)
+        expect(piece.progress).toBe(0)
+      }
+      expect(p[0].next).toBe(true)
+      expect(p[1].next).toBe(false)
+      expect(p[2].next).toBe(false)
+    })
+
+    it('a non-snake level (no greyArt on any piece) never gets colourHref/progress/next at all — plain pieces, byte-identical to before this task', () => {
+      // snake2..4 used to `arrange` their pieces; this task drops that, but
+      // the render contract for a plain (non-snake) art-corridor level is
+      // proven directly against a synthetic fixture with no `greyArt`.
+      const level = makeLevel({
+        artCorridor: [
+          { art: SECTOR_ADVENTURE_ART.snakeMedium, spine: 'snakeMedium', span: 200, at: { x: 500, y: 300 } },
+        ],
+        paths: ['M300,300 L700,300'],
+      })
+      renderToString(
+        <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      const p = pieces()
+      expect(p.length).toBe(1)
+      expect(p[0].href).toBe(SECTOR_ADVENTURE_ART.snakeMedium.href)
+      expect(p[0].colourHref).toBeUndefined()
+      expect(p[0].progress).toBeUndefined()
+      expect(p[0].next).toBeUndefined()
+    })
+
+    // This repo's SSR-only harness cannot drive a live finger or observe a
+    // post-`renderToString` state update (state dispatches after a
+    // completed `renderToString` call are no-ops on the server — see e.g.
+    // the collect-along-the-path describe block's own header comment below).
+    // The actual reveal/fade MATH is exhaustively covered directly against
+    // the pure module in `screen/snakeColour.test.ts` (advance, freeze on
+    // done, fade-and-restart on leaving, `nextWakingIndex`); this test only
+    // proves `onFrame` is really WIRED to call it, the same "runs without
+    // throwing" contract the `multiCorridorTick` wiring test above already
+    // uses for the identical harness limitation.
+    it('onFrame is wired to the colour tick: on-corridor and off-corridor samples both run without throwing, on every snake level', () => {
+      for (const id of ['snake1', 'snake2', 'snake3', 'snake4'] as const) {
+        renderSnake(id)
+        const level = getLevel(id)
+        const target = buildLevelTarget(level)
+        const onFrame = traceCanvasProbe.current?.onFrame as (
+          points: TracePoint[],
+          drawing: boolean,
+          timeMs: number,
+        ) => void
+        const mid = target.routes[0].polyline[Math.floor(target.routes[0].polyline.length / 2)]
+        expect(() => onFrame([mid], true, 1000), id).not.toThrow()
+        expect(() => onFrame([{ x: mid.x + 1000, y: mid.y + 1000 }], true, 1100), id).not.toThrow()
+        // Finger up: the fade-while-lifted branch.
+        expect(() => onFrame([], false, 1200), id).not.toThrow()
+      }
+    })
+
+    // `?debug=vibora:<k>` (`canvas/devMode.ts`) is what makes "a piece is
+    // already fully coloured, and the pulse moved to the next one" a single-
+    // render observation, the same reason `?debug=juntado:<k>`/`espinas:<k>`
+    // exist for their own mechanics.
+    function renderSnakeWithSearch(id: 'snake1' | 'snake2' | 'snake3' | 'snake4', search: string) {
+      vi.stubGlobal('window', { location: { search } })
+      try {
+        renderToString(
+          <LevelPlay
+            level={getLevel(id)}
+            record={EMPTY_RECORD}
+            onAttempt={noop}
+            onNext={noop}
+            onBack={noop}
+          />,
+        )
+        return pieces()
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    }
+
+    it('`?debug=vibora:1` shows the smallest snake already fully coloured and moves the "next" pulse to the medium one — the rest stay grey and untouched', () => {
+      const before = renderSnakeWithSearch('snake1', '')
+      expect(before[0].next).toBe(true)
+
+      const seeded = renderSnakeWithSearch('snake1', '?debug=vibora:1')
+      // `progress: 1` fully windows the colour image over the grey base
+      // (`canvas/ArtCorridorLayer.tsx`'s reveal width equals the whole box)
+      // — `href` itself stays the grey image always; it is `colourHref` at
+      // full width that makes a done piece READ as fully coloured.
+      expect(seeded[0].progress).toBe(1)
+      expect(seeded[0].href).toMatch(/-grey\.png$/)
+      expect(seeded[0].colourHref).not.toMatch(/-grey\.png$/)
+      expect(seeded[0].next).toBe(false)
+      expect(seeded[1].progress).toBe(0)
+      expect(seeded[1].next).toBe(true)
+      expect(seeded[2].progress).toBe(0)
+      expect(seeded[2].next).toBe(false)
+    })
+
+    it('`?debug=vibora:3` (every piece) leaves nothing marked "next" — the whole snake family is restored', () => {
+      const seeded = renderSnakeWithSearch('snake4', '?debug=vibora:3')
+      for (const p of seeded) {
+        expect(p.progress).toBe(1)
+        expect(p.next).toBe(false)
+      }
+    })
+  })
+
   it('passes a `clues` prop with the trail\'s marks to TraceCanvas, absent on an ordinary level', () => {
     const detective = makeDetectiveLevel()
     renderToString(
@@ -1485,6 +1618,21 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     const art = traceCanvasProbe.current?.endArt as Art
     expect(art?.href).toBe(ZOO_ANIMAL_ART.pez.href)
     expect(art?.href).not.toBe(CLUE_ART.bubble.art.drained.href)
+  })
+
+  // T20 (`odd/tasks/prewriting-stage-completion.md` §3.1): `snake4` is the
+  // arena adventure's LAST level (`zoo/adventures.ts`'s `animal: 'vibora'`),
+  // so before this task it hit the SAME `isLastOfAnimalAdventure` branch the
+  // duck/fish tests above exercise — the recovered animal's own art
+  // (`ZOO_ANIMAL_ART.vibora`, a medium snake) parked at the route's end. Once
+  // every snake piece can turn fully coloured on its own, that floating
+  // fourth snake reads as clutter rather than "restored" — suppressed for
+  // every level this task's own colour mechanic applies to.
+  it('renders NO endArt on any of the four snake levels — the colour-follows-the-finger reveal is the reward, not a floating extra snake icon', () => {
+    for (const id of ['snake1', 'snake2', 'snake3', 'snake4'] as const) {
+      render(getLevel(id))
+      expect(traceCanvasProbe.current?.endArt, id).toBeUndefined()
+    }
   })
 
   it('sends the octopus on a world-only level (inDetectiveWorld), but no lamp (endArt stays gated on isCaseTrail alone in S1)', () => {

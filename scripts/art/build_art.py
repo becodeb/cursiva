@@ -89,6 +89,42 @@ def luma(r: int, g: int, b: int) -> int:
     return (r * 299 + g * 587 + b * 114) // 1000
 
 
+def desaturate_keep_alpha(img: png.Image) -> png.Image:
+    """T20 (`odd/tasks/prewriting-stage-completion.md`, docs/19 §3.1): a TRUE
+    luma-601 desaturation -- every opaque pixel's R/G/B all become its own
+    `luma(r, g, b)` -- with alpha copied through untouched.
+
+    This is what lets the snakes "start grey and regain colour as the finger
+    traces them" without ever touching an SVG filter at runtime (this repo
+    bans `url(#…)`/`filter`/`mask`/`clipPath` outright -- see `docs/13`'s own
+    constraints, restated in `odd/tasks/prewriting-stage-completion.md`'s
+    Constraints section): the grey art ships as its own PNG, derived here at
+    build time, and the client only ever windows between two plain `<image>`s
+    (`client/src/canvas/ArtCorridorLayer.tsx`).
+
+    Load-bearing property, used by `sample_spine` below rather than merely
+    assumed: desaturating this way preserves luma EXACTLY.
+    `luma(l, l, l) == (l*299 + l*587 + l*114) // 1000 == (l*1000) // 1000 ==
+    l` for any integer `l` -- the terms sum to exactly `l*1000` before the
+    floor-divide, so there is no rounding to lose. `sample_spine`'s own
+    centreline/thickness/traceFrom/traceTo/`mid` math reads ONLY alpha (for
+    the opaque-run bounds) and `luma()` (for the eye-white/body-luma
+    extremes) -- never r/g/b individually -- so re-running it against the
+    grey copy reproduces the identical numbers a hand-copy would have to
+    trust blindly, letting `artManifest.test.ts` assert byte-equality instead
+    of "should be about the same". Only the derived HEX colours
+    (`bodyBrightest`/`bodyDarkest`/`headWhite`) differ, because those
+    genuinely ARE grey now -- exactly what "the body's own '55' corridor rule
+    keeps holding without re-measuring" (docs/19 §3.1) means in practice.
+    """
+    out = img.copy()
+    px = out.px
+    for i in range(0, len(px), 4):
+        level = luma(px[i], px[i + 1], px[i + 2])
+        px[i] = px[i + 1] = px[i + 2] = level
+    return out
+
+
 def recolour(img: png.Image, fill, keep_ink: bool):
     """Two-tone the art: contour to INK, everything else to `fill`.
 
@@ -1126,6 +1162,29 @@ def main() -> None:
             manifest[key].update(spine)
         print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
               f'{manifest[key]["bytes"] / 1024:6.1f} KB')
+
+    # T20 (`odd/tasks/prewriting-stage-completion.md`, docs/19 §3.1): the
+    # snakes start grey and regain colour as the child's finger traces them.
+    # Own section, deliberately not a `SINGLES` row -- the grey variant is
+    # derived from the SHIPPED colour file `emit` just wrote above (so its
+    # crop/alpha/size can never drift from its sibling by construction),
+    # never from the raw source PNG the `SINGLES` loop starts from. This is
+    # the only place this pipeline reads back a file it just wrote instead of
+    # a fresh source, and it is why the loop stays separate from `SINGLES`
+    # rather than growing that table a seventh column.
+    for snake_name in ('sector-snake-small.png', 'sector-snake-medium.png', 'sector-snake-large.png'):
+        colour_key = snake_name[:-4]
+        grey_name = f'{colour_key}-grey.png'
+        grey_key = grey_name[:-4]
+        grey_img = desaturate_keep_alpha(png.read_png(os.path.join(OUT, snake_name)))
+        manifest[grey_key] = emit(grey_name, grey_img)
+        # Re-run `sample_spine` rather than copy the colour sibling's fields:
+        # cheap, and it is what lets `artManifest.test.ts` assert the two
+        # agree BY MEASUREMENT (`desaturate_keep_alpha`'s own header has the
+        # exact-luma proof) instead of by construction alone.
+        manifest[grey_key].update(sample_spine(grey_img))
+        print(f'  {grey_key:26s} {manifest[grey_key]["w"]}x{manifest[grey_key]["h"]} '
+              f'{manifest[grey_key]["bytes"] / 1024:6.1f} KB')
 
     for src, name, target_h, feature_test in CENTRED:
         img = centre_on(prepare(src, target_h), feature_test)
