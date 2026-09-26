@@ -36,6 +36,7 @@ import {
   debugClearedTiles,
   EMPTY_REVEAL,
   isLightAnimating,
+  LIGHT_COMPLETE_GROWTH_MS,
   revealTick,
   revealTiles,
   type RevealState,
@@ -160,6 +161,19 @@ const BEAT_FLASH_MS = 140
  */
 const CELEBRATE_MS = 1800
 /**
+ * T15 (`odd/tasks/prewriting-stage-completion.md`, Batch 2.6: "in some
+ * levels it's very fast... I want to see a bit of what happened. In the
+ * ones where something is discovered at the end it should take a bit
+ * longer"): a REVEAL level (`level.reveal` present — the `erase` cleaning
+ * family: glass/sand/mud/leaves, and the `light` flashlight/night family)
+ * uncovers something the child could not see a moment before. `CELEBRATE_MS`
+ * was tuned for a PATH level, where the whole route was visible throughout
+ * the attempt and there is nothing new to look at once it is approved —
+ * snapping away after the same ~1.8s on a reveal cuts off the one moment
+ * the level exists to deliver.
+ */
+const REVEAL_HOLD_MS = 4000
+/**
  * A tap anywhere skips the wait (decision, same task) — but not for this
  * long after the celebration starts. The pointerup that just finished the
  * WINNING stroke can synthesize a click at the same screen coordinates the
@@ -169,6 +183,51 @@ const CELEBRATE_MS = 1800
  * under the 1.4s a real second tap would take to arrive on purpose.
  */
 const CELEBRATE_SKIP_GRACE_MS = 400
+
+/**
+ * T15's own classification, pure and exported so its rule ("what kind of
+ * level is this?") is unit-testable without a live attempt — `renderToString`
+ * (this file's own SSR harness) cannot drive `attempt.approved` or a real
+ * timer, so the celebration EFFECT below stays real-browser-only proof, but
+ * the DECISION it reads from can be pinned directly. Keyed off
+ * `level.reveal?.mode` alone: `'erase'` already covers every cleaning family
+ * (glass, sand — `RevealLayer`'s `mud`/`leaves`/`sand` visuals are a
+ * render-only choice downstream of the SAME `erase` mode, not a second
+ * mode), `'light'` is the flashlight/night family, and every other level
+ * (routed, waypoints, spines, free-with-no-reveal) is `'path'` — nothing new
+ * is uncovered by finishing one, so it keeps the short hold.
+ */
+export type CelebrationKind = 'path' | 'reveal-erase' | 'reveal-light'
+
+export function celebrationKindFor(level: Pick<LevelConfig, 'reveal'>): CelebrationKind {
+  if (level.reveal?.mode === 'erase') return 'reveal-erase'
+  if (level.reveal?.mode === 'light') return 'reveal-light'
+  return 'path'
+}
+
+/**
+ * T15's hold, in one pure function of the level alone. `startDelayMs` is how
+ * long AFTER `celebrating` begins the hold itself starts counting down — 0
+ * for every kind except `reveal-light`, which needs `LIGHT_COMPLETE_GROWTH_MS`
+ * (`levels/revealGrid.ts`) to finish its own scene-wide completion-growth
+ * animation FIRST: `attempt.approved` turns true the instant every object is
+ * found, while the darkness is still visibly shrinking outward — starting
+ * the countdown there would auto-advance while the child is still watching
+ * it grow, the opposite of what this task asks for ("for night, the hold
+ * starts AFTER the completion growth animation ends"). `holdMs` is how long
+ * the child then gets to look before the level advances on its own.
+ */
+export interface CelebrationHold {
+  startDelayMs: number
+  holdMs: number
+}
+
+export function celebrationHold(level: Pick<LevelConfig, 'reveal'>): CelebrationHold {
+  const kind = celebrationKindFor(level)
+  if (kind === 'path') return { startDelayMs: 0, holdMs: CELEBRATE_MS }
+  const startDelayMs = kind === 'reveal-light' ? LIGHT_COMPLETE_GROWTH_MS : 0
+  return { startDelayMs, holdMs: REVEAL_HOLD_MS }
+}
 
 /**
  * docs/16's first three enclosures identify the animal that belongs behind
@@ -2459,6 +2518,11 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   onNextRef.current = onNext
   const advancingRef = useRef(false)
   const [skipReady, setSkipReady] = useState(false)
+  // T15: the hold is a pure function of the LEVEL, not of the attempt, so it
+  // never changes mid-celebration — memoized only so the effect's own
+  // dependency array can name plain numbers instead of a fresh object every
+  // render.
+  const hold = useMemo(() => celebrationHold(level), [level])
   useEffect(() => {
     advancingRef.current = false
     setSkipReady(false)
@@ -2468,12 +2532,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       if (advancingRef.current) return
       advancingRef.current = true
       onNextRef.current()
-    }, CELEBRATE_MS)
+    }, hold.startDelayMs + hold.holdMs)
     return () => {
       window.clearTimeout(grace)
       window.clearTimeout(advance)
     }
-  }, [celebrating])
+  }, [celebrating, hold.startDelayMs, hold.holdMs])
   const skipCelebration = (): void => {
     if (!skipReady || advancingRef.current) return
     advancingRef.current = true
