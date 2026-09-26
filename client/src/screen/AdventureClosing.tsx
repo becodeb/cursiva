@@ -94,7 +94,12 @@ ${BUBBLE_POP_CSS}
 .cv-closing-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
 .cv-closing-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); }
 .cv-closing-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
-.cv-closing-bubble .cv-caption { font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; overflow-wrap: break-word; }
+/* T18 follow-up (bubbleFit.ts's own header): the STACK layout -- see
+   AdventureIntro.tsx's own INTRO_CSS for the full rationale. No
+   overflow-wrap on .cv-caption below any more: this is an app for children
+   learning to read, and a word must never break mid-letter. */
+.cv-closing-bubble .cv-captioned--stack > svg { float: none; display: block; margin: 0 auto var(--cv-gap) auto; }
+.cv-closing-bubble .cv-caption { font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; }
 /* The rescue celebration (adventure-flow-and-map-guidance T8, docs/18
    section 4.7 item 1; extracted to RescueCelebration.tsx for promised-animals
    task B, which reuses it on the zoo map's own finale). Absolutely
@@ -192,7 +197,12 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
               style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
             >
               <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-              <CaptionedArt art={beat.art} label={beat.line} size={76} />
+              <CaptionedArt
+                art={beat.art}
+                label={beat.line}
+                size={76}
+                className={content.layout === 'stack' ? 'cv-captioned--stack' : undefined}
+              />
             </span>
           </span>
           {adventure.animal !== undefined && <RescueCelebration />}

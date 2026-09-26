@@ -46,30 +46,77 @@
 // (the checklist's own number, "≤ 35%"), not of the narrower content box —
 // authored as a fraction of the whole bubble because that is the unit the
 // checklist itself names.
+//
+// T18 follow-up (orchestrator, after reviewing `cierre-duck-trail4-
+// 1024x768.png`): a word must NEVER break inside itself — this is an app
+// for children learning to read, and "¡Encontram / os al pato!" is not an
+// acceptable outcome even though it never overflowed the bubble. A SHORT
+// line (the duck's own closing line) is never forced to shrink, so it kept
+// its large "normal" font — and at that size, a merely 11-character word
+// beside a TALL portrait image (the narrow float column) no longer fit,
+// and `overflow-wrap: break-word` silently split it to avoid a real
+// overflow. The fix has two parts: `fitBubbleContent` now checks the
+// LONGEST WORD against whichever column it would land in (`longestWordWidth`,
+// measured the same way `wrapLineCount`/`wrapFloatingBlock` measure a whole
+// line), and falls back to a STACKED layout (image above, caption at the
+// full content width below — no narrow column at all) whenever the floated
+// layout cannot fit that word at its own normal, height-determined size.
+// `AdventureIntro.tsx`/`AdventureClosing.tsx` no longer set
+// `overflow-wrap: break-word` on the caption at all: with the longest word
+// checked before a font size is ever chosen, there is nothing left to fall
+// back on breaking FOR.
 import type { ArtImage } from '../detective/assets'
 import { placeSpeechBubble, type BubblePlacement, type PlaceSpeechBubbleOptions } from './bubblePlacement'
 
 /** Inset of the content box from the bubble's own edges, percent of the
- *  bubble — widened from the pre-T18 `.cv-captioned` CSS (`left: 10%;
- *  right: 10%; top: 16%; height: 58%`) after `bubbleFit.test.ts`'s own
- *  sweep of every real registry line found the old 58%-tall box too short
- *  for the longest intro sentences (peces/tortugas/monos, ~100 characters)
- *  to reach even the minimum font size without overflowing — the bubble's
- *  oval body has more usable height above and below that old narrow band
- *  than the pre-T18 CSS assumed, so this claims more of it rather than
- *  shrinking text further. */
+ *  bubble. Measured directly against the shipped
+ *  `client/public/art/zoo-speech-bubble.png` (488×372, a standalone PNG
+ *  decode + per-row opaque-pixel scan, the same convention
+ *  `bubblePlacement.ts`'s own header describes for the tail): a rectangle
+ *  inset 10% from each SIDE (this file's own `CONTENT_WIDTH_FRAC`) sits
+ *  fully inside the drawn oval only for rows between about 16% and 76% of
+ *  the bubble's height — above 16% the oval narrows in from the top, and
+ *  past 76% it is already narrowing into the tail (which fully separates
+ *  at 86%, `bubblePlacement.ts`'s own measurement). `16%`/`58%` (ending at
+ *  74%) keeps a small margin inside that measured safe range on both ends.
+ *
+ *  An earlier version of this file widened this to `14%`/`66%` (ending at
+ *  80%) to give the longest intro sentences more room — which DID fit by
+ *  this file's own height arithmetic, but 80% reaches past the measured
+ *  76% safe bound, so the text's own bottom line rendered OUTSIDE the
+ *  drawn bubble in the real browser (`intro-monkeys1-1024x768.png`, an
+ *  orchestrator-reported follow-up). The STACK layout (this file's own
+ *  header) is what actually solves "a long sentence needs more room" now —
+ *  by removing the image's narrow column entirely rather than by claiming
+ *  more of the bubble than it can safely draw text in — so this reverts to
+ *  the measured-safe values instead of re-widening them. */
 export const CONTENT_LEFT_FRAC = 0.1
-export const CONTENT_TOP_FRAC = 0.14
+export const CONTENT_TOP_FRAC = 0.16
 export const CONTENT_WIDTH_FRAC = 0.8
-export const CONTENT_HEIGHT_FRAC = 0.66
+export const CONTENT_HEIGHT_FRAC = 0.58
 
 /** The checklist's own cap: an inline image never exceeds 35% of the
  *  bubble's own width. */
 export const IMAGE_MAX_WIDTH_FRAC = 0.35
 /** Additional cap so a very TALL image (portrait art) cannot blow past the
  *  content box's own height either — leaves a small margin under the exact
- *  content height so the image never touches the caption's own line box. */
+ *  content height so the image never touches the caption's own line box.
+ *  Only used by the FLOAT layout: there, the image's own height coexists
+ *  with the caption's early, narrow-column lines rather than being added on
+ *  top of them, so a tall image spending most of the content box's height
+ *  still leaves the LATER (full-width) lines their own room. */
 export const IMAGE_MAX_HEIGHT_FRAC = 0.92
+
+/** The STACK layout's own, much smaller image height cap (T18 follow-up,
+ *  this file's own header): here the image's height and the caption's own
+ *  block height are ADDITIVE (image above, text below), so reusing FLOAT's
+ *  92% cap on a tall portrait image (this follow-up's own duck-closing
+ *  example: `pato`'s art is taller than it is wide) left stacked text
+ *  almost no room at all and made `fits` FALSE for a line that used to fit
+ *  fine in the float layout. Capping the image at well under half the
+ *  content box's height guarantees the stacked caption always keeps the
+ *  majority of it, regardless of how tall the source art is. */
+export const IMAGE_STACK_MAX_HEIGHT_FRAC = 0.3
 
 /** Gap between the image and the caption, percent of the bubble's width —
  *  matches the pre-T18 CSS's `gap: 4cqw` (of the frame; restated here as a
@@ -127,6 +174,49 @@ export function wrapLineCount(text: string, fontSize: number, maxWidth: number):
   return lines
 }
 
+/** One WORD as `assignFloatingWordColumns`/`assignWordColumns` place it: its
+ *  own measured width, and the width of the COLUMN (narrow, beside the
+ *  image; wide/full, below it or with no image at all) the wrap actually
+ *  put it in — T18 follow-up (this file's own header): the never-break-a-
+ *  word contract this app needs, checked PER WORD rather than only for the
+ *  text's single longest one, so `bubbleFit.test.ts` can verify it directly
+ *  against the exact assignment the real wrap produces, not merely trust
+ *  that "longest word fits the narrowest column" implies every other word
+ *  does too (true by construction, but this is the independent check). */
+export interface WordColumnAssignment {
+  readonly word: string
+  readonly width: number
+  readonly columnWidth: number
+}
+
+/**
+ * Every word of `text` at `fontSize`, each paired with the column width of
+ * whichever line the SAME greedy fill `wrapLineCount` runs actually placed
+ * it on — one column width throughout, since there is no floated image.
+ */
+export function assignWordColumns(text: string, fontSize: number, maxWidth: number): WordColumnAssignment[] {
+  const charWidth = fontSize * AVG_CHAR_WIDTH_FRACTION
+  const words = text.split(' ').filter((w) => w.length > 0)
+  return words.map((word) => ({ word, width: word.length * charWidth, columnWidth: maxWidth }))
+}
+
+/**
+ * The widest single WORD in `text`, at `fontSize` — measured with the exact
+ * same per-character heuristic `wrapLineCount`/`wrapFloatingBlock` use for a
+ * whole line (`AVG_CHAR_WIDTH_FRACTION`), so a word this function clears is
+ * guaranteed not to be the reason either of those functions would have
+ * broken a line early. Empty text has no word to overflow anything, so this
+ * returns `0`. Punctuation attached to a word (Spanish's leading `¡`/`¿`)
+ * counts as part of it, same as `wrapLineCount`'s own `word.length`.
+ */
+export function longestWordWidth(text: string, fontSize: number): number {
+  const charWidth = fontSize * AVG_CHAR_WIDTH_FRACTION
+  const words = text.split(' ').filter((w) => w.length > 0)
+  let widest = 0
+  for (const word of words) widest = Math.max(widest, word.length * charWidth)
+  return widest
+}
+
 export interface FloatingBlockFit {
   readonly lineCount: number
   readonly blockHeight: number
@@ -142,18 +232,38 @@ export interface FloatingBlockFit {
  * caveat applies here too). `floatHeight <= 0` (no image at all) is the
  * degenerate case where every line already uses `wideWidth`.
  */
-export function wrapFloatingBlock(
+interface FloatingLayout extends FloatingBlockFit {
+  readonly words: WordColumnAssignment[]
+}
+
+/**
+ * The ONE greedy fill both `wrapFloatingBlock` and `assignFloatingWordColumns`
+ * read from — computing the line/block metrics and the per-word column
+ * assignment in the SAME pass, so a test reading `.words` is guaranteed to
+ * see the exact assignment that produced `.lineCount`/`.blockHeight`,
+ * never a second, independently-reconstructed approximation of it (the
+ * T18 follow-up's own reason for factoring this out: two parallel
+ * re-implementations of one wrap algorithm are exactly the kind of thing
+ * that quietly drifts apart). Each line's available width is `narrowWidth`
+ * while the block's running height is still under `floatHeight` (beside
+ * the image), and `wideWidth` afterward (below it) — matches real CSS
+ * `float: left` word-wrap exactly, just measuring by character count
+ * instead of real glyph widths. `floatHeight <= 0` (no image at all) is the
+ * degenerate case where every line already uses `wideWidth`.
+ */
+function layoutFloatingWords(
   text: string,
   fontSize: number,
   narrowWidth: number,
   wideWidth: number,
   floatHeight: number,
   lineHeight: number,
-): FloatingBlockFit {
+): FloatingLayout {
   const charWidth = fontSize * AVG_CHAR_WIDTH_FRACTION
   const words = text.split(' ').filter((w) => w.length > 0)
-  if (words.length === 0) return { lineCount: 1, blockHeight: fontSize * lineHeight }
+  if (words.length === 0) return { lineCount: 1, blockHeight: fontSize * lineHeight, words: [] }
 
+  const assignments: WordColumnAssignment[] = []
   let lineCount = 0
   let blockHeight = 0
   let i = 0
@@ -164,13 +274,46 @@ export function wrapFloatingBlock(
       const wordWidth = words[i].length * charWidth
       const candidate = lineWidth === 0 ? wordWidth : lineWidth + charWidth + wordWidth
       if (candidate > available && lineWidth > 0) break
+      assignments.push({ word: words[i], width: wordWidth, columnWidth: available })
       lineWidth = candidate
       i++
     }
     lineCount += 1
     blockHeight += fontSize * lineHeight
   }
+  return { lineCount, blockHeight, words: assignments }
+}
+
+export function wrapFloatingBlock(
+  text: string,
+  fontSize: number,
+  narrowWidth: number,
+  wideWidth: number,
+  floatHeight: number,
+  lineHeight: number,
+): FloatingBlockFit {
+  const { lineCount, blockHeight } = layoutFloatingWords(text, fontSize, narrowWidth, wideWidth, floatHeight, lineHeight)
   return { lineCount, blockHeight }
+}
+
+/**
+ * Every word of `text` at `fontSize`, each paired with the column width
+ * (`narrowWidth` while beside the image, `wideWidth` once past its own
+ * `floatHeight`) the SAME greedy fill `wrapFloatingBlock` runs actually
+ * placed it on — the exact assignment `bubbleFit.test.ts`'s never-break-a-
+ * word check verifies directly, word by word (this file's own header on
+ * the T18 follow-up). `floatHeight <= 0` (no image) degenerates to every
+ * word using `wideWidth`, matching `wrapFloatingBlock`'s own contract.
+ */
+export function assignFloatingWordColumns(
+  text: string,
+  fontSize: number,
+  narrowWidth: number,
+  wideWidth: number,
+  floatHeight: number,
+  lineHeight: number,
+): WordColumnAssignment[] {
+  return layoutFloatingWords(text, fontSize, narrowWidth, wideWidth, floatHeight, lineHeight).words
 }
 
 export interface BubbleContentFit {
@@ -185,6 +328,16 @@ export interface BubbleContentFit {
   readonly imageHeight: number
   readonly captionWidth: number
   readonly captionHeight: number
+  /** `'float'` (the image floats at the top of the content box, caption
+   *  wraps narrow beside it) or `'stack'` (the image sits above the caption,
+   *  which then always wraps at the FULL content width — no narrow column
+   *  at all). `fitBubbleContent` picks `'stack'` whenever `'float'` cannot
+   *  fit the text's own longest word at its normal, height-determined font
+   *  size (`longestWordWidth`, this file's own header on the follow-up that
+   *  added this) — never by shrinking the float font further, which would
+   *  make a short line's bubble oddly small just to save one long word from
+   *  moving to a stacked layout. */
+  readonly layout: 'float' | 'stack'
   /** `false` only when the text still overflows the content box's height
    *  at the MINIMUM font size — the caller's signal to ask for a WIDER
    *  bubble (`placeAndFitBubble`, below) rather than shrink further past
@@ -192,17 +345,62 @@ export interface BubbleContentFit {
   readonly fits: boolean
 }
 
+const EPS = 1e-6
+
+/** Shrinks `fontSize` from `maxFont` down to `minFont` in `STEPS` even
+ *  steps, stopping at the first (largest) size whose `measure` reports a
+ *  fitting block — the shared search both the FLOAT and the STACK attempt
+ *  below run, over their own different wrap function. */
+function searchFontSize(
+  maxFont: number,
+  minFont: number,
+  contentHeight: number,
+  measure: (fontSize: number) => number,
+): { fontSize: number; blockHeight: number } {
+  const STEPS = 32
+  let fontSize = maxFont
+  let blockHeight = measure(fontSize)
+  for (let i = 0; i < STEPS && blockHeight > contentHeight && fontSize > minFont; i++) {
+    fontSize = Math.max(minFont, maxFont - ((maxFont - minFont) * (i + 1)) / STEPS)
+    blockHeight = measure(fontSize)
+  }
+  return { fontSize, blockHeight }
+}
+
 /**
  * Fits `text` and `art` inside a bubble of `bubbleWidth`×`bubbleHeight`
  * (same percent-of-frame units as `BubblePlacement`). The image is sized
  * first (independent of the text — its cap is a fixed fraction of the
- * bubble, never negotiated away) and floats at the top of the content box;
- * the caption wraps narrow beside it and full-width below it
- * (`wrapFloatingBlock`), and the font shrinks only as far as `MIN_FONT_FRAC`
- * before this reports `fits: false`. `captionWidth` in the result is the
- * NARROW (beside-the-image) width, for a caller that wants one representative
- * number — the component itself renders the caption at the full content
- * width via a real CSS float, and the browser reflows automatically.
+ * bubble, never negotiated away).
+ *
+ * Two layouts are tried, in order (this file's own header, "T18 follow-up"):
+ *
+ * 1. FLOAT — the image floats at the top of the content box
+ *    (`wrapFloatingBlock`); the font shrinks only as far as `MIN_FONT_FRAC`
+ *    to fit the content box's height. This layout wins outright only when,
+ *    AT THAT font size, the text's own longest word still fits the NARROW
+ *    (beside-the-image) column (`longestWordWidth`) AND the whole wrapped
+ *    block still fits the content box's (measured-safe, `CONTENT_HEIGHT_
+ *    FRAC`'s own header) height — the common case for most lines in the
+ *    registry.
+ * 2. STACK — tried whenever EITHER of FLOAT's two checks fails: either the
+ *    text's longest word cannot fit the narrow column at FLOAT's normal
+ *    size (a SHORT line beside a tall image — the duck-closing case this
+ *    follow-up's own header describes), or the wrapped block simply needs
+ *    more height than the content box safely has (a very long sentence,
+ *    peces/tortugas/monos/monkeys — narrow columns force many short lines).
+ *    The image moves above the caption instead of beside it, so the caption
+ *    always wraps at the FULL content width and never sees a narrow column
+ *    at all — which both frees width (fewer, longer lines) and removes the
+ *    one thing FLOAT could fail on. The font search reruns against
+ *    `wrapLineCount` at that full width, with the image's own (STACK-sized)
+ *    height plus one gap subtracted from the available content height first.
+ *
+ * `fits` is `false` only when even the winning layout's own checks fail at
+ * its minimum font size — a genuine "no admissible layout" case
+ * `bubbleFit.test.ts`'s own absurd-input fixture exercises; every real line
+ * in this game's registry picks one of the two layouts above and reports
+ * `fits: true`.
  */
 export function fitBubbleContent(text: string, art: ArtImage, bubbleWidth: number, bubbleHeight: number): BubbleContentFit {
   const contentWidth = bubbleWidth * CONTENT_WIDTH_FRAC
@@ -220,24 +418,55 @@ export function fitBubbleContent(text: string, art: ArtImage, bubbleWidth: numbe
   const maxFont = bubbleWidth * MAX_FONT_FRAC
   const minFont = bubbleWidth * MIN_FONT_FRAC
 
-  const STEPS = 32
-  let fontSize = maxFont
-  let block = wrapFloatingBlock(text, fontSize, narrowWidth, contentWidth, imageHeight, LINE_HEIGHT)
-  for (let i = 0; i < STEPS && block.blockHeight > contentHeight && fontSize > minFont; i++) {
-    fontSize = Math.max(minFont, maxFont - ((maxFont - minFont) * (i + 1)) / STEPS)
-    block = wrapFloatingBlock(text, fontSize, narrowWidth, contentWidth, imageHeight, LINE_HEIGHT)
+  // 1. FLOAT, at its own normal (height-determined) font size — accepted
+  // only when BOTH its longest word fits the narrow column and the whole
+  // block still fits the (measured-safe) content height at that size.
+  const float = searchFontSize(maxFont, minFont, contentHeight, (fontSize) =>
+    wrapFloatingBlock(text, fontSize, narrowWidth, contentWidth, imageHeight, LINE_HEIGHT).blockHeight,
+  )
+  const floatWordFits = imageHeight <= 0 || longestWordWidth(text, float.fontSize) <= narrowWidth + EPS
+  const floatHeightFits = float.blockHeight <= contentHeight + EPS
+  if (floatWordFits && floatHeightFits) {
+    const block = wrapFloatingBlock(text, float.fontSize, narrowWidth, contentWidth, imageHeight, LINE_HEIGHT)
+    return {
+      fontSize: float.fontSize,
+      lineHeight: LINE_HEIGHT,
+      lineCount: block.lineCount,
+      imageWidth,
+      imageHeight,
+      captionWidth: narrowWidth,
+      captionHeight: contentHeight,
+      layout: 'float',
+      fits: true,
+    }
   }
 
-  const EPS = 1e-6
+  // 2. STACK — the image no longer competes for WIDTH with any line, but its
+  // own height and the caption's are now ADDITIVE, so it gets its own,
+  // smaller height cap (`IMAGE_STACK_MAX_HEIGHT_FRAC`'s own header) rather
+  // than reusing FLOAT's `imageHeight` — a tall portrait image capped only
+  // by FLOAT's generous 92% would leave the stacked caption almost no room
+  // at all.
+  const stackImageMaxHeight = contentHeight * IMAGE_STACK_MAX_HEIGHT_FRAC
+  const stackImageWidth = Math.max(0, Math.min(imageMaxWidth, artAspect > 0 ? stackImageMaxHeight / artAspect : imageMaxWidth))
+  const stackImageHeight = stackImageWidth * artAspect
+
+  const stackTextHeight = Math.max(0, contentHeight - stackImageHeight - gap)
+  const stack = searchFontSize(maxFont, minFont, stackTextHeight, (fontSize) =>
+    wrapLineCount(text, fontSize, contentWidth) * fontSize * LINE_HEIGHT,
+  )
+  const stackLineCount = wrapLineCount(text, stack.fontSize, contentWidth)
+  const stackWordFits = longestWordWidth(text, stack.fontSize) <= contentWidth + EPS
   return {
-    fontSize,
+    fontSize: stack.fontSize,
     lineHeight: LINE_HEIGHT,
-    lineCount: block.lineCount,
-    imageWidth,
-    imageHeight,
-    captionWidth: narrowWidth,
+    lineCount: stackLineCount,
+    imageWidth: stackImageWidth,
+    imageHeight: stackImageHeight,
+    captionWidth: contentWidth,
     captionHeight: contentHeight,
-    fits: block.blockHeight <= contentHeight + EPS,
+    layout: 'stack',
+    fits: stackWordFits && stackImageHeight + gap + stack.blockHeight <= contentHeight + EPS,
   }
 }
 

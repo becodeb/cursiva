@@ -114,7 +114,16 @@ ${BUBBLE_POP_CSS}
 .cv-intro-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
 .cv-intro-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); }
 .cv-intro-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
-.cv-intro-bubble .cv-caption { font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; overflow-wrap: break-word; }
+/* T18 follow-up (bubbleFit.ts's own header): the STACK layout — the image
+   sits above the caption instead of beside it, so the caption always wraps
+   at the bubble's full content width and never has to fit a word into a
+   narrow column. No overflow-wrap on .cv-caption below any more: a word
+   this layout still cannot fit is a genuine "no admissible layout" case
+   (bubbleFit.ts's own fits: false), never something to paper over by
+   breaking a word mid-letter -- this is an app for children learning to
+   read. */
+.cv-intro-bubble .cv-captioned--stack > svg { float: none; display: block; margin: 0 auto var(--cv-gap) auto; }
+.cv-intro-bubble .cv-caption { font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; }
 /* T7: the "hear it again" button. T18: no longer pinned to the corner
    stage (docs/19 §4.2's "arriba están los botones") — a sibling of
    .cv-intro-frame inside .cv-intro, pinned to the SCREEN's own top
@@ -191,7 +200,12 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
               style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
             >
               <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-              <CaptionedArt art={icon} label={adventure.intro} size={76} />
+              <CaptionedArt
+                art={icon}
+                label={adventure.intro}
+                size={76}
+                className={content.layout === 'stack' ? 'cv-captioned--stack' : undefined}
+              />
             </span>
           </span>
         </button>

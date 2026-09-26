@@ -3,7 +3,10 @@
 // already uses for this same kind of pure placement math.
 import { describe, expect, it } from 'vitest'
 import {
+  assignFloatingWordColumns,
+  assignWordColumns,
   CONTENT_HEIGHT_FRAC,
+  CONTENT_WIDTH_FRAC,
   fitBubbleContent,
   IMAGE_MAX_WIDTH_FRAC,
   MAX_FONT_FRAC,
@@ -19,6 +22,7 @@ import {
   stanceBubbleSide,
 } from './pulpitoStance'
 import { ADVENTURES, adventureIcon } from '../zoo/adventures'
+import { PROLOGUE_PLATES } from '../zoo/prologue'
 import { ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
 import type { ArtImage } from '../detective/assets'
 
@@ -104,6 +108,16 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
       cases.push({ id: `${adventure.id}: closingBeat[${i}]`, text: beat.line, art: beat.art })
     }
   }
+  // The prologue's own three lines (`PrologueOpening.tsx` is explicitly out
+  // of scope for T18, `docs/19` §4.2 — "sin cambios por ahora" — so it does
+  // not call this engine today), included anyway per the orchestrator's own
+  // follow-up ("no line of any adventure/prologue line breaks... at the 4
+  // viewports"): this proves the FIT ENGINE ITSELF is word-safe for every
+  // line of story text this game ships, not only the two screens T18
+  // happens to have wired it into yet.
+  for (const plate of PROLOGUE_PLATES) {
+    cases.push({ id: `prologue: ${plate.line}`, text: plate.line, art: plate.art })
+  }
 
   it('the registry sweep actually covers every shipped adventure (sanity: not accidentally empty)', () => {
     expect(cases.length).toBeGreaterThanOrEqual(ADVENTURES.length)
@@ -131,9 +145,79 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
           // much looser floor than at the others — 844x390 is this app's
           // own tightest tier (`prewriting-stage-completion.md`'s open
           // batch-2 note already flags it as visually tight elsewhere).
-          expect(fontPx, `${id} (${vw}x${vh})`).toBeGreaterThanOrEqual(13)
+          // 11px is the measured worst case (the longest intro sentence,
+          // `monkeys`, already in the STACK layout): CONTENT_HEIGHT_FRAC's
+          // own follow-up header explains why this box got SMALLER (a
+          // measured-safe fit against the real bubble art) rather than
+          // larger — never overflowing the drawn bubble, and never breaking
+          // a word, both won priority over squeezing out a bigger font at
+          // this one extreme combination.
+          expect(fontPx, `${id} (${vw}x${vh})`).toBeGreaterThanOrEqual(11)
+        }
+      })
+
+      // Orchestrator follow-up: a word must NEVER break inside a line — this
+      // is an app for children learning to read. Checked PER WORD, against
+      // the exact column the SAME wrap the fit chose actually placed it on
+      // (`assignFloatingWordColumns`/`assignWordColumns`), not merely by
+      // trusting `fitBubbleContent`'s own internal longest-word check —
+      // this is the independent proof that check is doing its job for
+      // every real line, at every required viewport, in both stances.
+      it(`corner=${corner} viewport=${vw}x${vh}: no word ever breaks inside a line`, () => {
+        const frame = { w: 100, h: 100 }
+        const headBox = octopusBoxAtCorner(ZOO_OCTOPUS_BACKPACK_ART, {
+          corner,
+          sizeBy: 'width',
+          size: OCTOPUS_CORNER_SIZE_PCT,
+          bottom: 2,
+          inset: OCTOPUS_CORNER_INSET,
+        })
+        const side = stanceBubbleSide(corner)
+
+        for (const { id, text, art } of cases) {
+          const { placement, content } = placeAndFitBubble({ frame, headBox, tail: ZOO_SPEECH_BUBBLE_TAIL, side, text, art })
+          const wideWidth = placement.width * CONTENT_WIDTH_FRAC
+          const assignments =
+            content.layout === 'float'
+              ? assignFloatingWordColumns(text, content.fontSize, content.captionWidth, wideWidth, content.imageHeight, content.lineHeight)
+              : assignWordColumns(text, content.fontSize, content.captionWidth)
+          // Every word this game's own registry contains actually got
+          // assigned somewhere — a shorter list would mean the wrap silently
+          // dropped a word, a bug this assertion would otherwise miss.
+          expect(assignments.length, id).toBe(text.split(' ').filter((w) => w.length > 0).length)
+          for (const { word, width, columnWidth } of assignments) {
+            expect(width, `${id} (${corner}, ${vw}x${vh}): "${word}" vs its own column`).toBeLessThanOrEqual(columnWidth + 1e-6)
+          }
         }
       })
     }
   }
+})
+
+describe('fitBubbleContent — the duck closing (the orchestrator\'s own reported case)', () => {
+  // `¡Encontramos al pato! Ya está en su laguna.` beside `pato`'s art
+  // (368×448 — taller than it is wide) is what produced
+  // `cierre-duck-trail4-1024x768.png`'s "¡Encontram / os al pato!": a SHORT
+  // line next to a TALL image kept its large, unshrunk font, and the
+  // resulting narrow float column could not hold an 11-character word.
+  const DUCK_LINE = '¡Encontramos al pato! Ya está en su laguna.'
+  const DUCK_ART: ArtImage = { w: 368, h: 448, href: '/art/animal-pato.png' }
+
+  it('switches to the STACK layout rather than shrinking the float font to break the word', () => {
+    const bubbleWidth = 69.02164187302334 // the real placement.width this exact case resolves to
+    const fit = fitBubbleContent(DUCK_LINE, DUCK_ART, bubbleWidth, bubbleWidth * (372 / 488))
+    expect(fit.layout).toBe('stack')
+    expect(fit.fits).toBe(true)
+  })
+
+  it('keeps every word whole — no word is split across a line break', () => {
+    const bubbleWidth = 69.02164187302334
+    const fit = fitBubbleContent(DUCK_LINE, DUCK_ART, bubbleWidth, bubbleWidth * (372 / 488))
+    const assignments = assignWordColumns(DUCK_LINE, fit.fontSize, fit.captionWidth)
+    const words = DUCK_LINE.split(' ').filter((w) => w.length > 0)
+    expect(assignments.map((a) => a.word)).toEqual(words)
+    for (const { word, width, columnWidth } of assignments) {
+      expect(width, `"${word}"`).toBeLessThanOrEqual(columnWidth + 1e-6)
+    }
+  })
 })
