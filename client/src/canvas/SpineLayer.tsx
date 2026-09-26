@@ -30,8 +30,26 @@
 //
 // The mark and ring colours are resolved by the CALLER, never here —
 // `WaypointLayer`'s own convention, restated (`TraceClueMark`'s original).
+//
+// T13 (tablet playtest #2, "a line that isn't a spine could disappear when I
+// lift"): `spines.fading` renders a just-rejected stroke as fading ink, run
+// through the SAME `inkPath(traceInk(...))` pipeline `canvas/TraceCanvas.tsx`'s
+// own settled-ink layer uses (`canvas/ink.ts`, imported here rather than
+// re-derived, so the two can never draw a stroke's centreline two different
+// ways) — never `completedStrokes`, which has one shared opacity for every
+// entry and no per-entry fade. The actual fade is a plain CSS animation
+// (`.cv-spine-fading`, `screen/LevelPlay.tsx`'s `LAYOUT_CSS`), so this layer
+// only has to render the shape and stop rendering it once the caller drops
+// the entry — no timer, no transition-flip state, lives here.
 import { clampArtBox, type ArtBox } from './placeArt'
+import { inkPath, traceInk } from './ink'
 import type { TraceSpines } from './TraceCanvas'
+
+/** The stroke width a fading rejected spine renders at — `TraceCanvas.tsx`'s
+ *  own `INK_WIDTH` (not exported: this is the one other place that ever
+ *  needs to draw a raw stroke's centreline, restated rather than plumbed
+ *  through a new export for one number). */
+const FADING_STROKE_WIDTH = 18
 
 export interface SpineLayerProps {
   spines: TraceSpines
@@ -45,6 +63,19 @@ export function SpineLayer({ spines, sheetBounds }: SpineLayerProps) {
   return (
     <g pointerEvents="none">
       <image href={spines.body.href} {...bodyBox} preserveAspectRatio="xMidYMid meet" />
+      {spines.fading?.map((f) => (
+        <path
+          key={`spine-fading-${f.id}`}
+          data-spine-fading="true"
+          d={inkPath(traceInk(f.points))}
+          fill="none"
+          stroke={spines.fadingColor ?? spines.dim}
+          strokeWidth={FADING_STROKE_WIDTH}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="cv-spine-fading"
+        />
+      ))}
       {spines.marks.map((mark, idx) => (
         <circle
           key={`spine-mark-${idx}`}

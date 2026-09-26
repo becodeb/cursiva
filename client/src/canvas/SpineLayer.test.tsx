@@ -232,3 +232,91 @@ describe('SpineLayer — the coincidence proof (stage 2, the real catalog, both 
     }
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T13 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest #2: "a
+// line that isn't a spine could disappear when I lift the finger"):
+// `spines.fading` renders a just-rejected stroke through the exact same
+// `inkPath(traceInk(...))` pipeline `canvas/TraceCanvas.tsx`'s own settled
+// ink uses, tagged so `LAYOUT_CSS`'s `.cv-spine-fading` animation can find
+// it and so this test can find it without touching `<image>`/`<circle>`
+// parsing above.
+// ─────────────────────────────────────────────────────────────────────────────
+function parseFadingPaths(html: string): Array<{ d: string; fill: string | null; stroke: string | null }> {
+  const tags = html.match(/<path[^>]*data-spine-fading="true"[^>]*>/g) ?? []
+  return tags.map((tag) => {
+    const dMatch = tag.match(/ d="([^"]*)"/)
+    const fillMatch = tag.match(/fill="([^"]+)"/)
+    const strokeMatch = tag.match(/stroke="([^"]+)"/)
+    if (!dMatch) throw new Error(`d not found in ${tag}`)
+    return { d: dMatch[1], fill: fillMatch ? fillMatch[1] : null, stroke: strokeMatch ? strokeMatch[1] : null }
+  })
+}
+
+describe('SpineLayer — fading rejected strokes (T13, tablet playtest #2)', () => {
+  it('renders no fading path at all when the field is absent — every existing caller byte-identical', () => {
+    const html = renderToString(<SpineLayer spines={traceSpinesFor(CFG)} sheetBounds={SHEET_BOUNDS} />)
+    expect(html).not.toContain('data-spine-fading')
+  })
+
+  it('renders one <path data-spine-fading> per entry, as the stroke\'s own centreline ink, fill="none"', () => {
+    const points = [{ x: 100, y: 100 }, { x: 140, y: 160 }]
+    const html = renderToString(
+      <SpineLayer
+        spines={{ ...traceSpinesFor(CFG), fading: [{ id: 1, points }], fadingColor: '#1e293b' }}
+        sheetBounds={SHEET_BOUNDS}
+      />,
+    )
+    const fading = parseFadingPaths(html)
+    expect(fading).toHaveLength(1)
+    // The SAME centreline `inkPath(traceInk(...))` builds for settled ink —
+    // `M100 100 L140 160`, not a re-derived or re-rounded shape.
+    expect(fading[0].d).toBe('M100 100 L140 160')
+    expect(fading[0].fill).toBe('none')
+    expect(fading[0].stroke).toBe('#1e293b')
+    expect(html).toContain('class="cv-spine-fading"')
+  })
+
+  it('falls back to spines.dim when the caller supplies no fadingColor', () => {
+    const html = renderToString(
+      <SpineLayer
+        spines={{ ...traceSpinesFor(CFG), fading: [{ id: 1, points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] }] }}
+        sheetBounds={SHEET_BOUNDS}
+      />,
+    )
+    expect(parseFadingPaths(html)[0].stroke).toBe(DIM)
+  })
+
+  it('renders one path PER entry when several strokes are fading at once, in order', () => {
+    const html = renderToString(
+      <SpineLayer
+        spines={{
+          ...traceSpinesFor(CFG),
+          fading: [
+            { id: 1, points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] },
+            { id: 2, points: [{ x: 20, y: 20 }, { x: 30, y: 20 }] },
+          ],
+        }}
+        sheetBounds={SHEET_BOUNDS}
+      />,
+    )
+    const fading = parseFadingPaths(html)
+    expect(fading).toHaveLength(2)
+    expect(fading[0].d).toBe('M0 0 L10 0')
+    expect(fading[1].d).toBe('M20 20 L30 20')
+  })
+
+  it('introduces no url(#), <mask>, <pattern>, <clipPath>, or <defs> while a stroke is fading', () => {
+    const html = renderToString(
+      <SpineLayer
+        spines={{ ...traceSpinesFor(CFG), fading: [{ id: 1, points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] }] }}
+        sheetBounds={SHEET_BOUNDS}
+      />,
+    )
+    expect(html).not.toContain('url(#')
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<defs')
+  })
+})

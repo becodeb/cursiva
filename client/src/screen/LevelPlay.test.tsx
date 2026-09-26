@@ -2395,6 +2395,40 @@ describe('LevelPlay ?debug=espinas:<k> reaches the SCREEN\'s spines prop (radial
   })
 })
 
+describe('LevelPlay hedgehog demo plays roughly 2x faster (T13, tablet playtest #2: "very slow")', () => {
+  const demoOf = (probe: Record<string, unknown> | null) =>
+    (probe?.demo ?? []) as readonly { delay: number; duration: number }[]
+
+  it('gives a spines level a demo step/duration close to half the shared routed-level pace', () => {
+    const hedgehog = getLevel('hedgehog1') // demo: true, spines.count === 4
+    const html = renderToString(
+      <LevelPlay level={hedgehog} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(html).toBeTruthy() // the demo phase renders without throwing
+    const demo = demoOf(traceCanvasProbe.current)
+    expect(demo.length).toBeGreaterThan(0)
+    // Each spine's own draw finishes comfortably under a second.
+    expect(demo[0].duration).toBeLessThanOrEqual(1)
+    expect(demo[0].duration).toBeCloseTo(0.8, 5)
+    if (demo.length > 1) {
+      expect(demo[1].delay - demo[0].delay).toBeCloseTo(0.85, 5)
+    }
+  })
+
+  it('leaves an ordinary routed level\'s demo pace untouched (1.6s duration, 1.7s step)', () => {
+    const routed = makeLevel({ demo: true })
+    renderToString(
+      <LevelPlay level={routed} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const demo = demoOf(traceCanvasProbe.current)
+    expect(demo.length).toBeGreaterThan(0)
+    expect(demo[0].duration).toBeCloseTo(1.6, 5)
+    if (demo.length > 1) {
+      expect(demo[1].delay - demo[0].delay).toBeCloseTo(1.7, 5)
+    }
+  })
+})
+
 describe('LevelPlay portrait guidance (finish-mvp-roadmap U5)', () => {
   function renderWithPortrait(level: LevelConfig, portrait: boolean): string {
     vi.stubGlobal('window', {
