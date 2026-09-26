@@ -99,11 +99,35 @@ export interface ClosingBeat {
   stance?: PulpitoStance
 }
 
+/**
+ * A declarative deduction gate inserted between two of an adventure's own
+ * levels (`odd/tasks/prewriting-stage-completion.md` T21, `docs/19` §2.3:
+ * "en una aventura A de cuatro niveles: niveles 1–2 pistas, deducción,
+ * niveles 3–4 juntar"). `after` names the LAST pistas level — the case's own
+ * last `trailIds` entry (`detective/cases.ts`) — so `GameScreen`'s routing
+ * (`resolveNextAction`) can recognise the exact moment to detour into
+ * `Deduction.tsx` instead of continuing straight to the next level.
+ * `caseId` points at the case registry rather than duplicating its
+ * `options`/`culprit`/`ruledOutBy` here: those already live in ONE place
+ * (`detective/cases.ts`'s `DETECTIVE_CASES`, read by both `Deduction.tsx`
+ * and this file) and restating them per-adventure would let the two drift.
+ * Only the duck names one today; `docs/19` §2.3 reserves this same field for
+ * night→hedgehog, fish and monkeys once their own cases are built.
+ */
+export interface AdventureDeduction {
+  readonly after: string
+  readonly caseId: string
+}
+
 interface AdventureBase {
   id: AdventureId
   /** In play order. `levelIds[0]` is where the narrative entry shows
    *  (`introLevel`). */
   levelIds: readonly string[]
+  /** Present only for a recipe-A adventure (`docs/19` §2.3) — absent means
+   *  every level of `levelIds` continues straight to the next, byte-for-byte
+   *  the pre-T21 behaviour every other row keeps. */
+  deduction?: AdventureDeduction
   sector: SectorId
   /** The Pulpito's line on the entry screen, before the adventure starts. */
   intro: string
@@ -154,6 +178,13 @@ export const ADVENTURES: readonly Adventure[] = [
   {
     id: 'duck',
     levelIds: ['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4'],
+    // [T21, `docs/19` §2.3] Recipe A's first, binding case (the user's
+    // decision 3, `odd/tasks/prewriting-stage-completion.md`): after
+    // `duck-trail2` — the case's own last pistas level
+    // (`detective/cases.ts`'s `duck.trailIds`) — the flow detours into the
+    // `duck` case's deduction before continuing to `duck-trail3` (the duck
+    // family, `LevelConfig.collect`).
+    deduction: { after: 'duck-trail2', caseId: 'duck' },
     sector: 'estanque',
     animal: 'pato',
     intro: 'El pato se fue por la laguna. ¿Lo seguimos?',

@@ -32,7 +32,14 @@ export type GameView =
   | { view: 'map'; finished: boolean }
   | { view: 'play'; levelId: string }
   | { view: 'intro'; levelId: string }
-  | { view: 'deduce'; caseId: string }
+  // [T21, `docs/19` §2.3/§7 slice 3] `afterLevelId` is the level to continue
+  // to once the case is solved (`zoo/adventures.ts`'s `AdventureDeduction.
+  // after`'s own successor, resolved once by `resolveNextAction` below and
+  // carried through so the render branch never has to re-derive it).
+  // Absent only for the dev deep link (`initialView`'s `?nivel=deduccion`),
+  // which has no adventure position to resume — solving it there just
+  // closes the case in place.
+  | { view: 'deduce'; caseId: string; afterLevelId?: string }
   | { view: 'close'; levelId: string; beat?: number }
 
 /**
@@ -73,7 +80,7 @@ export type GameAction =
   | { type: 'play'; levelId: string }
   | { type: 'back' }
   | { type: 'next'; levelId: string | null }
-  | { type: 'deduce'; caseId: string }
+  | { type: 'deduce'; caseId: string; afterLevelId?: string }
   | { type: 'reset' }
 
 /**
@@ -94,7 +101,7 @@ export function nextView(state: GameView, action: GameAction): GameView {
         ? { view: 'map', finished: true }
         : { view: 'play', levelId: action.levelId }
     case 'deduce':
-      return { view: 'deduce', caseId: action.caseId }
+      return { view: 'deduce', caseId: action.caseId, afterLevelId: action.afterLevelId }
     case 'back':
     case 'reset':
       return state.view === 'map' && !state.finished ? state : { view: 'map', finished: false }
@@ -452,7 +459,25 @@ export function resolveNextAction(
 ): NextAction {
   const close = resolveCloseAction(finishedLevelId, records)
   if (close) return close
-  if (adventureFor(finishedLevelId)) {
+  const adventure = adventureFor(finishedLevelId)
+  if (adventure) {
+    // [T21, `docs/19` §2.3] A recipe-A adventure's own deduction gate
+    // (`zoo/adventures.ts`'s `AdventureDeduction`): finishing the case's
+    // LAST pistas level detours into `Deduction.tsx` instead of continuing
+    // straight to the next level — but only once, ever, per case
+    // (`caseSolvedId`'s own pseudo-record, the same "never asked twice"
+    // convention `Deduction`'s own `solved` prop already relies on): a
+    // returning child replaying `duck-trail1..2` after already solving it
+    // resumes straight into `duck-trail3` like any other ordinary
+    // adventure, never re-asking a solved case.
+    if (
+      adventure.deduction &&
+      adventure.deduction.after === finishedLevelId &&
+      (records[caseSolvedId(adventure.deduction.caseId)]?.approvals ?? 0) < 1
+    ) {
+      const after = nextInAdventure(finishedLevelId)
+      if (after) return { type: 'deduce', caseId: adventure.deduction.caseId, afterLevelId: after }
+    }
     const next = nextInAdventure(finishedLevelId)
     if (next) return { type: 'next', levelId: next }
     const after = resolveAfterAdventure(finishedLevelId, records)
@@ -654,17 +679,36 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
     // unknown level id.
     const kase = DETECTIVE_CASES.find((k) => k.id === state.caseId) ?? DETECTIVE_CASES[0]
     const solvedId = caseSolvedId(kase.id)
+    const afterLevelId = state.afterLevelId
+    // [T21] Named (not inline) for the same reason `LevelPlay`'s own
+    // `handleAttempt`/`handleNext` are: the dev skip button below drives the
+    // EXACT same two effects a real correct pick does — persisting the
+    // solved pseudo-record and continuing the adventure — rather than
+    // faking either one on its own.
+    const handleSolved = (): void => {
+      store.save(solvedId, { ...EMPTY_RECORD, approvals: 1 })
+      setVersion((n) => n + 1)
+      // Absent only for the dev deep link (`GameView`'s own header): there
+      // is no adventure position to resume, so solving it in place is all
+      // there is to do.
+      if (afterLevelId) dispatch({ type: 'next', levelId: afterLevelId })
+    }
     return (
       <ScreenTransition screenKey={screenTransitionKey(state)}>
         <Deduction
           kase={kase}
           solved={store.get(solvedId).approvals >= 1}
-          onSolved={() => {
-            store.save(solvedId, { ...EMPTY_RECORD, approvals: 1 })
-            setVersion((n) => n + 1)
-          }}
+          onSolved={handleSolved}
           onExit={onExit}
         />
+        {/* Dev-only "skip deduction" (`odd/tasks/prewriting-stage-
+         * completion.md` T21: "the dev skip button also passes the
+         * deduction"), the same gate `LevelPlay`'s own skip button uses. */}
+        {isDevMode() && (
+          <button type="button" onClick={handleSolved} style={DEV_SKIP_BUTTON}>
+            Saltar deducción (dev)
+          </button>
+        )}
       </ScreenTransition>
     )
   }

@@ -14,10 +14,10 @@
 // documents), so there is nothing to gain from trying to simulate the click
 // itself.
 //
-// [zoo-map-home] `resolveNextAction` no longer routes to `deduce` at all —
-// the auto-route is retired (proposal D2, design.md §6). It is now
-// adventure- and sector-aware, not case-aware: [adventure-flow-and-map-
-// guidance T2] a finished level that is not its own adventure's (or
+// [zoo-map-home] `resolveNextAction` used to never route to `deduce` at all
+// — the auto-route was retired (proposal D2, design.md §6) and made
+// adventure- and sector-aware instead of case-aware: [adventure-flow-and-
+// map-guidance T2] a finished level that is not its own adventure's (or
 // no-row sector block's) last one continues straight to the next one. The
 // true end of a run usually leaves the shell for the map — EXCEPT [T2
 // amendment] an animal-less adventure whose sector opens straight into
@@ -26,9 +26,16 @@
 // dedicated `resolveNextAction` and `resolveAfterAdventure` describe blocks
 // below for the full rule. A level no sector has adopted (today the hen's
 // `trail1..4`, wired to no sector) keeps today's `next` behaviour
-// unchanged. The `nextView` reducer's OWN `deduce` branch is untouched
-// below — it is still reachable directly (the deep-link path,
-// `initialView`), just no longer through `resolveNextAction`.
+// unchanged.
+//
+// [T21 amendment, `docs/19` §2.3/§7 slice 3] D2's retirement is narrowed,
+// not reverted: `resolveNextAction` now ALSO detours into `deduce` — but
+// only for the ONE level an adventure names as its own `deduction.after`
+// (`zoo/adventures.ts`), never as a blanket "case complete" auto-route
+// re-derived from clue state the way the pre-D2 mechanism was, and never
+// twice for the same case (`caseSolvedId`, the dedicated `describe` block
+// below). Every OTHER level keeps exactly the D2-era behaviour this file's
+// own header used to describe unconditionally.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderToString } from 'react-dom/server'
 
@@ -280,6 +287,12 @@ describe('resolveNextAction (adventure-flow-and-map-guidance T2: "an unfinished 
     for (const adventure of ADVENTURES) {
       for (let i = 0; i < adventure.levelIds.length - 1; i++) {
         const id = adventure.levelIds[i]
+        // [T21] EXCEPT the one id a `deduction`-gated adventure names as its
+        // own `after` — that one detours to `deduce` instead when the case
+        // is unsolved (the dedicated describe block below), so it is
+        // deliberately excluded from this otherwise-universal sweep rather
+        // than special-cased inline here.
+        if (adventure.deduction?.after === id) continue
         expect(resolveNextAction(id, {}), `${adventure.id}: ${id}`).toEqual({
           type: 'next',
           levelId: adventure.levelIds[i + 1],
@@ -303,7 +316,7 @@ describe('resolveNextAction (adventure-flow-and-map-guidance T2: "an unfinished 
     expect(resolveNextAction('night4', {})).toEqual({ type: 'close', levelId: 'night4' })
   })
 
-  it('duck-trail4 now closes with its own rescue beat (T8) — never routes to deduce (D2: the auto-route is retired)', () => {
+  it('duck-trail4 (the LAST level, not the deduction gate) now closes with its own rescue beat (T8) — resolveCloseAction is tried first, so the deduction gate never fires here', () => {
     const action = resolveNextAction('duck-trail4', recordsWith(DUCK_TRAIL_IDS, 1))
     expect(action).toEqual({ type: 'close', levelId: 'duck-trail4' })
     expect(action.type).not.toBe('deduce')
@@ -348,6 +361,58 @@ describe('resolveNextAction (adventure-flow-and-map-guidance T2: "an unfinished 
     for (const id of ['glass2', 'sand2', 'glass4', 'sand4']) {
       expect(resolveNextAction(id, {}), id).toEqual({ type: 'next', levelId: nextLevelId(id) })
     }
+  })
+})
+
+// [T21, `docs/19` §2.3/§7 slice 3] The duck's own deduction gate
+// (`zoo/adventures.ts`'s `deduction: { after: 'duck-trail2', caseId: 'duck'
+// }`), the one adventure that declares it today. `duck-trail1` is NOT the
+// gate (it is covered by the generic sweep above, unaffected); this block
+// is only what changes right at `duck-trail2`.
+describe("resolveNextAction: the duck's deduction gate sits between duck-trail2 and duck-trail3", () => {
+  it('unsolved: finishing duck-trail2 detours to deduce, carrying duck-trail3 as afterLevelId', () => {
+    expect(resolveNextAction('duck-trail2', {})).toEqual({
+      type: 'deduce',
+      caseId: 'duck',
+      afterLevelId: 'duck-trail3',
+    })
+  })
+
+  it('unsolved even with duck-trail1 already filed: only the case\'s own solved pseudo-record skips the gate, not ordinary trail progress', () => {
+    expect(resolveNextAction('duck-trail2', recordsWith(['duck-trail1'], 1))).toEqual({
+      type: 'deduce',
+      caseId: 'duck',
+      afterLevelId: 'duck-trail3',
+    })
+  })
+
+  it("solved (duck-deduce filed): a replay of duck-trail2 continues straight to duck-trail3, never re-asking a solved case", () => {
+    const records = recordsWith(['duck-deduce'], 1)
+    expect(resolveNextAction('duck-trail2', records)).toEqual({ type: 'next', levelId: 'duck-trail3' })
+  })
+
+  it('duck-trail1 (not the gate) is unaffected, solved or not', () => {
+    expect(resolveNextAction('duck-trail1', {})).toEqual({ type: 'next', levelId: 'duck-trail2' })
+    expect(resolveNextAction('duck-trail1', recordsWith(['duck-deduce'], 1))).toEqual({
+      type: 'next',
+      levelId: 'duck-trail2',
+    })
+  })
+})
+
+describe("nextView: deduce carries afterLevelId through (T21)", () => {
+  it('threads afterLevelId from the action into the view, so GameScreen can resume the adventure once solved', () => {
+    expect(
+      nextView(playing('duck-trail2'), { type: 'deduce', caseId: 'duck', afterLevelId: 'duck-trail3' }),
+    ).toEqual({ view: 'deduce', caseId: 'duck', afterLevelId: 'duck-trail3' })
+  })
+
+  it('leaves afterLevelId undefined for the dev deep link (?nivel=deduccion), which carries none', () => {
+    expect(nextView(playing('duck-trail2'), { type: 'deduce', caseId: 'duck' })).toEqual({
+      view: 'deduce',
+      caseId: 'duck',
+      afterLevelId: undefined,
+    })
   })
 })
 
