@@ -273,6 +273,12 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
       'trail2',
       'trail3',
       'trail4',
+      // [T27, `docs/19` §2.3/§3 monos row] `monkey1`/`monkey2` are the
+      // monkeys case's own two pistas levels (stand-in `feather`/`corn`
+      // clues, `docs/20` B13 pending) — `monkey3`/`monkey4` carry no clue
+      // at all (repurposed to `collect`, the same duck-trail3/4 pattern).
+      'monkey1',
+      'monkey2',
       // The fish's own four garland levels (`promised-animals` P2): they
       // carry a real `clue` now (bubble), so this catalog-wide filter picks
       // them up automatically, same as every trail above — the per-level
