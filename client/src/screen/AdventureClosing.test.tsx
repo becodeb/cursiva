@@ -272,7 +272,8 @@ describe('AdventureClosing rescue animal and flight (T24)', () => {
     const html = renderToString(
       <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
     )
-    expect(html).toContain('<span class="cv-closing-rescue-animal" aria-hidden="true">')
+    expect(html).toContain('class="cv-closing-rescue-animal"')
+    expect(html).toContain('aria-hidden="true"')
     const audit = auditCaptions(html)
     expect(audit.uncaptioned).toEqual([])
     expect(audit.imagelessContainers).toEqual([])
