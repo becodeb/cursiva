@@ -49,7 +49,13 @@ describe('AdventureClosing (main-screen spec "AdventureClosing Screen Renders th
       <AdventureClosing adventure={sendero} beat={sendero.closingBeat![0]} onContinue={() => {}} />,
     )
     expect(html).toContain('html, body, #root { margin: 0; height: 100%; }')
-    expect(html).toContain('.cv-closing { height: 100dvh;')
+    // T18 (odd/tasks/prewriting-stage-completion.md): the screen is now a
+    // full-viewport positioned stage (a full-bleed backdrop behind a
+    // corner-anchored octopus, `AdventureClosing.tsx`'s own header) rather
+    // than a centred flex box, so `.cv-closing` gained `position: relative`
+    // ahead of `height: 100dvh` — still the same "owns the viewport, no
+    // browser default margin" contract this test's own name describes.
+    expect(html).toContain('.cv-closing { position: relative; height: 100dvh;')
   })
 
   it("renders beat.art's href and beat.line for sendero's first beat", () => {
