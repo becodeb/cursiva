@@ -493,8 +493,19 @@ export function releasedRevealState(
   // `revealTick`): this rebuild exists to re-score off RAW points, not to
   // re-run the live growth animation, so every stroke in the snapshot is
   // folded at the SAME moment rather than at N slightly different reads of
-  // the clock.
-  const now = Date.now()
+  // the clock. `performance.now()`, NOT `Date.now()`: `canvas/TraceCanvas.tsx`'s
+  // own rAF loop stamps `onFrame`'s `timeMs` (and therefore every OTHER
+  // `revealTick` call site's `now`, and `animNow`'s own clock below) from
+  // `performance.now()` — a page-relative clock starting near 0, not the
+  // Unix epoch. Stamping `litAt`/`completeAt` from `Date.now()` here would
+  // put them on a completely different scale (~1.7e12 apart), so every
+  // later `elapsed = animNow - litAt` would be a huge negative number that
+  // `growthFraction` clamps to 0 forever — a found object's own grow-in
+  // (and the completion wash) would never advance past radius 0, because
+  // `onRelease` (this function's one caller) runs on EVERY stroke release
+  // and overwrites `revealState` wholesale, right after the live fold had
+  // already stamped it correctly.
+  const now = performance.now()
   let next = EMPTY_REVEAL
   for (const stroke of snapshot) {
     next = revealTick(next, stroke, true, reveal, width, now)
@@ -1682,8 +1693,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // (`isLightAnimating`) and only every `LIGHT_ANIM_TICK_MS` — a plain idle
   // level (the overwhelming majority of every frame ever sampled here)
   // costs one `Map`/`Set` scan over at most a handful of found objects, no
-  // `setState` at all.
-  const [animNow, setAnimNow] = useState<number>(() => Date.now())
+  // `setState` at all. `performance.now()`, matching `onFrame`'s own
+  // `timeMs`/`releasedRevealState`'s own clock (their headers explain why
+  // `Date.now()` here would be a scale mismatch, not just a cosmetic one).
+  const [animNow, setAnimNow] = useState<number>(() => performance.now())
   const revealStateRef = useRef(revealState)
   useEffect(() => {
     revealStateRef.current = revealState
