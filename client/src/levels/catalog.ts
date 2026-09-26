@@ -206,6 +206,75 @@ function snakeHorizontalPieces(): readonly ArtCorridorPiece[] {
   ]
 }
 
+/**
+ * `snake2`'s own vertical arrangement (T20 follow-up, orchestrator screenshot
+ * review, docs/18 T1 "never the same drawing twice in a row"): with the drag
+ * step gone, `snake2` rendered IDENTICAL to `snake1` — the same three
+ * horizontal snakes in the same top-to-bottom small→medium→large stack.
+ * docs/19 §3.1's own preferred fix ("sizes in another order") applies here:
+ * LARGE on top, medium in the middle, SMALL on the bottom — the reverse of
+ * `snakeHorizontalPieces()` — while every piece keeps `rotate: 0` (still
+ * traced head-to-tail, LOW x to HIGH x — never right-to-left, cursive prep)
+ * and the `paths`/`artCorridor` ARRAY stays in [small, medium, large] order,
+ * so `enforceOrder`'s own small→large seriation (and the colour mechanic's
+ * `nextWakingIndex` pulse) is untouched: only WHERE each piece sits changes,
+ * never which one traces first.
+ *
+ * The two vertical gaps are NOT interchangeable — re-derived by measurement,
+ * not by guessing a symmetric flip. `snakeHorizontalPieces()`'s own comment
+ * documents that its small-medium gap (180.2) needed a `+53` margin above
+ * the bare sum of half-heights to clear C3/C4, while its medium-large gap
+ * (174.4) only needed `+28` — i.e. SMALL's own wave needs more clearance
+ * against medium than LARGE's does. A naive mirror (reusing 180.2 for
+ * large-medium and 174.4 for medium-small) would put medium-small at a
+ * gap 5.8 units short of what small actually needs, failing C3/C4 the same
+ * way a zero-gap stack does. So this arrangement keeps small's own PAIRING
+ * distance to medium (180.2) and large's own PAIRING distance to medium
+ * (174.4) exactly as measured — only the DIRECTION each sits in flips
+ * (large above medium instead of below; small below medium instead of
+ * above) — verified against the real geometry by `catalog.test.ts`'s C1-C6
+ * suite and its own "quiet sand band" regression, both extended to cover
+ * this arrangement rather than skipping it for `snake2`.
+ */
+function snakeHorizontalPiecesReordered(): readonly ArtCorridorPiece[] {
+  const MEDIUM_Y = 332.9 // unchanged from `snakeHorizontalPieces()` — the middle slot
+  const LARGE_MEDIUM_GAP = 178.4 // see MEDIUM_SMALL_GAP's own comment: widened from 174.4
+  // 180.2 (small's own gap to medium in `snakeHorizontalPieces()`) measured
+  // C4 at 118.12 here — short of the required >120 by 1.88 units. The two
+  // arrangements are NOT identical even though the pairing distance is the
+  // same number: `snakeHorizontalPieces()` pairs small-above-medium with
+  // medium ALSO below large, while this arrangement pairs medium between
+  // large-above and small-below — a different THIRD neighbour changes which
+  // point of each wave sits closest to which, so the same centre-to-centre
+  // gap does not guarantee the same worst-case closest approach. Widened by
+  // 3 (to 183.2) for headroom over the 1.88 measured shortfall, then
+  // reconfirmed against the real geometry, not assumed.
+  const MEDIUM_SMALL_GAP = 183.2
+  return [
+    {
+      art: SECTOR_ADVENTURE_ART.snakeSmall,
+      greyArt: SECTOR_ADVENTURE_ART.snakeSmallGrey,
+      spine: 'snakeSmall',
+      span: 520,
+      at: { x: 446.04, y: MEDIUM_Y + MEDIUM_SMALL_GAP },
+    },
+    {
+      art: SECTOR_ADVENTURE_ART.snakeMedium,
+      greyArt: SECTOR_ADVENTURE_ART.snakeMediumGrey,
+      spine: 'snakeMedium',
+      span: 640,
+      at: { x: 446.04, y: MEDIUM_Y },
+    },
+    {
+      art: SECTOR_ADVENTURE_ART.snakeLarge,
+      greyArt: SECTOR_ADVENTURE_ART.snakeLargeGrey,
+      spine: 'snakeLarge',
+      span: 760,
+      at: { x: 446.04, y: MEDIUM_Y - LARGE_MEDIUM_GAP },
+    },
+  ]
+}
+
 /** `snake3`'s three VERTICAL pieces, at `s_L = 0.72` (design.md §3.4: three
  *  oblique snakes fit the sheet at no scale that also clears the phase-1
  *  span guard; three vertical ones fit comfortably at 0.72). `rotate: -90`
@@ -1170,12 +1239,18 @@ const PHASE_1: LevelConfig[] = [
     resetOnContact: false,
     carrier: false,
     feedback: SNAKE_FEEDBACK,
-    paths: snakeHorizontalPieces().map(snakePathD),
+    // T20 follow-up: `snakeHorizontalPiecesReordered()`, not
+    // `snakeHorizontalPieces()` — large on top, small on the bottom (docs/19
+    // §3.1's "sizes in another order"), so this level no longer renders
+    // identically to `snake1` now that the drag step is gone. `paths` and
+    // `artCorridor` share the SAME array (art-corridor spec's "one shared
+    // placement function"), so the two can never disagree about geometry.
+    paths: snakeHorizontalPiecesReordered().map(snakePathD),
     corridorWidth: 34, // lowered from 42 alongside snake1's own correction
     rules: { ...rules(1, false, true, 0), minAccuracy: 62 },
     showGuide: true,
     letters: [],
-    artCorridor: snakeHorizontalPieces(),
+    artCorridor: snakeHorizontalPiecesReordered(),
   },
   {
     id: 'snake3',

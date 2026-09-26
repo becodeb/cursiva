@@ -1635,6 +1635,17 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     }
   })
 
+  // T20 follow-up (orchestrator screenshot review): the shipped default
+  // hollow diamond (`goalMarkerOf`) used to sit on the big snake's own tail
+  // — meaningless on its own (docs/18 D20) and doubly so once the snake's
+  // OWN body turning coloured already is the goal.
+  it('renders NO endMarker (the default hollow diamond) on any of the four snake levels either', () => {
+    for (const id of ['snake1', 'snake2', 'snake3', 'snake4'] as const) {
+      render(getLevel(id))
+      expect(traceCanvasProbe.current?.endMarker, id).toBeUndefined()
+    }
+  })
+
   it('sends the octopus on a world-only level (inDetectiveWorld), but no lamp (endArt stays gated on isCaseTrail alone in S1)', () => {
     render(makeWorldOnlyLevel())
     const art = traceCanvasProbe.current?.startArt as Art

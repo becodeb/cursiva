@@ -2896,9 +2896,18 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // collect item, drawn entirely through vertexArt/vertexArtDeparting; a
   // diamond popping into that exact spot once the item hops away is the
   // same "two pictures in one place" defect this follow-up exists to fix.
+  //
+  // T20 follow-up (orchestrator screenshot review): the SAME abstract hollow
+  // diamond used to sit on the big snake's own tail on every snake level —
+  // `docs/18` D20 already flagged that shape as meaningless on its own, and
+  // once a snake's own body IS the goal (it turns and stays coloured), a
+  // second, unrelated rhombus parked on the tail reads as clutter with no
+  // relationship to what just happened. Suppressed the same way `collectDef`
+  // already is, for every level this task's own colour mechanic applies to
+  // (`hasSnakeColour`, never a hardcoded snake id).
   const endMarker = useMemo(
-    () => (level.kind === 'path' && !collectDef ? goalMarkerOf(target) : undefined),
-    [level.kind, target, collectDef],
+    () => (level.kind === 'path' && !collectDef && !hasSnakeColour ? goalMarkerOf(target) : undefined),
+    [level.kind, target, collectDef, hasSnakeColour],
   )
   // Registry art standing where the route ends, in place of the two hollow
   // diamonds AND (T6, adventure-flow-and-map-guidance) the case lamp itself

@@ -1927,7 +1927,7 @@ describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
     for (const id of SNAKE_IDS) expect(getLevel(id).arrange, id).toBeUndefined()
   })
 
-  it("snake1/snake2's horizontal boxes sit as close to fondo arena.png's own quiet sand band as C3/C4 allows — the SMALL snake fully inside it, the LARGE one's remaining rock overlap bounded and disclosed, not silently regressed (docs/13 §4 decision 3, design.md §3.6)", () => {
+  it("snake1's horizontal boxes sit as close to fondo arena.png's own quiet sand band as C3/C4 allows — the SMALL snake fully inside it, the LARGE one's remaining rock overlap bounded and disclosed, not silently regressed (docs/13 §4 decision 3, design.md §3.6)", () => {
     // The quiet band was measured directly off the source PNG (rows 204-819
     // are luma 204.4 with zero row-to-row variance — the uniform sand; the
     // rock/palm bands on either side are not) and mapped through
@@ -1945,20 +1945,49 @@ describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
     // §3.6 chose instead: the small snake fully inside the band, the large
     // one's overlap reduced (from ~99 to at most 80 units, still a real,
     // disclosed sliver) rather than eliminated.
+    //
+    // `snake2` is asserted separately below: T20 follow-up reordered it to
+    // large-top/small-bottom (docs/19 §3.1, "sizes in another order"), so
+    // it is a DIFFERENT (still C3/C4-compatible) shape against this same
+    // band, not this one's mirror.
     const QUIET_TOP = 99.48
     const QUIET_BOTTOM = 499.87
-    for (const id of ['snake1', 'snake2'] as const) {
-      const level = getLevel(id)
-      const [small, , large] = level.artCorridor!
-      const smallHeight = (small.span * small.art.h) / small.art.w
-      const smallTop = small.at.y - DRAWN_SPINE[small.spine].mid * smallHeight
-      expect(smallTop, `${id} small top`).toBeGreaterThanOrEqual(QUIET_TOP)
-      expect(smallTop + smallHeight, `${id} small bottom`).toBeLessThanOrEqual(QUIET_BOTTOM)
+    const id = 'snake1'
+    const level = getLevel(id)
+    const [small, , large] = level.artCorridor!
+    const smallHeight = (small.span * small.art.h) / small.art.w
+    const smallTop = small.at.y - DRAWN_SPINE[small.spine].mid * smallHeight
+    expect(smallTop, `${id} small top`).toBeGreaterThanOrEqual(QUIET_TOP)
+    expect(smallTop + smallHeight, `${id} small bottom`).toBeLessThanOrEqual(QUIET_BOTTOM)
 
-      const largeHeight = (large.span * large.art.h) / large.art.w
-      const largeBottom = large.at.y - DRAWN_SPINE[large.spine].mid * largeHeight + largeHeight
-      expect(largeBottom - QUIET_BOTTOM, `${id} large overlap past quiet bottom`).toBeLessThanOrEqual(80)
-    }
+    const largeHeight = (large.span * large.art.h) / large.art.w
+    const largeBottom = large.at.y - DRAWN_SPINE[large.spine].mid * largeHeight + largeHeight
+    expect(largeBottom - QUIET_BOTTOM, `${id} large overlap past quiet bottom`).toBeLessThanOrEqual(80)
+  })
+
+  it("T20 follow-up: snake2's REORDERED boxes (large on top, small on the bottom) sit against the same quiet sand band with bounded, disclosed overlap on BOTH ends — large past the top, small past the bottom (docs/19 §3.1, design.md §3.6's own C3/C4-vs-quiet-band tradeoff, restated for the flipped order)", () => {
+    const QUIET_TOP = 99.48
+    const QUIET_BOTTOM = 499.87
+    const level = getLevel('snake2')
+    const [small, , large] = level.artCorridor!
+
+    // LARGE now sits at the top: measured 77.22, i.e. 22.26 units past
+    // QUIET_TOP into the rock band above — a real, disclosed sliver, well
+    // under the family's own 80-unit ceiling for this class of overlap.
+    const largeHeight = (large.span * large.art.h) / large.art.w
+    const largeTop = large.at.y - DRAWN_SPINE[large.spine].mid * largeHeight
+    expect(QUIET_TOP - largeTop, 'snake2 large overlap past quiet top').toBeLessThanOrEqual(30)
+    expect(largeTop + largeHeight, 'snake2 large bottom').toBeLessThanOrEqual(QUIET_BOTTOM)
+
+    // SMALL now sits at the bottom: measured 569.07, i.e. 69.20 units past
+    // QUIET_BOTTOM — comparable to (and under) the 80-unit ceiling
+    // `snake1`'s own large overlap already established for this family.
+    const smallHeight = (small.span * small.art.h) / small.art.w
+    const smallTop = small.at.y - DRAWN_SPINE[small.spine].mid * smallHeight
+    expect(smallTop, 'snake2 small top').toBeGreaterThanOrEqual(QUIET_TOP)
+    expect(smallTop + smallHeight - QUIET_BOTTOM, 'snake2 small overlap past quiet bottom').toBeLessThanOrEqual(
+      80,
+    )
   })
 
   it('R7: arc length is non-decreasing within the horizontal group (snake1 <= snake2 <= snake4); snake3 is not compared', () => {
