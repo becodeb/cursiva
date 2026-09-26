@@ -41,7 +41,8 @@ import {
 } from '../zoo/rescueFlight'
 import { isSectorDebug } from '../canvas/devMode'
 import { earnedItems } from '../zoo/backpack'
-import { recordSeenStars, seenStars, starsIncreased, totalStars } from '../zoo/stars'
+import { STARS_VISIBLE_IN_HUD, recordSeenStars, seenStars, starsIncreased, totalStars } from '../zoo/stars'
+import DetectiveNotebook from './DetectiveNotebook'
 import {
   PLAZA,
   PLAZA_CENTRE,
@@ -148,13 +149,12 @@ html, body, #root { margin: 0; height: 100%; }
 .cv-zoo-octopus-control { cursor: pointer; }
 .cv-zoo-octopus-control:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 6px; }
 .cv-zoo-hud { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 2% 3%; box-sizing: border-box; pointer-events: none; }
-.cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right, .cv-zoo-hud-right-group { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
+.cv-zoo-hud-left, .cv-zoo-hud-right, .cv-zoo-hud-right-group { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
 /* Each HUD group is a pill so it reads as interface, not as scenery: bare
    portraits at the top centre were drawn straight over the montanas and the
    animals standing there (measured at 1024x768 once five animals were back),
    and the snake alone rendered 173px wide at height 40 (aspect 4.32). Square
-   30px boxes with object-fit keep every portrait the same footprint, and an
-   empty group (nothing recovered yet) draws no pill at all.
+   30px boxes with object-fit keep every portrait the same footprint.
 
    T7 rework #2 (orchestrator review, "restyle them to the same marker
    style as the level chrome and the sound button"): warm paper fill and a
@@ -166,10 +166,26 @@ html, body, #root { margin: 0; height: 100%; }
    as a literal here, unlike SpeakButton.tsx's own restatement: this file
    already imports across the canvas/ boundary (placeArt, devMode) so a
    third import adds no new layering, where voice/ deliberately stays a
-   leaf module. */
-.cv-zoo-hud-left, .cv-zoo-hud-mid, .cv-zoo-hud-right { background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; border-radius: 999px; padding: 4px 10px; }
-.cv-zoo-hud-mid:empty { display: none; }
-.cv-zoo-hud-left img, .cv-zoo-hud-mid img { width: 30px; height: 30px; object-fit: contain; }
+   leaf module.
+
+   T23 (odd/tasks/prewriting-stage-completion.md, docs/19 §5.3): the
+   "recovered animals" pill (.cv-zoo-hud-mid) is GONE — the map already
+   stands every recovered animal at its own spot, and the notebook
+   (DetectiveNotebook.tsx, opened from the backpack pill below) now says
+   the same thing at a size a child can actually read. Nothing here
+   replaces its old middle slot; .cv-zoo-hud keeps working as a two-item
+   space-between row (backpack / mute+star) exactly like justify-content:
+   space-between already assumed for the common case (this pill and
+   .cv-zoo-hud-right-group opposite it) — an empty middle slot was never
+   load-bearing for that layout.
+   NO BACKTICKS in this block -- one inside a comment ends this template
+   literal early (this file's own top-of-file note). */
+.cv-zoo-hud-left, .cv-zoo-hud-right { background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; border-radius: 999px; padding: 4px 10px; }
+.cv-zoo-hud-left img { width: 30px; height: 30px; object-fit: contain; }
+/* The backpack pill is now a real <button> (T23: it opens the notebook) —
+   reset the browser's own button chrome so it keeps reading as the exact
+   same pill it always was. */
+.cv-zoo-hud-left { cursor: pointer; font: inherit; }
 /* T8 item 3 (odd/tasks/prewriting-stage-completion.md): the star pill pops
    and flashes once, the instant stars reads higher than the session
    remembers (zoo/stars.ts's starsIncreased/seenStars — ZooMap remounts
@@ -599,11 +615,18 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   const starsJustIncreased = starsIncreased(seenStars(), stars)
   const backpack = earnedItems(records)
   // Every animal standing in the zoo right now, across every sector — the
-  // SVG world shows each one at its own `animalSpot`; the HUD row below
-  // shows the same set as a small summary of "who's been found so far".
+  // SVG world shows each one at its own `animalSpot` (T23 dropped the HUD's
+  // own small-icon echo of this same list, `docs/19` §5.3: "el mapa y la
+  // libreta ya lo dicen").
   const recovered = SECTORS.flatMap((sector) => animalPlacements(sector, records))
   const openSectors = SECTORS.filter((sector) => sector.hit && isOpen(sector, records))
-  const statusText = `Mapa del zoo: ${openSectors.length} sectores abiertos, ${stars} estrellas y ${recovered.length} animales recuperados.`
+  // T23: stars drop out of the spoken status too — `STARS_VISIBLE_IN_HUD`
+  // hides the whole idea from this stage, not just its pixel pill, so an
+  // assistive-tech listener should not hear a number the sighted child
+  // never sees either.
+  const statusText = STARS_VISIBLE_IN_HUD
+    ? `Mapa del zoo: ${openSectors.length} sectores abiertos, ${stars} estrellas y ${recovered.length} animales recuperados.`
+    : `Mapa del zoo: ${openSectors.length} sectores abiertos y ${recovered.length} animales recuperados.`
 
   // The bubble's own content and box, unified over the ordinary (spotlight or
   // `recentlyDiscovered`-fallback) case and the finale — one value each,
@@ -639,6 +662,13 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   const bubbleKey = finale ? 'finale' : (bubbleSector?.id ?? null)
   const [bubbleVisible, setBubbleVisible] = useState(true)
   const [reopenNonce, setReopenNonce] = useState(0)
+  // T23 (odd/tasks/prewriting-stage-completion.md, docs/19 §5.3): the
+  // detective's notebook, opened from the backpack pill and closed from its
+  // own close button. Closed on every fresh mount, the same reasoning
+  // `bubbleVisible`'s own header gives for starting `true` — `App.tsx`
+  // never keeps `ZooMap` mounted across a trip into a level, so there is no
+  // stale "left it open" state to preserve across a visit.
+  const [notebookOpen, setNotebookOpen] = useState(false)
   useEffect(() => {
     setBubbleVisible(true)
     // Voice narration (docs/18 D1/D4, §3 "Todo se escucha"; T7): the bubble
@@ -961,42 +991,67 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
             stage's own fixed 5:3 box (design.md §1) and inherit the
             document root's Nunito (`docs/09` §8) without redeclaring it. */}
         <div className="cv-zoo-hud">
-          <div className="cv-zoo-hud-left">
+          {/* T23 (odd/tasks/prewriting-stage-completion.md, docs/19 §5.3):
+              the backpack pill is now a real button — the ONE HUD control
+              that still does something ("Mochila → Abre la libreta del
+              detective"). It keeps showing every earned tool beside the
+              backpack itself (unchanged from before this task), and now
+              also opens `DetectiveNotebook` on tap. */}
+          <button
+            type="button"
+            className="cv-zoo-hud-left"
+            aria-label="Abrir la libreta del detective"
+            onClick={() => setNotebookOpen(true)}
+          >
             <img src={ZOO_BACKPACK_ART.href} alt="" height={40} />
             {backpack.map((item) => (
               <img key={item.id} src={item.art.href} alt="" height={32} />
             ))}
-          </div>
-          <div className="cv-zoo-hud-mid">
-            {recovered.map((placed, i) => (
-              <img key={i} src={placed.art.href} alt="" height={40} />
-            ))}
-          </div>
+          </button>
           {/* T7 (docs/18 D1/§3): the mute toggle now shares this SLOT with
               the star pill, as a separate round control beside it rather
               than inside it — `.cv-zoo-hud-right-group` (ZOO_CSS) is what
               actually receives the row's own space-between position now, so
-              the star pill's own markup/class/background is untouched. */}
+              the star pill's own markup/class/background is untouched.
+              T23 (docs/19 §5.2 decision 2(a)): the star pill itself is now
+              gated behind `STARS_VISIBLE_IN_HUD` — off in this stage, so
+              only `VoiceToggle` renders in this slot; `stars`/
+              `starsJustIncreased` above still compute (nothing about
+              storing or deriving them changed), they are just never drawn
+              while the flag is off. */}
           <div className="cv-zoo-hud-right-group">
             <VoiceToggle />
-            <div className="cv-zoo-hud-right">
-              {/* The ONLY way a number may sit beside a picture in this app —
-                  `CaptionedArt`'s `label` is required at type level, which is
-                  what makes a bare "12" impossible to ship by accident.
-                  T8 item 3: `cv-zoo-star-pop` only while `starsJustIncreased`
-                  (a genuine rise since the session last showed a total) — the
-                  ordinary case (an unchanged count, or the very first map
-                  this session) never pops. */}
-              <CaptionedArt
-                art={ZOO_STAR_ART}
-                label={String(stars)}
-                size={40}
-                className={starsJustIncreased ? 'cv-zoo-star-pop' : undefined}
-              />
-              {starsJustIncreased && <span className="cv-zoo-star-spark" aria-hidden="true" />}
-            </div>
+            {STARS_VISIBLE_IN_HUD && (
+              <div className="cv-zoo-hud-right">
+                {/* The ONLY way a number may sit beside a picture in this app —
+                    `CaptionedArt`'s `label` is required at type level, which is
+                    what makes a bare "12" impossible to ship by accident.
+                    T8 item 3: `cv-zoo-star-pop` only while `starsJustIncreased`
+                    (a genuine rise since the session last showed a total) — the
+                    ordinary case (an unchanged count, or the very first map
+                    this session) never pops. */}
+                <CaptionedArt
+                  art={ZOO_STAR_ART}
+                  label={String(stars)}
+                  size={40}
+                  className={starsJustIncreased ? 'cv-zoo-star-pop' : undefined}
+                />
+                {starsJustIncreased && <span className="cv-zoo-star-spark" aria-hidden="true" />}
+              </div>
+            )}
           </div>
         </div>
+        {/* T23: the detective's notebook overlay — mounted only while open,
+            a sibling of the HUD so it draws above the stage but below
+            nothing else this screen has (no other overlay competes with it).
+            `.cv-zoo-stage` is `position: relative` already (ZOO_CSS), which
+            is what lets `DetectiveNotebook`'s own `position: absolute;
+            inset: 0` cover exactly the 5:3 stage, never the whole viewport
+            (matching every other HUD/bubble element's own coordinate
+            space). */}
+        {notebookOpen && (
+          <DetectiveNotebook records={records} onClose={() => setNotebookOpen(false)} />
+        )}
 
         {/* The map bubble (T4, D4; content source T8, D27/D28; the finale
             branch below, promised-animals task B). Its BOX comes from

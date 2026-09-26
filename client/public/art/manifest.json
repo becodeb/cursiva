@@ -35,6 +35,12 @@
     "h": 320,
     "w": 320
   },
+  "animal-mono-silhouette": {
+    "bytes": 1342,
+    "file": "art/animal-mono-silhouette.png",
+    "h": 320,
+    "w": 320
+  },
   "animal-pato": {
     "bytes": 96576,
     "file": "art/animal-pato.png",
@@ -53,9 +59,21 @@
     "h": 358,
     "w": 448
   },
+  "animal-pez-silhouette": {
+    "bytes": 6631,
+    "file": "art/animal-pez-silhouette.png",
+    "h": 358,
+    "w": 448
+  },
   "animal-tortuga": {
     "bytes": 61519,
     "file": "art/animal-tortuga.png",
+    "h": 292,
+    "w": 448
+  },
+  "animal-tortuga-silhouette": {
+    "bytes": 16696,
+    "file": "art/animal-tortuga-silhouette.png",
     "h": 292,
     "w": 448
   },
@@ -359,6 +377,12 @@
     "h": 230,
     "w": 256
   },
+  "sector-bee-silhouette": {
+    "bytes": 10642,
+    "file": "art/sector-bee-silhouette.png",
+    "h": 230,
+    "w": 256
+  },
   "sector-chest": {
     "bytes": 34003,
     "file": "art/sector-chest.png",
@@ -368,6 +392,12 @@
   "sector-dolphin": {
     "bytes": 27980,
     "file": "art/sector-dolphin.png",
+    "h": 418,
+    "w": 448
+  },
+  "sector-dolphin-silhouette": {
+    "bytes": 17530,
+    "file": "art/sector-dolphin-silhouette.png",
     "h": 418,
     "w": 448
   },
@@ -1353,6 +1383,12 @@
     "thickness": 0.3508771929824561,
     "traceFrom": 0.21747967479674796,
     "traceTo": 0.9471544715447154,
+    "w": 492
+  },
+  "sector-snake-medium-silhouette": {
+    "bytes": 10487,
+    "file": "art/sector-snake-medium-silhouette.png",
+    "h": 114,
     "w": 492
   },
   "sector-snake-small": {

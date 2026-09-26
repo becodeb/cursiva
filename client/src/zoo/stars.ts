@@ -13,6 +13,20 @@
 import { APPROVALS_TO_UNLOCK, type LevelRecord } from '../game/types'
 import { REAL_LEVEL_IDS, type Records } from './sectors'
 
+/**
+ * Whether the map's HUD shows the star pill at all (`odd/tasks/prewriting-
+ * stage-completion.md` T23, `docs/19_PROPUESTA_HISTORIA_Y_MECANICAS.md` §5.2,
+ * decision 2(a)): in this stage stars compete with the detective's notebook
+ * for the child's attention and today buy nothing, so the counter is
+ * hidden — but `starsFor`/`totalStars` below keep computing and
+ * `LevelProgressStore` keeps storing every approval exactly as before, so
+ * the cursive-letters stage (`docs/15`) can read the SAME history back once
+ * it gives a star something to buy. One flag, one read site
+ * (`screen/ZooMap.tsx`'s HUD), so showing them again later is a one-line
+ * change, never a data migration.
+ */
+export const STARS_VISIBLE_IN_HUD = false
+
 export function starsFor(record: LevelRecord): number {
   return Math.min(record.approvals, APPROVALS_TO_UNLOCK)
 }

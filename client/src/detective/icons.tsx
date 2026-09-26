@@ -89,3 +89,75 @@ export function ContinueIcon() {
     </IconSvg>
   )
 }
+
+/** Closes an overlay (`screen/DetectiveNotebook.tsx`, T23,
+ *  `odd/tasks/prewriting-stage-completion.md`): a plain X, two crossed
+ *  strokes — the same wordless-glyph convention every other icon in this
+ *  file follows (aria-hidden, named by the button that wraps it). */
+export function CloseIcon() {
+  return (
+    <IconSvg>
+      <path
+        d="M11,11 L29,29 M29,11 L11,29"
+        fill="none"
+        stroke={ICON_INK}
+        strokeWidth={ICON_STROKE_WIDTH}
+        strokeLinecap="round"
+      />
+    </IconSvg>
+  )
+}
+
+/** The notebook's own title mark (`screen/DetectiveNotebook.tsx` T23
+ *  follow-up, orchestrator screenshot review: "a title drawn as the
+ *  Pulpito's lupa + a notebook icon — no reading needed"): a spiral-bound
+ *  pad, drawn the same ink-outline way every other icon here is. No fixed
+ *  `width`/`height` (unlike `IconSvg`'s other glyphs) — this one is sized by
+ *  its caller's own CSS, next to the lupa picture at the top of the page,
+ *  never at this file's fixed 26px control-icon size. */
+export function NotebookPadIcon() {
+  return (
+    <svg viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+      <rect x="8" y="4" width="25" height="32" rx="3" fill="none" stroke={ICON_INK} strokeWidth={3} />
+      <circle cx="8" cy="10" r="1.6" fill={ICON_INK} />
+      <circle cx="8" cy="17" r="1.6" fill={ICON_INK} />
+      <circle cx="8" cy="24" r="1.6" fill={ICON_INK} />
+      <circle cx="8" cy="31" r="1.6" fill={ICON_INK} />
+      <line x1="14" y1="13" x2="28" y2="13" stroke={ICON_INK} strokeWidth={2} strokeLinecap="round" />
+      <line x1="14" y1="20" x2="28" y2="20" stroke={ICON_INK} strokeWidth={2} strokeLinecap="round" />
+      <line x1="14" y1="27" x2="24" y2="27" stroke={ICON_INK} strokeWidth={2} strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** Stands in for a missing animal whose OWN colour art is a placeholder
+ *  (`detective/assets.ts`'s `PLACEHOLDER_ZOO_ANIMALS` — today only `mono`,
+ *  `docs/20_PEDIDOS_DE_ARTE_TANDA_3.md` B10): the derived silhouette of a
+ *  flat sign block is a featureless black square, which read as broken art
+ *  rather than "an animal not yet found" (orchestrator screenshot review).
+ *  A paw print, drawn the same ink-outline way every other icon here is —
+ *  never a photo, never new art. `data-cv-picture="true"` is what lets this
+ *  count as the notebook card's own picture for `captionAudit.ts`'s
+ *  invariant: that module only recognises an `<img>`/`<image href>` by
+ *  default, because every other picture in this app is raster; this is the
+ *  first drawn-in-code picture standing ALONE as a card's own image (not a
+ *  control glyph beside an already-captioned picture, `icons.tsx`'s own
+ *  header case), so the audit needs one explicit, narrow opt-in rather than
+ *  treating every aria-hidden decorative glyph in the app as captioned art
+ *  by accident. */
+export function PawPrintIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      aria-hidden="true"
+      focusable="false"
+      data-cv-picture="true"
+      className={className}
+    >
+      <ellipse cx="50" cy="64" rx="24" ry="20" fill="none" stroke={ICON_INK} strokeWidth="6" />
+      <circle cx="24" cy="34" r="11" fill="none" stroke={ICON_INK} strokeWidth="6" />
+      <circle cx="50" cy="21" r="11" fill="none" stroke={ICON_INK} strokeWidth="6" />
+      <circle cx="76" cy="34" r="11" fill="none" stroke={ICON_INK} strokeWidth="6" />
+    </svg>
+  )
+}

@@ -3,9 +3,9 @@
 // the same convention every other detective-mode/zoo-map screen test uses.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import AdventureIntro from './AdventureIntro'
+import AdventureIntro, { introSpokenLine } from './AdventureIntro'
 import { auditCaptions } from '../detective/captionAudit'
-import { ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import { ANDEAN_HAT_ART, ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
 import { ADVENTURES } from '../zoo/adventures'
 
 const adventure = ADVENTURES[0] // the duck
@@ -159,5 +159,42 @@ describe('AdventureIntro idle life and bubble pop-in (prewriting-stage-completio
     expect(html).toContain('class="cv-bubble-pop"')
     expect(html).toContain('cv-bubble-pop-in')
     expect(html).toContain('@media (prefers-reduced-motion: reduce) { .cv-bubble-pop')
+  })
+})
+
+// T23 (odd/tasks/prewriting-stage-completion.md, docs/19 §5.1): tools
+// handed out BEFORE the adventure that uses them — the llama row is the
+// one entry that carries `introTool` today (the hat).
+describe('AdventureIntro tool handoff (prewriting-stage-completion T23)', () => {
+  const llama = ADVENTURES[2]
+  const duck = ADVENTURES[0]
+
+  it('introSpokenLine appends the tool line to the intro for a row that hands one out', () => {
+    expect(introSpokenLine(llama)).toBe(
+      'Las llamas están en los picos. ¿Subimos a buscarlas? Antes de subir, ponete el gorro de pastor.',
+    )
+  })
+
+  it('introSpokenLine is just the bare intro for a row with no introTool', () => {
+    expect(introSpokenLine(duck)).toBe(duck.intro)
+  })
+
+  it("renders the hat's own picture and caption on the llama entry, outside the speech bubble", () => {
+    const html = renderToString(<AdventureIntro adventure={llama} onStart={() => {}} />)
+    expect(html).toContain('class="cv-intro-tool"')
+    expect(html).toContain(`href="${ANDEAN_HAT_ART.href}"`)
+    expect(html).toContain('class="cv-caption">Gorro</span>')
+  })
+
+  it('renders no tool badge at all for a row with no introTool (the duck)', () => {
+    const html = renderToString(<AdventureIntro adventure={duck} onStart={() => {}} />)
+    expect(html).not.toContain('class="cv-intro-tool"')
+  })
+
+  it('keeps auditCaptions green on the llama entry (the tool badge is properly captioned)', () => {
+    const html = renderToString(<AdventureIntro adventure={llama} onStart={() => {}} />)
+    const audit = auditCaptions(html)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
   })
 })

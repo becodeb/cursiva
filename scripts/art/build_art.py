@@ -1296,6 +1296,42 @@ def main() -> None:
             print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
                   f'{manifest[key]["bytes"] / 1024:6.1f} KB')
 
+    # --- Detective's notebook animal silhouettes (T23, prewriting-stage-
+    # completion.md, `docs/19` §5 slice 6). A SECOND animal-silhouette pass,
+    # alongside T21's own (the deduction lineup's `animal-*.png` four,
+    # above): `zoo/notebook.ts`'s registry needs a silhouette for every OTHER
+    # real zoo animal too, so a missing one's own notebook page shows a
+    # silhouette instead of falling back to its full-colour art (which would
+    # give away an animal the child has not found yet). `pato` already has
+    # one from the T21 pass above (`animal-pato-silhouette.png`) and is not
+    # repeated here. Same technique as T21: read the file `OUT` already
+    # ships (never re-`prepare()`d from `art-source/`, so this can never
+    # drift from what the coloured art itself shows), `recolour` a COPY to
+    # one flat `INK` fill with `keep_ink=False` — every one of these nine is
+    # already a bare cutout with no contour of its own, `recolour`'s own
+    # docstring's exact case. Deliberately its own section, after every
+    # other pass in this function and touching no shared code, so it can
+    # never collide with another writer's own derivation elsewhere in this
+    # file (T20's snake grey pass, T21's own pass above, a future night/
+    # hedgehog pass).
+    # erizo/oveja/llama are emitted once by the T21/T25 pass above; the
+    # notebook reuses those files by reference (assets.ts), never a second copy.
+    for animal_file in (
+        'sector-snake-medium.png',  # vibora
+        'sector-bee.png',           # abeja
+        'sector-dolphin.png',       # delfin
+        'animal-pez.png',           # pez
+        'animal-tortuga.png',       # tortuga
+        'animal-mono.png',          # mono (placeholder sign art today)
+    ):
+        img = png.read_png(os.path.join(OUT, animal_file))
+        recolour(img, INK, keep_ink=False)
+        out_name = animal_file[:-4] + '-silhouette.png'
+        key = out_name[:-4]
+        manifest[key] = emit(out_name, img)
+        print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
+              f'{manifest[key]["bytes"] / 1024:6.1f} KB')
+
     total = sum(e['bytes'] for e in manifest.values())
     with open(os.path.join(OUT, 'manifest.json'), 'w') as fh:
         json.dump(manifest, fh, indent=2, sort_keys=True)
