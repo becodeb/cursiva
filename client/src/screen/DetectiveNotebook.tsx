@@ -97,7 +97,7 @@ export default function DetectiveNotebook({ records, onClose }: DetectiveNoteboo
                 : undefined
             }
           >
-            <CaptionedArt art={entry.art} label={entry.caption} size={64} />
+            <CaptionedArt art={entry.art} label={entry.caption} size={entry.size} />
           </button>
         ))}
       </div>

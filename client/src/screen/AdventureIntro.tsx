@@ -134,9 +134,13 @@ ${BUBBLE_POP_CSS}
    the "hear it again" button, so the two never collide. Deliberately its
    own tiny element rather than a second image inside .cv-intro-bubble
    (this file's own header explains why that bubble's placement math is not
-   safe to extend). NO BACKTICKS in this block -- one inside a comment ends
-   this template literal early (this file's own top-of-file note). */
-.cv-intro-tool { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; }
+   safe to extend). A warm-paper pill (the same marker style every other
+   HUD chrome in this app already uses, ZooMap.tsx's own HUD pills) rather
+   than a bare picture directly on the backdrop: found in browser QA — the
+   caption read as nearly illegible against a busy mountain backdrop with
+   no plate behind it. NO BACKTICKS in this block -- one inside a comment
+   ends this template literal early (this file's own top-of-file note). */
+.cv-intro-tool { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; border-radius: 16px; padding: 6px 10px; }
 .cv-intro-tool .cv-caption { font-size: 14px; font-weight: 700; color: #1e293b; }
 `
 

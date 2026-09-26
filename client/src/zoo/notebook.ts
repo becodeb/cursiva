@@ -75,6 +75,25 @@ export function isAnimalRescued(id: ZooAnimalId, records: Records): boolean {
   return !!appearsWhen && appearsWhen.length > 0 && appearsWhen.every((levelId) => isFiled(records, levelId))
 }
 
+/** The tallest a notebook cell's own picture may render (`CaptionedArt`'s
+ *  `size`, a HEIGHT). */
+const NOTEBOOK_ART_MAX_HEIGHT = 64
+/** The widest a notebook cell's own picture may render — `vibora`'s art
+ *  (`sector-snake-medium.png`, 492×114) is a long, low body: at the plain
+ *  64px height every other animal uses, its width comes out to ~276px,
+ *  which overflowed its own grid cell (found in browser QA, not by any
+ *  pure test — the SSR harness never measures rendered pixel width). */
+const NOTEBOOK_ART_MAX_WIDTH = 84
+
+/** The HEIGHT `CaptionedArt` should render `art` at inside one notebook
+ *  cell — `NOTEBOOK_ART_MAX_HEIGHT`, further reduced for a WIDE image so
+ *  its rendered WIDTH never exceeds `NOTEBOOK_ART_MAX_WIDTH` either. Pure
+ *  and exported so the cap itself is directly testable without a browser
+ *  measuring anything. */
+export function notebookArtSize(art: Pick<ArtImage, 'w' | 'h'>): number {
+  return Math.min(NOTEBOOK_ART_MAX_HEIGHT, (NOTEBOOK_ART_MAX_WIDTH * art.h) / art.w)
+}
+
 export interface NotebookAnimalEntry {
   id: ZooAnimalId
   rescued: boolean
@@ -82,6 +101,9 @@ export interface NotebookAnimalEntry {
    *  via `ZOO_ANIMAL_SILHOUETTE_ART`, `scripts/art/build_art.py`) while
    *  missing — never the coloured art, which would give the animal away. */
   art: ArtImage
+  /** The rendered height `DetectiveNotebook` should pass to `CaptionedArt`
+   *  for `art` — see `notebookArtSize`'s own header. */
+  size: number
   /** The word under the picture — `spot` once rescued, a bare `'?'` while
    *  missing (§5.1: "en silueta con '?'"). Always non-empty:
    *  `CaptionedArt.label` is required at type level. */
@@ -95,10 +117,12 @@ export function notebookEntries(records: Records): readonly NotebookAnimalEntry[
   return NOTEBOOK_ANIMAL_IDS.map((id) => {
     const rescued = isAnimalRescued(id, records)
     const copy = ANIMAL_COPY[id]
+    const art = rescued ? ZOO_ANIMAL_ART[id] : (ZOO_ANIMAL_SILHOUETTE_ART[id] ?? ZOO_ANIMAL_ART[id])
     return {
       id,
       rescued,
-      art: rescued ? ZOO_ANIMAL_ART[id] : (ZOO_ANIMAL_SILHOUETTE_ART[id] ?? ZOO_ANIMAL_ART[id]),
+      art,
+      size: notebookArtSize(art),
       caption: rescued ? (copy?.spot ?? '') : '?',
       line: rescued ? (copy?.line ?? null) : null,
     }
