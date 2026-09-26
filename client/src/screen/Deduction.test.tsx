@@ -19,7 +19,7 @@
 // only breaks one lineup size cannot hide behind the other.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { CLUE_ART, LAMP_ART, type AnimalId } from '../detective/assets'
+import { CLUE_ART, type AnimalId } from '../detective/assets'
 import { auditCaptions } from '../detective/captionAudit'
 import { clueKindsOf, DETECTIVE_CASES } from '../detective/cases'
 import Deduction, {
@@ -138,17 +138,18 @@ describe.each(CASES)('DeductionView rendering — %s case', (_label, kase) => {
     expect(audit.imagelessContainers).toEqual([])
   })
 
-  it("renders the PISTAS rail with the case's OWN clue kinds filed and the lamp on", () => {
+  it("shows the case's OWN clue kinds as marker-style chips (T21 follow-up: no PISTAS word, no lightbulb — docs/18 D19)", () => {
     const html = renderToString(
       <DeductionView kase={kase} state={initialDeductionState()} onPick={noop} onExit={noop} />,
     )
-    expect(html).toContain('<aside')
-    expect(html).toContain(LAMP_ART.on.href)
-    expect(html).not.toContain(LAMP_ART.off.href)
+    const chips = html.match(/class(Name)?="cv-deduction-chip"/g) ?? []
+    expect(chips.length).toBe(clueKindsOf(kase).length)
     for (const kind of clueKindsOf(kase)) {
       expect(html).toContain(CLUE_ART[kind].art.earned.href)
       expect(html).not.toContain(CLUE_ART[kind].art.drained.href)
     }
+    expect(textOf(html)).not.toContain('PISTAS')
+    expect(html).not.toContain('<aside')
   })
 
   it("a dismissed distractor drains, drops, and emphasises its OWN case's discriminating clue", () => {
@@ -252,7 +253,12 @@ describe('the lineup grows into the sheet (defect fix: three small animals in a 
     // Every declaration of the property answers BOTH axes: a px vertical
     // budget, and a 100vw term so a row of animals cannot outgrow its sheet.
     const declarations = [...DEDUCTION_CSS.matchAll(/--cv-animal:\s*([^;]+);/g)].map((m) => m[1])
-    expect(declarations.length).toBeGreaterThanOrEqual(4)
+    // [T21 follow-up] Three tiers now (default, 820px, 520px), not four: the
+    // 420px landscape-phone tier merged into 520px's own smaller numbers once
+    // .cv-deduction-content's bottom padding (reserved for Pulpito's own
+    // corner stage) already shrank the DEFAULT tier well below what the old
+    // four-tier ladder needed.
+    expect(declarations.length).toBeGreaterThanOrEqual(3)
     for (const value of declarations) {
       expect(value, `"${value}" must cap on height`).toMatch(/min\(\s*\d+px/)
       expect(value, `"${value}" must cap on width`).toContain('100vw')
@@ -271,7 +277,7 @@ describe('the lineup grows into the sheet (defect fix: three small animals in a 
     const three = declared('.cv-lineup-figures-3')
     const fallback = declared('.cv-lineup-figures')
     expect(three.length).toBe(fallback.length)
-    expect(three.length).toBeGreaterThanOrEqual(4)
+    expect(three.length).toBeGreaterThanOrEqual(3)
     for (const [i, value] of three.entries()) {
       expect(value, `breakpoint ${i} must not reuse the four-up cap`).not.toBe(fallback[i])
       // The three-up row subtracts less chrome and divides by a smaller sum
@@ -292,11 +298,6 @@ describe('the lineup grows into the sheet (defect fix: three small animals in a 
     expect(caption[0]).toContain('text-transform: uppercase')
   })
 
-  it('keeps the short-viewport rail collapse intact (it is what gives the row its width back)', () => {
-    expect(DEDUCTION_CSS).toMatch(
-      /@media \(max-height: 520px\)[\s\S]*\.pistas-bar\s*\{[^}]*flex-direction:\s*row/,
-    )
-  })
 })
 
 describe('DeductionView rendering — case-independent layout', () => {
@@ -319,14 +320,6 @@ describe('DeductionView rendering — case-independent layout', () => {
     expect(textOf(html)).not.toContain('PATO')
   })
 
-  it('the rail is scoped to a narrow column, never the full LevelPlay-sized bar (defect fix)', () => {
-    // Regression guard for the dead-selector defect: DEDUCTION_CSS must
-    // actually target the rail's REAL class name, or this whole block is
-    // dead again and the rail silently falls back to LAYOUT_CSS's full-size
-    // horizontal treatment.
-    expect(DEDUCTION_CSS).toMatch(/\.pistas-bar\s*\{[^}]*flex:\s*0 0 132px/)
-  })
-
   it('carries no `url(#` reference anywhere (TraceCanvas.tsx:70-84)', () => {
     // This one IS a whole-document claim: no id-referenced SVG may render,
     // because it hydrates blank on real devices.
@@ -336,31 +329,24 @@ describe('DeductionView rendering — case-independent layout', () => {
     expect(html).not.toContain('url(#')
   })
 
-  it('gives the lineup no card styling (design.md "Layout")', () => {
-    // Asserted against this screen's OWN rules, not the whole rendered
-    // document. The shell comes from LevelPlay's LAYOUT_CSS, which legitimately
-    // rounds the text buttons every other phase still shows; a document-wide
-    // substring check would fail on those and push whoever hits it toward
-    // re-duplicating the shell just to keep the assertion quiet.
-    expect(DEDUCTION_CSS).not.toContain('border-radius')
+  it('gives the lineup marker-style cards (docs/09 §1: paper fill, thick dark outline, no shadow — T21 follow-up)', () => {
+    // [T21 follow-up, orchestrator screenshot review] This used to forbid
+    // border/border-radius outright (the pre-docs/19 design.md "Layout"
+    // rule) — the redesign deliberately gives every silhouette a marker-
+    // style CARD, the SAME identity voice/SpeakButton.tsx/
+    // voice/VoiceToggle.tsx/screen/ZooMap.tsx's HUD pills already carry.
+    // What still never ships, on this screen or any other: a shadow.
     expect(DEDUCTION_CSS).not.toContain('box-shadow')
-    // `border: none` is the opposite of card styling, so forbid a border that
-    // actually draws rather than the word.
-    // The whitespace lives INSIDE the lookahead on purpose: with `\s*` outside
-    // it, the engine backtracks to zero spaces, reads " non", and the negative
-    // lookahead passes on `border: none` — the assertion would fire on the one
-    // declaration that proves the point.
-    expect(DEDUCTION_CSS, 'the lineup must draw no border').not.toMatch(
-      /border\s*:(?!\s*none\b)/,
-    )
+    expect(DEDUCTION_CSS).toMatch(/\.animal-btn\s*\{[^}]*border:\s*3px solid #1a1a1a/)
+    expect(DEDUCTION_CSS).toMatch(/\.animal-btn\s*\{[^}]*border-radius:/)
+    expect(DEDUCTION_CSS).toMatch(/\.animal-btn\s*\{[^}]*background:\s*#fdfcf7/)
   })
 
-  it('renders no inline card styling on the animal figures', () => {
+  it('renders no inline shadow styling on the animal figures (the border/radius now come from the card class, not inline)', () => {
     const html = renderToString(
       <DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />,
     )
-    const lineup = html.slice(html.indexOf('cv-lineup'))
-    expect(lineup).not.toContain('borderRadius')
+    const lineup = html.slice(html.indexOf('cv-lineup-figures'))
     expect(lineup).not.toContain('boxShadow')
   })
 
@@ -369,14 +355,6 @@ describe('DeductionView rendering — case-independent layout', () => {
       <DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />,
     )
     expect(html).toContain('min-height: 64px')
-  })
-
-  it('the lineup stands on exactly one drawn ink line', () => {
-    const html = renderToString(
-      <DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />,
-    )
-    const matches = html.match(/class(Name)?="cv-lineup-ground"/g) ?? []
-    expect(matches.length).toBe(1)
   })
 
   it('a never-picked animal shows no dismissal styling and no clue hint', () => {
@@ -393,6 +371,38 @@ describe('DeductionView rendering — case-independent layout', () => {
     )
     expect(html).toContain('aria-label="Volver"')
     expect(textOf(html)).not.toContain('Volver')
+  })
+
+  // [T21 follow-up] The first shipped version only carried `cv-btn-back`,
+  // which LAYOUT_CSS (LevelPlay.tsx) only ever styles TOGETHER with the base
+  // `cv-btn` class (`.cv-btn { border-radius: 18px; border: 3px solid
+  // #1a1a1a; background: SHEET_PAPER; … }`, `.cv-btn-back { … }` only
+  // overrides height/padding) — missing `cv-btn` left the button with no
+  // marker styling at all, rendering as a bare default grey button (caught
+  // by a screenshot, not by any test before this one).
+  it('gives the back button the SAME marker style the level screen uses (cv-btn cv-btn-back together)', () => {
+    const html = renderToString(
+      <DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />,
+    )
+    expect(html).toMatch(/class(Name)?="cv-btn cv-btn-back"/)
+  })
+
+  it('renders the adventure backdrop full-screen behind everything, never a flat colour (docs/19 §4.1)', () => {
+    const html = renderToString(
+      <DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />,
+    )
+    expect(html).toContain('cv-deduction-backdrop')
+    expect(html).toMatch(/<img[^>]*class(Name)?="cv-deduction-backdrop"[^>]*src="\/art\/sector-lagoon-background\.png"/)
+  })
+
+  it("stands Pulpito in a corner with his own speech bubble, reusing the SAME frame/bubble engine AdventureIntro.tsx uses", () => {
+    const html = renderToString(
+      <DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />,
+    )
+    expect(html).toContain('cv-deduction-frame')
+    expect(html).toContain('cv-deduction-octopus')
+    expect(html).toContain('cv-deduction-bubble')
+    expect(html).toContain('cv-bubble-pop')
   })
 })
 

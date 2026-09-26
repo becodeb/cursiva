@@ -1,29 +1,25 @@
 // Deduction screen (`detective-mode` design unit 7, spec: detective-mode
 // "Deduction Screen", level-engine "Deduction View Reachable from
 // nextView"). Reached once every trail's clue is filed; reuses the SAME
-// `.cv-play` shell shape `LevelPlay.tsx` renders and the SAME `PistasRail`
-// component, so the case file the child spent four trails filling never
-// moves (design.md "The case file never moves").
+// `.cv-play`/`.cv-head` shell shape `LevelPlay.tsx` renders.
 //
 // `LevelPlay.tsx` is out of this slice's edit scope (do-not-touch list), so
-// its `LAYOUT_CSS` is imported here for the shell. The rules this screen adds
-// needs (the flex column shell, the sheet row that holds the lineup and the
-// rail, and the rail's own chrome) are duplicated below under the SAME class
-// names on purpose — the two screens are never mounted at once (`GameScreen`
-// renders exactly one view), so the duplication carries no runtime risk, and
-// reusing the names keeps the two screens reading as one shell rather than
-// two unrelated layouts.
+// its `LAYOUT_CSS` is imported here for the shell.
 //
-// [D6 amended by `case-registry-and-captions`] Each animal's name is now
+// [T21 follow-up, orchestrator screenshot review 2026-09-26] This screen no
+// longer follows the pre-docs/19 "no card, no border, no border-radius, no
+// shadow" rule (design.md "Layout") — see `DEDUCTION_CSS`'s own header for
+// the full reasoning. It also no longer mounts `PistasRail` (the "PISTAS"
+// word plus a lightbulb mean nothing to a non-reader, `docs/18` D19) —
+// collected clues show as marker-style chips instead (`ClueChip`, below).
+//
+// [D6 amended by `case-registry-and-captions`] Each animal's name is still
 // VISIBLE, drawn beneath its picture by `CaptionedArt`
 // (`detective/captionAudit.ts`'s licensed `cv-captioned` container) — never
-// a bare word, always beside the image that gives it meaning. Only the
-// rail's own `PISTAS` label and the animal captions carry text; the back
+// a bare word, always beside the image that gives it meaning. The back
 // control stays icon-only, because an icon is still not a caption.
 // No `url(#...)` reference, no `<mask>`/`<filter>`/`<clipPath>`/gradient
-// referenced by id (`TraceCanvas.tsx:70-84`), no card, no border, no
-// `border-radius`, no shadow (design.md "Layout": "no cards, no borders, no
-// border-radius, no shadow").
+// referenced by id (`TraceCanvas.tsx:70-84`).
 //
 // [case-registry-and-captions, Phase 5] `CULPRIT` and `ANIMAL_ART.ruledOutBy`
 // are gone (spec: detective-mode "Case Registry Data Shape") — this screen
@@ -38,20 +34,29 @@ import {
   CARRIER_LENS_ART,
   CLUE_ART,
   ZOO_CARETAKER_ART,
+  ZOO_SPEECH_BUBBLE_ART,
   type AnimalId,
   type ArtImage,
+  type ClueKind,
 } from '../detective/assets'
 import { clueKindsOf, type DetectiveCase } from '../detective/cases'
 import CaptionedArt from '../detective/CaptionedArt'
-import PistasRail, { type PistasSlot } from '../detective/PistasRail'
 import { BackIcon } from '../detective/icons'
 import { LAYOUT_CSS } from './LevelPlay'
-
-/** Matches the shipped ink `TraceCanvas.tsx:89` (`INK_COLOR '#1e293b'`, not
- * exported) — the same hand that draws the trail's own trace, the `PISTAS`
- * word and the icon controls. Re-declared here rather than imported, same
- * convention `palette.ts`/`PistasRail.tsx`/`icons.tsx` already use. */
-const INK = '#1e293b'
+import { SHEET_PAPER } from '../canvas/TraceCanvas'
+import { backdropFor } from '../zoo/backdrops'
+import { BUBBLE_POP_CSS } from './BubblePop'
+import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
+import {
+  CONTENT_LEFT_FRAC,
+  CONTENT_TOP_FRAC,
+  CONTENT_WIDTH_FRAC,
+  GAP_FRAC,
+  LINE_HEIGHT,
+  placeAndFitBubble,
+} from './bubbleFit'
+import { octopusBoxAtCorner, OCTOPUS_CORNER_INSET, STAGE_MARGIN_PCT, stanceBubbleSide } from './pulpitoStance'
+import { bubbleContentCssVars } from './bubbleCssVars'
 
 /**
  * INTRINSIC height of an animal choice, in CSS px: the `width`/`height`
@@ -116,6 +121,27 @@ function Art({ art, size }: { art: ArtImage; size: number }) {
   )
 }
 
+/**
+ * One collected clue, shown as a marker-style CHIP (`odd/tasks/prewriting-
+ * stage-completion.md` T21 follow-up: "no PISTAS word, no lightbulb" —
+ * `docs/18` D19 already established that a word and a lightbulb mean
+ * nothing to a non-reader). A paper-fill, thick-outline circle in the same
+ * visual language `voice/SpeakButton.tsx`/`voice/VoiceToggle.tsx`/
+ * `screen/ZooMap.tsx`'s HUD pills already use (`docs/09` §1: no shading, no
+ * gradient, no shadow) — never `PistasRail`'s own labelled rail, which this
+ * screen no longer mounts. Every kind `clueKindsOf(kase)` names is already
+ * EARNED by the time this screen shows (the case's own pistas levels are
+ * done), so there is no drained state to represent here. */
+function ClueChip({ kind }: { kind: ClueKind }) {
+  return (
+    <span className="cv-deduction-chip">
+      <svg viewBox="-18 -18 36 36" width={32} height={32} aria-hidden="true" focusable="false">
+        <Art art={CLUE_ART[kind].art.earned} size={32} />
+      </svg>
+    </span>
+  )
+}
+
 /** Accessible names AND now the visible caption text (D6 amendment). Kept in
  * normal Spanish case ("Pato", not "PATO") on purpose — see `.cv-caption`'s
  * `text-transform: uppercase` below for why the directive's ALL-CAPS
@@ -135,7 +161,7 @@ const ANIMAL_LABEL: Readonly<Record<AnimalId, string>> = {
  * detective trail's own carrier holds — since there is no clue yet to
  * illustrate the question with.
  */
-export const DEDUCTION_OPENING_LINE = '¿Quién habrá dejado todas estas pistas?'
+export const DEDUCTION_OPENING_LINE = '¿Quién dejó todo esto?'
 
 /** Pulpito's short line once the case is closed, one per possible culprit —
  * every case in the registry names a real `AnimalId`, so this stays total. */
@@ -234,26 +260,6 @@ export function solvesCase(state: DeductionState, animal: AnimalId, culprit: Ani
   return !state.closed && animal === culprit
 }
 
-/** The lineup stands on one drawn ink line (design.md "Layout") — never a
- * card edge, a `<hr>`, or a CSS border, which is why it is drawn the same
- * way `PistasRail`'s word and `icons.tsx`'s controls are: an `M`/`L` stroked
- * path, no fill. */
-function GroundLine() {
-  return (
-    <svg
-      className="cv-lineup-ground"
-      viewBox="0 0 400 8"
-      width="100%"
-      height={8}
-      preserveAspectRatio="none"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M4,4 L396,4" fill="none" stroke={INK} strokeWidth={4} strokeLinecap="round" />
-    </svg>
-  )
-}
-
 /** One animal in the lineup. A dismissed distractor drains (opacity) and
  * drops (a plain transform, never a filter/mask — `TraceCanvas.tsx:70-84`)
  * rather than disappearing outright, so the case file keeps showing every
@@ -324,26 +330,57 @@ function Animal({
   )
 }
 
-/** Only the rules this screen ADDS. The full-viewport shell (`.cv-play`,
- * `.cv-head`, `.cv-btn-back`, `.cv-sheet`) is imported from `LevelPlay`'s
- * `LAYOUT_CSS` rather than copied: two copies of the same shell under the same
- * class names drift, and the case file is supposed to look like the trail the
- * child just left. No `border-radius`, no `box-shadow`, no `border`
- * (design.md "Layout"), and no font declaration anywhere. */
+/**
+ * Only the rules this screen adds. The full-viewport shell (`.cv-play`,
+ * `.cv-head`) is imported from `LevelPlay`'s `LAYOUT_CSS` rather than
+ * copied.
+ *
+ * [T21 follow-up, orchestrator screenshot review 2026-09-26] The FIRST
+ * shipped version of this screen ("no card, no border, no border-radius, no
+ * shadow" — the pre-docs/19 design.md "Layout" rule, deliberately dropped
+ * here) read as a leftover from the old app: a flat cream background, a
+ * bare grey back button, a rail labelled PISTAS with a lightbulb (`docs/18`
+ * D19 already established that word and that icon mean nothing to a
+ * non-reader), and Pulpito reduced to a small icon beside a plain text line.
+ * This rebuild matches T7's full-screen marker chrome and T18's Pulpito-
+ * over-the-scene treatment instead: a real backdrop, marker-style cards and
+ * chips (paper fill, thick dark outline, no shadow — `docs/09` §1, the same
+ * identity `voice/SpeakButton.tsx`/`voice/VoiceToggle.tsx`/
+ * `screen/ZooMap.tsx`'s HUD pills already carry), and Pulpito standing in a
+ * corner with his own speech bubble — the SAME `screen/pulpitoStance.ts`/
+ * `screen/bubbleFit.ts`/`screen/bubblePlacement.ts` engine
+ * `AdventureIntro.tsx`/`AdventureClosing.tsx` already use, never a second,
+ * duplicated implementation — only the stage's own SIZE is tuned smaller
+ * here, since this screen shares its sheet with the chip row and the lineup
+ * instead of being the only thing on screen.
+ */
 export const DEDUCTION_CSS = `
-.cv-lineup { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.cv-lineup-figures { display: flex; flex-direction: row; align-items: flex-end; justify-content: center; gap: 28px; flex-wrap: wrap; }
+.cv-deduction-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+${BUBBLE_POP_CSS}
+/* The content column sits ABOVE the backdrop, reserving room at the bottom
+ * for Pulpito's own corner stage (below) so the two can never overlap —
+ * found necessary by actually rendering this screen (a first pass without
+ * the reservation swallowed the lineup under a viewport-sized stage). */
+.cv-deduction-content { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 72px 24px min(230px, 36dvh); }
+@keyframes cv-chips-down { 0% { opacity: 0; transform: translateY(-28px); } 100% { opacity: 1; transform: translateY(0); } }
+/* The clues "come down" into view on entry (docs/19 §2.1) — a one-shot pop
+ * on mount, not a replayable transition (this screen mounts once per visit,
+ * the same convention BubblePop.ts's own pop-in already follows). */
+.cv-deduction-chips { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; animation: cv-chips-down 0.5s ease; }
+.cv-deduction-chip { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 16px; background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; }
+.cv-lineup-figures { display: flex; flex-direction: row; align-items: flex-end; justify-content: center; gap: 20px; flex-wrap: wrap; }
 .cv-lineup-slot { display: flex; flex-direction: column; align-items: center; }
-/* The shipped 64px tap floor (LevelPlay.tsx:140), reused by name and by
- * value — every animal choice is a real button, never smaller than a
- * child's tap target. The button grows past this floor once the much
- * bigger ANIMAL_SIZE picture is inside it; the floor is a MINIMUM. */
+/* Marker-style CARD (docs/09 §1): paper fill, thick dark outline, no
+ * shadow — the silhouette still carries the meaning, the card is only the
+ * BIG touch target around it (the shipped 64px tap floor, LevelPlay.tsx's
+ * own .cv-btn/.cv-btn-back share the same floor). */
 .animal-btn {
   min-height: 64px;
   min-width: 64px;
-  padding: 8px;
-  border: none;
-  background: transparent;
+  padding: 16px 14px 10px;
+  border: 3px solid #1a1a1a;
+  border-radius: 24px;
+  background: ${SHEET_PAPER};
   cursor: pointer;
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
@@ -352,112 +389,36 @@ export const DEDUCTION_CSS = `
  * cv-captioned span itself declares no layout (CaptionedArt.tsx is a bare
  * span, reused by every future caller), so each screen that mounts it owns
  * the stacking. No font-family here: .cv-caption inherits Nunito from the
- * document root, same as .pistas-word (LevelPlay.tsx's LAYOUT_CSS). */
+ * document root. */
 .cv-captioned { display: inline-flex; flex-direction: column; align-items: center; }
 /* [orchestrator ruling, 2026-09-12] The directive's own vocabulary is
- * UPPERCASE throughout — the enclosure signs read PECES/TORTUGAS/PATOS and
- * the directive's own deduction example is "PATO". The DOM text above
- * (ANIMAL_LABEL) stays normal Spanish case ("Pato") on purpose: an
- * accessible name is computed from an element's TEXT CONTENT, and several
- * screen readers treat a genuinely all-caps short word as an acronym and
- * spell it letter by letter ("P... A... T... O...") instead of speaking it —
- * a real cost for a five-year-old's audio feedback. text-transform:
- * uppercase gets the same visible glyphs with none of that: only the paint
- * changes, the underlying word — and its pronunciation — stays "Pato". */
+ * UPPERCASE throughout. The DOM text above (ANIMAL_LABEL) stays normal
+ * Spanish case ("Pato") on purpose: an accessible name is computed from an
+ * element's TEXT CONTENT, and several screen readers spell a genuinely
+ * all-caps short word letter by letter instead of speaking it. text-
+ * transform: uppercase gets the same visible glyphs with none of that. */
 .cv-caption { font-size: max(16px, calc(var(--cv-animal) * 0.12)); font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.02em; }
-/* [defect fix, orchestrator ruling 2026-09-12] THE LINEUP GROWS INTO THE
- * SHEET. It used to be three 180px animals in a band across the middle of a
- * 1280x900 page, about a fifth of the screen, with ~350px of empty paper above
- * and ~300px below — and the animals are the single thing the child is asked
- * to choose between.
- *
- * Sized the way this app already sizes its chrome: viewport-HEIGHT breakpoints
- * ('LevelPlay.tsx''s LAYOUT_CSS drives '.pistas-word' and the rail marks
- * through exactly the 820 and 520 boundaries reused below). ONE custom
- * property carries the answer, and the picture, the word and the gaps are all
- * derived from it — a caption sized on its own drifts out of proportion with
- * the animal it belongs to, and on a narrow sheet the WORD becomes the widest
- * thing in the slot and wraps the row that the picture still fits in.
- *
- * The px term is the vertical budget. The 'min()' against a width term is the
- * second half of the same question, because a lineup is a ROW: three animals
- * at 320px tall are ~960px wide, so on any sheet narrower than that the width
- * runs out first and the row would wrap into a 2+1 stack that reads as two
- * lineups.
- *
- * That width term, worked: the row gets '100vw' less the page padding, the
- * ~132px PISTAS rail and the gaps/tap-padding between the figures — the
- * subtracted px. The divisor is the sum of the animals' aspect ratios (vaca
- * 448/405 = 1.11, gato 1.08, gallina 0.83, pato 0.82), which is what turns an
- * available WIDTH back into a shared HEIGHT they can all stand at. Four
- * options need a much smaller cap than three, which is what
- * 'lineupWidthClass' exists to say. */
-.cv-lineup-figures { --cv-animal: min(420px, calc((100vw - 340px) / 3.9)); }
-.cv-lineup-figures-3 { --cv-animal: min(420px, calc((100vw - 270px) / 3.05)); }
+/* Sized the way this app already sizes its chrome: viewport-HEIGHT
+ * breakpoints, ONE custom property carrying the picture/word/gap sizes
+ * together so a caption can never outgrow its own picture. The width term
+ * accounts for the sheet's own side padding and the figures' gaps — there
+ * is no side rail to subtract for any more, unlike the pre-T21-follow-up
+ * shape this replaces. */
+.cv-lineup-figures { --cv-animal: min(260px, calc((100vw - 200px) / 3.9)); }
+.cv-lineup-figures-3 { --cv-animal: min(260px, calc((100vw - 160px) / 3.05)); }
 .cv-captioned > svg { width: auto; height: var(--cv-animal); }
 .cv-captioned { gap: calc(var(--cv-animal) * 0.03); }
 .cv-lineup-slot { gap: calc(var(--cv-animal) * 0.03); }
 @media (max-height: 820px) {
-  .cv-lineup-figures { --cv-animal: min(300px, calc((100vw - 340px) / 3.9)); gap: 22px; }
-  .cv-lineup-figures-3 { --cv-animal: min(300px, calc((100vw - 270px) / 3.05)); }
+  .cv-lineup-figures { --cv-animal: min(190px, calc((100vw - 200px) / 3.9)); gap: 16px; }
+  .cv-lineup-figures-3 { --cv-animal: min(190px, calc((100vw - 160px) / 3.05)); }
 }
-/* Short viewport. The rail stops standing BESIDE the lineup and becomes a row
- * UNDER it (the max-height: 520 block further down), so the row gets the whole
- * width back and the px term is what binds from here on. */
 @media (max-height: 520px) {
-  .cv-lineup-figures { --cv-animal: min(220px, calc((100vw - 300px) / 3.9)); gap: 14px; }
-  .cv-lineup-figures-3 { --cv-animal: min(240px, calc((100vw - 260px) / 3.05)); }
-  .animal-btn { padding: 4px; }
-}
-/* A landscape PHONE, where the whole page is shorter than one tall-viewport
- * animal. Nothing restructures here — the row just stops asking for height it
- * would have to steal from the rail below it. */
-@media (max-height: 420px) {
-  .cv-lineup-figures { --cv-animal: min(150px, calc((100vw - 300px) / 3.9)); }
-  .cv-lineup-figures-3 { --cv-animal: min(150px, calc((100vw - 260px) / 3.05)); }
-}
-/* The ground runs the width of the lineup standing on it. The old 640px cap
- * was narrower than the figures once they grew, which drew a rug under them
- * instead of a floor. */
-.cv-lineup-ground { flex: 0 0 auto; align-self: stretch; width: 100%; margin-top: 8px; }
-/* [defect fix, orchestrator ruling 2026-09-12] PistasRail.tsx renders
- * className="pistas-bar" (PistasRail.tsx:157) — this block used to say
- * .pistas-rail, a class that has never existed on this screen's markup, so
- * every one of these overrides was dead: the rail fell through to
- * LAYOUT_CSS's .pistas-bar rule instead, the full LevelPlay-sized
- * horizontal top-bar treatment (96px PISTAS text, a wide flex row) meant
- * for a screen with a canvas beside it. On THIS screen the rail is a
- * secondary readout beside the lineup, so it is corrected to the real class
- * name and re-scoped as a narrow vertical column: present, but not
- * dominating the page the way the unconstrained bar did. */
-.pistas-bar {
-  /* [T21, found by actually rendering this screen in a browser for the
-   * first time] LAYOUT_CSS's own .pistas-bar (LevelPlay.tsx) is
-   * position: absolute; left: 50%; top: 50%; transform: translate(-50%,
-   * -50%) — centred over LevelPlay's OWN .cv-head row. This override never
-   * reset any of the four, so the rail rendered dead-centre over the WHOLE
-   * .cv-sheet box (on top of the middle animal) instead of standing beside
-   * the lineup as a flex sibling — every other rule below assumed the
-   * position/left/top/transform reset that was missing. */
-  position: relative;
-  left: auto;
-  top: auto;
-  transform: none;
-  flex: 0 0 132px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 4px;
-  border-bottom: none;
-}
-.pistas-lamp-row { flex: 0 0 auto; }
-.pistas-word { font-size: 18px; }
-.pistas-slots { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
-@media (max-height: 520px) {
-  .cv-sheet { flex-direction: column; gap: 4px; }
-  .pistas-bar { flex: 0 0 auto; flex-direction: row; gap: 10px; padding: 4px; }
-  .pistas-slots { flex-direction: row; padding-top: 0; gap: 6px; }
+  .cv-deduction-content { padding: 52px 16px min(150px, 34dvh); gap: 10px; }
+  .cv-lineup-figures { --cv-animal: min(120px, calc((100vw - 160px) / 3.9)); gap: 10px; }
+  .cv-lineup-figures-3 { --cv-animal: min(130px, calc((100vw - 140px) / 3.05)); }
+  .animal-btn { padding: 10px 8px 6px; border-radius: 18px; }
+  .cv-deduction-chip { width: 40px; height: 40px; border-radius: 12px; }
 }
 /* [T21] The correct pick's own reveal: the silhouette swaps to its
  * full-colour picture (the swap itself, above, in the markup) and this pop
@@ -486,41 +447,30 @@ export const DEDUCTION_CSS = `
 }
 .cv-lineup-slot-shake { animation: cv-lineup-shake 0.4s ease; }
 @media (prefers-reduced-motion: reduce) {
-  .cv-reveal-pop, .cv-lineup-slot-shake { animation: none; }
+  .cv-reveal-pop, .cv-lineup-slot-shake, .cv-deduction-chips { animation: none; }
 }
-/* [T21] Pulpito's own hint line (deductionHint, above): the opening
- * question, a wrong pick's own gentle reason, or the culprit's name once
- * solved. A compact strip pinned to the SHEET's bottom edge — never a full
- * corner "stage" the way AdventureIntro.tsx's octopus is: this screen's
- * lineup is centred and already claims most of the sheet, and a stage sized
- * off the VIEWPORT (AdventureIntro's own convention, built for a screen with
- * nothing else in it) swallowed the lineup entirely in this screen's first
- * pass (caught by a screenshot, not by any test). pointer-events: none on
- * the wrapper: it sits ON TOP of .cv-sheet in source order and must never
- * steal a tap meant for the lineup or the back button. */
-.cv-deduction-hint { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 16px 10px; pointer-events: none; }
-.cv-deduction-hint-octopus { flex: 0 0 auto; display: block; width: 48px; height: auto; }
-/* The hint's picture-plus-line is a CaptionedArt (design.md "Layout": a word
- * never ships without its picture, the same D6 rule every animal name in
- * the lineup follows) — laid out as a ROW here (icon beside the sentence),
- * not the lineup's own column (icon above the word): a spoken line reads
- * left to right, and a column would put the animal-name-sized caption BELOW
- * a 48px icon with nothing to say how wide it may grow. */
-.cv-deduction-hint .cv-captioned { flex-direction: row; align-items: center; gap: 8px; max-width: min(70%, 480px); }
-.cv-deduction-hint .cv-caption { font-size: 16px; font-weight: 700; color: #1e293b; text-align: left; text-transform: none; }
-/* [T21, found by actually rendering at the required 844x390 viewport] Below
- * max-height: 520px, .cv-sheet stacks into a column and .pistas-bar becomes
- * a horizontal row UNDER the lineup (its own rule above) — a bottom-anchored
- * hint strip would sit exactly on top of it. Pinning to the TOP instead
- * (clear of .cv-btn-back's own top-left corner: left starts past it, not at
- * the sheet's own edge) keeps the two from ever competing for the same
- * pixels; the lineup itself has the least vertical room to spare at this
- * tier, so pushing the hint down there rather than shrinking the lineup
- * further is the smaller compromise. */
+/* Pulpito's own corner stage — the frame is this screen's OWN size (smaller
+ * than AdventureIntro.tsx's 620px/84dvh stage, tuned to share the sheet with
+ * the chip row and the lineup above it, both reserved for by
+ * .cv-deduction-content's own bottom padding); octopusBoxAtCorner/
+ * placeAndFitBubble (screen/pulpitoStance.ts, screen/bubbleFit.ts) are the
+ * SAME functions AdventureIntro.tsx calls, not a reimplementation. */
+.cv-deduction-frame { position: absolute; left: 0; bottom: ${STAGE_MARGIN_PCT}%; width: min(46%, 300px, 40dvh); aspect-ratio: 1 / 1; container-type: inline-size; }
+.cv-deduction-octopus { position: absolute; bottom: 2%; width: 36%; height: auto; }
+.cv-deduction-octopus img { display: block; width: 100%; height: auto; }
+.cv-deduction-bubble { position: absolute; container-type: inline-size; }
+.cv-deduction-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
+.cv-deduction-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
+.cv-deduction-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); }
+.cv-deduction-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
+.cv-deduction-bubble .cv-captioned--stack > svg { float: none; display: block; margin: 0 auto var(--cv-gap) auto; }
+/* Overrides THIS file's own .cv-caption (uppercase, sized off --cv-animal)
+ * inside the bubble — a spoken sentence is not the animal-name vocabulary
+ * that rule exists for; higher selector specificity (two classes) wins
+ * regardless of source order. */
+.cv-deduction-bubble .cv-caption { font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; text-transform: none; }
 @media (max-height: 520px) {
-  .cv-deduction-hint { top: 4px; bottom: auto; left: 64px; right: 8px; gap: 6px; padding: 0; }
-  .cv-deduction-hint-octopus { width: 32px; }
-  .cv-deduction-hint .cv-caption { font-size: 14px; }
+  .cv-deduction-frame { width: min(50%, 210px, 44dvh); }
 }
 `
 
@@ -541,33 +491,86 @@ export interface DeductionViewProps {
  * a hand-built state, never by simulating a click.
  */
 export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProps) {
-  const filedSlots: readonly PistasSlot[] = clueKindsOf(kase).map((kind) => ({ kind, filed: true }))
+  // [T21 follow-up, docs/19 §4.1 "siempre sobre la escena del nivel"] The
+  // scene the child just walked, never a flat colour — the SAME backdrop
+  // registry AdventureIntro.tsx/AdventureClosing.tsx already read, keyed off
+  // the case's own first pistas trail (every trail of one case shares one
+  // adventure, and therefore one backdrop).
+  const backdrop = backdropFor(kase.trailIds[0])
   // [T21] Pulpito's own line for the current state (`deductionHint`, above):
   // the opening question, a wrong pick's own gentle reason, or the
   // culprit's name once solved.
   const hint = deductionHint(kase, state)
+  const octopusBox = octopusBoxAtCorner(ZOO_CARETAKER_ART, {
+    corner: 'left',
+    sizeBy: 'width',
+    size: 36,
+    bottom: 2,
+    inset: OCTOPUS_CORNER_INSET,
+  })
+  const { placement, content } = placeAndFitBubble({
+    frame: { w: 100, h: 100 },
+    headBox: octopusBox,
+    tail: ZOO_SPEECH_BUBBLE_TAIL,
+    side: stanceBubbleSide('left'),
+    text: hint.text,
+    art: hint.art,
+  })
   return (
     <main className="cv-play">
       <style>{LAYOUT_CSS + DEDUCTION_CSS}</style>
+      {backdrop && <img className="cv-deduction-backdrop" src={backdrop.art.href} alt="" />}
       <header className="cv-head">
-        <button type="button" onClick={onExit} className="cv-btn-back" aria-label="Volver">
+        <button type="button" onClick={onExit} className="cv-btn cv-btn-back" aria-label="Volver">
           <BackIcon />
         </button>
       </header>
-      <div className="cv-sheet">
-        <div className="cv-lineup">
-          <div className={lineupWidthClass(kase.options.length)}>
-            {kase.options.map((id) => (
-              <Animal key={id} id={id} kase={kase} state={state} onPick={onPick} />
-            ))}
-          </div>
-          <GroundLine />
+      <div className="cv-deduction-content">
+        <div className="cv-deduction-chips">
+          {clueKindsOf(kase).map((kind) => (
+            <ClueChip key={kind} kind={kind} />
+          ))}
         </div>
-        <PistasRail slots={filedSlots} lampOn />
+        <div className={lineupWidthClass(kase.options.length)}>
+          {kase.options.map((id) => (
+            <Animal key={id} id={id} kase={kase} state={state} onPick={onPick} />
+          ))}
+        </div>
       </div>
-      <div className="cv-deduction-hint">
-        <img src={ZOO_CARETAKER_ART.href} alt="" className="cv-deduction-hint-octopus" />
-        <CaptionedArt art={hint.art} label={hint.text} size={48} />
+      <div className="cv-deduction-frame">
+        <span className="cv-deduction-octopus" style={{ left: `${octopusBox.x}%` }}>
+          <img src={ZOO_CARETAKER_ART.href} alt="" />
+        </span>
+        <span
+          className={`cv-deduction-bubble${placement.mirrored ? ' cv-deduction-bubble--mirror-x' : ''}`}
+          style={{
+            left: `${placement.left}%`,
+            top: `${placement.top}%`,
+            width: `${placement.width}%`,
+            ...bubbleContentCssVars(placement, content, {
+              contentLeftFrac: CONTENT_LEFT_FRAC,
+              contentTopFrac: CONTENT_TOP_FRAC,
+              contentWidthFrac: CONTENT_WIDTH_FRAC,
+              gapFrac: GAP_FRAC,
+            }),
+          }}
+        >
+          {/* Keyed on the line (T8 item 2's own convention, AdventureIntro.
+              tsx): a new hint pops in fresh every time it actually changes. */}
+          <span
+            key={hint.text}
+            className="cv-bubble-pop"
+            style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
+          >
+            <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+            <CaptionedArt
+              art={hint.art}
+              label={hint.text}
+              size={76}
+              className={content.layout === 'stack' ? 'cv-captioned--stack' : undefined}
+            />
+          </span>
+        </span>
       </div>
     </main>
   )
