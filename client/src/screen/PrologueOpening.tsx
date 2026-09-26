@@ -24,6 +24,7 @@ import { PROLOGUE_PLATES, advancePlate } from '../zoo/prologue'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import { BUBBLE_POP_CSS } from './BubblePop'
+import { octopusBoxBySize, placeSpeechBubble, ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 
 /* Same stage geometry as `AdventureIntro.tsx`'s `INTRO_CSS` — see that
    file's header for the derivation of every number below (the 84dvh
@@ -81,8 +82,23 @@ const PROLOGUE_CSS = `
   .cv-octopus-life { animation: none; }
 }
 ${BUBBLE_POP_CSS}
-.cv-prologue-bubble { position: absolute; left: 50%; top: 4%; width: 82%; transform: translateX(-50%); }
+/* T16 (odd/tasks/prewriting-stage-completion.md), following a tablet
+   play-test: left/top/width used to be a fixed CENTRED box
+   (left: 50%; transform: translateX(-50%); width: 82%) -- that centres the
+   IMAGE'S OWN BOUNDING BOX, not the tail inside it, so the tail (the art's
+   bottom-left corner, bubblePlacement.ts's own ZOO_SPEECH_BUBBLE_TAIL)
+   ended up pointing at empty space beside the octopus rather than at him.
+   Left/top/width are now an INLINE style computed by placeSpeechBubble
+   (below) from the octopus's own rendered box -- a static rule cannot know
+   where the octopus's head sits. NO BACKTICKS in this block -- one inside
+   a comment ends this template literal early (this file's own top note). */
+.cv-prologue-bubble { position: absolute; }
 .cv-prologue-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
+/* The mirrored orientation (placeSpeechBubble's own "mirrored"): flips
+   the SHAPE only, never the caption -- "don't mirror the text" (this task's
+   own brief), the same split ZooMap.tsx's own .cv-zoo-bubble--mirror-x
+   rule makes. */
+.cv-prologue-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
 .cv-prologue-bubble .cv-captioned { position: absolute; left: 10%; right: 10%; top: 16%; height: 58%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4cqw; }
 .cv-prologue-bubble .cv-captioned > svg { width: auto; height: 62%; flex: none; }
 .cv-prologue-bubble .cv-caption { font-size: 5.6cqw; line-height: 1.16; font-weight: 700; color: #1e293b; text-align: left; }
@@ -141,6 +157,15 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
   // advances past it is what makes every LATER plate's own autoplay allowed.
   useNarration(plate.line)
 
+  // T16: the bubble's own placement, so its tail tip lands beside the
+  // caretaker's head instead of the box's centre (this file's own header on
+  // `.cv-prologue-bubble`, above). The caretaker (`ZOO_CARETAKER_ART`,
+  // 235x320) is sized by HEIGHT — `octopusBoxBySize`'s own header on why —
+  // and every plate stands the SAME caretaker, so this is computed once per
+  // render rather than per plate.
+  const octopusBox = octopusBoxBySize(ZOO_CARETAKER_ART, { sizeBy: 'height', size: 44, bottom: 2 })
+  const bubblePlaced = placeSpeechBubble({ frame: { w: 100, h: 100 }, headBox: octopusBox, tail: ZOO_SPEECH_BUBBLE_TAIL })
+
   const handleTap = (): void => {
     const next = advancePlate(index)
     if (next === null) onDone()
@@ -155,12 +180,23 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
           <span className="cv-prologue-octopus">
             <img src={ZOO_CARETAKER_ART.href} alt="" className="cv-octopus-life" />
           </span>
-          <span className="cv-prologue-bubble">
+          <span
+            className={`cv-prologue-bubble${bubblePlaced.mirrored ? ' cv-prologue-bubble--mirror-x' : ''}`}
+            style={{ left: `${bubblePlaced.left}%`, top: `${bubblePlaced.top}%`, width: `${bubblePlaced.width}%` }}
+          >
             {/* Keyed on the line itself (T8 item 2): a fresh key on every
                 plate forces React to remount this span, replaying the
                 pop-in — while `useNarration` above, unaffected by this
-                child remounting, keeps deciding on its own when to speak. */}
-            <span key={plate.line} className="cv-bubble-pop">
+                child remounting, keeps deciding on its own when to speak.
+                T16: `transform-origin` is set inline to the tail tip's own
+                position within the box (`bubblePlaced.tailOriginX/Y`), so
+                the pop-in grows OUT of the tail — out of the octopus —
+                instead of the box's geometric centre. */}
+            <span
+              key={plate.line}
+              className="cv-bubble-pop"
+              style={{ transformOrigin: `${bubblePlaced.tailOriginX}% ${bubblePlaced.tailOriginY}%` }}
+            >
               <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
               <CaptionedArt art={plate.art} label={plate.line} size={76} />
             </span>
