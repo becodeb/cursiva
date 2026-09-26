@@ -192,6 +192,11 @@ describe('ADVENTURES', () => {
     expect(fish.closingBeat).toEqual([{ line: fish.closing, art: ZOO_ANIMAL_ART.pez }])
   })
 
+  it("carries its own deduction gate, closed by f2-agua2 (T26, docs/19 §2.3)", () => {
+    const fish = ADVENTURES.find((a) => a.id === 'fish')!
+    expect(fish.deduction).toEqual({ after: 'f2-agua2', caseId: 'fish' })
+  })
+
   // The Ola letter family's own rescue (P3, `odd/tasks/promised-animals.md`).
   it("the turtles row claims turtle1..4, recovers `tortuga`, and carries the approved intro/closing copy verbatim", () => {
     const turtles = ADVENTURES.find((a) => a.id === 'turtles')!
@@ -606,6 +611,14 @@ describe('the dolphin adventure (this change, design.md §8)', () => {
   it('declares animal:"delfin" and its own one-beat rescue closing (T8)', () => {
     expect(dolphin.animal).toBe('delfin')
     expect(dolphin.closingBeat).toEqual([{ line: dolphin.closing, art: ZOO_ANIMAL_ART.delfin }])
+  })
+
+  // [T26, `docs/19` §2.3 recipe B: "el lugar ya dice quién es"] Unlike the
+  // duck/night/fish rows, the dolphin never detours into a deduction — the
+  // whole family is a straight collect-along-the-path, `docs/19` §3's own
+  // "cada delfín que pasás se suma".
+  it('carries no deduction gate (recipe B)', () => {
+    expect(dolphin.deduction).toBeUndefined()
   })
 
   it('carries the four dolphin levels, in order, in the estanque sector', () => {

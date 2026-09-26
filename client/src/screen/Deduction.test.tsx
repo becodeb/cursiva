@@ -398,6 +398,53 @@ describe('DeductionView rendering — case-independent layout', () => {
   })
 })
 
+// [T26, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §2.3's THIRD
+// form of deducing] The fish case's own lineup is the prólogo's three
+// enclosure SIGNS, not animal silhouettes — `DetectiveCase.optionArt`
+// overrides `Animal`'s default `silhouetteArtFor` lookup, which has no entry
+// for `tortuga`/`mono` at all (they predate this widening) and would throw.
+const FISH = DETECTIVE_CASES.find((k) => k.id === 'fish')!
+
+describe('the fish case (T26): optionArt renders enclosure signs, never a silhouette', () => {
+  it('an open case renders every option (sign-fish/sign-turtles/sign-monkeys), never ANIMAL_SILHOUETTE_ART hrefs', () => {
+    const html = renderToString(
+      <DeductionView kase={FISH} state={initialDeductionState()} onPick={noop} onExit={noop} />,
+    )
+    expect(html).toContain('/art/sign-fish.png')
+    expect(html).toContain('/art/sign-turtles.png')
+    expect(html).toContain('/art/sign-monkeys.png')
+    // Not a `-silhouette.png` asset path anywhere (the CSS itself has a
+    // comment mentioning the word "silhouette" in prose, so this checks the
+    // actual asset href pattern rather than the raw text).
+    expect(html).not.toContain('-silhouette.png')
+  })
+
+  it('the correct pick (pez) still reveals the real fish picture, exactly like every other case', () => {
+    const html = renderToString(
+      <DeductionView
+        kase={FISH}
+        state={{ dismissed: ['tortuga', 'mono'], closed: true }}
+        onPick={noop}
+        onExit={noop}
+      />,
+    )
+    expect(html).toContain('/art/animal-pez.png')
+    // The two dismissed signs still show as their own sign art, never a
+    // silhouette or the wrong animal picture.
+    expect(html).toContain('/art/sign-turtles.png')
+    expect(html).toContain('/art/sign-monkeys.png')
+  })
+
+  it("mounts a full three-option captioned lineup, no uncaptioned or imageless container (same audit every other case passes)", () => {
+    const html = renderToString(<Deduction kase={FISH} solved={false} onSolved={noop} onExit={noop} />)
+    const matches = html.match(/className="animal-btn"|class="animal-btn"/g) ?? []
+    expect(matches.length).toBe(FISH.options.length)
+    const audit = auditCaptions(html)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
+  })
+})
+
 describe('Deduction (stateful default export)', () => {
   it("mounts open and renders the case's full captioned lineup", () => {
     const html = renderToString(<Deduction kase={DUCK} solved={false} onSolved={noop} onExit={noop} />)
