@@ -9,7 +9,8 @@
 // `transformPath`, so the `M`/`L`-only restriction that applies to level
 // route data does not apply here — a curved arrow reads better than a
 // polygonal one, so `RetryIcon` uses one arc.
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
+import { SHEET_PAPER } from '../canvas/TraceCanvas'
 
 /** The glyphs are aria-hidden on purpose: they carry no accessible name of
  * their own, because the BUTTON that wraps one carries it via aria-label. The
@@ -154,10 +155,84 @@ export function PawPrintIcon({ className }: { className?: string }) {
       data-cv-picture="true"
       className={className}
     >
+      <PawGlyph />
+    </svg>
+  )
+}
+
+/** The four shapes `PawPrintIcon` draws, factored out so
+ *  {@link PlaceholderAnimalBadge} (below) can frame the SAME glyph inside its
+ *  own circle rather than a second, hand-copied set of coordinates that could
+ *  drift from this one. */
+function PawGlyph() {
+  return (
+    <>
       <ellipse cx="50" cy="64" rx="24" ry="20" fill="none" stroke={ICON_INK} strokeWidth="6" />
       <circle cx="24" cy="34" r="11" fill="none" stroke={ICON_INK} strokeWidth="6" />
       <circle cx="50" cy="21" r="11" fill="none" stroke={ICON_INK} strokeWidth="6" />
       <circle cx="76" cy="34" r="11" fill="none" stroke={ICON_INK} strokeWidth="6" />
+    </>
+  )
+}
+
+/**
+ * [T27 follow-up, orchestrator screenshot review 2026-09-27] The SAME
+ * placeholder-animal stand-in as {@link PawPrintIcon}, framed for a spot that
+ * carries no card of its own behind it — the level canvas (a collect item
+ * standing on the corridor), the closing's big rescue animal, and the map's
+ * own rescue-flight overlay. `Deduction.tsx`'s lineup and
+ * `DetectiveNotebook.tsx`'s grid already sit their picture on a paper CARD
+ * (`.animal-btn`/`.cv-notebook-card`), so the bare `PawPrintIcon` reads fine
+ * there without a second circle drawn around it; everywhere else, a
+ * left-over `<image>` box would draw is either a floating ink mark with
+ * nothing to read it against, or (worse) `PLACEHOLDER_ZOO_ANIMALS`'s own
+ * ACTUAL colour art — a featureless grey sign block, exactly the "meaningless
+ * box" defect this whole family exists to avoid. This is that ONE drawn
+ * picture, reused at every such spot (`detective/assets.ts`'s
+ * `isPlaceholderArt` is the ONE decision of WHEN to reach for it).
+ *
+ * `x`/`y`/`width`/`height` are the SVG root's own positioning attributes —
+ * present only for a caller nesting this inside another `<svg>` (a level's
+ * own `TraceCanvas`, which owns one coordinate system and cannot place an
+ * HTML-positioned child inside it); a caller in ordinary HTML flow
+ * (`AdventureClosing.tsx`, `ZooMap.tsx`) instead sizes this exactly like an
+ * `<img>` would be, through `className`/`style`, and leaves these four unset.
+ */
+export function PlaceholderAnimalBadge({
+  className,
+  style,
+  x,
+  y,
+  width,
+  height,
+}: {
+  className?: string
+  style?: CSSProperties
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+}) {
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      aria-hidden="true"
+      focusable="false"
+      data-cv-picture="true"
+      className={className}
+      style={style}
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+    >
+      {/* Marker-style card, restated as a circle (`docs/09` §1: paper fill,
+          thick dark outline, no shadow) — the same visual language
+          `.animal-btn`/`.cv-notebook-card`/`.cv-deduction-chip` already
+          carry, so a badge with no HTML card around it still reads as one
+          of this app's own marker pictures instead of a bare ink doodle. */}
+      <circle cx="50" cy="50" r="46" fill={SHEET_PAPER} stroke={ICON_INK} strokeWidth="6" />
+      <PawGlyph />
     </svg>
   )
 }

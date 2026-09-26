@@ -191,6 +191,53 @@ describe.each(CASES)('DeductionView rendering — %s case', (_label, kase) => {
   })
 })
 
+// [T27, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §2.3/§3 monos
+// row] `mono` is a `PLACEHOLDER_ZOO_ANIMALS` entry (`detective/assets.ts`):
+// its derived silhouette is a featureless sign block, so before the reveal
+// this screen must draw `PawPrintIcon` instead — never `silhouetteArtFor`,
+// which has no `mono` entry at all and would throw.
+describe('DeductionView — the mono option (a PLACEHOLDER_ZOO_ANIMALS entry, docs/20 B10)', () => {
+  const MONKEYS = DETECTIVE_CASES.find((k) => k.id === 'monkeys')!
+
+  it('renders a drawn paw print for mono before the reveal, never the placeholder sign block', () => {
+    const html = renderToString(
+      <DeductionView kase={MONKEYS} state={initialDeductionState()} onPick={noop} onExit={noop} />,
+    )
+    // No `<image href>` at all for mono's own art (`/art/animal-mono*`) —
+    // only erizo's and abeja's silhouettes render as real pictures.
+    expect(html).not.toContain('/art/animal-mono')
+    // The hand-drawn paw (`PawPrintIcon`'s own fixed viewBox) is present.
+    expect(html).toContain('viewBox="0 0 100 100"')
+    expect(html).toContain('data-cv-picture="true"')
+  })
+
+  it('still passes the captioned-art audit: the paw counts as mono\'s own picture', () => {
+    const html = renderToString(
+      <DeductionView kase={MONKEYS} state={initialDeductionState()} onPick={noop} onExit={noop} />,
+    )
+    const audit = auditCaptions(html)
+    expect(audit.captioned.map((w) => w.toLowerCase())).toContain('mono')
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
+  })
+
+  it('once mono is revealed as the culprit, it shows its real (placeholder) colour art instead', () => {
+    const state: DeductionState = { dismissed: ['erizo', 'abeja'], closed: true }
+    const html = renderToString(
+      <DeductionView kase={MONKEYS} state={state} onPick={noop} onExit={noop} />,
+    )
+    expect(html).toContain('/art/animal-mono.png')
+  })
+
+  it("erizo and abeja are ordinary silhouettes throughout — only mono gets the paw treatment", () => {
+    const html = renderToString(
+      <DeductionView kase={MONKEYS} state={initialDeductionState()} onPick={noop} onExit={noop} />,
+    )
+    expect(html).toContain('/art/hedgehog-profile-silhouette.png')
+    expect(html).toContain('/art/sector-bee-silhouette.png')
+  })
+})
+
 describe('the lineup grows into the sheet (defect fix: three small animals in a large empty page)', () => {
   /** The declaration body of a rule, e.g. the text between the braces of
    * `.cv-captioned > svg { … }`. Returns every match, because the responsive

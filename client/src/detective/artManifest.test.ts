@@ -159,9 +159,13 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
   // `ANIMAL_SILHOUETTE_ART.pato`, already registered above — listing it
   // again would trip this suite's own "never the same file twice" check
   // right below, for a href that is deliberately shared rather than
-  // duplicated.
+  // duplicated. `abeja` joins the exclusion list in T27 (`docs/19` §3 monos
+  // row): the `monkeys` deduction case needs a real bee silhouette too, so
+  // `ANIMAL_SILHOUETTE_ART.abeja` was added BY REFERENCE from this exact
+  // `ZOO_ANIMAL_SILHOUETTE_ART.abeja` file — the same "never a second
+  // derivation" move `erizo`/`oveja`/`llama` made in T25.
   ...Object.entries(ZOO_ANIMAL_SILHOUETTE_ART)
-    .filter(([id]) => !['pato', 'erizo', 'oveja', 'llama'].includes(id))
+    .filter(([id]) => !['pato', 'erizo', 'oveja', 'llama', 'abeja'].includes(id))
     .map(([id, art]) => [`ZOO_ANIMAL_SILHOUETTE_ART.${id}`, art] as const),
 ]
 
@@ -237,7 +241,14 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // cases.
     // + 6 ZOO_ANIMAL_SILHOUETTE_ART (T23): the notebook's own silhouettes for
     // vibora/abeja/delfin/pez/tortuga/mono; pato/erizo/oveja/llama reuse the
-    // ANIMAL_SILHOUETTE_ART files by reference (excluded above).
+    // ANIMAL_SILHOUETTE_ART files by reference (excluded above) — T27 moves
+    // `abeja` into that same excluded set too (see below), leaving 5 counted
+    // here.
+    // T27 (`docs/19` §3 monos row) moves `abeja` from the ZOO_ANIMAL_
+    // SILHOUETTE_ART count above into this one instead: `ANIMAL_SILHOUETTE_
+    // ART.abeja` (needed for the `monkeys` deduction's second distractor)
+    // is the SAME file `ZOO_ANIMAL_SILHOUETTE_ART.abeja` already registered
+    // — no new file, so the total is unchanged, still 107.
     expect(REGISTERED.length).toBe(107)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)

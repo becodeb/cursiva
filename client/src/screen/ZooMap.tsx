@@ -15,6 +15,7 @@ import { flushSync } from 'react-dom'
 import CaptionedArt from '../detective/CaptionedArt'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import {
+  isPlaceholderArt,
   ZOO_ANIMAL_ART,
   ZOO_BACKPACK_ART,
   ZOO_CARETAKER_ART,
@@ -25,6 +26,7 @@ import {
   ZOO_SPEECH_BUBBLE_ART,
   ZOO_STAR_ART,
 } from '../detective/assets'
+import { PlaceholderAnimalBadge } from '../detective/icons'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 import { BUBBLE_POP_CSS } from './BubblePop'
 import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
@@ -847,18 +849,34 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
           )}
 
           {/* Recovered animals, standing on their `animalSpot` by the feet
-              (`STANDING_GRIP`, `zoo/sectors.ts`'s `animalPlacements`). */}
-          {recovered.map((placed, i) => (
-            <image
-              key={`animal-${i}`}
-              href={placed.art.href}
-              x={placed.box.x}
-              y={placed.box.y}
-              width={placed.box.width}
-              height={placed.box.height}
-              preserveAspectRatio="xMidYMid meet"
-            />
-          ))}
+              (`STANDING_GRIP`, `zoo/sectors.ts`'s `animalPlacements`).
+              [T27 follow-up, orchestrator screenshot review 2026-09-27] A
+              `PLACEHOLDER_ZOO_ANIMALS` entry (`isPlaceholderArt`) never
+              stands here as its own grey sign block — the SAME drawn
+              `PlaceholderAnimalBadge` every other such spot now uses,
+              standing PERMANENTLY at the enclosure once rescued, same as
+              every other animal. */}
+          {recovered.map((placed, i) =>
+            isPlaceholderArt(placed.art) ? (
+              <PlaceholderAnimalBadge
+                key={`animal-${i}`}
+                x={placed.box.x}
+                y={placed.box.y}
+                width={placed.box.width}
+                height={placed.box.height}
+              />
+            ) : (
+              <image
+                key={`animal-${i}`}
+                href={placed.art.href}
+                x={placed.box.x}
+                y={placed.box.y}
+                width={placed.box.width}
+                height={placed.box.height}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            ),
+          )}
 
           {/* The spotlight (T4, D5): dim everything except an ellipse around
               the journey's own next destination — after fog and recovered
@@ -1148,7 +1166,16 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               { x: svgBox.x, y: svgBox.y, width: svgBox.width, height: svgBox.height },
               { width: 1000, height: 600 },
             )
-            return (
+            // [T27 follow-up, orchestrator screenshot review 2026-09-27] The
+            // SAME `PlaceholderAnimalBadge` swap `recovered.map` (above) and
+            // `AdventureClosing.tsx`'s big rescue animal make — the animal
+            // flying here never shows its own grey sign block mid-flight.
+            return isPlaceholderArt(rescueFlight.art) ? (
+              <PlaceholderAnimalBadge
+                className="cv-zoo-rescue-flight"
+                style={rescueFlightOverlayStyle(rescueFlight, toRect)}
+              />
+            ) : (
               <img
                 src={rescueFlight.art.href}
                 alt=""

@@ -129,11 +129,33 @@ describe('adventureProgress', () => {
     })
   })
 
-  it('reports the monkeys adventure rescued once monkey4 is filed, animal mono', () => {
+  // [T27, `docs/19` §2.3/§3 monos row] `monkeys` gained a `deduction` gate
+  // (`monkey1`/`monkey2` are now the case's own pistas levels, each
+  // carrying a clue) — `animal` is `undefined` throughout, the same
+  // "never spoil the deduction" rule the `duck` row above already proves
+  // (this function's own header). `TrailProgressBar` never renders again
+  // for this adventure past the gate regardless — `monkey3`/`monkey4` are
+  // `collect` levels, and `CollectBar` takes that slot instead.
+  it('reports the monkeys adventure rescued once monkey4 is filed, animal undefined (deduction-gated)', () => {
     const allFour = recordsFor(['monkey1', 'monkey2', 'monkey3', 'monkey4'])
     const progress = adventureProgress('monkey4', allFour)
     expect(progress?.adventureId).toBe('monkeys')
-    expect(progress?.animal).toBe('mono')
+    expect(progress?.animal).toBeUndefined()
     expect(progress?.rescued).toBe(true)
+  })
+
+  it('reports a mid-adventure monkey trail: filed levels, the current one flagged, clues in play order', () => {
+    const progress = adventureProgress('monkey2', recordsFor(['monkey1']))
+    expect(progress).toEqual({
+      adventureId: 'monkeys',
+      animal: undefined,
+      rescued: false,
+      slots: [
+        { levelId: 'monkey1', clue: 'footprint', filed: true, current: false },
+        { levelId: 'monkey2', clue: 'corn', filed: false, current: true },
+        { levelId: 'monkey3', clue: undefined, filed: false, current: false },
+        { levelId: 'monkey4', clue: undefined, filed: false, current: false },
+      ],
+    })
   })
 })

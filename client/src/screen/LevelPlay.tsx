@@ -54,7 +54,7 @@ import {
   waypointDebugCount,
 } from '../canvas/devMode'
 import { seedCameraOrigin } from '../canvas/camera'
-import { standBesideArtCorridor } from '../canvas/placeArt'
+import { clampArtBox, placeArt, standBesideArtCorridor, STANDING_GRIP, type ArtBox } from '../canvas/placeArt'
 import {
   EMPTY_WAYPOINTS,
   debugCarrier,
@@ -141,6 +141,7 @@ import {
   CLUE_ART,
   GROUND_GRASS,
   GROUND_MUD,
+  isPlaceholderArt,
   OCTOPUS_ART,
   SIGN_ART,
   ZOO_ANIMAL_ART,
@@ -149,7 +150,7 @@ import {
 import CaptionedArt from '../detective/CaptionedArt'
 import TrailProgressBar from '../detective/TrailProgressBar'
 import CollectBar from '../detective/CollectBar'
-import { BackIcon, ReplayIcon } from '../detective/icons'
+import { BackIcon, PlaceholderAnimalBadge, ReplayIcon } from '../detective/icons'
 import { useNarration } from '../voice/useNarration'
 import { speak } from '../voice/narrator'
 import SpeakButton from '../voice/SpeakButton'
@@ -3174,8 +3175,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // stands at an item's spot only while that item is still un-collected, so
   // "I got it" reads as the sheep actually leaving the peak, not a second,
   // independent decoration that never reacts to collection at all.
+  // [T27 follow-up, orchestrator screenshot review 2026-09-27] A collect
+  // level whose `art` is a `PLACEHOLDER_ZOO_ANIMALS` entry (`isPlaceholderArt`)
+  // never reaches `TraceCanvas`'s own `vertexArt`/`vertexArtDeparting` — that
+  // prop draws a plain `<image href>`, which for a placeholder animal is the
+  // grey sign block itself: five meaningless boxes, not "a monkey is here".
+  // `collectPlaceholderBadges`/`collectPlaceholderBadgesDeparting`, below,
+  // compute the SAME positions instead, rendered as `PlaceholderAnimalBadge`s
+  // through `TraceCanvas`'s own `children` slot — never a second `<image>`.
   const collectVertexArt = useMemo<TraceVertexArt | undefined>(() => {
-    if (!collectDef) return undefined
+    if (!collectDef || isPlaceholderArt(collectDef.art)) return undefined
     const at = collectItems
       .filter((_, i) => !collectState.collected[i])
       .map((item) => ({ x: item.x, y: item.y }))
@@ -3189,13 +3198,49 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // hedgehog's rejected strokes). Kept apart from `collectVertexArt` so the
   // steady layer's own `at` never has to know which entry is mid-animation.
   const collectVertexArtDeparting = useMemo<TraceVertexArt | undefined>(() => {
-    if (!collectDef || departingCollectMarks.length === 0) return undefined
+    if (!collectDef || isPlaceholderArt(collectDef.art) || departingCollectMarks.length === 0) {
+      return undefined
+    }
     return {
       ...collectDef.art,
       size: collectDef.size,
       at: departingCollectMarks.map(({ x, y }) => ({ x, y })),
     }
   }, [collectDef, departingCollectMarks])
+
+  // The sheet's own bounds, in viewBox units — `clampArtBox`'s own `bounds`
+  // argument, the SAME box `ground`'s `shared.viewBox` (below) is built from,
+  // restated here so this memo does not have to depend on `ground` itself.
+  const sheetBounds = useMemo<ArtBox>(
+    () => ({ x: 0, y: 0, width: target.viewBoxWidth, height: SHEET_HEIGHT }),
+    [target.viewBoxWidth],
+  )
+
+  const collectPlaceholderBadges = useMemo<readonly ArtBox[] | undefined>(() => {
+    if (!collectDef || !isPlaceholderArt(collectDef.art)) return undefined
+    const at = collectItems
+      .filter((_, i) => !collectState.collected[i])
+      .map((item) => ({ x: item.x, y: item.y }))
+    if (at.length === 0) return undefined
+    // `placeArt` with `STANDING_GRIP` (feet on the point) — the SAME
+    // placement `TraceCanvas`'s own vertex-art layer uses (`TraceCanvas.tsx`,
+    // "vertex-art-…"), clamped into the sheet the same way every other
+    // standing picture already is. The badge's own glyph is drawn on a
+    // square (`viewBox="0 0 100 100"`), so `w`/`h` are both 100 regardless
+    // of `collectDef.size`.
+    return at.map((point) =>
+      clampArtBox(placeArt({ w: 100, h: 100, grip: STANDING_GRIP }, collectDef.size, point), sheetBounds),
+    )
+  }, [collectDef, collectItems, collectState, sheetBounds])
+
+  const collectPlaceholderBadgesDeparting = useMemo<readonly ArtBox[] | undefined>(() => {
+    if (!collectDef || !isPlaceholderArt(collectDef.art) || departingCollectMarks.length === 0) {
+      return undefined
+    }
+    return departingCollectMarks.map(({ x, y }) =>
+      clampArtBox(placeArt({ w: 100, h: 100, grip: STANDING_GRIP }, collectDef.size, { x, y }), sheetBounds),
+    )
+  }, [collectDef, departingCollectMarks, sheetBounds])
 
   const ground = useMemo<TraceGround | undefined>(() => {
     // A backdrop retires the scattered ground (docs/13 §4 decision 3): the
@@ -3704,6 +3749,42 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
           <g pointerEvents="none">
             {target.paths.map((d, idx) => (
               <path key={`spine-debug-${idx}`} d={d} fill="none" stroke={TORCH_CHALK} strokeWidth={2} />
+            ))}
+          </g>
+        )}
+        {/* [T27 follow-up, orchestrator screenshot review 2026-09-27] A
+            placeholder-animal collect item's OWN drawn stand-in
+            (`collectPlaceholderBadges`, above) — through `TraceCanvas`'s
+            `children` slot, never its `vertexArt` prop (that one draws a
+            plain `<image>`, which for a placeholder animal is the grey sign
+            block this whole badge exists to replace). */}
+        {collectPlaceholderBadges && (
+          <g pointerEvents="none">
+            {collectPlaceholderBadges.map((box, idx) => (
+              <PlaceholderAnimalBadge
+                key={`collect-placeholder-${idx}`}
+                x={box.x}
+                y={box.y}
+                width={box.width}
+                height={box.height}
+              />
+            ))}
+          </g>
+        )}
+        {collectPlaceholderBadgesDeparting && (
+          // The SAME departing treatment `vertexArtDeparting` gives a real
+          // picture (`.cv-collect-hop`, `LAYOUT_CSS` below) — applied
+          // directly here since these badges never pass through that prop.
+          <g pointerEvents="none">
+            {collectPlaceholderBadgesDeparting.map((box, idx) => (
+              <PlaceholderAnimalBadge
+                key={`collect-placeholder-departing-${idx}`}
+                className="cv-collect-hop"
+                x={box.x}
+                y={box.y}
+                width={box.width}
+                height={box.height}
+              />
             ))}
           </g>
         )}

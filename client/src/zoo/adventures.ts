@@ -450,6 +450,13 @@ export const ADVENTURES: readonly Adventure[] = [
   {
     id: 'monkeys',
     levelIds: ['monkey1', 'monkey2', 'monkey3', 'monkey4'],
+    // [T27, `docs/19` §2.3/§3 monos row] Recipe A's fourth and last complete
+    // case (duck, night, fish, monkeys — `docs/19` §2.3's own binding
+    // decision): after `monkey2` — the case's own last pistas level
+    // (`detective/cases.ts`'s `monkeys.trailIds`) — the flow detours into
+    // the `monkeys` case's deduction before continuing to `monkey3`, where
+    // the recovered monkey family is gathered (`LevelConfig.collect`).
+    deduction: { after: 'monkey2', caseId: 'monkeys' },
     sector: 'bosque',
     animal: 'mono',
     intro: 'Los monos se escaparon de sus sogas y se fueron colgados de las lianas del bosque. ¿Seguimos sus vueltas?',

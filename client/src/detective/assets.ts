@@ -233,6 +233,17 @@ export const ANIMAL_SILHOUETTE_ART: Readonly<Partial<Record<ZooAnimalId, ArtImag
   erizo: { href: '/art/hedgehog-profile-silhouette.png', w: 448, h: 306 },
   oveja: { href: '/art/sector-sheep-silhouette.png', w: 420, h: 448 },
   llama: { href: '/art/sector-llama-silhouette.png', w: 299, h: 448 },
+  // [T27, `docs/19` §3 monos row] `abeja` joins the deduction lineup as one
+  // of the `monkeys` case's two distractors — reused BY REFERENCE from
+  // `ZOO_ANIMAL_SILHOUETTE_ART.abeja` (the SAME real bee silhouette file
+  // the notebook already draws), the same "never a second derivation"
+  // convention `pato` above already follows. `mono` is deliberately absent
+  // here: its own derived silhouette is a featureless placeholder sign
+  // block (`PLACEHOLDER_ZOO_ANIMALS`'s own header), so `Deduction.tsx`
+  // branches around ever calling `silhouetteArtFor('mono')` and draws
+  // `PawPrintIcon` instead — adding a "silhouette" here would only give
+  // that broken picture a technically-valid lookup.
+  abeja: { href: '/art/sector-bee-silhouette.png', w: 256, h: 230 },
 }
 
 /** Throws by name rather than rendering `undefined` — the same "fail loud,
@@ -272,7 +283,10 @@ export const ZOO_ANIMAL_SILHOUETTE_ART: Readonly<Partial<Record<ZooAnimalId, Art
   oveja: ANIMAL_SILHOUETTE_ART.oveja,
   llama: ANIMAL_SILHOUETTE_ART.llama,
   vibora: { href: '/art/sector-snake-medium-silhouette.png', w: 492, h: 114 },
-  abeja: { href: '/art/sector-bee-silhouette.png', w: 256, h: 230 },
+  // [T27] By reference to `ANIMAL_SILHOUETTE_ART.abeja` — the SAME file,
+  // never a second derivation — now that the `monkeys` deduction lineup
+  // needs it too.
+  abeja: ANIMAL_SILHOUETTE_ART.abeja,
   delfin: { href: '/art/sector-dolphin-silhouette.png', w: 448, h: 418 },
   erizo: ANIMAL_SILHOUETTE_ART.erizo,
   pez: { href: '/art/animal-pez-silhouette.png', w: 448, h: 358 },
@@ -572,6 +586,33 @@ export const ZOO_ANIMAL_ART: Readonly<Record<ZooAnimalId, ArtImage>> = {
   // declared just above, for why this is a spread of a dedicated record
   // rather than three inline literals.
   ...PROMISED_ANIMAL_ART,
+}
+
+/**
+ * [T27 follow-up, orchestrator screenshot review 2026-09-27] The ONE
+ * decision of whether `art` is a `PLACEHOLDER_ZOO_ANIMALS` entry's own
+ * colour picture — every call site that might otherwise draw one directly
+ * (a level's own `LevelConfig.collect.art`, an `Adventure.closingBeat.art`,
+ * `zoo/rescueFlight.ts`'s carried `art`) asks THIS, then reaches for
+ * `detective/icons.tsx`'s `PlaceholderAnimalBadge` instead of the real
+ * picture — never a second `PLACEHOLDER_ZOO_ANIMALS.has(id)` re-derived from
+ * whatever id happens to be in scope, which is what let this slip through
+ * the first time: `Deduction.tsx`'s own lineup checks by id because it
+ * already has one; a collect item or a closing beat's `art` field never
+ * did, only the resolved `ArtImage` itself.
+ *
+ * A REFERENCE check, not a href guess: `ZOO_ANIMAL_ART[id]` is the exact
+ * object every one of those fields is authored with (`levels/catalog.ts`'s
+ * `collect: { art: ZOO_ANIMAL_ART.mono, ... }`, `zoo/adventures.ts`'s
+ * `closingBeat: [{ art: ZOO_ANIMAL_ART.mono }]`), so this can never
+ * misfire against an unrelated picture that merely happens to share a
+ * filename.
+ */
+export function isPlaceholderArt(art: ArtImage): boolean {
+  for (const id of PLACEHOLDER_ZOO_ANIMALS) {
+    if (ZOO_ANIMAL_ART[id] === art) return true
+  }
+  return false
 }
 
 /** One pose's measured silhouette, in the image's OWN normalised space

@@ -155,8 +155,17 @@ describe('ZooMap (layer order)', () => {
     expect(render(filed('f2-agua4'))).toContain('/art/animal-pez.png')
     expect(render()).not.toContain('/art/animal-tortuga.png')
     expect(render(filed('turtle4'))).toContain('/art/animal-tortuga.png')
-    expect(render()).not.toContain('/art/animal-mono.png')
-    expect(render(filed('monkey4'))).toContain('/art/animal-mono.png')
+    // [T27 follow-up, orchestrator screenshot review 2026-09-27] `mono` is a
+    // `PLACEHOLDER_ZOO_ANIMALS` entry: it never stands at the entrance as
+    // its own grey sign block (`/art/animal-mono.png`) — the drawn
+    // `PlaceholderAnimalBadge` (`data-cv-picture="true"`) takes its place.
+    const beforeMonkey = render()
+    const afterMonkey = render(filed('monkey4'))
+    expect(beforeMonkey).not.toContain('/art/animal-mono.png')
+    expect(afterMonkey).not.toContain('/art/animal-mono.png')
+    const beforeBadges = (beforeMonkey.match(/data-cv-picture="true"/g) ?? []).length
+    const afterBadges = (afterMonkey.match(/data-cv-picture="true"/g) ?? []).length
+    expect(afterBadges, 'a new drawn badge stands once monkey4 is filed').toBe(beforeBadges + 1)
   })
 })
 

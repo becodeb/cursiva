@@ -111,6 +111,51 @@ const NIGHT_DISCARD_PRIORITY: readonly ZooAnimalId[] = ['pato', 'oveja', 'llama'
  *  own header. */
 const NIGHT_DISCARD_FALLBACK: readonly ZooAnimalId[] = ['vaca', 'gato']
 
+/**
+ * The `monkeys` case's own two distractors (`docs/19` §3's monos row names
+ * `erizo`/`abeja` SPECIFICALLY, never a substitute) — unlike `night`'s
+ * single priority list, WHO appears never changes with progress, only HOW
+ * each is dismissed (`resolveMonkeysCase`, below). Declared BEFORE
+ * `DETECTIVE_CASES` for the same reason `NIGHT_DISCARD_PRIORITY` is: the
+ * static entry's own `hint` references `MONKEY_RESCUED_HINT` directly.
+ */
+const MONKEY_DISTRACTORS: readonly ZooAnimalId[] = ['erizo', 'abeja']
+
+/** The "ya rescatado" framing — the ORDINARY path (`zoo/journey.ts`'s own
+ *  `JOURNEY` order plays `hedgehog`/`bee` well before `monkey1`, and
+ *  `bosque`'s own `adventureIds` puts `bee1..4` immediately before
+ *  `monkey1..4` in the SAME sector), and the STATIC `DETECTIVE_CASES`
+ *  entry's own `hint` below, verbatim. */
+const MONKEY_RESCUED_HINT: Readonly<Partial<Record<ZooAnimalId, string>>> = {
+  erizo: '¿El erizo? No: al erizo ya lo encontramos.',
+  abeja: '¿La abeja? No: la abeja ya volvió a su panal.',
+}
+
+/** The clue-based fallback framing, for a `?debug`-seeded or otherwise
+ *  non-linear session that reaches `bosque` (unlocked by `snake4` alone,
+ *  `zoo/sectors.ts`) before actually rescuing one of these two. Both lines
+ *  stay TRUE regardless of progress — a real deduction, not a placeholder
+ *  excuse: neither animal eats a banana (`erizo`, `monkey2`'s own `corn`
+ *  stand-in), and neither leaves a footprint the way something climbing
+ *  down to the ground would (`abeja`, `monkey1`'s own `footprint` stand-in
+ *  — `docs/20` B13 still pending; `footprint`, unlike the `feather` this
+ *  shipped with first, never asserts the wrong ANIMAL left the trace,
+ *  `levels/catalog.ts`'s own header has the full reasoning). */
+const MONKEY_CLUE_HINT: Readonly<Partial<Record<ZooAnimalId, string>>> = {
+  erizo: 'El erizo no come bananas: no fue él.',
+  abeja: 'La abeja no deja huellas: no fue ella.',
+}
+
+/** Which of `monkey1`/`monkey2`'s own two stand-in clue kinds rules out
+ *  which fallback distractor — pairwise distinct, `cases.test.ts`'s own
+ *  generic invariant restated for this progress-resolved branch. Matches
+ *  `levels/catalog.ts`'s `monkey1` (`footprint`) / `monkey2` (`corn`)
+ *  exactly. */
+const MONKEY_CLUE_VERDICT: Readonly<Partial<Record<ZooAnimalId, ClueKind>>> = {
+  erizo: 'corn',
+  abeja: 'footprint',
+}
+
 /** Ordered cases, duck first (design.md §1; the user's binding decision 3). */
 export const DETECTIVE_CASES: readonly DetectiveCase[] = [
   {
@@ -228,7 +273,75 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     },
     trailIds: ['f2-guirnalda', 'f2-agua2'],
   },
+  // [T27, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §2.3/§3 monos
+  // row] The last of the four complete cases (duck, night, fish, monkeys —
+  // `docs/19` §2.3's own binding decision). Closed by `monkey2`
+  // (`zoo/adventures.ts`'s `monkeys.deduction.after`), routing into
+  // `monkey3`/`monkey4`, where the recovered monkey family is gathered.
+  //
+  // `options`/`ruledOutBy`/`hint` below are the ORDINARY, always-expected
+  // lineup — `zoo/journey.ts`'s own `JOURNEY` order plays `hedgehog`
+  // (erizo, stop 9) and `bee` (abeja, stop 11) both well before `monkey1`
+  // (the last stop, 17), and `bosque`'s own `adventureIds` puts `bee1..4`
+  // immediately before `monkey1..4` in the SAME sector — so an ordinary
+  // playthrough has genuinely met and rescued both distractors by the time
+  // this case opens, the same "nearly every child ever sees this" argument
+  // `night`'s own header makes for pato/oveja. `resolveMonkeysCase`, below,
+  // is the live, progress-aware substitute `Deduction.tsx` actually renders
+  // (`resolveCase`) — the one place this ordinary assumption can fall back
+  // to a real clue-based verdict instead, for a `?debug`-seeded or
+  // otherwise non-linear session that reaches `bosque` (unlocked by
+  // `snake4` alone, `zoo/sectors.ts`) before `hedgehog4` is filed.
+  {
+    id: 'monkeys',
+    culprit: 'mono',
+    options: ['mono', 'erizo', 'abeja'],
+    ruledOutBy: {},
+    rescuedDistractors: MONKEY_DISTRACTORS,
+    hint: MONKEY_RESCUED_HINT,
+    // [T27, follow-up 2026-09-27] Two STAND-IN `ClueKind`s, not new art:
+    // `docs/20` B13 (banana peel, banana) is still pending, so `monkey1`'s
+    // clue reuses `footprint` (a huella) and `monkey2`'s reuses `corn`
+    // (a food/seed) — the same technique T25 used for the night case's
+    // leaf/stone stand-ins, flagged there too (`levels/catalog.ts`'s own
+    // comment on this family). NEVER `feather` — a case whose answer is
+    // "mono" showing a feather teaches the wrong animal, not merely the
+    // wrong OBJECT (that family's own header has the full reasoning). Never
+    // `webfoot`/`breadcrumb` either — this file's own "webfoot and breadcrumb
+    // rule nobody out" invariant (`cases.test.ts`) bans either from ever
+    // being a `ruledOutBy` verdict, in this case or any other.
+    trailIds: ['monkey1', 'monkey2'],
+  },
 ]
+
+/**
+ * The `monkeys` case's live lineup framing, resolved from progress
+ * (`odd/tasks/prewriting-stage-completion.md` T27: "erizo and abeja may be
+ * 'already rescued' discards like the night case... if they are rescued by
+ * then; otherwise plain distractors"). Unlike `resolveNightDiscards`, WHO
+ * appears never changes — only HOW each of the two fixed distractors is
+ * dismissed: `rescuedDistractors` narrows to only the ones actually
+ * rescued, and any NOT yet rescued gains a real `ruledOutBy` verdict (one
+ * of the case's own two clue kinds) plus the clue-based hint instead of the
+ * "ya rescatado" one.
+ */
+export function resolveMonkeysCase(
+  kase: DetectiveCase,
+  isRescued: (animal: ZooAnimalId) => boolean,
+): DetectiveCase {
+  const rescuedDistractors = MONKEY_DISTRACTORS.filter((animal) => isRescued(animal))
+  const ruledOutBy: Partial<Record<ZooAnimalId, ClueKind>> = {}
+  const hint = { ...kase.hint }
+  for (const animal of MONKEY_DISTRACTORS) {
+    if (isRescued(animal)) {
+      hint[animal] = MONKEY_RESCUED_HINT[animal]
+    } else {
+      ruledOutBy[animal] = MONKEY_CLUE_VERDICT[animal]
+      hint[animal] = MONKEY_CLUE_HINT[animal]
+    }
+  }
+  return { ...kase, rescuedDistractors, ruledOutBy, hint }
+}
 
 /**
  * The night case's two live discard slots, computed from progress rather
@@ -270,8 +383,12 @@ export function resolveCase(
   kase: DetectiveCase,
   isRescued: (animal: ZooAnimalId) => boolean,
 ): DetectiveCase {
-  if (kase.id !== 'night') return kase
-  return { ...kase, options: nightCaseOptions(isRescued) }
+  if (kase.id === 'night') return { ...kase, options: nightCaseOptions(isRescued) }
+  // [T27] `monkeys`' own progress-resolved framing (`resolveMonkeysCase`,
+  // above) — unlike `night`, `options` never changes; only `rescuedDistractors`/
+  // `ruledOutBy`/`hint` do.
+  if (kase.id === 'monkeys') return resolveMonkeysCase(kase, isRescued)
+  return kase
 }
 
 /** The case's clue kinds, in play order. Throws on a trail authored without a

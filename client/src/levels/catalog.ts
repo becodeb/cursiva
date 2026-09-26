@@ -2176,17 +2176,53 @@ const PHASE_2: LevelConfig[] = [
   // "spans over 300 units" floor were this phase 1 instead (the reason
   // this family is phase 2 at all, restated: `loops()`'s crossing shape
   // is a lesson, and `f2-bucles` already proves this exact band works for
-  // it). `carrier: false`/no `clue`/no `detectiveWorld` (not in the
-  // world — unlike turtles, the forest backdrop needs no `ink` override
-  // at all: its own `brightest` clears the 55-luma law against the
-  // default slate ink by 111, so `backdropEntry?.ink` resolving
-  // `undefined` and falling back to `INK_COLOR` is already correct, see
-  // the `monkeys` row in `zoo/backdrops.ts`). `resetOnContact: false` (a
-  // gentle pattern family, no hazard). `rules(2, true, true, fluency)`
-  // (one continuous stroke — every hint below says so). `feedback.rail`
-  // stays off throughout — `loops()` is not a new mechanic here, the same
-  // reason `llama-peak1` (reusing sheep's own `peakRidge`) gets no
-  // first-contact assist either.
+  // it). `resetOnContact: false` (a gentle pattern family, no hazard).
+  // `rules(2, true, true, fluency)` (one continuous stroke — every hint
+  // below says so). `feedback.rail` stays off throughout — `loops()` is
+  // not a new mechanic here, the same reason `llama-peak1` (reusing
+  // sheep's own `peakRidge`) gets no first-contact assist either.
+  //
+  // [T27, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §2.3/§3
+  // monos row] Recipe A, reusing this exact shape family: `monkey1`/
+  // `monkey2` are now the case's own two PISTAS levels (`carrier: true`,
+  // the lens default — the same bundle every other clue-bearing level in
+  // this catalog carries, `catalog.test.ts`'s "every detective trail gets
+  // the fingertip carrier" invariant) — `detective/cases.ts`'s `monkeys`
+  // case reads their `clue.kind` through `clueKindsOf`, so the case and
+  // the levels can never disagree about which two kinds it carries. Two
+  // STAND-IN `ClueKind`s, not new art: `docs/20` B13 (banana peel, banana)
+  // is still pending, so `monkey1` reuses `footprint` (PRINT, a huella) and
+  // `monkey2` reuses `corn` (KERNEL, a food/seed) — the same technique T25
+  // used for the night case's leaf/stone stand-ins, flagged here and in
+  // `detective/cases.ts`'s own `monkeys` entry. [Orchestrator screenshot
+  // review 2026-09-27, T27 follow-up] `monkey1` shipped with `feather`
+  // first — WRONG in a way a visual mismatch alone is not: a case whose
+  // answer is "mono" showing a feather teaches the child that BIRDS leave
+  // this trace, the opposite inference from every other stand-in this task
+  // ships (leaf-for-apple/stone-for-mushroom never point at a different
+  // ANIMAL). `footprint`/`corn` share the earlier stand-ins' honest
+  // limitation (not literally a banana peel/banana) without that one's
+  // dishonesty (neither a footprint nor a corn cob asserts anything false
+  // about who left it). Never `webfoot`/`breadcrumb` — `cases.test.ts`'s
+  // "webfoot and breadcrumb rule nobody out" invariant bans either from
+  // ever being a `ruledOutBy` verdict. `monkey3`/`monkey4` gather the
+  // recovered monkey FAMILY
+  // instead (`LevelConfig.collect`, T17's engine, the sheep-hill/
+  // llama-peak convention): `items: 'crests'` (`waveCrestArcs`), NOT
+  // `'peaks'` — measured directly against these two shipped routes (the
+  // same way `duck-trail3`/`4`'s own header measured its wave), `'peaks'`
+  // (`routeApexes`) finds ZERO apexes on either: `loops()`'s own upstroke/
+  // downstroke controls keep the flattened polyline's apex ON the top
+  // line across more than one sample, so no single point is STRICTLY
+  // lower than both its immediate neighbours (`routeApexes`'s own exact
+  // test) — the identical failure mode that function's header already
+  // documents for a smooth bezier wave. `waveCrestArcs`'s window-based
+  // comparison finds exactly one crest per loop instead, at the same
+  // place docs/19 §3 puts a monkey ("un mono colgado arriba de cada
+  // bucle"). `ZOO_ANIMAL_ART.mono`
+  // is itself a placeholder sign block (`docs/20` B10, real monkey art
+  // still pending) — flagged the same way `duck-trail3`/`4`'s scaled-down
+  // `ANIMAL_ART.pato` duckling stand-in already is.
   //
   // Sizes are chosen against `loopHoleClearance(width, height,
   // corridorWidth)` (`paths.ts`/`paths.test.ts`): `loops()`'s own crossing
@@ -2209,12 +2245,19 @@ const PHASE_2: LevelConfig[] = [
     id: 'monkey1',
     phase: 2,
     title: 'El primer rulo',
-    hint: 'Subí, dá una vuelta como el mono en la liana y bajá. Otra vez.',
+    // [T27 follow-up, orchestrator screenshot review 2026-09-27] Renamed
+    // from "juntá la cáscara de banana": the level's own hint now names
+    // what its clue ACTUALLY shows (a footprint), not the banana-peel story
+    // the earlier `feather` stand-in pointed away from — see this family's
+    // own header comment for the full reasoning.
+    hint: 'Subí como el mono y juntá las huellas en la liana.',
     kind: 'path',
     surface: 'blank',
     maze: false,
     resetOnContact: false,
-    carrier: false,
+    // [T27] `carrier: true` — the lens default, `catalog.test.ts`'s
+    // "every detective trail gets the fingertip carrier" invariant.
+    carrier: true,
     feedback: feedback(55, false),
     // width 260, height 300: `loopHoleClearance(260, 300, 100)` — ratio
     // ≈0.135, clear of the 0.12 floor.
@@ -2224,17 +2267,25 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
+    // [T27 follow-up, orchestrator screenshot review 2026-09-27] `feather`
+    // pointed at a BIRD in a case whose answer is "mono" — a real wrong
+    // inference, not merely a visual mismatch (`docs/20` B13's still-pending
+    // banana peel/banana art). `footprint` (a huella) never contradicts a
+    // monkey the way a feather does — see this family's own header comment.
+    clue: { kind: 'footprint', spacing: 60 },
   },
   {
     id: 'monkey2',
     phase: 2,
     title: 'Tres rulos colgado',
-    hint: 'Tres vueltas colgado: subí, girá y bajá.',
+    // [T27] The case's LAST pistas level — finishing it routes into the
+    // `monkeys` deduction (`zoo/adventures.ts`'s `monkeys.deduction.after`).
+    hint: 'Otra vez colgado: encontrá la banana que se les cayó.',
     kind: 'path',
     surface: 'blank',
     maze: false,
     resetOnContact: false,
-    carrier: false,
+    carrier: true,
     feedback: feedback(60, false),
     // width 240, height 300: ratio ≈0.133.
     paths: [loops({ x0: 140, x1: 860, yTop: 150, yBase: 450, cycles: 3 })],
@@ -2243,6 +2294,9 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
+    // [T27] `corn` stands in for "banana" (`docs/20` B13 pending) — see
+    // this family's own header comment.
+    clue: { kind: 'corn', spacing: 60 },
   },
   {
     id: 'monkey3',
@@ -2262,6 +2316,16 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
+    // [T27] Past the deduction, the case is solved — this level (and
+    // `monkey4`) gathers the recovered monkey FAMILY along the loops'
+    // own crests, the `collect` mechanic `sheep-hill`/`llama-peak`/
+    // `duck-trail3`/`4` ship (T17): `'crests'` (`waveCrestArcs`), NOT
+    // `'peaks'` — see this family's own header comment (measured, not
+    // guessed: `routeApexes` finds zero apexes on this shipped route).
+    // `ZOO_ANIMAL_ART.mono` is a placeholder sign block (`docs/20` B10
+    // pending), flagged the same way as `duck-trail3`/`4`'s own scaled-
+    // down duckling stand-in.
+    collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, size: 50 },
   },
   {
     id: 'monkey4',
@@ -2287,6 +2351,9 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
+    // [T27] Same reasoning as `monkey3` above — the last of the monkey
+    // family, gathered along the route's own four loop apexes.
+    collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, size: 50 },
   },
   {
     id: 'f2-guirnalda',

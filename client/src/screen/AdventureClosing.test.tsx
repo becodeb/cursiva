@@ -8,6 +8,7 @@ import AdventureClosing from './AdventureClosing'
 import { auditCaptions } from '../detective/captionAudit'
 import {
   CARRIER_LENS_ART,
+  isPlaceholderArt,
   SECTOR_ADVENTURE_ART,
   ZOO_ANIMAL_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
@@ -264,7 +265,17 @@ describe('AdventureClosing rescue animal and flight (T24)', () => {
         <AdventureClosing adventure={adventure} beat={adventure.closingBeat![0]} onContinue={() => {}} />,
       )
       expect(html, adventure.id).toContain('class="cv-closing-rescue-animal"')
-      expect(html, adventure.id).toContain(`src="${ZOO_ANIMAL_ART[adventure.animal!].href}"`)
+      // [T27 follow-up, orchestrator screenshot review 2026-09-27] `mono`
+      // (`monkeys`) is a `PLACEHOLDER_ZOO_ANIMALS` entry: the big-animal
+      // element draws `PlaceholderAnimalBadge` here instead of its own grey
+      // sign block — never `src="…animal-mono.png"`.
+      const art = ZOO_ANIMAL_ART[adventure.animal!]
+      if (isPlaceholderArt(art)) {
+        expect(html, adventure.id).not.toContain(`src="${art.href}"`)
+        expect(html, adventure.id).toContain('data-cv-picture="true"')
+      } else {
+        expect(html, adventure.id).toContain(`src="${art.href}"`)
+      }
     }
   })
 
@@ -291,7 +302,9 @@ describe('AdventureClosing rescue animal and flight (T24)', () => {
     const html = renderToString(
       <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
     )
-    expect(html).toContain('@media (prefers-reduced-motion: reduce) { .cv-closing-rescue-animal img { animation: none; } }')
+    expect(html).toContain(
+      '@media (prefers-reduced-motion: reduce) { .cv-closing-rescue-animal img, .cv-closing-rescue-animal svg { animation: none; } }',
+    )
   })
 
   it('onContinue still fires for an animal-less closing with no rescue ref to measure (no-op guard, no throw)', () => {
