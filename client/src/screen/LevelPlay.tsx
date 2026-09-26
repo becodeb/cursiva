@@ -31,7 +31,15 @@ import TraceCanvas, {
 import { backdropFor, TORCH_CHALK, TORCH_CHALK_DIM } from '../zoo/backdrops'
 import { adventureFor } from '../zoo/adventures'
 import type { AdventureProgress } from '../zoo/progress'
-import { debugClearedTiles, EMPTY_REVEAL, revealTick, revealTiles, type RevealState } from '../levels/revealGrid'
+import {
+  completionGrowthFraction,
+  debugClearedTiles,
+  EMPTY_REVEAL,
+  isLightAnimating,
+  revealTick,
+  revealTiles,
+  type RevealState,
+} from '../levels/revealGrid'
 import {
   arrangeDebugCount,
   cameraDebugOrigin,
@@ -374,6 +382,11 @@ const MUD_INK_DIM = '#b3a08c'
 export const RESTART_MESSAGE = 'Volvé a empezar'
 /** How long the restart cue stays up before the standing hint returns. */
 const RESTART_CUE_MS = 2200
+/** T10: how often `animNow` is allowed to re-render while a flashlight
+ *  grow is in flight — well under the ~400ms/~1400ms durations themselves,
+ *  and well over the 60fps `onFrame` cadence, so the grow reads as smooth
+ *  without spending a `setState` on every single animation frame. */
+const LIGHT_ANIM_TICK_MS = 60
 export const PORTRAIT_GUIDANCE_QUERY = '(max-width: 559px) and (orientation: portrait)'
 
 export function isPortraitGuidanceViewport(): boolean {
@@ -381,6 +394,22 @@ export function isPortraitGuidanceViewport(): boolean {
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
     window.matchMedia(PORTRAIT_GUIDANCE_QUERY).matches
+  )
+}
+
+/**
+ * T10 (`odd/tasks/prewriting-stage-completion.md`, "add animations to the
+ * darkness"): the one gate the found-object grow and the completion wash
+ * both check before animating at all — the same `matchMedia` shape
+ * {@link isPortraitGuidanceViewport} already uses, read once rather than
+ * watched, since a preference flip mid-level is not a case worth a listener
+ * for a feature this small.
+ */
+export function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
 }
 
@@ -460,10 +489,27 @@ export function releasedRevealState(
   width: number,
 ): RevealState | null {
   if (!reveal) return null
+  // One shared clock for the whole instant replay (T10's own `now` param on
+  // `revealTick`): this rebuild exists to re-score off RAW points, not to
+  // re-run the live growth animation, so every stroke in the snapshot is
+  // folded at the SAME moment rather than at N slightly different reads of
+  // the clock. `performance.now()`, NOT `Date.now()`: `canvas/TraceCanvas.tsx`'s
+  // own rAF loop stamps `onFrame`'s `timeMs` (and therefore every OTHER
+  // `revealTick` call site's `now`, and `animNow`'s own clock below) from
+  // `performance.now()` — a page-relative clock starting near 0, not the
+  // Unix epoch. Stamping `litAt`/`completeAt` from `Date.now()` here would
+  // put them on a completely different scale (~1.7e12 apart), so every
+  // later `elapsed = animNow - litAt` would be a huge negative number that
+  // `growthFraction` clamps to 0 forever — a found object's own grow-in
+  // (and the completion wash) would never advance past radius 0, because
+  // `onRelease` (this function's one caller) runs on EVERY stroke release
+  // and overwrites `revealState` wholesale, right after the live fold had
+  // already stamped it correctly.
+  const now = performance.now()
   let next = EMPTY_REVEAL
   for (const stroke of snapshot) {
-    next = revealTick(next, stroke, true, reveal, width)
-    next = revealTick(next, [], false, reveal, width)
+    next = revealTick(next, stroke, true, reveal, width, now)
+    next = revealTick(next, [], false, reveal, width, now)
   }
   return next
 }
@@ -1636,6 +1682,31 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const debugLightPoint =
     level.reveal?.mode === 'light' ? lightDebugPoint(debugSearch) : null
 
+  // T10 (`odd/tasks/prewriting-stage-completion.md`, "add animations to the
+  // darkness"): the reveal projection below (`reveal` useMemo) needs a clock
+  // to ease a growing radius against, but `revealState` itself only changes
+  // on a genuine fold edge (a new object latching, the torch moving past
+  // `REVEAL_EPSILON`) — a still torch mid-grow would never re-render
+  // otherwise. `animNow` is that clock, ticked from the SAME `onFrame`
+  // sample every other live fold already rides (no second rAF loop), but
+  // only a `setState` while something is actually animating
+  // (`isLightAnimating`) and only every `LIGHT_ANIM_TICK_MS` — a plain idle
+  // level (the overwhelming majority of every frame ever sampled here)
+  // costs one `Map`/`Set` scan over at most a handful of found objects, no
+  // `setState` at all. `performance.now()`, matching `onFrame`'s own
+  // `timeMs`/`releasedRevealState`'s own clock (their headers explain why
+  // `Date.now()` here would be a scale mismatch, not just a cosmetic one).
+  const [animNow, setAnimNow] = useState<number>(() => performance.now())
+  const revealStateRef = useRef(revealState)
+  useEffect(() => {
+    revealStateRef.current = revealState
+  }, [revealState])
+  const lastAnimTickRef = useRef(0)
+  // Read once per mount, the same one-shot convention `isPortraitGuidanceViewport`
+  // itself uses — see `prefersReducedMotion`'s own header for why a listener
+  // is not worth it here.
+  const reducedMotionRef = useRef(prefersReducedMotion())
+
   // The waypoint fold's live latch (`free-trail-waypoints` capability,
   // design.md §2.3) — the lit-flower / home set for THIS attempt. `waypointRef`
   // mirrors the same shape `corridorTrackRef` already uses: the pulse needs a
@@ -1959,6 +2030,18 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // the cloud again.
   const onFrame = useCallback(
     (points: TracePoint[], drawing: boolean, timeMs: number) => {
+      // T10: the flashlight grow's own clock tick — rides this SAME sample,
+      // ahead of every early return below, so a growing light still animates
+      // even mid-arrange or mid-drag. `isLightAnimating` is a cheap scan (at
+      // most a handful of found objects), so it is safe to run every frame;
+      // only the throttled `setState` is gated behind it actually finding
+      // something to animate.
+      if (level.reveal?.mode === 'light' && isLightAnimating(revealStateRef.current, timeMs)) {
+        if (timeMs - lastAnimTickRef.current >= LIGHT_ANIM_TICK_MS) {
+          lastAnimTickRef.current = timeMs
+          setAnimNow(timeMs)
+        }
+      }
       // The arrange phase (object-arrange spec) redirects the SAME per-frame
       // sample instead of adding a second pointer-capture mechanism: no
       // wall/clue/reveal fold runs while a level's pieces are not yet home.
@@ -2018,7 +2101,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // the same sentence). Skipped while `?debug=linterna` pins the
         // point — the flag replaces live pointer input entirely.
         if (level.reveal && !debugLightPoint) {
-          setRevealState((prev) => revealTick(prev, points, false, level.reveal!, target.viewBoxWidth))
+          setRevealState((prev) => revealTick(prev, points, false, level.reveal!, target.viewBoxWidth, timeMs))
         }
         return
       }
@@ -2062,7 +2145,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // Skipped while `?debug=linterna` pins the point (same guard as the
       // `!drawing` branch above).
       if (level.reveal && !debugLightPoint) {
-        setRevealState((prev) => revealTick(prev, points, drawing, level.reveal!, target.viewBoxWidth))
+        setRevealState((prev) => revealTick(prev, points, drawing, level.reveal!, target.viewBoxWidth, now))
       }
       // Detective mode's clue marks ride this SAME sample (design.md "The rAF
       // loop is not touched"; spec "Clue Collection State Machine") — no
@@ -2474,8 +2557,24 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // the backdrop's own veil paint and the hidden objects' art, if any.
   const reveal = useMemo<TraceReveal | undefined>(() => {
     if (!level.reveal) return undefined
+    const reducedMotion = reducedMotionRef.current
     const lightComplete = level.reveal.mode === 'light' && revealState.lit.size >= level.reveal.objects.length
-    const tiles = lightComplete && level.reveal.mode === 'light' ? allRevealTiles(level.reveal, target.viewBoxWidth) : revealTiles(level.reveal, revealState, target.viewBoxWidth)
+    // T10 (`odd/tasks/prewriting-stage-completion.md`, "add animations to
+    // the darkness"): completion no longer jumps straight from dark to the
+    // `allRevealTiles` all-clear bypass. While the completion wash is still
+    // growing (`completionGrowthFraction < 1`), the found objects keep
+    // acting as real light sources — `canvas/RevealLayer.tsx` is the one
+    // that grows their reach out to cover the whole screen, since it alone
+    // knows `displayBounds`. Only once that grow has actually finished does
+    // this fall back to the old bypass (no veil at all, forever, no more
+    // per-frame cost).
+    const completionGrowth =
+      level.reveal.mode === 'light' ? completionGrowthFraction(revealState, animNow, reducedMotion) : 1
+    const stillGrowingCompletion = lightComplete && completionGrowth < 1
+    const tiles =
+      lightComplete && !stillGrowingCompletion
+        ? allRevealTiles(level.reveal, target.viewBoxWidth)
+        : revealTiles(level.reveal, revealState, target.viewBoxWidth, animNow, reducedMotion)
     const art =
       level.reveal.mode === 'light'
         ? level.reveal.objects.map((o, idx) => ({
@@ -2493,7 +2592,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     const light =
       level.reveal.mode === 'light'
         ? lightComplete
-          ? { x: 0, y: 0, radius: level.reveal.radius, complete: true }
+          ? { x: 0, y: 0, radius: level.reveal.radius, complete: true, growth: stillGrowingCompletion ? completionGrowth : 1 }
           : revealState.point
             ? { x: revealState.point.x, y: revealState.point.y, radius: level.reveal.radius, complete: false }
             : null
@@ -2512,7 +2611,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       art,
       light,
     }
-  }, [level.id, level.reveal, revealState, target.viewBoxWidth, backdropEntry])
+  }, [level.id, level.reveal, revealState, target.viewBoxWidth, backdropEntry, animNow])
 
   // The waypoint fold's render projection (`free-trail-waypoints`
   // capability, design.md §5): N images (the flowers, then the hive), plus

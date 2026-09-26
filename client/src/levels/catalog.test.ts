@@ -1607,7 +1607,7 @@ describe('LEVELS — the reveal grid, twelve authored levels (design.md §5, ame
 
     // End-to-end: a single still touch at the sheet's centre — the reported
     // "tap anywhere" — must not latch the object through the real fold.
-    const tapped = revealTick(EMPTY_REVEAL, [centre], true, reveal, MIN_VIEWBOX_WIDTH)
+    const tapped = revealTick(EMPTY_REVEAL, [centre], true, reveal, MIN_VIEWBOX_WIDTH, 0)
     expect(tapped.lit.size).toBe(0)
   })
 
