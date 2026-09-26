@@ -31,7 +31,7 @@ import {
   loops,
   ovals,
   peakRidge,
-  spineWave,
+  spinePolyline,
   spiral,
   squareWave,
   straight,
@@ -124,13 +124,11 @@ function snakePathD(piece: ArtCorridorPiece): string {
   const boxX = piece.at.x - piece.span / 2
   const boxY = piece.at.y - spine.mid * height
   const pivot = { x: boxX + piece.span / 2, y: boxY + height / 2 }
-  const x0 = boxX + spine.traceFrom * piece.span
-  const y = boxY + spine.mid * height
-  const halves = spine.halves.map(([widthFrac, riseFrac]) => ({
-    width: widthFrac * piece.span,
-    rise: riseFrac * height,
+  const points = spine.points.map(([xFrac, yFrac]) => ({
+    x: boxX + xFrac * piece.span,
+    y: boxY + yFrac * height,
   }))
-  const localD = spineWave({ x0, y, halves })
+  const localD = spinePolyline(points)
   return transformPath(localD, { rotate: piece.rotate ?? 0, pivot })
 }
 
@@ -144,13 +142,18 @@ function snakePathD(piece: ArtCorridorPiece): string {
  */
 function snakeHorizontalPieces(): readonly ArtCorridorPiece[] {
   return [
-    // `at.x` is 455.66, not 500: `traceFrom`/`traceTo` are not symmetric
+    // `at.x` is 446.04, not 500: `traceFrom`/`traceTo` are not symmetric
     // about a piece's own box centre (each snake's traceable span is
     // measured off the drawing, not authored), so the DRAWN centreline's
     // own bounding box sits off-centre from the box even when every piece
-    // shares one `at.x`. 455.66 is the corrected value that lands the
+    // shares one `at.x`. 446.04 is the corrected value that lands the
     // union's own centroid exactly on the sheet centre, so `layOutPaths`'s
     // `tx` measures under 0.5 (R6) — found by measuring, not guessed.
+    // (Re-measured for `fix-snakes-true-alignment`: the stored centreline
+    // now spans the FULL `[traceFrom, traceTo]` instead of stopping short at
+    // an inner zero-crossing, which grows each piece's own path noticeably
+    // — the old 455.66 no longer centres the union; tx measured -9.62
+    // before this correction.)
     //
     // `at.y` was corrected by a reviewer's screenshot (docs/13 §4 decision
     // 3, design.md §3.6): `93.2`/`319.1`/`531.7` sat the small and large
@@ -179,9 +182,9 @@ function snakeHorizontalPieces(): readonly ArtCorridorPiece[] {
     // overlap, down from ~59). C3/C4 was chosen over full quiet-band
     // containment because it is a scoring-safety constraint (two routes
     // read as one below it), not a visual one.
-    { art: SECTOR_ADVENTURE_ART.snakeSmall, spine: 'snakeSmall', span: 520, at: { x: 455.66, y: 152.7 } },
-    { art: SECTOR_ADVENTURE_ART.snakeMedium, spine: 'snakeMedium', span: 640, at: { x: 455.66, y: 332.9 } },
-    { art: SECTOR_ADVENTURE_ART.snakeLarge, spine: 'snakeLarge', span: 760, at: { x: 455.66, y: 507.3 } },
+    { art: SECTOR_ADVENTURE_ART.snakeSmall, spine: 'snakeSmall', span: 520, at: { x: 446.04, y: 152.7 } },
+    { art: SECTOR_ADVENTURE_ART.snakeMedium, spine: 'snakeMedium', span: 640, at: { x: 446.04, y: 332.9 } },
+    { art: SECTOR_ADVENTURE_ART.snakeLarge, spine: 'snakeLarge', span: 760, at: { x: 446.04, y: 507.3 } },
   ]
 }
 

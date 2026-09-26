@@ -632,14 +632,37 @@ SPINE_ALPHA_THRESH = 128
 
 
 def sample_spine(img: png.Image) -> dict:
-    """The drawn body's centreline, as `spineWave`'s own parameters.
+    """The drawn body's true centreline, sampled directly off the pixels
+    rather than fitted to a formula (`fix-snakes-true-alignment`'s own
+    correction of the previous closed-form fit below).
 
-    `mid`      the fitted centreline's y, as a fraction of the cutout's height
-    `halves`   [[width, rise], ...] -- width as a fraction of the cutout's WIDTH,
-               rise SIGNED as a fraction of its height (negative = up)
-    `residual` max |measured spine - reconstructed cubic|, SHIPPED px. The number
-               `catalog.test.ts` turns into a viewBox tolerance (design.md 3.2 C1).
-    `thickness`median opaque-column run length, as a fraction of the height
+    `mid`      the traceable span's mean centreline y, as a fraction of the
+               cutout's height -- still the anchor `placeArtCorridor` maps
+               `at.y` onto, same role the fitted `mid` used to play.
+    `points`   `[[x, y], ...]` -- the measured centreline itself, x and y both
+               as fractions of the cutout's width/height, x STRICTLY
+               ascending from `traceFrom` to `traceTo` inclusive (the first
+               and last point sit exactly on the traceable span's own
+               boundary, so a caller that starts drawing at `traceFrom` and
+               ends at `traceTo` can never silently draw a DIFFERENT stretch
+               of the curve than the one measured here -- the bug this
+               replaces: the previous closed-form fit's `halves` widths
+               summed to the span between its own first/last zero-crossing,
+               which sat INSIDE `[traceFrom, traceTo]` by a margin the
+               runtime never accounted for, so `placeArtCorridor` marched the
+               fitted halves from `traceFrom` and silently drew a shifted
+               segment of the wave -- up to 35 shipped px off on the small
+               snake, the worst-case a whole-route RMS check hides).
+    `residual` max |measured spine - stored polyline| after the light
+               smoothing/resampling below, SHIPPED px -- small by
+               construction (the points ARE the measurement, not a fitted
+               approximation of it). `catalog.test.ts` turns this into a
+               viewBox tolerance (design.md 3.2 C1), same role the old fit
+               residual played.
+    `thickness`the NARROWEST opaque-column run length over the traceable
+               span, as a fraction of the height (unchanged: a channel that
+               must stay under the body everywhere answers to its thinnest
+               cross-section, not a typical one).
     `traceFrom`/`traceTo`  the TRACEABLE span, as fractions of the width,
                `traceFrom < traceTo` always. Whichever tip carries the eye
                white (luma >= 200 -- measured, not assumed to sit on a
@@ -660,14 +683,17 @@ def sample_spine(img: png.Image) -> dict:
     than a scale. No alpha is sampled at RUNTIME; this is a build step, and
     nothing in the client ever reads a pixel.
 
-    The centreline generator's own closed form (`alternatingArches`,
-    `client/src/levels/paths.ts`): one half-arch of width `width` starting at
-    `(x0, mid)` and ending at `(x0 + width, mid)` is the cubic Bezier through
-    control points offset by `off = (4/3) * rise` at 1/3 and 2/3 of the span,
-    which satisfies `y(t) = mid + 3 * off * t * (1 - t)` -- exactly `mid` at
-    `t = 0, 1` and exactly `mid + rise` at `t = 1/2`. Fitting therefore needs
-    only the two zero crossings (the half's start/end x) and the measured
-    extremum `rise` in between: no solver, closed form.
+    Per-column midpoint (`(y_min + y_max) / 2` of the opaque run) is an
+    UNBIASED read of a straight tube's true centre at any slope -- elementary
+    geometry, a vertical cut through an infinite straight strip always bisects
+    it -- and this shape never has more than one opaque run per traceable
+    column (checked directly: zero multi-run columns on the small/medium
+    bodies, and the large body's only ones sit in the head taper, outside
+    `[traceFrom, traceTo]`), so there is no self-occlusion to correct for
+    either. What was wrong was never the per-column measurement -- it was
+    reducing it to a five-number formula and then re-expanding that formula
+    from the WRONG anchor. Storing the measured points removes the
+    reduction and the anchor mismatch in one move.
     """
     w, h = img.w, img.h
     px = img.px
@@ -782,98 +808,63 @@ def sample_spine(img: png.Image) -> dict:
     head_white_luma = max(col_max_luma.values())
     head_white = hex_at_luma(head_white_luma, 0, w - 1)
 
-    # The wave fit is over the TRACEABLE span only, `[traceFrom, traceTo]` --
-    # not the whole cutout. The tapering tail/head tips outside it are real
-    # drawn art but are not corridor: forcing a half-arch to start or end
-    # exactly at a tip column, which does not actually sit on any fitted
-    # centreline (a taper's own tip is a point, not a cross-section), is what
-    # produced an unfittable residual on the very first measurement of this
-    # data. `mid` is therefore the mean over the traceable span alone, which
-    # is also the span `spineWave`'s own path needs to cover: the round-capped
-    # corridor stroke already stops at the same two insets (C5).
+    # The centreline is sampled over the TRACEABLE span only,
+    # `[traceFrom, traceTo]` -- not the whole cutout. The tapering tail/head
+    # tips outside it are real drawn art but are not corridor: a taper's own
+    # tip is a point, not a cross-section, so `mid` is the mean over the
+    # traceable span alone, which is also the span the stored polyline needs
+    # to cover: the round-capped corridor stroke already stops at the same
+    # two insets (C5).
     mid_px = sum(spine[x] for x in body_cols) / len(body_cols)  # type: ignore[misc]
 
-    # Zero crossings of `spine(x) - mid_px` within the traceable span,
-    # interpolated to sub-pixel precision, walking left to right. ONLY real
-    # sign changes count -- `traceFrom`/`traceTo` are half-thickness INSETS
-    # from a tapering tip (design.md §3.2 C5), not points the drawn spine
-    # actually crosses `mid` at, so forcing either boundary to double as a
-    # zero crossing forced `spineWave`'s own `move(x0, mid)` origin onto a
-    # column the real art does not touch mid at -- measured on the first
-    # build of this slice as most of the fit's own residual, at BOTH tips,
-    # not fixable by splitting a half (the mismatch sits AT the boundary
-    # point itself, not inside a span a split can bisect). The fitted wave
-    # therefore spans the first-to-last REAL crossing, which sits inside
-    # `[traceFrom, traceTo]` by a small, honestly measured margin -- the
-    # tapering few pixels closest to each tip are drawn art the `<image>`
-    # still shows, just not part of the modelled centreline.
-    crossings: list[float] = []
-    for x in range(trace_from_col + 1, trace_to_col + 1):
-        d0 = spine[x - 1] - mid_px
-        d1 = spine[x] - mid_px
-        if d0 == 0.0 or (d0 < 0) != (d1 < 0):
-            cx = float(x) if d1 == d0 else (x - 1) + (0 - d0) / (d1 - d0)
-            crossings.append(cx)
-    if len(crossings) < 2:
-        crossings = [trace_from_px, trace_to_px]
+    # A light 3-tap box filter over the raw per-column measurement -- not to
+    # fix any real defect (the per-column jitter measured on all three snakes
+    # tops out at 1.5px between adjacent columns, i.e. already smooth: a
+    # hand-inked antialiased edge, not noise) but so the stored points do not
+    # bake in single-pixel antialiasing-threshold flicker.
+    def smoothed(x: int) -> float:
+        lo = max(trace_from_col, x - 1)
+        hi = min(trace_to_col, x + 1)
+        return sum(spine[i] for i in range(lo, hi + 1)) / (hi - lo + 1)  # type: ignore[misc]
 
-    # `fit_half`: the closed-form 3-point fit for one half-arch, and design.md
-    # §3.5's named THIRD fallback ("split a half-arch in two in the fit"),
-    # applied automatically wherever the closed-form fit alone leaves a
-    # residual over the §3.5 prediction (10% of that half's own amplitude): a
-    # hand-drawn spine's true peak is not always at its half's geometric
-    # midpoint the way `alternatingArches`'s own cubic assumes, and splitting
-    # the half lets each piece re-centre on its OWN local extremum. No code
-    # downstream of the manifest changes shape -- `spineWave` already takes an
-    # arbitrary-length `halves` list.
-    MAX_SPLIT_DEPTH = 4
-    RESIDUAL_FRACTION = 0.10
+    # Resample the smoothed measurement at evenly spaced x's across the
+    # traceable span, roughly one point every 8px -- dense enough to read as
+    # a smooth curve at the sizes this art is placed at, sparse enough to stay
+    # a short, reviewable literal (`DRAWN_SPINE` in `artCorridor.ts`), same as
+    # every other hand-copied manifest number in `assets.ts`/`backdrops.ts`.
+    # The FIRST and LAST sample sit exactly on `traceFrom`/`traceTo` by
+    # construction, which is what makes the anchor bug above structurally
+    # impossible here: whatever starts drawing at `traceFrom` and ends at
+    # `traceTo` draws exactly this data, never a shifted stretch of it.
+    span_px = trace_to_px - trace_from_px
+    point_count = max(8, round(span_px / 8) + 1)
+    points_px: list[tuple[float, float]] = []
+    for i in range(point_count):
+        t = i / (point_count - 1)
+        x_px = trace_from_px + t * span_px
+        x_lo = max(trace_from_col, min(trace_to_col, int(x_px)))
+        x_hi = min(trace_to_col, x_lo + 1)
+        frac = 0.0 if x_hi == x_lo else (x_px - x_lo) / (x_hi - x_lo)
+        y_px = smoothed(x_lo) * (1 - frac) + smoothed(x_hi) * frac
+        points_px.append((x_px, y_px))
 
-    def fit_half(cx0: float, cx1: float, depth: int) -> tuple[list[list[float]], float]:
-        width_px = cx1 - cx0
-        lo = max(trace_from_col, round(cx0))
-        hi = min(trace_to_col, round(cx1))
-        if width_px <= 0 or hi <= lo:
-            return [], 0.0
-        best_dev = 0.0
-        best_y = mid_px
-        for x in range(lo, hi + 1):
-            dev = spine[x] - mid_px
-            if abs(dev) > abs(best_dev):
-                best_dev = dev
-                best_y = spine[x]
-        rise_px = best_y - mid_px
-        off = (4 / 3) * rise_px
-        local_residual = 0.0
-        for x in range(lo, hi + 1):
-            t = min(1.0, max(0.0, (x - cx0) / width_px))
-            recon = mid_px + 3 * off * t * (1 - t)
-            local_residual = max(local_residual, abs(spine[x] - recon))
-        amplitude = abs(rise_px)
-        if (
-            depth < MAX_SPLIT_DEPTH
-            and width_px > 2
-            and (amplitude == 0 or local_residual > RESIDUAL_FRACTION * amplitude)
-        ):
-            cx_mid = (cx0 + cx1) / 2
-            left_halves, left_res = fit_half(cx0, cx_mid, depth + 1)
-            right_halves, right_res = fit_half(cx_mid, cx1, depth + 1)
-            split_residual = max(left_res, right_res)
-            if split_residual < local_residual:
-                return left_halves + right_halves, split_residual
-        return [[width_px, rise_px]], local_residual
-
-    halves: list[list[float]] = []
+    # `residual`: how far the stored (smoothed, resampled) polyline strays
+    # from the RAW per-column measurement, at every raw column -- small by
+    # construction, since the points are a light smoothing of the
+    # measurement itself rather than a fitted approximation of it.
     residual = 0.0
-    for i in range(len(crossings) - 1):
-        cx0, cx1 = crossings[i], crossings[i + 1]
-        hs, res = fit_half(cx0, cx1, 0)
-        halves.extend(hs)
-        residual = max(residual, res)
+    pi = 0
+    for x in range(trace_from_col, trace_to_col + 1):
+        while pi + 1 < len(points_px) - 1 and points_px[pi + 1][0] < x:
+            pi += 1
+        (ax, ay), (bx, by) = points_px[pi], points_px[min(pi + 1, len(points_px) - 1)]
+        t = 0.0 if bx == ax else max(0.0, min(1.0, (x - ax) / (bx - ax)))
+        recon = ay + (by - ay) * t
+        residual = max(residual, abs(spine[x] - recon))  # type: ignore[operator]
 
     return {
         'mid': mid_px / h,
-        'halves': [[wpx / w, rpx / h] for wpx, rpx in halves],
+        'points': [[xpx / w, ypx / h] for xpx, ypx in points_px],
         'residual': residual,
         'thickness': thickness_px / h,
         'traceFrom': trace_from_px / w,

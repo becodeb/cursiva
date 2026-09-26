@@ -2203,13 +2203,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // `startMarker` exactly as it always has.
   const startArtAt = useMemo(() => {
     const piece0 = target.artCorridor?.[0]
-    // Scoped to an UNROTATED piece (`snake1`/`snake2`/`snake4`'s shared
-    // small snake): the "before the box" side maps to a plain horizontal
-    // shift there, verified clear of the sheet and of the next piece down.
-    // A rotated piece (`snake3`'s vertical column) maps that same side to a
-    // different screen axis this fix was not verified against — it keeps
-    // the unmoved default rather than risk an unverified placement.
-    if (!piece0 || !startMarker || piece0.rotate) return undefined
+    // `standBesideArtCorridor` already rotates the offset WITH the piece
+    // (`placeArt.test.ts`'s own "rotate:-90 column shifts on Y, not X"
+    // proof) — verified on `snake3`'s rotated column too
+    // (`fix-snakes-true-alignment`'s own browser QA), so a rotated piece no
+    // longer needs to fall back to the unmoved default.
+    if (!piece0 || !startMarker) return undefined
     return standBesideArtCorridor(startMarker, piece0, OCTOPUS_STAND_MARGIN, true)
   }, [target.artCorridor, startMarker])
   const directionArrow = useMemo(() => directionArrowOf(target), [target])

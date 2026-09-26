@@ -42,7 +42,6 @@ import {
   peakRidgeCorridorLimit,
   spiral,
   uTurnRadius,
-  waveCrestRadius,
 } from './paths'
 import { DRAWN_SPINE } from './artCorridor'
 import type { Phase } from './types'
@@ -1674,6 +1673,25 @@ function minPairDistance(a: readonly { x: number; y: number }[], b: readonly { x
   return best
 }
 
+/** Menger curvature's own circumradius, from three consecutive points on a
+ *  polyline: `R = (a·b·c)/(4·area)` for the triangle they span. Three
+ *  collinear points (`area === 0`, a straight run) have no bend at all —
+ *  `Infinity`, never a false failure. This is `spine.points`' own analogue
+ *  of the closed-form `waveCrestRadius` the previous fitted-arch spine used:
+ *  the SAME "how tight is the tightest bend" question, answered directly
+ *  from the measured centreline instead of from a formula's amplitude. */
+function circumradius(
+  p0: { x: number; y: number },
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+): number {
+  const a = Math.hypot(p1.x - p0.x, p1.y - p0.y)
+  const b = Math.hypot(p2.x - p1.x, p2.y - p1.y)
+  const c = Math.hypot(p2.x - p0.x, p2.y - p0.y)
+  const area = Math.abs((p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y)) / 2
+  return area === 0 ? Infinity : (a * b * c) / (4 * area)
+}
+
 describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
   it('R1: corridorWidth is strictly decreasing across snake1..4', () => {
     const widths = SNAKE_IDS.map((id) => getLevel(id).corridorWidth)
@@ -1746,19 +1764,17 @@ describe('the snake family — C1-C6 and R1-R7 (design.md §3.2/§6.2)', () => {
         expect(minMargin, `${id}: C1 margin`).toBeGreaterThan(0)
       })
 
-      it(`${id}: C2 — every piece's wave-crest radius clears corridorWidth/2 - BAND_INSET`, () => {
+      it(`${id}: C2 — every piece's tightest bend radius clears corridorWidth/2 - BAND_INSET`, () => {
         const level = getLevel(id)
         const pieces = level.artCorridor!
         const required = Math.max(MIN_CORRIDOR, level.corridorWidth) / 2 - BAND_INSET_C2
         for (const piece of pieces) {
           const spine = DRAWN_SPINE[piece.spine]
           const height = (piece.span * piece.art.h) / piece.art.w
-          for (const [widthFrac, riseFrac] of spine.halves) {
-            const halfWidth = widthFrac * piece.span
-            const amplitude = Math.abs(riseFrac) * height
-            expect(waveCrestRadius(halfWidth, amplitude), `${id}/${piece.spine}`).toBeGreaterThan(
-              required,
-            )
+          const pts = spine.points.map(([xFrac, yFrac]) => ({ x: xFrac * piece.span, y: yFrac * height }))
+          for (let i = 1; i < pts.length - 1; i++) {
+            const radius = circumradius(pts[i - 1], pts[i], pts[i + 1])
+            expect(radius, `${id}/${piece.spine} @${i}`).toBeGreaterThan(required)
           }
         }
       })
