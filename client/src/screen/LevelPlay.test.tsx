@@ -549,7 +549,7 @@ describe('LevelPlay — sheep-hill3 stands the octopus without a direction arrow
     expect(traceCanvasProbe.current?.ground).toBeUndefined()
   })
 
-  it('passes vertexArt with 3 apexes, one per authored peak (T17: sheep-hill3 also authors `collect`, but the FINAL item is drawn through `goalArt` instead — vertexArt keeps standing only the peak sheep, byte-identical to before this field existed)', () => {
+  it('passes vertexArt with 4 points before any attempt: 3 apexes plus the final item (T17 follow-up: sheep-hill3 authors `collect`, not `vertexArt` — the collect-driven layer stands a sheep at every un-collected item, peaks AND the route\'s end alike)', () => {
     renderToString(
       <LevelPlay
         level={getLevel('sheep-hill3')}
@@ -563,8 +563,10 @@ describe('LevelPlay — sheep-hill3 stands the octopus without a direction arrow
       | { href: string; at: readonly { x: number; y: number }[] }
       | undefined
     expect(vertexArt).toBeDefined()
-    expect(vertexArt!.at).toHaveLength(3)
+    expect(vertexArt!.at).toHaveLength(4)
     expect(vertexArt!.href).toBe('/art/sector-sheep.png')
+    // No departing layer at all before anything has been collected.
+    expect(traceCanvasProbe.current?.vertexArtDeparting).toBeUndefined()
   })
 })
 
@@ -1058,6 +1060,63 @@ describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', (
     expect(html).not.toContain('aria-label="Resultado del intento"')
   })
 
+  // Render test (orchestrator follow-up): this repo's SSR-only harness
+  // cannot drive a live finger or observe a post-`renderToString` state
+  // update (state dispatches after a completed `renderToString` call are
+  // no-ops on the server — this file's own header), so `?debug=juntado:<k>`
+  // (`canvas/devMode.ts`'s `collectDebugCount`, the SAME screenshot-seeding
+  // convention `?debug=espinas:<k>`/`?debug=estela:<k>` already use) is what
+  // makes "item 0's picture is absent from the path" observable from a
+  // single render, exactly like those two flags already do for their own
+  // mechanics.
+  function renderWithSearch(levelId: string, search: string) {
+    vi.stubGlobal('window', { location: { search } })
+    try {
+      renderToString(
+        <LevelPlay level={getLevel(levelId)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      return traceCanvasProbe.current
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  }
+
+  it.each(['sheep-hill1', 'llama-peak1'] as const)(
+    "%s: after collecting item 0, its picture is absent from the path while every other item's picture is still standing — orchestrator follow-up: a sheep must not keep standing on a peak whose item was just collected",
+    (id) => {
+      const before = renderWithSearch(id, '')?.vertexArt as
+        | { href: string; at: readonly { x: number; y: number }[] }
+        | undefined
+      const totalItems = before!.at.length
+      const firstItem = before!.at[0]
+
+      const after = renderWithSearch(id, '?debug=juntado:1')
+      const steady = after?.vertexArt as { href: string; at: readonly { x: number; y: number }[] } | undefined
+
+      // Item 0's own picture is ABSENT from the path...
+      expect(steady?.at, id).toHaveLength(totalItems - 1)
+      expect(steady?.at.some((p) => p.x === firstItem.x && p.y === firstItem.y), id).toBe(false)
+      // ...while every OTHER item is still present, untouched.
+      expect(steady?.at, id).toEqual(before!.at.slice(1))
+    },
+  )
+
+  // The departing/hop layer is populated only by a LIVE collection event
+  // during `onFrame` (see the onFrame wiring below) — `?debug=juntado:<k>`
+  // deliberately seeds the STEADY fold alone, the same way `?debug=
+  // espinas:<k>` marks anchors "filled" without replaying their own pop
+  // animation. So this level covers "absent from the path"; the onFrame
+  // wiring tests below cover "collection is detected and overrides
+  // approval" — between the two, nothing here needs a live timer.
+  it.each(['sheep-hill1', 'llama-peak1'] as const)(
+    '%s: collecting EVERY item leaves no steady picture standing at all',
+    (id) => {
+      const total = (renderWithSearch(id, '')?.vertexArt as { at: readonly unknown[] } | undefined)!.at.length
+      const after = renderWithSearch(id, `?debug=juntado:${total}`)
+      expect(after?.vertexArt, id).toBeUndefined()
+    },
+  )
+
   it("collecting only PART of the route still refuses approval on release, even with a full, accurate stroke: collection gates passing, not evaluateLevel's own pillars", () => {
     const level = getLevel('sheep-hill1')
     const target = buildLevelTarget(level)
@@ -1390,16 +1449,22 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     }
   })
 
-  it("T17: sheep-hill1..4 and llama-peak1..4 each show their OWN animal at the route's end via goalArt, including the adventure's last level (goalArt wins over both the star fallback and the encounter default)", () => {
-    for (const id of ['sheep-hill1', 'sheep-hill2', 'sheep-hill3', 'sheep-hill4'] as const) {
+  it("T17 follow-up: sheep-hill1..4 and llama-peak1..4 render NO endArt AND NO endMarker at all — the route's end is the LAST collect item, drawn through the collect-driven vertexArt layer so it can hop away and stay gone, never through endArt/goalArt/the default diamond (any of which would pop a second, different picture into the exact spot the item just vacated)", () => {
+    for (const id of [
+      'sheep-hill1',
+      'sheep-hill2',
+      'sheep-hill3',
+      'sheep-hill4',
+      'llama-peak1',
+      'llama-peak2',
+      'llama-peak3',
+      'llama-peak4',
+    ] as const) {
       render(getLevel(id))
-      const art = traceCanvasProbe.current?.endArt as Art
-      expect(art?.href, id).toBe(ZOO_ANIMAL_ART.oveja.href)
-    }
-    for (const id of ['llama-peak1', 'llama-peak2', 'llama-peak3', 'llama-peak4'] as const) {
-      render(getLevel(id))
-      const art = traceCanvasProbe.current?.endArt as Art
-      expect(art?.href, id).toBe(ZOO_ANIMAL_ART.llama.href)
+      expect(traceCanvasProbe.current?.endArt, id).toBeUndefined()
+      // Without this, `endMarker && !endArt` (TraceCanvas.tsx) would still
+      // draw the plain hollow diamond right where the last item stands.
+      expect(traceCanvasProbe.current?.endMarker, id).toBeUndefined()
     }
   })
 

@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import {
   arrangeDebugCount,
   cameraDebugOrigin,
+  collectDebugCount,
   isSectorDebug,
   isSpineDebug,
   lightDebugPoint,
@@ -195,7 +196,7 @@ describe('waypointDebugCount (free-trail-waypoints spec "Screenshot Seeding Flag
   })
 })
 
-describe('the seven shipped parsers stay byte-identical alongside cameraDebugOrigin and spineDebugCount', () => {
+describe('the seven shipped parsers stay byte-identical alongside cameraDebugOrigin, spineDebugCount and collectDebugCount', () => {
   it('every shipped parser still resolves exactly as before', () => {
     expect(isSectorDebug('?debug=sectores')).toBe(true)
     expect(shouldSeedRecoveredDuck('?debug=pato-recuperado')).toBe(true)
@@ -205,6 +206,27 @@ describe('the seven shipped parsers stay byte-identical alongside cameraDebugOri
     expect(isSpineDebug('?debug=espina')).toBe(true)
     expect(arrangeDebugCount('?debug=ordenadas:2')).toBe(2)
     expect(waypointDebugCount('?debug=estela:2')).toBe(2)
+  })
+})
+
+describe('collectDebugCount (T17 follow-up: ?debug=juntado:<k> seeds the render-only "already collected" render test)', () => {
+  it('?debug=juntado:1 returns 1', () => {
+    expect(collectDebugCount('?debug=juntado:1')).toBe(1)
+  })
+
+  it('is null for an unrelated or absent query string', () => {
+    expect(collectDebugCount('?debug=sectores')).toBeNull()
+    expect(collectDebugCount('')).toBeNull()
+  })
+
+  it('requires no window/component context', () => {
+    expect(collectDebugCount('?debug=juntado:0')).toBe(0)
+  })
+
+  it('never throws on a malformed query string, and returns null', () => {
+    expect(() => collectDebugCount('%')).not.toThrow()
+    expect(collectDebugCount('%')).toBeNull()
+    expect(collectDebugCount('?debug=juntado:noesunnumero')).toBeNull()
   })
 })
 

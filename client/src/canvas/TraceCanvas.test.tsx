@@ -1204,6 +1204,46 @@ describe('TraceCanvas vertexArt (design.md §3.3: static art standing at the rou
     expect(html).not.toContain('<clipPath')
     expect(html).not.toContain('<defs')
   })
+
+  describe('vertexArtDeparting (T17, collect-along-the-path follow-up: a picture hopping away)', () => {
+    it('renders one <image> per departing point, tagged .cv-collect-hop, distinct from the steady layer', () => {
+      const html = renderToString(
+        <TraceCanvas
+          vertexArt={{ ...SHEEP, at: [points[1], points[2]] }}
+          vertexArtDeparting={{ ...SHEEP, at: [points[0]] }}
+        />,
+      )
+      expect(html.match(/class="cv-collect-hop"/g) ?? []).toHaveLength(1)
+      // The steady layer's own images carry no hop class.
+      const steadyImages = html.match(/<image[^>]*>/g) ?? []
+      const nonHopSteady = steadyImages.filter((img) => !img.includes('cv-collect-hop'))
+      expect(nonHopSteady).toHaveLength(2)
+    })
+
+    it('renders nothing extra without the prop', () => {
+      const html = renderToString(<TraceCanvas vertexArt={{ ...SHEEP, at: points }} />)
+      expect(html).not.toContain('cv-collect-hop')
+    })
+
+    it('places the departing image with the SAME feet-anchored formula as the steady layer', () => {
+      const html = renderToString(<TraceCanvas vertexArtDeparting={{ ...SHEEP, at: [points[0]] }} />)
+      const width = (SHEEP.size * SHEEP.w) / SHEEP.h
+      const img = html.slice(html.indexOf('<image'), html.indexOf('>', html.indexOf('<image')))
+      const attr = (name: string): number => Number(img.match(new RegExp(`${name}="([-\\d.]+)"`))?.[1])
+      expect(attr('height')).toBe(SHEEP.size)
+      expect(attr('y')).toBe(points[0].y - SHEEP.size)
+      expect(attr('width')).toBeCloseTo(width, 6)
+    })
+
+    it('introduces no url(#), <mask>, <pattern>, <clipPath>, or <defs>', () => {
+      const html = renderToString(<TraceCanvas vertexArtDeparting={{ ...SHEEP, at: points }} />)
+      expect(html).not.toContain('url(#')
+      expect(html).not.toContain('<mask')
+      expect(html).not.toContain('<pattern')
+      expect(html).not.toContain('<clipPath')
+      expect(html).not.toContain('<defs')
+    })
+  })
 })
 
 // trace-canvas spec: "Channel Paint Follows the Backdrop Luma Law" —

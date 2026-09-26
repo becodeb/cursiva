@@ -861,17 +861,13 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
     // T17 (docs/19 §2.2, §3.4): one sheep collected per peak plus one more
-    // at the route's end — `'peaks'` derives both from the SAME apexes
-    // `vertexArt` above already stands the sheep pictures on.
+    // at the route's end — `'peaks'` derives both from the route's own
+    // apexes. REPLACES a standing `vertexArt`/`goalArt`: the sheep now only
+    // stands while its own item is un-collected (`LevelPlay.tsx`'s
+    // collect-driven `vertexArt`/`vertexArtDeparting`), so authoring both
+    // here would draw the same picture twice.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
-    // T17: the route's own end shows the same sheep the last collection
-    // pops (docs/19 §3.4, "una oveja más al final del camino") — WINS over
-    // `LevelPlay.tsx`'s own star/encounter defaults for a multi-level
-    // adventure (`endArt`'s priority list), the same way `goalArt` already
-    // beats them for any other level's own content.
-    goalArt: SECTOR_ADVENTURE_ART.sheep,
   },
   {
     id: 'sheep-hill2',
@@ -889,14 +885,8 @@ const PHASE_1: LevelConfig[] = [
     rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
-    vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    // T17: same mechanic as sheep-hill1's own `collect` — see its comment.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
-    // T17: the route's own end shows the same sheep the last collection
-    // pops (docs/19 §3.4, "una oveja más al final del camino") — WINS over
-    // `LevelPlay.tsx`'s own star/encounter defaults for a multi-level
-    // adventure (`endArt`'s priority list), the same way `goalArt` already
-    // beats them for any other level's own content.
-    goalArt: SECTOR_ADVENTURE_ART.sheep,
   },
   {
     id: 'sheep-hill3',
@@ -914,14 +904,8 @@ const PHASE_1: LevelConfig[] = [
     rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
-    vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    // T17: same mechanic as sheep-hill1's own `collect` — see its comment.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
-    // T17: the route's own end shows the same sheep the last collection
-    // pops (docs/19 §3.4, "una oveja más al final del camino") — WINS over
-    // `LevelPlay.tsx`'s own star/encounter defaults for a multi-level
-    // adventure (`endArt`'s priority list), the same way `goalArt` already
-    // beats them for any other level's own content.
-    goalArt: SECTOR_ADVENTURE_ART.sheep,
   },
   {
     id: 'sheep-hill4',
@@ -940,14 +924,8 @@ const PHASE_1: LevelConfig[] = [
     rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
-    vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    // T17: same mechanic as sheep-hill1's own `collect` — see its comment.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
-    // T17: the route's own end shows the same sheep the last collection
-    // pops (docs/19 §3.4, "una oveja más al final del camino") — WINS over
-    // `LevelPlay.tsx`'s own star/encounter defaults for a multi-level
-    // adventure (`endArt`'s priority list), the same way `goalArt` already
-    // beats them for any other level's own content.
-    goalArt: SECTOR_ADVENTURE_ART.sheep,
   },
   {
     id: 'llama-peak1',
@@ -966,12 +944,9 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
-    // T17 (docs/19 §2.2, §3.4): same mechanic as the sheep, one llama per
-    // peak plus one at the end.
+    // T17 (docs/19 §2.2, §3.4): same mechanic as the sheep — see
+    // sheep-hill1's own comment — one llama per peak plus one at the end.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
-    // T17: same reasoning as the sheep's own goalArt above.
-    goalArt: SECTOR_ADVENTURE_ART.llama,
   },
   {
     id: 'llama-peak2',
@@ -989,10 +964,8 @@ const PHASE_1: LevelConfig[] = [
     rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
-    vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    // T17: same mechanic as llama-peak1's own `collect` — see its comment.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
-    // T17: same reasoning as the sheep's own goalArt above.
-    goalArt: SECTOR_ADVENTURE_ART.llama,
   },
   {
     id: 'llama-peak3',
@@ -1010,10 +983,8 @@ const PHASE_1: LevelConfig[] = [
     rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
-    vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    // T17: same mechanic as llama-peak1's own `collect` — see its comment.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
-    // T17: same reasoning as the sheep's own goalArt above.
-    goalArt: SECTOR_ADVENTURE_ART.llama,
   },
   {
     id: 'llama-peak4',
@@ -1032,10 +1003,8 @@ const PHASE_1: LevelConfig[] = [
     rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
-    vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    // T17: same mechanic as llama-peak1's own `collect` — see its comment.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
-    // T17: same reasoning as the sheep's own goalArt above.
-    goalArt: SECTOR_ADVENTURE_ART.llama,
   },
   // ───────────────────────────────────────────────────────────────────────
   // The night sector (`docs/12`, design.md §5): four `mode: 'light'`
