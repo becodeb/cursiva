@@ -189,6 +189,28 @@ export const ANIMAL_ART: Readonly<Record<AnimalId, ArtImage>> = {
   gato: { href: '/art/animal-gato.png', w: 448, h: 414 },
 }
 
+/**
+ * The deduction lineup's PRE-ANSWER state (`odd/tasks/prewriting-stage-
+ * completion.md` T21, `docs/19_PROPUESTA_HISTORIA_Y_MECANICAS.md` §7 slice 3):
+ * a solid dark fill of each {@link ANIMAL_ART} cutout's own alpha, derived by
+ * `scripts/art/build_art.py`'s own dedicated silhouette pass (a second read
+ * of the shipped coloured file, `recolour`'d with `keep_ink=false`) rather
+ * than a runtime CSS/SVG filter — this repo's `url(#…)`/filter ban
+ * (`TraceCanvas.tsx:70-84`) applies to more than SVG primitives here: a real
+ * derived PNG is what the task asked for, not a `filter: brightness(0)`
+ * layered on the coloured art at render time.
+ *
+ * Same `w`/`h` as `ANIMAL_ART[id]` by construction — the silhouette is a
+ * flat recolour of the exact same alpha shape, never re-cropped to a
+ * different box — `artManifest.test.ts` guards the pair from drifting.
+ */
+export const ANIMAL_SILHOUETTE_ART: Readonly<Record<AnimalId, ArtImage>> = {
+  gallina: { href: '/art/animal-gallina-silhouette.png', w: 370, h: 448 },
+  pato: { href: '/art/animal-pato-silhouette.png', w: 368, h: 448 },
+  vaca: { href: '/art/animal-vaca-silhouette.png', w: 448, h: 405 },
+  gato: { href: '/art/animal-gato-silhouette.png', w: 448, h: 414 },
+}
+
 /** The magnifying glass that rides the child's fingertip on a detective trail
  * (`TraceCanvas`'s `carrierArt` override).
  *
