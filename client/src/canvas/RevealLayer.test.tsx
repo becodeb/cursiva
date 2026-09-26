@@ -29,53 +29,32 @@ describe('RevealLayer', () => {
   // for `light` mode — each `TraceReveal.tiles` entry is one active source's
   // own bounding SQUARE (`x/y` top-left, `w === h === 2 * radius`).
   //
-  // T10 (play-test on a tablet, 2026-09-26): T9's own per-source
+  // T10 pass 1 (play-test on a tablet, 2026-09-26): T9's own per-source
   // `circlePath` + `fillRule="evenodd"` hole-punch could not correctly
   // union two overlapping sources — an overlap crossed an even number of
-  // hole boundaries and rendered BACK to dark. `RevealLayer.tsx` now
-  // classifies a coarse grid by a single scalar (`veilDarknessAt`, the MIN
-  // normalized distance across every source) and traces each darkness
-  // LEVEL's own tile set with `boundaryLoops` — the exact technique every
-  // other policy in this file already uses to union possibly-touching
-  // tiles into one clean silhouette. `veilDarknessAt` is exported
-  // specifically so the union property can be asserted directly, without
-  // parsing rendered path geometry back out of an SVG string.
-  describe('round flashlight veil (T9, union fixed in T10)', () => {
+  // hole boundaries and rendered BACK to dark.
+  //
+  // T10 pass 2 (orchestrator review of pass 1): pass 1 fixed the overlap by
+  // classifying a coarse grid and tracing each darkness level's tile set
+  // with `boundaryLoops` — correct, but the EDGE itself was grid-quantized
+  // (visibly stair-stepped even after smoothing), not the round/soft circle
+  // T9 shipped. `RevealLayer.tsx` now unions the EXACT circle polygons
+  // (`polygon-clipping`, ≥64 segments — this file uses 128) instead of
+  // sampling them onto a grid; `veilDarknessAt` stays as an independent,
+  // still-exact per-point reference the union's OUTPUT can be checked
+  // against via real point-in-polygon tests below, not just its own math.
+  describe('round flashlight veil (T9, union fixed in T10, exact geometry in T10 pass 2)', () => {
     it('there are no holes before anything is found — solid darkness, one plain rect path', () => {
       const reveal: TraceReveal = { fill: '#12161f', tiles: [] }
       const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
       expect(html).toContain('data-night-veil-base="true"')
       expect(html).not.toContain('data-night-veil-ring')
       // The base path is exactly the sheet rectangle — the zero-source fast
-      // path in `nightVeilLayers` skips the grid entirely.
+      // path in `nightVeilLayers` skips the union entirely.
       const base = html.match(/data-night-veil-base="true" d="([^"]+)"/)?.[1] ?? ''
       expect(base).toBe(`M ${sheetBounds.x} ${sheetBounds.y} H ${sheetBounds.x + sheetBounds.width} V ${sheetBounds.y + sheetBounds.height} H ${sheetBounds.x} Z`)
       expect((html.match(/<path/g) ?? []).length).toBe(1)
       expect(html).not.toContain('<rect')
-    })
-
-    // The bug report's own item 1: "where the live torch's light overlaps a
-    // found object's light, the overlap renders BLACK instead of light."
-    it('two overlapping sources give no filled (dark) pocket inside either radius — the T10 union fix', () => {
-      const a = { cx: 300, cy: 300, radius: 100 }
-      const b = { cx: 320, cy: 300, radius: 100 } // 20 apart, well inside both 100-radius reaches
-      // A point squarely inside BOTH circles' fully-lit inner band. Under
-      // the OLD evenodd hole-punch this crossed two hole boundaries and
-      // read as filled/dark again (bug report item 1: "where the live
-      // torch's light overlaps a found object's light, the overlap renders
-      // BLACK instead of light"). The union fix reads it from a single
-      // MIN-distance scalar, so overlap can only ever read AS light as the
-      // brighter of the two, never darker than either alone.
-      const overlapPoint = { x: 310, y: 300 }
-      const onlyA = veilDarknessAt([a], overlapPoint.x, overlapPoint.y)
-      const onlyB = veilDarknessAt([b], overlapPoint.x, overlapPoint.y)
-      const both = veilDarknessAt([a, b], overlapPoint.x, overlapPoint.y)
-      expect(both).toBeLessThanOrEqual(Math.min(onlyA, onlyB))
-      // Concretely: 10 units from each centre, a tenth of each 100 radius —
-      // both individually, and together, fully lit (darkness 0).
-      expect(onlyA).toBe(0)
-      expect(onlyB).toBe(0)
-      expect(both).toBe(0)
     })
 
     it('a point outside every source\'s reach is fully dark regardless of how many sources exist', () => {
@@ -87,22 +66,7 @@ describe('RevealLayer', () => {
       expect(veilDarknessAt([], 500, 300)).toBe(1)
     })
 
-    it('renders a round-ish soft silhouette for one active source, not a blocky rect grid', () => {
-      const radius = 80
-      const reveal: TraceReveal = { fill: '#12161f', tiles: [{ x: 300 - radius, y: 200 - radius, w: radius * 2, h: radius * 2, opacity: 1 }] }
-      const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
-      expect(html).toContain('data-night-veil-base="true"')
-      // At least one lighter falloff ring/band shows up around the source.
-      expect(html).toMatch(/data-night-veil-ring="\d+"/)
-      // Soft (Chaikin-smoothed, quadratic-jointed) path data, never the bare
-      // `H`/`V` axis-aligned commands a raw grid rect would emit for its own
-      // silhouette.
-      const base = html.match(/data-night-veil-base="true" d="([^"]+)"/)?.[1] ?? ''
-      expect(base).toContain('Q ')
-      expect(html).not.toContain('<rect')
-    })
-
-    it('keeps node count bounded at 4 paths (one per darkness level) regardless of source count', () => {
+    it('keeps node count bounded at 6 paths (one per darkness band) regardless of source count', () => {
       const reveal: TraceReveal = {
         fill: '#12161f',
         tiles: [
@@ -116,7 +80,7 @@ describe('RevealLayer', () => {
       // under the old tile-grid fold this layer used before T9.
       const count = (html.match(/<path data-night-veil-(base|ring)/g) ?? []).length
       expect(count).toBeGreaterThan(0)
-      expect(count).toBeLessThanOrEqual(4)
+      expect(count).toBeLessThanOrEqual(6)
     })
 
     it('the completion frame (`allRevealTiles`\' full grid at opacity 0) renders no veil at all, not solid darkness', () => {
@@ -136,6 +100,162 @@ describe('RevealLayer', () => {
       const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
       expect(html).not.toContain('data-night-veil')
       expect(html).not.toContain('<rect')
+    })
+
+    describe('exact circle geometry (T10 pass 2)', () => {
+      /** Every `M x y (L x y)* Z` subpath in a compound `d`, as point
+       *  arrays — enough to run a real point-in-polygon test against the
+       *  ACTUAL rendered geometry, not a re-derivation of the source math. */
+      function parseRings(d: string): { x: number; y: number }[][] {
+        const rings: { x: number; y: number }[][] = []
+        for (const sub of d.split('M').slice(1)) {
+          const nums = [...sub.matchAll(/(-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[1]))
+          const points: { x: number; y: number }[] = []
+          for (let i = 0; i + 1 < nums.length; i += 2) points.push({ x: nums[i], y: nums[i + 1] })
+          if (points.length >= 3) rings.push(points)
+        }
+        return rings
+      }
+
+      /** Standard ray-casting point-in-polygon. `fill-rule="evenodd"`
+       *  toggles WITHIN one `<path>`'s own rings (its outer boundary plus
+       *  any holes) — each rendered band is its own separate `<path>`, so a
+       *  point is "dark" if it is filled by ANY one of them on its own, not
+       *  by a combined toggle across every band's rings at once. */
+      function pathFillsPoint(d: string, px: number, py: number): boolean {
+        let inside = false
+        for (const ring of parseRings(d)) {
+          for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const a = ring[i]
+            const b = ring[j]
+            const crosses = a.y > py !== b.y > py && px < ((b.x - a.x) * (py - a.y)) / (b.y - a.y) + a.x
+            if (crosses) inside = !inside
+          }
+        }
+        return inside
+      }
+
+      function isDark(paths: readonly string[], px: number, py: number): boolean {
+        return paths.some((d) => pathFillsPoint(d, px, py))
+      }
+
+      function veilPaths(html: string): string[] {
+        return [...html.matchAll(/<path[^>]*data-night-veil-(?:base|ring)[^>]*d="([^"]+)"/g)].map((m) => m[1])
+      }
+
+      // The bug report's own item 1: "where the live torch's light overlaps
+      // a found object's light, the overlap renders BLACK instead of
+      // light." Tested against the REAL rendered output this time, not
+      // just the reference scalar.
+      it('two overlapping sources give no filled (dark) pocket inside either radius — the exact union', () => {
+        const radius = 100
+        // 6 apart, so the shared midpoint sits 6 units from EACH centre —
+        // inside `VEIL_BAND_RATIOS`' own innermost ratio (1/12 of 100 ≈
+        // 8.33), i.e. truly fully lit for either source alone, not merely
+        // in its lightest ring.
+        const reveal: TraceReveal = {
+          fill: '#12161f',
+          tiles: [
+            { x: 294 - radius, y: 300 - radius, w: radius * 2, h: radius * 2, opacity: 1 },
+            { x: 306 - radius, y: 300 - radius, w: radius * 2, h: radius * 2, opacity: 1 },
+          ],
+        }
+        const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+        const paths = veilPaths(html)
+        expect(isDark(paths, 300, 300)).toBe(false)
+        // Sanity: the reference scalar agrees (still exact, decoupled from
+        // rendering) — both individually and together read as fully lit.
+        const a = { cx: 294, cy: 300, radius }
+        const b = { cx: 306, cy: 300, radius }
+        expect(veilDarknessAt([a], 300, 300)).toBe(0)
+        expect(veilDarknessAt([b], 300, 300)).toBe(0)
+        expect(veilDarknessAt([a, b], 300, 300)).toBe(0)
+      })
+
+      // The union has to be EXACT, not a grid approximation of one — the
+      // orchestrator's own review of the first T10 pass ("the lit area's
+      // edge is visibly stair-stepped"). Every point on the OUTERMOST
+      // band's own outer boundary (`VEIL_BAND_RATIOS[0]`) has to sit within
+      // ±1 viewBox unit of the true circle at that radius.
+      it('a single source\'s outermost band boundary lies within ±1 unit of the true circle', () => {
+        const cx = 400
+        const cy = 250
+        const radius = 150
+        const reveal: TraceReveal = {
+          fill: '#12161f',
+          tiles: [{ x: cx - radius, y: cy - radius, w: radius * 2, h: radius * 2, opacity: 1 }],
+        }
+        const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+        const base = html.match(/data-night-veil-base="true" d="([^"]+)"/)?.[1] ?? ''
+        const rings = parseRings(base)
+        // The hole in the base path — the 128-segment circle ring, easily
+        // the longest ring in the output (the outer rect boundary is a
+        // handful of points regardless of how `polygon-clipping` orders
+        // its rings).
+        const hole = rings.reduce((longest, r) => (r.length > longest.length ? r : longest), rings[0])
+        expect(hole).toBeDefined()
+        expect(hole.length).toBeGreaterThan(50)
+        const expectedR = radius * 11 / 12 // VEIL_BAND_RATIOS[0]
+        for (const p of hole!) {
+          const d = Math.hypot(p.x - cx, p.y - cy)
+          expect(Math.abs(d - expectedR)).toBeLessThanOrEqual(1)
+        }
+      })
+
+      it('renders a soft multi-band falloff (not a single hard-edged hole) for one active source', () => {
+        const radius = 120
+        const reveal: TraceReveal = { fill: '#12161f', tiles: [{ x: 300 - radius, y: 200 - radius, w: radius * 2, h: radius * 2, opacity: 1 }] }
+        const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+        expect(html).toContain('data-night-veil-base="true"')
+        const ringOpacities = [...html.matchAll(/data-night-veil-ring="(\d+)"[^>]*opacity="([\d.]+)"/g)].map((m) => Number(m[2]))
+        // 5 rings, gently decreasing — the task brief's own "5-7 bands with
+        // gently decreasing opacity" for a soft-reading edge.
+        expect(ringOpacities.length).toBe(5)
+        for (let i = 1; i < ringOpacities.length; i++) expect(ringOpacities[i]).toBeLessThan(ringOpacities[i - 1])
+        expect(html).not.toContain('<rect')
+      })
+    })
+  })
+
+  describe('no stray markers (T10 pass 2 defect fix: "a grid of small white dots")', () => {
+    // `data-night-celebration` (14 stars) and `data-night-success-glow`
+    // (the pale completion wash) used to gate on `reveal.light?.complete`
+    // ALONE — correct back when completion was instantaneous (T9), but once
+    // T10 grew it over `LIGHT_COMPLETE_GROWTH_MS`, `complete` turns true on
+    // the FIRST frame of that grow, long before the darkness has actually
+    // finished clearing — a regular grid of small dots (the stars) and a
+    // pale hard-edged disk (the wash) visible mid-grow, over the real
+    // artwork. Both now also require `growth` to have reached 1.
+    const baseReveal = {
+      fill: '#12161f',
+      tiles: [{ x: 480, y: 250, w: 100, h: 100, opacity: 1 }],
+      art: [{ href: '/art/sector-stone.png', w: 220, h: 200, size: 72, x: 530, y: 300, revealed: true }],
+    }
+
+    it('renders neither the star grid nor the pale wash while the completion wash is still growing', () => {
+      const reveal: TraceReveal = { ...baseReveal, light: { x: 0, y: 0, radius: 170, complete: true, growth: 0.4 } }
+      const html = renderToString(<RevealLayer reveal={reveal} sheetBounds={sheetBounds} />)
+      expect(html).not.toContain('data-night-celebration')
+      expect(html).not.toContain('data-night-success-glow')
+    })
+
+    it('renders both once the completion wash has actually finished (growth 1, or complete with no growth field at all)', () => {
+      const grown = renderToString(<RevealLayer reveal={{ ...baseReveal, light: { x: 0, y: 0, radius: 170, complete: true, growth: 1 } }} sheetBounds={sheetBounds} />)
+      expect(grown).toContain('data-night-celebration="true"')
+      expect(grown).toContain('data-night-success-glow="true"')
+
+      const undefinedGrowth = renderToString(<RevealLayer reveal={{ ...baseReveal, light: { x: 0, y: 0, radius: 170, complete: true } }} sheetBounds={sheetBounds} />)
+      expect(undefinedGrowth).toContain('data-night-celebration="true"')
+      expect(undefinedGrowth).toContain('data-night-success-glow="true"')
+    })
+
+    it('never renders the star grid or the pale wash before completion, growing or not', () => {
+      const idle = renderToString(<RevealLayer reveal={{ ...baseReveal, light: null }} sheetBounds={sheetBounds} />)
+      expect(idle).not.toContain('data-night-celebration')
+      expect(idle).not.toContain('data-night-success-glow')
+      const holding = renderToString(<RevealLayer reveal={{ ...baseReveal, light: { x: 500, y: 300, radius: 170, complete: false } }} sheetBounds={sheetBounds} />)
+      expect(holding).not.toContain('data-night-celebration')
+      expect(holding).not.toContain('data-night-success-glow')
     })
   })
 
@@ -1060,10 +1180,10 @@ describe('RevealLayer displayBounds (T7 rework) — the outer margin and the exp
 
     // The darkest band's own coordinates reach well past `sheetBounds`'
     // top/bottom edge (y=0/600) toward `displayBounds`' own (y=-50/650) —
-    // the veil's sampling grid tiles the FULL `displayBounds`, not just
-    // `sheetBounds`, so the margin above/below the sheet is classified (and
-    // painted dark, since nothing reaches it) exactly like the rest of the
-    // grid, never left as a separate untextured patch.
+    // `nightVeilLayers` unions circles and differences them against the
+    // FULL `displayBounds` rectangle, not just `sheetBounds`, so the margin
+    // above/below the sheet is genuinely dark (nothing reaches it) exactly
+    // like the rest of the veil, never left as a separate untextured patch.
     const base = html.match(/data-night-veil-base="true" d="([^"]+)"/)?.[1] ?? ''
     const ys = [...base.matchAll(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g)].map(([, , y]) => Number(y))
     expect(Math.min(...ys)).toBeLessThan(-20)
@@ -1071,9 +1191,10 @@ describe('RevealLayer displayBounds (T7 rework) — the outer margin and the exp
 
     // The hole is still centred on the SAME (530, 300) — absolute content
     // coordinates, unaffected by how far the surrounding darkness now
-    // reaches. Tested directly against `veilDarknessAt`, the exact scalar
-    // `nightVeilBandTiles` classifies every grid cell with, rather than by
-    // parsing the smoothed path geometry back out of the SVG string.
+    // reaches. Tested directly against `veilDarknessAt`, the exact
+    // per-point reference this render geometry is checked against
+    // elsewhere, rather than by parsing the polygon geometry back out of
+    // the SVG string.
     expect(veilDarknessAt([{ cx: 530, cy: 300, radius: 50 }], 530, 300)).toBe(0)
   })
 })

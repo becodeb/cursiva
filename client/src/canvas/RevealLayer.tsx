@@ -37,11 +37,28 @@
 // moves the same parity problem — two overlapping holes still drive the
 // winding number past zero instead of stopping at it); the shapes have to
 // be UNIONED before they are traced, not composed by the renderer at
-// paint time. `nightVeilBands` below does that the same way every OTHER
-// policy in this file already unions overlapping ground truth into one
-// silhouette — a grid of `TraceRevealTile`s fed through `boundaryLoops`'s
-// own edge-cancellation — rather than inventing a second technique.
+// paint time.
+//
+// T10 rework (orchestrator review of the first T10 pass): a grid-sampled
+// union (classify a coarse 25-unit cell grid, trace each darkness level's
+// tile set with `boundaryLoops`) fixed the overlap bug but left the EDGE
+// itself grid-quantized — visibly stair-stepped even after smoothing, not
+// the round/soft circle T9 shipped. The veil's own edge now unions EXACT
+// circle geometry instead of sampling it onto a grid: each circle is
+// polygonized at `VEIL_CIRCLE_SEGMENTS` segments (well past the sagitta a
+// single viewBox unit needs at any radius this file ever grows to — see its
+// own header) and combined with the `polygon-clipping` library (MIT,
+// `client/package.json`, pinned exact) — a real polygon-boolean union/
+// difference, not a grid approximation of one. This is the one file in the
+// codebase that works in raw SVG path data rather than the generator M/L/C
+// convention `levels/*.ts`'s route generators hold to (that rule is about
+// authored/scored route geometry — corridors, spines, waypoints — never
+// about a decorative veil composited from polygon-boolean output); plain
+// `M`/`L`/`Z` commands, still no `<mask>`/`<clipPath>`/`<filter>`/`url(#…)`,
+// this file's own ban, unchanged.
 import { clampArtBox, placeArt, type ArtBox } from './placeArt'
+import { difference as clipDifference, union as clipUnion } from 'polygon-clipping'
+import type { MultiPolygon as ClipMultiPolygon, Polygon as ClipPolygon } from 'polygon-clipping'
 import { lightOpacity } from '../levels/revealGrid'
 import type { TraceReveal, TraceRevealTile } from './TraceCanvas'
 
@@ -107,113 +124,119 @@ export function veilDarknessAt(sources: readonly { cx: number; cy: number; radiu
   return lightOpacity(bestRatio, 1)
 }
 
-/** T10: the veil's own coarse sampling grid, independent of the level's own
- *  `reveal.cols`/`rows` (this file never sees that — `TraceReveal` carries
- *  resolved tiles, not the authored grid, and threading the raw config
- *  through would widen every OTHER policy's props for one). A fixed
- *  world-unit cell (not a fixed COUNT) keeps the same absolute smoothness
- *  regardless of a level's own sheet width; `veilGridDims`'s own `Math.round`
- *  keeps the grid tiling the box exactly, the same convention
- *  `marginGridTiles` already uses one screen below. */
-const NIGHT_VEIL_CELL = 25
+/**
+ * T10: a circle, polygonized to a closed ring — GeoJSON-style, first point
+ * repeated last (`polygon-clipping`'s own input contract, verified against
+ * its own test fixtures). `VEIL_CIRCLE_SEGMENTS` (128) keeps the sagitta —
+ * the true circle's worst-case deviation from its polygon approximation,
+ * `r * (1 - cos(pi / segments))` — under 0.31 viewBox units at the largest
+ * radius this file ever grows a source to (`farthestCornerDistance` over a
+ * realistic `displayBounds`, at most ~1300), comfortably inside the ±1 unit
+ * a single grid line used to cost this shape.
+ */
+const VEIL_CIRCLE_SEGMENTS = 128
 
-function veilGridDims(bounds: ArtBox, cell: number): { cols: number; rows: number; cellW: number; cellH: number } {
-  const cols = Math.max(1, Math.round(bounds.width / cell))
-  const rows = Math.max(1, Math.round(bounds.height / cell))
-  return { cols, rows, cellW: bounds.width / cols, cellH: bounds.height / rows }
+function circleRing(cx: number, cy: number, r: number): [number, number][] {
+  const ring: [number, number][] = []
+  for (let i = 0; i < VEIL_CIRCLE_SEGMENTS; i++) {
+    const a = (2 * Math.PI * i) / VEIL_CIRCLE_SEGMENTS
+    ring.push([cx + r * Math.cos(a), cy + r * Math.sin(a)])
+  }
+  ring.push(ring[0])
+  return ring
 }
 
-/** The five discrete darkness levels `lightOpacity`'s own quantization can
- *  produce; `0` (fully lit) is deliberately excluded — a cell at that level
- *  paints nothing. Ordered darkest first only because that reads best next
- *  to `nightVeilLayers`' own loop, not because order matters to the union
- *  itself (each level is its own independent, non-overlapping partition of
- *  the grid). */
-const VEIL_DARKNESS_LEVELS = [1, 0.75, 0.5, 0.25] as const
+function rectPolygon(bounds: ArtBox): ClipPolygon {
+  const { x, y, width, height } = bounds
+  return [
+    [
+      [x, y],
+      [x + width, y],
+      [x + width, y + height],
+      [x, y + height],
+      [x, y],
+    ],
+  ]
+}
 
 /**
- * T10: partitions the veil's sampling grid into (up to) four tile sets, one
- * per darkness level — the union step. Each cell's OWN classification
- * (`veilDarknessAt`, a single scalar MIN over every source) decides which
- * set it lands in; a cell can only ever belong to exactly one, so the sets
- * never overlap and `boundaryLoops`' edge-cancellation traces each one's
- * outline cleanly, exactly as it already does for the fog/sand/leaf/mud
- * policies elsewhere in this file — reused, not reinvented, for the same
- * "N possibly-touching tiles -> one clean silhouette" job.
+ * T10: the EXACT union of every active source's own circle at a given
+ * radius fraction — real polygon-boolean geometry (`polygon-clipping`),
+ * not a grid sampling of one (the orchestrator's own review of the first
+ * T10 pass: a grid-classified union fixed the overlap bug but left a
+ * visibly stair-stepped edge). `null` for zero sources — the caller's own
+ * fast path, not an empty `MultiPolygon`, so the zero-source case never
+ * even calls into the union library.
  */
-function nightVeilBandTiles(
-  sources: readonly { cx: number; cy: number; radius: number }[],
-  bounds: ArtBox,
-): ReadonlyMap<number, TraceRevealTile[]> {
-  const buckets = new Map<number, TraceRevealTile[]>()
-  const { cols, rows, cellW, cellH } = veilGridDims(bounds, NIGHT_VEIL_CELL)
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const x = bounds.x + col * cellW
-      const y = bounds.y + row * cellH
-      const darkness = veilDarknessAt(sources, x + cellW / 2, y + cellH / 2)
-      if (darkness <= 0) continue // fully lit: nothing to paint here
-      const list = buckets.get(darkness) ?? []
-      list.push({ x, y, w: cellW, h: cellH, opacity: 1 })
-      buckets.set(darkness, list)
+function unionOfCircles(sources: readonly { cx: number; cy: number; radius: number }[], ratio: number): ClipMultiPolygon | null {
+  const rings = sources.filter((s) => s.radius > 0).map((s) => [circleRing(s.cx, s.cy, s.radius * ratio)] as ClipPolygon)
+  if (rings.length === 0) return null
+  if (rings.length === 1) return [rings[0]]
+  return clipUnion(rings[0], ...rings.slice(1))
+}
+
+function multiPolygonToPath(mp: ClipMultiPolygon): string {
+  const parts: string[] = []
+  for (const polygon of mp) {
+    for (const ring of polygon) {
+      if (ring.length < 3) continue
+      parts.push(`M ${ring[0][0]} ${ring[0][1]}`)
+      for (let i = 1; i < ring.length; i++) parts.push(`L ${ring[i][0]} ${ring[i][1]}`)
+      parts.push('Z')
     }
   }
-  return buckets
-}
-
-/**
- * T10: one loop, softened — Chaikin corner-cutting (`smoothLoop`, already
- * shared with every other organic silhouette below) with NO jitter and one
- * extra pass (3 instead of the usual 2): a light field is smooth and round
- * by nature, not eroded terrain, so this deliberately skips the noise
- * `organicLoopPath`/`erodedSandLoopPath` add for a windswept/raked look.
- * Quadratics through the smoothed points' own midpoints (`erodedSandLoopPath`'s
- * own closing technique, reused) round the corners further still — this is
- * the task brief's "maybe a blur at the edges", done with plain path data,
- * never a `<filter>`.
- */
-function softLoopPath(points: readonly Point[]): string {
-  const loop = smoothLoop(points, 3)
-  if (loop.length < 3) return ''
-  const start = midpoint(loop[loop.length - 1], loop[0])
-  const parts = [`M ${start.x} ${start.y}`]
-  for (let idx = 0; idx < loop.length; idx++) {
-    const point = loop[idx]
-    const end = midpoint(point, loop[(idx + 1) % loop.length])
-    parts.push(`Q ${point.x} ${point.y}, ${end.x} ${end.y}`)
-  }
-  parts.push('Z')
   return parts.join(' ')
 }
 
-function softSilhouettePath(tiles: readonly TraceRevealTile[]): string {
-  return boundaryLoops(tiles).map(softLoopPath).filter(Boolean).join(' ')
-}
+/**
+ * T10: the veil's own band ladder — 6 levels (1 base + 5 rings), inside the
+ * task brief's "5-7 bands" for a gently-decreasing falloff. `RATIOS` are the
+ * midpoints of 6 equal `[0, 1]` bins, outer to inner
+ * (`(2k+1)/12` for `k = 5..0`); `OPACITIES[k]` is `1 - k/6`. Both arrays are
+ * the SAME length and index together: band `k`'s outer boundary is
+ * `RATIOS[k]`, its inner boundary is `RATIOS[k + 1]` (or "no source reaches
+ * here at all" for `k = 0`), and its paint opacity is `OPACITIES[k]`.
+ */
+// Exported so `RevealLayer.test.tsx` can assert the rendered polygon edge
+// sits within a known tolerance of the TRUE circle at a KNOWN ratio,
+// instead of hardcoding a second copy of these numbers.
+export const VEIL_BAND_RATIOS = [11 / 12, 9 / 12, 7 / 12, 5 / 12, 3 / 12, 1 / 12] as const
+const VEIL_BAND_OPACITIES = [1, 5 / 6, 4 / 6, 3 / 6, 2 / 6, 1 / 6] as const
 
 /**
- * The round flashlight veil (T9, extended T10): one darkness layer per
- * non-empty level in `VEIL_DARKNESS_LEVELS`, each a single soft `<path>`
- * covering EXACTLY the cells at that darkness — up to 4 `<path>`s
- * regardless of how many sources are active (the old per-source hole-punch
- * was already flat at "1 base + 3 rings"; this keeps that same node-count
- * ceiling while fixing the union). Zero sources is a fast path straight
- * back to the plain full-`bounds` rectangle: nothing to classify, nothing
- * to trace, and it keeps the idle "solid darkness" frame exactly the
+ * The round flashlight veil (T9, reworked T10 twice — see this file's own
+ * header): one path per band, each the EXACT union of every active
+ * source's own circle at that band's ratio, minus the next band IN's union
+ * (so bands never overlap and compose correctly regardless of source
+ * count or how much they overlap each other). Zero sources is a fast path
+ * straight back to the plain full-`displayBounds` rectangle: nothing to
+ * union, and it keeps the idle "solid darkness" frame exactly the
  * single-`<path>` shape it always was (`RevealLayer.test.tsx`'s own "no
- * holes before anything is found" case).
+ * holes before anything is found" case). Node count stays flat at up to 6
+ * `<path>`s regardless of source count — the SAME ceiling shape T9 shipped
+ * (there it was 1 base + 3 rings; here 1 base + 5 rings for a softer
+ * falloff), never `cols x rows`.
  */
 function nightVeilLayers(
   sources: readonly { cx: number; cy: number; radius: number }[],
   displayBounds: ArtBox,
 ): readonly { opacity: number; d: string }[] {
   if (sources.length === 0) return [{ opacity: 1, d: sheetRectPath(displayBounds) }]
-  const buckets = nightVeilBandTiles(sources, displayBounds)
+  const rect = rectPolygon(displayBounds)
+  // `outerUnions[k]`: the exact union of every source's own circle at
+  // `VEIL_BAND_RATIOS[k]` — band `k`'s own INNER boundary (what band `k`
+  // itself excludes) and band `k + 1`'s OUTER boundary (what band `k + 1`
+  // itself covers, before its own inner boundary is subtracted in turn).
+  const outerUnions = VEIL_BAND_RATIOS.map((ratio) => unionOfCircles(sources, ratio))
   const layers: { opacity: number; d: string }[] = []
-  for (const opacity of VEIL_DARKNESS_LEVELS) {
-    const tiles = buckets.get(opacity)
-    if (!tiles || tiles.length === 0) continue
-    const d = softSilhouettePath(tiles)
-    if (d) layers.push({ opacity, d })
+  for (let k = 0; k < VEIL_BAND_RATIOS.length; k++) {
+    const inner = outerUnions[k]
+    if (!inner) continue // no active source reaches even this band's own widest ratio
+    const outer = k === 0 ? rect : outerUnions[k - 1]
+    if (k > 0 && !outer) continue // cannot happen (see header: either every ratio has a union, or none do), guarded for the type checker
+    const region = clipDifference(outer!, inner)
+    const d = multiPolygonToPath(region)
+    if (d) layers.push({ opacity: VEIL_BAND_OPACITIES[k], d })
   }
   return layers
 }
@@ -1104,6 +1127,17 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }
   // is a no-op then — every source keeps exactly its own already-grown
   // radius, byte-identical to before T10 for that case.
   const completionGrowth = reveal.light?.complete ? reveal.light.growth : undefined
+  // T10 defect fix (orchestrator review, "a grid of small white dots" +
+  // "a pale disk with a hard edge" mid-completion): `data-night-success-glow`
+  // and `data-night-celebration` below used to gate on `reveal.light?.complete`
+  // ALONE — correct back when completion was instantaneous (T9), but once
+  // T10 made it grow over `LIGHT_COMPLETE_GROWTH_MS`, `complete` turns true
+  // on the FIRST frame of that grow, long before the darkness has actually
+  // finished clearing. Both are "the level is fully lit" chrome, so they now
+  // wait for the grow to actually finish too (`completionGrowth` undefined
+  // or `>= 1` — `screen/LevelPlay.tsx`'s own `reveal` projection only ever
+  // sends a `growth < 1` while `stillGrowingCompletion` holds).
+  const completionSettled = completionGrowth === undefined || completionGrowth >= 1
   const nightVeilSourcesGrown =
     nightVeilSourcesList && completionGrowth !== undefined && completionGrowth < 1
       ? nightVeilSourcesList.map((s) => {
@@ -1405,7 +1439,7 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }
           />
         ))
       )}
-      {nightVeil && reveal.light?.complete && (
+      {nightVeil && reveal.light?.complete && completionSettled && (
         // T7 rework: `displayBounds`, not `sheetBounds` — the completion
         // wash is decorative chrome over the SAME area the darkness itself
         // just covered (above), so it grows with it rather than leaving a
@@ -1435,15 +1469,15 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }
           <g key={`reveal-art-found-${idx}`} data-night-discovery="true">
             {nightVeil && (
               <>
-                <circle cx={obj.x} cy={obj.y} r={Math.max(42, obj.size * 0.72)} fill={NIGHT_FOUND_GLOW} opacity={reveal.light?.complete ? 0.38 : 0.25} />
-                <circle cx={obj.x} cy={obj.y} r={Math.max(28, obj.size * 0.5)} fill="#fffbe6" opacity={reveal.light?.complete ? 0.5 : 0.22} />
+                <circle cx={obj.x} cy={obj.y} r={Math.max(42, obj.size * 0.72)} fill={NIGHT_FOUND_GLOW} opacity={reveal.light?.complete && completionSettled ? 0.38 : 0.25} />
+                <circle cx={obj.x} cy={obj.y} r={Math.max(28, obj.size * 0.5)} fill="#fffbe6" opacity={reveal.light?.complete && completionSettled ? 0.5 : 0.22} />
               </>
             )}
             <image href={obj.href} {...box} preserveAspectRatio="xMidYMid meet" opacity={nightVeil ? 1 : undefined} />
           </g>
         )
       })}
-      {nightVeil && reveal.light?.complete && (
+      {nightVeil && reveal.light?.complete && completionSettled && (
         <g data-night-celebration="true">
           {Array.from({ length: 14 }, (_, idx) => (
             <circle
