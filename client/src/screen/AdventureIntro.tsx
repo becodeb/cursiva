@@ -16,6 +16,7 @@ import { adventureIcon, type Adventure } from '../zoo/adventures'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import { BUBBLE_POP_CSS } from './BubblePop'
+import { octopusBoxBySize, placeSpeechBubble, ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 
 /* The frame is a percentage box with container-type: inline-size, the same
    fix the zoo map's own bubble uses (ZooMap.tsx's ZOO_CSS): everything
@@ -73,8 +74,14 @@ const INTRO_CSS = `
   .cv-octopus-life { animation: none; }
 }
 ${BUBBLE_POP_CSS}
-.cv-intro-bubble { position: absolute; left: 50%; top: 4%; width: 82%; transform: translateX(-50%); }
+/* T16 (odd/tasks/prewriting-stage-completion.md) -- see PrologueOpening.tsx's
+   own header on .cv-prologue-bubble for why left/top/width moved from a
+   fixed centred box to an inline style computed by placeSpeechBubble.
+   NO BACKTICKS in this block -- one inside a comment ends this template
+   literal early (this file's own top note). */
+.cv-intro-bubble { position: absolute; }
 .cv-intro-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
+.cv-intro-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
 .cv-intro-bubble .cv-captioned { position: absolute; left: 10%; right: 10%; top: 16%; height: 58%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4cqw; }
 .cv-intro-bubble .cv-captioned > svg { width: auto; height: 62%; flex: none; }
 .cv-intro-bubble .cv-caption { font-size: 5.6cqw; line-height: 1.16; font-weight: 700; color: #1e293b; text-align: left; }
@@ -101,6 +108,11 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
   // line autoplays for real, and `SpeakButton` below is only "hear it
   // again", never the sole way to hear it in the first place.
   useNarration(adventure.intro)
+  // T16: the bubble's own placement — see `PrologueOpening.tsx`'s matching
+  // comment for the full rationale. `ZOO_OCTOPUS_BACKPACK_ART` (442x448) is
+  // sized by WIDTH, same as its own `.cv-intro-octopus` rule.
+  const octopusBox = octopusBoxBySize(ZOO_OCTOPUS_BACKPACK_ART, { sizeBy: 'width', size: 44, bottom: 2 })
+  const bubblePlaced = placeSpeechBubble({ frame: { w: 100, h: 100 }, headBox: octopusBox, tail: ZOO_SPEECH_BUBBLE_TAIL })
   return (
     <main className="cv-intro" style={{ background: backdrop?.quiet ?? SHEET_PAPER }}>
       <style>{INTRO_CSS}</style>
@@ -109,11 +121,20 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
           <span className="cv-intro-octopus">
             <img src={ZOO_OCTOPUS_BACKPACK_ART.href} alt="" className="cv-octopus-life" />
           </span>
-          <span className="cv-intro-bubble">
+          <span
+            className={`cv-intro-bubble${bubblePlaced.mirrored ? ' cv-intro-bubble--mirror-x' : ''}`}
+            style={{ left: `${bubblePlaced.left}%`, top: `${bubblePlaced.top}%`, width: `${bubblePlaced.width}%` }}
+          >
             {/* Keyed on the line (T8 item 2), same reasoning
                 `PrologueOpening.tsx` gives — this screen only ever shows
-                one line per mount, so the pop-in plays once, on arrival. */}
-            <span key={adventure.intro} className="cv-bubble-pop">
+                one line per mount, so the pop-in plays once, on arrival.
+                T16: `transform-origin` inline at the tail tip, same
+                reasoning as `PrologueOpening.tsx`'s own span. */}
+            <span
+              key={adventure.intro}
+              className="cv-bubble-pop"
+              style={{ transformOrigin: `${bubblePlaced.tailOriginX}% ${bubblePlaced.tailOriginY}%` }}
+            >
               <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
               <CaptionedArt art={adventureIcon(adventure)} label={adventure.intro} size={76} />
             </span>

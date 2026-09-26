@@ -28,6 +28,7 @@ import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 import { BUBBLE_POP_CSS } from './BubblePop'
+import { octopusBoxBySize, placeSpeechBubble, ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 
 /* Same stage geometry as `AdventureIntro.tsx`'s `INTRO_CSS`, restated under
    its own class prefix rather than shared, the same reason the two
@@ -67,8 +68,14 @@ html, body, #root { margin: 0; height: 100%; }
   .cv-octopus-life { animation: none; }
 }
 ${BUBBLE_POP_CSS}
-.cv-closing-bubble { position: absolute; left: 50%; top: 4%; width: 82%; transform: translateX(-50%); }
+/* T16 (odd/tasks/prewriting-stage-completion.md) -- see PrologueOpening.tsx's
+   own header on .cv-prologue-bubble for why left/top/width moved from a
+   fixed centred box to an inline style computed by placeSpeechBubble.
+   NO BACKTICKS in this block -- one inside a comment ends this template
+   literal early (this file's own top note). */
+.cv-closing-bubble { position: absolute; }
 .cv-closing-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
+.cv-closing-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
 .cv-closing-bubble .cv-captioned { position: absolute; left: 10%; right: 10%; top: 16%; height: 58%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4cqw; }
 .cv-closing-bubble .cv-captioned > svg { width: auto; height: 62%; flex: none; }
 .cv-closing-bubble .cv-caption { font-size: 5.6cqw; line-height: 1.16; font-weight: 700; color: #1e293b; text-align: left; }
@@ -114,6 +121,15 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
   // remounting it, so this relies on `useNarration`'s "speaks again when
   // `line` changes" behaviour, not on a fresh mount.
   useNarration(beat.line)
+  // T16: the bubble's own placement — see `PrologueOpening.tsx`'s matching
+  // comment for the full rationale. `beat.figure` (an `ArtImage`, so its
+  // own w/h are known statically, same as every other art in the registry)
+  // stands in for the default backpack octopus exactly like the `<img src>`
+  // below already does, so the box tracks whichever figure this beat
+  // actually renders instead of assuming the default's own aspect ratio.
+  const octopusArt = beat.figure ?? ZOO_OCTOPUS_BACKPACK_ART
+  const octopusBox = octopusBoxBySize(octopusArt, { sizeBy: 'width', size: 44, bottom: 2 })
+  const bubblePlaced = placeSpeechBubble({ frame: { w: 100, h: 100 }, headBox: octopusBox, tail: ZOO_SPEECH_BUBBLE_TAIL })
   return (
     <main className="cv-closing" style={{ background: backdrop?.quiet ?? SHEET_PAPER }}>
       <style>{CLOSING_CSS}</style>
@@ -122,13 +138,22 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
           <span className="cv-closing-octopus">
             <img src={(beat.figure ?? ZOO_OCTOPUS_BACKPACK_ART).href} alt="" className="cv-octopus-life" />
           </span>
-          <span className="cv-closing-bubble">
+          <span
+            className={`cv-closing-bubble${bubblePlaced.mirrored ? ' cv-closing-bubble--mirror-x' : ''}`}
+            style={{ left: `${bubblePlaced.left}%`, top: `${bubblePlaced.top}%`, width: `${bubblePlaced.width}%` }}
+          >
             {/* Keyed on the line (T8 item 2): a beat advance re-renders THIS
                 SAME component (this file's own header, above) rather than
                 remounting it, so the key is what forces the pop-in to replay
                 on each beat — `useNarration`, unaffected by this child
-                remounting, keeps deciding on its own when to speak. */}
-            <span key={beat.line} className="cv-bubble-pop">
+                remounting, keeps deciding on its own when to speak. T16:
+                `transform-origin` inline at the tail tip, same reasoning as
+                `PrologueOpening.tsx`'s own span. */}
+            <span
+              key={beat.line}
+              className="cv-bubble-pop"
+              style={{ transformOrigin: `${bubblePlaced.tailOriginX}% ${bubblePlaced.tailOriginY}%` }}
+            >
               <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
               <CaptionedArt art={beat.art} label={beat.line} size={76} />
             </span>

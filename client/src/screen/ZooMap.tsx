@@ -25,6 +25,7 @@ import {
 } from '../detective/assets'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 import { BUBBLE_POP_CSS } from './BubblePop'
+import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 import { placeArt } from '../canvas/placeArt'
 import { isSectorDebug } from '../canvas/devMode'
 import { earnedItems } from '../zoo/backpack'
@@ -384,6 +385,24 @@ function bubbleClassName(anchor: BubbleAnchor): string {
   return classes.join(' ')
 }
 
+/** T16 (odd/tasks/prewriting-stage-completion.md): the tail tip's own
+ *  position within the bubble's box, as a CSS `transform-origin` pair — so
+ *  `cv-bubble-pop`'s pop-in (`BubblePop.ts`) grows OUT of the tail, out of
+ *  the Pulpito, instead of the box's geometric centre. Mirrors exactly what
+ *  `ZOO_CSS`'s own `.cv-zoo-bubble--mirror-x`/`--flip-y` rules do to the
+ *  rendered `<img>`, restated here in percent instead of a CSS transform:
+ *  a mirrored bubble moves the tail from `tailX` to `1 - tailX`; a flipped
+ *  one moves it from `tailY` to `1 - tailY`. Pure and directly testable
+ *  against `bubbleClassName`'s own four cases, so the two never drift apart
+ *  the way a hand-written fourth transform would risk. */
+export function tailOriginFor(anchor: BubbleAnchor): { x: number; y: number } {
+  const mirrored = anchor === 'above-left' || anchor === 'below-left'
+  const flipped = anchor === 'below-left' || anchor === 'below-right'
+  const x = (mirrored ? 1 - ZOO_SPEECH_BUBBLE_TAIL.tailX : ZOO_SPEECH_BUBBLE_TAIL.tailX) * 100
+  const y = (flipped ? 1 - ZOO_SPEECH_BUBBLE_TAIL.tailY : ZOO_SPEECH_BUBBLE_TAIL.tailY) * 100
+  return { x, y }
+}
+
 /** One footprint, centred on its own point and rotated to face the walked
  *  direction (`zoo/sectors.ts`'s `PRINT_FACING`) — origin-centred exactly
  *  like every other repeated mark in this repo (`docs/09` §3). Rendered at
@@ -520,6 +539,11 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
     : bubbleSector?.hit
       ? bubblePlacement(bubbleSector.hit)
       : null
+  // T16: the pop-in's own transform-origin, at the tail tip — see
+  // `tailOriginFor`'s own header, above. Computed unconditionally (a cheap
+  // pure function over `bubblePlaced?.anchor ?? 'above-left'`) rather than
+  // only inside the render below, so the JSX there stays a plain lookup.
+  const tailOrigin = tailOriginFor(bubblePlaced?.anchor ?? 'above-left')
   // Arrival/dismiss/reopen (D4): the bubble shows the instant its own
   // subject sector changes (a fresh `ZooMap` mount counts as an "arrival" in
   // its own right — `App.tsx` never keeps this component mounted across a
@@ -870,6 +894,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               className="cv-zoo-bubble-dismiss cv-bubble-pop"
               aria-label="Cerrar el mensaje del Pulpito"
               onClick={dismissBubble}
+              style={{ transformOrigin: `${tailOrigin.x}% ${tailOrigin.y}%` }}
             >
               <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
               {/* `size` is the UNSTYLED height; `ZOO_CSS`'s
