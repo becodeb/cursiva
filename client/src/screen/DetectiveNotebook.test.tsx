@@ -46,7 +46,7 @@ describe('DetectiveNotebook', () => {
 
   it('shows every real zoo animal as a missing silhouette on a fresh install', () => {
     const html = render()
-    expect(html).toContain(`src="${ANIMAL_SILHOUETTE_ART.pato.href}"`)
+    expect(html).toContain(`src="${ANIMAL_SILHOUETTE_ART.pato!.href}"`)
     expect(html).not.toContain(`src="${ZOO_ANIMAL_ART.pato.href}"`)
     expect(html).toContain('class="cv-caption">?</span>')
   })
