@@ -61,6 +61,25 @@ export type AdventureId =
   | 'turtles'
   | 'monkeys'
 
+/** Which bottom corner the Pulpito stands in on a narrative stage screen
+ *  (`docs/19_PROPUESTA_HISTORIA_Y_MECANICAS.md` §4.1 rule 2: "en una esquina
+ *  de abajo"), and therefore which side his speech bubble opens toward
+ *  (`screen/pulpitoStance.ts`'s `stanceBubbleSide`: the bubble always
+ *  extends from the corner TOWARD the centre of the screen, never further
+ *  into the corner it would run off). */
+export type PulpitoCorner = 'left' | 'right'
+
+/** One line's stance (`docs/19` §4.1 rule 3: "del lado contrario a lo que
+ *  nombra"). A bare `{ corner }` today — the placement math itself lives in
+ *  `screen/pulpitoStance.ts`, kept out of this pure data registry the same
+ *  way `zoo/backdrops.ts`'s own header explains for `AdventureBackdrop`.
+ *  Declared here (not in `screen/`) so this file, which `screen/*.tsx`
+ *  already imports FROM, never has to import back from `screen/` — the
+ *  opposite dependency direction would create a cycle. */
+export interface PulpitoStance {
+  readonly corner: PulpitoCorner
+}
+
 /** One beat of an adventure's closing SCREEN (add-caretaker-prologue
  *  design.md D3). `figure` overrides the standing octopus for THIS beat
  *  only — absent means `ZOO_OCTOPUS_BACKPACK_ART`, which is every beat but
@@ -68,11 +87,16 @@ export type AdventureId =
  *  exactly one `CaptionedArt` per beat, and its caption is always `line`
  *  (the docs/16 §9 sentence) — the sign's uppercase word lives IN the
  *  artwork `art` points at (`SIGN_ART.fish`/`.turtles`/`.monkeys`), drawn
- *  there by `scripts/art/make_placeholders.py`, never as a second label. */
+ *  there by `scripts/art/make_placeholders.py`, never as a second label.
+ *  `stance` is this beat's own corner (prewriting-stage-completion T18,
+ *  `docs/19` §4) — absent means `screen/pulpitoStance.ts`'s
+ *  `DEFAULT_PULPITO_STANCE`, so every beat authored before this task stays
+ *  byte-unchanged in behaviour. */
 export interface ClosingBeat {
   line: string
   art: ArtImage
   figure?: ArtImage
+  stance?: PulpitoStance
 }
 
 interface AdventureBase {
@@ -83,6 +107,9 @@ interface AdventureBase {
   sector: SectorId
   /** The Pulpito's line on the entry screen, before the adventure starts. */
   intro: string
+  /** The entry screen's own stance (T18, `docs/19` §4) — absent means
+   *  `DEFAULT_PULPITO_STANCE`. See `ClosingBeat.stance`'s own comment. */
+  introStance?: PulpitoStance
   /** His line on the map once this adventure's animal is standing in the
    *  zoo (`zoo-map` spec, "Octopus Phrase Reads as a Closing"). */
   closing: string
