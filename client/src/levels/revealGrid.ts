@@ -130,6 +130,23 @@ export interface RevealState {
   readonly completeAt: number | null
   /** The live point, or `null` with the finger up — the light goes out. */
   readonly point: { x: number; y: number } | null
+  /** T19 (`odd/tasks/prewriting-stage-completion.md`, "when you press, the
+   *  torch light should appear progressively… both turning it on and off"):
+   *  `now` the CURRENT press started — `null` while idle. Stamped fresh
+   *  every time `point` transitions from `null`/fading to a live value, so
+   *  `lightSources` can grow the live torch in from 0 the same way a found
+   *  object already does, timed from THIS press rather than any earlier one. */
+  readonly torchOnAt: number | null
+  /** T19: the last live torch position, kept around AFTER `point` goes back
+   *  to `null` on lift, purely so `lightSources` can fade it OUT over
+   *  `TORCH_FADE_MS` instead of vanishing instantly. Cleared once the fade
+   *  finishes (or a fresh press starts). Never read by anything that used to
+   *  read `point` — this is an ADDITIVE ghost, so `point`'s own existing
+   *  "null means finger up" contract is completely unchanged. */
+  readonly torchGhost: { x: number; y: number } | null
+  /** T19: `now` the torch was lifted (the instant `point` went back to
+   *  `null`) — `null` once the ghost has fully faded or nothing is fading. */
+  readonly torchOffAt: number | null
   /** How many points of the CURRENT stroke are already folded. The fold
    *  re-reads `points[seen - 1]` as the next segment's origin, so no segment
    *  is ever skipped and none is ever walked twice. */
@@ -142,6 +159,9 @@ export const EMPTY_REVEAL: RevealState = {
   litAt: new Map(),
   completeAt: null,
   point: null,
+  torchOnAt: null,
+  torchGhost: null,
+  torchOffAt: null,
   seen: 0,
 }
 
@@ -177,6 +197,17 @@ function objectLitByWindow(obj: RevealObject, radius: number, window: ReadonlyAr
  * itself (this file stays pure — no `Date.now()`/`performance.now()` call
  * anywhere in it).
  */
+/**
+ * T19 (`odd/tasks/prewriting-stage-completion.md`, "when you press, the
+ * torch light should appear progressively… both turning it on and off"): how
+ * long the LIVE torch takes to grow in on press and fade out on lift — the
+ * task's own "≈250 ms" for both. Deliberately its own constant rather than
+ * reusing {@link LIGHT_FOUND_GROWTH_MS} (400ms): the two are visually
+ * related but independently tunable, and the found-object grow-in was never
+ * reported as needing a matching fade-OUT (a found light stays forever).
+ */
+export const TORCH_FADE_MS = 250
+
 export function revealTick(
   prev: RevealState,
   points: ReadonlyArray<Point>,
@@ -186,8 +217,23 @@ export function revealTick(
   now: number,
 ): RevealState {
   if (!drawing) {
-    if (prev.point === null && prev.seen === 0) return prev
-    return { ...prev, point: null, seen: 0 }
+    // T19: `point` keeps meaning EXACTLY what it always meant — `null` the
+    // instant the finger lifts, unconditionally, every existing caller's own
+    // assumption untouched. The fade-out lives ENTIRELY in the additive
+    // `torchGhost`/`torchOffAt` pair: the moment `point` goes null, its last
+    // value is snapshotted into `torchGhost` and `torchOffAt` is stamped, so
+    // `lightSources` (below) can shrink a source at that frozen position for
+    // `TORCH_FADE_MS` instead of the torch vanishing outright. Once the fade
+    // has run its course, a later idle tick clears the ghost for good.
+    if (prev.point === null && prev.torchGhost === null && prev.seen === 0) return prev
+    if (prev.point !== null) {
+      return { ...prev, point: null, torchGhost: prev.point, torchOffAt: now, seen: 0 }
+    }
+    if (prev.torchGhost !== null && prev.torchOffAt !== null && now - prev.torchOffAt >= TORCH_FADE_MS) {
+      return { ...prev, torchGhost: null, torchOffAt: null, seen: 0 }
+    }
+    if (prev.seen === 0) return prev
+    return { ...prev, seen: 0 }
   }
 
   const head = points[points.length - 1]
@@ -235,12 +281,33 @@ export function revealTick(
   const completeAt =
     prev.completeAt === null && reveal.objects.length > 0 && lit.size >= reveal.objects.length ? now : prev.completeAt
 
+  const isFreshPress = prev.point === null
   const moved =
-    prev.point === null || Math.hypot(head.x - prev.point.x, head.y - prev.point.y) > REVEAL_EPSILON
+    isFreshPress || Math.hypot(head.x - prev.point.x, head.y - prev.point.y) > REVEAL_EPSILON
 
   if (!moved && !latchChanged) return prev
 
-  return { ...prev, point: { x: head.x, y: head.y }, lit, litAt, completeAt, seen: points.length }
+  // T19: a fresh press (the finger was up) restarts the live torch's own
+  // grow-in clock and drops any ghost still fading from the PREVIOUS lift —
+  // a brand new press means "not fading any more, starting again". A
+  // continuing drag (the finger was already down) keeps `torchOnAt` as it
+  // was: only the FIRST sample of a press stamps it, exactly like `litAt`
+  // only stamps an object the instant it is newly found.
+  const torchOnAt = isFreshPress ? now : prev.torchOnAt
+  const torchGhost = isFreshPress ? null : prev.torchGhost
+  const torchOffAt = isFreshPress ? null : prev.torchOffAt
+
+  return {
+    ...prev,
+    point: { x: head.x, y: head.y },
+    lit,
+    litAt,
+    completeAt,
+    torchOnAt,
+    torchGhost,
+    torchOffAt,
+    seen: points.length,
+  }
 }
 
 /**
@@ -298,7 +365,11 @@ export function isLightAnimating(state: RevealState, nowMs: number): boolean {
   for (const foundAt of state.litAt.values()) {
     if (nowMs - foundAt < LIGHT_FOUND_GROWTH_MS) return true
   }
-  return state.completeAt !== null && nowMs - state.completeAt < LIGHT_COMPLETE_GROWTH_MS
+  if (state.completeAt !== null && nowMs - state.completeAt < LIGHT_COMPLETE_GROWTH_MS) return true
+  // T19: the live torch's own grow-in (on press) and fade-out (on lift).
+  if (state.torchOnAt !== null && nowMs - state.torchOnAt < TORCH_FADE_MS) return true
+  if (state.torchOffAt !== null && nowMs - state.torchOffAt < TORCH_FADE_MS) return true
+  return false
 }
 
 /**
@@ -329,10 +400,17 @@ export function completionGrowthFraction(state: RevealState, nowMs: number, redu
  * `nowMs = Infinity` so every pre-T10 caller (this file's own
  * `revealScore`, every existing test) keeps getting the full radius
  * immediately — `growthFraction(Infinity, ...)` clamps to `1` regardless of
- * `reducedMotion`. The live torch point is NOT grown: only a newly-found
- * object's glow ramps in (the task's own brief only asks for that one and
- * the scene-wide completion wash — dragging the torch itself stays
- * instantaneous, exactly as shipped).
+ * `reducedMotion`.
+ *
+ * T19 (`odd/tasks/prewriting-stage-completion.md`, "the torch light should
+ * appear progressively… both turning it on and off"): the LIVE torch now
+ * grows in from 0 over `TORCH_FADE_MS`, timed from `state.torchOnAt` the
+ * SAME way a found object grows from `state.litAt` — and, once lifted, its
+ * last position (`state.torchGhost`/`torchOffAt`) fades back OUT over the
+ * same duration instead of disappearing outright. `reducedMotion` snaps the
+ * grow-in to full immediately (`growthFraction`'s own existing rule) and the
+ * fade-out to GONE immediately (the mirror image: reduced motion is owed the
+ * finished END state, and the end state of a lift is "off").
  */
 export function lightSources(
   reveal: Extract<RevealConfig, { mode: 'light' }>,
@@ -349,7 +427,17 @@ export function lightSources(
     const radius = reveal.radius * growthFraction(elapsed, LIGHT_FOUND_GROWTH_MS, reducedMotion)
     if (radius > 0) sources.push({ cx: obj.x, cy: obj.y, radius })
   }
-  if (state.point) sources.push({ cx: state.point.x, cy: state.point.y, radius: reveal.radius })
+  if (state.point) {
+    const onElapsed = state.torchOnAt === null ? Infinity : nowMs - state.torchOnAt
+    const growIn = growthFraction(onElapsed, TORCH_FADE_MS, reducedMotion)
+    const radius = reveal.radius * growIn
+    if (radius > 0) sources.push({ cx: state.point.x, cy: state.point.y, radius })
+  } else if (state.torchGhost && state.torchOffAt !== null) {
+    const offElapsed = nowMs - state.torchOffAt
+    const fadeOut = reducedMotion ? 0 : 1 - growthFraction(offElapsed, TORCH_FADE_MS, false)
+    const radius = reveal.radius * fadeOut
+    if (radius > 0) sources.push({ cx: state.torchGhost.x, cy: state.torchGhost.y, radius })
+  }
   return sources
 }
 
