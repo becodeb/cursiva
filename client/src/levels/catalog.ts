@@ -2159,13 +2159,22 @@ const PHASE_2: LevelConfig[] = [
   // case reads their `clue.kind` through `clueKindsOf`, so the case and
   // the levels can never disagree about which two kinds it carries. Two
   // STAND-IN `ClueKind`s, not new art: `docs/20` B13 (banana peel, banana)
-  // is still pending, so `monkey1` reuses `feather` (PLUME) for "cáscara
-  // de banana" and `monkey2` reuses `corn` (KERNEL) for "banana" — the
-  // same technique T25 used for the night case's leaf/stone stand-ins,
-  // flagged here and in `detective/cases.ts`'s own `monkeys` entry. Never
-  // `webfoot`/`breadcrumb` — `cases.test.ts`'s "webfoot and breadcrumb
-  // rule nobody out" invariant bans either from ever being a `ruledOutBy`
-  // verdict. `monkey3`/`monkey4` gather the recovered monkey FAMILY
+  // is still pending, so `monkey1` reuses `footprint` (PRINT, a huella) and
+  // `monkey2` reuses `corn` (KERNEL, a food/seed) — the same technique T25
+  // used for the night case's leaf/stone stand-ins, flagged here and in
+  // `detective/cases.ts`'s own `monkeys` entry. [Orchestrator screenshot
+  // review 2026-09-27, T27 follow-up] `monkey1` shipped with `feather`
+  // first — WRONG in a way a visual mismatch alone is not: a case whose
+  // answer is "mono" showing a feather teaches the child that BIRDS leave
+  // this trace, the opposite inference from every other stand-in this task
+  // ships (leaf-for-apple/stone-for-mushroom never point at a different
+  // ANIMAL). `footprint`/`corn` share the earlier stand-ins' honest
+  // limitation (not literally a banana peel/banana) without that one's
+  // dishonesty (neither a footprint nor a corn cob asserts anything false
+  // about who left it). Never `webfoot`/`breadcrumb` — `cases.test.ts`'s
+  // "webfoot and breadcrumb rule nobody out" invariant bans either from
+  // ever being a `ruledOutBy` verdict. `monkey3`/`monkey4` gather the
+  // recovered monkey FAMILY
   // instead (`LevelConfig.collect`, T17's engine, the sheep-hill/
   // llama-peak convention): `items: 'crests'` (`waveCrestArcs`), NOT
   // `'peaks'` — measured directly against these two shipped routes (the
@@ -2204,11 +2213,12 @@ const PHASE_2: LevelConfig[] = [
     id: 'monkey1',
     phase: 2,
     title: 'El primer rulo',
-    // [T27] Recipe A's first pistas level: the loop motion instruction
-    // (kept from the pre-T27 hint) now names what it is actually
-    // following, the same blended convention `duck-trail2`'s "Seguí las
-    // migas sin salirte" already uses.
-    hint: 'Subí como el mono y juntá la cáscara de banana en la liana.',
+    // [T27 follow-up, orchestrator screenshot review 2026-09-27] Renamed
+    // from "juntá la cáscara de banana": the level's own hint now names
+    // what its clue ACTUALLY shows (a footprint), not the banana-peel story
+    // the earlier `feather` stand-in pointed away from — see this family's
+    // own header comment for the full reasoning.
+    hint: 'Subí como el mono y juntá las huellas en la liana.',
     kind: 'path',
     surface: 'blank',
     maze: false,
@@ -2225,9 +2235,12 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    // [T27] `feather` stands in for "cáscara de banana" (`docs/20` B13
-    // pending) — see this family's own header comment.
-    clue: { kind: 'feather', spacing: 60 },
+    // [T27 follow-up, orchestrator screenshot review 2026-09-27] `feather`
+    // pointed at a BIRD in a case whose answer is "mono" — a real wrong
+    // inference, not merely a visual mismatch (`docs/20` B13's still-pending
+    // banana peel/banana art). `footprint` (a huella) never contradicts a
+    // monkey the way a feather does — see this family's own header comment.
+    clue: { kind: 'footprint', spacing: 60 },
   },
   {
     id: 'monkey2',

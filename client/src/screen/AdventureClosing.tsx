@@ -50,7 +50,13 @@
 // bubble (that screen's own T21 follow-up made exactly this call).
 import { useRef, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
-import { ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import {
+  isPlaceholderArt,
+  ZOO_ANIMAL_ART,
+  ZOO_OCTOPUS_BACKPACK_ART,
+  ZOO_SPEECH_BUBBLE_ART,
+} from '../detective/assets'
+import { PlaceholderAnimalBadge } from '../detective/icons'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import type { Adventure, ClosingBeat } from '../zoo/adventures'
@@ -148,14 +154,14 @@ html, body, #root { margin: 0; height: 100%; }
    below, measures the wrapper, never the animating img). NO BACKTICKS in
    this block -- this file's own top note. */
 .cv-closing-rescue-animal { position: absolute; display: flex; align-items: center; justify-content: center; }
-.cv-closing-rescue-animal img { display: block; height: 100%; width: auto; max-width: 100%; animation: cv-rescue-jump 1.1s ease-in-out infinite; transform-origin: 50% 100%; }
+.cv-closing-rescue-animal img, .cv-closing-rescue-animal svg { display: block; height: 100%; width: auto; max-width: 100%; animation: cv-rescue-jump 1.1s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes cv-rescue-jump {
   0%, 100% { transform: translateY(0) scale(1); }
   35% { transform: translateY(-10%) scale(1.05); }
   60% { transform: translateY(0) scale(0.97); }
   82% { transform: translateY(-3%) scale(1.02); }
 }
-@media (prefers-reduced-motion: reduce) { .cv-closing-rescue-animal img { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .cv-closing-rescue-animal img, .cv-closing-rescue-animal svg { animation: none; } }
 /* T24 follow-up: the rescue bubble's own TEXT-ONLY content (the small
    duplicate duck removed from inside it) -- the same rule Deduction.tsx's
    own .cv-deduction-bubble-text already states, restated under this
@@ -294,11 +300,21 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
                 height: `${rescueAnimalBox.h}%`,
               }}
             >
-              <img
-                src={ZOO_ANIMAL_ART[adventure.animal!].href}
-                alt=""
-                style={{ viewTransitionName: RESCUE_FLIGHT_VT_NAME } as CSSProperties}
-              />
+              {/* [T27 follow-up, orchestrator screenshot review 2026-09-27]
+                  The SAME `PlaceholderAnimalBadge` swap every other spot a
+                  `PLACEHOLDER_ZOO_ANIMALS` entry could show its own grey
+                  sign block now makes — the big rescue picture is never
+                  that block. `.cv-closing-rescue-animal svg` (below) mirrors
+                  the `img` rule so the jump animation still plays. */}
+              {isPlaceholderArt(ZOO_ANIMAL_ART[adventure.animal!]) ? (
+                <PlaceholderAnimalBadge style={{ viewTransitionName: RESCUE_FLIGHT_VT_NAME } as CSSProperties} />
+              ) : (
+                <img
+                  src={ZOO_ANIMAL_ART[adventure.animal!].href}
+                  alt=""
+                  style={{ viewTransitionName: RESCUE_FLIGHT_VT_NAME } as CSSProperties}
+                />
+              )}
             </span>
           )}
           <span className="cv-closing-octopus" style={{ [stance.corner]: `${octopusBox.x}%` } as CSSProperties}>

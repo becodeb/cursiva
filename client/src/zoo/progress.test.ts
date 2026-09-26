@@ -144,7 +144,7 @@ describe('adventureProgress', () => {
       animal: undefined,
       rescued: false,
       slots: [
-        { levelId: 'monkey1', clue: 'feather', filed: true, current: false },
+        { levelId: 'monkey1', clue: 'footprint', filed: true, current: false },
         { levelId: 'monkey2', clue: 'corn', filed: false, current: true },
         { levelId: 'monkey3', clue: undefined, filed: false, current: false },
         { levelId: 'monkey4', clue: undefined, filed: false, current: false },

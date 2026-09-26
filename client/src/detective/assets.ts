@@ -588,6 +588,33 @@ export const ZOO_ANIMAL_ART: Readonly<Record<ZooAnimalId, ArtImage>> = {
   ...PROMISED_ANIMAL_ART,
 }
 
+/**
+ * [T27 follow-up, orchestrator screenshot review 2026-09-27] The ONE
+ * decision of whether `art` is a `PLACEHOLDER_ZOO_ANIMALS` entry's own
+ * colour picture — every call site that might otherwise draw one directly
+ * (a level's own `LevelConfig.collect.art`, an `Adventure.closingBeat.art`,
+ * `zoo/rescueFlight.ts`'s carried `art`) asks THIS, then reaches for
+ * `detective/icons.tsx`'s `PlaceholderAnimalBadge` instead of the real
+ * picture — never a second `PLACEHOLDER_ZOO_ANIMALS.has(id)` re-derived from
+ * whatever id happens to be in scope, which is what let this slip through
+ * the first time: `Deduction.tsx`'s own lineup checks by id because it
+ * already has one; a collect item or a closing beat's `art` field never
+ * did, only the resolved `ArtImage` itself.
+ *
+ * A REFERENCE check, not a href guess: `ZOO_ANIMAL_ART[id]` is the exact
+ * object every one of those fields is authored with (`levels/catalog.ts`'s
+ * `collect: { art: ZOO_ANIMAL_ART.mono, ... }`, `zoo/adventures.ts`'s
+ * `closingBeat: [{ art: ZOO_ANIMAL_ART.mono }]`), so this can never
+ * misfire against an unrelated picture that merely happens to share a
+ * filename.
+ */
+export function isPlaceholderArt(art: ArtImage): boolean {
+  for (const id of PLACEHOLDER_ZOO_ANIMALS) {
+    if (ZOO_ANIMAL_ART[id] === art) return true
+  }
+  return false
+}
+
 /** One pose's measured silhouette, in the image's OWN normalised space
  * (`radial-spines` capability, design.md §3.3's `SilhouetteProfile` shape,
  * restated structurally here rather than imported — `detective/` imports

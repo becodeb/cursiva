@@ -166,7 +166,7 @@ describe('the monkeys case (docs/19 §2.3/§3 monos row)', () => {
   })
 
   it('carries exactly the two stand-in clue kinds monkey1/monkey2 author, pairwise distinct', () => {
-    expect(clueKindsOf(monkeysCase)).toEqual(['feather', 'corn'])
+    expect(clueKindsOf(monkeysCase)).toEqual(['footprint', 'corn'])
   })
 })
 
@@ -189,17 +189,17 @@ describe('resolveMonkeysCase / resolveCase (the live framing Deduction.tsx actua
   it('a non-linear session that has rescued neither: both fall back to a real clue-based verdict', () => {
     const resolved = resolveMonkeysCase(monkeysCase, rescuedOnly([]))
     expect(resolved.rescuedDistractors).toEqual([])
-    expect(resolved.ruledOutBy).toEqual({ erizo: 'corn', abeja: 'feather' })
+    expect(resolved.ruledOutBy).toEqual({ erizo: 'corn', abeja: 'footprint' })
     expect(resolved.hint.erizo).toMatch(/no come bananas/)
-    expect(resolved.hint.abeja).toMatch(/no come bananas/)
+    expect(resolved.hint.abeja).toMatch(/no deja huellas/)
   })
 
   it('mixed progress: only the unrescued one falls back, the other still reads "ya rescatado"', () => {
     const onlyErizo = resolveMonkeysCase(monkeysCase, rescuedOnly(['erizo']))
     expect(onlyErizo.rescuedDistractors).toEqual(['erizo'])
-    expect(onlyErizo.ruledOutBy).toEqual({ abeja: 'feather' })
+    expect(onlyErizo.ruledOutBy).toEqual({ abeja: 'footprint' })
     expect(onlyErizo.hint.erizo).toBe(monkeysCase.hint.erizo)
-    expect(onlyErizo.hint.abeja).toMatch(/no come bananas/)
+    expect(onlyErizo.hint.abeja).toMatch(/no deja huellas/)
 
     const onlyAbeja = resolveMonkeysCase(monkeysCase, rescuedOnly(['abeja']))
     expect(onlyAbeja.rescuedDistractors).toEqual(['abeja'])

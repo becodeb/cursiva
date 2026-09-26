@@ -23,7 +23,8 @@
 // `.cv-head` either bar occupies, never both at once, so this adds no row and
 // no height (the T3/T5/T7 lesson `TrailProgressBar.tsx`'s own header cites).
 import { useRef } from 'react'
-import type { ArtImage } from './assets'
+import { isPlaceholderArt, type ArtImage } from './assets'
+import { PlaceholderAnimalBadge } from './icons'
 
 /** Matches `TrailProgressBar.tsx`'s own `STAR_COLOR`/`SLOT_SIZE`/
  *  `MARK_HEIGHT` literals — not imported (they are module-private there) but
@@ -60,6 +61,12 @@ export default function CollectBar({ collected, art }: CollectBarProps) {
   const initiallyCollectedRef = useRef(collected)
   if (collected.length === 0) return null
   const width = (MARK_HEIGHT * art.w) / art.h
+  // [T27 follow-up, orchestrator screenshot review 2026-09-27] A
+  // `PLACEHOLDER_ZOO_ANIMALS` entry's own colour art never shows here as its
+  // grey sign block either — the SAME `PlaceholderAnimalBadge` every other
+  // spot now draws instead. Decided ONCE per bar (`art` never changes mid-
+  // level, `LevelConfig.collect` is authored per level), not per slot.
+  const placeholder = isPlaceholderArt(art)
   return (
     <div className="pistas-bar" role="img" aria-label={accessibleCollectName(collected)}>
       <div className="pistas-slots">
@@ -71,9 +78,12 @@ export default function CollectBar({ collected, art }: CollectBarProps) {
               className={`pistas-slot-shell${filled ? ' pistas-slot-shell-filed' : ''}`}
               data-filed={filled ? 'true' : 'false'}
             >
-              {justCollected && (
-                <img className="pistas-flight" src={art.href} width={width} height={MARK_HEIGHT} alt="" aria-hidden="true" />
-              )}
+              {justCollected &&
+                (placeholder ? (
+                  <PlaceholderAnimalBadge className="pistas-flight" style={{ width: MARK_HEIGHT, height: MARK_HEIGHT }} />
+                ) : (
+                  <img className="pistas-flight" src={art.href} width={width} height={MARK_HEIGHT} alt="" aria-hidden="true" />
+                ))}
               <svg
                 className="pistas-slot"
                 viewBox="0 0 24 24"
@@ -93,16 +103,19 @@ export default function CollectBar({ collected, art }: CollectBarProps) {
                   stroke={filled ? EARNED_COLOR : DRAINED_COLOR}
                   strokeWidth={filled ? 2.6 : 1.5}
                 />
-                {filled && (
-                  <image
-                    href={art.href}
-                    x={12 - width / 2}
-                    y={12 - MARK_HEIGHT / 2}
-                    width={width}
-                    height={MARK_HEIGHT}
-                    preserveAspectRatio="xMidYMid meet"
-                  />
-                )}
+                {filled &&
+                  (placeholder ? (
+                    <PlaceholderAnimalBadge x={12 - MARK_HEIGHT / 2} y={12 - MARK_HEIGHT / 2} width={MARK_HEIGHT} height={MARK_HEIGHT} />
+                  ) : (
+                    <image
+                      href={art.href}
+                      x={12 - width / 2}
+                      y={12 - MARK_HEIGHT / 2}
+                      width={width}
+                      height={MARK_HEIGHT}
+                      preserveAspectRatio="xMidYMid meet"
+                    />
+                  ))}
               </svg>
             </span>
           )

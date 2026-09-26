@@ -117,21 +117,27 @@ const MONKEY_RESCUED_HINT: Readonly<Partial<Record<ZooAnimalId, string>>> = {
 
 /** The clue-based fallback framing, for a `?debug`-seeded or otherwise
  *  non-linear session that reaches `bosque` (unlocked by `snake4` alone,
- *  `zoo/sectors.ts`) before actually rescuing one of these two. Neither
- *  animal actually eats a banana, so the line stays TRUE regardless of
- *  progress — a real deduction, not a placeholder excuse. */
+ *  `zoo/sectors.ts`) before actually rescuing one of these two. Both lines
+ *  stay TRUE regardless of progress — a real deduction, not a placeholder
+ *  excuse: neither animal eats a banana (`erizo`, `monkey2`'s own `corn`
+ *  stand-in), and neither leaves a footprint the way something climbing
+ *  down to the ground would (`abeja`, `monkey1`'s own `footprint` stand-in
+ *  — `docs/20` B13 still pending; `footprint`, unlike the `feather` this
+ *  shipped with first, never asserts the wrong ANIMAL left the trace,
+ *  `levels/catalog.ts`'s own header has the full reasoning). */
 const MONKEY_CLUE_HINT: Readonly<Partial<Record<ZooAnimalId, string>>> = {
   erizo: 'El erizo no come bananas: no fue él.',
-  abeja: 'La abeja no come bananas: no fue ella.',
+  abeja: 'La abeja no deja huellas: no fue ella.',
 }
 
 /** Which of `monkey1`/`monkey2`'s own two stand-in clue kinds rules out
  *  which fallback distractor — pairwise distinct, `cases.test.ts`'s own
  *  generic invariant restated for this progress-resolved branch. Matches
- *  `levels/catalog.ts`'s `monkey1` (`feather`) / `monkey2` (`corn`) exactly. */
+ *  `levels/catalog.ts`'s `monkey1` (`footprint`) / `monkey2` (`corn`)
+ *  exactly. */
 const MONKEY_CLUE_VERDICT: Readonly<Partial<Record<ZooAnimalId, ClueKind>>> = {
   erizo: 'corn',
-  abeja: 'feather',
+  abeja: 'footprint',
 }
 
 /** Ordered cases, duck first (design.md §1; the user's binding decision 3). */
@@ -247,13 +253,15 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     ruledOutBy: {},
     rescuedDistractors: MONKEY_DISTRACTORS,
     hint: MONKEY_RESCUED_HINT,
-    // [T27] Two STAND-IN `ClueKind`s, not new art: `docs/20` B13 (banana
-    // peel, banana) is still pending, so `monkey1`'s clue reuses `feather`
-    // (PLUME) for "cáscara de banana" and `monkey2`'s reuses `corn`
-    // (KERNEL) for "banana" — the same technique T25 used for the night
-    // case's leaf/stone stand-ins, flagged there too
-    // (`levels/catalog.ts`'s own comment on this family). Never
-    // `webfoot`/`breadcrumb` — this file's own "webfoot and breadcrumb
+    // [T27, follow-up 2026-09-27] Two STAND-IN `ClueKind`s, not new art:
+    // `docs/20` B13 (banana peel, banana) is still pending, so `monkey1`'s
+    // clue reuses `footprint` (a huella) and `monkey2`'s reuses `corn`
+    // (a food/seed) — the same technique T25 used for the night case's
+    // leaf/stone stand-ins, flagged there too (`levels/catalog.ts`'s own
+    // comment on this family). NEVER `feather` — a case whose answer is
+    // "mono" showing a feather teaches the wrong animal, not merely the
+    // wrong OBJECT (that family's own header has the full reasoning). Never
+    // `webfoot`/`breadcrumb` either — this file's own "webfoot and breadcrumb
     // rule nobody out" invariant (`cases.test.ts`) bans either from ever
     // being a `ruledOutBy` verdict, in this case or any other.
     trailIds: ['monkey1', 'monkey2'],

@@ -274,7 +274,7 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
       'trail3',
       'trail4',
       // [T27, `docs/19` §2.3/§3 monos row] `monkey1`/`monkey2` are the
-      // monkeys case's own two pistas levels (stand-in `feather`/`corn`
+      // monkeys case's own two pistas levels (stand-in `footprint`/`corn`
       // clues, `docs/20` B13 pending) — `monkey3`/`monkey4` carry no clue
       // at all (repurposed to `collect`, the same duck-trail3/4 pattern).
       'monkey1',
