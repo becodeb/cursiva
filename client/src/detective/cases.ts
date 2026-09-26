@@ -5,23 +5,47 @@
 // reads through, so the case and the levels it points at can never disagree.
 import { getLevel } from '../levels/catalog'
 import { DETECTIVE_TRAIL_IDS } from '../game/types'
-import type { AnimalId, ClueKind } from './assets'
+import { SECTOR_ADVENTURE_ART, type ArtImage, type ClueKind, type ZooAnimalId } from './assets'
 
 export interface DetectiveCase {
   id: string
-  culprit: AnimalId
-  /** Lineup order, explicit so it never depends on key iteration order. */
-  options: readonly AnimalId[]
-  /** Which clue clears which animal — a fact about THIS case. */
-  ruledOutBy: Readonly<Partial<Record<AnimalId, ClueKind>>>
+  culprit: ZooAnimalId
+  /** Lineup order, explicit so it never depends on key iteration order. May
+   *  be the STATIC authored default (every case but `night`) or a live,
+   *  progress-resolved array (`resolveCase`, below) — either way this is
+   *  what `Deduction.tsx` renders, unchanged. */
+  options: readonly ZooAnimalId[]
+  /** Which clue clears which animal — a fact about THIS case. Absent for a
+   *  distractor named in `rescuedDistractors` instead: there is no clue
+   *  behind THAT dismissal (see its own header). */
+  ruledOutBy: Readonly<Partial<Record<ZooAnimalId, ClueKind>>>
+  /**
+   * Distractors ruled out because the child has already rescued them
+   * elsewhere, not because a clue fails to match them (`docs/19` §2.3's
+   * second form of deducing: "siluetas que incluyen animales ya rescatados,
+   * que se descartan solos" — the night case's own "¿El pato? No: el pato
+   * ya está en su laguna"). Exempts every animal named here from
+   * `ruledOutBy`'s "every distractor has a verdict" requirement
+   * (`cases.test.ts`) — forcing an unrelated `ClueKind` into `ruledOutBy`
+   * for a dismissal that has nothing to do with a clue would assert
+   * something false about why the case closes. Absent (every case but
+   * `night`) means every non-culprit option is ruled out by a clue, the
+   * original T21 invariant, unchanged.
+   */
+  rescuedDistractors?: readonly ZooAnimalId[]
   /**
    * Pulpito's own spoken line for a wrong pick (`odd/tasks/prewriting-stage-
    * completion.md` T21, `docs/19` §5.4: "la silueta da un pasito atrás y el
    * Pulpito dice por qué, con la pista que la descarta" — "El gato no tiene
    * plumas"). One per distractor, keyed the same way `ruledOutBy` is; the
-   * culprit carries none, the same shape `ruledOutBy` already follows.
+   * culprit carries none, the same shape `ruledOutBy` already follows. Also
+   * covers every `rescuedDistractors` entry (the "ya está en su X" lines),
+   * and — for `night` — every candidate `resolveNightDiscards` could ever
+   * pick, not only the two the STATIC `options` below name, so a live,
+   * progress-resolved lineup always has a hint ready for whichever animal it
+   * actually shows.
    */
-  hint: Readonly<Partial<Record<AnimalId, string>>>
+  hint: Readonly<Partial<Record<ZooAnimalId, string>>>
   /**
    * The trails whose OWN clues feed this case's rail and deduction (`getLevel
    * (id).clue`, `clueKindsOf` below) — NOT every level of the adventure that
@@ -36,7 +60,40 @@ export interface DetectiveCase {
    * the right list for this field again.
    */
   trailIds: readonly string[]
+  /**
+   * The chip row's own art, when it isn't one `ClueKind` per `trailIds`
+   * level (`clueKindsOf`'s default path, duck/hen). T25 (`docs/19` §3.2):
+   * the night case's hedgehog belongings (leaf/apple/mushroom) are
+   * naturalistic PROPS with their own registry (`SECTOR_ADVENTURE_ART`), not
+   * the flat single-colour-token icons `ClueKind`/`CLUE_ART` model
+   * (`ClueArt.earned`'s colour-token field has no honest value for a
+   * photographed leaf) — so this case supplies its chip pictures directly
+   * instead of forcing a fourth reason for `ClueKind` to exist. Present here
+   * means `clueKindsOf` returns `[]` (there is nothing for it to derive).
+   */
+  clueArt?: readonly ArtImage[]
 }
+
+/**
+ * The night case's own discard candidates, most-preferred first (`docs/19`
+ * §2.3/§3.2). `pato`/`oveja` are the STORY's pick ("ya está en su laguna" /
+ * "ya está en su ladera"); `llama` is a plausible third — `nocturna` cannot
+ * open before `llama-peak4` is filed either (`zoo/sectors.ts`), so it is
+ * JUST as reliably already-rescued as the first two in ordinary play.
+ * `vaca`/`gato` close the list as an UNCONDITIONAL last resort: no
+ * `ADVENTURES` row ever recovers them (`zoo/adventures.isRescued` is false
+ * for both by construction), so `resolveNightDiscards` can never fail to
+ * return two distinct picks even from an empty `Records` (a `?debug` seed
+ * that jumps straight to `night1` with nothing else filed). Declared BEFORE
+ * `DETECTIVE_CASES` so the night entry's own `rescuedDistractors` can
+ * reference it directly — module-init order, the same reason
+ * `assets.ts`'s `HEDGEHOG_ART` moved above `ZOO_ANIMAL_ART`.
+ */
+const NIGHT_DISCARD_PRIORITY: readonly ZooAnimalId[] = ['pato', 'oveja', 'llama', 'vaca', 'gato']
+
+/** `vaca`/`gato` need no `isRescued` check — see `NIGHT_DISCARD_PRIORITY`'s
+ *  own header. */
+const NIGHT_DISCARD_FALLBACK: readonly ZooAnimalId[] = ['vaca', 'gato']
 
 /** Ordered cases, duck first (design.md §1; the user's binding decision 3). */
 export const DETECTIVE_CASES: readonly DetectiveCase[] = [
@@ -82,11 +139,101 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     },
     trailIds: DETECTIVE_TRAIL_IDS,
   },
+  // [T25, `docs/19` §2.3/§3.2] "La noche y el erizo son un solo caso
+  // repartido en dos aventuras: la noche junta las pistas y encuentra al
+  // erizo; el erizo es el rescate." This case is the FIRST half — closed by
+  // `night3` (`zoo/adventures.ts`'s `night.deduction.after`), it routes into
+  // `night4`, where the curled erizo is the reveal-grid's own find.
+  //
+  // `options`/`ruledOutBy` below are the ORDINARY, always-expected lineup —
+  // `zoo/sectors.ts`'s own `nocturna.unlockedWhen: isFiled('llama-peak4')`
+  // makes it structurally impossible to reach `night1` in ordinary play
+  // before `duck`, `sheep` AND `llama` are all fully recovered, so `pato`/
+  // `oveja` are the two REAL discards nearly every child ever sees. This
+  // static entry is what `cases.test.ts`'s generic structural invariants
+  // check; the LIVE lineup `Deduction.tsx` actually renders is
+  // `resolveCase`'s own progress-aware substitute, below — a `?debug`-seeded
+  // or otherwise non-linear session still gets two animals the child has
+  // genuinely met, never a placeholder it has never seen.
+  {
+    id: 'night',
+    culprit: 'erizo',
+    options: ['erizo', 'pato', 'oveja'],
+    // No clue rules either of these out — see `rescuedDistractors`'s own
+    // header. Left empty rather than filled with a `ClueKind` that would say
+    // something false about why the case closes.
+    ruledOutBy: {},
+    rescuedDistractors: NIGHT_DISCARD_PRIORITY,
+    hint: {
+      pato: '¿El pato? No: el pato ya está en su laguna.',
+      oveja: '¿La oveja? No: la oveja ya está en su ladera.',
+      llama: '¿La llama? No: la llama ya está en la cumbre.',
+      vaca: 'Esa vaca no vive en este zoológico: no fue ella.',
+      gato: 'Ese gato no vive en este zoológico: no fue él.',
+    },
+    // T25 (`docs/19` §3.2): `night1`'s leaf is the REAL thing (✓ art); until
+    // `docs/20` B12 lands, the apple and the mushroom are both stood in for
+    // by art that already exists — the leaf again for the apple (`night2`),
+    // the stone for the mushroom (`night3`) — per §3.2's own "mientras no
+    // llegue B12, la manzana y el hongo se reemplazan por la hoja y la
+    // piedra que ya hay; la historia se entiende igual con una hoja."
+    // FLAGGED for the author: two of these three chips render the identical
+    // leaf picture until B12 ships real apple/mushroom art.
+    clueArt: [SECTOR_ADVENTURE_ART.leaf, SECTOR_ADVENTURE_ART.leaf, SECTOR_ADVENTURE_ART.stone],
+    trailIds: ['night1', 'night2', 'night3'],
+  },
 ]
 
+/**
+ * The night case's two live discard slots, computed from progress rather
+ * than hardcoded (`odd/tasks/prewriting-stage-completion.md` T25: "the
+ * discard option must be an animal the child has actually rescued by then
+ * ... encoded so it's computed from progress"). `isRescued` is a predicate,
+ * not `Records` itself, so this stays a pure, zoo-independent function —
+ * `zoo/adventures.ts`'s own `isRescued(records, animal)` is the real
+ * predicate every caller (`screen/GameScreen.tsx`) passes in.
+ *
+ * Always returns two DISTINCT animals: `NIGHT_DISCARD_PRIORITY`'s trailing
+ * `vaca`/`gato` pass the filter unconditionally (own header), so the
+ * filtered list can never come up short of two.
+ */
+export function resolveNightDiscards(
+  isRescued: (animal: ZooAnimalId) => boolean,
+): readonly [ZooAnimalId, ZooAnimalId] {
+  const eligible = NIGHT_DISCARD_PRIORITY.filter(
+    (animal) => NIGHT_DISCARD_FALLBACK.includes(animal) || isRescued(animal),
+  )
+  return [eligible[0], eligible[1]]
+}
+
+/** The night case's live lineup: the erizo (always) plus its two
+ *  progress-resolved discards, in that order — matching every other case's
+ *  own "culprit first" `options` convention (`duck`, `hen`, above). */
+export function nightCaseOptions(isRescued: (animal: ZooAnimalId) => boolean): readonly ZooAnimalId[] {
+  return ['erizo', ...resolveNightDiscards(isRescued)]
+}
+
+/**
+ * The case `Deduction.tsx` should actually render for the CURRENT `Records`
+ * — the STATIC `DETECTIVE_CASES` entry for every case but `night`, whose own
+ * `options` are progress-resolved instead (`nightCaseOptions`, above).
+ * `screen/GameScreen.tsx` calls this once, at the point it builds the
+ * `kase` prop, rather than every case having to know how to resolve itself.
+ */
+export function resolveCase(
+  kase: DetectiveCase,
+  isRescued: (animal: ZooAnimalId) => boolean,
+): DetectiveCase {
+  if (kase.id !== 'night') return kase
+  return { ...kase, options: nightCaseOptions(isRescued) }
+}
+
 /** The case's clue kinds, in play order. Throws on a trail authored without a
- *  clue — the same failure `caseState.railSlots` already raises by name. */
+ *  clue — the same failure `caseState.railSlots` already raises by name.
+ *  `[]` for a case that supplies its own chip art directly (`clueArt`,
+ *  above) — there is no `ClueKind` to derive, by design, not by omission. */
 export function clueKindsOf(kase: DetectiveCase): readonly ClueKind[] {
+  if (kase.clueArt) return []
   return kase.trailIds.map((id) => {
     const clue = getLevel(id).clue
     if (!clue) throw new Error(`Rastro sin pista: ${id}`)

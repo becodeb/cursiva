@@ -192,7 +192,7 @@ export const ANIMAL_ART: Readonly<Record<AnimalId, ArtImage>> = {
 /**
  * The deduction lineup's PRE-ANSWER state (`odd/tasks/prewriting-stage-
  * completion.md` T21, `docs/19_PROPUESTA_HISTORIA_Y_MECANICAS.md` §7 slice 3):
- * a solid dark fill of each {@link ANIMAL_ART} cutout's own alpha, derived by
+ * a solid dark fill of each cutout's own alpha, derived by
  * `scripts/art/build_art.py`'s own dedicated silhouette pass (a second read
  * of the shipped coloured file, `recolour`'d with `keep_ink=false`) rather
  * than a runtime CSS/SVG filter — this repo's `url(#…)`/filter ban
@@ -200,15 +200,51 @@ export const ANIMAL_ART: Readonly<Record<AnimalId, ArtImage>> = {
  * derived PNG is what the task asked for, not a `filter: brightness(0)`
  * layered on the coloured art at render time.
  *
- * Same `w`/`h` as `ANIMAL_ART[id]` by construction — the silhouette is a
- * flat recolour of the exact same alpha shape, never re-cropped to a
- * different box — `artManifest.test.ts` guards the pair from drifting.
+ * Same `w`/`h` as the coloured source it derives from, by construction — the
+ * silhouette is a flat recolour of the exact same alpha shape, never
+ * re-cropped to a different box — `artManifest.test.ts` guards each pair
+ * from drifting.
+ *
+ * `Partial` over {@link ZooAnimalId} — the same shape
+ * `TrailProgressBar.tsx`'s own `ANIMAL_NAME` already uses, and for the same
+ * reason (its own header): only the animals some `DetectiveCase.options`
+ * can actually put in the lineup ever need one, not the whole zoo.
+ * `gallina`/`pato`/`vaca`/`gato` predate this widening (T21, the duck/hen
+ * cases' own barnyard lineup, `ANIMAL_ART`'s coloured siblings); `erizo`/
+ * `oveja`/`llama` are T25's own addition (`docs/19` §3.2's night case: the
+ * culprit is the erizo, and its progress-computed discard slots
+ * (`detective/cases.ts`'s `resolveNightDiscards`) can name oveja, llama,
+ * vaca or gato depending on what the child has actually rescued by then —
+ * vaca/gato already had a silhouette from the duck/hen cases). Use
+ * {@link silhouetteArtFor}, which throws by name rather than rendering
+ * `undefined`, for any lookup keyed by a live `ZooAnimalId` rather than a
+ * literal.
  */
-export const ANIMAL_SILHOUETTE_ART: Readonly<Record<AnimalId, ArtImage>> = {
+export const ANIMAL_SILHOUETTE_ART: Readonly<Partial<Record<ZooAnimalId, ArtImage>>> = {
   gallina: { href: '/art/animal-gallina-silhouette.png', w: 370, h: 448 },
   pato: { href: '/art/animal-pato-silhouette.png', w: 368, h: 448 },
   vaca: { href: '/art/animal-vaca-silhouette.png', w: 448, h: 405 },
   gato: { href: '/art/animal-gato-silhouette.png', w: 448, h: 414 },
+  // T25 (`docs/19` §3.2): same `w`/`h` as `HEDGEHOG_ART.profile`/
+  // `SECTOR_ADVENTURE_ART.sheep`/`.llama` respectively — those three keep
+  // their own `fill='contour'` authored ink/fill split in the coloured
+  // original, but `recolour(..., keep_ink=False)` flattens every opaque
+  // pixel regardless (`build_art.py`'s own silhouette-pass comment).
+  erizo: { href: '/art/hedgehog-profile-silhouette.png', w: 448, h: 306 },
+  oveja: { href: '/art/sector-sheep-silhouette.png', w: 420, h: 448 },
+  llama: { href: '/art/sector-llama-silhouette.png', w: 299, h: 448 },
+}
+
+/** Throws by name rather than rendering `undefined` — the same "fail loud,
+ *  not silent" convention `cases.ts`'s own `clueKindsOf` follows for a trail
+ *  authored without a clue. A `DetectiveCase.options` entry with no
+ *  silhouette here is an authoring bug (a case naming an animal the deduction
+ *  screen cannot yet draw as a silhouette), not a state `Deduction.tsx`
+ *  should silently paper over with a blank picture. */
+export function silhouetteArtFor(id: ZooAnimalId): ArtImage {
+  const art = ANIMAL_SILHOUETTE_ART[id]
+  if (!art) throw new Error(`Sin silueta para el animal: ${id}`)
+  return art
 }
 
 /** The magnifying glass that rides the child's fingertip on a detective trail

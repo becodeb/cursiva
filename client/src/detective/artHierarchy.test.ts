@@ -271,9 +271,22 @@ const PROP_FILES = import.meta.glob('../../public/art/{goal,hazard}-*.png', {
 
 /** Zoo-journey outputs plus the two octopuses whose legacy navy contours were
  * corrected in the same pipeline change. Exact names make adding or removing
- * a shipped asset an explicit contract update rather than a wildcard surprise. */
+ * a shipped asset an explicit contract update rather than a wildcard surprise.
+ *
+ * Excludes `*-silhouette.png` (T25, `odd/tasks/prewriting-stage-completion.md`):
+ * `ANIMAL_SILHOUETTE_ART`'s `hedgehog-profile-silhouette.png`/`sector-sheep-
+ * silhouette.png`/`sector-llama-silhouette.png` are deduction-lineup UI, not
+ * WORLD art, the same reason the pre-existing `animal-*-silhouette.png`
+ * quartet was never matched by this glob in the first place (no `animal-*`
+ * prefix here) — a flat single-ink-colour silhouette would also fail this
+ * suite's own "the drawn world's contour is a thin achromatic OUTLINE, not
+ * the whole shape" checks below, which is a fact about a silhouette's
+ * deliberate design, not a defect this guard should catch. */
 const WORLD_GUARD_FILES = import.meta.glob(
-  '../../public/art/{zoo-*,sector-*,hedgehog-*,andean-hat,carrier-octopus,home-octopus}.png',
+  [
+    '../../public/art/{zoo-*,sector-*,hedgehog-*,andean-hat,carrier-octopus,home-octopus}.png',
+    '!../../public/art/*-silhouette.png',
+  ],
   {
     eager: true,
     query: '?inline',

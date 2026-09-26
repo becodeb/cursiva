@@ -9,7 +9,7 @@
 // configs live on as the unwired, exported `LEGACY_PHASE_1`.
 import { describe, expect, it } from 'vitest'
 import { flattenPathD } from '../letters/svgLetter'
-import { SECTOR_ADVENTURE_ART } from '../detective/assets'
+import { HEDGEHOG_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
 import { LevelProgressStore } from '../game/LevelProgressStore'
 import type { StorageLike } from '../game/LevelProgressStore'
 import { migratePhase1 } from '../game/migratePhase1'
@@ -1599,14 +1599,19 @@ describe('LEVELS — the reveal grid, twelve authored levels (design.md §5, ame
     }
   })
 
-  it('R4: the night family object count is non-decreasing (1, 2, 3, 3)', () => {
+  // [T25, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §3.2]
+  // SUPERSEDES the original design's arbitrary rising count (1, 2, 3, 3):
+  // what is hidden is now specifically the erizo's own belongings, so the
+  // counts follow the STORY (leaf; apple+leaf; mushroom+apple; the erizo
+  // itself, alone), not a monotonic difficulty curve. `night4` drops to one
+  // object on purpose — see `levels/catalog.ts`'s own header on this family.
+  it('R4: the night family follows the erizo case, not a rising count (1, 2, 2, 1)', () => {
     const counts = NIGHT_IDS.map((id) => {
       const r = revealOf(id)
       if (r.mode !== 'light') throw new Error(`${id}: expected mode 'light'`)
       return r.objects.length
     })
-    expect(counts).toEqual([1, 2, 3, 3])
-    for (let i = 1; i < counts.length; i++) expect(counts[i]).toBeGreaterThanOrEqual(counts[i - 1])
+    expect(counts).toEqual([1, 2, 2, 1])
   })
 
   it('drops the cross-adventure radius ordering — no comparison between sand1/glass4 or night1/sand4', () => {
@@ -1706,14 +1711,17 @@ describe('LEVELS — the reveal grid, twelve authored levels (design.md §5, ame
     }
   })
 
-  it("night's hidden objects reference the registered chest/stone/leaf art, not re-typed literals", () => {
+  // [T25] `chest` dropped (this family's own header: unrelated to a
+  // hedgehog); `HEDGEHOG_ART.curled` added (`night4`'s own reveal, the
+  // erizo itself).
+  it("night's hidden objects reference the registered stone/leaf/curled-erizo art, not re-typed literals", () => {
     for (const id of NIGHT_IDS) {
       const r = revealOf(id)
       if (r.mode !== 'light') throw new Error(`${id}: expected mode 'light'`)
       for (const obj of r.objects) {
         expect(
-          [SECTOR_ADVENTURE_ART.chest, SECTOR_ADVENTURE_ART.stone, SECTOR_ADVENTURE_ART.leaf],
-          `${id}: object art must be one of the registered chest/stone/leaf`,
+          [SECTOR_ADVENTURE_ART.stone, SECTOR_ADVENTURE_ART.leaf, HEDGEHOG_ART.curled],
+          `${id}: object art must be one of the registered stone/leaf/curled-erizo art`,
         ).toContain(obj.art)
       }
     }

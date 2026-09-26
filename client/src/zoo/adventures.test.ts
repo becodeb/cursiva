@@ -9,6 +9,7 @@ import { getLevel } from '../levels/catalog'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import {
   CART_ART,
+  HEDGEHOG_ART,
   SECTOR_ADVENTURE_ART,
   SIGN_ART,
   ZOO_ANIMAL_ART,
@@ -24,6 +25,7 @@ import {
   everyAdventureFiled,
   finaleBubblePlacement,
   introLevel,
+  isRescued,
   mapBubble,
 } from './adventures'
 
@@ -450,19 +452,30 @@ describe('rescue closings (T8): every animal-recovering row', () => {
 })
 
 // T8's other closing (docs/18 §4.7 item 1): `night` recovers no animal, so
-// its own beat repeats `closing` with the SAME flashlight art its `icon`
-// and `zoo/backpack.ts`'s own `linterna` item already use — the linterna is
-// what "finding everything in the dark" means here.
-describe("night's own animal-less closing (T8)", () => {
+// its own beat repeats `closing`. [T25, `docs/19` §3.2] The beat's own art
+// moved from the generic flashlight (`night.icon`) to the curled erizo
+// (`HEDGEHOG_ART.curled`, `night4`'s own reveal-grid find) — the closing now
+// names what was actually found, so it and `hedgehog`'s own intro read as
+// ONE story instead of two unrelated beats.
+describe("night's own animal-less closing (T8; T25 re-points its art at the erizo)", () => {
   const night = ADVENTURES.find((a) => a.id === 'night')!
 
-  it('is a single beat: closing verbatim, the flashlight art, no figure override', () => {
+  it('is a single beat: closing verbatim, the curled erizo, no figure override', () => {
     expect(night.closingBeat).toHaveLength(1)
     const [beat] = night.closingBeat!
     expect(beat.line).toBe(night.closing)
-    expect(beat.art).toBe(SECTOR_ADVENTURE_ART.flashlight)
-    expect(beat.art).toBe(night.icon)
+    expect(beat.art).toBe(HEDGEHOG_ART.curled)
     expect(beat.figure).toBeUndefined()
+  })
+
+  it('no longer shares its art with the flashlight icon (T25 supersedes the old shared-art assertion)', () => {
+    const [beat] = night.closingBeat!
+    expect(beat.art).not.toBe(night.icon)
+    expect(beat.art).not.toBe(SECTOR_ADVENTURE_ART.flashlight)
+  })
+
+  it("carries its own deduction gate, closed by night3 (T25, docs/19 §2.3)", () => {
+    expect(night.deduction).toEqual({ after: 'night3', caseId: 'night' })
   })
 })
 
@@ -698,6 +711,37 @@ describe('everyAdventureFiled (promised-animals task B: the story\'s ending)', (
     const firstAdventure = ADVENTURES[0]
     const withoutItsIntro = allLevelIds.filter((id) => id !== firstAdventure.levelIds[0])
     expect(everyAdventureFiled(filed(...withoutItsIntro))).toBe(false)
+  })
+})
+
+// [T25, `odd/tasks/prewriting-stage-completion.md`] `isRescued` generalises
+// `everyAdventureFiled`'s own per-row test to one animal — what
+// `detective/cases.ts`'s night case uses (via `screen/GameScreen.tsx`) to
+// discard an option only once the child has genuinely met it.
+describe('isRescued (docs/19 §2.3/§3.2: the night case discards only what the child has really met)', () => {
+  const duckLevels = ADVENTURES.find((a) => a.animal === 'pato')!.levelIds
+  const sheepLevels = ADVENTURES.find((a) => a.animal === 'oveja')!.levelIds
+
+  it('is false for an animal no ADVENTURES row recovers', () => {
+    expect(isRescued({}, 'vaca')).toBe(false)
+    expect(isRescued(filed(...duckLevels, ...sheepLevels), 'gato')).toBe(false)
+  })
+
+  it('is false with no records at all', () => {
+    expect(isRescued({}, 'pato')).toBe(false)
+  })
+
+  it('is false until EVERY level of that animal\'s own row is filed', () => {
+    expect(isRescued(filed(...duckLevels.slice(0, -1)), 'pato')).toBe(false)
+  })
+
+  it('is true once every level of that animal\'s own row is filed', () => {
+    expect(isRescued(filed(...duckLevels), 'pato')).toBe(true)
+  })
+
+  it('is unaffected by an UNRELATED row being filed or not', () => {
+    expect(isRescued(filed(...duckLevels), 'oveja')).toBe(false)
+    expect(isRescued(filed(...duckLevels, ...sheepLevels), 'oveja')).toBe(true)
   })
 })
 

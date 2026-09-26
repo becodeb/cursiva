@@ -13,11 +13,11 @@ import { applyAttempt } from '../game/adaptiveTolerance'
 import { EMPTY_RECORD } from '../game/types'
 import type { LevelAttempt, LevelRecord } from '../game/types'
 import { openProgressStore } from '../game/openProgressStore'
-import { DETECTIVE_CASES, caseSolvedId } from '../detective/cases'
+import { DETECTIVE_CASES, caseSolvedId, resolveCase } from '../detective/cases'
 import AdventureClosing from './AdventureClosing'
 import { isDevMode } from '../canvas/devMode'
 import { sectorOf } from '../zoo/sectors'
-import { adventureFor, closingLevel, introLevel } from '../zoo/adventures'
+import { adventureFor, closingLevel, introLevel, isRescued } from '../zoo/adventures'
 import { adventureProgress } from '../zoo/progress'
 import ScreenTransition from './ScreenTransition'
 
@@ -677,7 +677,12 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
     // back to the first case for a malformed/unknown id, the same
     // never-crash convention `getLevel`/`isUnlocked` already use for an
     // unknown level id.
-    const kase = DETECTIVE_CASES.find((k) => k.id === state.caseId) ?? DETECTIVE_CASES[0]
+    //
+    // [T25] `resolveCase` swaps in the night case's own progress-computed
+    // `options` (`detective/cases.ts`'s `resolveNightDiscards`) — a no-op
+    // for every other case's static registry entry.
+    const staticCase = DETECTIVE_CASES.find((k) => k.id === state.caseId) ?? DETECTIVE_CASES[0]
+    const kase = resolveCase(staticCase, (animal) => isRescued(store.all(), animal))
     const solvedId = caseSolvedId(kase.id)
     const afterLevelId = state.afterLevelId
     // [T21] Named (not inline) for the same reason `LevelPlay`'s own
