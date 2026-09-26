@@ -72,9 +72,10 @@ interface ManifestEntry {
   quiet?: string
   brightest?: string
   corridorRows?: { top: number; bottom: number }
-  // `sample_spine()` fields (design.md §1.1), only on the three snake rows.
+  // `sample_spine()` fields (design.md §1.1, `fix-snakes-true-alignment`),
+  // only on the three snake rows.
   mid?: number
-  halves?: readonly (readonly [number, number])[]
+  points?: readonly (readonly [number, number])[]
   residual?: number
   thickness?: number
   traceFrom?: number
@@ -230,18 +231,22 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(CART_ART.h).toBe(entry.h)
   })
 
-  it("carries the three snakes' fitted spine, thickness, traceable span and luma-extreme fields (design.md §1.1)", () => {
+  it("carries the three snakes' measured spine, thickness, traceable span and luma-extreme fields (design.md §1.1, fix-snakes-true-alignment)", () => {
     const HEX = /^#[0-9a-f]{6}$/
     for (const key of ['sector-snake-small', 'sector-snake-medium', 'sector-snake-large'] as const) {
       const entry = manifest[key]
       expect(entry, key).toBeDefined()
       expect(typeof entry.mid, `${key}.mid`).toBe('number')
-      expect(Array.isArray(entry.halves), `${key}.halves`).toBe(true)
-      expect(entry.halves!.length, `${key}.halves must be non-empty`).toBeGreaterThan(0)
-      for (const [width, rise] of entry.halves!) {
-        expect(width, `${key}: half width must be positive`).toBeGreaterThan(0)
-        expect(typeof rise, `${key}: half rise must be a number`).toBe('number')
+      expect(Array.isArray(entry.points), `${key}.points`).toBe(true)
+      expect(entry.points!.length, `${key}.points must hold at least 2 samples`).toBeGreaterThanOrEqual(2)
+      let prevX = -Infinity
+      for (const [x, y] of entry.points!) {
+        expect(typeof y, `${key}: point y must be a number`).toBe('number')
+        expect(x, `${key}: points must be strictly ascending in x`).toBeGreaterThan(prevX)
+        prevX = x
       }
+      expect(entry.points![0][0], `${key}.points[0].x === traceFrom`).toBe(entry.traceFrom)
+      expect(entry.points!.at(-1)![0], `${key}.points.at(-1).x === traceTo`).toBe(entry.traceTo)
       expect(entry.residual, `${key}.residual`).toBeGreaterThanOrEqual(0)
       expect(entry.thickness, `${key}.thickness`).toBeGreaterThan(0)
       expect(entry.traceFrom, `${key}.traceFrom`).toBeGreaterThanOrEqual(0)

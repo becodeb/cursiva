@@ -996,6 +996,25 @@ export function spineWave(
 }
 
 /**
+ * `docs/13` §8 row E, `fix-snakes-true-alignment` — a centreline threaded
+ * through MEASURED points rather than fitted to a formula: `M`/`L` only, one
+ * line segment per consecutive pair. The sibling of {@link spineWave} for a
+ * hand-drawn body whose true wiggle is not well summarized by a five-number
+ * closed form (a fitted formula's own residual only measures its fit against
+ * the data it was reduced FROM, not against where a caller anchors the
+ * replay — the bug a dense, directly-stored polyline has no room to
+ * reproduce, because there is nothing left to re-derive: the points already
+ * ARE the path). Needs at least 2 points, same as every generator here needs
+ * at least one real segment.
+ */
+export function spinePolyline(points: readonly Vec[]): string {
+  if (points.length < 2) throw new Error('spinePolyline: at least 2 points required')
+  let d = move(points[0].x, points[0].y)
+  for (let i = 1; i < points.length; i++) d += line(points[i].x, points[i].y)
+  return d
+}
+
+/**
  * Fase 2 `f2-crestas` — large waves spanning the FULL ruled height: the same
  * alternating-arch construction as {@link wave}, centred on the midpoint of
  * `[yTop, yBottom]` with amplitude `(yBottom − yTop)/2`, so the crests land
