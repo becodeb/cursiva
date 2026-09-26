@@ -38,7 +38,6 @@ import {
   CARRIER_LENS_ART,
   CLUE_ART,
   ZOO_CARETAKER_ART,
-  ZOO_SPEECH_BUBBLE_ART,
   type AnimalId,
   type ArtImage,
 } from '../detective/assets'
@@ -47,24 +46,6 @@ import CaptionedArt from '../detective/CaptionedArt'
 import PistasRail, { type PistasSlot } from '../detective/PistasRail'
 import { BackIcon } from '../detective/icons'
 import { LAYOUT_CSS } from './LevelPlay'
-import { BUBBLE_POP_CSS } from './BubblePop'
-import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
-import {
-  CONTENT_LEFT_FRAC,
-  CONTENT_TOP_FRAC,
-  CONTENT_WIDTH_FRAC,
-  GAP_FRAC,
-  LINE_HEIGHT,
-  placeAndFitBubble,
-} from './bubbleFit'
-import {
-  DEFAULT_PULPITO_STANCE,
-  OCTOPUS_CORNER_INSET,
-  OCTOPUS_CORNER_SIZE_PCT,
-  octopusBoxAtCorner,
-  stanceBubbleSide,
-} from './pulpitoStance'
-import { bubbleContentCssVars } from './bubbleCssVars'
 
 /** Matches the shipped ink `TraceCanvas.tsx:89` (`INK_COLOR '#1e293b'`, not
  * exported) — the same hand that draws the trail's own trace, the `PISTAS`
@@ -350,7 +331,6 @@ function Animal({
  * child just left. No `border-radius`, no `box-shadow`, no `border`
  * (design.md "Layout"), and no font declaration anywhere. */
 export const DEDUCTION_CSS = `
-${BUBBLE_POP_CSS}
 .cv-lineup { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .cv-lineup-figures { display: flex; flex-direction: row; align-items: flex-end; justify-content: center; gap: 28px; flex-wrap: wrap; }
 .cv-lineup-slot { display: flex; flex-direction: column; align-items: center; }
@@ -451,6 +431,18 @@ ${BUBBLE_POP_CSS}
  * name and re-scoped as a narrow vertical column: present, but not
  * dominating the page the way the unconstrained bar did. */
 .pistas-bar {
+  /* [T21, found by actually rendering this screen in a browser for the
+   * first time] LAYOUT_CSS's own .pistas-bar (LevelPlay.tsx) is
+   * position: absolute; left: 50%; top: 50%; transform: translate(-50%,
+   * -50%) — centred over LevelPlay's OWN .cv-head row. This override never
+   * reset any of the four, so the rail rendered dead-centre over the WHOLE
+   * .cv-sheet box (on top of the middle animal) instead of standing beside
+   * the lineup as a flex sibling — every other rule below assumed the
+   * position/left/top/transform reset that was missing. */
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
   flex: 0 0 132px;
   display: flex;
   flex-direction: column;
@@ -496,29 +488,40 @@ ${BUBBLE_POP_CSS}
 @media (prefers-reduced-motion: reduce) {
   .cv-reveal-pop, .cv-lineup-slot-shake { animation: none; }
 }
-/* [T21] Pulpito's own corner stance (screen/pulpitoStance.ts,
- * screen/bubbleFit.ts — the SAME engine AdventureIntro.tsx/
- * AdventureClosing.tsx already use), asking the opening question, hinting
- * at a wrong pick, or naming the culprit once solved (deductionHint
- * above). pointer-events: none on the wrapper: this overlay sits ON TOP of
- * .cv-sheet in source order, and it must never steal a tap meant for the
- * lineup or the back button underneath its own bounding box — the octopus
- * and bubble spans below are the ONLY parts a real deployment ever paints
- * pixels into. */
-.cv-deduction-stance { position: absolute; inset: 0; pointer-events: none; }
-.cv-deduction-octopus { position: absolute; bottom: 2%; width: ${OCTOPUS_CORNER_SIZE_PCT}%; height: auto; }
-.cv-deduction-octopus img { display: block; width: 100%; height: auto; }
-.cv-deduction-bubble { position: absolute; container-type: inline-size; }
-.cv-deduction-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
-.cv-deduction-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
-.cv-deduction-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); }
-.cv-deduction-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
-.cv-deduction-bubble .cv-captioned--stack > svg { float: none; display: block; margin: 0 auto var(--cv-gap) auto; }
-/* Overrides THIS file's own .cv-caption (uppercase, sized off --cv-animal) —
- * a spoken sentence is not the animal-name vocabulary that rule exists for,
- * and higher selector specificity (two classes) wins regardless of source
- * order. */
-.cv-deduction-bubble .cv-caption { font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; text-transform: none; }
+/* [T21] Pulpito's own hint line (deductionHint, above): the opening
+ * question, a wrong pick's own gentle reason, or the culprit's name once
+ * solved. A compact strip pinned to the SHEET's bottom edge — never a full
+ * corner "stage" the way AdventureIntro.tsx's octopus is: this screen's
+ * lineup is centred and already claims most of the sheet, and a stage sized
+ * off the VIEWPORT (AdventureIntro's own convention, built for a screen with
+ * nothing else in it) swallowed the lineup entirely in this screen's first
+ * pass (caught by a screenshot, not by any test). pointer-events: none on
+ * the wrapper: it sits ON TOP of .cv-sheet in source order and must never
+ * steal a tap meant for the lineup or the back button. */
+.cv-deduction-hint { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 16px 10px; pointer-events: none; }
+.cv-deduction-hint-octopus { flex: 0 0 auto; display: block; width: 48px; height: auto; }
+/* The hint's picture-plus-line is a CaptionedArt (design.md "Layout": a word
+ * never ships without its picture, the same D6 rule every animal name in
+ * the lineup follows) — laid out as a ROW here (icon beside the sentence),
+ * not the lineup's own column (icon above the word): a spoken line reads
+ * left to right, and a column would put the animal-name-sized caption BELOW
+ * a 48px icon with nothing to say how wide it may grow. */
+.cv-deduction-hint .cv-captioned { flex-direction: row; align-items: center; gap: 8px; max-width: min(70%, 480px); }
+.cv-deduction-hint .cv-caption { font-size: 16px; font-weight: 700; color: #1e293b; text-align: left; text-transform: none; }
+/* [T21, found by actually rendering at the required 844x390 viewport] Below
+ * max-height: 520px, .cv-sheet stacks into a column and .pistas-bar becomes
+ * a horizontal row UNDER the lineup (its own rule above) — a bottom-anchored
+ * hint strip would sit exactly on top of it. Pinning to the TOP instead
+ * (clear of .cv-btn-back's own top-left corner: left starts past it, not at
+ * the sheet's own edge) keeps the two from ever competing for the same
+ * pixels; the lineup itself has the least vertical room to spare at this
+ * tier, so pushing the hint down there rather than shrinking the lineup
+ * further is the smaller compromise. */
+@media (max-height: 520px) {
+  .cv-deduction-hint { top: 4px; bottom: auto; left: 64px; right: 8px; gap: 6px; padding: 0; }
+  .cv-deduction-hint-octopus { width: 32px; }
+  .cv-deduction-hint .cv-caption { font-size: 14px; }
+}
 `
 
 export interface DeductionViewProps {
@@ -539,30 +542,10 @@ export interface DeductionViewProps {
  */
 export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProps) {
   const filedSlots: readonly PistasSlot[] = clueKindsOf(kase).map((kind) => ({ kind, filed: true }))
-  // [T21] Pulpito's own corner stance, asking the question, hinting at a
-  // wrong pick, or naming the culprit — the same `octopusBoxAtCorner`/
-  // `placeAndFitBubble` engine `AdventureIntro.tsx` already uses (that
-  // file's own header has the full geometry explanation). Always the
-  // default LEFT corner: this screen has no per-line stance override the way
-  // an adventure's own intro/closing beats do (`zoo/adventures.ts`'s
-  // `PulpitoStance`), since the lineup itself is centred, not off to one
-  // side the way a level's own route/octopus can be.
+  // [T21] Pulpito's own line for the current state (`deductionHint`, above):
+  // the opening question, a wrong pick's own gentle reason, or the
+  // culprit's name once solved.
   const hint = deductionHint(kase, state)
-  const octopusBox = octopusBoxAtCorner(ZOO_CARETAKER_ART, {
-    corner: DEFAULT_PULPITO_STANCE.corner,
-    sizeBy: 'width',
-    size: OCTOPUS_CORNER_SIZE_PCT,
-    bottom: 2,
-    inset: OCTOPUS_CORNER_INSET,
-  })
-  const { placement, content } = placeAndFitBubble({
-    frame: { w: 100, h: 100 },
-    headBox: octopusBox,
-    tail: ZOO_SPEECH_BUBBLE_TAIL,
-    side: stanceBubbleSide(DEFAULT_PULPITO_STANCE.corner),
-    text: hint.text,
-    art: hint.art,
-  })
   return (
     <main className="cv-play">
       <style>{LAYOUT_CSS + DEDUCTION_CSS}</style>
@@ -582,43 +565,9 @@ export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProp
         </div>
         <PistasRail slots={filedSlots} lampOn />
       </div>
-      <div className="cv-deduction-stance">
-        <span
-          className="cv-deduction-octopus"
-          style={{ [DEFAULT_PULPITO_STANCE.corner]: `${octopusBox.x}%` } as CSSProperties}
-        >
-          <img src={ZOO_CARETAKER_ART.href} alt="" />
-        </span>
-        <span
-          className={`cv-deduction-bubble${placement.mirrored ? ' cv-deduction-bubble--mirror-x' : ''}`}
-          style={{
-            left: `${placement.left}%`,
-            top: `${placement.top}%`,
-            width: `${placement.width}%`,
-            ...bubbleContentCssVars(placement, content, {
-              contentLeftFrac: CONTENT_LEFT_FRAC,
-              contentTopFrac: CONTENT_TOP_FRAC,
-              contentWidthFrac: CONTENT_WIDTH_FRAC,
-              gapFrac: GAP_FRAC,
-            }),
-          }}
-        >
-          {/* Keyed on the line (T8 item 2's own convention, `AdventureIntro.
-              tsx`): a new hint pops in fresh every time it actually changes. */}
-          <span
-            key={hint.text}
-            className="cv-bubble-pop"
-            style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
-          >
-            <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-            <CaptionedArt
-              art={hint.art}
-              label={hint.text}
-              size={76}
-              className={content.layout === 'stack' ? 'cv-captioned--stack' : undefined}
-            />
-          </span>
-        </span>
+      <div className="cv-deduction-hint">
+        <img src={ZOO_CARETAKER_ART.href} alt="" className="cv-deduction-hint-octopus" />
+        <CaptionedArt art={hint.art} label={hint.text} size={48} />
       </div>
     </main>
   )

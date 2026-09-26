@@ -703,14 +703,15 @@ const PHASE_1: LevelConfig[] = [
     // [T21, `docs/19` §1/§2.1 step 4] Past the deduction, the case is
     // already solved — this level (and `duck-trail4`) gathers the recovered
     // duck FAMILY along the waves, the same `collect` mechanic
-    // `sheep-hill`/`llama-peak` ship (T17), never a clue: `'peaks'` derives
-    // one duckling per wave crest (`levels/vertexArt.ts`'s `routeApexes`,
-    // the local minima in y a sinusoid's own crests are) plus one more at
-    // the route's end. `ANIMAL_ART.pato` scaled down stands in for a real
+    // `sheep-hill`/`llama-peak` ship (T17), never a clue: `'crests'`
+    // (`levels/collect.ts`'s `waveCrestArcs`, NOT `'peaks'`/`routeApexes` —
+    // that function finds zero apexes on this smooth a wave, see its own
+    // header) derives one duckling per wave crest plus one more at the
+    // route's end. `ANIMAL_ART.pato` scaled down stands in for a real
     // duckling — there is no smaller-duck art yet (flagged to the author as
     // a new art request, `docs/20`'s own `B…` numbering; T21's own report
     // names it `B16`).
-    collect: { items: 'peaks', art: ANIMAL_ART.pato, size: 40 },
+    collect: { items: 'crests', art: ANIMAL_ART.pato, size: 40 },
   },
   {
     id: 'duck-trail4',
@@ -739,7 +740,7 @@ const PHASE_1: LevelConfig[] = [
     demo: true,
     // [T21] Same reasoning as `duck-trail3` above — the last of the duck
     // family, gathered along the route's three crests plus the end.
-    collect: { items: 'peaks', art: ANIMAL_ART.pato, size: 40 },
+    collect: { items: 'crests', art: ANIMAL_ART.pato, size: 40 },
   },
   {
     id: 'trail1',
