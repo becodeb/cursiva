@@ -7,6 +7,9 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import TraceCanvas, {
   BACKDROP_IMAGE_ASPECT,
+  BACKDROP_SAFE_ZONE_ASPECT,
+  backdropSafeZoneCoversAt,
+  backdropSafeZoneWidthFraction,
   coverAspectRatio,
   coverVisibleFraction,
   DEMO_STROKE,
@@ -1991,5 +1994,113 @@ describe('T14 (prewriting-stage-completion, Batch 2.6): backdrop framing is a mi
         expect(frac, `${id} @ ${w}x${h}`).toBeGreaterThanOrEqual(w === 768 ? 0.5 : 0.85)
       }
     }
+  })
+})
+
+describe('T22 (prewriting-stage-completion, wide backdrops): per-image aspect, not a single 3:2 constant', () => {
+  // The author's own idea, from testing on a desktop at 1920x911 (aspect
+  // ~2.1): "the wider the screen at the same height, the less of the
+  // drawing you see. We could recreate the images wider, and crop their
+  // sides when the screen is squarer." `coverVisibleFraction` was already
+  // generic over `imageAspect` (T14 above) — nothing here changes its
+  // maths, this only exercises it at a SECOND image aspect and pins the new
+  // safe-zone functions that build on it.
+
+  it('visible-fraction table: 3:2 (1536x1024) and 2:1 (2048x1024) art at 4:3, 16:10 and 2.1:1 viewports', () => {
+    const ASPECT_3_2 = 1536 / 1024
+    const ASPECT_2_1 = 2048 / 1024
+    expect(ASPECT_3_2).toBe(BACKDROP_IMAGE_ASPECT)
+    const viewports: Array<[string, number]> = [
+      ['4:3', 4 / 3],
+      ['16:10', 16 / 10],
+      ['2.1:1 (1920x911)', 1920 / 911],
+    ]
+    // `coverVisibleFraction` reports whichever axis a cover fit actually
+    // constrains — WIDTH when the viewport is squarer than the image,
+    // HEIGHT once the viewport is wider than it (T14's own header, above).
+    // For a 3:2 image, EVERY required viewport here is at or past that
+    // crossover: 4:3 (1.333) is still squarer (width crops, 88.9% — the
+    // exact T14 number), but 16:10 (1.6) and 2.1:1 (2.108) are both already
+    // WIDER than 3:2 (1.5), so from there the reported fraction is HEIGHT,
+    // and it keeps shrinking the wider the screen gets — the author's own
+    // bug report, proved as a real dip rather than assumed.
+    const frac32 = viewports.map(([, ar]) => coverVisibleFraction(ar, ASPECT_3_2))
+    expect(frac32[0]).toBeCloseTo(8 / 9, 9) // 4:3 vs 3:2: 88.9% of the WIDTH
+    expect(frac32[1]).toBeCloseTo(15 / 16, 9) // 16:10 vs 3:2: 93.75% of the HEIGHT
+    expect(frac32[2]).toBeCloseTo(1.5 / (1920 / 911), 9) // 2.1:1 vs 3:2: ~71.2% of the HEIGHT
+    // The worst case for existing 3:2 art among these three is the WIDEST
+    // screen — exactly "the wider the screen, the less you see" for art
+    // that stays 3:2.
+    expect(frac32[2]).toBeLessThan(frac32[1])
+    expect(frac32[2]).toBeLessThan(frac32[0])
+
+    // A 2:1 image is wider than both 4:3 and 16:10 (so those crop its SIDES,
+    // width fraction) but narrower than 2.1:1 (which crops its top/bottom
+    // instead, height fraction, and barely at that) — the crossover sits
+    // inside this range instead of past its far end, which is the whole
+    // point of widening the art.
+    const frac21 = viewports.map(([, ar]) => coverVisibleFraction(ar, ASPECT_2_1))
+    expect(frac21[0]).toBeCloseTo((4 / 3) / 2, 9) // 4:3 vs 2:1: 66.7% of the WIDTH
+    expect(frac21[1]).toBeCloseTo(0.8, 9) // 16:10 vs 2:1: 80% of the WIDTH
+    expect(frac21[2]).toBeCloseTo(2 / (1920 / 911), 6) // 2.1:1 vs 2:1: ~94.9% of the HEIGHT
+    // The worst case for a NEW 2:1 backdrop among these three is the
+    // SQUAREST screen (4:3) — "crops only its sides on squarer screens,
+    // shows almost all of it on a wide desktop", the author's own claim.
+    expect(frac21[0]).toBeLessThan(frac21[1])
+    expect(frac21[0]).toBeLessThan(frac21[2])
+    expect(frac21[2]).toBeGreaterThan(0.9) // wide desktop: almost all of it
+  })
+
+  it('backdropSafeZoneWidthFraction: the central 4:3 safe zone of a 2:1 image is the docs/20 "1365px of 2048" figure', () => {
+    const fraction = backdropSafeZoneWidthFraction(2048 / 1024)
+    expect(fraction).toBeCloseTo(2 / 3, 9)
+    expect(2048 * fraction).toBeCloseTo(1365.33, 1)
+  })
+
+  it('backdropSafeZoneWidthFraction: a 3:2 image (the existing default) has a WIDER safe zone than a 2:1 one', () => {
+    const zone32 = backdropSafeZoneWidthFraction(BACKDROP_IMAGE_ASPECT)
+    const zone21 = backdropSafeZoneWidthFraction(2048 / 1024)
+    expect(zone32).toBeGreaterThan(zone21)
+    // A 3:2 image IS already only a little wider than the 4:3 safe zone
+    // itself, so almost all of it is "safe" by construction.
+    expect(zone32).toBeCloseTo(8 / 9, 9)
+  })
+
+  it('backdropSafeZoneCoversAt: the safe zone is never cropped at any of the three required viewports, for either a 3:2 or a 2:1 image', () => {
+    const viewportAspects = [4 / 3, 16 / 10, 1920 / 911]
+    for (const imageAspect of [BACKDROP_IMAGE_ASPECT, 2048 / 1024]) {
+      for (const viewportAspect of viewportAspects) {
+        expect(
+          backdropSafeZoneCoversAt(viewportAspect, imageAspect),
+          `image ${imageAspect} @ viewport ${viewportAspect}`,
+        ).toBe(true)
+      }
+    }
+  })
+
+  it('backdropSafeZoneCoversAt: property proof over a wide sweep — holds for every landscape image aspect and every viewport at least as wide as the safe zone itself', () => {
+    // The algebraic argument from `backdropSafeZoneWidthFraction`'s own
+    // header, checked directly rather than trusted: BACKDROP_SAFE_ZONE_ASPECT
+    // is the squarest supported viewport, so nothing narrower than it is
+    // exercised here (a portrait screen is out of scope — LevelPlay's own
+    // rotate prompt, not a cover fit).
+    const imageAspects = [BACKDROP_SAFE_ZONE_ASPECT, 1.4, 1.5, 1.6, 1.8, 2, 2.5, 3]
+    const viewportAspects = [BACKDROP_SAFE_ZONE_ASPECT, 1.4, 1.5, 1.6, 1.8, 2, 2.1, 2.5, 3, 4]
+    for (const imageAspect of imageAspects) {
+      for (const viewportAspect of viewportAspects) {
+        expect(
+          backdropSafeZoneCoversAt(viewportAspect, imageAspect),
+          `image ${imageAspect} @ viewport ${viewportAspect}`,
+        ).toBe(true)
+      }
+    }
+  })
+
+  it('backdropSafeZoneCoversAt: a squarer-than-the-safe-zone viewport (out of the supported range) DOES crop into it — the guarantee is scoped, not universal', () => {
+    // A 0.75-aspect portrait box against a 2:1 image would crop well inside
+    // the safe zone (0.75/2 = 0.375 visible, vs. the zone's own 0.667) — this
+    // is exactly why the app hands portrait a rotate prompt instead of a
+    // cover fit, not a gap in this function.
+    expect(backdropSafeZoneCoversAt(0.75, 2048 / 1024)).toBe(false)
   })
 })

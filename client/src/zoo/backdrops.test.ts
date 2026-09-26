@@ -327,30 +327,36 @@ describe('ADVENTURE_BACKDROP.corridorRows coverage', () => {
   ]
 
   it('covers every duck level channel inside the sampled corridor rows', () => {
-    const { corridorRows } = ADVENTURE_BACKDROP.duck!
+    // T22: `art.w`/`art.h` (per-backdrop, already carried in the registry —
+    // `ArtImage`, `detective/assets.ts`) are passed EXPLICITLY rather than
+    // relying on `viewBoxToImage`'s default matching by coincidence. Every
+    // backdrop here still ships at the map's own 1536x1024, so the numbers
+    // are unchanged — but a future backdrop at another aspect (a wide 2:1
+    // background) would now be measured against ITS OWN size, not the map's.
+    const { corridorRows, art } = ADVENTURE_BACKDROP.duck!
     for (const { id, top, bottom } of DUCK_CHANNELS) {
-      const topImg = viewBoxToImage(0, top).y
-      const bottomImg = viewBoxToImage(0, bottom).y
+      const topImg = viewBoxToImage(0, top, undefined, art.w, art.h).y
+      const bottomImg = viewBoxToImage(0, bottom, undefined, art.w, art.h).y
       expect(topImg, id).toBeGreaterThanOrEqual(corridorRows.top)
       expect(bottomImg, id).toBeLessThanOrEqual(corridorRows.bottom)
     }
   })
 
   it('covers every sheep level channel inside the ladera corridor rows', () => {
-    const { corridorRows } = ADVENTURE_BACKDROP.sheep!
+    const { corridorRows, art } = ADVENTURE_BACKDROP.sheep!
     for (const { id, top, bottom } of SHEEP_CHANNELS) {
-      const topImg = viewBoxToImage(0, top).y
-      const bottomImg = viewBoxToImage(0, bottom).y
+      const topImg = viewBoxToImage(0, top, undefined, art.w, art.h).y
+      const bottomImg = viewBoxToImage(0, bottom, undefined, art.w, art.h).y
       expect(topImg, id).toBeGreaterThanOrEqual(corridorRows.top)
       expect(bottomImg, id).toBeLessThanOrEqual(corridorRows.bottom)
     }
   })
 
   it('covers every llama level channel inside the cordillera corridor rows', () => {
-    const { corridorRows } = ADVENTURE_BACKDROP.llama!
+    const { corridorRows, art } = ADVENTURE_BACKDROP.llama!
     for (const { id, top, bottom } of LLAMA_CHANNELS) {
-      const topImg = viewBoxToImage(0, top).y
-      const bottomImg = viewBoxToImage(0, bottom).y
+      const topImg = viewBoxToImage(0, top, undefined, art.w, art.h).y
+      const bottomImg = viewBoxToImage(0, bottom, undefined, art.w, art.h).y
       expect(topImg, id).toBeGreaterThanOrEqual(corridorRows.top)
       expect(bottomImg, id).toBeLessThanOrEqual(corridorRows.bottom)
     }
@@ -380,7 +386,7 @@ describe('ADVENTURE_BACKDROP.dolphin (design.md §3.1/§3.2, this change)', () =
     // any more, so there is nothing left to sample at those widths. This is
     // now the exact same per-level channel check `DUCK_CHANNELS` above runs,
     // at the SAME stage width duck uses.
-    const { corridorRows } = ADVENTURE_BACKDROP.dolphin!
+    const { corridorRows, art } = ADVENTURE_BACKDROP.dolphin!
     for (const id of ['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4']) {
       const level = getLevel(id)
       const target = buildLevelTarget(level)
@@ -391,8 +397,8 @@ describe('ADVENTURE_BACKDROP.dolphin (design.md §3.1/§3.2, this change)', () =
       const A = 160
       const top = 300 - (A + level.corridorWidth / 2)
       const bottom = 300 + (A + level.corridorWidth / 2)
-      const topSrc = viewBoxToImage(0, top, target.viewWidth).y
-      const bottomSrc = viewBoxToImage(0, bottom, target.viewWidth).y
+      const topSrc = viewBoxToImage(0, top, target.viewWidth, art.w, art.h).y
+      const bottomSrc = viewBoxToImage(0, bottom, target.viewWidth, art.w, art.h).y
       expect(topSrc, id).toBeGreaterThanOrEqual(corridorRows.top)
       expect(bottomSrc, id).toBeLessThanOrEqual(corridorRows.bottom)
     }
@@ -418,7 +424,7 @@ describe('ADVENTURE_BACKDROP.fish (promised-animals P2)', () => {
   // `yBottom` alone, since `garlandVaried` (`f2-agua3`) has no single pair
   // of those to read.
   it('covers every fish garland level channel inside the sampled corridor rows', () => {
-    const { corridorRows } = ADVENTURE_BACKDROP.fish!
+    const { corridorRows, art } = ADVENTURE_BACKDROP.fish!
     for (const id of ['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4']) {
       const level = getLevel(id)
       const target = buildLevelTarget(level)
@@ -429,8 +435,8 @@ describe('ADVENTURE_BACKDROP.fish (promised-animals P2)', () => {
         maxY = Math.max(maxY, p.y)
       }
       const half = level.corridorWidth / 2
-      const topImg = viewBoxToImage(0, minY - half).y
-      const bottomImg = viewBoxToImage(0, maxY + half).y
+      const topImg = viewBoxToImage(0, minY - half, undefined, art.w, art.h).y
+      const bottomImg = viewBoxToImage(0, maxY + half, undefined, art.w, art.h).y
       expect(topImg, id).toBeGreaterThanOrEqual(corridorRows.top)
       expect(bottomImg, id).toBeLessThanOrEqual(corridorRows.bottom)
     }

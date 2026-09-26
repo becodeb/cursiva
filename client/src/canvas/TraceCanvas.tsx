@@ -156,8 +156,16 @@ export function coverAspectRatio(containerWidth: number, containerHeight: number
 
 /** Backdrop art is a raster whose own intrinsic aspect ratio decides how
  *  much of it a `preserveAspectRatio="xMidYMid slice"` cover fit can show
- *  (`docs/09_GUIA_DE_ESTILO_VISUAL.md` §9's background variant: every sector
- *  backdrop is authored full-bleed landscape 3:2, `1536×1024`). */
+ *  (`docs/09_GUIA_DE_ESTILO_VISUAL.md` §9's background variant). The `<image
+ *  href>` render itself (below) already covers correctly for ANY aspect —
+ *  the browser reads the file's OWN intrinsic size, never this constant — so
+ *  this is a DEFAULT for the math functions below (`coverVisibleFraction`,
+ *  `backdropSafeZoneWidthFraction`) when a caller has no per-image value to
+ *  hand, not a universal truth. T22 (`odd/tasks/prewriting-stage-
+ *  completion.md`): every backdrop shipped before this task happens to be
+ *  landscape 3:2, `1536×1024`, so this stays their exact aspect; a WIDE
+ *  backdrop (2:1, `2048×1024`) passes its own `w/h` to those functions
+ *  instead of relying on this default. */
 export const BACKDROP_IMAGE_ASPECT = 1536 / 1024
 
 /**
@@ -175,6 +183,87 @@ export function coverVisibleFraction(boxAspect: number, imageAspect: number): nu
   if (!(boxAspect > 0) || !(imageAspect > 0)) return 0
   const ratio = boxAspect / imageAspect
   return ratio > 1 ? 1 / ratio : ratio
+}
+
+/**
+ * T22 (`odd/tasks/prewriting-stage-completion.md`): the squarest viewport
+ * this game plays a level in landscape (a portrait screen gets its own
+ * rotate prompt instead — `LevelPlay.tsx`'s own portrait-rotate card, out of
+ * scope here). Named so `docs/20_PEDIDOS_DE_ARTE_TANDA_3.md` §2's own "central
+ * safe zone" prompt guidance and this file's test can both point at the same
+ * number instead of two independent `4/3` literals drifting apart.
+ */
+export const BACKDROP_SAFE_ZONE_ASPECT = 4 / 3
+
+/**
+ * The fraction of a `imageAspect`-shaped backdrop's own WIDTH a centred
+ * `safeZoneAspect`-shaped "safe zone" occupies — literally
+ * `coverVisibleFraction` evaluated at the safe zone's own aspect, since "the
+ * safe zone is exactly what a `safeZoneAspect` cover crop leaves visible" IS
+ * the definition (a `2048×1024` backdrop's `docs/20` "middle 1365px" band is
+ * `2048 * backdropSafeZoneWidthFraction(2)`, `1365 ≈ 2048 * 0.6667`).
+ *
+ * Why this guarantees the safe zone is NEVER cropped at any supported
+ * viewport (`docs/20` §2.2's own claim, proved rather than assumed): a
+ * landscape backdrop's own aspect and every supported viewport's aspect are
+ * both `>= BACKDROP_SAFE_ZONE_ASPECT` (the squarest is 4:3 itself). When the
+ * viewport is squarer than the image (`viewportAspect <= imageAspect`, the
+ * only case that crops the image's WIDTH at all), the visible width fraction
+ * is `viewportAspect / imageAspect`, monotonically increasing in
+ * `viewportAspect` — so its minimum over the whole supported range is at
+ * `viewportAspect = BACKDROP_SAFE_ZONE_ASPECT`, which is EXACTLY this
+ * function's own value. Any wider viewport shows the image's FULL width
+ * (only its top/bottom crop), so the safe zone is trivially all there too.
+ * `backdropSafeZoneCoversAt` below is the same argument restated as one
+ * boolean per call, for a test to assert directly rather than re-derive.
+ */
+export function backdropSafeZoneWidthFraction(
+  imageAspect: number,
+  safeZoneAspect: number = BACKDROP_SAFE_ZONE_ASPECT,
+): number {
+  return coverVisibleFraction(safeZoneAspect, imageAspect)
+}
+
+/**
+ * The fraction of a `imageAspect`-shaped backdrop's own WIDTH a
+ * `viewportAspect`-shaped cover crop leaves visible — UNLIKE
+ * `coverVisibleFraction`, which reports whichever axis is actually
+ * constrained (T14's own "how much of the image survives the crop"
+ * question, the right one for that task's framing bug). Once the viewport
+ * is WIDER than the image (`viewportAspect > imageAspect`), the image's
+ * FULL width already fits and only its height crops further — the width
+ * fraction pins at `1`, it does not keep shrinking the way
+ * `coverVisibleFraction`'s returned number does (that number has quietly
+ * switched to reporting the HEIGHT fraction by then). This distinction is
+ * exactly why `backdropSafeZoneCoversAt` cannot just reuse
+ * `coverVisibleFraction` directly: the safe zone is a WIDTH-only central
+ * crop, so what it needs is this function, not that one.
+ */
+export function backdropVisibleWidthFraction(viewportAspect: number, imageAspect: number): number {
+  if (!(viewportAspect > 0) || !(imageAspect > 0)) return 0
+  return viewportAspect >= imageAspect ? 1 : viewportAspect / imageAspect
+}
+
+/**
+ * Whether a `viewportAspect`-shaped cover crop of a `imageAspect`-shaped
+ * backdrop still shows the WHOLE `safeZoneAspect`-shaped central safe zone —
+ * `docs/20`'s own acceptance test for "the content stays inside the image's
+ * safe zone", restated as a direct boolean instead of a fraction comparison
+ * at every call site. `backdropSafeZoneWidthFraction`'s own header proves
+ * this holds for every `viewportAspect >= BACKDROP_SAFE_ZONE_ASPECT` (which
+ * `backdropVisibleWidthFraction` above computes exactly).
+ */
+export function backdropSafeZoneCoversAt(
+  viewportAspect: number,
+  imageAspect: number,
+  safeZoneAspect: number = BACKDROP_SAFE_ZONE_ASPECT,
+): boolean {
+  const visible = backdropVisibleWidthFraction(viewportAspect, imageAspect)
+  const needed = backdropSafeZoneWidthFraction(imageAspect, safeZoneAspect)
+  // A tiny epsilon: both sides are the SAME expression when
+  // `viewportAspect === safeZoneAspect`, but floating point can still land a
+  // hair below `needed` at that exact boundary.
+  return visible >= needed - 1e-9
 }
 
 /**
