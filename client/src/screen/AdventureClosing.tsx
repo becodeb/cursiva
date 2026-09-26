@@ -27,9 +27,18 @@
 // `CaptionedArt`'s own SVG `<image href>`. `CLOSING_CSS`'s comments carry NO
 // BACKTICKS — this is a template literal, and one backtick inside a
 // comment ends the string.
-import type { CSSProperties } from 'react'
+//
+// T24 (`docs/19` §2.1 step 5 + §6, "the animal gets its big moment"): an
+// animal-recovering row now ALSO shows its animal big over the scene
+// (`.cv-closing-rescue-animal`, separate from the small caption image the
+// bubble still carries — `bubbleFit.ts`'s own call below is UNCHANGED, so
+// its registry sweep stays green), and flies to its map spot once this
+// screen is dismissed. The flight itself is `zoo/rescueFlight.ts` +
+// `ZooMap.tsx`'s own receiving half — this file's only job is the big
+// image, its jump, and freezing its departure rect on tap.
+import { useRef, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
-import { ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import { ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import type { Adventure, ClosingBeat } from '../zoo/adventures'
@@ -38,6 +47,7 @@ import SpeakButton from '../voice/SpeakButton'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 import { BUBBLE_POP_CSS } from './BubblePop'
 import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
+import { recordDeparture, RESCUE_FLIGHT_VT_NAME } from '../zoo/rescueFlight'
 import { CONTENT_LEFT_FRAC, CONTENT_TOP_FRAC, CONTENT_WIDTH_FRAC, GAP_FRAC, LINE_HEIGHT, placeAndFitBubble } from './bubbleFit'
 import {
   OCTOPUS_CORNER_INSET,
@@ -83,6 +93,26 @@ html, body, #root { margin: 0; height: 100%; }
   .cv-closing-octopus { animation: none; }
   .cv-octopus-life { animation: none; }
 }
+/* The rescue animal (T24, docs/19 section 2.1 step 5: "El animal grande
+   salta, el Pulpito festeja"): the star of THIS beat, big over the scene,
+   never the small caption image the bubble already carries. Positioned like
+   the octopus above -- a static wrapper (centring) around an animating img
+   (the jump), so the jump's own keyframes never have to restate
+   translateX(-50%) (this file's own convention, see cv-closing-octopus
+   above). The wrapper is also what gets measured (getBoundingClientRect)
+   and flown to the map on tap -- zoo/rescueFlight.ts's own header on why
+   that measurement happens here, in the screen that is about to unmount,
+   and not in ZooMap. 40vh sits in the middle of the task's own 35-45%
+   band. NO BACKTICKS in this block -- this file's own top note. */
+.cv-closing-rescue-animal { position: absolute; top: 3%; left: 50%; transform: translateX(-50%); height: 40vh; max-width: 70%; z-index: 1; }
+.cv-closing-rescue-animal img { display: block; height: 100%; width: auto; animation: cv-rescue-jump 1.1s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes cv-rescue-jump {
+  0%, 100% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-10%) scale(1.05); }
+  60% { transform: translateY(0) scale(0.97); }
+  82% { transform: translateY(-3%) scale(1.02); }
+}
+@media (prefers-reduced-motion: reduce) { .cv-closing-rescue-animal img { animation: none; } }
 ${BUBBLE_POP_CSS}
 /* T18 (odd/tasks/prewriting-stage-completion.md) -- see AdventureIntro.tsx's
    own INTRO_CSS header on .cv-intro-bubble for the floated-image content
@@ -136,6 +166,13 @@ export interface AdventureClosingProps {
  *  does, on its own (and, since T8, only) closing beat. */
 export default function AdventureClosing({ adventure, beat, onContinue }: AdventureClosingProps) {
   const backdrop = backdropFor(adventure.levelIds[adventure.levelIds.length - 1])
+  // T24 (the rescue flight, docs/19 section 2.1 step 5 + section 6): the
+  // wrapper this ref measures is what `recordDeparture` (zoo/rescueFlight.ts)
+  // freezes into a plain rect BEFORE the tap that unmounts this whole
+  // screen — see the handler on the stage button below, and that module's
+  // own header for why the handoff has to be a module-scope variable
+  // rather than React state.
+  const rescueAnimalRef = useRef<HTMLSpanElement | null>(null)
   // Voice narration (docs/18 D1; T7): each beat speaks its own line as soon
   // as it appears. `GameScreen`'s own 'close' view (this file's own header)
   // re-renders this SAME component with the NEXT beat rather than
@@ -166,7 +203,31 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
       <style>{CLOSING_CSS}</style>
       {backdrop && <img className="cv-closing-backdrop" src={backdrop.art.href} alt="" />}
       <div className="cv-closing-frame">
-        <button type="button" className="cv-closing-stage" onClick={onContinue}>
+        <button
+          type="button"
+          className="cv-closing-stage"
+          onClick={() => {
+            // T24: freeze the departure BEFORE onContinue starts the
+            // navigation that unmounts this screen — `rescueAnimalRef` is
+            // absent for an animal-less closing (entrance enclosures,
+            // night), so this is a no-op there, exactly like
+            // `RescueCelebration` staying unrendered for the same rows.
+            if (adventure.animal !== undefined && rescueAnimalRef.current) {
+              const rect = rescueAnimalRef.current.getBoundingClientRect()
+              recordDeparture(adventure.animal, { x: rect.x, y: rect.y, width: rect.width, height: rect.height })
+            }
+            onContinue()
+          }}
+        >
+          {adventure.animal !== undefined && (
+            <span className="cv-closing-rescue-animal" ref={rescueAnimalRef} aria-hidden="true">
+              <img
+                src={ZOO_ANIMAL_ART[adventure.animal].href}
+                alt=""
+                style={{ viewTransitionName: RESCUE_FLIGHT_VT_NAME } as CSSProperties}
+              />
+            </span>
+          )}
           <span className="cv-closing-octopus" style={{ [stance.corner]: `${octopusBox.x}%` } as CSSProperties}>
             <img src={octopusArt.href} alt="" className="cv-octopus-life" />
           </span>

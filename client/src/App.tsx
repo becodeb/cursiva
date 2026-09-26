@@ -22,6 +22,7 @@ import { isDevMode, seededProgressIds, shouldSeedRecoveredDuck } from './canvas/
 import { EMPTY_RECORD } from './game/types'
 import type { LevelRecord } from './game/types'
 import ScreenTransition from './screen/ScreenTransition'
+import { peekPendingDeparture } from './zoo/rescueFlight'
 
 /** Which shell is on screen. `game` carries where to open it, which is how
  * the map's own routing decision (`nextAdventure`) reaches the game without
@@ -186,8 +187,17 @@ export default function App() {
   }
 
   if (shell.at === 'map') {
+    // T24 (docs/19 §6): the lupa wipe is for ORDINARY arrivals at the map.
+    // An animal's own flight (`zoo/rescueFlight.ts`, `AdventureClosing.tsx`'s
+    // `recordDeparture`, `ZooMap.tsx`'s own receiving half) is the
+    // transition for the one hop that just rescued something — a wipe
+    // growing over it would clip the animal mid-flight before the circle
+    // finished. `peekPendingDeparture` is non-destructive (its own header):
+    // `ZooMap`'s `takeDeparture` still needs to find the same handoff once
+    // it mounts.
+    const wipeKind = peekPendingDeparture() ? 'none' : 'wipe'
     return (
-      <ScreenTransition screenKey={shellTransitionKey(shell, trip)}>
+      <ScreenTransition screenKey={shellTransitionKey(shell, trip)} kind={wipeKind}>
         <ZooMap
           records={records}
           onEnter={(levelId: string) => {

@@ -10,10 +10,12 @@
 // no filter. Every picture is an `<image href="/art/…">`, the one mechanism
 // that survives this repo's ban (`TraceCanvas.tsx:69-86` — it hydrates
 // BLANK on real devices).
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { flushSync } from 'react-dom'
 import CaptionedArt from '../detective/CaptionedArt'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import {
+  ZOO_ANIMAL_ART,
   ZOO_BACKPACK_ART,
   ZOO_CARETAKER_ART,
   ZOO_FOG_ART,
@@ -27,6 +29,16 @@ import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 import { BUBBLE_POP_CSS } from './BubblePop'
 import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 import { placeArt } from '../canvas/placeArt'
+import {
+  flipDelta,
+  prefersReducedMotion,
+  RESCUE_FLIGHT_DURATION_MS,
+  RESCUE_FLIGHT_VT_NAME,
+  supportsViewTransitions,
+  takeDeparture,
+  viewBoxRectToScreenRect,
+  type Rect as FlightRect,
+} from '../zoo/rescueFlight'
 import { isSectorDebug } from '../canvas/devMode'
 import { earnedItems } from '../zoo/backpack'
 import { recordSeenStars, seenStars, starsIncreased, totalStars } from '../zoo/stars'
@@ -82,6 +94,16 @@ const FINALE_LINE = '¡Volvieron todos los animales! Gracias por ayudarme a cuid
  *  `xMidYMid meet` leaves on the outer `<svg>` is filled with this, never a
  *  third white (`docs/09` §7). */
 const ZOO_BACKGROUND = '#76B56A'
+
+/** T24: the rescue flight overlay's own render state — see this file's own
+ *  hooks (below) for the two effects that drive `phase` from `'start'` to
+ *  `'end'`, and `zoo/rescueFlight.ts`'s header for `mode`'s two values. */
+interface RescueFlightState {
+  art: { href: string; w: number; h: number }
+  from: FlightRect
+  mode: 'vt' | 'manual'
+  phase: 'start' | 'end'
+}
 
 const ZOO_CSS = `
 .cv-zoo { height: 100dvh; overflow: hidden; background: ${ZOO_BACKGROUND}; display: flex; align-items: center; justify-content: center; }
@@ -289,6 +311,25 @@ ${BUBBLE_POP_CSS}
    burst reads as scattered around the finale bubble). NOTE: no backticks in
    this comment either, same reason as the note right below it. */
 ${RESCUE_CELEBRATION_CSS}
+/* T24 (docs/19 section 6, "Aventura -> mapa (rescate)"): the rescued
+   animal's own flight overlay - see zoo/rescueFlight.ts's own header for why
+   this is a plain fixed-position HTML img instead of the permanent SVG
+   image already sitting at its landing spot (recovered.map, above). Fixed
+   (viewport) positioning, not absolute against this stage: the measured
+   departure rect and the svg's own getBoundingClientRect are both in
+   viewport pixels. pointer-events: none so the flight never blocks a tap on
+   the map underneath it, satisfying the task's own "must not block input
+   for more than the animation" - there IS no input blocking, whatever the
+   duration. The animation-duration override below matches a supporting
+   browser's own timing to RESCUE_FLIGHT_DURATION_MS - the UA stylesheet
+   default for ::view-transition-group is a flat 250ms, shorter than this
+   flight is meant to read. */
+.cv-zoo-rescue-flight { position: fixed; pointer-events: none; z-index: 20; }
+::view-transition-group(${RESCUE_FLIGHT_VT_NAME}) { animation-duration: ${RESCUE_FLIGHT_DURATION_MS}ms; }
+::view-transition-old(${RESCUE_FLIGHT_VT_NAME}), ::view-transition-new(${RESCUE_FLIGHT_VT_NAME}) { animation-duration: ${RESCUE_FLIGHT_DURATION_MS}ms; }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(${RESCUE_FLIGHT_VT_NAME}) { animation: none !important; }
+}
 /* NOTE: no backticks anywhere in this block - ZOO_CSS is a template
    literal, and one backtick in a CSS comment ends the string. */
 `
@@ -472,6 +513,46 @@ export interface ZooMapProps {
   debug?: boolean
 }
 
+/**
+ * T24: the flight overlay's own inline style for the current render — the
+ * one piece of this feature that is genuinely DOM/presentation glue rather
+ * than portable math (`zoo/rescueFlight.ts`'s own header on why the REAL
+ * math — `viewBoxRectToScreenRect`, `flipDelta` — lives there instead,
+ * directly tested). Two branches, matching `RescueFlightState.mode`:
+ *
+ * - `'vt'`: plain `left`/`top`/`width`/`height` at whichever rect the
+ *   current `phase` names — `document.startViewTransition` (this file's own
+ *   effect) is what actually animates the MOVE between the two renders this
+ *   produces; this function never touches `transform` in that branch, so
+ *   there is nothing here to fight the browser's own interpolation.
+ * - `'manual'`: always laid out AT `to` (the landing spot), with `transform`
+ *   carrying the FLIP invert (`flipDelta`) during `'start'` and the
+ *   identity during `'end'` — a CSS `transition` on `transform` alone
+ *   (composited, no layout/paint per frame) is what animates the move.
+ */
+function rescueFlightOverlayStyle(flight: RescueFlightState, to: FlightRect): CSSProperties {
+  const shared: CSSProperties = { viewTransitionName: RESCUE_FLIGHT_VT_NAME } as CSSProperties
+  if (flight.mode === 'vt') {
+    const rect = flight.phase === 'start' ? flight.from : to
+    return { ...shared, left: rect.x, top: rect.y, width: rect.width, height: rect.height, transition: 'none' }
+  }
+  const delta = flipDelta(flight.from, to)
+  return {
+    ...shared,
+    left: to.x,
+    top: to.y,
+    width: to.width,
+    height: to.height,
+    transformOrigin: '0 0',
+    transform:
+      flight.phase === 'start'
+        ? `translate(${delta.translateX}px, ${delta.translateY}px) scale(${delta.scaleX}, ${delta.scaleY})`
+        : 'translate(0px, 0px) scale(1, 1)',
+    transition:
+      flight.phase === 'end' ? `transform ${RESCUE_FLIGHT_DURATION_MS}ms cubic-bezier(0.34, 1.56, 0.64, 1)` : 'none',
+  }
+}
+
 export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // `?debug=sectores` reads the SAME guard `App.tsx`/`GameScreen.tsx` already
   // use for `window.location.search` under SSR (design.md §5) — and is
@@ -593,6 +674,70 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
     recordSeenStars(stars)
   }, [stars])
 
+  // T24 (docs/19 section 6, "Aventura -> mapa (rescate)"): receiving the
+  // flying animal. `zoo/rescueFlight.ts`'s own header explains WHY this is a
+  // module-scope handoff rather than a prop: `AdventureClosing` and this
+  // screen are mounted by different shells, and the closing has already
+  // fully unmounted by the time this one exists.
+  //
+  // `svgRef` is what lets `viewBoxRectToScreenRect` convert the landing
+  // spot's own viewBox-unit box (`recovered`, above) into the same CSS-pixel
+  // space `AdventureClosing.tsx`'s `recordDeparture` measured its rect in.
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  // Guards `takeDeparture` (a destructive, consume-ONCE read) against
+  // StrictMode's dev-only double effect-invoke on the SAME mounted instance
+  // — the ref itself persists across that replay, so the second run sees it
+  // already set and never re-consumes a handoff its first run already took.
+  const rescueFlightConsumedRef = useRef(false)
+  const [rescueFlight, setRescueFlight] = useState<RescueFlightState | null>(null)
+
+  useEffect(() => {
+    if (rescueFlightConsumedRef.current) return
+    rescueFlightConsumedRef.current = true
+    if (typeof window === 'undefined') return
+    const departure = takeDeparture()
+    if (!departure) return
+    const reduced = prefersReducedMotion(
+      typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null,
+    )
+    // docs/19 section 6's own closing line: reduced motion is a direct cut —
+    // the permanent SVG image (`recovered`, above) is already sitting at the
+    // right spot from this very first frame (the level approval that
+    // unlocks it was persisted before the closing ever mounted), so there is
+    // nothing left to animate.
+    if (reduced) return
+    const mode = supportsViewTransitions(document as unknown as { startViewTransition?: unknown }) ? 'vt' : 'manual'
+    setRescueFlight({ art: ZOO_ANIMAL_ART[departure.animalId], from: departure.rect, mode, phase: 'start' })
+  }, [])
+
+  // Kicks the actual move, once, the render after the overlay first mounts
+  // AT the departure rect (`phase: 'start'`) — a `document.startViewTransition`
+  // capturing that as its "old" state where supported, an rAF-delayed class
+  // flip (so the browser paints the start position at least once before the
+  // transition begins, the ordinary two-rAF trick) otherwise.
+  useEffect(() => {
+    if (!rescueFlight || rescueFlight.phase !== 'start') return undefined
+    if (rescueFlight.mode === 'vt') {
+      const doc = document as unknown as { startViewTransition: (cb: () => void) => void }
+      doc.startViewTransition(() => {
+        flushSync(() => setRescueFlight((f) => (f ? { ...f, phase: 'end' } : f)))
+      })
+      return undefined
+    }
+    const id = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setRescueFlight((f) => (f ? { ...f, phase: 'end' } : f))),
+    )
+    return () => cancelAnimationFrame(id)
+  }, [rescueFlight])
+
+  // Once landed, the overlay dissolves — the permanent SVG image underneath
+  // was there all along, pixel-for-pixel where this overlay just settled.
+  useEffect(() => {
+    if (!rescueFlight || rescueFlight.phase !== 'end') return undefined
+    const timer = window.setTimeout(() => setRescueFlight(null), RESCUE_FLIGHT_DURATION_MS + 80)
+    return () => window.clearTimeout(timer)
+  }, [rescueFlight])
+
   return (
     <main className="cv-zoo">
       <style>{ZOO_CSS}</style>
@@ -605,6 +750,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
       />
       <div className="cv-zoo-stage">
         <svg
+          ref={svgRef}
           viewBox="0 0 1000 600"
           width="100%"
           height="100%"
@@ -928,6 +1074,35 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
             {finale && <RescueCelebration />}
           </div>
         )}
+
+        {/* T24: the rescue flight's own receiving half — see this file's own
+            hooks (above `return`) for how `rescueFlight` is populated, and
+            `rescueFlightOverlayStyle`'s own header for the two render
+            branches. `target`/`svgRect` are only ever absent in a
+            transient first render before the svg's own layout is
+            measurable, or if the departing animal's id somehow does not
+            match anything `recovered` lists (a stale/corrupted handoff) —
+            both render nothing rather than guess a position. */}
+        {rescueFlight &&
+          (() => {
+            const target = recovered.find((p) => p.art === rescueFlight.art)
+            const svgBox = svgRef.current?.getBoundingClientRect()
+            if (!target || !svgBox) return null
+            const toRect = viewBoxRectToScreenRect(
+              target.box,
+              { x: svgBox.x, y: svgBox.y, width: svgBox.width, height: svgBox.height },
+              { width: 1000, height: 600 },
+            )
+            return (
+              <img
+                src={rescueFlight.art.href}
+                alt=""
+                aria-hidden="true"
+                className="cv-zoo-rescue-flight"
+                style={rescueFlightOverlayStyle(rescueFlight, toRect)}
+              />
+            )
+          })()}
       </div>
     </main>
   )
