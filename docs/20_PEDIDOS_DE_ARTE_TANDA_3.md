@@ -32,8 +32,8 @@ poses; pedido en dos veces, sale distinto (`docs/17` §3).
 | B5 | Fondo de la noche del erizo | Fondos de noche | **alta** | erizo | — |
 | B6 | Fondo de la pecera | Fondos de día | media | recinto de los peces (prólogo) | A2 |
 | B7 | Fondo del sendero, con huellas | Fondos de día | **alta** | sendero (prólogo) | A3 |
-| B8 | Globo con la cola abajo al centro | Globos | **alta** | el Pulpito sobre la escena (`docs/19` §4) | — |
-| B9 | Globo con la cola abajo a la izquierda | Globos | baja | ídem, pantallas bajas | — |
+| ~~B8~~ | ~~Globo con la cola abajo al centro~~ | — | — | **ya no hace falta** (T16 ubica el globo existente por la punta medida de su cola, ver §4) | — |
+| B9 | Globo con la cola abajo a la izquierda | Globos | baja | el Pulpito sobre la escena, pantallas bajas | — |
 | B10 | El mono | Mono | **alta** | monos (hoy es un bloque gris con la palabra MONO) | A6 |
 | B11 | Pistas del pato: semillas y gotas | Pistas | media | caso del pato | A4 (parte) |
 | B12 | Las cosas del erizo: manzana, hongo | Pistas | media | caso de la noche | A5 |
@@ -43,9 +43,10 @@ poses; pedido en dos veces, sale distinto (`docs/17` §3).
 | B16 | Los patitos | Patitos | baja | juntar la familia del pato | — |
 | B17 | Piel mudada de víbora | Pistas | baja | la entrada de las víboras | A4 (parte) |
 
-**Por dónde empezar:** B1, B4, B8 y B10. La laguna y el bosque son los fondos
-que más niveles cubren, el globo destraba la porción 2 de `docs/19`, y el mono
-es el único placeholder que el chico ve hoy.
+**Por dónde empezar:** B1, B4 y B10. La laguna y el bosque son los fondos que
+más niveles cubren, y el mono es el único placeholder que el chico ve hoy
+(la porción 2 de `docs/19`, el Pulpito sobre la escena, ya se resolvió sin
+`B8` — T18/T16).
 
 ---
 
@@ -69,16 +70,34 @@ que pueda haber derivado.
 
 ### 2.2 La composición, que ahora importa más que el detalle
 
-El juego ocupa la pantalla entera de una tablet (de 4:3 a 16:10) y el camino
-se dibuja en el medio. Una imagen de 3:2 en una pantalla de 4:3 pierde cerca
-del 11 % del ancho, repartido entre los dos costados; con los botones, puede
-llegar al 15 %.
+El juego ocupa la pantalla entera de una tablet (de 4:3 a 16:10) o de un
+escritorio ancho (hasta 2.1:1). El camino se dibuja en el medio. Cuanto más
+ancha la pantalla a la misma altura, menos se ve del dibujo: una imagen 3:2 en
+una pantalla de 4:3 pierde cerca del 11 % del ancho (con los botones, hasta el
+15 %), pero esa misma imagen 3:2 en un escritorio de 2.1:1 (por ejemplo,
+1920x911) pierde cerca del **29 % del alto**, recortado arriba y abajo — así se
+descubrió esta regla (`odd/tasks/prewriting-stage-completion.md`, T22).
 
-| Zona | Qué va ahí |
+**Por eso, de acá en más, los fondos se piden en 2:1 (2048x1024) en vez de
+3:2 (1536x1024).** La idea: dibujarlos más anchos y dejar que las pantallas más
+cuadradas recorten solo los costados, nunca arriba ni abajo. Los fondos ya
+hechos (arena, noche del zoológico, recinto de los monos) siguen siendo 3:2 y
+funcionan sin cambios — el código soporta cualquier proporción, leída por
+imagen, con 3:2 como valor por defecto para el arte que ya existe.
+
+| Zona (fondo 2:1, 2048x1024) | Qué va ahí |
 |---|---|
-| Los costados (el 8 % de la izquierda y el de la derecha) | Nada importante: se recorta |
-| La franja del medio (el alto exacto cambia por fondo, está en cada pedido) | Tranquila: un color suave con, a lo sumo, manchas grandes y muy suaves. Sin objetos, sin contornos negros, sin brillos |
+| Los costados (el 16.7 % de la izquierda y el de la derecha — 341 px cada uno) | Decoración: se recorta en las pantallas más cuadradas (4:3), se ve entera en un escritorio ancho |
+| La **zona central de seguridad**, 4:3 de proporción — los 1365 px del medio del ancho, alto completo | Lo importante: el camino, los animales, cualquier cosa que el chico tenga que ver siempre, en cualquier pantalla |
+| Adentro de la zona central, la franja horizontal (el alto exacto cambia por fondo, está en cada pedido) | Tranquila: un color suave con, a lo sumo, manchas grandes y muy suaves. Sin objetos, sin contornos negros, sin brillos |
 | Arriba, abajo y las cuatro esquinas | El detalle interesante, repartido para que ningún lado quede vacío |
+
+**Por qué 1365 px y no otro número:** es exactamente el ancho de una pantalla
+4:3 dentro de una imagen 2:1 (`4/3 ÷ 2 × 2048 ≈ 1365`) — la pantalla más
+cuadrada que el juego soporta en horizontal (una pantalla vertical usa el
+cartel de "girá la tablet", no este recorte). Ninguna pantalla soportada puede
+recortar más adentro que eso: `TraceCanvas.tsx`'s `backdropSafeZoneCoversAt`
+lo prueba como propiedad, no como observación (T22).
 
 **Por qué la franja tiene límite de claridad y no solo "tranquila":** el
 camino es de papel (`#fdfcf7`) y `backdrops.test.ts` exige 55 puntos de luma
@@ -91,7 +110,7 @@ eso cada pedido dice qué filas y qué tono máximo.
 
 ```
 Match the drawing style, line weight and colour palette of the attached
-reference image exactly. Landscape 3:2 (1536x1024), full-bleed, FULLY
+reference image exactly. Landscape 2:1 (2048x1024), full-bleed, FULLY
 OPAQUE: every single pixel painted, no transparency anywhere, not even
 at the corners. No animals, no characters, no people, no text.
 ```
@@ -103,15 +122,19 @@ cada fondo:
 Composition rules. They matter more than any detail:
 - This is the backdrop of a finger-tracing game for young children. The
   game draws a path ON TOP of the middle of this picture.
-- The picture will be cropped to a tablet screen: up to 8% of the width
-  is lost on the LEFT edge and up to 8% on the RIGHT edge. Keep
-  everything important away from those two edges.
+- This image is WIDER than the screens it will be shown on. Up to 16.7%
+  of the width (the outer ~340px on each side) may be cropped on the
+  LEFT edge and the same on the RIGHT edge, depending on the device.
+  Keep EVERYTHING important — the path, any object the child must
+  notice — inside the CENTRAL 1365px of the 2048px width (the middle
+  two thirds), a safe zone with a 4:3 shape. Treat the outer strips on
+  both sides as decorative extension only.
 - The MIDDLE BAND, from {TOP}% to {BOTTOM}% of the image height and
-  across the WHOLE width, is calm: {GROUND}, one soft even colour close
-  to {HEX}, with at most a few very large, very soft patches of a
-  slightly different shade. Inside that band: no objects, no black
-  outlines, no highlights, no sparkles, no white, nothing lighter than
-  {HEX}, no small repeated marks.
+  across the WHOLE width (including the outer strips), is calm: {GROUND},
+  one soft even colour close to {HEX}, with at most a few very large,
+  very soft patches of a slightly different shade. Inside that band: no
+  objects, no black outlines, no highlights, no sparkles, no white,
+  nothing lighter than {HEX}, no small repeated marks.
 - Put the interesting detail above and below that band and in the four
   corners, spread around the whole frame so no side looks empty.
 ```
@@ -126,12 +149,16 @@ mejor de los renovados); de noche, `art-source/fondo noche zoo.png`.
    §3 bis es un problema de recortes, no de fondos; si el fondo pasa la
    opacidad, no hace falta medirlo.
 2. Guardarlo en `art-source/` con **el mismo nombre** del que reemplaza (la
-   tabla de §3) y a 1536×1024 exactos. Correr `python3
-   scripts/art/build_art.py`.
-3. El script vuelve a medir la franja (`sample_corridor_band`) y escribe
-   `quiet` y `brightest` en `client/public/art/manifest.json`. **Copiarlos a la
+   tabla de §3) y a 2048×1024 exactos (los fondos que todavía no se piden de
+   nuevo se quedan en 1536×1024; las dos medidas conviven — `build_art.py`
+   valida el tamaño de cada fuente por su propia fila en `PASSTHROUGHS`, no
+   por una única constante). Correr `python3 scripts/art/build_art.py`.
+3. El script vuelve a medir la franja (`sample_corridor_band`, que recorre el
+   ancho REAL de la imagen, sea 1536 o 2048) y escribe `quiet`, `brightest` y
+   el `w`/`h` reales en `client/public/art/manifest.json`. **Copiarlos a la
    fila del fondo en `client/src/zoo/backdrops.ts`**: se leen del manifest, no
-   se estiman.
+   se estiman. Las filas de la franja (`top`/`bottom`) no cambian entre 1536 y
+   2048: dependen solo del ALTO, que sigue siendo 1024.
 4. `npm test`. Si falla la ley de 55 en `backdrops.test.ts`, hay tres salidas,
    en este orden: pedirlo de nuevo con la franja más apagada; pasar ese fondo a
    un canal oscuro con tinta clara, como ya hacen las víboras y las tortugas
@@ -270,9 +297,11 @@ scene, tall green algae along the bottom, grey rounded stones, one
 small closed wooden treasure chest half buried in the sand, a few
 bubbles rising. No fish.
 
-The picture will be cropped: up to 8% of the width is lost on the LEFT
-and on the RIGHT. Keep the chest and the algae away from those edges.
-Leave the upper middle of the water calm and open.
+This image is WIDER than the screens it will be shown on. Up to 16.7%
+of the width may be cropped on the LEFT edge and the same on the
+RIGHT, depending on the device. Keep the chest and the algae inside
+the central 1365px of the 2048px width (the middle two thirds). Leave
+the upper middle of the water calm and open.
 ```
 
 Si no se pide, la otra salida (`docs/18` §6, A2) es cambiar la frase del cierre
@@ -300,9 +329,12 @@ round paw prints, mixed together, all heading to the right, as if
 many animals had walked out together. The prints are dark brown and
 clearly readable.
 
-The picture will be cropped: up to 8% of the width is lost on the LEFT
-and on the RIGHT. Keep the fences, trees and signpost away from those
-edges; the footprints may run off the right edge.
+This image is WIDER than the screens it will be shown on. Up to 16.7%
+of the width may be cropped on the LEFT edge and the same on the
+RIGHT, depending on the device. Keep the fences, trees and signpost
+inside the central 1365px of the 2048px width (the middle two
+thirds); the footprints may run into the outer strips or off the
+right edge.
 ```
 
 ### Hoja "Fondos de noche": B5
@@ -341,14 +373,19 @@ camino del punto 4 de §2.4, y acá es el primero que hay que probar.
 
 ---
 
-## 4. Hoja "Globos": B8 y B9
+## 4. Hoja "Globos": B9 (B8 ya no hace falta)
+
+**B8 (la cola abajo al centro) ya no se pide.** `T16`
+(`odd/tasks/prewriting-stage-completion.md`, Batch 2.6) resolvió el problema
+que motivaba este pedido —el globo apuntando a un lugar vacío en vez de al
+Pulpito— sin arte nuevo: `screen/bubblePlacement.ts` ubica el globo existente
+(cola abajo a la izquierda) por la punta MEDIDA de su propia cola, nunca por el
+centro de su caja, así que una variante con la cola centrada no agrega nada.
 
 El globo actual es `art-source/bocadillo.png` (1024×1024, relleno blanco,
-contorno oscuro, cola abajo a la izquierda) → `zoo-speech-bubble.png`. La
-autora pide una variante con la cola **abajo al centro**, para ponerlo centrado
-arriba del Pulpito (`docs/19` §4.1, punto 5). Se piden los dos en la misma
-imagen para que el contorno y la forma coincidan; la cola a la derecha no se
-pide, sale espejando el de la izquierda (no tiene texto).
+contorno oscuro, cola abajo a la izquierda) → `zoo-speech-bubble.png`. B9 pide
+una variante nueva del mismo diseño (cola abajo a la izquierda, como el
+actual), para pantallas bajas.
 
 **Adjuntar `art-source/bocadillo.png`** como referencia de forma. El bloque de
 estilo termina en "fondo blanco", que con un globo blanco no se puede recortar:
@@ -357,25 +394,20 @@ se reemplaza su último párrafo por el fondo transparente.
 ```
 <bloque de estilo de docs/09 §9, SIN su último párrafo>
 
-One image, 1536x1024, TRANSPARENT background outside the bubbles.
-Two separate empty speech bubbles side by side, not touching, same
-outline weight, same wobbly marker line, same proportions as the
-attached reference: a wide rounded oval about 1.3 times wider than
-tall. The inside of each bubble is solid opaque white #ffffff.
-Nothing is written inside.
-
-Bubble 1 (left): the tail is at the BOTTOM CENTRE, short and wide,
-pointing straight down.
-Bubble 2 (right): the tail is at the BOTTOM LEFT, pointing down and to
-the left, like the attached reference.
+One image, 1024x1024, TRANSPARENT background outside the bubble. One
+empty speech bubble, same outline weight, same wobbly marker line,
+same proportions as the attached reference: a wide rounded oval about
+1.3 times wider than tall, with the tail at the BOTTOM LEFT, pointing
+down and to the left, like the attached reference. The inside of the
+bubble is solid opaque white #ffffff. Nothing is written inside.
 ```
 
-**Después de recibirla:** un PNG de 1024×1024 por globo, transparente afuera:
-`bocadillo centro.png` (B8) y `bocadillo izquierda.png` (B9). No reemplazar
-`bocadillo.png` hasta ver los dos nuevos en pantalla: el mapa lo usa hoy.
-Medir el alpha fantasma de cada uno (`docs/17` §3 bis) y pasar el checklist
-de cinco segundos (`docs/09` §9). Entrar al pipeline es código: una fila nueva
-en `build_art.py`, igual a la de `bocadillo.png` (`'contour'`), y su entrada en
+**Después de recibirla:** un PNG de 1024×1024, transparente afuera:
+`bocadillo izquierda.png` (B9). No reemplazar `bocadillo.png` hasta verlo en
+pantalla: el mapa usa el actual hoy. Medir el alpha fantasma (`docs/17` §3 bis)
+y pasar el checklist de cinco segundos (`docs/09` §9). Entrar al pipeline es
+código: una fila nueva en `build_art.py`, igual a la de `bocadillo.png`
+(`'contour'`), y su entrada en
 `AUTHORED_SOURCE_SIZES`.
 
 ---

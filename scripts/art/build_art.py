@@ -558,6 +558,16 @@ SINGLES = [
 # the same shape `mute`/`recolour`/`recontour` already use. Authored sector
 # backgrounds remain untouched pass-throughs so their measured flat corridors
 # and hand-drawn edge treatment are preserved exactly.
+#
+# T22 (`odd/tasks/prewriting-stage-completion.md`, "Wide backgrounds"): every
+# row below ships at 1536x1024 (3:2) today, but nothing here assumes that
+# width. `expected_w`/`expected_h` are just what `emit_opaque_canvas` checks
+# the source against; `sample_corridor_band` scans the image's OWN `img.w`
+# and the `(top, bottom)` row range depends only on HEIGHT (unchanged at
+# 1024) -- so a WIDE replacement (2:1, `2048x1024`, `docs/20` §2.2's central-
+# safe-zone convention) is a `(2048, 1024, (top, bottom))` row with the SAME
+# vertical numbers, no other change. `wide_backdrop_test.py` proves this
+# against a synthetic 2:1 fixture rather than assuming it.
 PASSTHROUGHS = [
     ('mapa zoologico.png', 'zoo-map.png', 1536, 1024, None),
     ('fondo laguna.png', 'sector-lagoon-background.png', 1536, 1024, (135, 889)),

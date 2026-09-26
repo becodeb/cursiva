@@ -283,6 +283,15 @@ export interface RevealLayerProps {
    * `displayBounds` minus `sheetBounds` (`marginBands` below) — the pile
    * silhouette itself stays scored against `sheetBounds` alone, so the
    * margin is a separate, permanently-covered band, never a wider grid.
+   *
+   * T22 (`odd/tasks/prewriting-stage-completion.md`, wide backdrops): this
+   * whole file never reads a backdrop's INTRINSIC size or aspect — only
+   * `displayBounds`/`sheetBounds`, both already screen-space viewBox boxes.
+   * `TraceCanvas.tsx`'s `coverAspectRatio` proves `displayBounds` always
+   * matches the CONTAINER's own aspect regardless of the backdrop image
+   * behind it, so the night veil's full-cover darkness and every cleaning
+   * policy's outer margin already reach every pixel the backdrop `<image>`
+   * covers for ANY image aspect — a wide 2:1 backdrop needs no change here.
    */
   displayBounds?: ArtBox
 }

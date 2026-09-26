@@ -155,43 +155,65 @@ const STAGE_H = 600
  * byte-identical. A caller measuring a WIDER sheet (a panned dolphin level's
  * own backdrop) passes its actual sheet width explicitly, or it validates
  * rows the render never shows at that width — a certain, not merely likely,
- * defect (design.md §3.2's "161-row lie"). This is the STAGE width, never
- * the SOURCE size: both functions are named and built for the zoo map's own
- * `1536 × 1024` pixels, and they work for a backdrop only because every
- * sector background ships at that same resolution. A future source at
- * another size needs its own transform, not a third parameter on this one.
+ * defect (design.md §3.2's "161-row lie").
+ *
+ * `imgW`/`imgH` (T22, `odd/tasks/prewriting-stage-completion.md`) default to
+ * the zoo map's own `1536 × 1024` — every caller before this task, including
+ * every sector background, happened to ship at that exact resolution, so the
+ * defaults keep all of them byte-identical. A backdrop authored at another
+ * aspect (a wide 2:1 background, `2048 × 1024`) passes ITS OWN `w`/`h`
+ * (`backdropFor(id)?.art.w`/`.h`, already carried per-image in the registry)
+ * instead of re-deriving the scale by hand — the SAME two functions, not a
+ * parallel pair, since the maths ("cover-fit onto a `STAGE_W × STAGE_H`
+ * viewBox, biggest-ratio axis wins") never depended on which image it was.
+ *
+ * The `x` below now carries the same centring term `y` always had
+ * (`(imgW * scale - stageWidth) / 2`). Every caller before T22 passed
+ * `imgW`/`stageWidth` such that the WIDTH ratio wins the `Math.max` (the map
+ * and every sector background share the map's own aspect, so the image's
+ * scaled width always lands EXACTLY on `stageWidth`, making that term zero —
+ * this is why the original code could skip it and stay correct). A `2048 ×
+ * 1024` backdrop on the default `1000`-wide stage is the first caller where
+ * the HEIGHT ratio wins instead (a 2:1 image is squarer-relative-to-1000×600
+ * than the map's 3:2 is), so the scaled image is now WIDER than the stage —
+ * exactly the "crop only its sides" case the centring term exists for.
  */
 export function imageToViewBox(
   imgX: number,
   imgY: number,
   stageWidth: number = STAGE_W,
+  imgW: number = MAP_IMG_W,
+  imgH: number = MAP_IMG_H,
 ): { x: number; y: number } {
-  const scale = Math.max(stageWidth / MAP_IMG_W, STAGE_H / MAP_IMG_H)
+  const scale = Math.max(stageWidth / imgW, STAGE_H / imgH)
   return {
-    x: imgX * scale,
-    y: imgY * scale - (MAP_IMG_H * scale - STAGE_H) / 2,
+    x: imgX * scale - (imgW * scale - stageWidth) / 2,
+    y: imgY * scale - (imgH * scale - STAGE_H) / 2,
   }
 }
 
 /**
  * The exact inverse of {@link imageToViewBox}: a viewBox point back to its
- * source pixel on `zoo-map.png`. Pasos B-H need this to check that a
- * corridor's viewBox extent falls inside a sector backdrop's own sampled
- * `corridorRows` — pushed through the SAME factor `imageToViewBox`'s numbers
- * came from, not re-derived (this function's own header).
+ * source pixel on the image `imgW`/`imgH` describes (the zoo map by
+ * default). Pasos B-H need this to check that a corridor's viewBox extent
+ * falls inside a sector backdrop's own sampled `corridorRows` — pushed
+ * through the SAME factor `imageToViewBox`'s numbers came from, not
+ * re-derived (this function's own header).
  *
- * `stageWidth` — same contract as {@link imageToViewBox}'s own parameter,
- * defaulting to `STAGE_W`.
+ * `stageWidth`/`imgW`/`imgH` — the same contract as {@link imageToViewBox}'s
+ * own parameters, same defaults, same T22 `x`-centring note above.
  */
 export function viewBoxToImage(
   vbX: number,
   vbY: number,
   stageWidth: number = STAGE_W,
+  imgW: number = MAP_IMG_W,
+  imgH: number = MAP_IMG_H,
 ): { x: number; y: number } {
-  const scale = Math.max(stageWidth / MAP_IMG_W, STAGE_H / MAP_IMG_H)
+  const scale = Math.max(stageWidth / imgW, STAGE_H / imgH)
   return {
-    x: vbX / scale,
-    y: (vbY + (MAP_IMG_H * scale - STAGE_H) / 2) / scale,
+    x: (vbX + (imgW * scale - stageWidth) / 2) / scale,
+    y: (vbY + (imgH * scale - STAGE_H) / 2) / scale,
   }
 }
 

@@ -783,3 +783,48 @@ describe('imageToViewBox/viewBoxToImage — optional stageWidth parameter (zoo-m
     }
   })
 })
+
+describe('imageToViewBox/viewBoxToImage — optional imgW/imgH parameters (T22, wide backdrops)', () => {
+  it('defaults to the map size (1536x1024) — every existing caller stays byte-identical', () => {
+    for (const [x, y] of [[0, 0], [1536, 1024], [768, 512], [136, 90]] as const) {
+      expect(imageToViewBox(x, y, 1000, 1536, 1024)).toEqual(imageToViewBox(x, y))
+    }
+    for (const [vbX, vbY] of [[0, 0], [1000, 600], [500, 300]] as const) {
+      expect(viewBoxToImage(vbX, vbY, 1000, 1536, 1024)).toEqual(viewBoxToImage(vbX, vbY))
+    }
+  })
+
+  it('a 2:1 backdrop (2048x1024) scales by the WIDTH ratio at a 4:3-ish 1000-wide stage — cropping its SIDES, not its top/bottom', () => {
+    // scale = max(1000/2048, 600/1024) = max(0.488281, 0.585938) = 0.585938
+    // (the HEIGHT ratio wins here, unlike the 1536-wide map/3:2 backdrops
+    // above where the width ratio always wins) — the image renders its FULL
+    // height and MORE than its full width would need, i.e. its sides are
+    // what a squarer stage crops, exactly the author's own framing ("wider
+    // art crops only its sides on squarer screens").
+    const scale = Math.max(1000 / 2048, 600 / 1024)
+    expect(scale).toBeCloseTo(600 / 1024, 6)
+    expect(imageToViewBox(0, 0, 1000, 2048, 1024).y).toBeCloseTo(0, 6)
+    expect(imageToViewBox(0, 1024, 1000, 2048, 1024).y).toBeCloseTo(600, 6)
+    // The image is 2048 * scale = 1200 wide on the 1000-wide stage, centred:
+    // 100 units cropped off each side.
+    expect(imageToViewBox(0, 0, 1000, 2048, 1024).x).toBeCloseTo(-100, 6)
+    expect(imageToViewBox(2048, 0, 1000, 2048, 1024).x).toBeCloseTo(1100, 6)
+  })
+
+  it('a 2:1 backdrop round-trips through both directions, same as every other size', () => {
+    for (const [vbX, vbY] of [[0, 0], [1000, 600], [500, 300], [-50, 120]] as const) {
+      const img = viewBoxToImage(vbX, vbY, 1000, 2048, 1024)
+      const back = imageToViewBox(img.x, img.y, 1000, 2048, 1024)
+      expect(back.x).toBeCloseTo(vbX, 6)
+      expect(back.y).toBeCloseTo(vbY, 6)
+    }
+  })
+
+  it("the same corridor row, pushed through a 2:1 image instead of a 3:2 one, lands on a different source pixel — proving the conversion actually reads imgW/imgH rather than ignoring them (the stage MIDLINE always maps to the image's own vertical midpoint regardless of width, so this needs an off-centre row to tell the two scales apart)", () => {
+    const at32 = viewBoxToImage(0, 100, 1000, 1536, 1024).y
+    const at21 = viewBoxToImage(0, 100, 1000, 2048, 1024).y
+    expect(at32).toBeCloseTo(204.8, 1)
+    expect(at21).toBeCloseTo(170.667, 1)
+    expect(at32).not.toBeCloseTo(at21, 1)
+  })
+})
