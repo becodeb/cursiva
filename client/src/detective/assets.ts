@@ -495,6 +495,21 @@ export const PROMISED_ANIMAL_ART: Readonly<Record<'pez' | 'tortuga' | 'mono', Ar
   mono: { href: '/art/animal-mono.png', w: 320, h: 320 },
 }
 
+/**
+ * Every {@link ZooAnimalId} whose colour art is still a `make_placeholders.py`
+ * stand-in rather than an authored drawing — today just `mono` (this
+ * record's own header, above; `docs/20_PEDIDOS_DE_ARTE_TANDA_3.md` request
+ * B10, "El mono", pending art A6). `screen/DetectiveNotebook.tsx` (T23
+ * follow-up, orchestrator screenshot review) reads this to skip a MISSING
+ * placeholder animal's own derived silhouette — a flat sign block recolours
+ * to a featureless black square, which reads as broken art rather than "not
+ * found yet" — and draw `detective/icons.tsx`'s `PawPrintIcon` instead. A
+ * `Set`, not a boolean field on `PROMISED_ANIMAL_ART`, because the next
+ * animal to need this (any future placeholder) need not be a "promised"
+ * entrance animal at all.
+ */
+export const PLACEHOLDER_ZOO_ANIMALS: ReadonlySet<ZooAnimalId> = new Set(['mono'])
+
 /** `ZOO_ANIMAL_ART` resolves every {@link ZooAnimalId} — spreading
  * `ANIMAL_ART` preserves referential identity for every existing entry, so
  * `mapBubble`'s art-reference comparisons keep working for the duck. */

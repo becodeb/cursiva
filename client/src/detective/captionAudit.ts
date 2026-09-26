@@ -83,6 +83,20 @@ function carriesHrefOrSrc(openingTag: string): boolean {
 }
 
 /**
+ * A drawn-in-code picture standing ALONE as its container's own image
+ * (`detective/icons.tsx`'s `PawPrintIcon`, `screen/DetectiveNotebook.tsx`
+ * T23 follow-up) — never inferred from a bare `<svg>`, which every control
+ * glyph in `icons.tsx` already is (aria-hidden, named by the button that
+ * wraps it, `icons.tsx`'s own header) and none of those pairs with a
+ * visible caption of its own. Opt-in and explicit on purpose: widening this
+ * to "any aria-hidden svg counts" would silently license a caption beside a
+ * `BackIcon`/`CloseIcon` that carries no real picture at all.
+ */
+function carriesDrawnPicture(openingTag: string): boolean {
+  return /\sdata-cv-picture="true"/.test(openingTag)
+}
+
+/**
  * Audits a `renderToString` HTML string for the captioned-art invariant.
  * Deliberately a small hand-written tokenizer rather than a real DOM parser:
  * this repo's harness runs in a node environment with NO DOM at all (every
@@ -142,7 +156,10 @@ export function auditCaptions(html: string): CaptionAudit {
     const tagNameMatch = token.match(/^<([a-zA-Z][a-zA-Z0-9]*)/)
     const tagName = tagNameMatch ? tagNameMatch[1] : ''
     const selfClosing = /\/>\s*$/.test(token) || VOID_TAGS.has(tagName)
-    if ((tagName === 'image' || tagName === 'img') && carriesHrefOrSrc(token)) {
+    if (
+      ((tagName === 'image' || tagName === 'img') && carriesHrefOrSrc(token)) ||
+      (tagName === 'svg' && carriesDrawnPicture(token))
+    ) {
       markImageSeen()
     }
     if (!selfClosing) {

@@ -11,6 +11,7 @@
 // correctly absent here because no sector's `animals` array ever places them
 // (they are never "recovered", only ruled out on a deduction screen).
 import {
+  PLACEHOLDER_ZOO_ANIMALS,
   ZOO_ANIMAL_ART,
   ZOO_ANIMAL_SILHOUETTE_ART,
   type ArtImage,
@@ -75,35 +76,27 @@ export function isAnimalRescued(id: ZooAnimalId, records: Records): boolean {
   return !!appearsWhen && appearsWhen.length > 0 && appearsWhen.every((levelId) => isFiled(records, levelId))
 }
 
-/** The tallest a notebook cell's own picture may render (`CaptionedArt`'s
- *  `size`, a HEIGHT). */
-const NOTEBOOK_ART_MAX_HEIGHT = 64
-/** The widest a notebook cell's own picture may render — `vibora`'s art
- *  (`sector-snake-medium.png`, 492×114) is a long, low body: at the plain
- *  64px height every other animal uses, its width comes out to ~276px,
- *  which overflowed its own grid cell (found in browser QA, not by any
- *  pure test — the SSR harness never measures rendered pixel width). */
-const NOTEBOOK_ART_MAX_WIDTH = 84
-
-/** The HEIGHT `CaptionedArt` should render `art` at inside one notebook
- *  cell — `NOTEBOOK_ART_MAX_HEIGHT`, further reduced for a WIDE image so
- *  its rendered WIDTH never exceeds `NOTEBOOK_ART_MAX_WIDTH` either. Pure
- *  and exported so the cap itself is directly testable without a browser
- *  measuring anything. */
-export function notebookArtSize(art: Pick<ArtImage, 'w' | 'h'>): number {
-  return Math.min(NOTEBOOK_ART_MAX_HEIGHT, (NOTEBOOK_ART_MAX_WIDTH * art.h) / art.w)
-}
-
 export interface NotebookAnimalEntry {
   id: ZooAnimalId
   rescued: boolean
   /** Colour art once rescued; a derived silhouette (`ANIMAL_SILHOUETTE_ART`
    *  via `ZOO_ANIMAL_SILHOUETTE_ART`, `scripts/art/build_art.py`) while
-   *  missing — never the coloured art, which would give the animal away. */
+   *  missing — never the coloured art, which would give the animal away.
+   *  Ignored by `screen/DetectiveNotebook.tsx` when `placeholderArt` is
+   *  true — see that field's own header. Sizing is CSS's job now
+   *  (`object-fit: contain` inside a fixed-aspect card slot), not this
+   *  registry's: a wide or tall silhouette simply shrinks to fit, whatever
+   *  its own aspect ratio. */
   art: ArtImage
-  /** The rendered height `DetectiveNotebook` should pass to `CaptionedArt`
-   *  for `art` — see `notebookArtSize`'s own header. */
-  size: number
+  /** True while `id` is BOTH missing and its own colour art is a
+   *  placeholder (`detective/assets.ts`'s `PLACEHOLDER_ZOO_ANIMALS`) — a
+   *  flat sign block's derived silhouette recolours to a featureless black
+   *  square, so `DetectiveNotebook` draws `detective/icons.tsx`'s
+   *  `PawPrintIcon` instead of `art` for this one entry. Always false once
+   *  rescued (a placeholder animal, once found, is a separate, already-
+   *  disclosed art gap — `PROMISED_ANIMAL_ART`'s own header — not something
+   *  this task's own brief asked it to also mask). */
+  placeholderArt: boolean
   /** The word under the picture — `spot` once rescued, a bare `'?'` while
    *  missing (§5.1: "en silueta con '?'"). Always non-empty:
    *  `CaptionedArt.label` is required at type level. */
@@ -122,7 +115,7 @@ export function notebookEntries(records: Records): readonly NotebookAnimalEntry[
       id,
       rescued,
       art,
-      size: notebookArtSize(art),
+      placeholderArt: !rescued && PLACEHOLDER_ZOO_ANIMALS.has(id),
       caption: rescued ? (copy?.spot ?? '') : '?',
       line: rescued ? (copy?.line ?? null) : null,
     }

@@ -76,4 +76,24 @@ describe('auditCaptions (spec: detective-mode "Captioned Art Invariant")', () =>
     // "imageless container" report against a class nobody registered.
     expect(audit).toEqual({ captioned: [], uncaptioned: ['plain'], imagelessContainers: [] })
   })
+
+  // T23 follow-up (screen/DetectiveNotebook.tsx, orchestrator screenshot
+  // review): a drawn-in-code picture (detective/icons.tsx's PawPrintIcon)
+  // standing ALONE as a card's own image, for an animal whose real art is
+  // still a placeholder block.
+  describe('data-cv-picture (a drawn-in-code picture, PawPrintIcon)', () => {
+    it('an svg carrying data-cv-picture="true" satisfies the licence, same as a real img/image', () => {
+      const html =
+        '<span class="cv-captioned"><svg data-cv-picture="true"><circle cx="1" cy="1" r="1"></circle></svg><span class="cv-caption">?</span></span>'
+      const audit = auditCaptions(html)
+      expect(audit).toEqual({ captioned: ['?'], uncaptioned: [], imagelessContainers: [] })
+    })
+
+    it('an ordinary aria-hidden control glyph with NO marker does not satisfy the licence — narrow opt-in, not "any svg counts"', () => {
+      const html =
+        '<span class="cv-captioned"><svg aria-hidden="true"><path d="M0,0"></path></svg><span class="cv-caption">?</span></span>'
+      const audit = auditCaptions(html)
+      expect(audit).toEqual({ captioned: [], uncaptioned: ['?'], imagelessContainers: ['cv-captioned'] })
+    })
+  })
 })

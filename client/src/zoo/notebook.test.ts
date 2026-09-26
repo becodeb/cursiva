@@ -10,7 +10,7 @@ import {
 } from '../detective/assets'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import type { Records } from './sectors'
-import { isAnimalRescued, notebookArtSize, notebookEntries, NOTEBOOK_ANIMAL_IDS } from './notebook'
+import { isAnimalRescued, notebookEntries, NOTEBOOK_ANIMAL_IDS } from './notebook'
 
 function filed(...ids: readonly string[]): Records {
   const out: Record<string, LevelRecord> = {}
@@ -111,29 +111,27 @@ describe('notebookEntries', () => {
     }
   })
 
-  // Found in browser QA (T23): vibora's own art (sector-snake-medium.png,
-  // 492x114) rendered ~276px wide at the ordinary 64px height every other
-  // animal uses, overflowing its own grid cell. `size` caps that.
-  it('caps every entry\'s rendered width, so a wide silhouette like vibora never overflows its cell', () => {
-    for (const entry of notebookEntries({})) {
-      const width = (entry.size * entry.art.w) / entry.art.h
-      expect(width).toBeLessThanOrEqual(84 + 1e-9)
-      expect(entry.size).toBeLessThanOrEqual(64)
-      expect(entry.size).toBeGreaterThan(0)
-    }
-  })
-})
+  // T23 follow-up (orchestrator screenshot review): `mono`'s own art is
+  // still `make_placeholders.py`'s flat sign block — its derived silhouette
+  // recolours to a featureless black square. `placeholderArt` is what tells
+  // `DetectiveNotebook` to draw a paw print instead, for that one animal
+  // only, and only while it is still missing.
+  describe('placeholderArt', () => {
+    it('is true for mono while missing, and false for every other missing animal', () => {
+      const entries = notebookEntries({})
+      const byId = Object.fromEntries(entries.map((e) => [e.id, e]))
+      expect(byId.mono.placeholderArt).toBe(true)
+      for (const entry of entries) {
+        if (entry.id === 'mono') continue
+        expect(entry.placeholderArt).toBe(false)
+      }
+    })
 
-describe('notebookArtSize', () => {
-  it('is the plain max height for a roughly square or tall image', () => {
-    expect(notebookArtSize({ w: 320, h: 320 })).toBe(64)
-    expect(notebookArtSize({ w: 299, h: 448 })).toBe(64)
-  })
-
-  it('shrinks further for a wide image, capping rendered width instead', () => {
-    // sector-snake-medium.png's own real aspect (492x114).
-    const size = notebookArtSize({ w: 492, h: 114 })
-    expect(size).toBeLessThan(64)
-    expect((size * 492) / 114).toBeCloseTo(84, 5)
+    it('is false for mono once actually rescued (a separate, already-disclosed art gap)', () => {
+      const entries = notebookEntries(filed('monkey4'))
+      const mono = entries.find((e) => e.id === 'mono')!
+      expect(mono.rescued).toBe(true)
+      expect(mono.placeholderArt).toBe(false)
+    })
   })
 })
