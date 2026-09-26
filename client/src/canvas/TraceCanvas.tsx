@@ -725,6 +725,19 @@ export interface TraceSpines {
    *  ink it just was rather than the chalk `dim`/`earned` marks use.
    *  Required only alongside `fading`. */
   fadingColor?: string
+  /** T19 (`odd/tasks/prewriting-stage-completion.md` §3.3, "el trazo se
+   *  convierte en espina"): one `M`/`L` triangle path per FILLED anchor —
+   *  `levels/spines.ts`'s `spineSpikePaths` — replacing the raw ink of the
+   *  stroke that earned it. Absent = no spikes, every pre-T19 caller's
+   *  byte-identical default (an empty family, or one mid-render before any
+   *  anchor fills). */
+  spikes?: readonly string[]
+  /** Fill/outline for `spikes` — resolved by the CALLER, never inside the
+   *  layer (`TraceClueMark`'s own convention, restated for the spike). A
+   *  dark fill with a marker-style outline (docs/19 §3.3: "relleno oscuro y
+   *  contorno de marcador"). Required only alongside `spikes`. */
+  spikeFill?: string
+  spikeStroke?: string
 }
 
 /** The WINDOW, when it is narrower than the world (`scrolling-camera`

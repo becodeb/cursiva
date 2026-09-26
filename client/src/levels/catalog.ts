@@ -1461,47 +1461,77 @@ const PHASE_1: LevelConfig[] = [
   // movement in the whole progression — many short independent strokes,
   // each leaving the body and pointing outward, none of them a path. Every
   // literal below is solved against the MEASURED silhouette tables
-  // (design.md §10), not against the ellipse the first draft used. The
-  // profile arc (200° → 380°) is IDENTICAL on hedgehog1..3 — it is a
-  // property of the pose, not a ladder rung; the ladder narrows through
-  // `tolDeg`, `straightness`, the length band and the anchor count instead.
-  // Appended at the END of the phase-1 block, after `dolphin4` and before
+  // (design.md §10), not against the ellipse the first draft used. Appended
+  // at the END of the phase-1 block, after `dolphin4` and before
   // `f2-guirnalda` — NOT at the end of `LEVELS` (`catalog.test.ts:121-127`
   // requires ascending phases; design.md §2 D6).
   //
-  // T3 revision (2026-09-25 tablet playtest, `odd/tasks/prewriting-stage-
-  // completion.md`): the user hit two separate complaints on a real tablet.
-  // First, "a well-drawn spine is rejected when it does not start exactly
-  // on the small start dot" — `baseRadius` (measure 1's start-point cutoff)
-  // was tuned to the geometric CEILING (`spines.test.ts`'s own "2·baseRadius
-  // ≤ min neighbour chord" invariant) with almost no margin, so a completely
-  // ordinary ~20-30 viewBox-unit miss of a six-year-old's fingertip already
-  // fell outside it on hedgehog2-4 (28/26/26). A hard single-point cutoff
-  // needs MORE headroom than `TolTouch` (26, `canvas/validation/constants
-  // .ts`) — that constant is an AVERAGE-distance tolerance over a whole
-  // resampled path, forgiving by construction; missing the ONE literal pixel
-  // a stroke must begin inside has no such averaging to fall back on.
-  // Second, "gets repetitive": 5+7+10+14=36 spines across the family, the
-  // last level demanding every one of 14 at `minAccuracy: 100`. Anchor
-  // COUNT is also the lever that raises the ceiling above (fewer anchors on
-  // the same arc space them farther apart), so cutting it buys the bigger
-  // `baseRadius` directly instead of trading against it: 4+5+7+9=25 (-30%),
-  // with the steepest cut on hedgehog4 (14→9, -36%, the one level that
-  // tolerates zero misses). `tolDeg` widens by roughly the same proportion
-  // ("roughly follows the spine direction" — the task's own words) so a
-  // stroke that is merely off by a few degrees is not punished on top of a
-  // near-miss start. `straightness`/`lenMin`/`lenMax` are UNCHANGED: the
-  // complaint was never about how straight or how long a spine had to be.
-  // `spines.ts`'s `spineSettle` also now accepts a spine drawn tip→base
-  // (reversed) — cheap, since it reuses measure 1 on the OTHER endpoint —
-  // so "which end the finger touched down on" stops being a hidden rule a
-  // six-year-old cannot know at all. See `catalog.test.ts`'s own updated
-  // margins for the exact new baseRadius ceilings.
+  // T19 (`odd/tasks/prewriting-stage-completion.md` §3.3, third tablet
+  // play-test — "it's still really ugly and not intuitive; they don't look
+  // like spines. Maybe more spines, but shorter"): a full redesign per
+  // `docs/19_PROPUESTA_HISTORIA_Y_MECANICAS.md` §3.3, on top of T3's
+  // start-tolerance fix. Four changes:
+  //
+  // 1. MORE, SHORTER spines: 4/5/7/9 → 8/9/10/11 (docs/19's own "8 a 12" —
+  //    `hedgehog4` stops one short of the upper bound: 12 anchors over the
+  //    profile's 180° arc pushes the geometric ceiling — `2·baseRadius ≤`
+  //    the nearest two anchors' own chord — under `TolTouch` (26) at any
+  //    body size that still fits the 600-tall sheet; 11 is the most this
+  //    body can carry without either violating that floor or growing the
+  //    silhouette off the paper), length bands compressed down from
+  //    hedgehog1's old 220-290 — a spine used to be nearly as long as the
+  //    whole hedgehog. Each band is sized RELATIVE TO ITS OWN POSE'S body
+  //    radius rather than to one shared absolute number (docs/19's own
+  //    "60 a 130" bounds the family, but a curled ball's ~150-unit anchor
+  //    radius and a profile back's ~220-unit one cannot share one band and
+  //    both read as "short" — a T19 follow-up caught `hedgehog1`'s original
+  //    100-130 reaching 86% of its own ball's radius on a real screenshot):
+  //    44-68 on the two curled levels (~45-48% of their own radius), 62-98
+  //    on the two profile ones (~35-46%). Shorter spines read as spines,
+  //    not as a stray line across the animal; more
+  //    of them makes a recognisable silhouette once several are up.
+  // 2. ENROSCADO → PERFIL, not the other way around (docs/19 §3.3: "on a
+  //    ball every direction is the same — the easiest radial task; on the
+  //    back, every spine has its own angle"). `hedgehog1`/`hedgehog2` are
+  //    now `pose: 'curled'` (`HEDGEHOG_SILHOUETTE.curled`, the SAME body the
+  //    old `hedgehog4` used, arc 65→365 — a property of the pose, identical
+  //    on both curled levels exactly the way the profile arc used to be
+  //    identical on the three old profile levels); `hedgehog3`/`hedgehog4`
+  //    are now `pose: 'profile'` (arc 200→380, reusing the two old
+  //    `hedgehog1`/`hedgehog2` bodies, already measured safe against the
+  //    silhouette's feet/belly).
+  // 3. The REAL acceptance blocker, measured (not re-guessed): `spines.ts`'s
+  //    `passesRemainingMeasures` compared the drawn direction against the
+  //    ANCHOR's own idealised ray, but measure 1 already admits a start
+  //    point anywhere within `baseRadius` — not ON the anchor. A child who
+  //    starts at the EDGE of that tolerance circle and pulls perfectly
+  //    straight outward from THEIR OWN fingertip draws along a ray that
+  //    differs from the anchor's own ray by `atan(baseRadius / r)` — worth
+  //    20°+ by itself on the old `hedgehog4` (baseRadius a third of
+  //    `lenMin`), charged as a drawing mistake it never was. Fixed at the
+  //    source (`spines.ts`'s own header on `passesRemainingMeasures`); this
+  //    alone recovers real headroom without loosening `tolDeg` further than
+  //    the shorter spines already require.
+  // 4. Every level now requires ALL its anchors: `minAccuracy: 100` on all
+  //    four (was 70/80/90/100). Bug: `hedgehog1` at 70% (4 anchors) already
+  //    cleared the bar at 3/4 = 75%, and `hedgehog2` at 80% (5 anchors)
+  //    cleared it at 4/5 = 80% EXACTLY — so with the last spine still
+  //    undrawn, ANY release (a bare pointerup that barely moved, evaluated
+  //    like any other stroke) reported `approved` from the anchors already
+  //    filled, ending the level out from under the child's own last stroke
+  //    ("as soon as I tap to start drawing it, the level completes"). A
+  //    spine is a discrete, countable thing (`docs/19`'s whole "collect
+  //    them" framing) — there is no meaningful partial credit for it the
+  //    way there is for a wobbly path, and `docs/01`'s "no punishment" is
+  //    unaffected: a `spines` level never fails a child, it only waits.
+  //    `count ≤ 12` keeps `Math.round(100·(count−1)/count)` strictly below
+  //    100 for every level (11/12 ≈ 91.7 → 92), so this is airtight, not a
+  //    tuned coincidence — see `catalog.test.ts`'s own regression.
   {
     id: 'hedgehog1',
     phase: 1,
     title: 'Las primeras espinas',
-    hint: 'Dibujá palitos largos desde el lomo hacia afuera.',
+    hint: 'Dibujá palitos cortos desde el lomo hacia afuera.',
     kind: 'free',
     surface: 'blank',
     maze: false,
@@ -1510,18 +1540,27 @@ const PHASE_1: LevelConfig[] = [
     feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
     paths: [],
     corridorWidth: 0,
-    rules: { ...rules(1, false, false, 0), minAccuracy: 70 },
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
     // The movement is new exactly once (`docs/13` §5 item 2) — `demo: true`
     // on hedgehog1 alone.
     demo: true,
     spines: {
-      pose: 'profile',
-      body: { centre: { x: 440, y: 440 }, height: 260 },
-      arc: { from: 200, to: 380 },
-      count: 4,
-      rules: { baseRadius: 48, tolDeg: 45, straightness: 0.8, lenMin: 220, lenMax: 290 },
+      pose: 'curled',
+      body: { centre: { x: 500, y: 300 }, height: 300 },
+      arc: { from: 65, to: 365 },
+      count: 8,
+      // T19 follow-up (orchestrator screenshot review, `hedgehog1-04-all-
+      // but-last.png`): 100-130 read as LONG on this pose — the curled
+      // body's own anchor radius is ~150 units, so a lenMax of 130 is 86%
+      // of it, reaching almost to the far side of the ball. "Short hedgehog
+      // spines" (docs/19 §3.3) means short RELATIVE TO THE BODY, not a
+      // fixed absolute number the doc's own "60 a 130" merely bounds —
+      // 50-68 keeps the spike under half the ball's own radius (48% at
+      // lenMax), matching the visual proportion `hedgehog3`/`hedgehog4`'s
+      // profile bodies already had at their own (much larger) radius.
+      rules: { baseRadius: 34, tolDeg: 46, straightness: 0.78, lenMin: 50, lenMax: 68 },
     },
   },
   {
@@ -1537,46 +1576,26 @@ const PHASE_1: LevelConfig[] = [
     feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
     paths: [],
     corridorWidth: 0,
-    rules: { ...rules(1, false, false, 0), minAccuracy: 80 },
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
     spines: {
-      pose: 'profile',
-      body: { centre: { x: 450, y: 400 }, height: 270 },
-      arc: { from: 200, to: 380 },
-      count: 5,
-      rules: { baseRadius: 40, tolDeg: 38, straightness: 0.84, lenMin: 150, lenMax: 230 },
+      pose: 'curled',
+      body: { centre: { x: 500, y: 300 }, height: 280 },
+      arc: { from: 65, to: 365 },
+      count: 9,
+      // T19 follow-up: same over-length correction as hedgehog1 (see its
+      // own comment) — 44-56 keeps lenMax at 44% of this ball's ~140-unit
+      // anchor radius, shorter than hedgehog1's own band (decreasing within
+      // the curled pair, matching the ladder hedgehog3/hedgehog4 keep).
+      rules: { baseRadius: 30, tolDeg: 40, straightness: 0.82, lenMin: 44, lenMax: 56 },
     },
   },
   {
     id: 'hedgehog3',
     phase: 1,
-    title: 'Espinas cortas',
-    hint: 'Espinas más cortas y más juntas: una en cada marca.',
-    kind: 'free',
-    surface: 'blank',
-    maze: false,
-    resetOnContact: false,
-    carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
-    paths: [],
-    corridorWidth: 0,
-    rules: { ...rules(1, false, false, 0), minAccuracy: 90 },
-    showGuide: false,
-    letters: [],
-    spines: {
-      pose: 'profile',
-      body: { centre: { x: 460, y: 380 }, height: 340 },
-      arc: { from: 200, to: 380 },
-      count: 7,
-      rules: { baseRadius: 36, tolDeg: 32, straightness: 0.88, lenMin: 95, lenMax: 160 },
-    },
-  },
-  {
-    id: 'hedgehog4',
-    phase: 1,
-    title: 'El erizo enroscado',
-    hint: 'Se hizo una bola. Dibujá espinas chiquitas alrededor.',
+    title: 'Se asoma',
+    hint: 'Ahora se ve de costado. Una espina en cada marca del lomo.',
     kind: 'free',
     surface: 'blank',
     maze: false,
@@ -1589,11 +1608,35 @@ const PHASE_1: LevelConfig[] = [
     showGuide: false,
     letters: [],
     spines: {
-      pose: 'curled',
-      body: { centre: { x: 500, y: 300 }, height: 300 },
-      arc: { from: 65, to: 365 },
-      count: 9,
-      rules: { baseRadius: 34, tolDeg: 27, straightness: 0.92, lenMin: 60, lenMax: 105 },
+      pose: 'profile',
+      body: { centre: { x: 460, y: 390 }, height: 370 },
+      arc: { from: 200, to: 380 },
+      count: 10,
+      rules: { baseRadius: 27, tolDeg: 32, straightness: 0.86, lenMin: 76, lenMax: 98 },
+    },
+  },
+  {
+    id: 'hedgehog4',
+    phase: 1,
+    title: 'Espinas cortas',
+    hint: 'Espinas chiquitas y muy juntas: una en cada marca.',
+    kind: 'free',
+    surface: 'blank',
+    maze: false,
+    resetOnContact: false,
+    carrier: false,
+    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    paths: [],
+    corridorWidth: 0,
+    rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
+    showGuide: false,
+    letters: [],
+    spines: {
+      pose: 'profile',
+      body: { centre: { x: 460, y: 390 }, height: 400 },
+      arc: { from: 200, to: 380 },
+      count: 11,
+      rules: { baseRadius: 26, tolDeg: 28, straightness: 0.9, lenMin: 62, lenMax: 80 },
     },
   },
 ]

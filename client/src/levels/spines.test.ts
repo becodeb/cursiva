@@ -22,6 +22,7 @@ import {
   spineRings,
   spineScore,
   spineSettle,
+  spineSpikePaths,
   type SpineAnchor,
   type SpineConfig,
 } from './spines'
@@ -648,6 +649,356 @@ describe('debugSpineStrokes — the ink `?debug=espinas:<k>` paints (drift guard
         expect(fromStrokes, `k=${k}`).toEqual(spineDemoPaths(cfg, k))
       }
     }
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// T19 (`odd/tasks/prewriting-stage-completion.md`, third tablet playtest:
+// "it's still really hard: it never accepts it even though I started really
+// close"): the MEASURED real blocker, and the fix.
+//
+// Measure 1 already admits a start point anywhere within `baseRadius` of an
+// anchor — not ON it. But measure 2 used to compare the drawn chord against
+// the ANCHOR's own idealised outward ray (`anchor.nx/ny`, the direction from
+// the centroid straight through the anchor's EXACT position). Direction is
+// translation-invariant, so that comparison is blind to WHERE the child
+// actually started — it only ever measures the fixed angle between the
+// drawn vector and the anchor's own ray, which is large exactly when a
+// child starts off the anchor and then does the natural thing: pull straight
+// away from the body from THEIR OWN fingertip (a vector that matches the
+// LOCAL radial ray through their own start point, not the anchor's). The fix
+// (`passesRemainingMeasures`, `spines.ts`) compares against that local ray
+// instead. The next block proves the OLD comparison would reject a stroke
+// the NEW one accepts, then the realistic-stroke block proves the family is
+// passable by a genuinely wobbly child hand.
+// ─────────────────────────────────────────────────────────────────────────
+describe('measure 2 fix — direction compared to the LOCAL start ray, not the anchor\'s own idealised ray (T19)', () => {
+  it('accepts a stroke that starts off-anchor (within baseRadius) and pulls exactly radially from its OWN start point', () => {
+    // A smaller body (shorter anchor radius) makes a fixed tangential
+    // offset worth a BIGGER angle (`atan(offset / r)`) — the same real
+    // effect `catalog.ts`'s own T19 comment describes on `hedgehog4`, where
+    // `baseRadius` is a sizeable fraction of the anchor's own radius.
+    const cfg = makeConfig({ body: { centre: { x: 500, y: 500 }, height: 200 }, rules: { ...makeConfig().rules, baseRadius: 40, tolDeg: 20 } })
+    const anchors = spineAnchors(cfg)
+    const anchor = anchors[0]
+    const { centre } = cfg.body
+    // Start 39 of the 40 available baseRadius units off the anchor, TANGENT
+    // to the anchor's own ray (the worst-case direction for the old
+    // comparison: it maximises the angle between the anchor's ray and the
+    // local ray through this start point, for a fixed offset magnitude).
+    const start: Point = { x: anchor.x + anchor.ny * 39, y: anchor.y - anchor.nx * 39 }
+    const localAngle = Math.atan2(start.y - centre.y, start.x - centre.x)
+    const len = midLen(cfg)
+    const end: Point = { x: start.x + Math.cos(localAngle) * len, y: start.y + Math.sin(localAngle) * len }
+    const stroke = [start, end]
+
+    // Sanity: this stroke is aimed EXACTLY along its own local radial ray —
+    // a perfectly drawn "pull away from the body" from wherever the finger
+    // actually is — so the fix must accept it outright.
+    const settled = spineSettle(EMPTY_SPINES, [stroke], cfg)
+    expect(settled.filled.has(0)).toBe(true)
+
+    // And the regression it fixes: the SAME stroke, judged against the
+    // anchor's own idealised ray (the pre-T19 comparison), would have been
+    // rejected — this is what "it never accepts it even though I started
+    // really close" measured out to.
+    const dx = end.x - start.x
+    const dy = end.y - start.y
+    const oldAngle =
+      (Math.acos(
+        Math.max(
+          -1,
+          Math.min(1, (dx * anchor.nx + dy * anchor.ny) / (Math.hypot(dx, dy) * Math.hypot(anchor.nx, anchor.ny))),
+        ),
+      ) *
+        180) /
+      Math.PI
+    expect(oldAngle).toBeGreaterThan(cfg.rules.tolDeg)
+  })
+
+  it('an on-anchor stroke (offset 0) is unaffected — the fix reduces to the old comparison exactly', () => {
+    const cfg = makeConfig()
+    const anchors = spineAnchors(cfg)
+    const settled = spineSettle(EMPTY_SPINES, [idealStroke(anchors[3], midLen(cfg))], cfg)
+    expect(settled.filled.has(3)).toBe(true)
+  })
+})
+
+/** A small deterministic PRNG (mulberry32) — realistic-noise fixtures stay
+ *  reproducible without hand-authoring dozens of literal points, and without
+ *  `Math.random()` making a CI run flaky on the one seed that happens to
+ *  wobble too far. */
+function mulberry32(seed: number): () => number {
+  let a = seed
+  return function () {
+    a |= 0
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
+ * A REALISTIC six-year-old's stroke toward `anchor`: starts up to
+ * `startOffsetFrac · baseRadius` away from the anchor (a finger's width off,
+ * never exactly on it), pulls roughly along the LOCAL radial ray through
+ * that actual start point (the natural "away from the body" motion, not a
+ * compass bearing toward the anchor's own idealised angle) with a small
+ * `angleErrorDeg` aiming error, and wobbles a little along the way — a
+ * gentle bow plus per-point jitter, both a small fraction of the stroke's
+ * own length, so it is never the two-point mathematically-straight line
+ * `idealStroke` draws. Deterministic per `seed`.
+ */
+function noisyChildStroke(
+  cfg: SpineConfig,
+  anchor: SpineAnchor,
+  len: number,
+  opts: { seed: number; startOffsetFrac: number; angleErrorDeg: number },
+): Point[] {
+  const rnd = mulberry32(opts.seed)
+  const { centre } = cfg.body
+  const offAngle = rnd() * Math.PI * 2
+  const offMag = cfg.rules.baseRadius * opts.startOffsetFrac * (0.4 + 0.6 * rnd())
+  const start: Point = { x: anchor.x + Math.cos(offAngle) * offMag, y: anchor.y + Math.sin(offAngle) * offMag }
+  const localAngle = Math.atan2(start.y - centre.y, start.x - centre.x)
+  const errRad = ((opts.angleErrorDeg * (rnd() * 2 - 1)) * Math.PI) / 180
+  const drawAngle = localAngle + errRad
+  const dirX = Math.cos(drawAngle)
+  const dirY = Math.sin(drawAngle)
+  const end: Point = { x: start.x + dirX * len, y: start.y + dirY * len }
+  const perpX = -dirY
+  const perpY = dirX
+  const steps = 10
+  const points: Point[] = []
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps
+    const base = { x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t }
+    const bow = Math.sin(t * Math.PI) * len * 0.03 // a slight curve, ~3% of length at the midpoint
+    const jitter = (rnd() - 0.5) * len * 0.02 // a small per-point tremor, ~2% of length
+    const wobble = bow + jitter
+    points.push({ x: base.x + perpX * wobble, y: base.y + perpY * wobble })
+  }
+  return points
+}
+
+// T19 item 2 of the task ("measure why 'it never accepts it' still happens…
+// and fix the real blocker"): the acceptance test the task itself asks for —
+// realistic, noisy, off-centre child strokes against the REAL shipped
+// catalog, not a synthetic fixture. If these regress, a six-year-old is
+// locked out of the family again.
+// T19 (third tablet playtest, bug (b): "with one spine left, a mere tap
+// completes the level"). Root cause: every hedgehog level authored
+// `minAccuracy` BELOW 100 (70/80/90) — `hedgehog1` at 70% (4 anchors) was
+// already `≥ 70` at 3/4 = 75%, so with the LAST spine still undrawn, ANY
+// release (a bare pointerup that barely moved, scored exactly like any
+// other stroke) reported `approved` from the anchors already filled. The
+// fix is authored data (`catalog.ts`'s `minAccuracy: 100` on every hedgehog
+// level), proven airtight here against the pure scoring function directly —
+// not merely "the shipped counts happen to work today".
+describe('minAccuracy:100 makes "one spine left" unreachable — the T19 fade/completion bug (b)', () => {
+  it('count − 1 filled anchors alone never reaches 100%, for every realistic anchor count', () => {
+    for (let count = 2; count <= 20; count++) {
+      expect(Math.round((100 * (count - 1)) / count), `count=${count}`).toBeLessThan(100)
+    }
+  })
+
+  it('on the REAL shipped hedgehog2, filling every anchor but the last (with genuine strokes) still fails to approve — the last spine must actually be drawn', () => {
+    const level = getLevel('hedgehog2')
+    const cfg = level.spines!
+    const anchors = spineAnchors(cfg)
+    const len = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+    const strokes = anchors.slice(0, -1).map((a) => idealStroke(a, len))
+    const scoreBeforeLast = spineScore(strokes, cfg)
+    expect(scoreBeforeLast).toBeLessThan(level.rules.minAccuracy)
+
+    // The scenario the user hit: a trivial, barely-moved release near the
+    // last remaining anchor (not a real, complete spine) must NOT push the
+    // level over its own minAccuracy.
+    const lastAnchor = anchors[anchors.length - 1]
+    const barelyMoved: Point[] = [
+      { x: lastAnchor.x, y: lastAnchor.y },
+      { x: lastAnchor.x + 0.5, y: lastAnchor.y },
+    ]
+    const scoreAfterTap = spineScore([...strokes, barelyMoved], cfg)
+    expect(scoreAfterTap).toBeLessThan(level.rules.minAccuracy)
+
+    // Only a REAL last spine reaches minAccuracy.
+    const realLast = idealStroke(lastAnchor, len)
+    const scoreAfterRealSpine = spineScore([...strokes, realLast], cfg)
+    expect(scoreAfterRealSpine).toBeGreaterThanOrEqual(level.rules.minAccuracy)
+  })
+})
+
+describe('acceptance — realistic noisy child strokes pass on the REAL shipped hedgehog family (T19)', () => {
+  const HEDGEHOG_IDS = ['hedgehog1', 'hedgehog2', 'hedgehog3', 'hedgehog4'] as const
+
+  it('a jittery, slightly curved, finger-width-off-centre stroke fills its anchor on every level', () => {
+    for (const id of HEDGEHOG_IDS) {
+      const cfg = getLevel(id).spines!
+      const anchors = spineAnchors(cfg)
+      const len = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+      // A handful of different anchors/seeds per level, not just anchor 0 —
+      // a real child does not only ever start the family's very first spine.
+      for (const [i, seed] of [
+        [0, 1],
+        [1, 2],
+        [Math.floor(anchors.length / 2), 3],
+      ] as const) {
+        const stroke = noisyChildStroke(cfg, anchors[i], len, {
+          seed,
+          startOffsetFrac: 0.8, // up to 80% of the tolerance circle off-centre
+          angleErrorDeg: 10, // a real but modest hand-aim error
+        })
+        const settled = spineSettle(EMPTY_SPINES, [stroke], cfg)
+        expect(settled.filled.has(i), `${id} anchor ${i} seed ${seed}`).toBe(true)
+      }
+    }
+  })
+
+  it('a whole noisy attempt (one stroke per anchor) clears every level at its own minAccuracy (100)', () => {
+    for (const id of HEDGEHOG_IDS) {
+      const level = getLevel(id)
+      const cfg = level.spines!
+      const anchors = spineAnchors(cfg)
+      const len = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+      const strokes = anchors.map((a, i) =>
+        noisyChildStroke(cfg, a, len, { seed: 100 + i, startOffsetFrac: 0.75, angleErrorDeg: 9 }),
+      )
+      expect(spineScore(strokes, cfg), id).toBeGreaterThanOrEqual(level.rules.minAccuracy)
+    }
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// T19 (`odd/tasks/prewriting-stage-completion.md`, third tablet playtest,
+// bug (a): "sometimes… the stroke stays drawn until I start a new stroke;
+// it doesn't go away by itself"). Root cause, MEASURED against the real fold
+// (not re-guessed): `screen/LevelPlay.tsx`'s `onRelease` used to decide
+// whether to fade the JUST-RELEASED stroke from `spineSettle`'s own
+// aggregate `grew` flag — "did ANY anchor fill THIS call", across every
+// stroke in the snapshot, not "did THIS release's own new stroke fill one".
+// `spineSettle` folds anchors GREEDILY in stroke order against a `filled`
+// set that only grows ACROSS releases; a rejected stroke drawn near one
+// anchor stays in the (never-pruned) stroke list forever and is RE-WALKED
+// on every later release. Once that anchor fills (via a different, later
+// stroke), the OLD rejected stroke's own `nearestUnfilledAnchor` query can
+// resolve to a DIFFERENT still-open anchor it happens to also be near — and
+// if it passes measures against THAT one, it retroactively fills it on a
+// LATER release than the one it was drawn in. `grew` then reads `true` on a
+// release whose OWN new stroke never filled anything, so the old `!grew`
+// check silently skipped scheduling its fade.
+//
+// The fix (`screen/LevelPlay.tsx`'s `onRelease`) asks the SAME canonical,
+// order-independent walk `shownStrokes`/`spineScore` already trust —
+// `acceptedSpineStrokeIndices`, folded fresh from empty — whether THIS
+// release's own stroke index earned an anchor, which can never disagree
+// with what ends up shown as permanent ink. This block proves the
+// divergence exists in the fold itself (the thing the fix routes around),
+// pure and reproducible with no React/DOM involved.
+describe('grew vs acceptedSpineStrokeIndices can diverge — the T19 fade-skip root cause', () => {
+  it('a later release can retroactively fill an anchor via an EARLIER, already-rejected stroke, without the just-released stroke itself filling anything', () => {
+    const cfg = makeConfig({ count: 3, rules: { ...makeConfig().rules, baseRadius: 500 } })
+    const anchors = spineAnchors(cfg)
+    const len = midLen(cfg)
+    // `sOld`: base exactly on anchor 0 (measure 1 matches anchor 0 uniquely
+    // while it is unfilled), but aimed along anchor 1's own outward normal —
+    // wrong direction for anchor 0, so it is rejected on ITS OWN release.
+    const sOld: Point[] = [
+      { x: anchors[0].x, y: anchors[0].y },
+      { x: anchors[0].x + anchors[1].nx * len, y: anchors[0].y + anchors[1].ny * len },
+    ]
+    // `sMid`: a clean, correctly-aimed spine for anchor 0.
+    const sMid = idealStroke(anchors[0], len)
+    // `sNew`: a genuinely unrelated, rejected stroke — nowhere near any
+    // anchor. This is the stroke actually released on the THIRD call.
+    const sNew: Point[] = [{ x: -9999, y: -9999 }, { x: -9989, y: -9999 }]
+
+    let state = EMPTY_SPINES
+    state = spineSettle(state, [sOld], cfg)
+    expect(state.filled.size, 'release 1: sOld alone, rejected').toBe(0)
+
+    const beforeThird = spineSettle(state, [sOld, sMid], cfg)
+    expect([...beforeThird.filled], 'release 2: sMid fills anchor 0').toEqual([0])
+
+    const afterThird = spineSettle(beforeThird, [sOld, sMid, sNew], cfg)
+    const grew = afterThird !== beforeThird
+
+    // The fold DID change on release 3 — but NOT because `sNew` (the
+    // just-released stroke) filled anything: `sOld`, re-walked now that
+    // anchor 0 is taken, retroactively matched a DIFFERENT open anchor.
+    expect(grew, 'the aggregate flag reads true on release 3').toBe(true)
+    expect(afterThird.filled.size, 'the fold now has MORE than one filled anchor').toBeGreaterThan(1)
+
+    // The canonical, order-independent walk disagrees on COUNT — and, most
+    // importantly, on whether `sNew` (index 2, the just-released stroke)
+    // itself is the accepted one. It never is.
+    const accepted = acceptedSpineStrokeIndices([sOld, sMid, sNew], cfg)
+    expect(accepted.has(2), 'sNew, the just-released stroke, is not among the accepted').toBe(false)
+    expect(accepted.size).toBeLessThan(afterThird.filled.size)
+
+    // This is the exact mismatch the T19 fix routes around: `!grew` was
+    // `false` here (so the OLD code would skip fading `sNew`), while the
+    // canonical check correctly says `sNew` was never accepted and must fade.
+  })
+})
+
+describe('spineSpikePaths — the settled spine\'s own clean shape (T19, "the stroke becomes a spine")', () => {
+  it('emits one path per FILLED anchor, none for unfilled ones', () => {
+    const cfg = makeConfig({ count: 6 })
+    const state = { filled: new Set([1, 4]), aiming: null }
+    expect(spineSpikePaths(cfg, state)).toHaveLength(2)
+    expect(spineSpikePaths(cfg, EMPTY_SPINES)).toHaveLength(0)
+  })
+
+  it('walks anchors in generator order regardless of the fill order — index 1 before index 4 in the output', () => {
+    const cfg = makeConfig({ count: 6 })
+    // Filled 4 "before" 1 in wall-clock terms (a child can draw out of
+    // order) — the OUTPUT still lists anchor 1's spike ahead of anchor 4's.
+    const state = { filled: new Set([4, 1]), aiming: null }
+    const anchors = spineAnchors(cfg)
+    const len = midLen(cfg)
+    const paths = spineSpikePaths(cfg, state)
+    expect(paths).toHaveLength(2)
+    // Only the tip coordinate is unique enough per anchor to identify which
+    // spike is which, so compare that rather than the whole `d` string.
+    expect(paths[0]).toContain(`${anchors[1].x + anchors[1].nx * len}`)
+    expect(paths[1]).toContain(`${anchors[4].x + anchors[4].nx * len}`)
+  })
+
+  it('the spike is a wide-base, thin-tip triangle: the base edge is far shorter than the two flank edges', () => {
+    const cfg = makeConfig({ count: 4 })
+    const anchors = spineAnchors(cfg)
+    const state = { filled: new Set([0]), aiming: null }
+    const [d] = spineSpikePaths(cfg, state)
+    // Parse the four M/L points out of the `d` string (left, tip, right, left).
+    const nums = d.match(/-?[0-9.]+/g)!.map(Number)
+    const [lx, ly, tx, ty, rx, ry] = nums
+    const baseEdge = Math.hypot(rx - lx, ry - ly)
+    const flankLen = Math.hypot(tx - lx, ty - ly)
+    expect(baseEdge).toBeGreaterThan(0)
+    expect(baseEdge).toBeLessThan(flankLen) // a LONG triangle: base narrower than its own flanks
+    // The tip sits on the anchor's own outward ray, at the length band's
+    // own midpoint — the exact convention `spineSegments`/the demo use.
+    const a = anchors[0]
+    const len = midLen(cfg)
+    expect(tx).toBeCloseTo(a.x + a.nx * len, 6)
+    expect(ty).toBeCloseTo(a.y + a.ny * len, 6)
+  })
+
+  it('emits only M/L commands, never Z, C, or a mask/pattern/clipPath reference', () => {
+    const cfg = makeConfig({ count: 3 })
+    const [d] = spineSpikePaths(cfg, { filled: new Set([0]), aiming: null })
+    expect(d.startsWith('M ')).toBe(true)
+    expect(d).not.toContain('Z')
+    expect(d).not.toContain('C ')
+    expect(d).not.toContain('url(#')
+  })
+
+  it('is deterministic — the same cfg/state always yields byte-identical paths', () => {
+    const cfg = makeConfig({ count: 5 })
+    const state = { filled: new Set([0, 2, 3]), aiming: null }
+    expect(spineSpikePaths(cfg, state)).toEqual(spineSpikePaths(cfg, state))
   })
 })
 

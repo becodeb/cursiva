@@ -21,7 +21,9 @@ import {
   revealScore,
   revealTick,
   revealTiles,
+  TORCH_FADE_MS,
   type RevealGrid,
+  type RevealState,
 } from './revealGrid'
 import type { RevealConfig } from './types'
 
@@ -378,12 +380,13 @@ describe('lightSources/revealTiles — T10 found-object grow-in', () => {
 
   it('a just-found object starts at radius 0 and grows toward the full radius over LIGHT_FOUND_GROWTH_MS', () => {
     const foundAt = 1000
-    // Lift the finger right after finding it, so the live torch (which
-    // would otherwise ALSO sit at this exact spot, at full radius) drops
-    // out and the found object's own grow-in is the only source left to
-    // observe.
-    let state = revealTick(EMPTY_REVEAL, [{ x: 200, y: 200 }], true, light, 1000, foundAt)
-    state = revealTick(state, [], false, light, 1000, foundAt)
+    // Built directly rather than driven through a press/lift sequence
+    // (T19: a lift no longer drops the live torch outright — it leaves a
+    // fading ghost, `torchGhost`/`torchOffAt` — so simulating a real
+    // press-then-lift here would let that ghost's own OWN full-brightness
+    // instant at the moment of lift contaminate this test, which isolates
+    // the found object's grow-in alone: no live point, no ghost).
+    const state: RevealState = { ...EMPTY_REVEAL, lit: new Set([0]), litAt: new Map([[0, foundAt]]) }
     expect(state.litAt.get(0)).toBe(foundAt)
 
     // The instant it is found, its radius has not grown at all yet — a
@@ -471,5 +474,108 @@ describe('isLightAnimating / completionGrowthFraction — the T10 completion was
 
   it('isLightAnimating is false at rest — nothing found, no finger down', () => {
     expect(isLightAnimating(EMPTY_REVEAL, 123456)).toBe(false)
+  })
+})
+
+// T19 (`odd/tasks/prewriting-stage-completion.md`, "when you press, the
+// torch light should appear progressively, like the objects do, so it isn't
+// so sudden, both turning it on and off"): the LIVE torch now grows in on
+// press and fades out on lift, over `TORCH_FADE_MS` each way — additive to
+// `point`'s own existing "null means finger up" contract (every test above
+// that reads `.point` straight off a release is unaffected, since `point`
+// itself still goes `null` immediately; only `torchGhost`/`torchOffAt` are
+// new).
+describe('lightSources — T19 live torch grow-in and fade-out', () => {
+  const light: Extract<RevealConfig, { mode: 'light' }> = {
+    mode: 'light',
+    cols: 10,
+    rows: 6,
+    radius: 100,
+    objects: [],
+  }
+
+  it('a fresh press starts the live torch at radius 0 and grows it to full over TORCH_FADE_MS', () => {
+    const pressAt = 1000
+    const state = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000, pressAt)
+    expect(state.torchOnAt).toBe(pressAt)
+    expect(state.point).toEqual({ x: 500, y: 300 })
+
+    expect(lightSources(light, state, pressAt, false)).toEqual([]) // radius 0 at the instant of touch-down
+    const mid = lightSources(light, state, pressAt + TORCH_FADE_MS / 2, false)
+    expect(mid).toHaveLength(1)
+    expect(mid[0].radius).toBeGreaterThan(0)
+    expect(mid[0].radius).toBeLessThan(light.radius)
+    expect(lightSources(light, state, pressAt + TORCH_FADE_MS, false)).toEqual([
+      { cx: 500, cy: 300, radius: light.radius },
+    ])
+  })
+
+  it('continuing to drag does NOT restart the grow-in — only the first sample of a press stamps torchOnAt', () => {
+    const pressAt = 1000
+    let state = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000, pressAt)
+    state = revealTick(state, [{ x: 500, y: 300 }, { x: 520, y: 300 }], true, light, 1000, pressAt + TORCH_FADE_MS)
+    expect(state.torchOnAt).toBe(pressAt) // unchanged by the second sample
+    expect(lightSources(light, state, pressAt + TORCH_FADE_MS, false)).toEqual([
+      { cx: 520, cy: 300, radius: light.radius },
+    ])
+  })
+
+  it('lifting fades the torch OUT from its last position over TORCH_FADE_MS, then it is gone', () => {
+    const pressAt = 1000
+    let state = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000, pressAt)
+    // Grown fully in before lifting, so the fade-out is the only thing left
+    // to observe.
+    const liftAt = pressAt + TORCH_FADE_MS
+    state = revealTick(state, [], false, light, 1000, liftAt)
+    expect(state.point).toBeNull() // unchanged contract: null the instant of lift
+    expect(state.torchGhost).toEqual({ x: 500, y: 300 })
+    expect(state.torchOffAt).toBe(liftAt)
+
+    expect(lightSources(light, state, liftAt, false)).toEqual([{ cx: 500, cy: 300, radius: light.radius }])
+    const mid = lightSources(light, state, liftAt + TORCH_FADE_MS / 2, false)
+    expect(mid).toHaveLength(1)
+    expect(mid[0].radius).toBeGreaterThan(0)
+    expect(mid[0].radius).toBeLessThan(light.radius)
+    expect(lightSources(light, state, liftAt + TORCH_FADE_MS, false)).toEqual([])
+  })
+
+  it('the ghost is cleared for good once its own fade finishes — a later idle tick settles the state', () => {
+    const pressAt = 1000
+    let state = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000, pressAt)
+    state = revealTick(state, [], false, light, 1000, pressAt)
+    expect(state.torchGhost).not.toBeNull()
+    state = revealTick(state, [], false, light, 1000, pressAt + TORCH_FADE_MS)
+    expect(state.torchGhost).toBeNull()
+    expect(state.torchOffAt).toBeNull()
+  })
+
+  it('a fresh press before the ghost finishes fading drops the ghost and starts a brand new grow-in', () => {
+    const pressAt = 1000
+    let state = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000, pressAt)
+    state = revealTick(state, [], false, light, 1000, pressAt) // lift — ghost starts fading
+    const secondPressAt = pressAt + 50 // well before the ghost's own fade finishes
+    state = revealTick(state, [{ x: 700, y: 400 }], true, light, 1000, secondPressAt)
+    expect(state.torchGhost).toBeNull()
+    expect(state.torchOffAt).toBeNull()
+    expect(state.torchOnAt).toBe(secondPressAt)
+    expect(lightSources(light, state, secondPressAt, false)).toEqual([]) // fresh grow-in, radius 0
+  })
+
+  it('reducedMotion shows the live torch at full radius immediately on press, and gone immediately on lift', () => {
+    const pressAt = 1000
+    let state = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000, pressAt)
+    expect(lightSources(light, state, pressAt, true)).toEqual([{ cx: 500, cy: 300, radius: light.radius }])
+    state = revealTick(state, [], false, light, 1000, pressAt)
+    expect(lightSources(light, state, pressAt, true)).toEqual([]) // no lingering ghost under reduced motion
+  })
+
+  it('isLightAnimating is true during the live torch grow-in and the post-lift fade-out', () => {
+    const pressAt = 1000
+    let state = revealTick(EMPTY_REVEAL, [{ x: 500, y: 300 }], true, light, 1000, pressAt)
+    expect(isLightAnimating(state, pressAt)).toBe(true)
+    expect(isLightAnimating(state, pressAt + TORCH_FADE_MS)).toBe(false)
+    state = revealTick(state, [], false, light, 1000, pressAt + TORCH_FADE_MS)
+    expect(isLightAnimating(state, pressAt + TORCH_FADE_MS)).toBe(true)
+    expect(isLightAnimating(state, pressAt + 2 * TORCH_FADE_MS)).toBe(false)
   })
 })

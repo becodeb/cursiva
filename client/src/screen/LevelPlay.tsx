@@ -74,6 +74,7 @@ import {
   spineMarks,
   spineRings,
   spineSettle,
+  spineSpikePaths,
   type SpineState,
 } from '../levels/spines'
 import { grassScatter, mudScatter } from '../canvas/groundScatter'
@@ -144,13 +145,37 @@ const DEMO_STEP_S = 1.7
  * reads fine drawn quickly. Kept SEPARATE from the shared constants rather
  * than lowering them: every OTHER level with a `demo` (a routed letter/word)
  * still plays at the original pace, byte-identical.
+ *
+ * T19 (third tablet playtest, "the demo is still slow and ugly"): tightened
+ * again, alongside `levels/spines.ts`'s own `DEMO_SPINES` (3 → 2) — "one or
+ * two spines, each ≲0.6s" (the task's own brief). At 2 spines/0.5s/0.55s
+ * step the WHOLE demo (`demoMs` below) now runs well under 1.5s, down from
+ * T13's ~2.85s for 3 spines at 0.8s/0.85s.
  */
-const SPINE_DEMO_DURATION_S = 0.8
-const SPINE_DEMO_STEP_S = 0.85
+const SPINE_DEMO_DURATION_S = 0.5
+const SPINE_DEMO_STEP_S = 0.55
 /** T13: how long a rejected (non-spine) stroke's ink stays visible while it
  *  fades (`.cv-spine-fading`, `LAYOUT_CSS` below) before `SpineLayer` stops
  *  being asked to render it at all. */
 const SPINE_REJECT_FADE_MS = 300
+/**
+ * T19 follow-up (orchestrator screenshot review of `hedgehog1-04-all-but-
+ * last.png`/`hedgehog4-04-all-but-last.png`): the accepted spike's own fill
+ * used to be `INK_COLOR` (`#1e293b`, near-black slate) — indistinguishable
+ * from `SPINE_BACKDROPS.hedgehog`'s own night band (`quiet` `#2a3346`/
+ * `brightest` `#526083`, both dark navy too). A warm brown reads as
+ * "hedgehog spine", not generic ink, and this exact value clears the
+ * repo's own 55-luma law (`docs/09`, `MIN_BACKDROP_CONTRAST` in
+ * `zoo/backdrops.test.ts`) against ALL THREE surfaces a spike can sit in
+ * front of — measured, not eyeballed (`LevelPlay.test.tsx`'s own contrast
+ * test holds this): `quiet` (luma 50, gap 106), `brightest` (luma 96, gap
+ * 60), and the body's own measured brightest pixel (luma 213, gap 57 — the
+ * spike reads as darker fur, not a hole in it). The outline stays
+ * `TORCH_CHALK` (design.md's existing "earned" chalk), which already clears
+ * every backdrop surface by over 140 luma — together, a spike reads at a
+ * glance against sky, band, and body alike.
+ */
+const SPINE_SPIKE_FILL = '#c79165'
 /**
  * Live off-path sampling period (~30 Hz): the 60fps ink loop owns the frame.
  *
@@ -1139,6 +1164,19 @@ html, body, #root { margin: 0; padding: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cv-spine-mark-filled { animation: none; }
+}
+/* T19 ('odd/tasks/prewriting-stage-completion.md' §3.3, "el trazo se
+ * convierte en espina"): the SAME one-shot pop '.cv-spine-mark-filled'
+ * already plays, on the fresh spike shape that replaces the stroke's own
+ * raw ink the instant its anchor fills — "becomes a spine" reads as a quick,
+ * satisfying pop-in rather than a silent shape swap. */
+.cv-spine-spike {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cv-spine-pop 380ms cubic-bezier(.2,.9,.25,1.2) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-spine-spike { animation: none; }
 }
 /* T13 (tablet playtest #2, "a line that isn't a spine could disappear when I
  * lift the finger"): a rejected stroke's own ink ('SpineLayer''s 'fading'
@@ -2414,18 +2452,37 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // T13 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest
         // #2: "a stroke that isn't a spine could be erased as soon as I
         // lift the finger"): the stroke just released is the LAST entry of
-        // `snapshot` (one new stroke per release); `grew` already says
-        // whether ANY stroke settled a new anchor this call, and because
-        // every earlier stroke in `snapshot` was already re-walked and
-        // resolved on a PRIOR release (accepted strokes stay accepted,
-        // rejected ones fail the same deterministic measures again), a miss
-        // here means this exact new stroke was the rejected one. It is
-        // never added to `strokes` as permanent ink for THIS reason — that
-        // filtering lives in `shownStrokes` (`acceptedSpineStrokeIndices`,
-        // `levels/spines.ts`) — instead it fades out through `SpineLayer`
-        // (`fadingSpineStrokes` below, `LAYOUT_CSS`'s `.cv-spine-fading`).
-        const lastStroke = snapshot[snapshot.length - 1]
-        if (!grew && lastStroke && lastStroke.length > 0) {
+        // `snapshot` (one new stroke per release). It is never added to
+        // `strokes` as permanent ink when rejected — that filtering lives in
+        // `shownStrokes` (`acceptedSpineStrokeIndices`, `levels/spines.ts`)
+        // — instead it fades out through `SpineLayer` (`fadingSpineStrokes`
+        // below, `LAYOUT_CSS`'s `.cv-spine-fading`).
+        //
+        // T19 (third tablet playtest, "sometimes… the stroke stays drawn
+        // until I start a new stroke; it doesn't go away by itself"): this
+        // used to gate on `!grew` — but `grew` only says whether ANY anchor
+        // newly filled THIS call, across the WHOLE stroke list, not whether
+        // THIS release's own stroke was the one that filled it. `spineSettle`
+        // folds anchors GREEDILY in stroke order against `filled`, which
+        // grows across releases — so an EARLIER stroke that missed its
+        // nearest-unfilled anchor on ITS OWN release can, on a LATER
+        // release, retroactively match a DIFFERENT anchor that only became
+        // "nearest unfilled" once something else filled the one in between.
+        // When that happens, `grew` reads `true` on a release whose OWN
+        // new stroke is actually the rejected one — so `!grew` was `false`
+        // and the fade never scheduled, leaving that stroke's raw ink sitting
+        // in `strokes` with nothing to remove it until the next release
+        // re-evaluates and (usually) drops it from `shownStrokes` outright.
+        // Rather than infer this from the aggregate `grew` flag, ask the
+        // SAME canonical, order-independent walk `shownStrokes` and
+        // `spineScore` already trust — `acceptedSpineStrokeIndices`, folded
+        // fresh from empty every time — whether THIS specific stroke's own
+        // index earned an anchor. That can never disagree with what ends up
+        // shown as permanent ink, by construction.
+        const lastIndex = snapshot.length - 1
+        const lastAccepted = acceptedSpineStrokeIndices(snapshot, level.spines).has(lastIndex)
+        const lastStroke = snapshot[lastIndex]
+        if (!lastAccepted && lastStroke && lastStroke.length > 0) {
           const id = ++fadingSpineIdRef.current
           setFadingSpineStrokes((prev) => [...prev, { id, points: lastStroke }])
           const timeout = window.setTimeout(() => {
@@ -2556,24 +2613,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // an assisted attempt does not visibly snap back the instant the finger
   // lifts. `strokes` itself stays raw — it is what was scored.
   const shownStrokes = useMemo(() => {
-    // T13 (tablet playtest #2): on a hedgehog level, permanent settled ink
-    // shows ONLY the strokes that actually became spines — never a raw
-    // stroke count check, always the exact same measures `spineScore` itself
-    // scores with (`acceptedSpineStrokeIndices`, `levels/spines.ts`), so a
-    // stroke can never render as permanent ink here while `evaluateLevel`
-    // simultaneously treats it as unscored. `strokes` itself (the state
-    // `onRelease` sets from the canvas's own full captured list) is
-    // UNCHANGED — still every stroke ever drawn this attempt, exactly what
-    // `evaluateLevel` scores — this filtering is render-only. A rejected
-    // stroke is never silently dropped with no feedback: it fades through
-    // `SpineLayer` instead (`fadingSpineStrokes` above) the instant it is
-    // released, precisely because it is never in this list to begin with.
-    let base = strokes
-    if (level.spines) {
-      const accepted = acceptedSpineStrokeIndices(strokes, level.spines)
-      base = strokes.filter((_, idx) => accepted.has(idx))
-    }
-    return inkWarp ? base.map((stroke) => stroke.map((p) => inkWarp(p))) : base
+    // T19 (`odd/tasks/prewriting-stage-completion.md` §3.3, "el trazo se
+    // convierte en espina"): on a hedgehog level, an accepted stroke's own
+    // raw ink is NEVER shown as permanent ink here any more — the instant an
+    // anchor fills, its clean spike (`spines.spikes` below, `SpineLayer`)
+    // takes over, so this list is always empty for a `spines` level. A
+    // rejected stroke is never silently dropped with no feedback either: it
+    // fades through `SpineLayer` instead (`fadingSpineStrokes` above), the
+    // instant it is released. `strokes` itself (the state `onRelease` sets
+    // from the canvas's own full captured list) is UNCHANGED — still every
+    // stroke ever drawn this attempt, exactly what `evaluateLevel` scores —
+    // this filtering is render-only.
+    if (level.spines) return []
+    return inkWarp ? strokes.map((stroke) => stroke.map((p) => inkWarp(p))) : strokes
   }, [strokes, inkWarp, level.spines])
   const fluencyEvaluated = level.rules.minFluency > 0
   // Same cost as the ideal grid and the same inputs, so it rides along.
@@ -2863,14 +2915,27 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // without a rejection in flight renders byte-identical to before.
       fading: fadingSpineStrokes.length > 0 ? fadingSpineStrokes : undefined,
       fadingColor: INK_COLOR,
+      // T19 (§3.3, "el trazo se convierte en espina"): every FILLED anchor's
+      // own clean spike, from the SAME `spineState` `marks` above already
+      // reads — a mark and its spike can never disagree about which anchors
+      // are earned. `shownStrokes` (above) never shows an accepted stroke's
+      // raw ink any more, so this is the ONLY thing that paints a settled
+      // spine.
+      spikes: spineSpikePaths(level.spines, spineState),
+      // T19 follow-up: a warm brown fill (not `INK_COLOR`'s near-black,
+      // which blended into the night backdrop) with the earned chalk tone
+      // as its outline — see `SPINE_SPIKE_FILL`'s own header for the
+      // measured contrast against every surface a spike sits in front of.
+      spikeFill: SPINE_SPIKE_FILL,
+      spikeStroke: TORCH_CHALK,
     }
   }, [level.spines, spineState, spineDebugK, fadingSpineStrokes])
 
-  // The spines themselves. There is no "spine" shape anywhere in
-  // `SpineLayer` — the spine the child sees IS their own settled ink, drawn
-  // by `TraceCanvas` from `completedStrokes`. So a flag that lights k marks
-  // and draws no ink produces a frame the real game can never make: five
-  // earned anchors on a bare hedgehog. That is amendment 8's failure exactly
+  // The spines themselves. `SpineLayer` draws each FILLED anchor's own
+  // clean spike (`spines.spikes`, T19) — the stroke that earned it never
+  // renders its own raw ink again. So a flag that lights k marks and hands
+  // no spikes produces a frame the real game can never make: five earned
+  // anchors on a bare hedgehog. That is amendment 8's failure exactly
   // (`docs/13` §4): ONE number must drive every render fact the flag
   // produces, or a still frame tells two stories at once and cannot answer
   // the one question it exists to answer ("do the spines look right?").
