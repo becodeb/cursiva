@@ -263,10 +263,12 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
   it('covers every detective trail in the shipped catalog', () => {
     expect(trails.length).toBeGreaterThan(0)
     expect(trails.map((t) => t.id)).toEqual([
+      // [T21] `duck-trail3`/`duck-trail4` no longer carry a `clue` — they
+      // were repurposed to `LevelConfig.collect` (the duck family gathered
+      // after the deduction, `docs/19` §2.3) — so only the case's own two
+      // pistas levels remain here.
       'duck-trail1',
       'duck-trail2',
-      'duck-trail3',
-      'duck-trail4',
       'trail1',
       'trail2',
       'trail3',

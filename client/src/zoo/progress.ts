@@ -82,7 +82,20 @@ export function adventureProgress(levelId: string, records: Records): AdventureP
   }))
   return {
     adventureId: adventure.id,
-    animal: adventure.animal,
+    // [T21, `docs/19` §2.1: "la barra de camino deja de mostrar la silueta
+    // del animal durante las pistas... eso sería spoilear la deducción"] A
+    // deduction-gated adventure (`zoo/adventures.ts`'s `deduction` field)
+    // never names its own animal here — `TrailProgressBar`'s `AnimalEndCap`
+    // reads this field alone to decide whether to draw anything at all, so
+    // withholding it also withholds the encounter's ACCESSIBLE name
+    // (`accessibleTrailName`'s own `toward` clause below), not only the
+    // silhouette picture. Unconditional, not merely "while unsolved": by the
+    // time the case IS solved the adventure's remaining levels have already
+    // moved on to `LevelConfig.collect` (`CollectBar` takes this exact slot
+    // instead, `LevelPlay.tsx`'s own `collectDef ? <CollectBar/> : progress
+    // && <TrailProgressBar/>` gate), so `TrailProgressBar` — and therefore
+    // this field — is never shown again for that adventure regardless.
+    animal: adventure.deduction ? undefined : adventure.animal,
     slots,
     rescued: slots.every((slot) => slot.filed),
   }

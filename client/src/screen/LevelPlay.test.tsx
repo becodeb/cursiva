@@ -669,7 +669,12 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
     expect(body).not.toContain('pistas-bar')
   })
 
-  it('a mid-adventure duck trail shows earned clue art for a filed level and drained for the rest, in play order', () => {
+  it('a mid-adventure duck trail shows earned clue art for a filed level and drained for the current one, in play order', () => {
+    // [T21] `duck-trail1`/`duck-trail2` are now the case's own two RULING
+    // clues (`droplet`/`feather`); `duck-trail3`/`duck-trail4` were
+    // repurposed to `collect` (the duck family) and carry no clue any more,
+    // so their sockets show nothing (empty, unfiled, no clue — the same
+    // contract the turtle/star test below covers generically).
     const progress = adventureProgress('duck-trail2', filedRecords(['duck-trail1']))!
     const html = renderToString(
       <LevelPlay
@@ -682,12 +687,10 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
       />,
     )
     expect(html).toContain('class="pistas-bar"')
-    expect(html).toContain(CLUE_ART.webfoot.art.earned.href) // duck-trail1, filed
-    expect(html).not.toContain(CLUE_ART.webfoot.art.drained.href)
-    expect(html).toContain(CLUE_ART.breadcrumb.art.drained.href) // duck-trail2, current, unfiled
-    expect(html).not.toContain(CLUE_ART.breadcrumb.art.earned.href)
-    expect(html).toContain(CLUE_ART.bubble.art.drained.href) // duck-trail3, unfiled
-    expect(html).toContain(CLUE_ART.feather.art.drained.href) // duck-trail4, unfiled
+    expect(html).toContain(CLUE_ART.droplet.art.earned.href) // duck-trail1, filed
+    expect(html).not.toContain(CLUE_ART.droplet.art.drained.href)
+    expect(html).toContain(CLUE_ART.feather.art.drained.href) // duck-trail2, current, unfiled
+    expect(html).not.toContain(CLUE_ART.feather.art.earned.href)
   })
 
   it('marks the level actually being played as current, and gives the bar one accessible name counting filed slots', () => {
@@ -703,25 +706,36 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
       />,
     )
     expect(html).toContain('pistas-slot-shell-current')
-    expect(html).toContain('aria-label="Camino hacia el pato: 1 de 4"')
+    // [T21] Not "...hacia el pato...": the duck adventure is deduction-gated
+    // (`zoo/adventures.ts`), so `adventureProgress` withholds `animal` for
+    // it and `accessibleTrailName` drops the "hacia X" clause entirely — the
+    // accessible name is exactly as much a spoiler surface as the picture.
+    expect(html).toContain('aria-label="Camino: 1 de 4"')
   })
 
-  it('shows the animal as a dark silhouette until rescued, then in colour', () => {
-    const midway = adventureProgress('duck-trail2', filedRecords(['duck-trail1']))!
+  it('shows the animal as a dark silhouette until rescued, then in colour (turtle: a real adventure with no deduction gate)', () => {
+    // [T21] This used to be the duck; the duck adventure now declares a
+    // `deduction` gate (`zoo/adventures.ts`) and `adventureProgress`
+    // withholds its `animal` on purpose (`zoo/progress.ts`'s own header),
+    // so `TrailProgressBar` never draws an end-cap for it any more — see the
+    // dedicated `resolveNextAction`/`Deduction` routing tests instead. The
+    // turtle is a plain, clue-less multi-level adventure with no such gate,
+    // the same substitution the star/socket test above already made.
+    const midway = adventureProgress('turtle2', filedRecords(['turtle1']))!
     const html = renderToString(
-      <LevelPlay level={getLevel('duck-trail2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={midway} />,
+      <LevelPlay level={getLevel('turtle2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={midway} />,
     )
     const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
-    expect(body).toContain(`src="${ZOO_ANIMAL_ART.pato.href}"`)
+    expect(body).toContain(`src="${ZOO_ANIMAL_ART.tortuga.href}"`)
     expect(body).toContain('class="pistas-animal"')
     expect(body).not.toContain('pistas-animal-rescued')
 
     const rescued = adventureProgress(
-      'duck-trail4',
-      filedRecords(['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4']),
+      'turtle4',
+      filedRecords(['turtle1', 'turtle2', 'turtle3', 'turtle4']),
     )!
     const rescuedHtml = renderToString(
-      <LevelPlay level={getLevel('duck-trail4')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={rescued} />,
+      <LevelPlay level={getLevel('turtle4')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={rescued} />,
     )
     expect(rescuedHtml.replace(/<style>[\s\S]*?<\/style>/, '')).toContain('class="pistas-animal pistas-animal-rescued"')
   })
@@ -1421,16 +1435,37 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
   // The other two T6 endArt branches — both keyed off a REAL ADVENTURES row,
   // never off the synthetic `makeDetectiveLevel` fixture (which belongs to
   // none): the last level of an animal-recovering adventure shows the
-  // encounter itself, even though `duck-trail4` ALSO carries its own clue
-  // (feather) — the encounter wins. Every other routed level of a
+  // encounter itself, even though `f2-agua4` ALSO carries its own clue
+  // (bubble) — the encounter wins. Every other routed level of a
   // multi-level adventure with no clue of its own (sheep has none yet, per
   // docs/18 §4.4) shows the star instead.
+  //
+  // [T21] This used to be `duck-trail4`/`pato` — it no longer fits the case
+  // this test is FOR: `duck-trail4` was repurposed to `LevelConfig.collect`
+  // (the duck family, `docs/19` §2.3) and carries no `clue` any more, so its
+  // own `endArt` is now `undefined` by the T17 follow-up's own priority list
+  // (`collectDef ? undefined : …`, above) — see the dedicated duck-trail4
+  // test right below this one for THAT contract. `f2-agua4` (the fish row's
+  // own last level) still combines "last level of an animal adventure" with
+  // "carries its own clue and no collect", which is the exact combination
+  // this test exists to prove wins in favour of the encounter.
   it('shows the animal (the encounter) on the LAST level of an animal-recovering adventure, even though it also has a clue', () => {
-    render(getLevel('duck-trail4'))
+    render(getLevel('f2-agua4'))
     const art = traceCanvasProbe.current?.endArt as Art
-    expect(art?.href).toBe(ZOO_ANIMAL_ART.pato.href)
-    expect(art?.href).not.toBe(CLUE_ART.feather.art.drained.href)
+    expect(art?.href).toBe(ZOO_ANIMAL_ART.pez.href)
+    expect(art?.href).not.toBe(CLUE_ART.bubble.art.drained.href)
     expect(art?.size).toBe(84)
+  })
+
+  // [T21] `duck-trail4` is now a `collect` level (the duck family gathered
+  // along the waves, `docs/19` §2.3): its own `endArt` is `undefined` by
+  // design (T17's own priority list above) — the LAST collect item, not a
+  // second static picture, is what stands at the route's end, drawn through
+  // `vertexArt`/`vertexArtDeparting` instead (the same contract
+  // `sheep-hill`/`llama-peak` already prove elsewhere).
+  it('duck-trail4 (now a collect level) renders no endArt at all — the last duckling stands there instead', () => {
+    render(getLevel('duck-trail4'))
+    expect(traceCanvasProbe.current?.endArt).toBeUndefined()
   })
 
   it('shows the star on every other routed level of a multi-level adventure with no clue of its own and no goalArt (turtle)', () => {

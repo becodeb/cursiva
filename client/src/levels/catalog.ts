@@ -19,7 +19,7 @@
 // export itself stays in `detective/assets.ts`, still registered in
 // `artManifest.test.ts`'s `REGISTERED` table — it ships no orphaned file,
 // it simply has no consumer left in this catalog.
-import { FLOWER_ART, HAZARD_STARFISH_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
+import { ANIMAL_ART, FLOWER_ART, HAZARD_STARFISH_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
 import { buildWord } from '../letters/combinations'
 import { LETTER_REGISTRY } from '../letters/registry'
 import type { LetterConfig } from '../letters/types'
@@ -583,10 +583,10 @@ const PHASE_1: LevelConfig[] = [
   },
   // ───────────────────────────────────────────────────────────────────────
   // The duck case (case-registry-and-captions design.md §3): four themed
-  // trails inserted BEFORE `trail1`, one clue each, corridor width strictly
-  // decreasing 100→70. `game/migrateDuckCase.ts` protects a returning
-  // child's positional unlock of `trail1..4` across this insertion — it
-  // must ship before these four levels do (Ordering Summary, S1 before S2).
+  // trails inserted BEFORE `trail1`, corridor width strictly decreasing
+  // 100→70. `game/migrateDuckCase.ts` protects a returning child's
+  // positional unlock of `trail1..4` across this insertion — it must ship
+  // before these four levels do (Ordering Summary, S1 before S2).
   //
   // The four are one undulation family (`docs/13` §2, duck-undulations design
   // §1): amplitude, then repetition, then per-cycle variation, then a
@@ -594,10 +594,20 @@ const PHASE_1: LevelConfig[] = [
   // (`docs/13` §4: the spiral is the snail's, the square/triangular shapes
   // are the sheep's).
   //
-  //   duck-trail1  webfoot / one broad cycle — the pond's edge
-  //   duck-trail2  breadcrumb / two cycles
-  //   duck-trail3  bubble / two cycles with per-cycle amplitude variation
-  //   duck-trail4  feather / three cycles, tapered narrower
+  // [T21, `docs/19` §2.3/§7 slice 3] Split into recipe A's own two halves
+  // (`odd/tasks/prewriting-stage-completion.md`): levels 1-2 are the CASE's
+  // own pistas (`detective/cases.ts`'s `duck` case now names only these two
+  // as `trailIds`), levels 3-4 gather the recovered duck FAMILY instead —
+  // `LevelConfig.collect` (T17's engine), the same mechanic
+  // `sheep-hill`/`llama-peak` already ship, never a clue. `duck-trail1`'s
+  // `droplet`/`duck-trail2`'s `feather` are the case's own two RULING clues
+  // (`cases.ts`'s `ruledOutBy`, whose header explains why `webfoot`/
+  // `breadcrumb` are not used here any more):
+  //
+  //   duck-trail1  droplet (pistas) / one broad cycle — the pond's edge
+  //   duck-trail2  feather (pistas) / two cycles
+  //   duck-trail3  collect the duck family / two cycles with per-cycle amplitude variation
+  //   duck-trail4  collect the duck family / three cycles, tapered narrower
   // ───────────────────────────────────────────────────────────────────────
   {
     id: 'duck-trail1',
@@ -626,7 +636,10 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    clue: { kind: 'webfoot', spacing: 60 },
+    // [T21] `droplet`, not the pre-T21 `webfoot` — the duck case's own first
+    // RULING clue (`cases.ts`'s `ruledOutBy.gato`), "the duck came out of the
+    // water dripping" (`docs/19` §3's own pato flavour line).
+    clue: { kind: 'droplet', spacing: 60 },
   },
   {
     id: 'duck-trail2',
@@ -645,7 +658,12 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    clue: { kind: 'breadcrumb', spacing: 60 },
+    // [T21] `feather`, not the pre-T21 `breadcrumb` — the duck case's own
+    // second RULING clue (`cases.ts`'s `ruledOutBy.vaca`, "a cow has no
+    // feathers"). This is the LAST pistas level (`cases.ts`'s
+    // `duck.trailIds`): finishing it is what the map/`GameScreen` routes
+    // into the deduction (`zoo/adventures.ts`'s `duck.deduction.after`).
+    clue: { kind: 'feather', spacing: 60 },
   },
   {
     id: 'duck-trail3',
@@ -682,7 +700,17 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    clue: { kind: 'bubble', spacing: 60 },
+    // [T21, `docs/19` §1/§2.1 step 4] Past the deduction, the case is
+    // already solved — this level (and `duck-trail4`) gathers the recovered
+    // duck FAMILY along the waves, the same `collect` mechanic
+    // `sheep-hill`/`llama-peak` ship (T17), never a clue: `'peaks'` derives
+    // one duckling per wave crest (`levels/vertexArt.ts`'s `routeApexes`,
+    // the local minima in y a sinusoid's own crests are) plus one more at
+    // the route's end. `ANIMAL_ART.pato` scaled down stands in for a real
+    // duckling — there is no smaller-duck art yet (flagged to the author as
+    // a new art request, `docs/20`'s own `B…` numbering; T21's own report
+    // names it `B16`).
+    collect: { items: 'peaks', art: ANIMAL_ART.pato, size: 40 },
   },
   {
     id: 'duck-trail4',
@@ -709,7 +737,9 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    clue: { kind: 'feather', spacing: 60 },
+    // [T21] Same reasoning as `duck-trail3` above — the last of the duck
+    // family, gathered along the route's three crests plus the end.
+    collect: { items: 'peaks', art: ANIMAL_ART.pato, size: 40 },
   },
   {
     id: 'trail1',
