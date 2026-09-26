@@ -45,6 +45,7 @@ import {
 import {
   arrangeDebugCount,
   cameraDebugOrigin,
+  collectDebugCount,
   isSpineDebug,
   lightDebugPoint,
   revealDebugFraction,
@@ -117,6 +118,17 @@ import {
   reachedTrailEnd,
   type ClueState,
 } from '../detective/clues'
+// Collect-along-the-path (docs/19 §2.2/§3.4; T17). `level.collect` is the
+// sole discriminator, the same convention `level.clue` above uses — its
+// absence means an ordinary level and none of this wiring engages.
+import {
+  collectTick,
+  emptyCollectState,
+  isCollectComplete,
+  resolveCollectItems,
+  type CollectItem,
+  type CollectState,
+} from '../levels/collect'
 import {
   CARRIER_LENS_ART,
   CLUE_ART,
@@ -129,6 +141,7 @@ import {
 } from '../detective/assets'
 import CaptionedArt from '../detective/CaptionedArt'
 import TrailProgressBar from '../detective/TrailProgressBar'
+import CollectBar from '../detective/CollectBar'
 import { BackIcon, ReplayIcon } from '../detective/icons'
 import { useNarration } from '../voice/useNarration'
 import { speak } from '../voice/narrator'
@@ -158,6 +171,10 @@ const SPINE_DEMO_STEP_S = 0.55
  *  fades (`.cv-spine-fading`, `LAYOUT_CSS` below) before `SpineLayer` stops
  *  being asked to render it at all. */
 const SPINE_REJECT_FADE_MS = 300
+/** T17 follow-up: how long a just-collected item's own picture stays
+ *  visible while it hops away (`.cv-collect-hop`, `LAYOUT_CSS` below) before
+ *  it stops being rendered at all. Matches the keyframe's own duration. */
+const COLLECT_HOP_MS = 420
 /**
  * T19 follow-up (orchestrator screenshot review of `hedgehog1-04-all-but-
  * last.png`/`hedgehog4-04-all-but-last.png`): the accepted spike's own fill
@@ -706,6 +723,22 @@ export function initialSpineState(
 }
 
 /**
+ * A collect level's INITIAL state (T17 follow-up): `emptyCollectState`, or
+ * the `?debug=juntado:<k>` seed — this repo's harness cannot drive a live
+ * finger, so this flag pre-fills the first `k` items (by route order)
+ * before the very first render, the same reason `initialSpineState`/
+ * `initialWaypointState` exist for their own mechanics. `k` is clamped into
+ * `[0, items.length]` so a debug flag can never mark more items collected
+ * than the level actually has.
+ */
+export function initialCollectState(items: readonly CollectItem[], search: string): CollectState {
+  const k = collectDebugCount(search)
+  if (k === null || items.length === 0) return emptyCollectState(items.length)
+  const n = Math.max(0, Math.min(Math.trunc(k), items.length))
+  return { collected: items.map((_, i) => i < n) }
+}
+
+/**
  * The camera's own seeded origin for one reset (`scrolling-camera`
  * capability, design.md §2.4): 0 when the level has no `camera` field,
  * otherwise `seedCameraOrigin`'s clamp over `?debug=camara:<x>`'s seed. ONE
@@ -1199,6 +1232,32 @@ html, body, #root { margin: 0; padding: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cv-spine-fading { animation: none; opacity: 0; }
+}
+
+/* T17 follow-up (orchestrator screenshot review): a just-collected item
+ * hops up and shrinks away toward the top bar instead of just standing
+ * there or silently vanishing — "I got it" has to read as the picture
+ * actually LEAVING its spot. Same one-shot-keyframe-with-'forwards' idiom
+ * as .cv-spine-fading above (a transition needs a start frame to paint
+ * before it can animate; a keyframe runs from 0% the instant the class
+ * exists). 'transform-box: fill-box' is load-bearing for the same reason
+ * .cv-spine-mark-filled needs it: an <image>'s default transform origin
+ * is the outer <svg>'s (0,0), not its own box, so a bare scale() here
+ * would visibly jump the picture toward the sheet's corner instead of
+ * shrinking in place. */
+.cv-collect-hop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cv-collect-hop 420ms ease-in forwards;
+  pointer-events: none;
+}
+@keyframes cv-collect-hop {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  40% { transform: translateY(-30px) scale(1.05); opacity: 1; }
+  100% { transform: translateY(-90px) scale(0.35); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-collect-hop { animation: none; opacity: 0; }
 }
 
 /* Upright and narrow is genuinely width-limited: show guidance instead of
@@ -1706,6 +1765,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     [clueDef, target.polyline, target.length],
   )
 
+  // Collect-along-the-path (T17). `collectItems` is the SAME derived-position
+  // convention `trailClueMarks` above uses — recomputed from `target`, never
+  // authored coordinates. `level.corridorWidth` (the AUTHORED width, not
+  // `target.corridorWidth`) is what lets the LAST item's own arc tolerate a
+  // real fingertip landing short of the route's mathematically exact final
+  // vertex — see `levels/collect.ts`'s `collectItemsFromPeaks` for why.
+  const collectDef = level.collect
+  const collectItems = useMemo<readonly CollectItem[]>(
+    () =>
+      collectDef ? resolveCollectItems(collectDef, target.polyline, target.length, level.corridorWidth) : [],
+    [collectDef, target.polyline, target.length, level.corridorWidth],
+  )
+
   // One demonstration per sub-path, played in sequence (docs/08 §5).
   // `target.demoPaths`, never `target.paths`/`level.paths`: for every
   // routed level this is the SAME array reference as `paths` (the target
@@ -1827,6 +1899,37 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // progress, not approval") even though nothing in this component calls it
   // as a production decision any more.
   const [clueState, setClueState] = useState<ClueState>(() => emptyClueState(trailClueMarks.length))
+  // T17: a level's own collected items (`levels/collect.ts`'s `CollectState`)
+  // — DELIBERATELY not reset by `restartRun` (a wall-contact reset), unlike
+  // `clueState` just above: `docs/19` §2.2 point 3 requires an item to stay
+  // collected even after the finger leaves the corridor, while a detective
+  // trail's clue marks are explicitly meant to drain on that same reset (see
+  // `restartRun`'s own comment). It IS reset on a genuinely new attempt at
+  // the level, in the level-id-keyed mount effect below, same as `clueState`.
+  // The ref mirrors `spineRef`/`waypointRef`'s own dual ref+state convention:
+  // `onFrame` needs the FRESH value synchronously (no stale closure), and
+  // `onRelease`'s completion override needs it before this render's `setState`
+  // has necessarily committed.
+  const collectStateRef = useRef<CollectState>(initialCollectState(collectItems, debugSearch))
+  const [collectState, setCollectState] = useState<CollectState>(collectStateRef.current)
+  // T17 follow-up: a just-collected item's own picture hops away from its
+  // spot instead of just vanishing — the SAME transient-list-plus-timeout
+  // convention `fadingSpineStrokes` already uses for a rejected hedgehog
+  // stroke, restated here for a departing collect item. Deliberately NOT
+  // reset by `restartRun`/`resetSurface` (an in-flight hop finishes on its
+  // own timeout regardless), only by the level-id mount effect below.
+  const [departingCollectMarks, setDepartingCollectMarks] = useState<
+    readonly { id: number; x: number; y: number }[]
+  >([])
+  const departingCollectIdRef = useRef(0)
+  const departingCollectTimeoutsRef = useRef<Set<number>>(new Set())
+  useEffect(() => {
+    const timeouts = departingCollectTimeoutsRef.current
+    return () => {
+      for (const t of timeouts) window.clearTimeout(t)
+      timeouts.clear()
+    }
+  }, [])
   // Whether THIS run has reached the end of the trail — the one thing a
   // detective trail asks (`reachedTrailEnd`). It drives the lamp standing at
   // the end of the route, which lights the moment the child arrives rather
@@ -2001,7 +2104,17 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     setPhase(playDemo ? 'demo' : 'ready')
     resetSurface()
     setClueState(emptyClueState(trailClueMarks.length))
-  }, [level.id, playDemo, resetSurface, trailClueMarks.length])
+    // T17: a level's collected items belong to THIS run too, same as the
+    // clue state above — but through the ref FIRST (see `collectStateRef`'s
+    // own comment: `onFrame`/`onRelease` must never read a stale value).
+    collectStateRef.current = initialCollectState(collectItems, debugSearch)
+    setCollectState(collectStateRef.current)
+    // T17 follow-up: any hop still in flight belongs to the level that is
+    // ENDING, never to the fresh one about to start.
+    for (const t of departingCollectTimeoutsRef.current) window.clearTimeout(t)
+    departingCollectTimeoutsRef.current.clear()
+    setDepartingCollectMarks([])
+  }, [level.id, playDemo, resetSurface, trailClueMarks.length, collectItems, debugSearch])
 
   // Voice narration (docs/18 D1/D24/D26, §3 "Todo se escucha"; T7): every
   // level's hint is also SPOKEN, not merely displayed. `!drawnPlace` in the
@@ -2364,6 +2477,43 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         const maxArc = corridorSample.track.tracks[corridorSample.active].maxArc
         setClueState((prev) => clueTick(prev, maxArc, trailClueMarks))
       }
+      // T17: a level's own collect items ride this SAME sample, gated on
+      // `!out` for the exact reason the clue channel above is — an item
+      // earned while the fingertip is genuinely outside the corridor is the
+      // same bug class a screenshot already caught for clues. Through the
+      // ref FIRST (see `collectStateRef`'s own comment), then `setState`
+      // only when the fold actually changed — `collectTick` is monotone and
+      // returns the exact same reference otherwise.
+      if (collectDef && collectItems.length > 0 && !out) {
+        const maxArc = corridorSample.track.tracks[corridorSample.active].maxArc
+        const prevCollected = collectStateRef.current
+        const next = collectTick(prevCollected, maxArc, collectItems)
+        if (next !== prevCollected) {
+          collectStateRef.current = next
+          setCollectState(next)
+          // T17 follow-up: whichever index flipped false -> true THIS tick
+          // hops away from its spot — never the whole array, so re-passing
+          // an already-collected item's arc (harmless, `collectTick` is
+          // monotone) never replays its animation.
+          // `typeof window` guard: this same onFrame closure is exercised
+          // directly (no DOM) by `LevelPlay.test.tsx`'s SSR wiring tests —
+          // the departing-hop animation is cosmetic/browser-only, so a node
+          // environment simply skips scheduling it rather than throwing.
+          if (typeof window !== 'undefined') {
+            next.collected.forEach((isCollected, i) => {
+              if (!isCollected || prevCollected.collected[i]) return
+              const item = collectItems[i]
+              const id = ++departingCollectIdRef.current
+              setDepartingCollectMarks((marks) => [...marks, { id, x: item.x, y: item.y }])
+              const timeout = window.setTimeout(() => {
+                departingCollectTimeoutsRef.current.delete(timeout)
+                setDepartingCollectMarks((marks) => marks.filter((m) => m.id !== id))
+              }, COLLECT_HOP_MS)
+              departingCollectTimeoutsRef.current.add(timeout)
+            })
+          }
+        }
+      }
       // Arriving at the end of the trail lights the lamp standing there. Same
       // sample, same monotone progress, and latched: it is an arrival, not a
       // zone the child can drift back out of. Only `restartRun` unlatches it,
@@ -2406,6 +2556,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       restartRun,
       clueDef,
       trailClueMarks,
+      collectDef,
+      collectItems,
       isCase,
       level.corridorWidth,
       level.reveal,
@@ -2497,7 +2649,21 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // accuracy a measurement of the rail instead of the child (see `rail.ts`).
       const releasedReveal = releasedRevealState(level.reveal, snapshot, target.viewBoxWidth, revealStateRef.current)
       if (releasedReveal) setRevealState(releasedReveal)
-      const result = evaluateLevel(snapshot, target, pointerType)
+      const evaluated = evaluateLevel(snapshot, target, pointerType)
+      // T17 (docs/19 §2.2 point 4): accuracy/order/fluency stay MEASURED
+      // (`evaluated` above is untouched — every internal pillar score still
+      // comes straight out of `evaluateLevel`), but they do not GATE passing
+      // on a collect level. Approval is decided by the LAST item being
+      // collected instead — through the ref, since a same-tick `onFrame`
+      // `setState` is not guaranteed to have committed yet (the same race
+      // `reachedEndRef` above is read through a ref to avoid). No failure
+      // pillar is attached to a collect miss (`failedPillar: null`): the
+      // collect bar's own remaining count is the only "what's left" signal
+      // these levels ever show (design.md §2.2 point 5, `docs/01` "no
+      // punishment, no red, no failure sound").
+      const result = collectDef
+        ? { ...evaluated, approved: isCollectComplete(collectStateRef.current), failedPillar: null }
+        : evaluated
       setAttempt(result)
       setPhase('result')
       if (result.approved) playApprovalTone() // best-effort, approval only
@@ -2507,7 +2673,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // (`zoo/progress.ts`) with this attempt's own filing already in it.
       onAttempt(result)
     },
-    [target, onAttempt, clueDef, arrangeOpen, level.spines, level.reveal, spinePin, feedback.haptics],
+    [target, onAttempt, clueDef, collectDef, arrangeOpen, level.spines, level.reveal, spinePin, feedback.haptics],
   )
 
   const replayDemo = (): void => {
@@ -2550,9 +2716,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // 'free'` level — not repaired here, deferred to row G, because the
   // hive's coordinate and its touch radius must live in the same object
   // (`WaypointConfig.goal` already is that object; `goalArt` alone is not).
+  // T17 follow-up: a collect level renders NO end marker at all — not even
+  // the default hollow diamond `endMarker && !endArt` would otherwise draw
+  // once `endArt` is suppressed above. The route's own end is the LAST
+  // collect item, drawn entirely through vertexArt/vertexArtDeparting; a
+  // diamond popping into that exact spot once the item hops away is the
+  // same "two pictures in one place" defect this follow-up exists to fix.
   const endMarker = useMemo(
-    () => (level.kind === 'path' ? goalMarkerOf(target) : undefined),
-    [level.kind, target],
+    () => (level.kind === 'path' && !collectDef ? goalMarkerOf(target) : undefined),
+    [level.kind, target, collectDef],
   )
   // Registry art standing where the route ends, in place of the two hollow
   // diamonds AND (T6, adventure-flow-and-map-guidance) the case lamp itself
@@ -2586,18 +2758,27 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const isLastOfAnimalAdventure =
     !!adventure && adventure.animal !== undefined && adventure.levelIds[adventure.levelIds.length - 1] === level.id
   const isOtherRoutedAdventureLevel = !!adventure && adventure.levelIds.length > 1 && !isLastOfAnimalAdventure
-  const endArt = level.goalArt
-    ? { ...level.goalArt, size: GOAL_ART_SIZE }
-    : isLastOfAnimalAdventure
-      ? { ...ZOO_ANIMAL_ART[adventure!.animal!], size: END_MARK_SIZE }
-      : clueDef
-        ? {
-            ...(trailLampOn ? CLUE_ART[clueDef.kind].art.earned : CLUE_ART[clueDef.kind].art.drained),
-            size: END_MARK_SIZE,
-          }
-        : isOtherRoutedAdventureLevel
-          ? { ...ZOO_STAR_ART, size: END_MARK_SIZE }
-          : undefined
+  // T17 follow-up: a collect level's route-end picture is the LAST collect
+  // item, drawn entirely through the vertexArt/vertexArtDeparting layer
+  // below (so it can hop away and stay gone) — never through `endArt`. Every
+  // branch below (goalArt, the encounter animal, a clue, the plain star)
+  // would otherwise pop a SECOND, different picture into the exact spot the
+  // last item just vacated, which is the opposite of "the spot is empty
+  // afterwards".
+  const endArt = collectDef
+    ? undefined
+    : level.goalArt
+      ? { ...level.goalArt, size: GOAL_ART_SIZE }
+      : isLastOfAnimalAdventure
+        ? { ...ZOO_ANIMAL_ART[adventure!.animal!], size: END_MARK_SIZE }
+        : clueDef
+          ? {
+              ...(trailLampOn ? CLUE_ART[clueDef.kind].art.earned : CLUE_ART[clueDef.kind].art.drained),
+              size: END_MARK_SIZE,
+            }
+          : isOtherRoutedAdventureLevel
+            ? { ...ZOO_STAR_ART, size: END_MARK_SIZE }
+            : undefined
 
   // The corridor object is memoized so `TraceCanvas` can derive the tapered
   // geometry once per level instead of once per render.
@@ -2794,6 +2975,35 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     return { ...level.vertexArt.art, size: level.vertexArt.size, at }
   }, [level.vertexArt, level.corridorWidth, target.polyline])
 
+  // T17 follow-up (`odd/tasks/prewriting-stage-completion.md`, orchestrator
+  // screenshot review): a collect level's own items REPLACE `vertexArt`
+  // (`levels/catalog.ts` authors `collect` alone, never both) — a picture
+  // stands at an item's spot only while that item is still un-collected, so
+  // "I got it" reads as the sheep actually leaving the peak, not a second,
+  // independent decoration that never reacts to collection at all.
+  const collectVertexArt = useMemo<TraceVertexArt | undefined>(() => {
+    if (!collectDef) return undefined
+    const at = collectItems
+      .filter((_, i) => !collectState.collected[i])
+      .map((item) => ({ x: item.x, y: item.y }))
+    if (at.length === 0) return undefined
+    return { ...collectDef.art, size: collectDef.size, at }
+  }, [collectDef, collectItems, collectState])
+
+  // The SEPARATE, transient "just collected" layer — `departingCollectMarks`
+  // below, cleared by its own timeout once the hop animation finishes (the
+  // exact `fadingSpineStrokes` convention this file already uses for the
+  // hedgehog's rejected strokes). Kept apart from `collectVertexArt` so the
+  // steady layer's own `at` never has to know which entry is mid-animation.
+  const collectVertexArtDeparting = useMemo<TraceVertexArt | undefined>(() => {
+    if (!collectDef || departingCollectMarks.length === 0) return undefined
+    return {
+      ...collectDef.art,
+      size: collectDef.size,
+      at: departingCollectMarks.map(({ x, y }) => ({ x, y })),
+    }
+  }, [collectDef, departingCollectMarks])
+
   const ground = useMemo<TraceGround | undefined>(() => {
     // A backdrop retires the scattered ground (docs/13 §4 decision 3): the
     // sector's own drawn place replaces the field/earth scatter, per
@@ -2980,7 +3190,11 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // gate agree on the same truthiness check — `progress` is `undefined` for
   // every pre-T6 caller and `null` for a real level with nothing to show
   // (`zoo/progress.ts`'s own return type); both mean the same thing here.
-  const hasProgressBar = !!progress
+  // T17: `collectDef` widens this the same way — a collect level with no
+  // adventure `progress` at all (none exists yet; every T17 level today is
+  // also a multi-level adventure) still shows `CollectBar` in this exact
+  // slot and needs the exact same width class.
+  const hasProgressBar = !!progress || !!collectDef
 
   return (
     <main
@@ -3032,8 +3246,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
          * `zooSign` and `progress` never both hold for the same level (a
          * signed entrance enclosure is always a single-level ADVENTURES
          * row, which `adventureProgress` returns `null` for), so there is
-         * never a fight over the centre of this row. */}
-        {progress && <TrailProgressBar progress={progress} />}
+         * never a fight over the centre of this row.
+         *
+         * T17: a level that authors `collect` shows its OWN in-level item
+         * progress here instead — "how many sheep have I gathered on THIS
+         * level" is the more useful question mid-run than "which of the
+         * adventure's four levels am I on", and the two bars occupy the
+         * exact same absolutely-positioned slot, so swapping one for the
+         * other adds no row and no height. */}
+        {collectDef ? (
+          <CollectBar collected={collectState.collected} art={collectDef.art} />
+        ) : (
+          progress && <TrailProgressBar progress={progress} />
+        )}
         {/* T7 (docs/18 D1/D24/D26): the level's own hint is spoken
          * unconditionally (`useNarration(level.hint)`, above), but the
          * REPEAT button lives here, grouped with the title into ONE flex
@@ -3257,9 +3482,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // The sector's drawn place — an adventure's backdrop, once its
         // sector has one. Absent for every level whose adventure has none.
         backdrop={backdrop}
-        // Static art standing at the route's own peaks (design.md §3.3).
-        // Absent for every level that predates `LevelConfig.vertexArt`.
-        vertexArt={vertexArt}
+        // Static art standing at the route's own peaks (design.md §3.3), OR
+        // (T17 follow-up) a collect level's own un-collected items — the two
+        // are mutually exclusive by construction (a `collect` level authors
+        // no `vertexArt`, see `levels/catalog.ts`), so this never draws the
+        // same picture twice. Absent for every level with neither field.
+        vertexArt={vertexArt ?? collectVertexArt}
+        // T17 follow-up: a just-collected item hopping away toward the bar.
+        // Absent for every level that predates `LevelConfig.collect`.
+        vertexArtDeparting={collectVertexArtDeparting}
         // The reveal grid's covering layer (`reveal-grid` capability).
         // Absent on every level without a `reveal` config.
         reveal={reveal}
@@ -3340,8 +3571,17 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
        * ~1.5-2s before it fires, and C1 keeps this world wordless, so this
        * is the check mark alone (`.cv-result-pill-icon`), never a
        * sentence — `aria-label` carries the words for anyone who cannot
-       * see it, same convention as `.cv-btn-back`'s own icon-only label. */}
-      {drawnPlace && !level.reveal && attempt?.approved && (
+       * see it, same convention as `.cv-btn-back`'s own icon-only label.
+       *
+       * T17: a collect level reuses this SAME icon-only success pill even
+       * though it is not `drawnPlace` (sheep-hill/llama-peak are explicitly
+       * NOT in the detective world) — its own `approved` is decided by
+       * collecting the last item, not by the pillars below, so the pillar
+       * section's accuracy/order/fluency readouts would be misleading right
+       * next to a plain checkmark; the collect bar's own remaining count is
+       * already this level's "what's left" signal (docs/01 "no failure
+       * feedback"). */}
+      {(drawnPlace || !!collectDef) && !level.reveal && attempt?.approved && (
         <p
           className="cv-result-pill cv-result-pill-icon"
           role="status"
@@ -3355,8 +3595,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       {/* Pillars and coach copy (accuracy/direction/fluency readouts, the
        * restart cue, the standing hint) are all suppressed in the detective
        * world (C1: no coach or pillar copy — and therefore no three stars,
-       * D6). Every other phase's result section is untouched. */}
-      {!drawnPlace && (
+       * D6) AND on a collect level (T17: see this block's own twin above —
+       * a collect level's pass/fail does not come from these pillars, so
+       * showing them (and a possible fail state, `docs/01` "no failure
+       * feedback") next to the collect bar would contradict it). Every
+       * other phase's result section is untouched. */}
+      {!drawnPlace && !collectDef && (
         <section aria-label="Resultado del intento" className="cv-result">
           {attempt ? (
             <>

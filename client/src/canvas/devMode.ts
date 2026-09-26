@@ -218,3 +218,24 @@ export function cameraDebugOrigin(search: string): number | null {
   if (!Number.isFinite(x)) return null
   return x
 }
+
+/**
+ * `?debug=juntado:<k>` (T17 follow-up, `odd/tasks/prewriting-stage-
+ * completion.md`: "add a render test" for the collect-along-the-path
+ * mechanic — this repo's harness cannot drive a live finger, so a debug
+ * seed is what makes "item 0's picture is absent from the path" observable
+ * from a SINGLE `renderToString` call, the same reason `espinas:<k>`/
+ * `estela:<k>` exist). NOT dev-gated — the same reason every other
+ * `*DebugCount` above is not: it paints render state (the first k collect
+ * items already earned), adds no control and persists nothing, and must
+ * work against the EXACT build being screenshotted. `arrangeDebugCount`'s
+ * body, verbatim. Malformed input, a missing flag, or a non-numeric count
+ * all return `null`, never throw.
+ */
+export function collectDebugCount(search: string): number | null {
+  const arg = debugArg(search, 'juntado')
+  if (arg === null) return null
+  const k = Number(arg)
+  if (!Number.isFinite(k)) return null
+  return k
+}

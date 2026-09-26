@@ -53,7 +53,14 @@ describe('routeApexes', () => {
   })
 
   it("carries no case membership — isCaseTrail/inDetectiveWorld are unaffected by vertexArt's presence", () => {
-    const withArt = getLevel('sheep-hill1')
+    // T17 follow-up moved sheep-hill1/llama-peak1's own standing art off
+    // `vertexArt` entirely (they now author `collect` instead, and the
+    // collect-driven layer replaces vertexArt rather than drawing twice —
+    // see `levels/catalog.ts`'s own comment on `sheep-hill1`). Dolphin still
+    // authors a plain `vertexArt` and is not a case either, so it is what
+    // this test's ORIGINAL intent (vertexArt grants no case/world
+    // membership) actually needs.
+    const withArt = getLevel('dolphin1')
     expect(withArt.vertexArt).toBeDefined()
     expect(isCaseTrail(withArt)).toBe(false)
     expect(inDetectiveWorld(withArt)).toBe(false)

@@ -1037,6 +1037,15 @@ export interface TraceCanvasProps {
    * §3.3). Absent = no vertex-art layer, byte-identical to before this prop
    * existed. See {@link TraceVertexArt}. */
   vertexArt?: TraceVertexArt
+  /** T17 (`odd/tasks/prewriting-stage-completion.md`, collect-along-the-path
+   * follow-up): the SAME shape as {@link TraceVertexArt}, for a picture that
+   * has just been collected and is hopping away toward the top bar instead
+   * of standing still. Rendered with `.cv-collect-hop` (a one-shot keyframe,
+   * `forwards` fill — the same idiom `.cv-spine-fading` already uses), on
+   * its OWN layer so a departing picture is never confused with a steady
+   * one at the type level. Absent = no departing layer, which is every
+   * level that predates this field. */
+  vertexArtDeparting?: TraceVertexArt
   /** The reveal grid's covering layer (`reveal-grid` capability), rendered
    * above the backdrop and below every ink layer. Absent = no reveal layer
    * at all, byte-identical to before this prop existed. See
@@ -1130,6 +1139,7 @@ export default function TraceCanvas({
   ground,
   backdrop,
   vertexArt,
+  vertexArtDeparting,
   reveal,
   waypoints,
   spines,
@@ -1907,6 +1917,29 @@ export default function TraceCanvas({
               href={vertexArt.href}
               {...clampArtBox(
                 placeArt({ ...vertexArt, grip: STANDING_GRIP }, vertexArt.size, point),
+                sheetBounds,
+              )}
+              preserveAspectRatio="xMidYMid meet"
+            />
+          ))}
+        </g>
+      )}
+      {vertexArtDeparting && (
+        // T17: a just-collected picture hopping away — same placement
+        // formula as the steady layer above, but tagged `.cv-collect-hop`
+        // (LAYOUT_CSS, `screen/LevelPlay.tsx`) so it visibly leaves its spot
+        // instead of a silent removal. The caller owns removing an entry
+        // from `at` once its animation has actually finished (the same
+        // `fadingSpineStrokes` timeout convention `SpineLayer` uses) — this
+        // component only ever draws whatever it is handed.
+        <g pointerEvents="none">
+          {vertexArtDeparting.at.map((point, idx) => (
+            <image
+              key={`vertex-art-departing-${idx}`}
+              className="cv-collect-hop"
+              href={vertexArtDeparting.href}
+              {...clampArtBox(
+                placeArt({ ...vertexArtDeparting, grip: STANDING_GRIP }, vertexArtDeparting.size, point),
                 sheetBounds,
               )}
               preserveAspectRatio="xMidYMid meet"
