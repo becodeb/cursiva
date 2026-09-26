@@ -60,8 +60,12 @@ describe('auditCaptions (spec: detective-mode "Captioned Art Invariant")', () =>
     expect(audit.uncaptioned).toEqual(['real'])
   })
 
-  it('CAPTION_CONTAINERS names exactly the two shipped licensed containers', () => {
-    expect(CAPTION_CONTAINERS).toEqual(['cv-captioned', 'pistas-bar'])
+  it('CAPTION_CONTAINERS names exactly the three shipped licensed containers', () => {
+    // [T21 follow-up] cv-deduction-frame joined the other two: Pulpito's own
+    // corner stage on screen/Deduction.tsx, where his spoken line is text
+    // only but his own <img> sits in the same frame (that module's own
+    // header has the full reasoning).
+    expect(CAPTION_CONTAINERS).toEqual(['cv-captioned', 'pistas-bar', 'cv-deduction-frame'])
   })
 
   it('an unrelated class name is not a licensed container, and its container is invisible to imagelessContainers', () => {

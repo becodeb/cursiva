@@ -1186,6 +1186,37 @@ def main() -> None:
         print(f'  {grey_key:26s} {manifest[grey_key]["w"]}x{manifest[grey_key]["h"]} '
               f'{manifest[grey_key]["bytes"] / 1024:6.1f} KB')
 
+    # --- Deduction-screen animal silhouettes (T21, prewriting-stage-
+    # completion.md). A SECOND pass over the animal cutouts SINGLES already
+    # emitted above (`animal-pato.png`/`animal-gallina.png`/`animal-vaca.png`/
+    # `animal-gato.png`, `fill=None` so they ship in full authored colour): a
+    # copy of the shipped file, `recolour`'d to one flat `INK` fill with
+    # `keep_ink=False` -- `recolour`'s own docstring names exactly this case
+    # ("art that is already a bare silhouette with no contour of its own,
+    # where an ink/fill split would find no fill"). The result is a real
+    # derived PNG, alpha-identical to the coloured original, never a runtime
+    # CSS/SVG filter -- `Deduction.tsx` shows this file until the child picks
+    # the right animal, then swaps to the coloured one (the "silhouette fills
+    # with colour" requirement). Read from `OUT`, not re-`prepare()`d from
+    # `art-source/`, so this can never drift from what the coloured lineup
+    # itself ships. Deliberately its OWN section, after every other pass in
+    # this function and touching no shared code, so it can never collide with
+    # another writer's own derivation elsewhere in this file (the snake
+    # greyscale pass, `docs/19` §3.1).
+    for animal_file in (
+        'animal-pato.png',
+        'animal-gallina.png',
+        'animal-vaca.png',
+        'animal-gato.png',
+    ):
+        img = png.read_png(os.path.join(OUT, animal_file))
+        recolour(img, INK, keep_ink=False)
+        out_name = animal_file[:-4] + '-silhouette.png'
+        key = out_name[:-4]
+        manifest[key] = emit(out_name, img)
+        print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
+              f'{manifest[key]["bytes"] / 1024:6.1f} KB')
+
     for src, name, target_h, feature_test in CENTRED:
         img = centre_on(prepare(src, target_h), feature_test)
         key = name[:-4]

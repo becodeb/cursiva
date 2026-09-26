@@ -189,23 +189,116 @@ function arcLengthUpTo(polyline: ReadonlyArray<{ x: number; y: number }>, index:
 }
 
 /**
+ * One arc-length WINDOW's worth of a smooth route's own local minima in y —
+ * a wave's crests (T21, `odd/tasks/prewriting-stage-completion.md`,
+ * `docs/19` §2.2/§7 slice 3: "los patitos en las ondas").
+ *
+ * WHY NOT {@link routeApexes}. That function (`levels/vertexArt.ts`) compares
+ * each point only against its own IMMEDIATE NEIGHBOURS and keeps the
+ * candidate only if the rise clears `minRise` (40 by default) — right for a
+ * RIDGE (`peakRidge`'s own sharp, near-triangular peaks, where the slope
+ * stays steep right up to the tip), wrong for a SMOOTH bezier wave
+ * (`paths.ts`'s `wave`/`waveVaried`), whose derivative vanishes AT its own
+ * crest: measured directly against the duck's own shipped `duck-trail3`/
+ * `duck-trail4` routes, two adjacent samples straddling the true crest
+ * differed by a fraction of a unit even though the crest's own depth against
+ * its neighbouring trough is over a hundred — `routeApexes` finds ZERO
+ * apexes on either level, no matter how the family's amplitude is tuned,
+ * because the failure is geometric (a flat derivative), not a threshold
+ * this or any other `minRise` value could fix without also risking a false
+ * positive from sampling noise elsewhere on a truly flat stretch.
+ *
+ * This compares each candidate against every OTHER point within
+ * `windowArc` SHEET UNITS of it (arc length, never a sample COUNT — a
+ * cheap, robust proxy for "not merely my two immediate neighbours" that
+ * stays correct regardless of how densely `buildLevelTarget` happens to
+ * sample the route). `windowArc`'s default (80) only has to clear two
+ * unrelated distances: bigger than the near-flat stretch immediately
+ * around a real crest (measured well under 40 units on both shipped
+ * levels), and smaller than half the arc-length gap between two
+ * consecutive crests (measured at ~370-440 units on `duck-trail3` and at a
+ * full cycle, ~280 units, on `duck-trail4`) — comfortably true for any
+ * undulation family sharing this app's existing amplitude/cycle-width
+ * ranges (`docs/13` §2).
+ */
+export function waveCrestArcs(
+  polyline: ReadonlyArray<{ x: number; y: number }>,
+  windowArc = 80,
+): readonly number[] {
+  if (polyline.length < 3) return []
+  const arcAt: number[] = [0]
+  for (let i = 1; i < polyline.length; i++) {
+    arcAt.push(arcAt[i - 1] + Math.hypot(polyline[i].x - polyline[i - 1].x, polyline[i].y - polyline[i - 1].y))
+  }
+  const crests: number[] = []
+  for (let i = 1; i < polyline.length - 1; i++) {
+    let lo = i
+    while (lo > 0 && arcAt[i] - arcAt[lo - 1] <= windowArc) lo--
+    let hi = i
+    while (hi < polyline.length - 1 && arcAt[hi + 1] - arcAt[i] <= windowArc) hi++
+    let isCrest = true
+    // A genuinely flat window (every point in it sharing i's own y — no
+    // wave at all, or a straight run) must NOT register as a crest: nothing
+    // in it is smaller than `i`, but nothing is a real valley either.
+    // `sawHigher` is what tells "the true minimum of a real dip" apart from
+    // "an arbitrary point on a flat line", which merely never fails the
+    // "nothing here is smaller" half of the same check.
+    let sawHigher = false
+    for (let j = lo; j <= hi; j++) {
+      if (j === i) continue
+      if (polyline[j].y < polyline[i].y) {
+        isCrest = false
+        break
+      }
+      if (polyline[j].y > polyline[i].y) sawHigher = true
+    }
+    if (isCrest && sawHigher) crests.push(arcAt[i])
+  }
+  return crests
+}
+
+/**
  * A level's own `LevelConfig.collect` field (`levels/types.ts`): item
  * positions along the route, in ascending order, plus the ONE picture every
  * item on this level draws (`docs/19` §3.4: one kind of item per level, "una
  * oveja por pico").
  *
  * `items: 'peaks'` derives positions from {@link collectItemsFromPeaks} — the
- * sheep-hill/llama-peak convention this task ships. An explicit ascending
- * array of arc-length FRACTIONS (0..1 of the route's length) is the escape
- * hatch for a future adventure whose collectibles are not at peaks (a duck's
- * gliding stops along a flat wave, say) — `resolveCollectItems` below turns
- * either shape into the same `CollectItem[]` the engine scores against, so
- * `LevelPlay`/`collectTick` never need to know which one a level chose.
+ * sheep-hill/llama-peak convention this task ships, right for a RIDGE.
+ * `items: 'crests'` derives positions from {@link waveCrestArcs} instead —
+ * the duck family's own smooth wave routes, where `'peaks'` finds nothing
+ * (that function's own header has the full measurement). Both plus one
+ * final item at the route's own end (`trailEndArc`'s tolerance, same
+ * reasoning `collectItemsFromPeaks` already documents). An explicit
+ * ascending array of arc-length FRACTIONS (0..1 of the route's length) stays
+ * the escape hatch for a future adventure whose collectibles are neither —
+ * `resolveCollectItems` below turns any of the three shapes into the same
+ * `CollectItem[]` the engine scores against, so `LevelPlay`/`collectTick`
+ * never need to know which one a level chose.
  */
 export interface CollectConfig {
-  readonly items: readonly number[] | 'peaks'
+  readonly items: readonly number[] | 'peaks' | 'crests'
   readonly art: ArtImage
   readonly size: number
+}
+
+/** {@link collectItemsFromPeaks}'s own construction, restated for
+ * {@link waveCrestArcs}'s arcs instead of {@link routeApexes}'s points —
+ * same final-item tolerance, same ascending-by-construction guarantee
+ * (`waveCrestArcs` walks the polyline start to end). */
+function collectItemsFromWaveCrests(
+  polyline: ReadonlyArray<{ x: number; y: number }>,
+  length: number,
+  corridorWidth: number,
+): readonly CollectItem[] {
+  if (polyline.length < 2 || length <= 0) return []
+  const items: CollectItem[] = waveCrestArcs(polyline).map((arc) => {
+    const point = pointAtArcLength(polyline as Point[], arc)
+    return { x: point.x, y: point.y, arc }
+  })
+  const last = polyline[polyline.length - 1]
+  items.push({ x: last.x, y: last.y, arc: Math.max(0, trailEndArc(length, corridorWidth)) })
+  return items
 }
 
 /** Turns a level's authored `CollectConfig` into the `CollectItem[]` the
@@ -227,6 +320,7 @@ export function resolveCollectItems(
   corridorWidth: number,
 ): readonly CollectItem[] {
   if (config.items === 'peaks') return collectItemsFromPeaks(polyline, length, corridorWidth)
+  if (config.items === 'crests') return collectItemsFromWaveCrests(polyline, length, corridorWidth)
   if (polyline.length < 2 || length <= 0) return []
   return config.items.map((fraction) => {
     const arc = fraction * length

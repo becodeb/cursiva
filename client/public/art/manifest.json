@@ -11,9 +11,21 @@
     "h": 448,
     "w": 370
   },
+  "animal-gallina-silhouette": {
+    "bytes": 20914,
+    "file": "art/animal-gallina-silhouette.png",
+    "h": 448,
+    "w": 370
+  },
   "animal-gato": {
     "bytes": 158618,
     "file": "art/animal-gato.png",
+    "h": 414,
+    "w": 448
+  },
+  "animal-gato-silhouette": {
+    "bytes": 24949,
+    "file": "art/animal-gato-silhouette.png",
     "h": 414,
     "w": 448
   },
@@ -26,6 +38,12 @@
   "animal-pato": {
     "bytes": 96576,
     "file": "art/animal-pato.png",
+    "h": 448,
+    "w": 368
+  },
+  "animal-pato-silhouette": {
+    "bytes": 18955,
+    "file": "art/animal-pato-silhouette.png",
     "h": 448,
     "w": 368
   },
@@ -44,6 +62,12 @@
   "animal-vaca": {
     "bytes": 131264,
     "file": "art/animal-vaca.png",
+    "h": 405,
+    "w": 448
+  },
+  "animal-vaca-silhouette": {
+    "bytes": 21006,
+    "file": "art/animal-vaca-silhouette.png",
     "h": 405,
     "w": 448
   },

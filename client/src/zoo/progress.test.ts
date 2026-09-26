@@ -50,13 +50,22 @@ describe('adventureProgress', () => {
     const progress = adventureProgress('duck-trail2', recordsFor(['duck-trail1']))
     expect(progress).toEqual({
       adventureId: 'duck',
-      animal: 'pato',
+      // [T21] `undefined`, not `'pato'` — the duck adventure declares a
+      // `deduction` gate (`zoo/adventures.ts`), so `TrailProgressBar` never
+      // gets to name (or draw a silhouette of) the animal it is walking
+      // toward until AFTER the deduction (`docs/19` §2.1's own "no
+      // spoilers" rule).
+      animal: undefined,
       rescued: false,
       slots: [
-        { levelId: 'duck-trail1', clue: 'webfoot', filed: true, current: false },
-        { levelId: 'duck-trail2', clue: 'breadcrumb', filed: false, current: true },
-        { levelId: 'duck-trail3', clue: 'bubble', filed: false, current: false },
-        { levelId: 'duck-trail4', clue: 'feather', filed: false, current: false },
+        // [T21] `duck-trail1`/`duck-trail2` are now the case's own two
+        // RULING clues (`droplet`/`feather`, `detective/cases.ts`);
+        // `duck-trail3`/`duck-trail4` were repurposed to `collect` (the duck
+        // family) and carry no clue any more.
+        { levelId: 'duck-trail1', clue: 'droplet', filed: true, current: false },
+        { levelId: 'duck-trail2', clue: 'feather', filed: false, current: true },
+        { levelId: 'duck-trail3', clue: undefined, filed: false, current: false },
+        { levelId: 'duck-trail4', clue: undefined, filed: false, current: false },
       ],
     })
   })

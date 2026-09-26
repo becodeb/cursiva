@@ -26,6 +26,7 @@ import { describe, it, expect } from 'vitest'
 import {
   ANDEAN_HAT_ART,
   ANIMAL_ART,
+  ANIMAL_SILHOUETTE_ART,
   CARRIER_LENS_ART,
   CART_ART,
   CLUE_ART,
@@ -118,6 +119,9 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
     [`CLUE_ART.${kind}.art.drained`, art.art.drained] as const,
   ]),
   ...Object.entries(ANIMAL_ART).map(([id, a]) => [`ANIMAL_ART.${id}`, a] as const),
+  ...Object.entries(ANIMAL_SILHOUETTE_ART).map(
+    ([id, a]) => [`ANIMAL_SILHOUETTE_ART.${id}`, a] as const,
+  ),
   ...Object.entries(HEDGEHOG_ART).map(([id, art]) => [`HEDGEHOG_ART.${id}`, art] as const),
   ['ANDEAN_HAT_ART', ANDEAN_HAT_ART] as const,
   ['CARRIER_LENS_ART', CARRIER_LENS_ART] as const,
@@ -213,7 +217,10 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // + 3 snake grey siblings (T20, docs/19 §3.1): `snakeSmallGrey`/
     // `snakeMediumGrey`/`snakeLargeGrey`, each a build-time luma-601
     // desaturation of its colour counterpart.
-    expect(REGISTERED.length).toBe(94)
+    // + 4 ANIMAL_SILHOUETTE_ART (T21, prewriting-stage-completion.md): a
+    // solid-fill derived silhouette per deduction animal, shown before the
+    // case is solved.
+    expect(REGISTERED.length).toBe(98)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })

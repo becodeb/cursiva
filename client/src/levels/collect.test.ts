@@ -10,9 +10,10 @@ import {
   emptyCollectState,
   isCollectComplete,
   resolveCollectItems,
+  waveCrestArcs,
   type CollectItem,
 } from './collect'
-import { LEVELS } from './catalog'
+import { LEVELS, getLevel } from './catalog'
 import { buildLevelTarget } from './buildLevel'
 import { routeApexes } from './vertexArt'
 import { trailEndArc } from '../detective/clues'
@@ -311,6 +312,105 @@ describe('invariant: the shipped sheep/llama levels', () => {
         items,
       )
       expect(isCollectComplete(state), id).toBe(true)
+    }
+  })
+})
+
+// waveCrestArcs (T21, `odd/tasks/prewriting-stage-completion.md`, `docs/19`
+// §2.2/§7 slice 3: "los patitos en las ondas"). Found by ACTUALLY BUILDING
+// the shipped duck-trail3/duck-trail4 routes and looking at the result, not
+// guessed: `routeApexes` (the sheep/llama mechanism above) returns an EMPTY
+// array for both — a smooth bezier crest's own derivative vanishes at the
+// extremum, so two adjacent samples straddling it differ by a fraction of a
+// unit, which `routeApexes`'s `minRise` (tuned for a ridge's sharp peaks)
+// throws away regardless of how it is tuned.
+describe('waveCrestArcs (a smooth wave route own crests, where routeApexes finds none)', () => {
+  it('a hand-built symmetric hump: one crest, exactly at its own point (x=50)', () => {
+    // y dips to a single minimum at x=50, with a near-flat stretch on both
+    // sides (48-52) narrower than the default 80-unit window — the exact
+    // shape that defeats an adjacent-sample check. The expected ARC is not
+    // 50: the steep 0->20 and 20->40 diagonal legs make arc length noticeably
+    // exceed x here, so it is computed the same way `waveCrestArcs` itself
+    // does (cumulative Euclidean distance) rather than assumed.
+    const polyline = [
+      { x: 0, y: 100 },
+      { x: 20, y: 60 },
+      { x: 40, y: 50.3 },
+      { x: 48, y: 50.01 },
+      { x: 50, y: 50 },
+      { x: 52, y: 50.01 },
+      { x: 60, y: 50.3 },
+      { x: 80, y: 60 },
+      { x: 100, y: 100 },
+    ]
+    let expectedArc = 0
+    for (let i = 1; i <= 4; i++) {
+      expectedArc += Math.hypot(polyline[i].x - polyline[i - 1].x, polyline[i].y - polyline[i - 1].y)
+    }
+    const crests = waveCrestArcs(polyline)
+    expect(crests).toHaveLength(1)
+    expect(crests[0]).toBeCloseTo(expectedArc, 6)
+  })
+
+  it('two humps far enough apart both register, and nothing else does', () => {
+    const hump = (cx: number): { x: number; y: number }[] => [
+      { x: cx - 10, y: 60 },
+      { x: cx - 2, y: 50.05 },
+      { x: cx, y: 50 },
+      { x: cx + 2, y: 50.05 },
+      { x: cx + 10, y: 60 },
+    ]
+    const polyline = [{ x: 0, y: 100 }, ...hump(50), { x: 130, y: 100 }, ...hump(200), { x: 260, y: 100 }]
+    expect(waveCrestArcs(polyline)).toHaveLength(2)
+  })
+
+  it('a flat straight line (no wave at all) has no crests', () => {
+    expect(waveCrestArcs([{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 100, y: 0 }])).toEqual([])
+  })
+
+  it('too few points to have an interior candidate returns empty, never throws', () => {
+    expect(waveCrestArcs([])).toEqual([])
+    expect(waveCrestArcs([{ x: 0, y: 0 }])).toEqual([])
+    expect(waveCrestArcs([{ x: 0, y: 0 }, { x: 1, y: 1 }])).toEqual([])
+  })
+})
+
+describe('invariant: the shipped duck-trail3/duck-trail4 collect config (crests, not peaks)', () => {
+  const CREST_COUNT: Record<string, number> = { 'duck-trail3': 2, 'duck-trail4': 3 }
+
+  it("authors collect: { items: 'crests' } — routeApexes finds nothing on either shipped route", () => {
+    for (const id of Object.keys(CREST_COUNT)) {
+      const level = getLevel(id)
+      expect(level.collect, id).toBeDefined()
+      expect(level.collect!.items, id).toBe('crests')
+      const target = buildLevelTarget(level)
+      expect(routeApexes(target.polyline), `${id}: routeApexes should find none`).toHaveLength(0)
+    }
+  })
+
+  it('derives exactly one item per wave crest plus one final item at the end', () => {
+    for (const [id, count] of Object.entries(CREST_COUNT)) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const items = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
+      expect(items, id).toHaveLength(count + 1)
+      const last = target.polyline[target.polyline.length - 1]
+      expect(items[items.length - 1].x, id).toBeCloseTo(last.x, 6)
+      expect(items[items.length - 1].y, id).toBeCloseTo(last.y, 6)
+      expect(items[items.length - 1].arc, id).toBeCloseTo(trailEndArc(target.length, level.corridorWidth), 6)
+      // Ascending by construction (collectTick's monotone-order guarantee).
+      for (let i = 1; i < items.length; i++) expect(items[i].arc, id).toBeGreaterThan(items[i - 1].arc)
+    }
+  })
+
+  it('completing the whole route collects every duckling, same invariant the sheep/llama family already proves', () => {
+    for (const id of Object.keys(CREST_COUNT)) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const items = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
+      const state = collectTick(emptyCollectState(items.length), target.length, items)
+      expect(isCollectComplete(state), id).toBe(true)
+      expect(collectedCount(state), id).toBe(items.length)
     }
   })
 })

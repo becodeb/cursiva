@@ -20,7 +20,14 @@
 //                   the sockets (plus the lamp) are the images
 //                   (`PistasRail.tsx:153` — the class is `pistas-bar`, not
 //                   `pistas-rail`).
-export const CAPTION_CONTAINERS = ['cv-captioned', 'pistas-bar'] as const
+// - `cv-deduction-frame` (T21 follow-up, `screen/Deduction.tsx`): Pulpito's
+//                   own corner stage — his spoken line is TEXT ONLY (no
+//                   image of its own, `screen/bubbleFit.ts`'s own header on
+//                   why a picture inside the bubble stopped being safe), but
+//                   his own <img> is a sibling within this SAME frame, and a
+//                   spoken line standing beside the character who says it is
+//                   exactly what this whole invariant exists to require.
+export const CAPTION_CONTAINERS = ['cv-captioned', 'pistas-bar', 'cv-deduction-frame'] as const
 
 export interface CaptionAudit {
   /** Words inside a licensed container that really does carry an image. */
