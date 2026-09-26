@@ -451,33 +451,37 @@ describe('collectItemsFromLoops', () => {
     return length
   }
 
-  it('a single loop reports ONE item — the whole point of "one loop, one turtle" — with no internal closure to find', () => {
-    const loop = squareLoop(0, 0, 30) // perimeter 120
+  it('a single loop reports ONE item at that loop’s own centre — the whole point of "one loop, one turtle" — with no internal closure to find', () => {
+    const loop = squareLoop(0, 0, 30) // perimeter 120, bbox [0,30]x[0,30]
     const length = polylineLength(loop)
     const items = collectItemsFromLoops(loop, length, CORRIDOR)
     expect(items).toHaveLength(1)
-    expect(items[0].x).toBe(0)
-    expect(items[0].y).toBe(0)
+    // The centre of the loop's own bounding box — not the closure point
+    // (0,0) itself: a real browser QA pass (T28) found the closure point
+    // sits right where the octopus stands for a level's first ring, so
+    // finishing that loop never visibly "made a turtle peek out". See this
+    // function's own header.
+    expect(items[0].x).toBe(15)
+    expect(items[0].y).toBe(15)
     expect(items[0].arc).toBe(trailEndArc(length, CORRIDOR))
   })
 
-  it('two loops connected by a straight run report exactly two items: the first loop’s own closure, then the final item', () => {
-    const loop1 = squareLoop(0, 0, 30) // perimeter 120, closes at (0,0)
+  it('two loops connected by a straight run report exactly two items, each at its own loop’s centre', () => {
+    const loop1 = squareLoop(0, 0, 30) // perimeter 120, bbox [0,30]x[0,30]
     const connector = [{ x: 70, y: 0 }] // a straight 40-unit run from (0,0)
-    const loop2 = squareLoop(70, 0, 30) // perimeter 120, closes at (70,0)
+    const loop2 = squareLoop(70, 0, 30) // perimeter 120, bbox [70,100]x[0,30]
     const polyline = [...loop1, ...connector, ...loop2]
     const length = polylineLength(polyline)
     const items = collectItemsFromLoops(polyline, length, CORRIDOR)
     expect(items).toHaveLength(2)
-    // Item 0: loop1's own closure, at (0,0), arc = loop1's own perimeter.
-    expect(items[0].x).toBe(0)
-    expect(items[0].y).toBe(0)
+    // Item 0: loop1's own centre, arc = loop1's own perimeter (its closure).
+    expect(items[0].x).toBe(15)
+    expect(items[0].y).toBe(15)
     expect(items[0].arc).toBeCloseTo(120, 6)
-    // Item 1: the trailing final item, at the route's own last point
-    // (loop2's own closure), with `trailEndArc`'s tolerance, not the literal
-    // length.
-    expect(items[1].x).toBe(70)
-    expect(items[1].y).toBe(0)
+    // Item 1: loop2's own centre, with `trailEndArc`'s tolerance on its arc
+    // (the trailing final item), not the literal length.
+    expect(items[1].x).toBe(85)
+    expect(items[1].y).toBe(15)
     expect(items[1].arc).toBeCloseTo(trailEndArc(length, CORRIDOR), 6)
     expect(items[1].arc).toBeLessThan(length)
   })
@@ -551,7 +555,48 @@ describe('invariant: the shipped turtle1..4 levels (T28, ovals() loops)', () => 
     }
   })
 
-  it('derives exactly one item per authored ring — one turtle per loop', () => {
+  /** Independently finds every ring's own [startIndex, closeIndex] span on a
+   *  REAL built route via the same point-revisit property `collect.ts`'s own
+   *  `loopSpans` relies on — reimplemented here, standalone, rather than
+   *  imported, the same "don't verify the code under test with itself"
+   *  convention T11's own column-scan script follows. */
+  function independentLoopSpans(polyline: readonly { x: number; y: number }[]) {
+    const spans: { startIndex: number; closeIndex: number }[] = []
+    let p = 0
+    while (p < polyline.length - 1) {
+      let found = -1
+      for (let j = p + 5; j < polyline.length; j++) {
+        if (Math.abs(polyline[j].x - polyline[p].x) < 1e-6 && Math.abs(polyline[j].y - polyline[p].y) < 1e-6) {
+          found = j
+          break
+        }
+      }
+      if (found === -1) {
+        p += 1
+        continue
+      }
+      spans.push({ startIndex: p, closeIndex: found })
+      p = found + 1
+    }
+    return spans
+  }
+
+  function bboxCentre(polyline: readonly { x: number; y: number }[], from: number, to: number) {
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+    for (let i = from; i <= to; i++) {
+      const p = polyline[i]
+      minX = Math.min(minX, p.x)
+      maxX = Math.max(maxX, p.x)
+      minY = Math.min(minY, p.y)
+      maxY = Math.max(maxY, p.y)
+    }
+    return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
+  }
+
+  it('derives exactly one item per authored ring, standing at that ring’s own centre — one turtle per loop', () => {
     for (const [id, count] of Object.entries(RING_COUNT)) {
       const level = getLevel(id)
       const target = buildLevelTarget(level)
@@ -559,11 +604,24 @@ describe('invariant: the shipped turtle1..4 levels (T28, ovals() loops)', () => 
       expect(items, id).toHaveLength(count)
       // Ascending by construction (collectTick's monotone-order guarantee).
       for (let i = 1; i < items.length; i++) expect(items[i].arc, id).toBeGreaterThan(items[i - 1].arc)
-      // The last item stands at the route's own final point, `trailEndArc`
-      // tolerance and all — the same convention every other derivation uses.
-      const last = target.polyline[target.polyline.length - 1]
-      expect(items[items.length - 1].x, id).toBeCloseTo(last.x, 6)
-      expect(items[items.length - 1].y, id).toBeCloseTo(last.y, 6)
+
+      const spans = independentLoopSpans(target.polyline)
+      expect(spans, id).toHaveLength(count)
+      for (let i = 0; i < items.length; i++) {
+        const centre = bboxCentre(target.polyline, spans[i].startIndex, spans[i].closeIndex)
+        expect(items[i].x, `${id} item ${i} x`).toBeCloseTo(centre.x, 3)
+        expect(items[i].y, `${id} item ${i} y`).toBeCloseTo(centre.y, 3)
+        // Regression guard (T28, found in live browser QA): a ring's own
+        // centre is never the same point as the route's own start, where
+        // the octopus stands — the exact overlap this derivation moved away
+        // from (see `collectItemsFromLoops`'s own header).
+        expect(
+          Math.hypot(items[i].x - target.polyline[0].x, items[i].y - target.polyline[0].y),
+          `${id} item ${i} vs start`,
+        ).toBeGreaterThan(10)
+      }
+      // The last item's own arc carries `trailEndArc`'s tolerance, the same
+      // convention every other derivation uses for its trailing item.
       expect(items[items.length - 1].arc, id).toBeCloseTo(trailEndArc(target.length, level.corridorWidth), 6)
     }
   })
