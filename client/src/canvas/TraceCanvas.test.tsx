@@ -5,7 +5,16 @@
 // mode-side (readyMs in guidedTrace), not asserted here.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import TraceCanvas, { DEMO_STROKE, fitCameraContentWithInsets, fitContentWithInsets, type DrawDemo } from './TraceCanvas'
+import TraceCanvas, {
+  BACKDROP_IMAGE_ASPECT,
+  coverAspectRatio,
+  coverVisibleFraction,
+  DEMO_STROKE,
+  fitCameraContentWithInsets,
+  fitContentWithInsets,
+  type DrawDemo,
+  type SafeInsets,
+} from './TraceCanvas'
 import { placeArt } from './placeArt'
 import { getLevel } from '../levels/catalog'
 import { buildLevelTarget } from '../levels/buildLevel'
@@ -14,6 +23,7 @@ import { luma } from '../detective/palette'
 import { backdropFor, CHANNEL_STONE } from '../zoo/backdrops'
 import { seedCameraOrigin } from './camera'
 import { routeExtrema, vertexArtPoints } from '../levels/dolphinExtrema'
+import { drawingBand } from '../screen/LevelPlay'
 
 function demo(over: Partial<DrawDemo> = {}): DrawDemo {
   return { d: 'M 1 2 L 3 4 L 5 4', delay: 1, duration: 1, strokeWidth: 14, ...over }
@@ -1882,5 +1892,104 @@ describe('TraceCanvas fitContentWithInsets / fitCameraContentWithInsets (T7 rewo
     )
     expect(html).toContain('viewBox="0 100 1000 300"')
     expect(html).toContain(`x="0" y="100" width="1000" height="300" fill="${lagoon.quiet}"`)
+  })
+})
+
+describe('T14 (prewriting-stage-completion, Batch 2.6): backdrop framing is a minimum-zoom cover, independent of content', () => {
+  // The user's own report, on a tablet: "the image fills the screen now, but
+  // it's VERY cropped: I only see the centre... and not the details around
+  // it." The backdrop sector art is authored full-bleed landscape 3:2
+  // (1536x1024, `BACKDROP_IMAGE_ASPECT`) with its interesting detail along
+  // the top/bottom edges (`docs/09_GUIA_DE_ESTILO_VISUAL.md` §9's background
+  // variant). The suspected cause was that the backdrop's own box was tied
+  // to the level's CONTENT box (small relative to the art), so the art got
+  // enlarged and its outer parts fell off-screen.
+
+  it('coverAspectRatio: the box fitContentWithInsets returns ALWAYS has exactly the container aspect ratio, for many box/inset combinations — the algebraic proof that the backdrop box does not depend on content size', () => {
+    const containers: Array<[number, number]> = [
+      [1024, 768],
+      [1180, 820],
+      [768, 1024],
+      [844, 390],
+      [500, 500],
+    ]
+    const boxes = [
+      { x: 0, y: 0, width: 1000, height: 600 }, // the shipped default sheet
+      { x: 0, y: 0, width: 100, height: 60 }, // a MUCH smaller content box
+      { x: 0, y: 0, width: 3000, height: 600 }, // a much WIDER one (long corridor)
+      { x: 0, y: 0, width: 1000, height: 40 }, // a very short one
+    ]
+    const insetSets: SafeInsets[] = [
+      { top: 0, bottom: 0, left: 0, right: 0 },
+      { top: 64, bottom: 64, left: 16, right: 16 },
+      { top: 120, bottom: 20, left: 16, right: 16 }, // asymmetric chrome
+    ]
+    for (const [cw, ch] of containers) {
+      const expected = coverAspectRatio(cw, ch)
+      for (const box of boxes) {
+        for (const insets of insetSets) {
+          const db = fitContentWithInsets(box, cw, ch, insets)
+          expect(db.width / db.height).toBeCloseTo(expected, 9)
+        }
+      }
+    }
+  })
+
+  it('coverVisibleFraction: symmetric, 1 at matching aspect, and matches the hand-worked 4:3 example from the task (~11% of the width cropped in total)', () => {
+    expect(coverVisibleFraction(1.5, 1.5)).toBe(1)
+    expect(coverVisibleFraction(4 / 3, 1.5)).toBeCloseTo(coverVisibleFraction(1.5, 4 / 3), 12)
+    // 4:3 landscape against 3:2 art: (4/3) / (3/2) = 8/9 ≈ 0.889 visible,
+    // i.e. ~11.1% cropped — the exact number the task's own diagnosis names.
+    expect(coverVisibleFraction(4 / 3, BACKDROP_IMAGE_ASPECT)).toBeCloseTo(8 / 9, 9)
+  })
+
+  it('coverVisibleFraction: degenerate input never returns NaN/negative', () => {
+    expect(coverVisibleFraction(0, 1.5)).toBe(0)
+    expect(coverVisibleFraction(1.5, 0)).toBe(0)
+    expect(coverVisibleFraction(-1, 1.5)).toBe(0)
+  })
+
+  it('the required viewports clear the acceptance floor: >= 85% visible at 4:3-ish landscape, and exactly the geometric maximum at portrait — same fraction for EVERY level, because it never depends on content', () => {
+    // Portrait's own geometric maximum: a 768x1024 box (aspect 0.75) is
+    // narrower than the 1.5-aspect art, so no cover fit — whatever the
+    // content — can show more than boxAspect/imageAspect of it. That IS
+    // `coverVisibleFraction`'s own answer, so this asserts the required
+    // viewport reaches it exactly, not merely "close".
+    const cases: Array<{ w: number; h: number; floor: number; exact?: boolean }> = [
+      { w: 1024, h: 768, floor: 0.85 },
+      { w: 1180, h: 820, floor: 0.85 },
+      { w: 768, h: 1024, floor: 0, exact: true },
+    ]
+    for (const { w, h, floor, exact } of cases) {
+      const boxAr = coverAspectRatio(w, h)
+      const frac = coverVisibleFraction(boxAr, BACKDROP_IMAGE_ASPECT)
+      expect(frac).toBeGreaterThanOrEqual(floor)
+      if (exact) {
+        expect(frac).toBeCloseTo(coverVisibleFraction(w / h, BACKDROP_IMAGE_ASPECT), 12)
+      }
+    }
+  })
+
+  it('regression: buildLevelTarget + drawingBand for every T14-named level agree with coverVisibleFraction at all three required viewports (the diagnostic this task asked for, pinned)', () => {
+    const ids = ['glass1', 'sand1', 'duck-trail1', 'sheep-hill1', 'night2', 'snake1', 'bee1', 'turtle1', 'monkey1']
+    const viewports: Array<[number, number]> = [
+      [1024, 768],
+      [1180, 820],
+      [768, 1024],
+    ]
+    const insets: SafeInsets = { top: 64, bottom: 64, left: 16, right: 16 }
+    for (const id of ids) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const band = drawingBand(target.ideal, target.corridorWidth, level.surface)
+      const windowBounds = { x: 0, y: band.y, width: target.viewBoxWidth, height: band.height }
+      for (const [w, h] of viewports) {
+        const db = fitContentWithInsets(windowBounds, w, h, insets)
+        const frac = coverVisibleFraction(db.width / db.height, BACKDROP_IMAGE_ASPECT)
+        const expectedFrac = coverVisibleFraction(coverAspectRatio(w, h), BACKDROP_IMAGE_ASPECT)
+        expect(frac, `${id} @ ${w}x${h}`).toBeCloseTo(expectedFrac, 9)
+        expect(frac, `${id} @ ${w}x${h}`).toBeGreaterThanOrEqual(w === 768 ? 0.5 : 0.85)
+      }
+    }
   })
 })
