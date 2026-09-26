@@ -273,15 +273,17 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
       'trail2',
       'trail3',
       'trail4',
-      // The fish's own four garland levels (`promised-animals` P2): they
-      // carry a real `clue` now (bubble), so this catalog-wide filter picks
-      // them up automatically, same as every trail above — the per-level
-      // loop right below already proves the actual invariant on their real
-      // geometry, not just this membership list.
+      // [T26] `f2-agua3`/`f2-agua4` no longer carry a `clue` either — past
+      // the fish case's own deduction (`f2-agua2`), they were repurposed to
+      // `LevelConfig.collect` (the fish family, `docs/19` §3), the SAME move
+      // T21 made for `duck-trail3`/`duck-trail4` above. Only the case's own
+      // two pistas levels (`f2-guirnalda`/`f2-agua2`, still bubble) remain
+      // here; this catalog-wide filter picks them up automatically, same as
+      // every trail above — the per-level loop right below already proves
+      // the actual invariant on their real geometry, not just this
+      // membership list.
       'f2-guirnalda',
       'f2-agua2',
-      'f2-agua3',
-      'f2-agua4',
     ])
   })
 

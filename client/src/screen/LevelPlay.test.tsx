@@ -1568,22 +1568,27 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
   // The other two T6 endArt branches — both keyed off a REAL ADVENTURES row,
   // never off the synthetic `makeDetectiveLevel` fixture (which belongs to
   // none): the last level of an animal-recovering adventure shows the
-  // encounter itself, even though `f2-agua4` ALSO carries its own clue
-  // (bubble) — the encounter wins. Every other routed level of a
-  // multi-level adventure with no clue of its own (sheep has none yet, per
-  // docs/18 §4.4) shows the star instead.
+  // encounter itself, even when it ALSO carries its own clue — the
+  // encounter wins. Every other routed level of a multi-level adventure with
+  // no clue of its own (sheep has none yet, per docs/18 §4.4) shows the star
+  // instead.
   //
-  // [T21] This used to be `duck-trail4`/`pato` — it no longer fits the case
-  // this test is FOR: `duck-trail4` was repurposed to `LevelConfig.collect`
-  // (the duck family, `docs/19` §2.3) and carries no `clue` any more, so its
-  // own `endArt` is now `undefined` by the T17 follow-up's own priority list
-  // (`collectDef ? undefined : …`, above) — see the dedicated duck-trail4
-  // test right below this one for THAT contract. `f2-agua4` (the fish row's
-  // own last level) still combines "last level of an animal adventure" with
-  // "carries its own clue and no collect", which is the exact combination
-  // this test exists to prove wins in favour of the encounter.
-  it('shows the animal (the encounter) on the LAST level of an animal-recovering adventure, even though it also has a clue', () => {
-    render(getLevel('f2-agua4'))
+  // [T21] This used to be `duck-trail4`/`pato` — repurposed to
+  // `LevelConfig.collect` (the duck family, `docs/19` §2.3), no `clue` any
+  // more. [T26] `f2-agua4` inherited the fixture next — now IT is repurposed
+  // to `collect` too (the fish family, `docs/19` §3), for the identical
+  // reason. No shipped level combines "last level of an animal adventure"
+  // with "carries its own clue and no collect" any more (every family that
+  // reaches its own last level via a routed trail has since moved to
+  // `collect` there) — this test proves the PRIORITY ORDER itself with a
+  // synthetic override instead: `id` stays `'f2-agua4'` so `adventureFor`
+  // still resolves the real fish row (`LevelPlay`'s `isLastOfAnimalAdventure`
+  // matches by level id, not by object identity), but `collect` is stripped
+  // and a `clue` reinstated on the object actually passed to `render` — the
+  // exact combination the real catalog no longer authors.
+  it('shows the animal (the encounter) on the LAST level of an animal-recovering adventure, even when it also has a clue', () => {
+    const level = { ...getLevel('f2-agua4'), collect: undefined, clue: { kind: 'bubble', spacing: 60 } } as const
+    render(level)
     const art = traceCanvasProbe.current?.endArt as Art
     expect(art?.href).toBe(ZOO_ANIMAL_ART.pez.href)
     expect(art?.href).not.toBe(CLUE_ART.bubble.art.drained.href)
@@ -1636,23 +1641,31 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     }
   })
 
-  // The fish adventure (`promised-animals` P2): all four garland levels now
-  // carry `clue: { kind: 'bubble' }` and no `goalArt` (the removed medusa
-  // goal — see `levels/catalog.ts`'s own comment on `f2-guirnalda`), so
-  // `endArt`'s clue branch wins on the first three (drained, since a fresh
-  // render never reaches the trail's end) and the encounter branch wins on
-  // the fourth, the same duck/sheep pattern above.
-  it('shows the drained bubble on f2-guirnalda/f2-agua2/f2-agua3, and the fish on f2-agua4 (its own last level)', () => {
-    for (const id of ['f2-guirnalda', 'f2-agua2', 'f2-agua3'] as const) {
+  // The fish adventure (`promised-animals` P2; [T26] `docs/19` §2.3/§3): the
+  // case's own two pistas levels (`f2-guirnalda`/`f2-agua2`) still carry
+  // `clue: { kind: 'bubble' }` and no `goalArt`, so `endArt`'s clue branch
+  // wins there (drained, since a fresh render never reaches the trail's
+  // end). Past the deduction, `f2-agua3`/`f2-agua4` are now `collect` levels
+  // (the fish family gathered along the garland's own U's) — their own
+  // `endArt` is `undefined` by design, the SAME contract `duck-trail3`/
+  // `duck-trail4`/`sheep-hill`/`llama-peak` already prove elsewhere (the last
+  // collect item, not a second static picture, stands at the route's end).
+  it('shows the drained clue (bubble, then droplet) on f2-guirnalda/f2-agua2, and no endArt at all on f2-agua3/f2-agua4 (collect levels)', () => {
+    render(getLevel('f2-guirnalda'))
+    let art = traceCanvasProbe.current?.endArt as Art
+    expect(art?.href).toBe(CLUE_ART.bubble.art.drained.href)
+    expect(art?.href).not.toBe(ZOO_ANIMAL_ART.pez.href)
+    // [T26] f2-agua2 is `droplet` (gota), not `bubble` — see that level's
+    // own comment in `levels/catalog.ts` for why (the case-wide "pairwise
+    // distinct earned colours" invariant, `detective/palette.test.ts`).
+    render(getLevel('f2-agua2'))
+    art = traceCanvasProbe.current?.endArt as Art
+    expect(art?.href).toBe(CLUE_ART.droplet.art.drained.href)
+    expect(art?.href).not.toBe(ZOO_ANIMAL_ART.pez.href)
+    for (const id of ['f2-agua3', 'f2-agua4'] as const) {
       render(getLevel(id))
-      const art = traceCanvasProbe.current?.endArt as Art
-      expect(art?.href, id).toBe(CLUE_ART.bubble.art.drained.href)
-      expect(art?.href, id).not.toBe(ZOO_ANIMAL_ART.pez.href)
+      expect(traceCanvasProbe.current?.endArt, id).toBeUndefined()
     }
-    render(getLevel('f2-agua4'))
-    const art = traceCanvasProbe.current?.endArt as Art
-    expect(art?.href).toBe(ZOO_ANIMAL_ART.pez.href)
-    expect(art?.href).not.toBe(CLUE_ART.bubble.art.drained.href)
   })
 
   // T20 (`odd/tasks/prewriting-stage-completion.md` §3.1): `snake4` is the

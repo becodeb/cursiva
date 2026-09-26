@@ -26,6 +26,7 @@ import { luma } from '../detective/palette'
 import { backdropFor, CHANNEL_STONE } from '../zoo/backdrops'
 import { seedCameraOrigin } from './camera'
 import { routeExtrema, vertexArtPoints } from '../levels/dolphinExtrema'
+import { SECTOR_ADVENTURE_ART } from '../detective/assets'
 import { drawingBand } from '../screen/LevelPlay'
 
 function demo(over: Partial<DrawDemo> = {}): DrawDemo {
@@ -260,23 +261,34 @@ function parseImages(html: string): Array<{ x: number; y: number; width: number;
   })
 }
 
+// [T26, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §3: "cada
+// delfín que pasás se suma"] The dolphin family authors `collect: { items:
+// 'extrema' }` now, not a standing `vertexArt` (`levels/catalog.ts`'s own
+// comment on `dolphin1`) — a collect item is drawn ON the route, never
+// pushed clear of it. This describe block's real SUBJECT is unchanged by
+// that: `TraceCanvas`'s own `vertexArt` prop and `vertexArtPoints`'s
+// push-out placement contract (`levels/dolphinExtrema.ts`), a general
+// rendering primitive no future level is barred from using — so `SIZE`/
+// `CLEAR` below are the exact literals the dolphin catalog rows authored
+// before this task (`DOLPHIN_SIZE`/`DOLPHIN_CLEAR`, `levels/catalog.ts`,
+// the second now retired since no shipped level reads it), kept here so
+// this proof still runs against dolphin's own real corridor widths and
+// routes without depending on the catalog to keep authoring `vertexArt`.
 describe('TraceCanvas — the dolphin coincidence test, markup → geometry (design.md §5.1/§6.3, real catalog)', () => {
   const DOLPHIN_IDS = ['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4'] as const
   const EXPECTED_COUNT: Record<string, number> = { dolphin1: 4, dolphin2: 6, dolphin3: 10, dolphin4: 14 }
+  const SIZE = 64
+  const CLEAR = 8
 
   function dolphinImages(id: string) {
     const level = getLevel(id)
     const target = buildLevelTarget(level)
     const extrema = routeExtrema(target.polyline)
-    const at = vertexArtPoints(extrema, {
-      corridorWidth: level.corridorWidth,
-      size: level.vertexArt!.size,
-      clear: level.vertexArt!.clear ?? 8,
-    })
+    const at = vertexArtPoints(extrema, { corridorWidth: level.corridorWidth, size: SIZE, clear: CLEAR })
     const html = renderToString(
       <TraceCanvas
         viewBoxWidth={target.viewBoxWidth}
-        vertexArt={{ ...level.vertexArt!.art, size: level.vertexArt!.size, at }}
+        vertexArt={{ ...SECTOR_ADVENTURE_ART.dolphin, size: SIZE, at }}
       />,
     )
     const images = parseImages(html).filter((img) => img.href === '/art/sector-dolphin.png')
@@ -332,7 +344,7 @@ describe('TraceCanvas — the dolphin coincidence test, markup → geometry (des
     const html = renderToString(
       <TraceCanvas
         viewBoxWidth={target.viewBoxWidth}
-        vertexArt={{ ...level.vertexArt!.art, size: 140, at }}
+        vertexArt={{ ...SECTOR_ADVENTURE_ART.dolphin, size: 140, at }}
       />,
     )
     const images = parseImages(html).filter((img) => img.href === '/art/sector-dolphin.png')
@@ -351,11 +363,11 @@ describe('TraceCanvas — insurance: sheetBounds anchored to the WINDOW is asser
     const level = getLevel('dolphin3')
     const target = buildLevelTarget(level)
     const extrema = routeExtrema(target.polyline)
-    const at = vertexArtPoints(extrema, {
-      corridorWidth: level.corridorWidth,
-      size: level.vertexArt!.size,
-      clear: level.vertexArt!.clear ?? 8,
-    })
+    // The exact literals dolphin's own catalog rows authored before T26
+    // (`DOLPHIN_SIZE`/the retired `DOLPHIN_CLEAR`, `levels/catalog.ts`) — see
+    // the dolphin-coincidence describe block above for why this proof no
+    // longer reads them off `level.vertexArt`.
+    const at = vertexArtPoints(extrema, { corridorWidth: level.corridorWidth, size: 64, clear: 8 })
     // Forcing the WINDOW width (1000) as `viewBoxWidth` — the broken version
     // §1.3 row 1 warns against — clamps every box past x=931.4 back to the
     // window's right edge via `clampArtBox`, instead of the correct world
@@ -363,7 +375,7 @@ describe('TraceCanvas — insurance: sheetBounds anchored to the WINDOW is asser
     const html = renderToString(
       <TraceCanvas
         viewBoxWidth={target.viewWidth}
-        vertexArt={{ ...level.vertexArt!.art, size: level.vertexArt!.size, at }}
+        vertexArt={{ ...SECTOR_ADVENTURE_ART.dolphin, size: 64, at }}
       />,
     )
     const images = parseImages(html).filter((img) => img.href === '/art/sector-dolphin.png')
