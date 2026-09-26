@@ -152,4 +152,4 @@ new backgrounds in the "renovated" depth style. The author can revisit any of th
 
 ## Next step
 
-Batch 3 wave 4: T28 done, not yet merged; T26/T27 still running in their own parallel worktrees. The author chose to continue before testing waves 1-3.
+Batch 3 is complete (T17–T28) and pushed. The author tests it with the checklist artifact. Pending art: B10 monkey, B12 apple/mushroom, B13 banana clues, B16 ducklings, and the 2:1 backgrounds (B1–B7).
