@@ -103,8 +103,23 @@ html, body, #root { margin: 0; height: 100%; }
    and flown to the map on tap -- zoo/rescueFlight.ts's own header on why
    that measurement happens here, in the screen that is about to unmount,
    and not in ZooMap. 40vh sits in the middle of the task's own 35-45%
-   band. NO BACKTICKS in this block -- this file's own top note. */
-.cv-closing-rescue-animal { position: absolute; top: 3%; left: 50%; transform: translateX(-50%); height: 40vh; max-width: 70%; z-index: 1; }
+   band.
+
+   position: FIXED, not absolute -- found by measuring, not guessing: this
+   span is a DOM descendant of .cv-closing-stage, and that button is inset:
+   0 against .cv-closing-frame, the bottom-anchored square stage (min(100%,
+   620px, 84dvh)) the octopus and bubble live in -- an absolute top/left
+   here would resolve against THAT square, not the viewport, landing
+   squarely on top of the bubble instead of high over the scene (measured:
+   at 1024x768 that put the duck's own box at y 136-443px, exactly where the
+   bubble already draws). None of .cv-closing/.cv-closing-frame/
+   .cv-closing-stage sets transform/filter/perspective/contain (the only
+   things that would hijack a fixed descendant's containing block), so
+   fixed here resolves against the true viewport instead -- exactly the
+   "over the whole scene" placement this task asks for, while staying a DOM
+   child of the tappable button so tapping the animal itself still
+   continues. NO BACKTICKS in this block -- this file's own top note. */
+.cv-closing-rescue-animal { position: fixed; top: 3%; left: 50%; transform: translateX(-50%); height: 40vh; max-width: 70%; z-index: 1; }
 .cv-closing-rescue-animal img { display: block; height: 100%; width: auto; animation: cv-rescue-jump 1.1s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes cv-rescue-jump {
   0%, 100% { transform: translateY(0) scale(1); }
