@@ -48,6 +48,7 @@ import {
   OCTOPUS_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
+  ZOO_ANIMAL_SILHOUETTE_ART,
   ZOO_BACKPACK_ART,
   ZOO_CARETAKER_ART,
   ZOO_FOG_ART,
@@ -315,6 +316,18 @@ const WORLD_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
       art,
     ]),
   ),
+  // T23 (`odd/tasks/prewriting-stage-completion.md`, `docs/19` §5.1): the
+  // detective's notebook's own silhouettes. Only the six whose SOURCE file
+  // is `sector-*`/`hedgehog-*` prefixed fall inside `WORLD_GUARD_FILES`'s
+  // own glob (the three `animal-*`-prefixed ones — pez, tortuga, mono — do
+  // not, the same reason T21's four `animal-*-silhouette.png` deduction
+  // entries never needed a row here either).
+  'sector-sheep-silhouette.png': ZOO_ANIMAL_SILHOUETTE_ART.oveja!,
+  'sector-llama-silhouette.png': ZOO_ANIMAL_SILHOUETTE_ART.llama!,
+  'sector-snake-medium-silhouette.png': ZOO_ANIMAL_SILHOUETTE_ART.vibora!,
+  'sector-bee-silhouette.png': ZOO_ANIMAL_SILHOUETTE_ART.abeja!,
+  'sector-dolphin-silhouette.png': ZOO_ANIMAL_SILHOUETTE_ART.delfin!,
+  'hedgehog-profile-silhouette.png': ZOO_ANIMAL_SILHOUETTE_ART.erizo!,
 }
 
 const FULL_CANVAS_ART = new Set([
