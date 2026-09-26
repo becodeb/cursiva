@@ -1478,10 +1478,17 @@ const PHASE_1: LevelConfig[] = [
   //    the nearest two anchors' own chord — under `TolTouch` (26) at any
   //    body size that still fits the 600-tall sheet; 11 is the most this
   //    body can carry without either violating that floor or growing the
-  //    silhouette off the paper), length bands compressed into 60-130
-  //    (docs/19's own "60 a 130", down from hedgehog1's old 220-290 — a
-  //    spine used to be nearly as long as the whole hedgehog). Shorter
-  //    spines read as spines, not as a stray line across the animal; more
+  //    silhouette off the paper), length bands compressed down from
+  //    hedgehog1's old 220-290 — a spine used to be nearly as long as the
+  //    whole hedgehog. Each band is sized RELATIVE TO ITS OWN POSE'S body
+  //    radius rather than to one shared absolute number (docs/19's own
+  //    "60 a 130" bounds the family, but a curled ball's ~150-unit anchor
+  //    radius and a profile back's ~220-unit one cannot share one band and
+  //    both read as "short" — a T19 follow-up caught `hedgehog1`'s original
+  //    100-130 reaching 86% of its own ball's radius on a real screenshot):
+  //    44-68 on the two curled levels (~45-48% of their own radius), 62-98
+  //    on the two profile ones (~35-46%). Shorter spines read as spines,
+  //    not as a stray line across the animal; more
   //    of them makes a recognisable silhouette once several are up.
   // 2. ENROSCADO → PERFIL, not the other way around (docs/19 §3.3: "on a
   //    ball every direction is the same — the easiest radial task; on the
@@ -1544,7 +1551,16 @@ const PHASE_1: LevelConfig[] = [
       body: { centre: { x: 500, y: 300 }, height: 300 },
       arc: { from: 65, to: 365 },
       count: 8,
-      rules: { baseRadius: 34, tolDeg: 46, straightness: 0.78, lenMin: 100, lenMax: 130 },
+      // T19 follow-up (orchestrator screenshot review, `hedgehog1-04-all-
+      // but-last.png`): 100-130 read as LONG on this pose — the curled
+      // body's own anchor radius is ~150 units, so a lenMax of 130 is 86%
+      // of it, reaching almost to the far side of the ball. "Short hedgehog
+      // spines" (docs/19 §3.3) means short RELATIVE TO THE BODY, not a
+      // fixed absolute number the doc's own "60 a 130" merely bounds —
+      // 50-68 keeps the spike under half the ball's own radius (48% at
+      // lenMax), matching the visual proportion `hedgehog3`/`hedgehog4`'s
+      // profile bodies already had at their own (much larger) radius.
+      rules: { baseRadius: 34, tolDeg: 46, straightness: 0.78, lenMin: 50, lenMax: 68 },
     },
   },
   {
@@ -1568,7 +1584,11 @@ const PHASE_1: LevelConfig[] = [
       body: { centre: { x: 500, y: 300 }, height: 280 },
       arc: { from: 65, to: 365 },
       count: 9,
-      rules: { baseRadius: 30, tolDeg: 40, straightness: 0.82, lenMin: 88, lenMax: 116 },
+      // T19 follow-up: same over-length correction as hedgehog1 (see its
+      // own comment) — 44-56 keeps lenMax at 44% of this ball's ~140-unit
+      // anchor radius, shorter than hedgehog1's own band (decreasing within
+      // the curled pair, matching the ladder hedgehog3/hedgehog4 keep).
+      rules: { baseRadius: 30, tolDeg: 40, straightness: 0.82, lenMin: 44, lenMax: 56 },
     },
   },
   {

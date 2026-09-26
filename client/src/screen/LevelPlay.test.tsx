@@ -90,9 +90,9 @@ import {
 import { auditCaptions } from '../detective/captionAudit'
 import { INK_COLOR, SHEET_PAPER } from '../canvas/TraceCanvas'
 import type { InkRenderPolicy } from '../canvas/ink'
-import { TORCH_CHALK } from '../zoo/backdrops'
+import { SPINE_BACKDROPS, TORCH_CHALK } from '../zoo/backdrops'
 import { adventureProgress } from '../zoo/progress'
-import { PRINT } from '../detective/palette'
+import { PRINT, luma } from '../detective/palette'
 import { getLevel } from '../levels/catalog'
 import { buildLevelTarget } from '../levels/buildLevel'
 import { spineAnchors } from '../levels/spines'
@@ -2346,6 +2346,59 @@ describe('LevelPlay spine reseed call-site guard (radial-spines capability, desi
 // reach `TraceCanvas`'s `spines` prop, not only `debugSpines`'s own return
 // value — `debugCarrier`'s own lesson above (A4), restated for this family.
 // ─────────────────────────────────────────────────────────────────────────────
+// T19 follow-up (orchestrator screenshot review, `hedgehog1-04-all-but-
+// last.png`/`hedgehog4-04-all-but-last.png`): the accepted spike's fill used
+// to be `INK_COLOR` (near-black), indistinguishable from the hedgehog
+// family's own night backdrop (also dark navy) — "the spines are nearly
+// invisible". This holds the replacement fill/outline to the repo's own
+// 55-luma law (`docs/09`, `MIN_BACKDROP_CONTRAST` in `zoo/backdrops.test.ts`)
+// against every surface a spike can sit in front of, the same convention
+// `backdrops.test.ts`'s own "SPINE_BACKDROPS ink law" suite already holds
+// `TORCH_CHALK` to.
+describe('LevelPlay — accepted spike fill/outline clears the 55-luma law (T19 follow-up)', () => {
+  const MIN_BACKDROP_CONTRAST = 55 // docs/09:158, restated (zoo/backdrops.test.ts's own constant)
+  // Both hedgehog PNGs' measured brightest opaque pixel (design.md §2
+  // D1(b)/§10, restated from `zoo/backdrops.test.ts`'s own `BODY_BRIGHTEST`)
+  // — the pale belly/snout a spike can sit in front of near the body edge.
+  const BODY_BRIGHTEST = '#d5d5d5'
+
+  function spikeColoursOf(): { fill: string; stroke: string } {
+    const level = getLevel('hedgehog1')
+    vi.stubGlobal('window', { location: { search: '?debug=espinas:1' } })
+    try {
+      renderToString(
+        <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      const spines = traceCanvasProbe.current?.spines as { spikeFill: string; spikeStroke: string }
+      return { fill: spines.spikeFill, stroke: spines.spikeStroke }
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  }
+
+  it('the spike fill clears the night backdrop (quiet and brightest) and the body brightest, each by at least 55 luma', () => {
+    const { fill } = spikeColoursOf()
+    const { quiet, brightest } = SPINE_BACKDROPS.hedgehog
+    expect(Math.abs(luma(fill) - luma(quiet)), 'vs quiet').toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
+    expect(Math.abs(luma(fill) - luma(brightest)), 'vs brightest').toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
+    expect(Math.abs(luma(fill) - luma(BODY_BRIGHTEST)), 'vs body').toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
+    // Darker than the body's own belly, not a hole punched in it (a warm
+    // brown spine reads as fur, a LIGHTER shape would read as damage).
+    expect(luma(fill)).toBeLessThan(luma(BODY_BRIGHTEST))
+  })
+
+  it('the spike outline is the existing earned chalk tone, already proven to clear every backdrop surface', () => {
+    const { stroke } = spikeColoursOf()
+    expect(stroke).toBe(TORCH_CHALK)
+  })
+
+  it('is never INK_COLOR again — the exact regression this follow-up fixes', () => {
+    const { fill, stroke } = spikeColoursOf()
+    expect(fill).not.toBe(INK_COLOR)
+    expect(stroke).not.toBe(INK_COLOR)
+  })
+})
+
 describe('LevelPlay ?debug=espinas:<k> reaches the SCREEN\'s spines prop (radial-spines capability)', () => {
   const spinesFixture = {
     pose: 'curled' as const,

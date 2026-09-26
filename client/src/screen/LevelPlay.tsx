@@ -159,6 +159,24 @@ const SPINE_DEMO_STEP_S = 0.55
  *  being asked to render it at all. */
 const SPINE_REJECT_FADE_MS = 300
 /**
+ * T19 follow-up (orchestrator screenshot review of `hedgehog1-04-all-but-
+ * last.png`/`hedgehog4-04-all-but-last.png`): the accepted spike's own fill
+ * used to be `INK_COLOR` (`#1e293b`, near-black slate) — indistinguishable
+ * from `SPINE_BACKDROPS.hedgehog`'s own night band (`quiet` `#2a3346`/
+ * `brightest` `#526083`, both dark navy too). A warm brown reads as
+ * "hedgehog spine", not generic ink, and this exact value clears the
+ * repo's own 55-luma law (`docs/09`, `MIN_BACKDROP_CONTRAST` in
+ * `zoo/backdrops.test.ts`) against ALL THREE surfaces a spike can sit in
+ * front of — measured, not eyeballed (`LevelPlay.test.tsx`'s own contrast
+ * test holds this): `quiet` (luma 50, gap 106), `brightest` (luma 96, gap
+ * 60), and the body's own measured brightest pixel (luma 213, gap 57 — the
+ * spike reads as darker fur, not a hole in it). The outline stays
+ * `TORCH_CHALK` (design.md's existing "earned" chalk), which already clears
+ * every backdrop surface by over 140 luma — together, a spike reads at a
+ * glance against sky, band, and body alike.
+ */
+const SPINE_SPIKE_FILL = '#c79165'
+/**
  * Live off-path sampling period (~30 Hz): the 60fps ink loop owns the frame.
  *
  * Was 100ms (~10 Hz). Combined with `RESET_CONTACT_TICKS = 2` that gave up
@@ -2904,8 +2922,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // raw ink any more, so this is the ONLY thing that paints a settled
       // spine.
       spikes: spineSpikePaths(level.spines, spineState),
-      spikeFill: INK_COLOR,
-      spikeStroke: INK_COLOR,
+      // T19 follow-up: a warm brown fill (not `INK_COLOR`'s near-black,
+      // which blended into the night backdrop) with the earned chalk tone
+      // as its outline — see `SPINE_SPIKE_FILL`'s own header for the
+      // measured contrast against every surface a spike sits in front of.
+      spikeFill: SPINE_SPIKE_FILL,
+      spikeStroke: TORCH_CHALK,
     }
   }, [level.spines, spineState, spineDebugK, fadingSpineStrokes])
 

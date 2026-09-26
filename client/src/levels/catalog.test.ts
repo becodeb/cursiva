@@ -961,11 +961,33 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
       expect(cfgs[i].count, HEDGEHOG_IDS[i]).toBeGreaterThan(cfgs[i - 1].count)
       expect(cfgs[i].rules.baseRadius, HEDGEHOG_IDS[i]).toBeGreaterThanOrEqual(TOL_TOUCH)
     }
-    // Length bands strictly decrease from hedgehog2 to hedgehog4 (level-engine
-    // spec, "Length bands strictly decrease from hedgehog2 to hedgehog4").
-    for (let i = 2; i < cfgs.length; i++) {
-      expect(cfgs[i].rules.lenMin, HEDGEHOG_IDS[i]).toBeLessThan(cfgs[i - 1].rules.lenMin)
-      expect(cfgs[i].rules.lenMax, HEDGEHOG_IDS[i]).toBeLessThan(cfgs[i - 1].rules.lenMax)
+    // T19 follow-up (orchestrator screenshot review: hedgehog1's original
+    // 100-130 band reached 86% of its own curled body's anchor radius —
+    // visually LONG, not short). Length is now sized relative to each
+    // POSE's own body radius rather than one shared absolute band across
+    // all four levels: a curled ball (~140-150 units) and a profile back
+    // (~210-230 units) cannot share a band and both read as short. The
+    // ladder that still holds is WITHIN each pose pair — harder means
+    // shorter, same as every other rule above — not a flat decrease across
+    // the whole family (the old "level-engine spec" line this replaced).
+    for (const [harder, easier] of [
+      ['hedgehog2', 'hedgehog1'],
+      ['hedgehog4', 'hedgehog3'],
+    ] as const) {
+      const a = getLevel(harder).spines!.rules
+      const b = getLevel(easier).spines!.rules
+      expect(a.lenMin, harder).toBeLessThan(b.lenMin)
+      expect(a.lenMax, harder).toBeLessThan(b.lenMax)
+    }
+    // Every level's spine is genuinely SHORT relative to its own body: at
+    // most half the anchor's own distance from the centroid, so a spike
+    // never reaches anywhere near the far side of the body.
+    for (const id of HEDGEHOG_IDS) {
+      const cfg = getLevel(id).spines!
+      const anchors = spineAnchors(cfg)
+      const { centre } = cfg.body
+      const avgR = anchors.reduce((sum, a) => sum + Math.hypot(a.x - centre.x, a.y - centre.y), 0) / anchors.length
+      expect(cfg.rules.lenMax, id).toBeLessThanOrEqual(avgR * 0.5)
     }
     // T19 (`odd/tasks/prewriting-stage-completion.md`, third tablet
     // playtest, "with one spine left, a mere tap completes the level"):
