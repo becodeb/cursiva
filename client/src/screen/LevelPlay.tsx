@@ -1682,11 +1682,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
 
   // Collect-along-the-path (T17). `collectItems` is the SAME derived-position
   // convention `trailClueMarks` above uses — recomputed from `target`, never
-  // authored coordinates.
+  // authored coordinates. `level.corridorWidth` (the AUTHORED width, not
+  // `target.corridorWidth`) is what lets the LAST item's own arc tolerate a
+  // real fingertip landing short of the route's mathematically exact final
+  // vertex — see `levels/collect.ts`'s `collectItemsFromPeaks` for why.
   const collectDef = level.collect
   const collectItems = useMemo<readonly CollectItem[]>(
-    () => (collectDef ? resolveCollectItems(collectDef, target.polyline, target.length) : []),
-    [collectDef, target.polyline, target.length],
+    () =>
+      collectDef ? resolveCollectItems(collectDef, target.polyline, target.length, level.corridorWidth) : [],
+    [collectDef, target.polyline, target.length, level.corridorWidth],
   )
 
   // One demonstration per sub-path, played in sequence (docs/08 §5).
@@ -2807,23 +2811,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
             size: level.vertexArt.size,
             clear: level.vertexArt.clear ?? 8,
           })
-        : // T17: a level authoring BOTH `vertexArt: { place: 'apexes' }` (the
-          // default) and `collect: { items: 'peaks' }` stands its picture at
-          // the EXACT SAME points collection scores against — `collectItems`
-          // already IS "the route's apexes plus one final point at the end"
-          // (`levels/collect.ts`'s `collectItemsFromPeaks`), so reusing it
-          // here is what makes the sheep the child sees standing at the
-          // route's end the very sheep the last collection pops, one source
-          // of truth, never two independently-tuned approximations of "the
-          // same" peak. A level with no `collect` (dolphin, or any future
-          // apexes-only level) falls back to the bare `routeApexes` call,
-          // byte-identical to before this field existed.
-          collectItems.length > 0
-          ? collectItems.map((item) => ({ x: item.x, y: item.y }))
-          : routeApexes(target.polyline)
+        : routeApexes(target.polyline)
     if (at.length === 0) return undefined
     return { ...level.vertexArt.art, size: level.vertexArt.size, at }
-  }, [level.vertexArt, level.corridorWidth, target.polyline, collectItems])
+  }, [level.vertexArt, level.corridorWidth, target.polyline])
 
   const ground = useMemo<TraceGround | undefined>(() => {
     // A backdrop retires the scattered ground (docs/13 §4 decision 3): the

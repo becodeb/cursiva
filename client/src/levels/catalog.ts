@@ -866,6 +866,12 @@ const PHASE_1: LevelConfig[] = [
     // at the route's end — `'peaks'` derives both from the SAME apexes
     // `vertexArt` above already stands the sheep pictures on.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    // T17: the route's own end shows the same sheep the last collection
+    // pops (docs/19 §3.4, "una oveja más al final del camino") — WINS over
+    // `LevelPlay.tsx`'s own star/encounter defaults for a multi-level
+    // adventure (`endArt`'s priority list), the same way `goalArt` already
+    // beats them for any other level's own content.
+    goalArt: SECTOR_ADVENTURE_ART.sheep,
   },
   {
     id: 'sheep-hill2',
@@ -885,6 +891,12 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    // T17: the route's own end shows the same sheep the last collection
+    // pops (docs/19 §3.4, "una oveja más al final del camino") — WINS over
+    // `LevelPlay.tsx`'s own star/encounter defaults for a multi-level
+    // adventure (`endArt`'s priority list), the same way `goalArt` already
+    // beats them for any other level's own content.
+    goalArt: SECTOR_ADVENTURE_ART.sheep,
   },
   {
     id: 'sheep-hill3',
@@ -904,6 +916,12 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    // T17: the route's own end shows the same sheep the last collection
+    // pops (docs/19 §3.4, "una oveja más al final del camino") — WINS over
+    // `LevelPlay.tsx`'s own star/encounter defaults for a multi-level
+    // adventure (`endArt`'s priority list), the same way `goalArt` already
+    // beats them for any other level's own content.
+    goalArt: SECTOR_ADVENTURE_ART.sheep,
   },
   {
     id: 'sheep-hill4',
@@ -924,6 +942,12 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    // T17: the route's own end shows the same sheep the last collection
+    // pops (docs/19 §3.4, "una oveja más al final del camino") — WINS over
+    // `LevelPlay.tsx`'s own star/encounter defaults for a multi-level
+    // adventure (`endArt`'s priority list), the same way `goalArt` already
+    // beats them for any other level's own content.
+    goalArt: SECTOR_ADVENTURE_ART.sheep,
   },
   {
     id: 'llama-peak1',
@@ -946,6 +970,8 @@ const PHASE_1: LevelConfig[] = [
     // T17 (docs/19 §2.2, §3.4): same mechanic as the sheep, one llama per
     // peak plus one at the end.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    // T17: same reasoning as the sheep's own goalArt above.
+    goalArt: SECTOR_ADVENTURE_ART.llama,
   },
   {
     id: 'llama-peak2',
@@ -965,6 +991,8 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    // T17: same reasoning as the sheep's own goalArt above.
+    goalArt: SECTOR_ADVENTURE_ART.llama,
   },
   {
     id: 'llama-peak3',
@@ -984,6 +1012,8 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    // T17: same reasoning as the sheep's own goalArt above.
+    goalArt: SECTOR_ADVENTURE_ART.llama,
   },
   {
     id: 'llama-peak4',
@@ -1004,6 +1034,8 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     vertexArt: { art: SECTOR_ADVENTURE_ART.llama, size: 64 },
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    // T17: same reasoning as the sheep's own goalArt above.
+    goalArt: SECTOR_ADVENTURE_ART.llama,
   },
   // ───────────────────────────────────────────────────────────────────────
   // The night sector (`docs/12`, design.md §5): four `mode: 'light'`

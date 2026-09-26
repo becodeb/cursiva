@@ -15,6 +15,7 @@ import {
 import { LEVELS } from './catalog'
 import { buildLevelTarget } from './buildLevel'
 import { routeApexes } from './vertexArt'
+import { trailEndArc } from '../detective/clues'
 
 /** A 100-unit horizontal line: arc length equals x. */
 const LINE = [
@@ -114,6 +115,8 @@ describe('collectedCount / isCollectComplete', () => {
   })
 })
 
+const CORRIDOR_WIDTH = 100 // sheep-hill1's own authored width
+
 describe('collectItemsFromPeaks', () => {
   it('places one item per apex plus one final item at the very end of the route', () => {
     // Two peaks, like sheep-hill1's own two-hump ridge shape.
@@ -125,12 +128,18 @@ describe('collectItemsFromPeaks', () => {
       { x: 400, y: 480 },
     ]
     const length = 4 * Math.hypot(100, 320)
-    const items = collectItemsFromPeaks(polyline, length)
+    const items = collectItemsFromPeaks(polyline, length, CORRIDOR_WIDTH)
     expect(items).toHaveLength(3) // 2 peaks + 1 end
     expect(items[0].x).toBe(100)
     expect(items[1].x).toBe(300)
-    // The final item sits exactly at the route's own end point and arc.
-    expect(items[2]).toEqual({ x: 400, y: 480, arc: length })
+    // The final item sits at the route's own end POINT, but its arc carries
+    // the same "reached the end" tolerance `detective/clues.ts`'s
+    // `trailEndArc` already established — see `collectItemsFromPeaks`'s own
+    // doc for why a literal `length` threshold is the wrong test.
+    expect(items[2].x).toBe(400)
+    expect(items[2].y).toBe(480)
+    expect(items[2].arc).toBe(trailEndArc(length, CORRIDOR_WIDTH))
+    expect(items[2].arc).toBeLessThan(length)
   })
 
   it('arcs are strictly ascending, in polyline order', () => {
@@ -145,7 +154,7 @@ describe('collectItemsFromPeaks', () => {
       (acc, p, i) => (i === 0 ? 0 : acc + Math.hypot(p.x - polyline[i - 1].x, p.y - polyline[i - 1].y)),
       0,
     )
-    const items = collectItemsFromPeaks(polyline, length)
+    const items = collectItemsFromPeaks(polyline, length, CORRIDOR_WIDTH)
     for (let i = 1; i < items.length; i++) {
       expect(items[i].arc).toBeGreaterThan(items[i - 1].arc)
     }
@@ -158,17 +167,38 @@ describe('collectItemsFromPeaks', () => {
       { x: 60, y: 0 },
     ]
     const length = Math.hypot(30, 40) * 2
-    const items = collectItemsFromPeaks(polyline, length)
+    const items = collectItemsFromPeaks(polyline, length, CORRIDOR_WIDTH)
     // Peak + final item.
     expect(items).toHaveLength(2)
     expect(items[0].arc).toBeCloseTo(Math.hypot(30, 40), 6)
-    expect(items[1].arc).toBeCloseTo(length, 6)
+    expect(items[1].arc).toBeCloseTo(trailEndArc(length, CORRIDOR_WIDTH), 6)
+  })
+
+  it("a maxArc that falls a hair short of the literal geometric length — exactly the floating-point round-trip this task measured in a live browser session — still completes the level, because the last item's own arc already carries the tolerance", () => {
+    const polyline = [
+      { x: 0, y: 480 },
+      { x: 100, y: 160 },
+      { x: 200, y: 480 },
+    ]
+    const length = 2 * Math.hypot(100, 320)
+    const items = collectItemsFromPeaks(polyline, length, CORRIDOR_WIDTH)
+    const nearlyLength = length - 1e-4 // the measured order of magnitude of the round-trip error
+    const state = collectTick(emptyCollectState(items.length), nearlyLength, items)
+    expect(isCollectComplete(state)).toBe(true)
   })
 
   it('returns empty for a degenerate route (too short or a single point)', () => {
-    expect(collectItemsFromPeaks([{ x: 0, y: 0 }], 0)).toEqual([])
-    expect(collectItemsFromPeaks(LINE, 0)).toEqual([])
-    expect(collectItemsFromPeaks(LINE, LENGTH)).toEqual([{ x: 100, y: 0, arc: 100 }]) // no peaks, only the end
+    expect(collectItemsFromPeaks([{ x: 0, y: 0 }], 0, CORRIDOR_WIDTH)).toEqual([])
+    expect(collectItemsFromPeaks(LINE, 0, CORRIDOR_WIDTH)).toEqual([])
+    // No peaks, only the end — arc carries the same trailEndArc tolerance.
+    expect(collectItemsFromPeaks(LINE, LENGTH, CORRIDOR_WIDTH)).toEqual([
+      { x: 100, y: 0, arc: trailEndArc(LENGTH, CORRIDOR_WIDTH) },
+    ])
+  })
+
+  it('never authors a negative arc on a route shorter than the corridor’s own half-width', () => {
+    const items = collectItemsFromPeaks(LINE, 10, 100) // length 10, half-width 50
+    expect(items[0].arc).toBe(0)
   })
 })
 
@@ -184,15 +214,17 @@ describe('resolveCollectItems', () => {
       { items: 'peaks', art: { href: 'x', w: 1, h: 1 }, size: 1 },
       polyline,
       length,
+      CORRIDOR_WIDTH,
     )
-    expect(viaConfig).toEqual(collectItemsFromPeaks(polyline, length))
+    expect(viaConfig).toEqual(collectItemsFromPeaks(polyline, length, CORRIDOR_WIDTH))
   })
 
-  it('an explicit ascending fraction array places items by arc-length fraction', () => {
+  it('an explicit ascending fraction array places items by arc-length fraction, with no automatic end tolerance', () => {
     const items = resolveCollectItems(
       { items: [0.1, 0.5, 1], art: { href: 'x', w: 1, h: 1 }, size: 1 },
       LINE,
       LENGTH,
+      CORRIDOR_WIDTH,
     )
     expect(items).toEqual([
       { x: 10, y: 0, arc: 10 },
@@ -202,9 +234,9 @@ describe('resolveCollectItems', () => {
   })
 
   it('an explicit array on a degenerate route returns empty', () => {
-    expect(resolveCollectItems({ items: [0.5], art: { href: 'x', w: 1, h: 1 }, size: 1 }, [{ x: 0, y: 0 }], 0)).toEqual(
-      [],
-    )
+    expect(
+      resolveCollectItems({ items: [0.5], art: { href: 'x', w: 1, h: 1 }, size: 1 }, [{ x: 0, y: 0 }], 0, CORRIDOR_WIDTH),
+    ).toEqual([])
   })
 })
 
@@ -242,16 +274,18 @@ describe('invariant: the shipped sheep/llama levels', () => {
     for (const id of IDS) {
       const level = LEVELS.find((l) => l.id === id)!
       const target = buildLevelTarget(level)
-      const items = collectItemsFromPeaks(target.polyline, target.length)
+      const items = collectItemsFromPeaks(target.polyline, target.length, level.corridorWidth)
       expect(items, id).toHaveLength(HEIGHTS_PEAK_COUNT[id] + 1)
       // Matches the SAME apexes vertexArt already stands the animal on.
       const apexes = routeApexes(target.polyline)
       expect(apexes, id).toHaveLength(HEIGHTS_PEAK_COUNT[id])
-      // The last collect item is the route's own final point.
+      // The last collect item stands at the route's own final point, and its
+      // arc is `trailEndArc` (the same "reached the end" tolerance a
+      // detective trail uses), not the literal length.
       const last = target.polyline[target.polyline.length - 1]
       expect(items[items.length - 1].x, id).toBeCloseTo(last.x, 6)
       expect(items[items.length - 1].y, id).toBeCloseTo(last.y, 6)
-      expect(items[items.length - 1].arc, id).toBeCloseTo(target.length, 6)
+      expect(items[items.length - 1].arc, id).toBeCloseTo(trailEndArc(target.length, level.corridorWidth), 6)
     }
   })
 
@@ -259,10 +293,24 @@ describe('invariant: the shipped sheep/llama levels', () => {
     for (const id of IDS) {
       const level = LEVELS.find((l) => l.id === id)!
       const target = buildLevelTarget(level)
-      const items = collectItemsFromPeaks(target.polyline, target.length)
+      const items = collectItemsFromPeaks(target.polyline, target.length, level.corridorWidth)
       const state = collectTick(emptyCollectState(items.length), target.length, items)
       expect(isCollectComplete(state), id).toBe(true)
       expect(collectedCount(state), id).toBe(items.length)
+    }
+  })
+
+  it("also completes with maxArc only reaching trailEndArc (the last item's own arc, not the literal length) — the exact real-world case a live browser session measured", () => {
+    for (const id of IDS) {
+      const level = LEVELS.find((l) => l.id === id)!
+      const target = buildLevelTarget(level)
+      const items = collectItemsFromPeaks(target.polyline, target.length, level.corridorWidth)
+      const state = collectTick(
+        emptyCollectState(items.length),
+        trailEndArc(target.length, level.corridorWidth),
+        items,
+      )
+      expect(isCollectComplete(state), id).toBe(true)
     }
   })
 })

@@ -549,7 +549,7 @@ describe('LevelPlay — sheep-hill3 stands the octopus without a direction arrow
     expect(traceCanvasProbe.current?.ground).toBeUndefined()
   })
 
-  it('passes vertexArt with 4 points: 3 apexes, one per authored peak, plus one at the route’s end (T17: sheep-hill3 now also authors `collect`, and vertexArt reuses the SAME collectItems positions)', () => {
+  it('passes vertexArt with 3 apexes, one per authored peak (T17: sheep-hill3 also authors `collect`, but the FINAL item is drawn through `goalArt` instead — vertexArt keeps standing only the peak sheep, byte-identical to before this field existed)', () => {
     renderToString(
       <LevelPlay
         level={getLevel('sheep-hill3')}
@@ -563,7 +563,7 @@ describe('LevelPlay — sheep-hill3 stands the octopus without a direction arrow
       | { href: string; at: readonly { x: number; y: number }[] }
       | undefined
     expect(vertexArt).toBeDefined()
-    expect(vertexArt!.at).toHaveLength(4)
+    expect(vertexArt!.at).toHaveLength(3)
     expect(vertexArt!.href).toBe('/art/sector-sheep.png')
   })
 })
@@ -1374,16 +1374,33 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     expect(art?.size).toBe(84)
   })
 
-  it('shows the star on every other routed level of a multi-level adventure with no clue of its own (sheep)', () => {
-    for (const id of ['sheep-hill1', 'sheep-hill2', 'sheep-hill3'] as const) {
+  it('shows the star on every other routed level of a multi-level adventure with no clue of its own and no goalArt (turtle)', () => {
+    // T17 moved this fixture off sheep-hill1..3: those levels now author
+    // their own `goalArt` (docs/19 §3.4 — the route's end shows the same
+    // sheep the last collection pops, not the adventure star), which WINS
+    // over this exact fallback by design (`endArt`'s own priority list,
+    // `LevelPlay.tsx`). Turtle is still a plain, clue-less, goalArt-less
+    // multi-level adventure, so it is what this test's ORIGINAL intent (the
+    // star fallback itself) actually needs; see the sheep's own goalArt
+    // coverage in the "T17" describe block below.
+    for (const id of ['turtle1', 'turtle2', 'turtle3'] as const) {
       render(getLevel(id))
       const art = traceCanvasProbe.current?.endArt as Art
       expect(art?.href, id).toBe(ZOO_STAR_ART.href)
     }
-    // sheep-hill4 is the adventure's own last level and recovers oveja: the
-    // animal wins over the star fallback there.
-    render(getLevel('sheep-hill4'))
-    expect((traceCanvasProbe.current?.endArt as Art)?.href).toBe(ZOO_ANIMAL_ART.oveja.href)
+  })
+
+  it("T17: sheep-hill1..4 and llama-peak1..4 each show their OWN animal at the route's end via goalArt, including the adventure's last level (goalArt wins over both the star fallback and the encounter default)", () => {
+    for (const id of ['sheep-hill1', 'sheep-hill2', 'sheep-hill3', 'sheep-hill4'] as const) {
+      render(getLevel(id))
+      const art = traceCanvasProbe.current?.endArt as Art
+      expect(art?.href, id).toBe(ZOO_ANIMAL_ART.oveja.href)
+    }
+    for (const id of ['llama-peak1', 'llama-peak2', 'llama-peak3', 'llama-peak4'] as const) {
+      render(getLevel(id))
+      const art = traceCanvasProbe.current?.endArt as Art
+      expect(art?.href, id).toBe(ZOO_ANIMAL_ART.llama.href)
+    }
   })
 
   // The fish adventure (`promised-animals` P2): all four garland levels now

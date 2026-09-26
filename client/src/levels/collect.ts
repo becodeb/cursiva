@@ -26,6 +26,7 @@ import { routeApexes } from './vertexArt'
 import { pointAtArcLength } from '../letters/svgLetter'
 import type { Point } from '../letters/types'
 import type { ArtImage } from '../detective/assets'
+import { trailEndArc } from '../detective/clues'
 
 /**
  * One collectible's fixed placement along a route: where it sits (for
@@ -133,15 +134,34 @@ export function isCollectComplete(state: CollectState): boolean {
  * `minRise` is forwarded to `routeApexes` unchanged — the same noise floor
  * `vertexArt`'s own peak-finding already uses, so a level that authors both
  * `vertexArt: { place: 'apexes' }` and `collect: { items: 'peaks' }` gets
- * IDENTICAL peak positions from both, by construction (`screen/LevelPlay.tsx`
- * reuses this exact array for `vertexArt`'s own `at` when both are present —
- * the sheep the child sees standing on a peak is the sheep this function
- * places there, never two independently-computed approximations of "the
- * same" peak).
+ * IDENTICAL peak positions from both, by construction.
+ *
+ * The FINAL item's own arc is `detective/clues.ts`'s `trailEndArc(length,
+ * corridorWidth)`, not the literal `length` — reusing that module's own
+ * "reaching the end" tolerance rather than inventing a second one. This is
+ * NOT a cosmetic choice: a real fingertip essentially never lands on the
+ * mathematically exact last polyline vertex, and the coordinate round-trip
+ * through screen pixels and back (`getScreenCTM`-style conversion, the same
+ * path a real touch event takes) can leave the computed `maxArc` a hair
+ * short of `length` even when the finger IS exactly on that pixel — found by
+ * measuring a live browser session, not guessed: a dense, slow trace ending
+ * exactly at the route's own last vertex still measured `maxArc ≈
+ * length - 2.3e-5`, forever short of a literal `length` threshold. Every
+ * OTHER item needs no such margin, because the finger naturally keeps
+ * advancing past an interior peak, comfortably clearing its arc with room to
+ * spare — only the very last point has nothing further along the route for
+ * `maxArc` to advance into.
+ *
+ * `corridorWidth` must be the level's AUTHORED width
+ * (`LevelConfig.corridorWidth`), never the adaptive
+ * `LevelTarget.corridorWidth` — `trailEndArc`'s own doc comment has the full
+ * reasoning (the adaptive width would move the finish line for the exact
+ * child the widening exists to help).
  */
 export function collectItemsFromPeaks(
   polyline: ReadonlyArray<{ x: number; y: number }>,
   length: number,
+  corridorWidth: number,
   minRise = 40,
 ): readonly CollectItem[] {
   if (polyline.length < 2 || length <= 0) return []
@@ -152,7 +172,7 @@ export function collectItemsFromPeaks(
     return { x: apex.x, y: apex.y, arc }
   })
   const last = polyline[polyline.length - 1]
-  items.push({ x: last.x, y: last.y, arc: length })
+  items.push({ x: last.x, y: last.y, arc: Math.max(0, trailEndArc(length, corridorWidth)) })
   return items
 }
 
@@ -192,13 +212,21 @@ export interface CollectConfig {
  * engine actually scores against, against this level's OWN built route
  * (`LevelTarget.polyline`/`LevelTarget.length` — the centred, derived
  * route, never `config.paths`, the same rule every other derived field in
- * `levels/buildLevel.ts` already follows). */
+ * `levels/buildLevel.ts` already follows). `corridorWidth` is forwarded to
+ * `collectItemsFromPeaks` unchanged — see that function's own doc for why
+ * the LAST item needs it and no other item does.
+ *
+ * An explicit fraction array gets NO such margin on its own last entry: it
+ * is an escape hatch for a future adventure, not exercised by this task, and
+ * whoever authors it can bake in their own margin explicitly (`0.98` instead
+ * of `1`) if their route needs one. */
 export function resolveCollectItems(
   config: CollectConfig,
   polyline: ReadonlyArray<{ x: number; y: number }>,
   length: number,
+  corridorWidth: number,
 ): readonly CollectItem[] {
-  if (config.items === 'peaks') return collectItemsFromPeaks(polyline, length)
+  if (config.items === 'peaks') return collectItemsFromPeaks(polyline, length, corridorWidth)
   if (polyline.length < 2 || length <= 0) return []
   return config.items.map((fraction) => {
     const arc = fraction * length
