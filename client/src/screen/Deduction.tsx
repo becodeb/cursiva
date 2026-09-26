@@ -32,12 +32,39 @@
 // lineup and the hen's four-option one without a special case anywhere in
 // this file.
 import { useState, type CSSProperties } from 'react'
-import { ANIMAL_ART, CLUE_ART, type AnimalId, type ArtImage } from '../detective/assets'
+import {
+  ANIMAL_ART,
+  ANIMAL_SILHOUETTE_ART,
+  CARRIER_LENS_ART,
+  CLUE_ART,
+  ZOO_CARETAKER_ART,
+  ZOO_SPEECH_BUBBLE_ART,
+  type AnimalId,
+  type ArtImage,
+} from '../detective/assets'
 import { clueKindsOf, type DetectiveCase } from '../detective/cases'
 import CaptionedArt from '../detective/CaptionedArt'
 import PistasRail, { type PistasSlot } from '../detective/PistasRail'
 import { BackIcon } from '../detective/icons'
 import { LAYOUT_CSS } from './LevelPlay'
+import { BUBBLE_POP_CSS } from './BubblePop'
+import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
+import {
+  CONTENT_LEFT_FRAC,
+  CONTENT_TOP_FRAC,
+  CONTENT_WIDTH_FRAC,
+  GAP_FRAC,
+  LINE_HEIGHT,
+  placeAndFitBubble,
+} from './bubbleFit'
+import {
+  DEFAULT_PULPITO_STANCE,
+  OCTOPUS_CORNER_INSET,
+  OCTOPUS_CORNER_SIZE_PCT,
+  octopusBoxAtCorner,
+  stanceBubbleSide,
+} from './pulpitoStance'
+import { bubbleContentCssVars } from './bubbleCssVars'
 
 /** Matches the shipped ink `TraceCanvas.tsx:89` (`INK_COLOR '#1e293b'`, not
  * exported) — the same hand that draws the trail's own trace, the `PISTAS`
@@ -118,6 +145,54 @@ const ANIMAL_LABEL: Readonly<Record<AnimalId, string>> = {
   pato: 'Pato',
   vaca: 'Vaca',
   gato: 'Gato',
+}
+
+/**
+ * Pulpito's opening question, before any pick (`odd/tasks/prewriting-stage-
+ * completion.md` T21, `docs/19` §1: "el Pulpito pregunta: ¿Quién dejó todo
+ * esto?"). Shown with {@link CARRIER_LENS_ART} — the same magnifying glass a
+ * detective trail's own carrier holds — since there is no clue yet to
+ * illustrate the question with.
+ */
+export const DEDUCTION_OPENING_LINE = '¿Quién habrá dejado todas estas pistas?'
+
+/** Pulpito's short line once the case is closed, one per possible culprit —
+ * every case in the registry names a real `AnimalId`, so this stays total. */
+export const DEDUCTION_SOLVED_LINE: Readonly<Record<AnimalId, string>> = {
+  pato: '¡Era el pato!',
+  gallina: '¡Era la gallina!',
+  vaca: '¡Era la vaca!',
+  gato: '¡Era el gato!',
+}
+
+export interface DeductionHint {
+  readonly text: string
+  readonly art: ArtImage
+}
+
+/**
+ * Pulpito's own spoken line for the CURRENT state (`docs/19` §5.4: "la
+ * silueta da un pasito atrás y el Pulpito dice por qué, con la pista que la
+ * descarta" — "El gato no tiene plumas"). Exported and pure, the same reason
+ * `pickAnimal`/`solvesCase` are: this screen's node harness cannot observe a
+ * live re-render, so every state this can be handed is asserted by calling
+ * it directly rather than by simulating a click.
+ *
+ * Priority, closed beats dismissed beats opening: once the case is closed
+ * there is nothing left to hint at, and a stale dismissal from before the
+ * close must never resurface over the "¡era X!" line.
+ */
+export function deductionHint(kase: DetectiveCase, state: DeductionState): DeductionHint {
+  if (state.closed) {
+    return { text: DEDUCTION_SOLVED_LINE[kase.culprit], art: ANIMAL_ART[kase.culprit] }
+  }
+  const last = state.dismissed[state.dismissed.length - 1]
+  if (last !== undefined) {
+    const kind = kase.ruledOutBy[last]
+    const text = kase.hint[last]
+    if (kind && text) return { text, art: CLUE_ART[kind].art.earned }
+  }
+  return { text: DEDUCTION_OPENING_LINE, art: CARRIER_LENS_ART }
 }
 
 /**
@@ -221,9 +296,23 @@ function Animal({
 }) {
   const dismissed = state.dismissed.includes(id)
   const ruledOutBy = kase.ruledOutBy[id]
+  // [T21] `docs/19` §7 slice 3: every option stands as a SILHOUETTE
+  // (`ANIMAL_SILHOUETTE_ART`, a real derived PNG — `assets.ts`'s own header
+  // — never a runtime CSS/SVG filter) until the culprit is actually picked;
+  // only then does IT ALONE swap to its full-colour picture ("the silhouette
+  // fills with colour and the duck peeks out"). A dismissed distractor never
+  // reveals — it was RULED OUT, not identified.
+  const revealed = state.closed && id === kase.culprit
+  const art = revealed ? ANIMAL_ART[id] : ANIMAL_SILHOUETTE_ART[id]
+  // A wrong pick is gentle (`docs/01` principle 2: no red, no failure
+  // sound): the ONLY animation is this one soft shake, on the animal just
+  // picked — never a permanent state, so it plays exactly once per wrong
+  // pick and never replays for an OLDER dismissal sitting further back in
+  // the list.
+  const isLastDismissed = !state.closed && state.dismissed[state.dismissed.length - 1] === id
   const style: CSSProperties = dismissed ? { opacity: 0.25, transform: 'translateY(24px)' } : {}
   return (
-    <div className="cv-lineup-slot">
+    <div className={`cv-lineup-slot${isLastDismissed ? ' cv-lineup-slot-shake' : ''}`}>
       <button
         type="button"
         className="animal-btn"
@@ -231,7 +320,12 @@ function Animal({
         disabled={state.closed}
         onClick={() => onPick(id)}
       >
-        <CaptionedArt art={ANIMAL_ART[id]} label={ANIMAL_LABEL[id]} size={ANIMAL_SIZE} />
+        <CaptionedArt
+          art={art}
+          label={ANIMAL_LABEL[id]}
+          size={ANIMAL_SIZE}
+          className={revealed ? 'cv-reveal-pop' : undefined}
+        />
       </button>
       {dismissed && ruledOutBy && (
         <svg
@@ -256,6 +350,7 @@ function Animal({
  * child just left. No `border-radius`, no `box-shadow`, no `border`
  * (design.md "Layout"), and no font declaration anywhere. */
 export const DEDUCTION_CSS = `
+${BUBBLE_POP_CSS}
 .cv-lineup { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .cv-lineup-figures { display: flex; flex-direction: row; align-items: flex-end; justify-content: center; gap: 28px; flex-wrap: wrap; }
 .cv-lineup-slot { display: flex; flex-direction: column; align-items: center; }
@@ -372,6 +467,58 @@ export const DEDUCTION_CSS = `
   .pistas-bar { flex: 0 0 auto; flex-direction: row; gap: 10px; padding: 4px; }
   .pistas-slots { flex-direction: row; padding-top: 0; gap: 6px; }
 }
+/* [T21] The correct pick's own reveal: the silhouette swaps to its
+ * full-colour picture (the swap itself, above, in the markup) and this pop
+ * draws the eye to it — never a CSS/SVG filter, a plain keyframe on the
+ * SAME captioned span every other animal choice already renders. */
+@keyframes cv-reveal-pop {
+  0% { transform: scale(0.85); }
+  60% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.cv-reveal-pop { animation: cv-reveal-pop 0.5s ease; transform-origin: 50% 50%; }
+/* A wrong pick's own gentle feedback (docs/01 principle 2: no red, no
+ * failure sound) — a soft one-shot shake on the slot just dismissed, never a
+ * permanent state (Animal's own isLastDismissed, scoped to the LAST
+ * dismissal only). Shakes the SLOT wrapper, not the button: the button
+ * already carries its own permanent translateY/opacity inline style
+ * (the drain-and-drop), and a CSS animation on the SAME element would
+ * override that transform for the animation's own duration, producing a
+ * visible jump back to y:0 mid-shake. NO BACKTICKS in this block -- one
+ * inside a comment ends this template literal early (this file's own
+ * DEDUCTION_CSS header). */
+@keyframes cv-lineup-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+.cv-lineup-slot-shake { animation: cv-lineup-shake 0.4s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .cv-reveal-pop, .cv-lineup-slot-shake { animation: none; }
+}
+/* [T21] Pulpito's own corner stance (screen/pulpitoStance.ts,
+ * screen/bubbleFit.ts — the SAME engine AdventureIntro.tsx/
+ * AdventureClosing.tsx already use), asking the opening question, hinting
+ * at a wrong pick, or naming the culprit once solved (deductionHint
+ * above). pointer-events: none on the wrapper: this overlay sits ON TOP of
+ * .cv-sheet in source order, and it must never steal a tap meant for the
+ * lineup or the back button underneath its own bounding box — the octopus
+ * and bubble spans below are the ONLY parts a real deployment ever paints
+ * pixels into. */
+.cv-deduction-stance { position: absolute; inset: 0; pointer-events: none; }
+.cv-deduction-octopus { position: absolute; bottom: 2%; width: ${OCTOPUS_CORNER_SIZE_PCT}%; height: auto; }
+.cv-deduction-octopus img { display: block; width: 100%; height: auto; }
+.cv-deduction-bubble { position: absolute; container-type: inline-size; }
+.cv-deduction-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
+.cv-deduction-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
+.cv-deduction-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); }
+.cv-deduction-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
+.cv-deduction-bubble .cv-captioned--stack > svg { float: none; display: block; margin: 0 auto var(--cv-gap) auto; }
+/* Overrides THIS file's own .cv-caption (uppercase, sized off --cv-animal) —
+ * a spoken sentence is not the animal-name vocabulary that rule exists for,
+ * and higher selector specificity (two classes) wins regardless of source
+ * order. */
+.cv-deduction-bubble .cv-caption { font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; text-transform: none; }
 `
 
 export interface DeductionViewProps {
@@ -392,6 +539,30 @@ export interface DeductionViewProps {
  */
 export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProps) {
   const filedSlots: readonly PistasSlot[] = clueKindsOf(kase).map((kind) => ({ kind, filed: true }))
+  // [T21] Pulpito's own corner stance, asking the question, hinting at a
+  // wrong pick, or naming the culprit — the same `octopusBoxAtCorner`/
+  // `placeAndFitBubble` engine `AdventureIntro.tsx` already uses (that
+  // file's own header has the full geometry explanation). Always the
+  // default LEFT corner: this screen has no per-line stance override the way
+  // an adventure's own intro/closing beats do (`zoo/adventures.ts`'s
+  // `PulpitoStance`), since the lineup itself is centred, not off to one
+  // side the way a level's own route/octopus can be.
+  const hint = deductionHint(kase, state)
+  const octopusBox = octopusBoxAtCorner(ZOO_CARETAKER_ART, {
+    corner: DEFAULT_PULPITO_STANCE.corner,
+    sizeBy: 'width',
+    size: OCTOPUS_CORNER_SIZE_PCT,
+    bottom: 2,
+    inset: OCTOPUS_CORNER_INSET,
+  })
+  const { placement, content } = placeAndFitBubble({
+    frame: { w: 100, h: 100 },
+    headBox: octopusBox,
+    tail: ZOO_SPEECH_BUBBLE_TAIL,
+    side: stanceBubbleSide(DEFAULT_PULPITO_STANCE.corner),
+    text: hint.text,
+    art: hint.art,
+  })
   return (
     <main className="cv-play">
       <style>{LAYOUT_CSS + DEDUCTION_CSS}</style>
@@ -410,6 +581,44 @@ export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProp
           <GroundLine />
         </div>
         <PistasRail slots={filedSlots} lampOn />
+      </div>
+      <div className="cv-deduction-stance">
+        <span
+          className="cv-deduction-octopus"
+          style={{ [DEFAULT_PULPITO_STANCE.corner]: `${octopusBox.x}%` } as CSSProperties}
+        >
+          <img src={ZOO_CARETAKER_ART.href} alt="" />
+        </span>
+        <span
+          className={`cv-deduction-bubble${placement.mirrored ? ' cv-deduction-bubble--mirror-x' : ''}`}
+          style={{
+            left: `${placement.left}%`,
+            top: `${placement.top}%`,
+            width: `${placement.width}%`,
+            ...bubbleContentCssVars(placement, content, {
+              contentLeftFrac: CONTENT_LEFT_FRAC,
+              contentTopFrac: CONTENT_TOP_FRAC,
+              contentWidthFrac: CONTENT_WIDTH_FRAC,
+              gapFrac: GAP_FRAC,
+            }),
+          }}
+        >
+          {/* Keyed on the line (T8 item 2's own convention, `AdventureIntro.
+              tsx`): a new hint pops in fresh every time it actually changes. */}
+          <span
+            key={hint.text}
+            className="cv-bubble-pop"
+            style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
+          >
+            <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+            <CaptionedArt
+              art={hint.art}
+              label={hint.text}
+              size={76}
+              className={content.layout === 'stack' ? 'cv-captioned--stack' : undefined}
+            />
+          </span>
+        </span>
       </div>
     </main>
   )

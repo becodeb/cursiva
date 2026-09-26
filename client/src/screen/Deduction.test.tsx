@@ -193,12 +193,27 @@ describe.each(CASES)('DeductionView rendering — %s case', (_label, kase) => {
 describe('the lineup grows into the sheet (defect fix: three small animals in a large empty page)', () => {
   /** The declaration body of a rule, e.g. the text between the braces of
    * `.cv-captioned > svg { … }`. Returns every match, because the responsive
-   * rules are deliberately restated inside media queries. */
+   * rules are deliberately restated inside media queries.
+   *
+   * [T21] Anchored to the START OF A SELECTOR (only whitespace, or nothing,
+   * since the previous rule's `{`/`}`/`;` or a `,` in a selector list, or
+   * the very start of the string), not merely to the selector text itself:
+   * `.cv-deduction-bubble .cv-caption { … }` (the deduction screen's OWN
+   * Pulpito bubble, T21) legitimately contains the bare `.cv-caption { … }`
+   * text as a SUBSTRING once its own leading `.cv-deduction-bubble ` scope
+   * is stripped by an un-anchored search — anchoring here is what tells "a
+   * second, differently-scoped rule" apart from "the bare selector matched
+   * twice", while still matching an INDENTED restatement inside a
+   * `@media` block (the anchor allows the whitespace between the block's
+   * own `{` and the indented selector), and one preceded by its own doc
+   * comment closing (most declarations in this file carry one). */
   const bodies = (selector: string): string[] => {
     const escaped = selector.replace(/[.*+?^$()|[\]\\]/g, '\\$&')
-    return [...DEDUCTION_CSS.matchAll(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`, 'g'))].map(
-      (m) => m[1],
-    )
+    return [
+      ...DEDUCTION_CSS.matchAll(
+        new RegExp(`(?<=(?:^|[{};,]|\\*/)\\s*)${escaped}\\s*\\{([^}]*)\\}`, 'g'),
+      ),
+    ].map((m) => m[1])
   }
 
   it('names the option count in the markup, because CSS cannot count children', () => {
