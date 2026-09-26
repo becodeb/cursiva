@@ -51,6 +51,7 @@ import {
   ZOO_OCTOPUS_PRINT_ART,
   ZOO_SPEECH_BUBBLE_ART,
   ZOO_STAR_ART,
+  ZOO_ANIMAL_SILHOUETTE_ART,
   type ArtImage,
 } from './assets'
 import { ART_OUTLINE, luma } from './palette'
@@ -153,6 +154,15 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
   ...Object.entries(PROMISED_ANIMAL_ART).map(([id, art]) =>
     [`PROMISED_ANIMAL_ART.${id}`, art] as const,
   ),
+  // `pato` excluded on purpose (T23, prewriting-stage-completion.md):
+  // `ZOO_ANIMAL_SILHOUETTE_ART.pato` is the SAME `ArtImage` object as
+  // `ANIMAL_SILHOUETTE_ART.pato`, already registered above — listing it
+  // again would trip this suite's own "never the same file twice" check
+  // right below, for a href that is deliberately shared rather than
+  // duplicated.
+  ...Object.entries(ZOO_ANIMAL_SILHOUETTE_ART)
+    .filter(([id]) => id !== 'pato')
+    .map(([id, art]) => [`ZOO_ANIMAL_SILHOUETTE_ART.${id}`, art] as const),
 ]
 
 /** `manifest.json` stores the pipeline-relative `art/x.png`; the registry
@@ -220,7 +230,11 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // + 4 ANIMAL_SILHOUETTE_ART (T21, prewriting-stage-completion.md): a
     // solid-fill derived silhouette per deduction animal, shown before the
     // case is solved.
-    expect(REGISTERED.length).toBe(98)
+    // + 9 ZOO_ANIMAL_SILHOUETTE_ART (T23, prewriting-stage-completion.md):
+    // the detective's notebook's own silhouette per real zoo animal other
+    // than pato, whose silhouette is the SAME file ANIMAL_SILHOUETTE_ART.pato
+    // already registers (excluded above, not a 10th entry here).
+    expect(REGISTERED.length).toBe(107)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })

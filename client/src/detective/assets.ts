@@ -211,6 +211,39 @@ export const ANIMAL_SILHOUETTE_ART: Readonly<Record<AnimalId, ArtImage>> = {
   gato: { href: '/art/animal-gato-silhouette.png', w: 448, h: 414 },
 }
 
+/**
+ * The detective's notebook's own silhouettes (`odd/tasks/prewriting-stage-
+ * completion.md` T23, `docs/19` §5.1: "los que faltan, en silueta con '?'")
+ * — every real zoo animal `zoo/notebook.ts` can show a page for, keyed by
+ * {@link ZooAnimalId} rather than {@link AnimalId} (`ANIMAL_SILHOUETTE_ART`
+ * above only covers the four deduction-lineup animals). `pato` reuses
+ * `ANIMAL_SILHOUETTE_ART.pato` by reference — the SAME file, never a second
+ * derivation of it — so the two registries can never drift against each
+ * other for the one animal both cover. The other nine are `build_art.py`'s
+ * own dedicated T23 pass (a second, later silhouette section, after T21's):
+ * a flat `INK` recolour of the exact same coloured file every one of
+ * `oveja`/`llama`/`vibora`/`abeja`/`delfin`/`erizo`/`pez`/`tortuga`/`mono`
+ * already draws from (`SECTOR_ADVENTURE_ART`/`HEDGEHOG_ART`/
+ * `PROMISED_ANIMAL_ART`, below) — same `w`/`h` as the coloured original by
+ * construction, guarded by `artManifest.test.ts`. `mono`'s own silhouette is
+ * a recolour of `PROMISED_ANIMAL_ART.mono`'s placeholder sign art (that
+ * record's own header explains why real monkey art is still pending) — a
+ * bordered block, not a monkey-shaped silhouette, until that art request is
+ * closed.
+ */
+export const ZOO_ANIMAL_SILHOUETTE_ART: Readonly<Partial<Record<ZooAnimalId, ArtImage>>> = {
+  pato: ANIMAL_SILHOUETTE_ART.pato,
+  oveja: { href: '/art/sector-sheep-silhouette.png', w: 420, h: 448 },
+  llama: { href: '/art/sector-llama-silhouette.png', w: 299, h: 448 },
+  vibora: { href: '/art/sector-snake-medium-silhouette.png', w: 492, h: 114 },
+  abeja: { href: '/art/sector-bee-silhouette.png', w: 256, h: 230 },
+  delfin: { href: '/art/sector-dolphin-silhouette.png', w: 448, h: 418 },
+  erizo: { href: '/art/hedgehog-profile-silhouette.png', w: 448, h: 306 },
+  pez: { href: '/art/animal-pez-silhouette.png', w: 448, h: 358 },
+  tortuga: { href: '/art/animal-tortuga-silhouette.png', w: 448, h: 292 },
+  mono: { href: '/art/animal-mono-silhouette.png', w: 320, h: 320 },
+}
+
 /** The magnifying glass that rides the child's fingertip on a detective trail
  * (`TraceCanvas`'s `carrierArt` override).
  *
