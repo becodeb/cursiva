@@ -2452,23 +2452,24 @@ describe('LevelPlay ?debug=espinas:<k> reaches the SCREEN\'s spines prop (radial
   })
 })
 
-describe('LevelPlay hedgehog demo plays roughly 2x faster (T13, tablet playtest #2: "very slow")', () => {
+describe('LevelPlay hedgehog demo plays roughly 2x faster (T13, tablet playtest #2: "very slow"), then shorter again (T19, third playtest: "still slow and ugly")', () => {
   const demoOf = (probe: Record<string, unknown> | null) =>
     (probe?.demo ?? []) as readonly { delay: number; duration: number }[]
 
-  it('gives a spines level a demo step/duration close to half the shared routed-level pace', () => {
-    const hedgehog = getLevel('hedgehog1') // demo: true, spines.count === 4
+  it('gives a spines level a demo step/duration well under a second, short and clear (T19)', () => {
+    const hedgehog = getLevel('hedgehog1') // demo: true, spines.count === 8
     const html = renderToString(
       <LevelPlay level={hedgehog} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
     expect(html).toBeTruthy() // the demo phase renders without throwing
     const demo = demoOf(traceCanvasProbe.current)
     expect(demo.length).toBeGreaterThan(0)
-    // Each spine's own draw finishes comfortably under a second.
-    expect(demo[0].duration).toBeLessThanOrEqual(1)
-    expect(demo[0].duration).toBeCloseTo(0.8, 5)
+    // T19: "one or two spines, each ≲0.6s" — DEMO_SPINES (spines.ts) is 2.
+    expect(demo.length).toBeLessThanOrEqual(2)
+    expect(demo[0].duration).toBeLessThanOrEqual(0.6)
+    expect(demo[0].duration).toBeCloseTo(0.5, 5)
     if (demo.length > 1) {
-      expect(demo[1].delay - demo[0].delay).toBeCloseTo(0.85, 5)
+      expect(demo[1].delay - demo[0].delay).toBeCloseTo(0.55, 5)
     }
   })
 

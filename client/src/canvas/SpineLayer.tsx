@@ -41,6 +41,16 @@
 // (`.cv-spine-fading`, `screen/LevelPlay.tsx`'s `LAYOUT_CSS`), so this layer
 // only has to render the shape and stop rendering it once the caller drops
 // the entry — no timer, no transition-flip state, lives here.
+//
+// T19 (`odd/tasks/prewriting-stage-completion.md` §3.3, "el trazo se
+// convierte en espina"): `spines.spikes` renders every ACCEPTED anchor's own
+// clean triangle (`levels/spines.ts`'s `spineSpikePaths` — an `M`/`L` path,
+// never a second re-derivation of the shape). `screen/LevelPlay.tsx` stops
+// feeding an accepted spine's raw ink into `TraceCanvas`'s own
+// `completedStrokes` the instant its anchor fills, so the swap from wobbly
+// child ink to a tidy spike happens by simply no longer drawing the old
+// shape and starting to draw the new one — no morph animation, no new art,
+// just a `.cv-spine-spike` pop-in (`LAYOUT_CSS`) on the fresh shape.
 import { clampArtBox, type ArtBox } from './placeArt'
 import { inkPath, traceInk } from './ink'
 import type { TraceSpines } from './TraceCanvas'
@@ -63,6 +73,18 @@ export function SpineLayer({ spines, sheetBounds }: SpineLayerProps) {
   return (
     <g pointerEvents="none">
       <image href={spines.body.href} {...bodyBox} preserveAspectRatio="xMidYMid meet" />
+      {spines.spikes?.map((d, idx) => (
+        <path
+          key={`spine-spike-${idx}`}
+          data-spine-spike="true"
+          d={d}
+          fill={spines.spikeFill ?? spines.earned}
+          stroke={spines.spikeStroke ?? spines.earned}
+          strokeWidth={3}
+          strokeLinejoin="round"
+          className="cv-spine-spike"
+        />
+      ))}
       {spines.fading?.map((f) => (
         <path
           key={`spine-fading-${f.id}`}

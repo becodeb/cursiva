@@ -70,8 +70,12 @@ export interface SpineState {
 }
 
 export const EMPTY_SPINES: SpineState = { filled: new Set(), aiming: null }
-/** How many spines the demonstration draws (`docs/13` §5 item 2, "mínima"). */
-export const DEMO_SPINES = 3
+/** How many spines the demonstration draws (`docs/13` §5 item 2, "mínima").
+ *  T19 (`odd/tasks/prewriting-stage-completion.md`, "the demo is still slow
+ *  and ugly"): 3 → 2, alongside `screen/LevelPlay.tsx`'s own shorter
+ *  `SPINE_DEMO_DURATION_S`/`SPINE_DEMO_STEP_S` — "one or two spines, each
+ *  ≲0.6s" (task's own words), matching the family's new short-spine look. */
+export const DEMO_SPINES = 2
 /** Mark radius AND its outward offset, viewBox units — one number, so the
  *  disc is tangent to the silhouette by construction (design.md §2 D4). 22
  *  across sits inside `docs/09` §3's 20-30 band for a mark. */
@@ -257,6 +261,31 @@ function crossesBody(stroke: readonly Point[], anchor: SpineAnchor, cfg: SpineCo
  * MAGNITUDE and per-point distances, both direction-agnostic already; only
  * measure 2's chord VECTOR needs to be reoriented before it is compared to
  * the anchor's outward normal.
+ *
+ * T19 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest #3: "it
+ * never accepts it even though I started really close"): measure 2 used to
+ * compare the drawn chord against the ANCHOR's own idealised outward normal
+ * (`anchor.nx/ny`, the direction from the centroid to the anchor's EXACT
+ * position). But measure 1 already admits a start point anywhere within
+ * `baseRadius` of the anchor — not ON it — and `baseRadius` is a real
+ * fraction of the body's own radius at this arc (`catalog.ts`'s own margin
+ * comments put it near the geometric ceiling). A child who starts at the
+ * EDGE of that tolerance circle and then draws PERFECTLY straight outward
+ * from THEIR OWN fingertip is, by construction, drawing along a ray whose
+ * angle differs from the anchor's own ray by `atan(baseRadius / r)` — for
+ * `hedgehog4` (`baseRadius` a third of `lenMin`), that is worth over 20° all
+ * by itself, on top of the child's own hand tremor, and it was being charged
+ * against `tolDeg` as if it were a drawing mistake. It never was one: "drawn
+ * outward" is only meaningful relative to where the finger actually is.
+ * Comparing to `atan2(localStart.y - centre.y, localStart.x - centre.x)`
+ * instead — the direction from the centroid through the point the child
+ * ACTUALLY touched down at (`p0`, or `pEnd` when `reversed`) — measures
+ * exactly "did this stroke move away from the body along ITS OWN radius",
+ * which is what a six-year-old is actually doing when they "pull a spine
+ * out", and costs nothing extra: `cfg.body.centre` is already on `cfg`.
+ * When measure 1 matched exactly on the anchor (every `idealStroke` fixture
+ * in `spines.test.ts`), `localStart` IS the anchor and this reduces to the
+ * old comparison exactly — no fixture using an on-anchor stroke moves.
  */
 function passesRemainingMeasures(
   stroke: readonly Point[],
@@ -271,8 +300,13 @@ function passesRemainingMeasures(
   const dy = reversed ? p0.y - pEnd.y : pEnd.y - p0.y
   const chord = Math.hypot(dx, dy)
 
-  // Measure 2 — outward direction within tolDeg of the anchor's own normal.
-  if (angleBetweenDeg(dx, dy, anchor.nx, anchor.ny) > cfg.rules.tolDeg) return false
+  // Measure 2 — outward direction within tolDeg of the LOCAL radial ray
+  // (centroid → actual touch-down point), not the anchor's own idealised
+  // ray (T19, see this function's own header).
+  const localStart = reversed ? pEnd : p0
+  const idealX = localStart.x - cfg.body.centre.x
+  const idealY = localStart.y - cfg.body.centre.y
+  if (angleBetweenDeg(dx, dy, idealX, idealY) > cfg.rules.tolDeg) return false
 
   // Measure 3 — straightness, chord/arclength.
   const arc = arclength(stroke)
@@ -461,6 +495,75 @@ export function spineMarks(cfg: SpineConfig, state: SpineState): readonly SpineM
     filled: state.filled.has(i),
     next: i === hint,
   }))
+}
+
+/**
+ * T19 (`odd/tasks/prewriting-stage-completion.md` §3.3, "el trazo se
+ * convierte en espina"): the base half-width of the accepted-spine spike, as
+ * a fraction of its own length — "triángulo largo, base ancha, punta fina"
+ * (a long triangle, wide base, thin tip). One number, shared by every level,
+ * so the family reads as one visual language rather than a per-level shape.
+ */
+export const SPINE_SPIKE_BASE_RATIO = 0.34
+
+/**
+ * One accepted spine's own clean geometry: a `base` (on the silhouette, at
+ * the anchor) and a `tip` (outward along the anchor's own normal, at the
+ * length band's own midpoint — `spineSegments`'s own convention, so a
+ * settled spike and the demonstration/`?debug=espinas:<k>` line never
+ * disagree about how long a "plausible" spine is). Exported as a plain
+ * triple rather than only the `d` string so a render layer can also read
+ * the corners directly (`SpineLayer.test.tsx`'s own parsing convention).
+ */
+export interface SpineSpike {
+  readonly base: Point
+  readonly left: Point
+  readonly tip: Point
+  readonly right: Point
+}
+
+function spineSpikeOf(anchor: SpineAnchor, len: number): SpineSpike {
+  const base = { x: anchor.x, y: anchor.y }
+  const tip = { x: anchor.x + anchor.nx * len, y: anchor.y + anchor.ny * len }
+  const halfWidth = (len * SPINE_SPIKE_BASE_RATIO) / 2
+  // Perpendicular to the outward normal (nx, ny) is (-ny, nx).
+  const px = -anchor.ny * halfWidth
+  const py = anchor.nx * halfWidth
+  return {
+    base,
+    left: { x: base.x + px, y: base.y + py },
+    tip,
+    right: { x: base.x - px, y: base.y - py },
+  }
+}
+
+/** The spike's own outline as an `M`/`L` path — left corner → tip → right
+ *  corner → back to the left corner, closed WITHOUT `Z` (`odd/tasks/
+ *  adventure-flow-and-map-guidance.md` §Constraints: "generators emit only
+ *  M/L/C"). */
+export function spineSpikePath(spike: SpineSpike): string {
+  const { left, tip, right } = spike
+  return `M ${left.x} ${left.y} L ${tip.x} ${tip.y} L ${right.x} ${right.y} L ${left.x} ${left.y}`
+}
+
+/**
+ * Every FILLED anchor's own spike path, in generator/anchor order (never
+ * "first k" — a child can fill anchors out of order, e.g. drawing spine 3
+ * before spine 1, so this walks the whole anchor list and tests
+ * `state.filled` directly, the same convention {@link spineMarks} already
+ * follows). This is the one place `docs/19` §3.3 item 2's "the stroke
+ * becomes a spine" is built: `screen/LevelPlay.tsx` stops showing an
+ * accepted stroke's own raw ink once this list contains its anchor.
+ */
+export function spineSpikePaths(cfg: SpineConfig, state: SpineState): readonly string[] {
+  const anchors = spineAnchors(cfg)
+  const len = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+  const paths: string[] = []
+  for (let i = 0; i < anchors.length; i++) {
+    if (!state.filled.has(i)) continue
+    paths.push(spineSpikePath(spineSpikeOf(anchors[i], len)))
+  }
+  return paths
 }
 
 /** One debug ring per anchor at `baseRadius` — `?debug=espinas:<k>` only. */

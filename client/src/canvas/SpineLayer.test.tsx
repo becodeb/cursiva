@@ -253,6 +253,79 @@ function parseFadingPaths(html: string): Array<{ d: string; fill: string | null;
   })
 }
 
+/** Parse every `<path data-spine-spike="true">` out of the HTML STRING. */
+function parseSpikePaths(html: string): Array<{ d: string; fill: string | null; stroke: string | null }> {
+  const tags = html.match(/<path[^>]*data-spine-spike="true"[^>]*>/g) ?? []
+  return tags.map((tag) => {
+    const dMatch = tag.match(/ d="([^"]*)"/)
+    const fillMatch = tag.match(/fill="([^"]+)"/)
+    const strokeMatch = tag.match(/stroke="([^"]+)"/)
+    if (!dMatch) throw new Error(`d not found in ${tag}`)
+    return { d: dMatch[1], fill: fillMatch ? fillMatch[1] : null, stroke: strokeMatch ? strokeMatch[1] : null }
+  })
+}
+
+describe('SpineLayer — accepted spikes (T19, "el trazo se convierte en espina")', () => {
+  it('renders no spike path at all when the field is absent — every existing caller byte-identical', () => {
+    const html = renderToString(<SpineLayer spines={traceSpinesFor(CFG)} sheetBounds={SHEET_BOUNDS} />)
+    expect(html).not.toContain('data-spine-spike')
+  })
+
+  it('renders one <path data-spine-spike> per entry, with the caller-resolved fill/stroke', () => {
+    const d = 'M 0 0 L 10 10 L 20 0 L 0 0'
+    const html = renderToString(
+      <SpineLayer
+        spines={{ ...traceSpinesFor(CFG), spikes: [d], spikeFill: '#1e293b', spikeStroke: '#0f172a' }}
+        sheetBounds={SHEET_BOUNDS}
+      />,
+    )
+    const spikes = parseSpikePaths(html)
+    expect(spikes).toHaveLength(1)
+    expect(spikes[0].d).toBe(d)
+    expect(spikes[0].fill).toBe('#1e293b')
+    expect(spikes[0].stroke).toBe('#0f172a')
+    expect(html).toContain('class="cv-spine-spike"')
+  })
+
+  it('falls back to spines.earned for both fill and stroke when the caller supplies neither', () => {
+    const html = renderToString(
+      <SpineLayer spines={{ ...traceSpinesFor(CFG), spikes: ['M 0 0 L 1 1 L 2 0 L 0 0'] }} sheetBounds={SHEET_BOUNDS} />,
+    )
+    const [spike] = parseSpikePaths(html)
+    expect(spike.fill).toBe(EARNED)
+    expect(spike.stroke).toBe(EARNED)
+  })
+
+  it('renders several spikes in the same order the caller supplied them', () => {
+    const html = renderToString(
+      <SpineLayer
+        spines={{ ...traceSpinesFor(CFG), spikes: ['M 0 0 L 1 1 L 2 0 L 0 0', 'M 5 5 L 6 6 L 7 5 L 5 5'] }}
+        sheetBounds={SHEET_BOUNDS}
+      />,
+    )
+    const spikes = parseSpikePaths(html)
+    expect(spikes.map((s) => s.d)).toEqual(['M 0 0 L 1 1 L 2 0 L 0 0', 'M 5 5 L 6 6 L 7 5 L 5 5'])
+  })
+
+  it('introduces no url(#), <mask>, <pattern>, <clipPath>, or <defs> while a spike is present', () => {
+    const html = renderToString(
+      <SpineLayer spines={{ ...traceSpinesFor(CFG), spikes: ['M 0 0 L 1 1 L 2 0 L 0 0'] }} sheetBounds={SHEET_BOUNDS} />,
+    )
+    expect(html).not.toContain('url(#')
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<clipPath')
+    expect(html).not.toContain('<defs')
+  })
+
+  it('draws spikes BEFORE the marks (a mark is never hidden under the spike it sits beside)', () => {
+    const html = renderToString(
+      <SpineLayer spines={{ ...traceSpinesFor(CFG), spikes: ['M 0 0 L 1 1 L 2 0 L 0 0'] }} sheetBounds={SHEET_BOUNDS} />,
+    )
+    expect(html.indexOf('data-spine-spike')).toBeLessThan(html.indexOf('<circle'))
+  })
+})
+
 describe('SpineLayer — fading rejected strokes (T13, tablet playtest #2)', () => {
   it('renders no fading path at all when the field is absent — every existing caller byte-identical', () => {
     const html = renderToString(<SpineLayer spines={traceSpinesFor(CFG)} sheetBounds={SHEET_BOUNDS} />)

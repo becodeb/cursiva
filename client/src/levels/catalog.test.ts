@@ -873,15 +873,20 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
     // Ceiling (design.md §2 D5, "computed from the real anchor chords"):
     // half the smallest chord between two REAL, adjacent generated anchors —
     // not the circle approximation `2·r_min·sinΔθ/2` would give, since the
-    // profile's per-anchor radii vary along the arc. T3 (2026-09-25 tablet
-    // playtest) revised both `count` and `baseRadius` on every hedgehog
-    // level (`catalog.ts`'s own T3 comment on the family has the full
-    // rationale) — margins recomputed against the NEW counts/radii below.
+    // profile's per-anchor radii vary along the arc. T19 (`odd/tasks/
+    // prewriting-stage-completion.md` §3.3) redesigned every hedgehog
+    // level's pose/count/body (`catalog.ts`'s own T19 comment on the family
+    // has the full rationale) — margins recomputed against the NEW
+    // counts/poses/bodies below. `hedgehog3`/`hedgehog4`'s margins are
+    // noticeably thinner than `hedgehog1`/`hedgehog2`'s: packing 10-11
+    // anchors into the profile's 180° arc, keeping `baseRadius ≥ TolTouch`
+    // (26) and keeping the body on the 600-tall sheet, leaves little slack
+    // — still comfortably positive, never the geometric ceiling itself.
     const margins: Record<string, number> = {
-      hedgehog1: 4.5,
-      hedgehog2: 3.1,
-      hedgehog3: 2.9,
-      hedgehog4: 8.7,
+      hedgehog1: 14.0,
+      hedgehog2: 9.9,
+      hedgehog3: 2.5,
+      hedgehog4: 2.9,
     }
     for (const id of HEDGEHOG_IDS) {
       const cfg = getLevel(id).spines!
@@ -901,8 +906,8 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
     }
   })
 
-  it('lands no anchor on a foot or a belly — every profile anchor sits in [200, 380], the same arc on all three', () => {
-    for (const id of ['hedgehog1', 'hedgehog2', 'hedgehog3'] as const) {
+  it('lands no anchor on a foot or a belly — every PROFILE anchor sits in [200, 380], the same arc on both profile levels', () => {
+    for (const id of ['hedgehog3', 'hedgehog4'] as const) {
       const cfg = getLevel(id).spines!
       expect(cfg.arc, id).toEqual({ from: 200, to: 380 })
       const anchors = spineAnchors(cfg)
@@ -913,8 +918,14 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
     }
   })
 
+  it('the CURLED arc (65→365) is identical on both curled levels — a property of the pose, not a ladder rung', () => {
+    for (const id of ['hedgehog1', 'hedgehog2'] as const) {
+      expect(getLevel(id).spines!.arc, id).toEqual({ from: 65, to: 365 })
+    }
+  })
+
   it('confirms the curled pose really is round — max/min − 1 ≤ 0.041 over its own spine arc', () => {
-    const cfg = getLevel('hedgehog4').spines!
+    const cfg = getLevel('hedgehog1').spines!
     const { radii } = HEDGEHOG_SILHOUETTE.curled
     const step = 360 / radii.length
     const inArc = (deg: number): boolean => {
@@ -956,30 +967,58 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
       expect(cfgs[i].rules.lenMin, HEDGEHOG_IDS[i]).toBeLessThan(cfgs[i - 1].rules.lenMin)
       expect(cfgs[i].rules.lenMax, HEDGEHOG_IDS[i]).toBeLessThan(cfgs[i - 1].rules.lenMax)
     }
-    expect(HEDGEHOG_IDS.map((id) => getLevel(id).rules.minAccuracy)).toEqual([70, 80, 90, 100])
+    // T19 (`odd/tasks/prewriting-stage-completion.md`, third tablet
+    // playtest, "with one spine left, a mere tap completes the level"):
+    // every hedgehog level now requires ALL its anchors — `minAccuracy:
+    // 100` on all four, not 70/80/90/100. A spine is a discrete, countable
+    // thing; `count − 1` filled anchors must never itself clear the bar (see
+    // the dedicated regression below), and `docs/01`'s "no punishment" is
+    // unaffected — a `spines` level never fails a child, it only waits.
+    expect(HEDGEHOG_IDS.map((id) => getLevel(id).rules.minAccuracy)).toEqual([100, 100, 100, 100])
     for (const id of HEDGEHOG_IDS) {
       expect(getLevel(id).rules.mustBeContinuous, id).toBe(false)
       expect(getLevel(id).rules.minFluency, id).toBe(0)
     }
   })
 
-  it('clears the phase-1 amplitude guard on hedgehog1 by assertion, on the REAL measured radii', () => {
-    // The guard's own code path (`kind !== 'path'`) exempts every free level,
-    // hedgehog1 included; this asserts the guard's SPIRIT anyway, the way the
-    // bee family did, over the real anchor geometry rather than the retired
-    // ellipse estimate (design.md §8.1).
+  // T19 (`odd/tasks/prewriting-stage-completion.md` §3.3, batch 3 decision 5,
+  // binding: "short hedgehog spines from level 1"): the family is explicitly
+  // EXEMPTED, in writing, from the phase-1 amplitude guard's SPIRIT — the
+  // redesign asks for short spines (60-130 units) from `hedgehog1` onward,
+  // which by construction cannot span the writing band the way a phase-1
+  // corridor route does. The guard's own CODE path (`kind !== 'path'`) has
+  // always structurally exempted every free level; this documents that the
+  // family is ALSO exempted on purpose, by design, rather than merely
+  // slipping through a loophole — replacing the old assertion (batch 1/2.5)
+  // that this same test used to hold the family to.
+  it('is exempted from the phase-1 amplitude guard from level 1 (docs/19 §3.3/§8 decision 5) — no single spine spans the sheet the way a corridor route does', () => {
+    // The guard's own 300-unit vertical-span floor is a ROUTE property (a
+    // phase-1 path must be taller than the writing band). "Short hedgehog
+    // spines from level 1" (the binding decision) means no single admissible
+    // spine is asked to reach anywhere near that — each one is a short
+    // outward flick, not a route. (The picture's own full RING of spines on
+    // a curled pose can still incidentally cover a lot of the sheet, since a
+    // full circle of short spines reaches in every direction at once — that
+    // is a property of the pose, not evidence the guard's spirit is met; the
+    // exemption is about each individual spine, which is what this asserts.)
     const cfg = getLevel('hedgehog1').spines!
-    const anchors = spineAnchors(cfg)
-    const { lenMin } = cfg.rules
-    const tipsAtLenMin = anchors.map((a) => ({ x: a.x + a.nx * lenMin, y: a.y + a.ny * lenMin }))
-    const minY = Math.min(...tipsAtLenMin.map((p) => p.y))
-    const maxY = Math.max(...tipsAtLenMin.map((p) => p.y))
-    const minX = Math.min(...tipsAtLenMin.map((p) => p.x))
-    const maxX = Math.max(...tipsAtLenMin.map((p) => p.x))
-    expect(maxY - minY).toBeGreaterThan(300)
-    expect(minY).toBeLessThan(180)
-    expect(maxY).toBeGreaterThan(420)
-    expect(maxX - minX).toBeGreaterThan(600)
+    expect(cfg.rules.lenMax, 'hedgehog1 lenMax').toBeLessThanOrEqual(130) // docs/19's own upper bound
+    expect(cfg.rules.lenMax, 'hedgehog1 lenMax').toBeLessThan(300)
+  })
+
+  // T19 (third tablet playtest, "with one spine left... the level completes
+  // without letting me draw it"): the real regression for that bug. Every
+  // hedgehog level's own `minAccuracy: 100` must never be reachable with one
+  // anchor still unfilled — `count ≤ 12` keeps `round(100·(n−1)/n)` strictly
+  // below 100 for every authored count, but this asserts it directly against
+  // the SHIPPED levels rather than trusting the arithmetic argument alone.
+  it('never lets count−1 filled anchors alone reach minAccuracy — the last spine can never complete a level by accident', () => {
+    for (const id of HEDGEHOG_IDS) {
+      const cfg = getLevel(id).spines!
+      const n = cfg.count
+      const partial = Math.round((100 * (n - 1)) / n)
+      expect(partial, id).toBeLessThan(getLevel(id).rules.minAccuracy)
+    }
   })
 
   it('never asks hedgehog2-4 for a stroke it would then refuse — the longest admissible spine stays on the paper', () => {
@@ -997,11 +1036,16 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
     }
   })
 
-  it('places hedgehog4 alone on the curled pose, the other three on the profile pose', () => {
-    expect(getLevel('hedgehog1').spines!.pose).toBe('profile')
-    expect(getLevel('hedgehog2').spines!.pose).toBe('profile')
+  // T19 (docs/19 §3.3: "el orden bola → perfil invierte el de hoy" — on a
+  // ball every direction is the same, the easiest radial task; on the back,
+  // every spine has its own angle): curled comes FIRST now, profile second —
+  // the reverse of the pre-T19 family (`hedgehog4` used to be the only
+  // curled level).
+  it('places hedgehog1/hedgehog2 on the curled pose (the ball), hedgehog3/hedgehog4 on the profile pose (the back)', () => {
+    expect(getLevel('hedgehog1').spines!.pose).toBe('curled')
+    expect(getLevel('hedgehog2').spines!.pose).toBe('curled')
     expect(getLevel('hedgehog3').spines!.pose).toBe('profile')
-    expect(getLevel('hedgehog4').spines!.pose).toBe('curled')
+    expect(getLevel('hedgehog4').spines!.pose).toBe('profile')
   })
 })
 
