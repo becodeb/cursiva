@@ -95,6 +95,31 @@ describe('routeExtrema — a synthetic wave route finds troughs as well as crest
   })
 })
 
+// T26 (`odd/tasks/prewriting-stage-completion.md`, `docs/19` §3): `index`
+// lets a caller (`levels/collect.ts`'s `resolveCollectItems`) measure how far
+// ALONG the route a turning point sits, without re-searching the polyline for
+// a coordinate match. Purely additive — every check above already destructures
+// `{x, y}` or `{side}` explicitly, so it never notices the extra field.
+describe('routeExtrema — index (T26)', () => {
+  it("each extremum's index really points back at that same point in the polyline", () => {
+    const { polyline } = buildLevelTarget(
+      makeWaveConfig({ x0: 80, x1: 1480, y: 300, amplitude: 160, cycles: 5 }),
+    )
+    for (const e of routeExtrema(polyline)) {
+      expect(polyline[e.index].x).toBeCloseTo(e.x, 6)
+      expect(polyline[e.index].y).toBeCloseTo(e.y, 6)
+    }
+  })
+
+  it('indices are strictly ascending, in route order', () => {
+    const { polyline } = buildLevelTarget(
+      makeWaveConfig({ x0: 80, x1: 1480, y: 300, amplitude: 160, cycles: 5 }),
+    )
+    const extrema = routeExtrema(polyline)
+    for (let i = 1; i < extrema.length; i++) expect(extrema[i].index).toBeGreaterThan(extrema[i - 1].index)
+  })
+})
+
 describe('vertexArtPoints', () => {
   const extrema = routeExtrema(
     buildLevelTarget(makeWaveConfig({ x0: 80, x1: 910, y: 300, amplitude: 160, cycles: 2 })).polyline,

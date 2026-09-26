@@ -11,6 +11,19 @@ export interface RouteExtremum {
    *  local MAXIMUM. Naming them by what the child sees rather than by the
    *  sign is the whole reason this field is a word and not a boolean. */
   readonly side: 'crest' | 'trough'
+  /** This turning point's own position in the ORIGINAL `polyline` (T26,
+   *  `odd/tasks/prewriting-stage-completion.md`, `docs/19` §3: "un pez en
+   *  el fondo de cada U", "cada delfín que pasás se suma"). `x`/`y` alone
+   *  tell a renderer WHERE to draw; a collect-along-the-path consumer
+   *  (`levels/collect.ts`'s `resolveCollectItems`) also needs to measure
+   *  how far ALONG the route that point sits, and re-deriving the index by
+   *  searching the polyline for a coordinate match would be both slower and
+   *  fragile against float noise — this field is the exact index the scan
+   *  below already has in hand, at zero extra cost. Purely additive: every
+   *  existing consumer destructures `{x, y, side}` and never notices the
+   *  extra field (`dolphinExtrema.test.ts`'s own equality checks already
+   *  pick fields explicitly rather than deep-equalling the whole object). */
+  readonly index: number
 }
 
 /**
@@ -68,7 +81,7 @@ export function routeExtrema(
     const nextY = k < turns.length - 1 ? polyline[turns[k + 1].index].y : polyline[polyline.length - 1].y
     const rise = Math.min(Math.abs(cur.y - prevY), Math.abs(cur.y - nextY))
     if (rise < minRise) continue
-    result.push({ x: cur.x, y: cur.y, side })
+    result.push({ x: cur.x, y: cur.y, side, index })
   }
   return result
 }

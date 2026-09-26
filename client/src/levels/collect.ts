@@ -23,6 +23,7 @@
 // one caller two contradictory reset rules for the same field — a second,
 // parallel state is the smaller, safer diff.
 import { routeApexes } from './vertexArt'
+import { routeExtrema } from './dolphinExtrema'
 import { pointAtArcLength } from '../letters/svgLetter'
 import type { Point } from '../letters/types'
 import type { ArtImage } from '../detective/assets'
@@ -267,17 +268,32 @@ export function waveCrestArcs(
  * sheep-hill/llama-peak convention this task ships, right for a RIDGE.
  * `items: 'crests'` derives positions from {@link waveCrestArcs} instead —
  * the duck family's own smooth wave routes, where `'peaks'` finds nothing
- * (that function's own header has the full measurement). Both plus one
- * final item at the route's own end (`trailEndArc`'s tolerance, same
- * reasoning `collectItemsFromPeaks` already documents). An explicit
- * ascending array of arc-length FRACTIONS (0..1 of the route's length) stays
- * the escape hatch for a future adventure whose collectibles are neither —
- * `resolveCollectItems` below turns any of the three shapes into the same
- * `CollectItem[]` the engine scores against, so `LevelPlay`/`collectTick`
- * never need to know which one a level chose.
+ * (that function's own header has the full measurement).
+ *
+ * T26 (`odd/tasks/prewriting-stage-completion.md`, `docs/19` §3) adds two
+ * more, both backed by `levels/dolphinExtrema.ts`'s `routeExtrema` — the
+ * dolphin family's own crest-AND-trough finder, a run-scan rather than
+ * `waveCrestArcs`'s arc-length-window one, and general enough to cover a
+ * `garland`'s U-shaped bottoms too (a garland's cycle boundaries register as
+ * spurious "crests" at the SAME height as the route's own start/end, which
+ * `items: 'troughs'` simply never asks for): `items: 'troughs'` — "un pez en
+ * el fondo de cada U" (the fish case's own `f2-agua3`/`f2-agua4`) — and
+ * `items: 'extrema'` — "cada delfín que pasás se suma", the dolphin family's
+ * own crest-and-trough picture positions, unchanged from the pre-T26
+ * `vertexArt: { place: 'extrema' }` decorative layer this replaces (a
+ * standing picture AND a collect item at the same spot would draw it twice,
+ * the same rule `sheep-hill1`'s own T17 comment states).
+ *
+ * Every mode plus one final item at the route's own end (`trailEndArc`'s
+ * tolerance, same reasoning `collectItemsFromPeaks` already documents). An
+ * explicit ascending array of arc-length FRACTIONS (0..1 of the route's
+ * length) stays the escape hatch for a future adventure whose collectibles
+ * are none of the above — `resolveCollectItems` below turns any of the five
+ * shapes into the same `CollectItem[]` the engine scores against, so
+ * `LevelPlay`/`collectTick` never need to know which one a level chose.
  */
 export interface CollectConfig {
-  readonly items: readonly number[] | 'peaks' | 'crests'
+  readonly items: readonly number[] | 'peaks' | 'crests' | 'troughs' | 'extrema'
   readonly art: ArtImage
   readonly size: number
 }
@@ -296,6 +312,34 @@ function collectItemsFromWaveCrests(
     const point = pointAtArcLength(polyline as Point[], arc)
     return { x: point.x, y: point.y, arc }
   })
+  const last = polyline[polyline.length - 1]
+  items.push({ x: last.x, y: last.y, arc: Math.max(0, trailEndArc(length, corridorWidth)) })
+  return items
+}
+
+/**
+ * `collectItemsFromPeaks`/`collectItemsFromWaveCrests`'s own construction,
+ * restated for `routeExtrema`'s turning points (T26): one item per turning
+ * point matching `side` (or every turning point, `side` absent — the
+ * dolphin's `'extrema'` mode), plus the same final-item tolerance every other
+ * mode already carries. `routeExtrema` walks the polyline start to end, so
+ * filtering by `side` preserves ascending arc order for free, same as
+ * `waveCrestArcs`'s own guarantee.
+ */
+function collectItemsFromExtrema(
+  polyline: ReadonlyArray<{ x: number; y: number }>,
+  length: number,
+  corridorWidth: number,
+  side?: 'crest' | 'trough',
+  minRise = 40,
+): readonly CollectItem[] {
+  if (polyline.length < 2 || length <= 0) return []
+  const extrema = routeExtrema(polyline, minRise).filter((e) => side === undefined || e.side === side)
+  const items: CollectItem[] = extrema.map((e) => ({
+    x: e.x,
+    y: e.y,
+    arc: e.index > 0 ? arcLengthUpTo(polyline, e.index) : 0,
+  }))
   const last = polyline[polyline.length - 1]
   items.push({ x: last.x, y: last.y, arc: Math.max(0, trailEndArc(length, corridorWidth)) })
   return items
@@ -321,6 +365,8 @@ export function resolveCollectItems(
 ): readonly CollectItem[] {
   if (config.items === 'peaks') return collectItemsFromPeaks(polyline, length, corridorWidth)
   if (config.items === 'crests') return collectItemsFromWaveCrests(polyline, length, corridorWidth)
+  if (config.items === 'troughs') return collectItemsFromExtrema(polyline, length, corridorWidth, 'trough')
+  if (config.items === 'extrema') return collectItemsFromExtrema(polyline, length, corridorWidth)
   if (polyline.length < 2 || length <= 0) return []
   return config.items.map((fraction) => {
     const arc = fraction * length
