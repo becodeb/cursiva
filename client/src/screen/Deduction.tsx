@@ -31,7 +31,6 @@ import { useState, type CSSProperties } from 'react'
 import {
   ANIMAL_ART,
   ANIMAL_SILHOUETTE_ART,
-  CARRIER_LENS_ART,
   CLUE_ART,
   ZOO_CARETAKER_ART,
   ZOO_SPEECH_BUBBLE_ART,
@@ -55,15 +54,7 @@ import {
   LINE_HEIGHT,
   placeAndFitBubble,
 } from './bubbleFit'
-import {
-  octopusBoxAtCorner,
-  OCTOPUS_CORNER_INSET,
-  OCTOPUS_CORNER_SIZE_PCT,
-  STAGE_MARGIN_PCT,
-  STAGE_MAX_PX,
-  STAGE_MAX_VH_FRAC,
-  stanceBubbleSide,
-} from './pulpitoStance'
+import { octopusBoxAtCorner, OCTOPUS_CORNER_INSET, STAGE_MARGIN_PCT, stanceBubbleSide } from './pulpitoStance'
 import { bubbleContentCssVars } from './bubbleCssVars'
 
 /**
@@ -88,6 +79,37 @@ import { bubbleContentCssVars } from './bubbleCssVars'
  * trail-scale baseline rather than merely restored to it.
  */
 const ANIMAL_SIZE = 180
+
+/**
+ * Pulpito's own corner stage tuning for THIS screen (T21 follow-up round 3,
+ * orchestrator: "Pulpito smaller on this screen — he's the narrator here,
+ * not the star: about 22-26% of the viewport height"). Exported so
+ * `bubbleFit.test.ts`'s own dedicated deduction sweep can build the EXACT
+ * same `octopusBoxAtCorner` box this screen renders with — a second,
+ * independently-guessed copy is exactly the kind of thing that quietly
+ * drifts from what actually ships (this task's own review history: the
+ * generic T18-sized sweep it used before this round validated a DIFFERENT
+ * geometry than the one this screen actually renders).
+ *
+ * The frame itself is a SQUARE `DEDUCTION_STAGE_DVH` of the viewport's own
+ * height (never the T18 stage's `STAGE_MAX_PX`/`STAGE_MAX_VH_FRAC`, which
+ * assumes nothing else shares the screen with Pulpito) — big enough, as a
+ * FRACTION of that square, to leave real room for the bubble beside a
+ * `sizeBy: 'height'` octopus at `DEDUCTION_OCTOPUS_SIZE_PCT`, so
+ * `DEDUCTION_OCTOPUS_SIZE_PCT% * DEDUCTION_STAGE_DVH%` of the viewport
+ * height is the octopus's own real rendered height: 50% of 48dvh = 24dvh,
+ * dead centre of the requested 22-26% band.
+ */
+export const DEDUCTION_STAGE_DVH = 48
+export const DEDUCTION_OCTOPUS_SIZE_PCT = 50
+/** A floor under the frame's own size, in real px — without it, a SHORT
+ *  landscape phone (844×390, this app's own tightest required tier) scales
+ *  `DEDUCTION_STAGE_DVH` down to a frame too small for its own font floor
+ *  (measured: a 187px frame put the opening line at ~7.6px, well under the
+ *  11px readability floor `bubbleFit.test.ts`'s own sweep already enforces
+ *  for every other screen). Proven against exactly that viewport by this
+ *  screen's own dedicated sweep in `bubbleFit.test.ts`. */
+export const DEDUCTION_STAGE_MIN_PX = 280
 
 /**
  * The lineup's own width class, e.g. `cv-lineup-figures-3`.
@@ -165,9 +187,7 @@ const ANIMAL_LABEL: Readonly<Record<AnimalId, string>> = {
 /**
  * Pulpito's opening question, before any pick (`odd/tasks/prewriting-stage-
  * completion.md` T21, `docs/19` §1: "el Pulpito pregunta: ¿Quién dejó todo
- * esto?"). Shown with {@link CARRIER_LENS_ART} — the same magnifying glass a
- * detective trail's own carrier holds — since there is no clue yet to
- * illustrate the question with.
+ * esto?").
  */
 export const DEDUCTION_OPENING_LINE = '¿Quién dejó todo esto?'
 
@@ -178,11 +198,6 @@ export const DEDUCTION_SOLVED_LINE: Readonly<Record<AnimalId, string>> = {
   gallina: '¡Era la gallina!',
   vaca: '¡Era la vaca!',
   gato: '¡Era el gato!',
-}
-
-export interface DeductionHint {
-  readonly text: string
-  readonly art: ArtImage
 }
 
 /**
@@ -196,18 +211,30 @@ export interface DeductionHint {
  * Priority, closed beats dismissed beats opening: once the case is closed
  * there is nothing left to hint at, and a stale dismissal from before the
  * close must never resurface over the "¡era X!" line.
+ *
+ * [T21 follow-up, orchestrator screenshot review 2026-09-26: "the bubble is
+ * so small it overlaps... most likely because the large feather image
+ * inside the bubble pushes the text down"] Returns TEXT ONLY now — no
+ * `art` field. The chip row already shows every collected clue and the
+ * fading card already shows which animal was ruled out, so a THIRD picture
+ * inside the bubble was pure duplication, and for a tall/narrow clue image
+ * (the feather) it was also the actual overflow: a real browser rendered
+ * the caption lower than `bubbleFit.ts`'s own FLOAT/STACK model predicted
+ * once that image's own real CSS float interacted with word-wrap in a way
+ * the model's character-count heuristic did not reproduce exactly. Dropping
+ * the image removes the whole float/wrap interaction this screen's bubble
+ * ever needed to get right — `bubbleFit.ts`'s own `fitBubbleContent`/
+ * `placeAndFitBubble` now take an OPTIONAL `art`, degenerating cleanly to
+ * plain wrapped text (that module's own header has the exact reasoning).
  */
-export function deductionHint(kase: DetectiveCase, state: DeductionState): DeductionHint {
-  if (state.closed) {
-    return { text: DEDUCTION_SOLVED_LINE[kase.culprit], art: ANIMAL_ART[kase.culprit] }
-  }
+export function deductionHint(kase: DetectiveCase, state: DeductionState): string {
+  if (state.closed) return DEDUCTION_SOLVED_LINE[kase.culprit]
   const last = state.dismissed[state.dismissed.length - 1]
   if (last !== undefined) {
-    const kind = kase.ruledOutBy[last]
     const text = kase.hint[last]
-    if (kind && text) return { text, art: CLUE_ART[kind].art.earned }
+    if (text) return text
   }
-  return { text: DEDUCTION_OPENING_LINE, art: CARRIER_LENS_ART }
+  return DEDUCTION_OPENING_LINE
 }
 
 /**
@@ -352,23 +379,18 @@ function Animal({
 export const DEDUCTION_CSS = `
 .cv-deduction-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 ${BUBBLE_POP_CSS}
-/* [T21 follow-up, orchestrator screenshot review] The card row is anchored
- * to the TOP, small, never vertically centred: Pulpito's own corner stage
- * (below) is the SAME size AdventureIntro.tsx uses and needs the lower
- * majority of the sheet for his bubble — the two bands share the sheet by
- * occupying DIFFERENT halves of it, never by shrinking either one. */
+/* [T21 follow-up round 3, orchestrator screenshot review] Pulpito is the
+ * NARRATOR on this screen, not the star the way he is on AdventureIntro.tsx/
+ * AdventureClosing.tsx (nothing else shares THEIR screen with him) — his own
+ * stage is now a small, FIXED-size square (.cv-deduction-frame, below:
+ * ~22-26% of the viewport's own height), never the full T18 stage size. That
+ * frees the whole TOP of the sheet for the chip row and the card row, with
+ * Pulpito's small stage confined to the bottom-left corner underneath them —
+ * confirmed by real measured DOM rects, not merely by eye (this task's own
+ * QA script). The card row needs no rightward push any more either: nothing
+ * of Pulpito's now reaches high enough to compete with it. */
 .cv-deduction-content { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 14px; padding: 64px 24px 0; }
-/* [T21 follow-up round 2, orchestrator screenshot review] The T18 bubble,
- * at its own real (un-shrunk) size, reaches almost the FULL height of
- * Pulpito's own corner frame — exactly like AdventureIntro.tsx/
- * AdventureClosing.tsx, which have nothing else sharing the screen with it.
- * A vertical split (cards above, bubble below) cannot clear that on its
- * own, so the cards are pushed clear of the FRAME'S OWN WIDTH instead — the
- * same min(100%, STAGE_MAX_PX, STAGE_MAX_VH_FRAC*100dvh) expression the
- * frame itself uses, so the two can never drift apart. Only the CARD row
- * moves; the chip row above stays centred (it renders well above where the
- * bubble starts, confirmed by a screenshot). */
-.cv-deduction-cards { align-self: stretch; display: flex; justify-content: flex-end; padding-left: min(100%, ${STAGE_MAX_PX}px, ${STAGE_MAX_VH_FRAC * 100}dvh); }
+.cv-deduction-cards { align-self: stretch; display: flex; justify-content: center; }
 @keyframes cv-chips-down { 0% { opacity: 0; transform: translateY(-28px); } 100% { opacity: 1; transform: translateY(0); } }
 /* The clues "come down" into view on entry (docs/19 §2.1) — a one-shot pop
  * on mount, not a replayable transition (this screen mounts once per visit,
@@ -407,28 +429,23 @@ ${BUBBLE_POP_CSS}
 .cv-caption { font-size: max(16px, calc(var(--cv-animal) * 0.12)); font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.02em; }
 /* Sized the way this app already sizes its chrome: viewport-HEIGHT
  * breakpoints, ONE custom property carrying the picture/word/gap sizes
- * together so a caption can never outgrow its own picture. The width term's
- * subtracted px now accounts for Pulpito's OWN frame width too
- * (.cv-deduction-cards' own padding-left), not only the sheet's side
- * padding and the figures' gaps — the cards live in whatever is left AFTER
- * the frame, never the full viewport width. */
-.cv-lineup-figures { --cv-animal: min(140px, calc((100vw - 700px) / 3.9)); }
-.cv-lineup-figures-3 { --cv-animal: min(140px, calc((100vw - 660px) / 3.05)); }
+ * together so a caption can never outgrow its own picture. Pulpito's own
+ * stage is small and confined to the bottom-left now, so the width term
+ * only needs to account for the sheet's own side padding and the figures'
+ * gaps again — a single centred row, not pushed clear of anything. */
+.cv-lineup-figures { --cv-animal: min(160px, calc((100vw - 200px) / 3.9)); }
+.cv-lineup-figures-3 { --cv-animal: min(160px, calc((100vw - 160px) / 3.05)); }
 .cv-captioned > svg { width: auto; height: var(--cv-animal); }
 .cv-captioned { gap: calc(var(--cv-animal) * 0.03); }
 .cv-lineup-slot { gap: calc(var(--cv-animal) * 0.03); }
 @media (max-height: 820px) {
-  .cv-lineup-figures { --cv-animal: min(120px, calc((100vw - 700px) / 3.9)); gap: 14px; }
-  .cv-lineup-figures-3 { --cv-animal: min(120px, calc((100vw - 660px) / 3.05)); }
+  .cv-lineup-figures { --cv-animal: min(130px, calc((100vw - 200px) / 3.9)); gap: 14px; }
+  .cv-lineup-figures-3 { --cv-animal: min(130px, calc((100vw - 160px) / 3.05)); }
 }
 @media (max-height: 520px) {
-  /* Pulpito's own frame shrinks with viewport HEIGHT too (STAGE_MAX_VH_FRAC),
-   * so a short landscape phone leaves much MORE width free on the right —
-   * the subtracted px drops to match, or the cards would shrink far more
-   * than the frame actually requires at this tier. */
   .cv-deduction-content { padding: 48px 16px 0; gap: 8px; }
-  .cv-lineup-figures { --cv-animal: min(90px, calc((100vw - 400px) / 3.9)); gap: 8px; }
-  .cv-lineup-figures-3 { --cv-animal: min(96px, calc((100vw - 370px) / 3.05)); }
+  .cv-lineup-figures { --cv-animal: min(84px, calc((100vw - 160px) / 3.9)); gap: 8px; }
+  .cv-lineup-figures-3 { --cv-animal: min(90px, calc((100vw - 140px) / 3.05)); }
   .animal-btn { padding: 10px 8px 6px; border-radius: 18px; }
   .cv-deduction-chip { width: 40px; height: 40px; border-radius: 12px; }
 }
@@ -461,27 +478,33 @@ ${BUBBLE_POP_CSS}
 @media (prefers-reduced-motion: reduce) {
   .cv-reveal-pop, .cv-lineup-slot-shake, .cv-deduction-chips { animation: none; }
 }
-/* Pulpito's own corner stage — the EXACT same size AdventureIntro.tsx's own
- * .cv-intro-frame uses (STAGE_MAX_PX/STAGE_MAX_VH_FRAC), never shrunk;
- * octopusBoxAtCorner/placeAndFitBubble (screen/pulpitoStance.ts,
- * screen/bubbleFit.ts) are the SAME functions AdventureIntro.tsx calls, not
- * a reimplementation. The card row above (.cv-deduction-content) stays out
- * of its way by being anchored to the TOP and shrunk instead — see that
- * rule's own header. */
-.cv-deduction-frame { position: absolute; left: 0; bottom: ${STAGE_MARGIN_PCT}%; width: min(100%, ${STAGE_MAX_PX}px, ${STAGE_MAX_VH_FRAC * 100}dvh); aspect-ratio: 1 / 1; container-type: inline-size; pointer-events: none; }
-.cv-deduction-octopus { position: absolute; bottom: 2%; width: ${OCTOPUS_CORNER_SIZE_PCT}%; height: auto; }
-.cv-deduction-octopus img { display: block; width: 100%; height: auto; }
+/* [T21 follow-up round 3] Pulpito's own corner stage — a small FIXED square
+ * (~24dvh, comfortably inside the 22-26% of the viewport's own HEIGHT the
+ * orchestrator asked for), never the full T18 stage size: he narrates here,
+ * he is not the star. octopusBoxAtCorner/placeAndFitBubble
+ * (screen/pulpitoStance.ts, screen/bubbleFit.ts) are still the SAME
+ * functions AdventureIntro.tsx calls, not a reimplementation — only the
+ * frame's own size and the octopus's sizeBy ('height', matching a portrait
+ * figure the same way PrologueOpening.tsx's own caretaker already is) are
+ * tuned for sharing the sheet with a card row above. pointer-events: none
+ * on the frame: it must never block a tap on a card behind it. */
+.cv-deduction-frame { position: absolute; left: 0; bottom: ${STAGE_MARGIN_PCT}%; width: min(100%, max(${DEDUCTION_STAGE_MIN_PX}px, ${DEDUCTION_STAGE_DVH}dvh)); aspect-ratio: 1 / 1; container-type: inline-size; pointer-events: none; }
+.cv-deduction-octopus { position: absolute; bottom: 2%; height: ${DEDUCTION_OCTOPUS_SIZE_PCT}%; width: auto; }
+.cv-deduction-octopus img { display: block; width: auto; height: 100%; }
 .cv-deduction-bubble { position: absolute; container-type: inline-size; }
 .cv-deduction-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
 .cv-deduction-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
-.cv-deduction-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); }
-.cv-deduction-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
-.cv-deduction-bubble .cv-captioned--stack > svg { float: none; display: block; margin: 0 auto var(--cv-gap) auto; }
-/* Overrides THIS file's own .cv-caption (uppercase, sized off --cv-animal)
- * inside the bubble — a spoken sentence is not the animal-name vocabulary
- * that rule exists for; higher selector specificity (two classes) wins
- * regardless of source order. */
-.cv-deduction-bubble .cv-caption { font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; text-transform: none; }
+/* [T21 follow-up round 3, orchestrator screenshot review: "the hint renders
+ * BELOW the bubble's oval... most likely because the large feather image
+ * inside the bubble pushes the text down"] TEXT ONLY now — no image
+ * anywhere in the content box, so there is no float/wrap interaction left
+ * for a real browser to render differently than bubbleFit.ts's own model
+ * predicts (deductionHint's own header has the full reasoning). The
+ * content box is the SAME measured-safe rectangle CONTENT_LEFT_FRAC/
+ * CONTENT_TOP_FRAC/CONTENT_WIDTH_FRAC/CONTENT_HEIGHT_FRAC describe — this
+ * screen's own QA script measures the caption's real getBoundingClientRect
+ * against exactly that box, in the browser, not by eye. */
+.cv-deduction-bubble-text { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; }
 `
 
 export interface DeductionViewProps {
@@ -509,12 +532,23 @@ export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProp
   const backdrop = backdropFor(kase.trailIds[0])
   // [T21] Pulpito's own line for the current state (`deductionHint`, above):
   // the opening question, a wrong pick's own gentle reason, or the
-  // culprit's name once solved.
-  const hint = deductionHint(kase, state)
+  // culprit's name once solved. Text only (see DEDUCTION_CSS's own header
+  // on why) — `placeAndFitBubble` is called with no `art` at all.
+  const hintText = deductionHint(kase, state)
+  // [T21 follow-up round 3] `sizeBy: 'height'` — the SAME convention
+  // `PrologueOpening.tsx`'s own portrait caretaker figure already uses
+  // (`bubblePlacement.ts`'s own `OctopusBoxOptions` doc), since
+  // `ZOO_CARETAKER_ART` (235×320) is taller than it is wide.
+  // `DEDUCTION_OCTOPUS_SIZE_PCT` of `DEDUCTION_STAGE_DVH` (both exported,
+  // above) is what actually lands the octopus at 22-26% of the VIEWPORT's
+  // own height — an earlier attempt sized the octopus to 95% of a frame
+  // that was ITSELF already shrunk to the octopus's own target size, which
+  // left next to no frame width for the bubble at all (measured: a 37px-
+  // wide bubble on a 1024px screen).
   const octopusBox = octopusBoxAtCorner(ZOO_CARETAKER_ART, {
     corner: 'left',
-    sizeBy: 'width',
-    size: OCTOPUS_CORNER_SIZE_PCT,
+    sizeBy: 'height',
+    size: DEDUCTION_OCTOPUS_SIZE_PCT,
     bottom: 2,
     inset: OCTOPUS_CORNER_INSET,
   })
@@ -523,8 +557,7 @@ export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProp
     headBox: octopusBox,
     tail: ZOO_SPEECH_BUBBLE_TAIL,
     side: stanceBubbleSide('left'),
-    text: hint.text,
-    art: hint.art,
+    text: hintText,
   })
   return (
     <main className="cv-play">
@@ -570,17 +603,19 @@ export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProp
           {/* Keyed on the line (T8 item 2's own convention, AdventureIntro.
               tsx): a new hint pops in fresh every time it actually changes. */}
           <span
-            key={hint.text}
+            key={hintText}
             className="cv-bubble-pop"
             style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
           >
             <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-            <CaptionedArt
-              art={hint.art}
-              label={hint.text}
-              size={76}
-              className={content.layout === 'stack' ? 'cv-captioned--stack' : undefined}
-            />
+            {/* [T21 follow-up round 3] Text only — no CaptionedArt, no
+                image. Licensed by detective/captionAudit.ts's
+                CAPTION_CONTAINERS carrying 'cv-deduction-frame' now: the
+                octopus's OWN <img>, a sibling within that same frame, is
+                the picture this spoken line stands beside — never a second,
+                redundant clue/animal picture crammed into the bubble
+                itself (the orchestrator's own instruction: "prefer none"). */}
+            <p className="cv-deduction-bubble-text">{hintText}</p>
           </span>
         </span>
       </div>

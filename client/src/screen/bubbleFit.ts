@@ -402,17 +402,38 @@ function searchFontSize(
  * in this game's registry picks one of the two layouts above and reports
  * `fits: true`.
  */
-export function fitBubbleContent(text: string, art: ArtImage, bubbleWidth: number, bubbleHeight: number): BubbleContentFit {
+export function fitBubbleContent(
+  text: string,
+  art: ArtImage | undefined,
+  bubbleWidth: number,
+  bubbleHeight: number,
+): BubbleContentFit {
   const contentWidth = bubbleWidth * CONTENT_WIDTH_FRAC
   const contentHeight = bubbleHeight * CONTENT_HEIGHT_FRAC
 
-  const artAspect = art.h / art.w
-  const imageMaxWidth = bubbleWidth * IMAGE_MAX_WIDTH_FRAC
+  // `art` absent (T21 follow-up, prewriting-stage-completion.md: the
+  // deduction screen's own bubble is TEXT ONLY — no clue/animal picture
+  // competing with the caption for the content box's own height, which is
+  // what silently pushed real text below the drawn oval even though this
+  // function's own FLOAT/STACK height budgets were never violated on
+  // paper: a tall, narrow image (the feather clue, aspect ~2.5) sized
+  // itself down in WIDTH far enough that it stopped being the binding
+  // constraint this function's own image-sizing min() assumes, and every
+  // other screen's real art happens to avoid that shape). `imageWidth`/
+  // `imageHeight`/`gap` all collapse to 0, which is the exact degenerate
+  // case `wrapFloatingBlock`'s own header already documents ("floatHeight
+  // <= 0 is the degenerate case where every line already uses wideWidth")
+  // — the SAME wrap algorithm, just never given anything to float beside.
+  const hasImage = art !== undefined
+  const artAspect = art ? art.h / art.w : 0
+  const imageMaxWidth = hasImage ? bubbleWidth * IMAGE_MAX_WIDTH_FRAC : 0
   const imageMaxHeight = contentHeight * IMAGE_MAX_HEIGHT_FRAC
-  const imageWidth = Math.max(0, Math.min(imageMaxWidth, artAspect > 0 ? imageMaxHeight / artAspect : imageMaxWidth))
+  const imageWidth = hasImage
+    ? Math.max(0, Math.min(imageMaxWidth, artAspect > 0 ? imageMaxHeight / artAspect : imageMaxWidth))
+    : 0
   const imageHeight = imageWidth * artAspect
 
-  const gap = bubbleWidth * GAP_FRAC
+  const gap = hasImage ? bubbleWidth * GAP_FRAC : 0
   const narrowWidth = Math.max(0, contentWidth - imageWidth - gap)
 
   const maxFont = bubbleWidth * MAX_FONT_FRAC
@@ -472,7 +493,9 @@ export function fitBubbleContent(text: string, art: ArtImage, bubbleWidth: numbe
 
 export interface PlaceAndFitBubbleOptions extends PlaceSpeechBubbleOptions {
   readonly text: string
-  readonly art: ArtImage
+  /** Absent = a TEXT-ONLY bubble (`fitBubbleContent`'s own header on the
+   *  T21 follow-up that added this). */
+  readonly art?: ArtImage
 }
 
 export interface PlacedBubbleContent {

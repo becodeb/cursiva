@@ -23,10 +23,16 @@ import {
 } from './pulpitoStance'
 import { ADVENTURES, adventureIcon } from '../zoo/adventures'
 import { PROLOGUE_PLATES } from '../zoo/prologue'
-import { ANIMAL_ART, CARRIER_LENS_ART, CLUE_ART, ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
-import type { ArtImage, AnimalId } from '../detective/assets'
+import { ZOO_CARETAKER_ART, ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
+import type { ArtImage } from '../detective/assets'
 import { DETECTIVE_CASES } from '../detective/cases'
-import { DEDUCTION_OPENING_LINE, DEDUCTION_SOLVED_LINE } from './Deduction'
+import {
+  DEDUCTION_OCTOPUS_SIZE_PCT,
+  DEDUCTION_OPENING_LINE,
+  DEDUCTION_SOLVED_LINE,
+  DEDUCTION_STAGE_DVH,
+  DEDUCTION_STAGE_MIN_PX,
+} from './Deduction'
 
 const SQUARE_ART: ArtImage = { w: 442, h: 448, href: '/art/fixture-square.png' }
 const WIDE_ART: ArtImage = { w: 900, h: 260, href: '/art/fixture-wide.png' }
@@ -69,6 +75,47 @@ describe('fitBubbleContent — the image cap', () => {
     const fit = fitBubbleContent('¿Me ayudás?', SQUARE_ART, bubbleWidth, bubbleWidth * (372 / 488))
     expect(fit.fontSize).toBeCloseTo(bubbleWidth * MAX_FONT_FRAC, 6)
     expect(fit.fits).toBe(true)
+  })
+})
+
+describe('fitBubbleContent — art absent (T21 follow-up round 3): a TEXT-ONLY bubble', () => {
+  // The exact regression this mode exists to fix: a real browser rendered
+  // "La vaca no tiene plumas: no fue ella." (screen/Deduction.tsx's own
+  // feather-clue hint, paired with the feather art, aspect ~2.5) BELOW the
+  // drawn bubble oval even though fitBubbleContent's own float/stack model
+  // reported fits: true — the model's character-count wrap and the real
+  // CSS float interaction quietly disagreed for a tall, narrow image.
+  // Passing no `art` at all removes every float/wrap interaction this
+  // computation ever had to get exactly right.
+  const HINT = 'La vaca no tiene plumas: no fue ella.'
+  const bubbleWidth = 78
+  const bubbleHeight = bubbleWidth * (372 / 488)
+
+  it('reports a zero-size image — nothing to float, nothing to push the caption down', () => {
+    const fit = fitBubbleContent(HINT, undefined, bubbleWidth, bubbleHeight)
+    expect(fit.imageWidth).toBe(0)
+    expect(fit.imageHeight).toBe(0)
+  })
+
+  it('fits, using the FULL content width for every line (no narrow column at all)', () => {
+    const fit = fitBubbleContent(HINT, undefined, bubbleWidth, bubbleHeight)
+    expect(fit.fits).toBe(true)
+    expect(fit.captionWidth).toBeCloseTo(bubbleWidth * CONTENT_WIDTH_FRAC, 6)
+  })
+
+  it('the wrapped block height, at the FULL content width, is comfortably under the content box (the real overflow this mode fixes)', () => {
+    const fit = fitBubbleContent(HINT, undefined, bubbleWidth, bubbleHeight)
+    const contentHeight = bubbleHeight * CONTENT_HEIGHT_FRAC
+    expect(fit.lineCount * fit.fontSize * fit.lineHeight).toBeLessThanOrEqual(contentHeight + 1e-6)
+  })
+
+  it('never breaks a word, the same contract an image-carrying bubble keeps', () => {
+    const fit = fitBubbleContent(HINT, undefined, bubbleWidth, bubbleHeight)
+    const assignments = assignWordColumns(HINT, fit.fontSize, fit.captionWidth)
+    expect(assignments.map((a) => a.word)).toEqual(HINT.split(' ').filter((w) => w.length > 0))
+    for (const { width, columnWidth } of assignments) {
+      expect(width).toBeLessThanOrEqual(columnWidth + 1e-6)
+    }
   })
 })
 
@@ -120,32 +167,16 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
   for (const plate of PROLOGUE_PLATES) {
     cases.push({ id: `prologue: ${plate.line}`, text: plate.line, art: plate.art })
   }
-  // [T21 follow-up, orchestrator screenshot review 2026-09-26: "every
-  // deduction line must pass the SAME fit check T18's test uses"]
-  // screen/Deduction.tsx's own Pulpito bubble reuses this exact
-  // placeAndFitBubble engine (deductionHint's own {text, art} pairs) — the
-  // opening question (once, case-independent), every case's own per-
-  // distractor hint line (with its OWN discriminating clue art, the same
-  // pairing deductionHint returns), and every case's own solved line (with
-  // the culprit's full-colour art).
-  cases.push({ id: 'deduction: opening', text: DEDUCTION_OPENING_LINE, art: CARRIER_LENS_ART })
-  for (const kase of DETECTIVE_CASES) {
-    for (const [animal, kind] of Object.entries(kase.ruledOutBy)) {
-      const hintText = kase.hint[animal as AnimalId]
-      if (hintText && kind) {
-        cases.push({
-          id: `deduction: ${kase.id} hint (${animal})`,
-          text: hintText,
-          art: CLUE_ART[kind].art.earned,
-        })
-      }
-    }
-    cases.push({
-      id: `deduction: ${kase.id} solved`,
-      text: DEDUCTION_SOLVED_LINE[kase.culprit],
-      art: ANIMAL_ART[kase.culprit],
-    })
-  }
+  // screen/Deduction.tsx's own lines are deliberately NOT swept here any
+  // more (T21 follow-up round 3): that screen's own Pulpito stage is a
+  // DIFFERENT size from every other screen this sweep validates
+  // (ZOO_OCTOPUS_BACKPACK_ART at OCTOPUS_CORNER_SIZE_PCT of the full T18
+  // stage) — reusing this sweep's own headBox for the deduction lines would
+  // validate a geometry the app never actually ships, exactly the mismatch
+  // the orchestrator's own review caught. See the dedicated
+  // "screen/Deduction.tsx's own bubble lines" describe block below, which
+  // builds the octopusBoxAtCorner/frame size from Deduction.tsx's OWN
+  // exported constants instead.
 
   it('the registry sweep actually covers every shipped adventure (sanity: not accidentally empty)', () => {
     expect(cases.length).toBeGreaterThanOrEqual(ADVENTURES.length)
@@ -219,6 +250,71 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
         }
       })
     }
+  }
+})
+
+// [T21 follow-up round 3, orchestrator screenshot review 2026-09-26: "every
+// deduction line must pass the SAME fit check T18's test uses... make sure
+// its model matches the deduction layout you ship"] screen/Deduction.tsx's
+// own Pulpito stage is a DIFFERENT, smaller size than every screen the sweep
+// above validates (its own exported DEDUCTION_STAGE_DVH/
+// DEDUCTION_OCTOPUS_SIZE_PCT, sizeBy: 'height', corner always 'left', never
+// varied) — this block builds the EXACT same octopusBoxAtCorner/frame-size
+// pair that screen actually renders with, text only (no `art`, matching
+// deductionHint's own return type), so a drifted geometry here is a drifted
+// geometry the shipped screen would ALSO hit.
+describe("placeAndFitBubble — screen/Deduction.tsx's own bubble lines, at its own real stage size", () => {
+  const REQUIRED_VIEWPORTS: ReadonlyArray<readonly [number, number]> = [
+    [1024, 768],
+    [1180, 820],
+    [768, 1024],
+    [844, 390],
+  ]
+
+  const lines: { readonly id: string; readonly text: string }[] = [
+    { id: 'opening', text: DEDUCTION_OPENING_LINE },
+  ]
+  for (const kase of DETECTIVE_CASES) {
+    for (const [animal, hintText] of Object.entries(kase.hint)) {
+      if (hintText) lines.push({ id: `${kase.id} hint (${animal})`, text: hintText })
+    }
+    lines.push({ id: `${kase.id} solved`, text: DEDUCTION_SOLVED_LINE[kase.culprit] })
+  }
+
+  it('the sweep actually covers every shipped case (sanity: not accidentally empty)', () => {
+    expect(lines.length).toBeGreaterThanOrEqual(DETECTIVE_CASES.length * 2)
+  })
+
+  const octopusBox = octopusBoxAtCorner(ZOO_CARETAKER_ART, {
+    corner: 'left',
+    sizeBy: 'height',
+    size: DEDUCTION_OCTOPUS_SIZE_PCT,
+    bottom: 2,
+    inset: OCTOPUS_CORNER_INSET,
+  })
+  const side = stanceBubbleSide('left')
+
+  for (const [vw, vh] of REQUIRED_VIEWPORTS) {
+    it(`viewport=${vw}x${vh}: every line fits inside the drawn oval, at a readable font size, no word ever breaks`, () => {
+      const frame = { w: 100, h: 100 }
+      // Mirrors the real CSS exactly: `width: min(100%, max(
+      // ${DEDUCTION_STAGE_MIN_PX}px, ${DEDUCTION_STAGE_DVH}dvh));
+      // aspect-ratio: 1/1;`.
+      const framePx = Math.min(vw, Math.max(DEDUCTION_STAGE_MIN_PX, vh * (DEDUCTION_STAGE_DVH / 100)))
+
+      for (const { id, text } of lines) {
+        const { content } = placeAndFitBubble({ frame, headBox: octopusBox, tail: ZOO_SPEECH_BUBBLE_TAIL, side, text })
+        const fontPx = (content.fontSize / 100) * framePx
+        expect(content.fits, `${id} (fontPx=${fontPx.toFixed(1)})`).toBe(true)
+        expect(fontPx, `${id} (${vw}x${vh})`).toBeGreaterThanOrEqual(11)
+
+        const assignments = assignWordColumns(text, content.fontSize, content.captionWidth)
+        expect(assignments.length, id).toBe(text.split(' ').filter((w) => w.length > 0).length)
+        for (const { word, width, columnWidth } of assignments) {
+          expect(width, `${id} (${vw}x${vh}): "${word}" vs its own column`).toBeLessThanOrEqual(columnWidth + 1e-6)
+        }
+      }
+    })
   }
 })
 
