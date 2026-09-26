@@ -49,6 +49,7 @@ import {
   isSpineDebug,
   lightDebugPoint,
   revealDebugFraction,
+  snakeColourDebugCount,
   spineDebugCount,
   waypointDebugCount,
 } from '../canvas/devMode'
@@ -93,6 +94,12 @@ import { createTraceTone, playBeatTick, type TraceTone } from '../canvas/traceTo
 import { pulseOnLeaving } from '../canvas/haptics'
 import { railFade, railPull } from '../canvas/rail'
 import { multiCorridorTick, routeTrackStart, type RouteTrack } from './corridorTrack'
+import {
+  emptySnakeColourState,
+  nextWakingIndex,
+  snakeColourTick,
+  type SnakeColourState,
+} from './snakeColour'
 import {
   arrangeRenderPieces,
   arrangeTick,
@@ -739,6 +746,27 @@ export function initialCollectState(items: readonly CollectItem[], search: strin
 }
 
 /**
+ * A snake level's INITIAL colour-reveal state (T20): `emptySnakeColourState`,
+ * or the `?debug=vibora:<k>` seed — the same reason `initialCollectState`/
+ * `initialSpineState` exist for their own mechanics: this repo's harness
+ * cannot drive a live finger, so this flag pre-marks the first `k` pieces
+ * (by authored, small→large order) fully done before the very first render.
+ * `k` is clamped into `[0, n]` so a debug flag can never mark more pieces
+ * done than the level actually has.
+ */
+export function initialSnakeColourState(n: number, search: string): SnakeColourState {
+  const base = emptySnakeColourState(n)
+  const k = snakeColourDebugCount(search)
+  if (k === null || n === 0) return base
+  const done = Math.max(0, Math.min(Math.trunc(k), n))
+  return {
+    pieces: base.pieces.map((piece, i) =>
+      i < done ? { track: piece.track, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true } : piece,
+    ),
+  }
+}
+
+/**
  * The camera's own seeded origin for one reset (`scrolling-camera`
  * capability, design.md §2.4): 0 when the level has no `camera` field,
  * otherwise `seedCameraOrigin`'s clamp over `?debug=camara:<x>`'s seed. ONE
@@ -1260,6 +1288,25 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-collect-hop { animation: none; opacity: 0; }
 }
 
+/* T20 ('odd/tasks/prewriting-stage-completion.md' §3.1, "the Pulpito points
+ * at which one is next and it pulses softly"): the next snake to wake (still
+ * grey, first in size order — 'screen/snakeColour.ts''s 'nextWakingIndex')
+ * gets a gentle opacity pulse so a child can tell which one to trace next
+ * without reading anything. 'opacity' only, never 'transform', so there is
+ * no SVG transform-origin concern for a rotated piece ('snake3''s vertical
+ * family) the way '.cv-spine-mark-filled' already has to guard against for a
+ * scale animation. */
+.cv-snake-next {
+  animation: cv-snake-next-pulse 1.8s ease-in-out infinite;
+}
+@keyframes cv-snake-next-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-snake-next { animation: none; opacity: 1; }
+}
+
 /* Upright and narrow is genuinely width-limited: show guidance instead of
  * shrinking the play surface into an unusable mini game. Header and actions
  * stay outside this block, so Back/Return and keyboard navigation are never
@@ -1778,6 +1825,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     [collectDef, target.polyline, target.length, level.corridorWidth],
   )
 
+  // T20 (`odd/tasks/prewriting-stage-completion.md`, docs/19 §3.1): whether
+  // this level's art corridor uses the colour-follows-the-finger mechanic —
+  // read from the PIECES themselves (`ArtCorridorPiece.greyArt`), never a
+  // separate level-level flag, so a level can never author `artCorridor`
+  // pieces that disagree about it. Only the snake family sets `greyArt`
+  // today.
+  const hasSnakeColour = !!level.artCorridor?.some((piece) => !!piece.greyArt)
+
   // One demonstration per sub-path, played in sequence (docs/08 §5).
   // `target.demoPaths`, never `target.paths`/`level.paths`: for every
   // routed level this is the SAME array reference as `paths` (the target
@@ -1864,25 +1919,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // arranged (or on a level with no `arrange` at all), it is
   // `placeArtCorridor`'s own placement — the SAME box `target.artCorridor`
   // already carries, so nothing here recomputes placement independently.
-  const traceArtCorridor: TraceArtCorridor | undefined = useMemo(() => {
-    const placements = target.artCorridor // ArtCorridorPlacement[]: box/rotate
-    const configPieces = level.artCorridor // ArtCorridorPiece[]: art.href
-    if (!placements || !configPieces || placements.length === 0) return undefined
-    const homeBoxes = placements.map((p) => p.box)
-    if (arrangeOpen) {
-      return arrangeRenderPieces(
-        arrangeState,
-        configPieces.map((p) => ({ href: p.art.href, rotate: p.rotate })),
-        homeBoxes,
-        arrangeConfig,
-      )
-    }
-    return configPieces.map((piece, i) => ({
-      href: piece.art.href,
-      box: placements[i].box,
-      rotate: placements[i].rotate,
-    }))
-  }, [target.artCorridor, level.artCorridor, arrangeOpen, arrangeState, arrangeConfig])
   // A trail's marks lit so far this run (drained → earned, `clueTick`), and
   // whether its ONE clue has been filed into the rail. Filing rides
   // `onRelease`'s existing approval signal — never the marks alone (spec
@@ -1912,6 +1948,75 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // has necessarily committed.
   const collectStateRef = useRef<CollectState>(initialCollectState(collectItems, debugSearch))
   const [collectState, setCollectState] = useState<CollectState>(collectStateRef.current)
+  // T20: a snake level's own colour-reveal state (`screen/snakeColour.ts`).
+  // The SAME dual ref+state convention as `collectStateRef`/`spineRef` above
+  // — `onFrame` needs the fresh value synchronously every frame (the fade
+  // animation reads it on ticks that never call `setState` themselves), and
+  // the render below needs a REAL state value to recompute `traceArtCorridor`
+  // from. Reset ONLY in the level-id-keyed mount effect below, exactly like
+  // `collectStateRef` — NEVER by `resetSurface`/`restartRun`, even though a
+  // piece's own live reveal (unlike a collected item) DOES reset on leaving
+  // the corridor mid-trace (`snakeColourTick`'s own job). The two are
+  // different resets: `resetSurface` also fires between two ORDINARY
+  // strokes of the SAME multi-piece attempt (`onStart`'s
+  // `clearOnFailedRetryRef`, whenever the stroke just finished did not by
+  // itself pass `evaluateLevel` — true of every intermediate piece on an
+  // `enforceOrder` level until the LAST one), and resetting THIS state there
+  // would wipe an already-coloured piece the instant the child started the
+  // next one — found live via browser QA (a screenshot showed the completed
+  // small snake snap back to grey the moment the medium snake's stroke
+  // began), not guessed.
+  const snakeColourStateRef = useRef<SnakeColourState>(
+    initialSnakeColourState(level.artCorridor?.length ?? 0, debugSearch),
+  )
+  const [snakeColourState, setSnakeColourState] = useState<SnakeColourState>(snakeColourStateRef.current)
+  // Whether a box is the trace-phase `placeArtCorridor` placement or the live
+  // arrange-phase scatter/held/snapped position is decided here; the layer
+  // itself (`canvas/ArtCorridorLayer.tsx`) only ever draws the box it is
+  // given. T20: a piece carrying its own `greyArt` additionally gets
+  // `colourHref`/`progress` (from `snakeColourState`, this run's own reveal)
+  // and `next` (`nextWakingIndex` — the piece the child should wake next,
+  // docs/19 §3.1 point 5) — never during `arrangeOpen`, since no snake level
+  // authors `arrange` any more (the drag step this task removes).
+  const traceArtCorridor: TraceArtCorridor | undefined = useMemo(() => {
+    const placements = target.artCorridor // ArtCorridorPlacement[]: box/rotate
+    const configPieces = level.artCorridor // ArtCorridorPiece[]: art.href
+    if (!placements || !configPieces || placements.length === 0) return undefined
+    const homeBoxes = placements.map((p) => p.box)
+    if (arrangeOpen) {
+      return arrangeRenderPieces(
+        arrangeState,
+        configPieces.map((p) => ({ href: p.art.href, rotate: p.rotate })),
+        homeBoxes,
+        arrangeConfig,
+      )
+    }
+    const nextIdx = hasSnakeColour ? nextWakingIndex(snakeColourState) : null
+    return configPieces.map((piece, i) => {
+      const base: TraceArtCorridor[number] = {
+        href: piece.art.href,
+        box: placements[i].box,
+        rotate: placements[i].rotate,
+      }
+      if (!piece.greyArt) return base
+      const pieceState = snakeColourState.pieces[i]
+      return {
+        ...base,
+        href: piece.greyArt.href,
+        colourHref: piece.art.href,
+        progress: pieceState?.progress ?? 0,
+        next: i === nextIdx,
+      }
+    })
+  }, [
+    target.artCorridor,
+    level.artCorridor,
+    arrangeOpen,
+    arrangeState,
+    arrangeConfig,
+    hasSnakeColour,
+    snakeColourState,
+  ])
   // T17 follow-up: a just-collected item's own picture hops away from its
   // spot instead of just vanishing — the SAME transient-list-plus-timeout
   // convention `fadingSpineStrokes` already uses for a rejected hedgehog
@@ -2082,6 +2187,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // "otherwise the child restarts with the world parked at the route's
     // end and the green start dot off-screen").
     setCameraOriginX(seedCameraFor(level, target, debugSearch))
+    // T20: a snake's own colour reveal is DELIBERATELY NOT reset here —
+    // `resetSurface` also fires between two ORDINARY strokes of the SAME
+    // multi-piece attempt (`onStart`'s `clearOnFailedRetryRef`, whenever the
+    // stroke just finished did not by itself pass `evaluateLevel` — which is
+    // every intermediate piece on an `enforceOrder` snake level, by design,
+    // until the LAST one is traced). Resetting it here would wipe an
+    // already-coloured piece the instant the child started tracing the
+    // NEXT one — found live, via browser QA, not guessed: a screenshot
+    // showed the just-completed small snake snap back to grey the moment
+    // the medium snake's stroke began. Same rule `collectStateRef` already
+    // follows, for the same reason (see that ref's own comment) — only a
+    // genuinely NEW attempt at the level (the level-id-keyed mount effect
+    // below) starts every piece grey again.
   }, [
     level.reveal,
     level.waypoints,
@@ -2115,6 +2233,30 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     departingCollectTimeoutsRef.current.clear()
     setDepartingCollectMarks([])
   }, [level.id, playDemo, resetSurface, trailClueMarks.length, collectItems, debugSearch])
+
+  // T20: a snake level's own colour reveal belongs to a genuinely NEW attempt
+  // at THIS level — deliberately its OWN effect, keyed on `level.id` alone
+  // (plus `debugSearch` for `?debug=vibora:<k>`), rather than folded into the
+  // combined mount effect just above. Found live, via browser QA: that
+  // effect also depends on `resetSurface`, whose OWN identity changes
+  // whenever `target` does — which includes every adaptive-tolerance
+  // `record.widthFactor` change (`game/adaptiveTolerance.ts`), and EVERY
+  // intermediate piece of a multi-piece `enforceOrder` snake level reports
+  // `approved: false` on release (only the LAST one can pass), which is
+  // exactly the input that widens the corridor. A screenshot showed an
+  // already-completed piece snap back to grey the instant the CHILD STARTED
+  // THE NEXT ONE, with no wall touch and no failed retry involved — the
+  // adaptive-tolerance recompute alone was enough to refire that shared
+  // effect. This effect names only what it actually needs to reset for, so
+  // an unrelated `resetSurface` identity change can never reach it.
+  useEffect(() => {
+    snakeColourStateRef.current = initialSnakeColourState(target.routes.length, debugSearch)
+    setSnakeColourState(snakeColourStateRef.current)
+    // `target.routes.length` is not listed: it is a fixed count derived
+    // 1:1 from `level.id`'s own authored `paths` (never from the adaptive
+    // `record.widthFactor` `target` itself also depends on), so it can only
+    // ever change together with `level.id`, which IS listed.
+  }, [level.id, debugSearch])
 
   // Voice narration (docs/18 D1/D24/D26, §3 "Todo se escucha"; T7): every
   // level's hint is also SPOKEN, not merely displayed. `!drawnPlace` in the
@@ -2297,6 +2439,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // happens on a completed, approved trail (below), never mid-run, so
     // there is nothing here for a contact restart to undo.
     if (clueDef) setClueState(emptyClueState(trailClueMarks.length))
+    // T20: a snake's own colour reveal is deliberately NOT reset here either
+    // — `resetSurface`'s own comment above has the full reasoning (a piece
+    // already coloured must survive an ordinary mid-attempt reset, the same
+    // rule `collectStateRef` already follows). Doubly moot for snakes today
+    // since every snake level sets `resetOnContact: false`, so `restartRun`
+    // is unreachable for a `hasSnakeColour` level in the first place — but
+    // matching the rule here too means it cannot silently regress the
+    // moment `resetOnContact` and the colour mechanic ever meet.
     // `false → true` forces exactly one pulse through the same edge rule the
     // off-path channel uses, so a restart can never turn into a buzzing nag.
     if (feedback.haptics) pulseOnLeaving(false, true)
@@ -2358,6 +2508,29 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         if (timeMs - lastAnimTickRef.current >= LIGHT_ANIM_TICK_MS) {
           lastAnimTickRef.current = timeMs
           setAnimNow(timeMs)
+        }
+      }
+      // T20: the snake colour reveal's own clock tick — rides this SAME
+      // sample, ahead of every early return below (the same reason the T10
+      // block above does), so a piece already fading back to grey keeps
+      // animating even after the finger lifts (`drawing: false`) or while
+      // mid-arrange, exactly like `levels/revealGrid.ts`'s own torch fade.
+      // `snakeColourTick` reads `drawing`/`point` itself and is cheap (three
+      // short polylines), so it runs unthrottled, every frame — no separate
+      // `LIGHT_ANIM_TICK_MS`-style gate is worth the complexity here.
+      if (hasSnakeColour) {
+        const head = drawing ? points[points.length - 1] : undefined
+        const next = snakeColourTick(
+          snakeColourStateRef.current,
+          target.routes,
+          head ? { x: head.x, y: head.y } : null,
+          drawing,
+          target.corridorWidth,
+          timeMs,
+        )
+        if (next !== snakeColourStateRef.current) {
+          snakeColourStateRef.current = next
+          setSnakeColourState(next)
         }
       }
       // The arrange phase (object-arrange spec) redirects the SAME per-frame
@@ -2568,6 +2741,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       spinePin,
       arrangeOpen,
       arrangeConfig,
+      hasSnakeColour,
     ],
   )
 
@@ -2722,9 +2896,18 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // collect item, drawn entirely through vertexArt/vertexArtDeparting; a
   // diamond popping into that exact spot once the item hops away is the
   // same "two pictures in one place" defect this follow-up exists to fix.
+  //
+  // T20 follow-up (orchestrator screenshot review): the SAME abstract hollow
+  // diamond used to sit on the big snake's own tail on every snake level —
+  // `docs/18` D20 already flagged that shape as meaningless on its own, and
+  // once a snake's own body IS the goal (it turns and stays coloured), a
+  // second, unrelated rhombus parked on the tail reads as clutter with no
+  // relationship to what just happened. Suppressed the same way `collectDef`
+  // already is, for every level this task's own colour mechanic applies to
+  // (`hasSnakeColour`, never a hardcoded snake id).
   const endMarker = useMemo(
-    () => (level.kind === 'path' && !collectDef ? goalMarkerOf(target) : undefined),
-    [level.kind, target, collectDef],
+    () => (level.kind === 'path' && !collectDef && !hasSnakeColour ? goalMarkerOf(target) : undefined),
+    [level.kind, target, collectDef, hasSnakeColour],
   )
   // Registry art standing where the route ends, in place of the two hollow
   // diamonds AND (T6, adventure-flow-and-map-guidance) the case lamp itself
@@ -2765,7 +2948,17 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // would otherwise pop a SECOND, different picture into the exact spot the
   // last item just vacated, which is the opposite of "the spot is empty
   // afterwards".
-  const endArt = collectDef
+  // T20 (`odd/tasks/prewriting-stage-completion.md` §3.1): a snake-colour
+  // level's own route-end reward icon used to show the recovered animal's
+  // art (`ZOO_ANIMAL_ART.vibora`, a medium snake) parked beside the LARGE
+  // snake's own tail on `snake4` — a real defect once every piece can turn
+  // fully coloured on its own: a floating fourth snake read as clutter, not
+  // as "restored", and the colour-follows-the-finger payoff (every piece
+  // ending the run fully coloured) is already the encounter. Suppressed for
+  // whichever levels this task's own mechanic applies to — never a
+  // hardcoded `snake4` id, so a future snake level inherits the rule for
+  // free — the same way `collectDef` already suppresses it above.
+  const endArt = collectDef || hasSnakeColour
     ? undefined
     : level.goalArt
       ? { ...level.goalArt, size: GOAL_ART_SIZE }

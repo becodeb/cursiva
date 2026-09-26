@@ -330,6 +330,15 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   | 'snakeSmall'
   | 'snakeMedium'
   | 'snakeLarge'
+  // T20 (`odd/tasks/prewriting-stage-completion.md`, docs/19 §3.1): each
+  // snake's OWN true luma-601 desaturation, derived at build time
+  // (`scripts/art/build_art.py`'s `desaturate_keep_alpha`) from the exact
+  // shipped colour file above — same crop, same alpha, by construction. The
+  // grey art is what a snake shows before the child's finger reaches it;
+  // `canvas/ArtCorridorLayer.tsx` windows the colour sibling in over it.
+  | 'snakeSmallGrey'
+  | 'snakeMediumGrey'
+  | 'snakeLargeGrey'
   | 'llama'
   | 'sheep'
   | 'bee'
@@ -347,6 +356,14 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   snakeSmall: { href: '/art/sector-snake-small.png', w: 480, h: 98 },
   snakeMedium: { href: '/art/sector-snake-medium.png', w: 492, h: 114 },
   snakeLarge: { href: '/art/sector-snake-large.png', w: 500, h: 95 },
+  // Same w/h as each colour sibling above, by construction: the grey PNG is
+  // derived from that exact shipped file (`desaturate_keep_alpha` only
+  // touches R/G/B, never alpha), so `emit()`'s own alpha-bbox crop lands on
+  // the identical box — `artManifest.test.ts` asserts this rather than
+  // assuming it.
+  snakeSmallGrey: { href: '/art/sector-snake-small-grey.png', w: 480, h: 98 },
+  snakeMediumGrey: { href: '/art/sector-snake-medium-grey.png', w: 492, h: 114 },
+  snakeLargeGrey: { href: '/art/sector-snake-large-grey.png', w: 500, h: 95 },
   llama: { href: '/art/sector-llama.png', w: 299, h: 448 },
   // Row C (docs/13 §8): the sheep standing on the sheep-hill ridge peaks.
   // `w` is measured off `manifest.json`'s `sector-sheep` entry (`h`, 448, is

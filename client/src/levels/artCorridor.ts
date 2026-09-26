@@ -145,6 +145,14 @@ export const DRAWN_SPINE: Readonly<Record<'snakeSmall' | 'snakeMedium' | 'snakeL
  *  (`buildLevel.ts`'s `layOutPaths` centres everything together via `tx`). */
 export interface ArtCorridorPiece {
   art: ArtImage
+  /** T20 (`odd/tasks/prewriting-stage-completion.md`, docs/19 §3.1): the
+   *  piece's own grey (desaturated) sibling, same `w`/`h` as `art` by
+   *  construction. Absent = this piece never shows the colour-follows-the-
+   *  finger mechanic — `screen/LevelPlay.tsx`'s `traceArtCorridor` reads its
+   *  PRESENCE (never a level-level flag) to decide whether a piece renders
+   *  as a plain `<image>` or as the grey base + windowed colour overlay
+   *  (`canvas/ArtCorridorLayer.tsx`). Only the three snake pieces set it. */
+  greyArt?: ArtImage
   spine: keyof typeof DRAWN_SPINE
   /** The ONLY size knob: the cutout's rendered WIDTH in viewBox units. The
    *  height, the thickness, the amplitude and the corridor all follow from

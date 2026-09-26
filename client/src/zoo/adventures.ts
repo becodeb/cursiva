@@ -312,8 +312,13 @@ export const ADVENTURES: readonly Adventure[] = [
     levelIds: ['snake1', 'snake2', 'snake3', 'snake4'],
     sector: 'arena',
     animal: 'vibora',
-    intro: 'Las víboras se enredaron en la arena. ¿Las ordenamos y las llevamos a su lugar?',
-    closing: '¡Las víboras están en su arena!',
+    // T20 (`odd/tasks/prewriting-stage-completion.md`, docs/19 §3.1): the
+    // víboras' own story — cold-blooded, grey with the cold, warmed back to
+    // colour by the child's own finger — replaces the old "ordenamos y las
+    // llevamos a su lugar" framing, which described the drag/arrange step
+    // this task removes.
+    intro: 'Las víboras están grises del frío. Acariciálas y les vuelve el color.',
+    closing: '¡Las víboras recuperaron su color!',
     // Rescue closing (T8) — the duck row's own reasoning, restated: one
     // beat, `closing` verbatim, the animal's own art, default figure. Before
     // T8, an animal's rescue was told ONLY by the map bubble
@@ -322,7 +327,7 @@ export const ADVENTURES: readonly Adventure[] = [
     // §4.7): recovering an animal had no on-screen MOMENT, only a line that
     // sometimes appeared on a screen the child was not necessarily looking
     // at right then.
-    closingBeat: [{ line: '¡Las víboras están en su arena!', art: ZOO_ANIMAL_ART.vibora }],
+    closingBeat: [{ line: '¡Las víboras recuperaron su color!', art: ZOO_ANIMAL_ART.vibora }],
   },
   {
     id: 'turtles',

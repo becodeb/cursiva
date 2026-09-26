@@ -210,7 +210,10 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // `odd/tasks/promised-animals.md`): the fish and turtle recintos'
     // animals finally get a `ZOO_ANIMAL_ART` entry, and the monkey gets a
     // placeholder one, closing the prologue's own unkept promise.
-    expect(REGISTERED.length).toBe(91)
+    // + 3 snake grey siblings (T20, docs/19 §3.1): `snakeSmallGrey`/
+    // `snakeMediumGrey`/`snakeLargeGrey`, each a build-time luma-601
+    // desaturation of its colour counterpart.
+    expect(REGISTERED.length).toBe(94)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -255,6 +258,42 @@ describe('art registry matches the shipped pipeline manifest', () => {
       expect(entry.bodyBrightest, `${key}.bodyBrightest`).toMatch(HEX)
       expect(entry.bodyDarkest, `${key}.bodyDarkest`).toMatch(HEX)
       expect(entry.headWhite, `${key}.headWhite`).toMatch(HEX)
+    }
+  })
+
+  it("T20 (docs/19 §3.1): each snake's grey sibling shares its colour sibling's geometry exactly — points, mid, residual, thickness, traceFrom/traceTo all byte-equal — and only the derived hex colours differ", () => {
+    const HEX = /^#[0-9a-f]{6}$/
+    for (const base of ['sector-snake-small', 'sector-snake-medium', 'sector-snake-large'] as const) {
+      const colour = manifest[base]
+      const grey = manifest[`${base}-grey`]
+      expect(grey, `${base}-grey`).toBeDefined()
+      expect(ON_DISK.has(`${base}-grey`), `${base}-grey.png must exist on disk`).toBe(true)
+      // Same crop, by construction (`desaturate_keep_alpha` only ever
+      // touches R/G/B, never alpha).
+      expect({ w: grey.w, h: grey.h }, `${base}-grey: size must match its colour sibling`).toEqual({
+        w: colour.w,
+        h: colour.h,
+      })
+      // Geometry is luma/alpha-derived only (`sample_spine`'s own header),
+      // and `desaturate_keep_alpha` preserves luma EXACTLY — so re-running
+      // `sample_spine` on the grey copy must reproduce byte-identical
+      // numbers, not merely close ones.
+      expect(grey.mid, `${base}-grey.mid`).toBe(colour.mid)
+      expect(grey.points, `${base}-grey.points`).toEqual(colour.points)
+      expect(grey.residual, `${base}-grey.residual`).toBe(colour.residual)
+      expect(grey.thickness, `${base}-grey.thickness`).toBe(colour.thickness)
+      expect(grey.traceFrom, `${base}-grey.traceFrom`).toBe(colour.traceFrom)
+      expect(grey.traceTo, `${base}-grey.traceTo`).toBe(colour.traceTo)
+      // The derived colours are genuinely achromatic now (r === g === b),
+      // never merely "close to grey".
+      for (const field of ['bodyBrightest', 'bodyDarkest', 'headWhite'] as const) {
+        const hex = grey[field]!
+        expect(hex, `${base}-grey.${field}`).toMatch(HEX)
+        const r = hex.slice(1, 3)
+        const g = hex.slice(3, 5)
+        const b = hex.slice(5, 7)
+        expect([g, b], `${base}-grey.${field} must be achromatic`).toEqual([r, r])
+      }
     }
   })
 
