@@ -25,6 +25,7 @@ import {
   HAZARD_STARFISH_ART,
   HEDGEHOG_ART,
   SECTOR_ADVENTURE_ART,
+  ZOO_ANIMAL_ART,
 } from '../detective/assets'
 import { buildWord } from '../letters/combinations'
 import { LETTER_REGISTRY } from '../letters/registry'
@@ -579,31 +580,24 @@ const ENTRANCE: LevelConfig[] = [
 
 /** How tall a dolphin is drawn, in viewBox units.
  *
- *  `docs/09` §3 sizes animals at ~140, and 140 DOES NOT FIT. The band between
- *  the corridor's outer wall and the edge of the sheet is
- *  `300 − amplitude − corridorWidth/2 − clear`; the phase-1 guard forces
- *  amplitude > 150, so at this family's authored 160 and `dolphin1`'s
- *  110-wide channel the ceiling is 140 − 55 − 8 = 77 (design.md A3, §5.2).
- *  The proposal estimated 80–90 by omitting the clearance; the real ceiling
- *  is 77.
+ *  `docs/09` §3 sizes animals at ~140, and 140 DOES NOT FIT. Pre-T26, this
+ *  picture stood BESIDE the route (`vertexArt: { place: 'extrema', clear:
+ *  8 }`), pushed clear of the channel wall, and the ceiling on that pushed-out
+ *  box was 300 − amplitude − corridorWidth/2 − clear = 140 − 55 − 8 = 77
+ *  (design.md A3, §5.2) at `dolphin1`'s own numbers — 64 was chosen to spend
+ *  83% of that ceiling with room to spare.
  *
- *  64 spends 83% of that ceiling and keeps 13 units between the picture and
- *  the edge of the sheet at the tightest rung, which is what stops
- *  `clampArtBox` from being anything but the identity (design.md §5.4). This
- *  is the fourth time a measured law has cornered an art-direction number
- *  (`docs/13` §4 items 5, 6, 7, 8); the exact value inside the ceiling is
- *  the author's, and `catalog.test.ts` asserts the CONSTRAINT, never this
- *  literal. */
+ *  [T26, `docs/19` §3: "cada delfín que pasás se suma"] The dolphin family now
+ *  authors `collect: { items: 'extrema', art: ..., size: DOLPHIN_SIZE }`
+ *  instead of a standing `vertexArt` — the SAME `routeExtrema` positions
+ *  (`levels/dolphinExtrema.ts`), but drawn ON the route like every other
+ *  collect family (sheep/llama/duck), never pushed outward: a collect item
+ *  hops to the bar once earned, so there is no permanent picture left beside
+ *  the channel to clear it FROM. The old pushed-out ceiling no longer bounds
+ *  this number, and 64 is kept unchanged for visual continuity with every
+ *  other shipped rung — `catalog.test.ts` now asserts the collect config
+ *  directly rather than the retired clear-of-the-wall geometry. */
 const DOLPHIN_SIZE = 64
-/** How far the dolphin's picture clears the channel wall.
- *
- *  Strictly greater than `BAND_INSET` (6, `buildLevel.ts`) — the slack the
- *  SCORER forgives, "a trace exactly on the wall still reads as inside". A
- *  picture that clears the wall by less than that slack could be visibly
- *  touched by a trace the engine counts as clean, and *"pasa entre ellos sin
- *  tocarlos"* would then be false on the screen while true in the score. 8
- *  is the smallest integer that is not (design.md §5.2). */
-const DOLPHIN_CLEAR = 8
 
 const PHASE_1: LevelConfig[] = [
   ...ENTRANCE,
@@ -1519,7 +1513,24 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    vertexArt: { art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE, place: 'extrema', clear: DOLPHIN_CLEAR },
+    // [T26, `docs/19` §3.3/§7 recipe B: "cada delfín que pasás se suma"; no
+    // deduction on this row (`zoo/adventures.ts`'s `dolphin` — recipe B is
+    // "the place already says who it is"), so every level here just gathers
+    // the family, the same collect-along-the-path mechanic T17/T21 ship.
+    // `'extrema'` (`levels/collect.ts`) reuses `levels/dolphinExtrema.ts`'s
+    // `routeExtrema` — the SAME crest-and-trough points the pre-T26
+    // `vertexArt: { place: 'extrema' }` stood a dolphin picture on — so a
+    // returning child sees a dolphin in exactly the spot they already
+    // expect, now earned by passing through it rather than merely painted
+    // there. Replaces `vertexArt` outright (never both: `sheep-hill1`'s own
+    // T17 comment states the rule, "authoring both here would draw the same
+    // picture twice"). The collected dolphins hop to the pistas-style bar
+    // (`detective/CollectBar.tsx`, reused byte-for-byte) rather than trailing
+    // behind the carrier — a visible trailing FORMATION is real new render
+    // work this task's own brief allows skipping in favour of "just the hop
+    // to the bar" when trailing is not cheap, and the shipped collect
+    // pipeline already does the hop for free.
+    collect: { items: 'extrema', art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE },
   },
   {
     id: 'dolphin2',
@@ -1539,7 +1550,8 @@ const PHASE_1: LevelConfig[] = [
     rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
-    vertexArt: { art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE, place: 'extrema', clear: DOLPHIN_CLEAR },
+    // [T26] Same reasoning as `dolphin1` above.
+    collect: { items: 'extrema', art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE },
   },
   {
     id: 'dolphin3',
@@ -1563,7 +1575,8 @@ const PHASE_1: LevelConfig[] = [
     rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
-    vertexArt: { art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE, place: 'extrema', clear: DOLPHIN_CLEAR },
+    // [T26] Same reasoning as `dolphin1` above.
+    collect: { items: 'extrema', art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE },
   },
   {
     id: 'dolphin4',
@@ -1584,7 +1597,8 @@ const PHASE_1: LevelConfig[] = [
     rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
-    vertexArt: { art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE, place: 'extrema', clear: DOLPHIN_CLEAR },
+    // [T26] Same reasoning as `dolphin1` above.
+    collect: { items: 'extrema', art: SECTOR_ADVENTURE_ART.dolphin, size: DOLPHIN_SIZE },
   },
   // ───────────────────────────────────────────────────────────────────────
   // The hedgehog family (`docs/13` §8 row H, "erizo en la zona nocturna —
@@ -2314,10 +2328,20 @@ const PHASE_2: LevelConfig[] = [
   {
     id: 'f2-agua2',
     phase: 2,
-    // Renamed from "La medusa se apura" (P3 follow-up) — see `f2-guirnalda`'s
-    // own comment above for why this title is spoken, not decorative.
-    title: 'Las burbujas se apuran',
-    hint: 'Más burbujas. Hacé las curvas redonditas, como una U.',
+    // [T26, `docs/19` §3: the peces row lists TWO clue arts, "burbuja ✓,
+    // gota ✓"] Renamed from "Las burbujas se apuran" — `f2-guirnalda` already
+    // carries `bubble`, and `detective/palette.test.ts`'s own case-wide
+    // invariant ("keeps a CASE's earned clue colours pairwise distinct")
+    // forbids the SAME clue kind twice within one case's own rail (two
+    // identical chips read as one, not as two different traces found) — the
+    // exact reason `duck`'s own two pistas levels already carry two
+    // DIFFERENT kinds (`droplet`/`feather`, `cases.ts`'s own header). `gota`
+    // is `ClueKind: 'droplet'`, the same physical picture duck's own
+    // "salió del agua chorreando" clue uses — reuse across cases is fine
+    // (only WITHIN one case's rail must stay distinct), so the title/hint
+    // move from bubbles to drops to match what the chip actually shows.
+    title: 'Las gotitas rápidas',
+    hint: 'Seguí las gotitas: hacé las curvas redonditas, como una U.',
     kind: 'path',
     surface: 'blank',
     maze: false,
@@ -2330,8 +2354,10 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    // `clue`/no `goalArt`/no `detectiveWorld` — see `f2-guirnalda`'s own comment above.
-    clue: { kind: 'bubble', spacing: 60 },
+    // no `goalArt`/no `detectiveWorld` — see `f2-guirnalda`'s own comment
+    // above. `droplet`, not `bubble` — see this level's own title/hint
+    // comment above for why.
+    clue: { kind: 'droplet', spacing: 60 },
   },
   {
     id: 'f2-agua3',
@@ -2368,8 +2394,26 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    // `clue`/no `goalArt`/no `detectiveWorld` — see `f2-guirnalda`'s own comment above.
-    clue: { kind: 'bubble', spacing: 60 },
+    // [T26, `docs/19` §2.3/§3] Past the deduction (`f2-guirnalda`/`f2-agua2`
+    // are the fish case's own pistas levels; `f2-agua2` is where
+    // `zoo/adventures.ts`'s `fish.deduction.after` fires), the case is
+    // already solved — this level (and `f2-agua4`) gathers the recovered
+    // fish FAMILY along the garland's own U's, never a clue: the same
+    // `collect` mechanic `sheep-hill`/`llama-peak` (T17) and
+    // `duck-trail3`/`duck-trail4` (T21) ship. `'troughs'`
+    // (`levels/collect.ts`'s `collectItemsFromExtrema` via
+    // `levels/dolphinExtrema.ts`'s `routeExtrema`, filtered to the `trough`
+    // side) derives one fish per U bottom — `routeApexes`/`'peaks'` finds
+    // nothing here for the identical reason `waveCrestArcs`'s own header
+    // gives for a smooth wave (a garland's bottom is a smooth cubic
+    // extremum, not a ridge's sharp apex), and `'crests'`/`waveCrestArcs`
+    // itself would find the garland's own cycle BOUNDARIES instead of its
+    // bottoms (they are turning points too, at the SAME height as the
+    // route's own start/end) — `'troughs'` is the mode that asks for
+    // neither. `ZOO_ANIMAL_ART.pez` scaled down stands in for a smaller
+    // fish, the same convention T21 used for `ANIMAL_ART.pato` — no
+    // dedicated small-fish art exists yet, flagged to the author.
+    collect: { items: 'troughs', art: ZOO_ANIMAL_ART.pez, size: 40 },
   },
   {
     id: 'f2-agua4',
@@ -2420,13 +2464,17 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    // `clue`/no `goalArt`/no `detectiveWorld` — see `f2-guirnalda`'s own
-    // comment above. This is also the `fish` row's own LAST level
-    // (`zoo/adventures.ts`), so `endArt`'s priority chain's step 2 (an
-    // animal-recovering adventure's own last level shows THAT animal) now
-    // wins here once `goalArt` is out of the way — the fish, not a star or
-    // another bubble, standing where THIS tramo's route ends.
-    clue: { kind: 'bubble', spacing: 60 },
+    // [T26] Same reasoning as `f2-agua3` above — the last of the fish
+    // family, gathered along the garland's own U bottoms plus the route's
+    // end. This is also the `fish` row's own LAST level (`zoo/adventures.ts`),
+    // but `endArt` never has to choose the animal here any more: `collectDef`
+    // suppresses `endArt` outright (`screen/LevelPlay.tsx`'s own priority
+    // chain, "a collect level's route-end picture is the LAST collect item")
+    // — the fish standing at the route's end is now the FINAL COLLECT ITEM
+    // itself, drawn through the same vertexArt/vertexArtDeparting layer as
+    // every other one, not a second, separately-drawn picture in the same
+    // spot.
+    collect: { items: 'troughs', art: ZOO_ANIMAL_ART.pez, size: 40 },
     hazardArt: HAZARD_STARFISH_ART,
   },
   {

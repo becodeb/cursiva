@@ -17,7 +17,8 @@ import { DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, EMPTY_RECORD } from '../game/types
 import type { LevelRecord } from '../game/types'
 import { migrateDuckCase } from '../game/migrateDuckCase'
 import { BAND_INSET, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget } from './buildLevel'
-import { routeExtrema, vertexArtPoints } from './dolphinExtrema'
+import { routeExtrema } from './dolphinExtrema'
+import { resolveCollectItems } from './collect'
 import { EMPTY_REVEAL, revealTick } from './revealGrid'
 import { clueCountFor } from '../detective/clues'
 import {
@@ -2245,40 +2246,37 @@ describe('the dolphin family — one rung per docs/13 §2 step, amplitude guard 
     }
   })
 
-  it('the crest/trough box table (design.md §5.2, derived from vertexArtPoints)', () => {
-    const BOXES: Record<string, { crest: [number, number]; trough: [number, number] }> = {
-      dolphin1: { crest: [13, 77], trough: [523, 587] },
-      dolphin2: { crest: [18, 82], trough: [518, 582] },
-      dolphin3: { crest: [20, 84], trough: [516, 580] },
-      dolphin4: { crest: [26, 90], trough: [510, 574] },
-    }
+  // [T26, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §3: "cada
+  // delfín que pasás se suma"] The family now authors `collect: { items:
+  // 'extrema' }` instead of a standing `vertexArt` — replaces the retired
+  // "crest/trough box table" (that test measured `vertexArtPoints`'s own
+  // push-clear-of-the-wall geometry, which a collect item, drawn ON the
+  // route like every other collect family, no longer uses).
+  it('every dolphin authors collect: { items: "extrema" } with the shipped dolphin art, size 64, and no vertexArt', () => {
     for (const id of DOLPHIN_IDS) {
       const level = getLevel(id)
-      const extrema = routeExtrema(buildLevelTarget(level).polyline)
-      const at = vertexArtPoints(extrema, {
-        corridorWidth: level.corridorWidth,
-        size: level.vertexArt!.size,
-        clear: level.vertexArt!.clear ?? 8,
-      })
-      const crestBottom = at.find((_, i) => extrema[i].side === 'crest')!.y
-      const troughBottom = at.find((_, i) => extrema[i].side === 'trough')!.y
-      const [crestTop, crestExpectedBottom] = BOXES[id].crest
-      const [troughTop, troughExpectedBottom] = BOXES[id].trough
-      expect(crestBottom, `${id} crest bottom`).toBeCloseTo(crestExpectedBottom, 0)
-      expect(crestBottom - level.vertexArt!.size, `${id} crest top`).toBeCloseTo(crestTop, 0)
-      expect(troughBottom, `${id} trough bottom`).toBeCloseTo(troughExpectedBottom, 0)
-      expect(troughBottom - level.vertexArt!.size, `${id} trough top`).toBeCloseTo(troughTop, 0)
+      expect(level.collect, id).toBeDefined()
+      expect(level.collect?.items, id).toBe('extrema')
+      expect(level.collect?.size, id).toBe(64)
+      expect(level.collect?.art, id).toBe(SECTOR_ADVENTURE_ART.dolphin)
+      expect(level.vertexArt, id).toBeUndefined()
     }
   })
 
-  it('every dolphin uses vertexArt.place "extrema" with the shipped dolphin art, size 64, clear 8', () => {
+  it("derives one collect item per routeExtrema turning point (crest AND trough) plus one final item at the route's own end, standing exactly ON the route (no push-out)", () => {
     for (const id of DOLPHIN_IDS) {
-      const va = getLevel(id).vertexArt
-      expect(va, id).toBeDefined()
-      expect(va?.place, id).toBe('extrema')
-      expect(va?.size, id).toBe(64)
-      expect(va?.clear, id).toBe(8)
-      expect(va?.art, id).toBe(SECTOR_ADVENTURE_ART.dolphin)
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const extrema = routeExtrema(target.polyline)
+      const items = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
+      expect(items, id).toHaveLength(extrema.length + 1)
+      extrema.forEach((e, i) => {
+        expect(items[i].x, `${id}[${i}].x`).toBeCloseTo(e.x, 6)
+        expect(items[i].y, `${id}[${i}].y`).toBeCloseTo(e.y, 6)
+      })
+      const last = target.polyline[target.polyline.length - 1]
+      expect(items[items.length - 1].x, id).toBeCloseTo(last.x, 6)
+      expect(items[items.length - 1].y, id).toBeCloseTo(last.y, 6)
     }
   })
 })

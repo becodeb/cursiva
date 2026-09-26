@@ -459,6 +459,16 @@ export const ADVENTURES: readonly Adventure[] = [
   {
     id: 'fish',
     levelIds: ['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4'],
+    // [T26, `docs/19` §2.3] Recipe A's third case: after `f2-agua2` — the
+    // fish case's own last pistas level (`detective/cases.ts`'s
+    // `fish.trailIds`) — the flow detours into the `fish` case's deduction
+    // before continuing to `f2-agua3` (the fish family, `LevelConfig.collect`).
+    // Unlike `duck`/`night`, this case's lineup is not three animal
+    // silhouettes: it is the prólogo's own three empty-enclosure SIGNS
+    // (`docs/19` §2.3's third form of deducing, "los carteles de los
+    // recintos vacíos del prólogo") — `detective/cases.ts`'s `fish.optionArt`
+    // carries that override.
+    deduction: { after: 'f2-agua2', caseId: 'fish' },
     sector: 'estanque',
     animal: 'pez',
     intro: 'Los peces se escaparon de la pecera y se escondieron en la laguna. ¡Dejaron burbujas! ¿Las seguimos?',

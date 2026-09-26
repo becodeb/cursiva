@@ -16,6 +16,7 @@ import {
 import { LEVELS, getLevel } from './catalog'
 import { buildLevelTarget } from './buildLevel'
 import { routeApexes } from './vertexArt'
+import { routeExtrema } from './dolphinExtrema'
 import { trailEndArc } from '../detective/clues'
 
 /** A 100-unit horizontal line: arc length equals x. */
@@ -372,6 +373,80 @@ describe('waveCrestArcs (a smooth wave route own crests, where routeApexes finds
     expect(waveCrestArcs([])).toEqual([])
     expect(waveCrestArcs([{ x: 0, y: 0 }])).toEqual([])
     expect(waveCrestArcs([{ x: 0, y: 0 }, { x: 1, y: 1 }])).toEqual([])
+  })
+})
+
+// collectItemsFromExtrema, reached only through resolveCollectItems('troughs'
+// | 'extrema') — T26 (`odd/tasks/prewriting-stage-completion.md`, `docs/19`
+// §3: "un pez en el fondo de cada U", "cada delfín que pasás se suma").
+describe("resolveCollectItems('troughs') — a garland's own U bottoms, where routeApexes/waveCrestArcs both find the wrong thing", () => {
+  it("a 3-cycle garland (f2-guirnalda's own shape): one item per U bottom, plus one final item at the route's end — never at a cycle boundary (a `routeExtrema` 'crest', at the SAME height as the route's own ends)", () => {
+    const level = getLevel('f2-guirnalda')
+    const target = buildLevelTarget(level)
+    const items = resolveCollectItems({ items: 'troughs', art: { href: 'x', w: 1, h: 1 }, size: 1 }, target.polyline, target.length, level.corridorWidth)
+    const extrema = routeExtrema(target.polyline)
+    const troughs = extrema.filter((e) => e.side === 'trough')
+    expect(troughs.length).toBeGreaterThan(0)
+    expect(items).toHaveLength(troughs.length + 1)
+    troughs.forEach((e, i) => {
+      expect(items[i].x, `item ${i}`).toBeCloseTo(e.x, 6)
+      expect(items[i].y, `item ${i}`).toBeCloseTo(e.y, 6)
+    })
+    // routeApexes (the sheep/llama mechanism) finds nothing on this smooth
+    // garland — the exact reason 'troughs' exists, mirroring 'crests'' own
+    // header for the duck's smooth waves.
+    expect(routeApexes(target.polyline)).toHaveLength(0)
+  })
+
+  it("f2-agua3's own varied-depth garland: still one item per U, in ascending arc order", () => {
+    const level = getLevel('f2-agua3')
+    const target = buildLevelTarget(level)
+    const items = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
+    const troughs = routeExtrema(target.polyline).filter((e) => e.side === 'trough')
+    expect(items).toHaveLength(troughs.length + 1)
+    for (let i = 1; i < items.length; i++) expect(items[i].arc).toBeGreaterThan(items[i - 1].arc)
+  })
+
+  it('completing the whole route collects every fish, same invariant every other collect family already proves', () => {
+    for (const id of ['f2-agua3', 'f2-agua4']) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const items = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
+      const state = collectTick(emptyCollectState(items.length), target.length, items)
+      expect(isCollectComplete(state), id).toBe(true)
+      expect(collectedCount(state), id).toBe(items.length)
+    }
+  })
+})
+
+describe("resolveCollectItems('extrema') — the dolphin family's own crest-AND-trough positions", () => {
+  it('derives one item per routeExtrema turning point (both sides) plus one final item, for every shipped dolphin level', () => {
+    for (const id of ['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4']) {
+      const level = getLevel(id)
+      expect(level.collect, id).toBeDefined()
+      expect(level.collect!.items, id).toBe('extrema')
+      const target = buildLevelTarget(level)
+      const extrema = routeExtrema(target.polyline)
+      const items = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
+      expect(items, id).toHaveLength(extrema.length + 1)
+      // Standing exactly ON the route (no push-out, unlike the retired
+      // vertexArtPoints/clear placement this replaces).
+      extrema.forEach((e, i) => {
+        expect(items[i].x, `${id}[${i}]`).toBeCloseTo(e.x, 6)
+        expect(items[i].y, `${id}[${i}]`).toBeCloseTo(e.y, 6)
+      })
+    }
+  })
+
+  it('completing the whole route collects every dolphin', () => {
+    for (const id of ['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4']) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const items = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
+      const state = collectTick(emptyCollectState(items.length), target.length, items)
+      expect(isCollectComplete(state), id).toBe(true)
+      expect(collectedCount(state), id).toBe(items.length)
+    }
   })
 })
 

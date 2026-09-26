@@ -360,7 +360,11 @@ function Animal({
   // "preserves referential identity" guarantee), so this is a behaviour-
   // preserving generalisation, not a different picture.
   const revealed = state.closed && id === kase.culprit
-  const art = revealed ? ZOO_ANIMAL_ART[id] : silhouetteArtFor(id)
+  // [T26] `kase.optionArt` overrides the DEFAULT silhouette for a case whose
+  // lineup is not animal shapes (the fish case's own enclosure SIGNS,
+  // `DetectiveCase.optionArt`'s own header) — absent for every other case,
+  // so `silhouetteArtFor` still runs unchanged there.
+  const art = revealed ? ZOO_ANIMAL_ART[id] : (kase.optionArt?.[id] ?? silhouetteArtFor(id))
   // A wrong pick is gentle (`docs/01` principle 2: no red, no failure
   // sound): the ONLY animation is this one soft shake, on the animal just
   // picked — never a permanent state, so it plays exactly once per wrong

@@ -5,7 +5,7 @@
 // reads through, so the case and the levels it points at can never disagree.
 import { getLevel } from '../levels/catalog'
 import { DETECTIVE_TRAIL_IDS } from '../game/types'
-import { SECTOR_ADVENTURE_ART, type ArtImage, type ClueKind, type ZooAnimalId } from './assets'
+import { SECTOR_ADVENTURE_ART, SIGN_ART, type ArtImage, type ClueKind, type ZooAnimalId } from './assets'
 
 export interface DetectiveCase {
   id: string
@@ -72,6 +72,22 @@ export interface DetectiveCase {
    * means `clueKindsOf` returns `[]` (there is nothing for it to derive).
    */
   clueArt?: readonly ArtImage[]
+  /**
+   * T26 (`docs/19` §2.3's THIRD form of deducing: "los carteles de los
+   * recintos vacíos del prólogo"). `Deduction.tsx`'s `Animal` renders every
+   * un-revealed option as its `ANIMAL_SILHOUETTE_ART` silhouette by default
+   * — right for a case whose lineup is animals (duck/night), wrong for the
+   * fish case, whose lineup is the entrance's three empty-enclosure SIGN
+   * pictures (`SIGN_ART.fish`/`.turtles`/`.monkeys`, `detective/assets.ts`)
+   * asking "¿de qué recinto se escaparon?" — a picture of a SIGN, not of an
+   * animal shape, and one `ANIMAL_SILHOUETTE_ART` has no entry for `tortuga`/
+   * `mono` anyway (only the four deduction-lineup animals it predates ever
+   * needed one). Keyed by option, same shape `ruledOutBy`/`hint` already use;
+   * absent (every case but `fish`) keeps today's silhouette-only behaviour.
+   * The revealed culprit still swaps to `ZOO_ANIMAL_ART` regardless — this
+   * only overrides the UN-revealed picture.
+   */
+  optionArt?: Readonly<Partial<Record<ZooAnimalId, ArtImage>>>
 }
 
 /**
@@ -181,6 +197,36 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     // leaf picture until B12 ships real apple/mushroom art.
     clueArt: [SECTOR_ADVENTURE_ART.leaf, SECTOR_ADVENTURE_ART.leaf, SECTOR_ADVENTURE_ART.stone],
     trailIds: ['night1', 'night2', 'night3'],
+  },
+  // [T26, `docs/19` §2.3/§3] Recipe A's third case, closed by `f2-agua2`
+  // (`zoo/adventures.ts`'s `fish.deduction.after`), routing into `f2-agua3`
+  // (the fish family, `LevelConfig.collect`). The prólogo left three
+  // enclosures empty — `pez`/`tortuga`/`mono` (`docs/18` §4.5) — and the
+  // laguna's own bubbles ask "¿de qué recinto se escaparon?": the lineup is
+  // the three enclosure SIGNS, not three animal silhouettes (`optionArt`'s
+  // own header).
+  {
+    id: 'fish',
+    culprit: 'pez',
+    options: ['pez', 'tortuga', 'mono'],
+    // No `ClueKind` rules `tortuga`/`mono` out — the bubble/gota clues this
+    // case's own pistas levels carry (`trailIds`, below) say "a pond animal
+    // came this way", not "not a turtle, not a monkey". The dismissal is
+    // read off the SIGN itself (a turtle's sign is not the fish's sign), the
+    // same "no clue behind this dismissal" shape `rescuedDistractors`
+    // already models for the night case — reused here for a DIFFERENT
+    // reason (neither `tortuga` nor `mono` is rescued yet: `docs/19` §2.3's
+    // own recorrido has `peces` (#8) BEFORE `tortugas` (#10) and `monos`
+    // (#11)), but the exact same mechanical exemption: nothing in
+    // `ruledOutBy` would be honest for either.
+    ruledOutBy: {},
+    rescuedDistractors: ['tortuga', 'mono'],
+    optionArt: { pez: SIGN_ART.fish, tortuga: SIGN_ART.turtles, mono: SIGN_ART.monkeys },
+    hint: {
+      tortuga: '¿El cartel de las tortugas? No: ahí no hay burbujas.',
+      mono: '¿El cartel de los monos? No: los monos no nadan.',
+    },
+    trailIds: ['f2-guirnalda', 'f2-agua2'],
   },
 ]
 

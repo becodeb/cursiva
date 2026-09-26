@@ -56,12 +56,20 @@ describe('routeApexes', () => {
     // T17 follow-up moved sheep-hill1/llama-peak1's own standing art off
     // `vertexArt` entirely (they now author `collect` instead, and the
     // collect-driven layer replaces vertexArt rather than drawing twice —
-    // see `levels/catalog.ts`'s own comment on `sheep-hill1`). Dolphin still
-    // authors a plain `vertexArt` and is not a case either, so it is what
-    // this test's ORIGINAL intent (vertexArt grants no case/world
-    // membership) actually needs.
-    const withArt = getLevel('dolphin1')
-    expect(withArt.vertexArt).toBeDefined()
+    // see `levels/catalog.ts`'s own comment on `sheep-hill1`). [T26] The
+    // dolphin family — this test's own real-catalog fixture until now — was
+    // the LAST shipped `vertexArt` author; it too moved to `collect` (the
+    // same replace-not-both rule, `docs/19` §3), so no level in the catalog
+    // authors a plain `vertexArt` any more. `isCaseTrail`/`inDetectiveWorld`
+    // are pure functions of `{ clue, detectiveWorld }` alone (`levels/
+    // world.ts`) — they never read `vertexArt` — so this test's ORIGINAL
+    // intent (vertexArt grants no case/world membership) is proven just as
+    // well with a minimal hand-built fixture as with a real catalog id.
+    const withArt = {
+      clue: undefined,
+      detectiveWorld: undefined,
+      vertexArt: { art: { href: 'x', w: 1, h: 1 }, size: 10 },
+    }
     expect(isCaseTrail(withArt)).toBe(false)
     expect(inDetectiveWorld(withArt)).toBe(false)
   })

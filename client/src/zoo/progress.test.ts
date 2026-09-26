@@ -17,17 +17,24 @@ describe('adventureProgress', () => {
   // (`odd/tasks/promised-animals.md`) gives them the `fish` row, so they
   // now report a real bar like every other multi-level adventure — see the
   // dedicated `fish` describe block below for the full shape.
-  it('reports a mid-adventure fish trail: filed levels, the current one flagged, bubble clues in play order', () => {
+  //
+  // [T26, `docs/19` §2.3] The fish adventure now declares its own
+  // `deduction` gate (`zoo/adventures.ts`), so — the SAME "no spoilers" rule
+  // T21 established for the duck — `animal` is `undefined` until the case is
+  // solved, and `f2-agua3`/`f2-agua4` (repurposed to `collect`, past the
+  // deduction) carry no `clue` any more; only `f2-guirnalda`/`f2-agua2` still
+  // do (`bubble`/`droplet`, the case's own two distinct pistas clues).
+  it('reports a mid-adventure fish trail: filed levels, the current one flagged, clues in play order', () => {
     const progress = adventureProgress('f2-agua2', recordsFor(['f2-guirnalda']))
     expect(progress).toEqual({
       adventureId: 'fish',
-      animal: 'pez',
+      animal: undefined,
       rescued: false,
       slots: [
         { levelId: 'f2-guirnalda', clue: 'bubble', filed: true, current: false },
-        { levelId: 'f2-agua2', clue: 'bubble', filed: false, current: true },
-        { levelId: 'f2-agua3', clue: 'bubble', filed: false, current: false },
-        { levelId: 'f2-agua4', clue: 'bubble', filed: false, current: false },
+        { levelId: 'f2-agua2', clue: 'droplet', filed: false, current: true },
+        { levelId: 'f2-agua3', clue: undefined, filed: false, current: false },
+        { levelId: 'f2-agua4', clue: undefined, filed: false, current: false },
       ],
     })
   })

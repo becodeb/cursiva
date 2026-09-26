@@ -3,7 +3,7 @@
 // Shape"). Pure data assertions, no DOM — iterating `DETECTIVE_CASES` rather
 // than hand-picking one case, so a future third case is checked for free.
 import { describe, expect, it } from 'vitest'
-import { ANIMAL_SILHOUETTE_ART } from './assets'
+import { ANIMAL_SILHOUETTE_ART, SIGN_ART } from './assets'
 import {
   DETECTIVE_CASES,
   clueKindsOf,
@@ -108,6 +108,41 @@ describe('resolveNightDiscards (docs/19 §2.3/§3.2: progress-computed, never a 
       const [a, b] = resolveNightDiscards(rescuedOnly(rescued))
       expect(a, `mask ${mask}`).not.toBe(b)
     }
+  })
+})
+
+// [T26, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §2.3's THIRD
+// form of deducing: "los carteles de los recintos vacíos del prólogo"]
+const fishCase = DETECTIVE_CASES.find((k) => k.id === 'fish')!
+
+describe('the fish case (T26): the lineup is enclosure SIGNS, not animal silhouettes', () => {
+  it('culprit is pez; tortuga/mono are exempted via rescuedDistractors, not ruledOutBy (no clue backs either dismissal)', () => {
+    expect(fishCase.culprit).toBe('pez')
+    expect(fishCase.options).toEqual(['pez', 'tortuga', 'mono'])
+    expect(fishCase.ruledOutBy).toEqual({})
+    expect(fishCase.rescuedDistractors).toEqual(['tortuga', 'mono'])
+  })
+
+  it('every non-culprit option has a hint, same invariant every other case satisfies', () => {
+    for (const animal of fishCase.options) {
+      if (animal === fishCase.culprit) continue
+      expect(fishCase.hint[animal], animal).toBeDefined()
+    }
+  })
+
+  it('optionArt overrides every option with its own enclosure sign — never an animal silhouette', () => {
+    expect(fishCase.optionArt?.pez).toBe(SIGN_ART.fish)
+    expect(fishCase.optionArt?.tortuga).toBe(SIGN_ART.turtles)
+    expect(fishCase.optionArt?.mono).toBe(SIGN_ART.monkeys)
+  })
+
+  it('trailIds names only the case\'s own two pistas levels, not the collect levels past the deduction', () => {
+    expect(fishCase.trailIds).toEqual(['f2-guirnalda', 'f2-agua2'])
+  })
+
+  it('clueKindsOf still derives two distinct clue kinds (bubble, droplet) from both pistas trails (optionArt does not touch clueArt)', () => {
+    expect(fishCase.clueArt).toBeUndefined()
+    expect(clueKindsOf(fishCase)).toEqual(['bubble', 'droplet'])
   })
 })
 
