@@ -553,3 +553,44 @@ describe('ZooMap bubble pop-in and star sparkle (prewriting-stage-completion T8)
     expect(html).not.toContain('class="cv-zoo-star-spark"')
   })
 })
+
+// The rescue flight's receiving half (prewriting-stage-completion T24,
+// docs/19 section 6). `renderToString` never runs an effect (this file's
+// own header repeats the limitation every describe block above already
+// states), and `takeDeparture`/the flight state only ever populate from
+// inside one — the pure math and the departure handoff itself are covered
+// directly (`zoo/rescueFlight.test.ts`). These SSR-only tests assert the two
+// things that ARE visible without a browser: the overlay never renders on
+// an ordinary SSR pass (nothing pending, exactly as a real fresh mount with
+// no prior departure would render), and the static stylesheet carries the
+// view-transition timing override with no url(#…)/mask of its own.
+describe('ZooMap rescue flight (T24)', () => {
+  it('renders no flight overlay ELEMENT on an ordinary render (no departure ever recorded in this SSR-only harness) — the bare class name still appears in the static stylesheet either way, the same distinction this file\'s own star-pop tests draw', () => {
+    const html = render(filed(...estanque.adventureIds))
+    expect(html).not.toContain('<img class="cv-zoo-rescue-flight"')
+  })
+
+  it('carries the view-transition timing override in its own static stylesheet, scoped to the shared flight name', () => {
+    const html = render()
+    expect(html).toContain('::view-transition-group(cv-rescue-flight)')
+    expect(html).toContain('::view-transition-old(cv-rescue-flight)')
+    expect(html).toContain('::view-transition-new(cv-rescue-flight)')
+    expect(html).toContain(
+      '@media (prefers-reduced-motion: reduce) {\n  ::view-transition-group(cv-rescue-flight) { animation: none !important; }\n}',
+    )
+  })
+
+  it('introduces no url(#…) or mask reference of its own (this file\'s own D6 ban, above)', () => {
+    const html = render()
+    const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/)
+    expect(styleMatch).not.toBeNull()
+    const rescueBlock = styleMatch![1].slice(styleMatch![1].indexOf('.cv-zoo-rescue-flight'))
+    expect(rescueBlock).not.toContain('url(#')
+    expect(rescueBlock).not.toContain('<mask')
+  })
+
+  it('the overlay class is pointer-events: none, so a mid-flight tap always reaches the map underneath it', () => {
+    const html = render()
+    expect(html).toContain('.cv-zoo-rescue-flight { position: fixed; pointer-events: none;')
+  })
+})

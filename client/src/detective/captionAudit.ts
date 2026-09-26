@@ -27,7 +27,13 @@
 //                   his own <img> is a sibling within this SAME frame, and a
 //                   spoken line standing beside the character who says it is
 //                   exactly what this whole invariant exists to require.
-export const CAPTION_CONTAINERS = ['cv-captioned', 'pistas-bar', 'cv-deduction-frame'] as const
+// - `cv-closing-frame` (T24 follow-up, `screen/AdventureClosing.tsx`): the
+//                   SAME move for a rescue beat's bubble, now that the big
+//                   rescue animal is the one picture (the bubble's own small
+//                   duplicate was removed) — the big animal's <img> is a
+//                   sibling within this frame, exactly the `cv-deduction-
+//                   frame` precedent restated for this screen.
+export const CAPTION_CONTAINERS = ['cv-captioned', 'pistas-bar', 'cv-deduction-frame', 'cv-closing-frame'] as const
 
 export interface CaptionAudit {
   /** Words inside a licensed container that really does carry an image. */

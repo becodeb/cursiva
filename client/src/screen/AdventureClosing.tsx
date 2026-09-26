@@ -27,9 +27,30 @@
 // `CaptionedArt`'s own SVG `<image href>`. `CLOSING_CSS`'s comments carry NO
 // BACKTICKS — this is a template literal, and one backtick inside a
 // comment ends the string.
-import type { CSSProperties } from 'react'
+//
+// T24 (`docs/19` §2.1 step 5 + §6, "the animal gets its big moment"): an
+// animal-recovering row now ALSO shows its animal big over the scene
+// (`.cv-closing-rescue-animal`), and flies to its map spot once this screen
+// is dismissed. The flight itself is `zoo/rescueFlight.ts` + `ZooMap.tsx`'s
+// own receiving half — this file's only job is the big image, its jump, and
+// freezing its departure rect on tap.
+//
+// T24 follow-up (coordinator review 2026-09-26): the FIRST cut placed the
+// animal at a hand-picked `top: 3%; left: 50%` — it happened to clear the
+// bubble at 844x390 but landed squarely on the bubble's own text at
+// 1024x768 (a taller bubble there, same percent geometry). The animal's box
+// is now computed FROM the bubble's and Pulpito's own real placement
+// (`screen/rescueAnimalPlacement.ts`'s `resolveRescueAnimalBox`, tested
+// against real `octopusBoxAtCorner`/`placeAndFitBubble` outputs at the four
+// required viewports) instead of a guess. The bubble's own small caption
+// image is ALSO removed for a rescue beat now that the big animal exists —
+// `placeAndFitBubble` is called with no `art` (text only), the same
+// text-only shape `Deduction.tsx` already uses for its own bubble; the big
+// animal is the one picture, never a second, redundant one crammed into the
+// bubble (that screen's own T21 follow-up made exactly this call).
+import { useRef, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
-import { ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import { ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import type { Adventure, ClosingBeat } from '../zoo/adventures'
@@ -38,6 +59,8 @@ import SpeakButton from '../voice/SpeakButton'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 import { BUBBLE_POP_CSS } from './BubblePop'
 import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
+import { recordDeparture, RESCUE_FLIGHT_VT_NAME } from '../zoo/rescueFlight'
+import { resolveRescueAnimalBox } from './rescueAnimalPlacement'
 import { CONTENT_LEFT_FRAC, CONTENT_TOP_FRAC, CONTENT_WIDTH_FRAC, GAP_FRAC, LINE_HEIGHT, placeAndFitBubble } from './bubbleFit'
 import {
   OCTOPUS_CORNER_INSET,
@@ -50,6 +73,22 @@ import {
   STAGE_MAX_VH_FRAC,
 } from './pulpitoStance'
 import { bubbleContentCssVars } from './bubbleCssVars'
+
+/** The real viewport, CSS px — `undefined` under `renderToString` (node,
+ *  no `window`), which is exactly when nothing here reads it: `resolve
+ *  RescueAnimalBox`'s own `viewport` argument only matters for a REAL
+ *  render (`rescueAnimalPlacement.ts`'s own header on why the ~40vh cap
+ *  needs it), and every SSR test in this file passes `adventure.animal ===
+ *  undefined` fixtures or does not assert on the animal's exact box — the
+ *  same `typeof window === 'undefined'` guard this whole app already uses
+ *  for `window.location.search` (`App.tsx`, `GameScreen.tsx`). A fixed
+ *  1024x768 fallback (one of the task's own four required viewports) keeps
+ *  a fixture render's numbers sane if a future test DOES start asserting
+ *  on them under SSR. */
+function currentViewport(): { width: number; height: number } {
+  if (typeof window === 'undefined') return { width: 1024, height: 768 }
+  return { width: window.innerWidth, height: window.innerHeight }
+}
 
 /* Same stage geometry as `AdventureIntro.tsx`'s `INTRO_CSS`, restated under
    its own class prefix rather than shared, the same reason the two
@@ -83,6 +122,47 @@ html, body, #root { margin: 0; height: 100%; }
   .cv-closing-octopus { animation: none; }
   .cv-octopus-life { animation: none; }
 }
+/* The rescue animal (T24, docs/19 section 2.1 step 5: "El animal grande
+   salta, el Pulpito festeja"): the star of THIS beat, big over the scene.
+   Positioned via inline style (left/top/width/height, percent of the
+   square stage) computed by resolveRescueAnimalBox
+   (screen/rescueAnimalPlacement.ts) FROM the bubble's and Pulpito's own
+   real boxes every render -- found by measuring, not guessing (coordinator
+   review, this file's own top note): a hand-picked position cleared the
+   bubble at one viewport and covered its text at another, since the SAME
+   percent geometry produces a taller bubble at some aspect ratios than
+   others. position: absolute, like the octopus/bubble spans above -- this
+   span's containing block is .cv-closing-stage (inset: 0 against
+   .cv-closing-frame, the SAME square stage the octopus/bubble already
+   position themselves against), so plain percent left/top/width/height
+   here lands in the SAME coordinate system resolveRescueAnimalBox reasons
+   about, with no unit-conversion step and no risk of the two silently
+   drifting apart the way a fixed/viewport-relative box could.
+
+   The wrapper is a flex box (centring the img inside a box whose exact
+   pixel size is only known once the browser lays it out) rather than a
+   sized img directly: resolveRescueAnimalBox's own box already preserves
+   the art's aspect ratio, but centring the wrapper's OWN box (not the img)
+   keeps the jump animation's translateY/scale from ever being read as
+   "this box moved" by anything measuring the WRAPPER (recordDeparture,
+   below, measures the wrapper, never the animating img). NO BACKTICKS in
+   this block -- this file's own top note. */
+.cv-closing-rescue-animal { position: absolute; display: flex; align-items: center; justify-content: center; }
+.cv-closing-rescue-animal img { display: block; height: 100%; width: auto; max-width: 100%; animation: cv-rescue-jump 1.1s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes cv-rescue-jump {
+  0%, 100% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-10%) scale(1.05); }
+  60% { transform: translateY(0) scale(0.97); }
+  82% { transform: translateY(-3%) scale(1.02); }
+}
+@media (prefers-reduced-motion: reduce) { .cv-closing-rescue-animal img { animation: none; } }
+/* T24 follow-up: the rescue bubble's own TEXT-ONLY content (the small
+   duplicate duck removed from inside it) -- the same rule Deduction.tsx's
+   own .cv-deduction-bubble-text already states, restated under this
+   file's own class prefix rather than shared (this file's own header on
+   why AdventureIntro/AdventureClosing stay siblings rather than one
+   generalized component). */
+.cv-closing-bubble .cv-closing-bubble-text { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; margin: 0; }
 ${BUBBLE_POP_CSS}
 /* T18 (odd/tasks/prewriting-stage-completion.md) -- see AdventureIntro.tsx's
    own INTRO_CSS header on .cv-intro-bubble for the floated-image content
@@ -136,6 +216,13 @@ export interface AdventureClosingProps {
  *  does, on its own (and, since T8, only) closing beat. */
 export default function AdventureClosing({ adventure, beat, onContinue }: AdventureClosingProps) {
   const backdrop = backdropFor(adventure.levelIds[adventure.levelIds.length - 1])
+  // T24 (the rescue flight, docs/19 section 2.1 step 5 + section 6): the
+  // wrapper this ref measures is what `recordDeparture` (zoo/rescueFlight.ts)
+  // freezes into a plain rect BEFORE the tap that unmounts this whole
+  // screen — see the handler on the stage button below, and that module's
+  // own header for why the handoff has to be a module-scope variable
+  // rather than React state.
+  const rescueAnimalRef = useRef<HTMLSpanElement | null>(null)
   // Voice narration (docs/18 D1; T7): each beat speaks its own line as soon
   // as it appears. `GameScreen`'s own 'close' view (this file's own header)
   // re-renders this SAME component with the NEXT beat rather than
@@ -153,20 +240,67 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
     bottom: 2,
     inset: OCTOPUS_CORNER_INSET,
   })
+  const isRescue = adventure.animal !== undefined
+  // T24 follow-up: text-only for a rescue beat (no `art`) — the big animal
+  // below is the one picture now; a non-rescue beat (entrance enclosures,
+  // night) keeps its own small caption image exactly as before.
   const { placement, content } = placeAndFitBubble({
     frame: { w: 100, h: 100 },
     headBox: octopusBox,
     tail: ZOO_SPEECH_BUBBLE_TAIL,
     side: stanceBubbleSide(stance.corner),
     text: beat.line,
-    art: beat.art,
+    art: isRescue ? undefined : beat.art,
   })
+  const rescueAnimalBox = isRescue
+    ? resolveRescueAnimalBox({
+        frame: { w: 100, h: 100 },
+        octopusBox,
+        bubbleBox: placement,
+        artAspect: { w: ZOO_ANIMAL_ART[adventure.animal!].w, h: ZOO_ANIMAL_ART[adventure.animal!].h },
+        viewport: currentViewport(),
+      })
+    : null
   return (
     <main className="cv-closing" style={{ backgroundColor: backdrop?.quiet ?? SHEET_PAPER }}>
       <style>{CLOSING_CSS}</style>
       {backdrop && <img className="cv-closing-backdrop" src={backdrop.art.href} alt="" />}
       <div className="cv-closing-frame">
-        <button type="button" className="cv-closing-stage" onClick={onContinue}>
+        <button
+          type="button"
+          className="cv-closing-stage"
+          onClick={() => {
+            // T24: freeze the departure BEFORE onContinue starts the
+            // navigation that unmounts this screen — `rescueAnimalRef` is
+            // absent for an animal-less closing (entrance enclosures,
+            // night), so this is a no-op there, exactly like
+            // `RescueCelebration` staying unrendered for the same rows.
+            if (adventure.animal !== undefined && rescueAnimalRef.current) {
+              const rect = rescueAnimalRef.current.getBoundingClientRect()
+              recordDeparture(adventure.animal, { x: rect.x, y: rect.y, width: rect.width, height: rect.height })
+            }
+            onContinue()
+          }}
+        >
+          {isRescue && rescueAnimalBox && (
+            <span
+              className="cv-closing-rescue-animal"
+              ref={rescueAnimalRef}
+              aria-hidden="true"
+              style={{
+                left: `${rescueAnimalBox.x}%`,
+                top: `${rescueAnimalBox.y}%`,
+                width: `${rescueAnimalBox.w}%`,
+                height: `${rescueAnimalBox.h}%`,
+              }}
+            >
+              <img
+                src={ZOO_ANIMAL_ART[adventure.animal!].href}
+                alt=""
+                style={{ viewTransitionName: RESCUE_FLIGHT_VT_NAME } as CSSProperties}
+              />
+            </span>
+          )}
           <span className="cv-closing-octopus" style={{ [stance.corner]: `${octopusBox.x}%` } as CSSProperties}>
             <img src={octopusArt.href} alt="" className="cv-octopus-life" />
           </span>
@@ -197,12 +331,16 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
               style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
             >
               <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-              <CaptionedArt
-                art={beat.art}
-                label={beat.line}
-                size={76}
-                className={content.layout === 'stack' ? 'cv-captioned--stack' : undefined}
-              />
+              {isRescue ? (
+                <p className="cv-closing-bubble-text">{beat.line}</p>
+              ) : (
+                <CaptionedArt
+                  art={beat.art}
+                  label={beat.line}
+                  size={76}
+                  className={content.layout === 'stack' ? 'cv-captioned--stack' : undefined}
+                />
+              )}
             </span>
           </span>
           {adventure.animal !== undefined && <RescueCelebration />}

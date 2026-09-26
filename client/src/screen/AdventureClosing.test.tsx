@@ -9,11 +9,13 @@ import { auditCaptions } from '../detective/captionAudit'
 import {
   CARRIER_LENS_ART,
   SECTOR_ADVENTURE_ART,
+  ZOO_ANIMAL_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
   ZOO_SPEECH_BUBBLE_ART,
   ZOO_STAR_ART,
 } from '../detective/assets'
 import { ADVENTURES, type Adventure, type ClosingBeat } from '../zoo/adventures'
+import { RESCUE_FLIGHT_VT_NAME } from '../zoo/rescueFlight'
 
 // Renamed from `sand` (add-caretaker-prologue design.md D7): `sendero` is
 // `sand`'s direct successor, carrying the TWO-beat closing the old
@@ -222,6 +224,81 @@ describe('AdventureClosing rescue celebration (T8)', () => {
     const audit = auditCaptions(html)
     expect(audit.uncaptioned).toEqual([])
     expect(audit.imagelessContainers).toEqual([])
+  })
+})
+
+// The big rescue animal and its flight (prewriting-stage-completion T24,
+// docs/19 section 2.1 step 5 + section 6). `renderToString` cannot observe
+// the jump animation or a real tap's measured rect (this file's own
+// `RescueCelebration` describe block gives the same caveat) — these tests
+// assert what IS visible in the static markup: the big image renders only
+// for an animal-recovering row, using ZOO_ANIMAL_ART (not the small caption
+// image beat.art already carries), tagged for the flight, decorative, and
+// absent under reduced motion.
+describe('AdventureClosing rescue animal and flight (T24)', () => {
+  const duck = ADVENTURES.find((a) => a.id === 'duck')!
+
+  it('renders the big animal, using ZOO_ANIMAL_ART for the adventure\'s own animal', () => {
+    const html = renderToString(
+      <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
+    )
+    expect(html).toContain('class="cv-closing-rescue-animal"')
+    expect(html).toContain(`src="${ZOO_ANIMAL_ART.pato.href}"`)
+  })
+
+  it('renders no big-animal element for an animal-less closing (the four entrance enclosures, and night)', () => {
+    for (const id of ['peces', 'tortugas', 'monos', 'sendero', 'night'] as const) {
+      const adventure = ADVENTURES.find((a) => a.id === id)!
+      for (const beat of adventure.closingBeat!) {
+        const html = renderToString(
+          <AdventureClosing adventure={adventure} beat={beat} onContinue={() => {}} />,
+        )
+        expect(html, id).not.toContain('class="cv-closing-rescue-animal"')
+      }
+    }
+  })
+
+  it('renders the big-animal element for every animal-recovering row, not only the duck', () => {
+    for (const adventure of ADVENTURES.filter((a) => a.animal !== undefined)) {
+      const html = renderToString(
+        <AdventureClosing adventure={adventure} beat={adventure.closingBeat![0]} onContinue={() => {}} />,
+      )
+      expect(html, adventure.id).toContain('class="cv-closing-rescue-animal"')
+      expect(html, adventure.id).toContain(`src="${ZOO_ANIMAL_ART[adventure.animal!].href}"`)
+    }
+  })
+
+  it('is decorative — aria-hidden, empty alt, never adding an uncaptioned word', () => {
+    const html = renderToString(
+      <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
+    )
+    expect(html).toContain('class="cv-closing-rescue-animal"')
+    expect(html).toContain('aria-hidden="true"')
+    const audit = auditCaptions(html)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
+  })
+
+  it('carries the shared view-transition-name, so a supporting browser can match it across screens', () => {
+    const html = renderToString(
+      <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
+    )
+    const rescueBlock = html.slice(html.indexOf('class="cv-closing-rescue-animal"'))
+    expect(rescueBlock).toContain(`view-transition-name:${RESCUE_FLIGHT_VT_NAME}`)
+  })
+
+  it("its own jump animation is disabled under prefers-reduced-motion, same convention as the octopus's breathe", () => {
+    const html = renderToString(
+      <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
+    )
+    expect(html).toContain('@media (prefers-reduced-motion: reduce) { .cv-closing-rescue-animal img { animation: none; } }')
+  })
+
+  it('onContinue still fires for an animal-less closing with no rescue ref to measure (no-op guard, no throw)', () => {
+    const onContinue = vi.fn()
+    const sendero = ADVENTURES.find((a) => a.id === 'sendero')!
+    renderToString(<AdventureClosing adventure={sendero} beat={sendero.closingBeat![0]} onContinue={onContinue} />)
+    expect(() => onContinue()).not.toThrow()
   })
 })
 
