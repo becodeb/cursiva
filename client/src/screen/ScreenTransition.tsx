@@ -47,7 +47,23 @@
 // (never transform) — `clip-path`, like `opacity`, is a paint-time effect
 // with zero influence on `getBoundingClientRect()`/`ResizeObserver`
 // readings, so it keeps that same safety property.
+//
+// T31 (`odd/tasks/prewriting-stage-completion.md`): the play-test note
+// "funciona pero es feo; parece un círculo blanco que crece, no se nota que
+// es una lupa" — the growing `clip-path` circle above is UNCHANGED (it is
+// the actual reveal, already within budget); a decorative rim/handle/
+// highlight group (`lupaWipe.ts`, its own geometry) is now drawn ON TOP of
+// it, as a LATER sibling inside the same wrapper, so it paints over the
+// newly-revealed screen's edge as it grows — the exact "positioned over the
+// circle's edge as it grows" the task's own brief asks for. Sharing the SAME
+// `key`/`style` (the origin custom properties) as the reveal wrapper is what
+// keeps the two growing from the same point; `lupaWipe.ts`'s own header
+// explains why the two do not need pixel-identical radii to read as one
+// magnifying glass. Never rendered for `kind='none'` (T24's rescue flight)
+// — the decorative rim would otherwise grow over the flying animal exactly
+// like the reveal itself is already excused from doing.
 import type { CSSProperties, ReactNode } from 'react'
+import { LUPA_WIPE_CSS, lupaRimOriginStyle } from './lupaWipe'
 
 /** How long the wipe (or the old fade, kept only for this constant's own
  *  external reference — no caller asks for `kind='fade'` any more) takes —
@@ -64,6 +80,7 @@ export const SCREEN_TRANSITION_CSS = `
   100% { clip-path: circle(150% at var(--cv-wipe-x, 50%) var(--cv-wipe-y, 50%)); }
 }
 @media (prefers-reduced-motion: reduce) { .cv-screen-wipe { animation: none; clip-path: none; } }
+${LUPA_WIPE_CSS}
 `
 
 export type ScreenTransitionKind = 'wipe' | 'none'
@@ -96,10 +113,28 @@ export default function ScreenTransition({ screenKey, kind = 'wipe', origin, chi
   const originStyle: CSSProperties | undefined = origin
     ? ({ ['--cv-wipe-x' as string]: `${origin.xPct}%`, ['--cv-wipe-y' as string]: `${origin.yPct}%` } as CSSProperties)
     : undefined
+  // T31: the lupa's own rim/handle/highlight is a SIBLING of `.cv-screen-
+  // wipe`, never its CHILD — `clip-path` on an ancestor clips its entire
+  // painted subtree (fixed-position descendants included: it establishes
+  // their containing block same as `transform`/`filter` do), so nesting the
+  // rim inside the growing-circle wrapper would clip the rim to that SAME
+  // circle and hide the very edge it exists to mark. The outer `<div>`
+  // below carries the `key` instead (React's own remount-on-key-change
+  // applies to a single child position exactly as it does to a list, this
+  // file's own header) so the wipe and its decorative rim mount/unmount
+  // together as one unit.
   return (
-    <div key={screenKey} className="cv-screen-wipe" style={originStyle}>
-      <style>{SCREEN_TRANSITION_CSS}</style>
-      {children}
+    <div key={screenKey}>
+      <div className="cv-screen-wipe" style={originStyle}>
+        <style>{SCREEN_TRANSITION_CSS}</style>
+        {children}
+      </div>
+      <div className="cv-lupa-rim" style={lupaRimOriginStyle(origin)} aria-hidden="true">
+        <div className="cv-lupa-circle">
+          <div className="cv-lupa-highlight" />
+          <div className="cv-lupa-handle" />
+        </div>
+      </div>
     </div>
   )
 }

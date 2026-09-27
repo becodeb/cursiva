@@ -27,8 +27,10 @@ import type { CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
 import { ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
+import { RevealLayer } from '../canvas/RevealLayer'
 import { backdropFor } from '../zoo/backdrops'
 import { adventureIcon, type Adventure } from '../zoo/adventures'
+import { introCoverFor, INTRO_COVER_VIEWBOX_HEIGHT } from './introCover'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import { BUBBLE_POP_CSS } from './BubblePop'
@@ -166,6 +168,13 @@ export function introSpokenLine(adventure: Adventure): string {
  * would override the only sentence on the screen. */
 export default function AdventureIntro({ adventure, onStart }: AdventureIntroProps) {
   const backdrop = backdropFor(adventure.levelIds[0])
+  // T31 (odd/tasks/prewriting-stage-completion.md): "dice que el vidrio está
+  // empañado, pero se ve el fondo limpio" — the level as it will look the
+  // instant play starts (the fog/sand/leaves/mud cover, night's darkness, a
+  // snake's grey art), not the bare backdrop `AdventureIntro` used to show
+  // alone. `null` for every adventure whose first level has neither
+  // (`introCover.ts`'s own header) — those keep the plain backdrop `<img>`.
+  const cover = introCoverFor(adventure)
   const spokenLine = introSpokenLine(adventure)
   // Voice narration (docs/18 D1; T7): this screen is always reached by a
   // tap (leaving the previous screen), so `canAutoSpeak()` is already true
@@ -195,7 +204,51 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
   return (
     <main className="cv-intro" style={{ backgroundColor: backdrop?.quiet ?? SHEET_PAPER }}>
       <style>{INTRO_CSS}</style>
-      {backdrop && <img className="cv-intro-backdrop" src={backdrop.art.href} alt="" />}
+      {backdrop && cover && (
+        // T31: the SAME picture, now drawn as an SVG `<image>` so the cover
+        // layer (`RevealLayer`, unchanged, reused as-is — or a snake's own
+        // grey pieces) sits in the exact same coordinate space and scales
+        // together with it. `preserveAspectRatio="xMidYMid slice"` is the
+        // SVG-native "cover" crop — the same visual result the plain `<img
+        // object-fit: cover>` fallback below gives, with no JS-measured
+        // margin bands needed (unlike `canvas/TraceCanvas.tsx`'s own
+        // container-driven expansion): the whole sheet already fills this
+        // viewBox edge to edge, so a uniform "slice" crop alone is enough.
+        <svg
+          className="cv-intro-backdrop"
+          viewBox={`0 0 ${cover.viewBoxWidth} ${INTRO_COVER_VIEWBOX_HEIGHT}`}
+          preserveAspectRatio="xMidYMid slice"
+          aria-hidden="true"
+        >
+          <image
+            href={cover.backdropHref}
+            x={0}
+            y={0}
+            width={cover.viewBoxWidth}
+            height={INTRO_COVER_VIEWBOX_HEIGHT}
+            preserveAspectRatio="xMidYMid slice"
+          />
+          {cover.kind === 'veil' ? (
+            <RevealLayer
+              reveal={cover.reveal}
+              sheetBounds={{ x: 0, y: 0, width: cover.viewBoxWidth, height: INTRO_COVER_VIEWBOX_HEIGHT }}
+            />
+          ) : (
+            cover.pieces.map((piece, i) => (
+              <image
+                key={i}
+                href={piece.href}
+                x={piece.box.x}
+                y={piece.box.y}
+                width={piece.box.width}
+                height={piece.box.height}
+                transform={piece.rotate ? `rotate(${piece.rotate} ${piece.pivot.x} ${piece.pivot.y})` : undefined}
+              />
+            ))
+          )}
+        </svg>
+      )}
+      {backdrop && !cover && <img className="cv-intro-backdrop" src={backdrop.art.href} alt="" />}
       <div className="cv-intro-frame">
         <button type="button" className="cv-intro-stage" onClick={onStart}>
           <span className="cv-intro-octopus" style={{ [stance.corner]: `${octopusBox.x}%` } as CSSProperties}>
