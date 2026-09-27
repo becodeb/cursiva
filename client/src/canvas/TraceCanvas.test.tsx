@@ -15,6 +15,7 @@ import TraceCanvas, {
   DEMO_STROKE,
   fitCameraContentWithInsets,
   fitContentWithInsets,
+  HAZARD_STICKER_FILTER,
   heldCarrierView,
   type DrawDemo,
   type SafeInsets,
@@ -633,6 +634,18 @@ describe('TraceCanvas hazards (docs/08: obstáculos con tiempo)', () => {
 
   it('renders nothing without the prop', () => {
     expect(renderToString(<TraceCanvas />)).not.toContain('#7e6a9e')
+  })
+
+  it('T41: a hazard PICTURE wears the paper sticker edge, with no filter element or fragment reference', () => {
+    const art = { href: '/art/sector-stone.png', w: 256, h: 170 }
+    const html = renderToString(<TraceCanvas hazards={{ ...hazards, art }} />)
+    expect(HAZARD_STICKER_FILTER).toContain('drop-shadow(')
+    expect((html.match(/filter:drop-shadow\(/g) ?? []).length).toBe(2)
+    expect(html).not.toContain('<filter')
+    expect(html).not.toContain('url(#')
+    // The plain-circle hazard and a surface without hazards stay untouched.
+    expect(renderToString(<TraceCanvas hazards={hazards} />)).not.toContain('drop-shadow')
+    expect(renderToString(<TraceCanvas />)).not.toContain('drop-shadow')
   })
 
   it('renders one solid muted circle per hazard, at its own radius', () => {
