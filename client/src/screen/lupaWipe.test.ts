@@ -6,6 +6,9 @@ import {
   LUPA_HANDLE_ANCHOR,
   LUPA_HANDLE_ANGLE_DEG,
   LUPA_RIM_FINAL_DIAMETER_VMAX,
+  LUPA_VT_BASE_DIAMETER_PX,
+  LUPA_VT_CSS,
+  LUPA_VT_NAME,
   LUPA_WIPE_CSS,
   LUPA_WIPE_DURATION_MS,
   lupaEdgeAnchorPercent,
@@ -85,6 +88,57 @@ describe('LUPA_WIPE_CSS — no mask/clipPath/pattern/filter/url(#…) of any kin
 
   it('the rim animation duration matches LUPA_WIPE_DURATION_MS (no drift between the two)', () => {
     expect(LUPA_WIPE_CSS).toContain(`cv-lupa-grow ${LUPA_WIPE_DURATION_MS}ms`)
+  })
+})
+
+// T31 follow-up #2 (`odd/tasks/prewriting-stage-completion.md`, "the lupa
+// look regressed on the View Transitions path"): the rim's own SEPARATE
+// `::view-transition-group`, captured and animated independently of `root`
+// so it stays visible (and painted above both root snapshots) for the
+// whole crossing on a browser that takes the native path — this file's own
+// header has the full derivation.
+describe('LUPA_VT_CSS (T31 follow-up #2)', () => {
+  it('gives the captured circle its own view-transition-name, distinct from root', () => {
+    expect(LUPA_VT_CSS).toContain(`view-transition-name: ${LUPA_VT_NAME};`)
+    expect(LUPA_VT_NAME).not.toBe('root')
+  })
+
+  it('captures the rim at a fixed, non-animating size — never a near-zero sliver frozen mid-keyframe', () => {
+    expect(LUPA_VT_CSS).toContain(`width: ${LUPA_VT_BASE_DIAMETER_PX}px;`)
+    expect(LUPA_VT_CSS).toContain(`height: ${LUPA_VT_BASE_DIAMETER_PX}px;`)
+    expect(LUPA_VT_CSS).toContain('animation: none;')
+  })
+
+  it('the captured diameter fits comfortably inside the smallest required viewport (844x390), so nothing gets cropped before capture', () => {
+    const SMALLEST_REQUIRED_VIEWPORT_HEIGHT = 390
+    expect(LUPA_VT_BASE_DIAMETER_PX).toBeLessThan(SMALLEST_REQUIRED_VIEWPORT_HEIGHT)
+  })
+
+  it('suppresses the OLD snapshot entirely — every crossing starts as a fresh pop-in, regardless of what a previous transition left the live rim at', () => {
+    expect(LUPA_VT_CSS).toContain(`::view-transition-old(${LUPA_VT_NAME}) { display: none; }`)
+  })
+
+  it('grows via a transform: scale() keyframe that reaches the SAME final on-screen diameter the manual path targets', () => {
+    expect(LUPA_VT_CSS).toContain('0% { transform: scale(0.001); }')
+    expect(LUPA_VT_CSS).toContain(
+      `100% { transform: scale(calc(${LUPA_RIM_FINAL_DIAMETER_VMAX}vmax / ${LUPA_VT_BASE_DIAMETER_PX}px)); }`,
+    )
+  })
+
+  it('the group animation duration matches LUPA_WIPE_DURATION_MS (no drift between the manual and native paths)', () => {
+    expect(LUPA_VT_CSS).toContain(`cv-lupa-vt-grow ${LUPA_WIPE_DURATION_MS}ms`)
+  })
+
+  it('carries a reduced-motion override that collapses the group\'s own grow to a direct cut', () => {
+    expect(LUPA_VT_CSS).toContain('@media (prefers-reduced-motion: reduce)')
+    expect(LUPA_VT_CSS).toContain(`::view-transition-group(${LUPA_VT_NAME}) { animation-duration: 0.01ms !important; }`)
+  })
+
+  it('introduces no url(#…), <mask, <clipPath, or <pattern of its own', () => {
+    expect(LUPA_VT_CSS).not.toContain('url(#')
+    expect(LUPA_VT_CSS).not.toContain('<mask')
+    expect(LUPA_VT_CSS).not.toContain('<clipPath')
+    expect(LUPA_VT_CSS).not.toContain('<pattern')
   })
 })
 

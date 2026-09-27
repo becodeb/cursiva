@@ -583,22 +583,25 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
   // the OUTGOING screen before `setState` unmounts it, which is what lets
   // `screen/ScreenTransition.tsx`'s own `ROOT_VIEW_TRANSITION_CSS` grow a
   // circle OVER a still-visible frozen frame instead of blank page
-  // background. `capable` is read fresh per call (never cached in state):
-  // a `document.startViewTransition` capability check is a plain feature
-  // test, the same "read it where it is used" convention
-  // `zoo/rescueFlight.ts`'s own callers already follow for the identical
-  // check. An in-place update (same screen, e.g. a closing beat advancing)
-  // still calls `setState` directly, unwrapped — `shouldUseViewTransition`'s
-  // own header explains why.
+  // background. `capable`/`reduced` are read fresh every render (never
+  // cached in state): a `document.startViewTransition`/`matchMedia`
+  // capability check is a plain feature test, the same "read it where it is
+  // used" convention `zoo/rescueFlight.ts`'s own callers already follow for
+  // the identical checks — and both `advanceView` and `screenTransitionKind`
+  // below need the SAME two answers, so they are computed once per render
+  // and shared rather than re-derived twice.
+  const nativeTransitionsCapable =
+    typeof document !== 'undefined' && supportsViewTransitions(document as unknown as { startViewTransition?: unknown })
+  const reducedMotion = prefersReducedMotion(
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : null,
+  )
+  // An in-place update (same screen, e.g. a closing beat advancing) still
+  // calls `setState` directly, unwrapped — `shouldUseViewTransition`'s own
+  // header explains why.
   const advanceView = (next: GameView): void => {
-    const capable =
-      typeof document !== 'undefined' && supportsViewTransitions(document as unknown as { startViewTransition?: unknown })
-    const reduced = prefersReducedMotion(
-      typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-        ? window.matchMedia('(prefers-reduced-motion: reduce)')
-        : null,
-    )
-    if (!shouldUseViewTransition(state, next, capable, reduced)) {
+    if (!shouldUseViewTransition(state, next, nativeTransitionsCapable, reducedMotion)) {
       setState(next)
       return
     }
@@ -608,14 +611,19 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
   }
   // Whether THIS render's screen is (about to be) crossed via a native View
   // Transition — decides `ScreenTransition`'s own `kind` for every branch
-  // below: `'none'` hands the whole visual event to
-  // `ROOT_VIEW_TRANSITION_CSS` (never both a manual wipe AND a native
-  // crossfade for the same hop); `'wipe'` is the fallback for a browser
-  // without View Transitions, where there is no outgoing snapshot to bridge
-  // from either way, so the pre-existing manual wipe is the best available.
-  const nativeTransitionsAvailable =
-    typeof document !== 'undefined' && supportsViewTransitions(document as unknown as { startViewTransition?: unknown })
-  const screenTransitionKind: ScreenTransitionKind = nativeTransitionsAvailable ? 'none' : 'wipe'
+  // below: `'native'` hands the crossing itself to `ROOT_VIEW_TRANSITION_CSS`
+  // while STILL rendering the rim/handle/highlight (T31 follow-up #2, given
+  // their own `view-transition-name` there so the browser's own snapshot
+  // overlay carries them, `screen/lupaWipe.ts`'s own `LUPA_VT_CSS`) — never
+  // both a manual `.cv-screen-wipe` AND a native crossfade for the same hop.
+  // `'wipe'` is the fallback whenever a native View Transition will NOT
+  // actually play (no support, OR reduced motion — `shouldUseViewTransition`
+  // checks the exact same two things `advanceView` above does, so this never
+  // disagrees with what `advanceView` is about to do): there is no outgoing
+  // snapshot to bridge from either way there, so the pre-existing manual
+  // wipe (whose own CSS already collapses correctly under reduced motion) is
+  // the best available.
+  const screenTransitionKind: ScreenTransitionKind = nativeTransitionsCapable && !reducedMotion ? 'native' : 'wipe'
 
   const dispatch = (action: GameAction): void => advanceView(nextView(state, action))
 

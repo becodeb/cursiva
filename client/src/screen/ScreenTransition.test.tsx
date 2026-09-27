@@ -90,6 +90,56 @@ describe('ScreenTransition (T24: the lupa wipe replaces the plain fade)', () => 
   })
 })
 
+// T31 follow-up #2 (`odd/tasks/prewriting-stage-completion.md`, "the lupa
+// look regressed on the View Transitions path"): `kind='native'` renders NO
+// manual `.cv-screen-wipe` of its own (the native crossing already reveals
+// `children` via `ROOT_VIEW_TRANSITION_CSS`, rendered globally by
+// `GameScreen.tsx`) but STILL renders the rim/handle/highlight, tagged for
+// the browser's own snapshot overlay to carry as its own group.
+describe("ScreenTransition kind='native' (T31 follow-up #2)", () => {
+  it('renders no manual wipe class and no clip-path of its own, but still renders children', () => {
+    const html = renderToString(
+      <ScreenTransition screenKey="map" kind="native">
+        <p>hola</p>
+      </ScreenTransition>,
+    )
+    expect(html).not.toContain('cv-screen-wipe')
+    expect(html).not.toContain('clip-path')
+    expect(html).toContain('<p>hola</p>')
+  })
+
+  it('still renders the rim/handle/highlight, tagged for the View Transition path', () => {
+    const html = renderToString(
+      <ScreenTransition screenKey="map" kind="native">
+        <p>hola</p>
+      </ScreenTransition>,
+    )
+    expect(html).toContain('class="cv-lupa-rim cv-lupa-rim--vt"')
+    expect(html).toContain('class="cv-lupa-circle"')
+    expect(html).toContain('class="cv-lupa-highlight"')
+    expect(html).toContain('class="cv-lupa-handle"')
+  })
+
+  it('the rim renders AFTER children, so it paints above both View Transition snapshots', () => {
+    const html = renderToString(
+      <ScreenTransition screenKey="map" kind="native">
+        <p>hola</p>
+      </ScreenTransition>,
+    )
+    expect(html.indexOf('<p>hola</p>')).toBeLessThan(html.indexOf('cv-lupa-rim--vt'))
+  })
+
+  it('an explicit origin still becomes the rim wrapper\'s own CSS custom properties (the same origin the root crossing would use)', () => {
+    const html = renderToString(
+      <ScreenTransition screenKey="map" kind="native" origin={{ xPct: 12, yPct: 88 }}>
+        <p>hola</p>
+      </ScreenTransition>,
+    )
+    expect(html).toContain('--cv-wipe-x:12%')
+    expect(html).toContain('--cv-wipe-y:88%')
+  })
+})
+
 // T31 follow-up (`odd/tasks/prewriting-stage-completion.md`, "the abrupt
 // night ending"): `GameScreen.tsx` renders `ROOT_VIEW_TRANSITION_CSS`
 // itself, globally, whenever a native View Transition might play for a real
