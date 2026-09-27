@@ -149,7 +149,7 @@ import {
   ZOO_STAR_ART,
 } from '../detective/assets'
 import CaptionedArt from '../detective/CaptionedArt'
-import TrailProgressBar from '../detective/TrailProgressBar'
+import TrailProgressBar, { ANIMAL_MAX_WIDTH } from '../detective/TrailProgressBar'
 import CollectBar from '../detective/CollectBar'
 import { BackIcon, PlaceholderAnimalBadge, ReplayIcon } from '../detective/icons'
 import { useNarration } from '../voice/useNarration'
@@ -990,6 +990,18 @@ html, body, #root { margin: 0; padding: 0; }
  * enclosure is always a single-level ADVENTURES row, which
  * adventureProgress returns null for), so the two share this exact centred
  * slot in .cv-head without ever colliding. */
+/* T34 (odd/tasks/prewriting-stage-completion.md): the bar read faint over
+ * busy art, especially at 844x390 — a socket's own translucent white rect
+ * (Slot's own fill, rgba(255,255,255,0.42..0.88)) and the silhouette's bare
+ * img (no fill at all) both let a saturated backdrop show straight through.
+ * background/border/box-shadow below give the WHOLE row one shared paper
+ * backing, the SAME marker-style pill this screen's other chrome already
+ * uses (.cv-btn/.cv-result-pill, both background: SHEET_PAPER behind a
+ * #1a1a1a marker-line border) rather than inventing a second "chrome" look
+ * -- a socket's own translucent white still lightens further ON TOP of this
+ * opaque paper, so "filed" keeps reading brighter than "pending" exactly as
+ * before. NO BACKTICKS in this block -- this file's own template literal
+ * ends early on one. */
 .pistas-bar {
   position: absolute;
   left: 50%;
@@ -999,6 +1011,11 @@ html, body, #root { margin: 0; padding: 0; }
   flex-direction: row;
   align-items: center;
   gap: 10px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: ${SHEET_PAPER};
+  border: 3px solid #1a1a1a;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.3);
   pointer-events: none;
 }
 .pistas-slots { flex: 0 0 auto; display: flex; flex-direction: row; align-items: center; gap: 6px; }
@@ -1030,7 +1047,19 @@ html, body, #root { margin: 0; padding: 0; }
  * blank on a real device; a CSS filter on an img resolves with no
  * referenced def at all, so nothing here can hit that failure mode. */
 .pistas-animal { display: inline-flex; margin-left: 2px; }
-.pistas-animal img { display: block; filter: brightness(0); opacity: 0.5; }
+/* T34: max-width + object-fit: contain is the width cap itself, not just a
+ * safety margin — the two smaller-viewport media queries below only ever
+ * override height, and a browser resolving width: auto from a height-only
+ * constraint re-derives it from the image's OWN intrinsic aspect ratio (the
+ * snake's real ~4.32:1 PNG), which would silently undo a JS-computed cap
+ * the instant a narrower breakpoint's height override took over. Fixing
+ * max-width here, once, holds at every breakpoint no matter which height
+ * wins; object-fit: contain then letterboxes the real art inside that box
+ * (never crops, never distorts) instead of stretching it to fill a height
+ * it was never meant to reach. A normal (narrower-than-cap) animal's own
+ * natural size already sits under this cap, so nothing here changes for it
+ * -- object-fit is a no-op once content already fits its box. */
+.pistas-animal img { display: block; max-width: ${ANIMAL_MAX_WIDTH}px; object-fit: contain; filter: brightness(0); opacity: 0.5; }
 .pistas-animal-rescued img { filter: none; opacity: 1; }
 .pistas-slot { display: block; border-radius: 13px; background: rgba(255,255,255,0.42); }
 .pistas-slot-shell-filed .pistas-slot {

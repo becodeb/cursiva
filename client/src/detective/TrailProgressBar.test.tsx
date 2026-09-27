@@ -12,7 +12,8 @@
 // every animal `zoo/adventures.ts` actually ships, as a pure function.
 import { describe, expect, it } from 'vitest'
 import type { AdventureProgress } from '../zoo/progress'
-import { accessibleTrailName } from './TrailProgressBar'
+import { accessibleTrailName, ANIMAL_MAX_WIDTH, containAnimalSize } from './TrailProgressBar'
+import { ZOO_ANIMAL_ART } from './assets'
 
 function progressFixture(over: Partial<AdventureProgress>): AdventureProgress {
   return {
@@ -72,5 +73,45 @@ describe('accessibleTrailName', () => {
       slots: progressFixture({}).slots.map((slot) => ({ ...slot, filed: true, current: false })),
     })
     expect(accessibleTrailName(allFiled)).toBe('Camino hacia el pato: 4 de 4')
+  })
+})
+
+// T34 (odd/tasks/prewriting-stage-completion.md): the snake silhouette
+// (`vibora`, w:492 h:114, aspect ~4.32:1) rendered at ~199px wide with the
+// old plain `ANIMAL_HEIGHT * art.w / art.h` math — more than four slots'
+// worth of horizontal space for one icon, breaking the bar's rhythm.
+// `ANIMAL_HEIGHT` itself is module-private, so this mirrors its real value
+// (`TrailProgressBar.tsx`'s own doc comment on it) rather than reaching for
+// it — the exact number does not matter to this suite, only that it is the
+// SAME one `AnimalEndCap` actually renders at.
+describe('containAnimalSize (T34: capping the end-cap silhouette to the bar\'s own rhythm)', () => {
+  const ANIMAL_HEIGHT = 46
+
+  it('a normal (narrower-than-cap) animal is unaffected — the old height-only math, unchanged', () => {
+    // erizo (w:448 h:306, aspect ~1.46) is the WIDEST shipped animal short of
+    // the snake, and already renders comfortably under ANIMAL_MAX_WIDTH.
+    const art = ZOO_ANIMAL_ART.erizo
+    const { width, height } = containAnimalSize(art, ANIMAL_MAX_WIDTH, ANIMAL_HEIGHT)
+    expect(height).toBe(ANIMAL_HEIGHT)
+    expect(width).toBeCloseTo((ANIMAL_HEIGHT * art.w) / art.h, 6)
+    expect(width).toBeLessThan(ANIMAL_MAX_WIDTH)
+  })
+
+  it('the snake is width-bound: capped at ANIMAL_MAX_WIDTH, height shrinks to keep the real aspect ratio', () => {
+    const art = ZOO_ANIMAL_ART.vibora
+    const uncappedWidth = (ANIMAL_HEIGHT * art.w) / art.h
+    expect(uncappedWidth).toBeGreaterThan(ANIMAL_MAX_WIDTH * 2) // the reported bug, restated as a number
+    const { width, height } = containAnimalSize(art, ANIMAL_MAX_WIDTH, ANIMAL_HEIGHT)
+    expect(width).toBe(ANIMAL_MAX_WIDTH)
+    expect(height).toBeLessThan(ANIMAL_HEIGHT)
+    expect(width / height).toBeCloseTo(art.w / art.h, 6) // never distorted, only scaled down
+  })
+
+  it('never exceeds either cap, for every shipped animal', () => {
+    for (const art of Object.values(ZOO_ANIMAL_ART)) {
+      const { width, height } = containAnimalSize(art, ANIMAL_MAX_WIDTH, ANIMAL_HEIGHT)
+      expect(width).toBeLessThanOrEqual(ANIMAL_MAX_WIDTH + 1e-6)
+      expect(height).toBeLessThanOrEqual(ANIMAL_HEIGHT + 1e-6)
+    }
   })
 })

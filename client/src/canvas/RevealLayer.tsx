@@ -400,7 +400,21 @@ const LEAF_DRY = '#b07a3c'
 const MUD_BASE = '#5a4632'
 const MUD_DEEP = '#392c1f'
 const MUD_EDGE = '#8c7355'
-const MUD_PUDDLE = '#8fa0aa'
+// T34: the puddle used to read as flat grey, not water. The old fill
+// (`#8fa0aa`, a near-white slate) composited at 0.4 opacity over `MUD_BASE`
+// (a warm brown) lands at hue 37 / saturation 6% -- almost neutral, because a
+// PALE fill loses most of its own hue once blended into a darker, warmer
+// ground (measured: composite `#6f6a62`). A blue-brown that reads as muddy
+// water catching the sky needs to survive that same blend: `#1f6f95` at 0.6
+// opacity composites to hue ~196 / saturation ~33% (`#375f6d` over
+// `MUD_BASE`) -- still a subdued, "subtle" tone (`docs/09` never wants a
+// vivid patch), but visibly blue-tinted water instead of muddy-grey fog.
+// `MUD_PUDDLE_HIGHLIGHT` draws a second, smaller stroke-only ellipse over the
+// body -- a bright rim catching the light off the water's surface, the "wet
+// shine" flat-illustration convention this file's own `MUD_EDGE` rim stroke
+// on the whole silhouette already uses for the same reason.
+const MUD_PUDDLE = '#1f6f95'
+const MUD_PUDDLE_HIGHLIGHT = '#bfe3ee'
 const MUD_PEBBLE = '#332a20'
 
 type Point = { x: number; y: number }
@@ -1374,16 +1388,28 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }
           />
           {mudPuddles.map((puddle, idx) =>
             pointInAnyTile(reveal.tiles, puddle.cx, puddle.cy) ? (
-              <ellipse
-                key={`mud-puddle-${idx}`}
-                data-mud-puddle="true"
-                cx={puddle.cx}
-                cy={puddle.cy}
-                rx={puddle.rx}
-                ry={puddle.ry}
-                fill={MUD_PUDDLE}
-                opacity={0.4}
-              />
+              <g key={`mud-puddle-${idx}`}>
+                <ellipse
+                  data-mud-puddle="true"
+                  cx={puddle.cx}
+                  cy={puddle.cy}
+                  rx={puddle.rx}
+                  ry={puddle.ry}
+                  fill={MUD_PUDDLE}
+                  opacity={0.6}
+                />
+                <ellipse
+                  data-mud-puddle-highlight="true"
+                  cx={puddle.cx}
+                  cy={puddle.cy}
+                  rx={puddle.rx * 0.82}
+                  ry={puddle.ry * 0.82}
+                  fill="none"
+                  stroke={MUD_PUDDLE_HIGHLIGHT}
+                  strokeWidth={Math.max(1, puddle.ry * 0.22)}
+                  opacity={0.55}
+                />
+              </g>
             ) : null,
           )}
           {mudPebbles.map((pebble, idx) =>

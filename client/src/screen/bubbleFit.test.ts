@@ -136,6 +136,52 @@ describe('fitBubbleContent — never overflow (the author\'s own checklist item)
   })
 })
 
+// T34 (`odd/tasks/prewriting-stage-completion.md`): the closing bubble's own
+// reported bug — a short rescue line sat at the TOP of the oval with empty
+// space below it, because nothing ever reported how much of the content box
+// the block actually used. `blockHeight` is the field `bubbleCssVars.ts`
+// reads to center it.
+describe('fitBubbleContent — blockHeight (T34, centering the content block)', () => {
+  const bubbleWidth = 78
+  const bubbleHeight = bubbleWidth * (372 / 488)
+  const contentHeight = bubbleHeight * CONTENT_HEIGHT_FRAC
+
+  it('a short, text-only line (the rescue beat\'s own case) reports a block far shorter than the content box — the gap `bubbleCssVars.ts` centers away', () => {
+    const fit = fitBubbleContent('¡Lo encontramos!', undefined, bubbleWidth, bubbleHeight)
+    expect(fit.layout).toBe('float')
+    expect(fit.blockHeight).toBeCloseTo(fit.lineCount * fit.fontSize * fit.lineHeight, 6)
+    expect(fit.blockHeight).toBeLessThan(contentHeight * 0.6)
+  })
+
+  it('FLOAT: blockHeight is the taller of the image and the wrapped text, never their sum', () => {
+    const fit = fitBubbleContent('Hola', SQUARE_ART, bubbleWidth, bubbleHeight)
+    expect(fit.layout).toBe('float')
+    const textHeight = fit.lineCount * fit.fontSize * fit.lineHeight
+    expect(fit.blockHeight).toBeCloseTo(Math.max(fit.imageHeight, textHeight), 6)
+    expect(fit.blockHeight).toBeLessThan(fit.imageHeight + textHeight)
+  })
+
+  it('STACK: blockHeight is the image plus the gap plus the wrapped text (they genuinely add up)', () => {
+    const longLine =
+      'Encontramos todas las pistas del pato en el sendero y ahora sabemos exactamente a quién rescatamos hoy'
+    const fit = fitBubbleContent(longLine, SQUARE_ART, bubbleWidth, bubbleHeight)
+    expect(fit.layout).toBe('stack')
+    const textHeight = fit.lineCount * fit.fontSize * fit.lineHeight
+    expect(fit.blockHeight).toBeCloseTo(fit.imageHeight + bubbleWidth * 0.04 + textHeight, 6)
+  })
+
+  it('never exceeds the content box height when fits is true (the box centering leans on)', () => {
+    for (const [text, art] of [
+      ['Hola', undefined],
+      ['¡Encontramos al pato en el sendero!', SQUARE_ART],
+      ['La vaca no tiene plumas: no fue ella.', undefined],
+    ] as const) {
+      const fit = fitBubbleContent(text, art, bubbleWidth, bubbleHeight)
+      if (fit.fits) expect(fit.blockHeight).toBeLessThanOrEqual(contentHeight + 1e-6)
+    }
+  })
+})
+
 describe('placeAndFitBubble — every real intro/closing line in the registry, at every required viewport', () => {
   const REQUIRED_VIEWPORTS: ReadonlyArray<readonly [number, number]> = [
     [1024, 768],
