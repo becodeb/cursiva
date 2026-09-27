@@ -77,10 +77,34 @@ function clampDistance(from: Point, to: Point, maxDistance: number): Point {
 /** A routed (or spine-demo-able) level's own cue: the green start dot to the
  *  SAME point `directionArrowOf` already anchors its arrow at. `undefined`
  *  input (a path too short for a direction, or no start dot at all) yields
- *  no cue rather than guessing one. */
-export function pathCue(startMarker: Point | undefined, arrowPoint: Point | undefined): IdleCueSegment | null {
+ *  no cue rather than guessing one.
+ *
+ *  `pushForward` (T33 follow-up, browser QA on `duck-trail1`): a detective
+ *  trail's own octopus (`startArt`) is drawn LARGER than the route's literal
+ *  start point, and sits exactly where an un-pushed hand would slide — the
+ *  screenshot showed the hand's paper fill nearly lost against the octopus's
+ *  own art. Pushing BOTH ends forward, the SAME distance, along the
+ *  start-to-arrow direction keeps the slide's own length and direction
+ *  unchanged while moving it clear of that art; 0 (every level with no
+ *  `startArt`) is byte-identical to the pre-fix behaviour. */
+export function pathCue(
+  startMarker: Point | undefined,
+  arrowPoint: Point | undefined,
+  pushForward = 0,
+): IdleCueSegment | null {
   if (!startMarker || !arrowPoint) return null
-  return { visual: 'hand', from: startMarker, to: arrowPoint }
+  if (pushForward <= 0) return { visual: 'hand', from: startMarker, to: arrowPoint }
+  const dx = arrowPoint.x - startMarker.x
+  const dy = arrowPoint.y - startMarker.y
+  const dist = Math.hypot(dx, dy)
+  if (dist === 0) return { visual: 'hand', from: startMarker, to: arrowPoint }
+  const ux = dx / dist
+  const uy = dy / dist
+  return {
+    visual: 'hand',
+    from: { x: startMarker.x + ux * pushForward, y: startMarker.y + uy * pushForward },
+    to: { x: arrowPoint.x + ux * pushForward, y: arrowPoint.y + uy * pushForward },
+  }
 }
 
 /** The bee's own cue: rest point toward the first flower, capped short. */
@@ -143,7 +167,18 @@ export interface IdleCueContext {
   readonly startMarker?: Point
   readonly directionArrowPoint?: Point
   readonly spineState?: SpineState
+  /** True on a detective trail, where `startArt` stands a large octopus at
+   *  the route's own start — `pathCue`'s own `pushForward` clears it. Absent/
+   *  `false` on every other routed level, byte-identical to before this
+   *  field existed. */
+  readonly hasStartArt?: boolean
 }
+
+/** How far `pathCue` pushes its slide forward when the level's own start
+ *  shows the octopus (`IdleCueContext.hasStartArt`) — a bit over half
+ *  `OCTOPUS_SIZE` (96, `screen/LevelPlay.tsx`), enough to clear its drawn
+ *  footprint without needing that screen's own constant imported here. */
+export const START_ART_CUE_PUSH = 95
 
 /**
  * The one dispatcher `screen/LevelPlay.tsx` calls: picks the right cue
@@ -159,7 +194,7 @@ export function idleCueForLevel(level: IdleCueLevel, ctx: IdleCueContext): IdleC
   if (level.waypoints) return waypointsCue(level.waypoints.start, level.waypoints.stops[0])
   if (level.reveal?.mode === 'light') return torchSweepCue()
   if (level.reveal?.mode === 'erase') return wipeCue()
-  return pathCue(ctx.startMarker, ctx.directionArrowPoint)
+  return pathCue(ctx.startMarker, ctx.directionArrowPoint, ctx.hasStartArt ? START_ART_CUE_PUSH : 0)
 }
 
 /**

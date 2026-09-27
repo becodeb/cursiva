@@ -1346,21 +1346,27 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-idle-nudge-start { animation: none; opacity: 1; }
 }
 
-/* T33: the night hint's own faint twinkle ('canvas/RevealLayer.tsx''s
- * 'NIGHT_HINT_SPARKLE_PATH') — opacity only, since the shape is already
- * translated to its own point in SVG (a 'transform: scale()' here would
- * still need the same fill-box guard above, and a sparkle reads fine as a
- * pure fade anyway). Reduced motion holds it at a single faint, legible
- * opacity instead of animating. */
+/* T33 follow-up (orchestrator screenshot review, "too small and too
+ * faint… twinkling: scale/opacity pulse"): the night hint's own twinkle
+ * ('canvas/RevealLayer.tsx''s 'NIGHT_HINT_SPARKLE_PATH' + its warm glow
+ * circle) — scale AND opacity now, never opacity alone. 'transform-box:
+ * fill-box'/'transform-origin: center' is the same guard '.cv-spine-mark-
+ * filled' already documents: the glow circle and the star are concentric
+ * (both centred on the same translated origin), so scaling the wrapping
+ * group around their shared bounding-box centre keeps them pulsing as ONE
+ * light, never drifting apart. Reduced motion holds it at a single large,
+ * legible frame — scale 1, a clearly-visible opacity — never shrunk. */
 .cv-night-hint-sparkle {
-  animation: cv-night-hint-twinkle 1.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cv-night-hint-twinkle 1.4s ease-in-out infinite;
 }
 @keyframes cv-night-hint-twinkle {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 0.75; }
+  0%, 100% { opacity: 0.55; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.2); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cv-night-hint-sparkle { animation: none; opacity: 0.55; }
+  .cv-night-hint-sparkle { animation: none; opacity: 0.85; transform: scale(1); }
 }
 
 /* Upright and narrow is genuinely width-limited: show guidance instead of
@@ -3172,8 +3178,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         startMarker,
         directionArrowPoint: directionArrow ? { x: directionArrow.x, y: directionArrow.y } : undefined,
         spineState,
+        // T33 follow-up (browser QA on `duck-trail1`): `inWorld` is exactly
+        // the condition `startArt` below renders the octopus under (a
+        // detective trail) — pushing the slide clear of its own larger
+        // drawn footprint, the screenshot that caught it nearly invisible
+        // underneath it.
+        hasStartArt: inWorld,
       }),
-    [level, startMarker, directionArrow, spineState],
+    [level, startMarker, directionArrow, spineState, inWorld],
   )
   const nudgeElapsedMs = idlePollNow - lastTouchAtRef.current
   const nudgePhase = idleNudgePhase(nudgeElapsedMs)

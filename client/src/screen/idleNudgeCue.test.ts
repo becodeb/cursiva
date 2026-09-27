@@ -37,6 +37,34 @@ describe('pathCue', () => {
   it('is null with no direction arrow (a path too short for one)', () => {
     expect(pathCue({ x: 100, y: 300 }, undefined)).toBeNull()
   })
+
+  // T33 follow-up (browser QA on `duck-trail1`): the octopus (`startArt`) is
+  // drawn larger than the route's own start point, and an un-pushed slide
+  // rendered nearly lost underneath it.
+  it('with pushForward: 0 (no startArt), behaves exactly like before', () => {
+    const cue = pathCue({ x: 100, y: 300 }, { x: 170, y: 300 }, 0)
+    expect(cue).toEqual({ visual: 'hand', from: { x: 100, y: 300 }, to: { x: 170, y: 300 } })
+  })
+
+  it('with pushForward > 0, moves BOTH ends the same distance along the same direction', () => {
+    const cue = pathCue({ x: 100, y: 300 }, { x: 170, y: 300 }, 55)
+    expect(cue).toEqual({ visual: 'hand', from: { x: 155, y: 300 }, to: { x: 225, y: 300 } })
+  })
+
+  it('preserves the slide\'s own length under a push', () => {
+    const start = { x: 100, y: 300 }
+    const arrow = { x: 140, y: 340 }
+    const unpushed = pathCue(start, arrow, 0)!
+    const pushed = pathCue(start, arrow, 55)!
+    const lenUnpushed = Math.hypot(unpushed.to.x - unpushed.from.x, unpushed.to.y - unpushed.from.y)
+    const lenPushed = Math.hypot(pushed.to.x - pushed.from.x, pushed.to.y - pushed.from.y)
+    expect(lenPushed).toBeCloseTo(lenUnpushed, 6)
+  })
+
+  it('is a no-op (never divides by zero) when start and arrow coincide', () => {
+    const p = { x: 100, y: 300 }
+    expect(pathCue(p, p, 55)).toEqual({ visual: 'hand', from: p, to: p })
+  })
 })
 
 describe('waypointsCue', () => {
@@ -147,6 +175,15 @@ describe('idleCueForLevel', () => {
   it('falls back to pathCue for an ordinary routed level', () => {
     const cue = idleCueForLevel({}, { startMarker: { x: 5, y: 5 }, directionArrowPoint: { x: 60, y: 5 } })
     expect(cue).toEqual({ visual: 'hand', from: { x: 5, y: 5 }, to: { x: 60, y: 5 } })
+  })
+
+  it('pushes the routed cue forward when the level shows the octopus (hasStartArt)', () => {
+    const cue = idleCueForLevel(
+      {},
+      { startMarker: { x: 5, y: 5 }, directionArrowPoint: { x: 60, y: 5 }, hasStartArt: true },
+    )
+    expect(cue?.from.x).toBeGreaterThan(5)
+    expect(cue?.to.x).toBeGreaterThan(60)
   })
 
   it('is null for a routed level with no direction arrow and no reveal/waypoints/spines', () => {

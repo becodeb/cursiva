@@ -309,14 +309,28 @@ export interface RevealLayerProps {
   nightHint?: { x: number; y: number } | null
 }
 
-/** A small 4-point sparkle/twinkle, centred on the origin — plain `M`/`L`/`Z`
- *  path data (no `url(#...)`, no `<mask>`, this file's own header ban), meant
- *  to be translated to the hint's own `(x, y)` by the caller. Distinct in
- *  SHAPE from the plain filled/ringed circles this file draws for a torch or
- *  a found object, so it reads as "something twinkling" rather than a third
- *  kind of light source. */
+/**
+ * T33 follow-up (orchestrator screenshot review, "the sparkle is a tiny
+ * faint star (~15 px) up by the back button… too small and too faint"): a
+ * 4-point sparkle/twinkle, centred on the origin — plain `M`/`L`/`Z` path
+ * data (no `url(#...)`, no `<mask>`, this file's own header ban), meant to
+ * be translated to the hint's own `(x, y)` by the caller. Distinct in SHAPE
+ * from the plain filled/ringed circles this file draws for a torch or a
+ * found object, so it reads as "something twinkling" rather than a third
+ * kind of light source.
+ *
+ * Scaled to a 36px-diameter bounding box (outer points at radius 18) — the
+ * task's own "~32-40 px" band, more than double the original radius-9 shape
+ * the screenshot caught reading as a stray pixel. `NIGHT_HINT_GLOW_R` (18,
+ * matching the star's own extent) is a plain soft circle drawn UNDER it, the
+ * same warm tone as `NIGHT_SUCCESS_WASH` (this file's own "lit-object glow")
+ * rather than the star's pale original fill — together they read as one
+ * small glow with a twinkle inside it, not a flat icon.
+ */
 const NIGHT_HINT_SPARKLE_PATH =
-  'M 0,-9 L 2.5,-2.5 L 9,0 L 2.5,2.5 L 0,9 L -2.5,2.5 L -9,0 L -2.5,-2.5 Z'
+  'M 0,-18 L 5,-5 L 18,0 L 5,5 L 0,18 L -5,5 L -18,0 L -5,-5 Z'
+const NIGHT_HINT_GLOW_R = 18
+const NIGHT_HINT_WARM = '#ffe88a' // NIGHT_SUCCESS_WASH's own tone
 
 /**
  * The frame `outer` minus `inner`, as up to four non-overlapping bands (top,
@@ -1479,7 +1493,10 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds, 
         // `.cv-night-hint-sparkle` (`LAYOUT_CSS`, `screen/LevelPlay.tsx`)
         // gives it a gentle twinkle, static under reduced motion.
         <g data-night-hint-sparkle="true" transform={`translate(${nightHint.x} ${nightHint.y})`} pointerEvents="none">
-          <path d={NIGHT_HINT_SPARKLE_PATH} fill="#fff6bf" className="cv-night-hint-sparkle" />
+          <g className="cv-night-hint-sparkle">
+            <circle r={NIGHT_HINT_GLOW_R} fill={NIGHT_HINT_WARM} opacity={0.35} />
+            <path d={NIGHT_HINT_SPARKLE_PATH} fill={NIGHT_HINT_WARM} />
+          </g>
         </g>
       )}
       {nightVeil && reveal.light?.complete && completionSettled && (

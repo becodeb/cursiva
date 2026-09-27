@@ -1259,4 +1259,34 @@ describe('RevealLayer nightHint', () => {
     expect(fillMatch?.[1]).toBeDefined()
     expect(fillMatch?.[1].toLowerCase()).not.toMatch(/^#f[0-9a-f]?0{2,3}$|red/)
   })
+
+  // T33 follow-up (orchestrator screenshot review, "~15 px… too small and
+  // too faint"): the sparkle + its glow now reach the task's own "~32-40 px"
+  // band (a 36px-wide star plus a same-radius warm glow circle beneath it),
+  // and read as ONE warm light, not a pale sliver.
+  it('reaches at least 18 units from its own centre on every point (>= 36px across) — the task\'s own size floor', () => {
+    const html = renderToString(
+      <RevealLayer reveal={nightReveal} sheetBounds={sheetBounds} nightHint={{ x: 500, y: 300 }} />,
+    )
+    const pathMatch = html.match(/data-night-hint-sparkle="true"[\s\S]*?<path d="([^"]+)"/)
+    expect(pathMatch?.[1]).toBeDefined()
+    const coords = (pathMatch![1].match(/-?[\d.]+/g) ?? []).map(Number)
+    let maxRadius = 0
+    for (let i = 0; i < coords.length; i += 2) {
+      maxRadius = Math.max(maxRadius, Math.hypot(coords[i], coords[i + 1]))
+    }
+    expect(maxRadius).toBeGreaterThanOrEqual(18)
+  })
+
+  it('draws a warm glow circle behind the star, the same tone (never a pale/white sliver)', () => {
+    const html = renderToString(
+      <RevealLayer reveal={nightReveal} sheetBounds={sheetBounds} nightHint={{ x: 500, y: 300 }} />,
+    )
+    const group = html.slice(html.indexOf('data-night-hint-sparkle="true"'))
+    expect(group).toContain('<circle')
+    const circleFill = group.match(/<circle[^>]*fill="([^"]+)"/)?.[1]
+    const pathFill = group.match(/<path[^>]*fill="([^"]+)"/)?.[1]
+    expect(circleFill).toBeDefined()
+    expect(circleFill).toBe(pathFill) // one warm tone, glow and star together
+  })
 })
