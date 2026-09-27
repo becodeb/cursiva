@@ -328,6 +328,23 @@ export interface BubbleContentFit {
   readonly imageHeight: number
   readonly captionWidth: number
   readonly captionHeight: number
+  /** T34 (`odd/tasks/prewriting-stage-completion.md`): the TOTAL visual
+   *  height of the fitted content -- image and caption combined, following
+   *  whichever layout won (`max(imageHeight, wrapped-text-height)` for
+   *  `'float'`, since the image and the caption's early lines share that
+   *  height rather than stacking it; `imageHeight + gap + wrapped-text-
+   *  height` for `'stack'`, where they genuinely add up) -- in the SAME
+   *  frame-percent unit as `imageHeight`/`fontSize`. This used to be dead:
+   *  `captionHeight` above was always the FULL content-box BUDGET
+   *  (`contentHeight`), never the block's actual size, so nothing could tell
+   *  a short line (a bare sentence, no image, `AdventureClosing.tsx`'s
+   *  rescue beat) from one that filled the box -- the CSS pinned every
+   *  block to the box's top edge, leaving empty space below a short one.
+   *  `bubbleCssVars.ts`'s `bubbleContentCssVars` reads this to vertically
+   *  CENTER the block inside the box instead of pinning it, only ever
+   *  shifting it DOWN from that same top edge, so the box's own top and
+   *  bottom bounds (`fits`'s own overflow guarantee) are never widened. */
+  readonly blockHeight: number
   /** `'float'` (the image floats at the top of the content box, caption
    *  wraps narrow beside it) or `'stack'` (the image sits above the caption,
    *  which then always wraps at the FULL content width — no narrow column
@@ -457,6 +474,13 @@ export function fitBubbleContent(
       imageHeight,
       captionWidth: narrowWidth,
       captionHeight: contentHeight,
+      // FLOAT: the image and the caption's early lines share the same
+      // vertical run (the caption wraps NARROW beside the image), so the
+      // block's real height is whichever of the two is taller, not their
+      // sum -- a tall image beside one short line is still only as tall as
+      // the image; a long caption that outgrows the image's own height is
+      // still only as tall as `block.blockHeight` already accounts for.
+      blockHeight: Math.max(imageHeight, block.blockHeight),
       layout: 'float',
       fits: true,
     }
@@ -486,6 +510,10 @@ export function fitBubbleContent(
     imageHeight: stackImageHeight,
     captionWidth: contentWidth,
     captionHeight: contentHeight,
+    // STACK: the image sits ABOVE the caption, so their heights genuinely
+    // add (plus the one gap between them) -- this file's own header on why
+    // STACK gets its own smaller image cap in the first place.
+    blockHeight: stackImageHeight + gap + stack.blockHeight,
     layout: 'stack',
     fits: stackWordFits && stackImageHeight + gap + stack.blockHeight <= contentHeight + EPS,
   }

@@ -68,7 +68,15 @@ import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 import { recordDeparture, RESCUE_FLIGHT_VT_NAME } from '../zoo/rescueFlight'
 import { resolveRescueAnimalBox } from './rescueAnimalPlacement'
 import { hasOpenedNotebookOnce, NOTEBOOK_HINT_LINE } from './notebookDiscovery'
-import { CONTENT_LEFT_FRAC, CONTENT_TOP_FRAC, CONTENT_WIDTH_FRAC, GAP_FRAC, LINE_HEIGHT, placeAndFitBubble } from './bubbleFit'
+import {
+  CONTENT_HEIGHT_FRAC,
+  CONTENT_LEFT_FRAC,
+  CONTENT_TOP_FRAC,
+  CONTENT_WIDTH_FRAC,
+  GAP_FRAC,
+  LINE_HEIGHT,
+  placeAndFitBubble,
+} from './bubbleFit'
 import {
   OCTOPUS_CORNER_INSET,
   OCTOPUS_CORNER_SIZE_PCT,
@@ -355,6 +363,7 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
                 contentLeftFrac: CONTENT_LEFT_FRAC,
                 contentTopFrac: CONTENT_TOP_FRAC,
                 contentWidthFrac: CONTENT_WIDTH_FRAC,
+                contentHeightFrac: CONTENT_HEIGHT_FRAC,
                 gapFrac: GAP_FRAC,
               }),
             }}
