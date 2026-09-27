@@ -1162,6 +1162,45 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
     expect(traceCanvasProbe.current?.clues).toBeUndefined()
   })
 
+  // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
+  // wanted about 4 clues, not just 2"). Before this fix, `traceClueMarks`
+  // resolved every mark's picture off the level's single `clueDef.kind`
+  // (`LevelPlay.tsx`), so an alternating trail would have shown the SAME
+  // droplet at every mark, silently repainting over the corn kernels —
+  // `ClueMark.kind` was already per-mark in the type, just never read that
+  // way at the one render site that mattered.
+  it('duck-trail1 alternates droplet/corn art per mark, drained before any attempt', () => {
+    renderToString(
+      <LevelPlay level={getLevel('duck-trail1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const clues = traceCanvasProbe.current?.clues as
+      | { marks: readonly { href: string }[] }
+      | undefined
+    expect(clues?.marks.length).toBeGreaterThan(1)
+    const hrefs = clues!.marks.map((m) => m.href)
+    expect(hrefs[0]).toBe(CLUE_ART.droplet.art.drained.href)
+    expect(hrefs[1]).toBe(CLUE_ART.corn.art.drained.href)
+    expect(hrefs[2]).toBe(CLUE_ART.droplet.art.drained.href)
+    // Every mark is one of the two authored kinds — never a third, and never
+    // uniformly one kind repainted over the other.
+    expect(new Set(hrefs)).toEqual(
+      new Set([CLUE_ART.droplet.art.drained.href, CLUE_ART.corn.art.drained.href]),
+    )
+  })
+
+  it('duck-trail2 alternates feather/webfoot art per mark', () => {
+    renderToString(
+      <LevelPlay level={getLevel('duck-trail2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const clues = traceCanvasProbe.current?.clues as
+      | { marks: readonly { href: string }[] }
+      | undefined
+    const hrefs = clues!.marks.map((m) => m.href)
+    expect(new Set(hrefs)).toEqual(
+      new Set([CLUE_ART.feather.art.drained.href, CLUE_ART.webfoot.art.drained.href]),
+    )
+  })
+
   it('passes `ground` only on a detective trail, and memoises one field per route', () => {
     type Layer = { marks: unknown[]; art: unknown[] }
     const render = (level: LevelConfig): unknown => {

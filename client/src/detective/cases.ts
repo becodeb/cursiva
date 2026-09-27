@@ -394,13 +394,24 @@ export function resolveCase(
 /** The case's clue kinds, in play order. Throws on a trail authored without a
  *  clue — the same failure `caseState.railSlots` already raises by name.
  *  `[]` for a case that supplies its own chip art directly (`clueArt`,
- *  above) — there is no `ClueKind` to derive, by design, not by omission. */
+ *  above) — there is no `ClueKind` to derive, by design, not by omission.
+ *
+ *  T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
+ *  wanted about 4 clues, not just 2"): a trail authoring `clue.extraKind`
+ *  (`levels/types.ts`) contributes BOTH kinds, `kind` first — this is what
+ *  lets the deduction's own chip row (`screen/Deduction.tsx`'s
+ *  `clueKindsOf(kase).map(...)`) show all four of the duck case's clues
+ *  instead of just its two RULING ones, with no change to `ruledOutBy`
+ *  (still keyed on `kind` alone) and no widening of `cases.test.ts`'s own
+ *  "ruledOutBy values ⊆ clueKindsOf(kase)" invariant — `extraKind` only ever
+ *  grows the carried set, never narrows what `ruledOutBy` could already
+ *  point at. */
 export function clueKindsOf(kase: DetectiveCase): readonly ClueKind[] {
   if (kase.clueArt) return []
-  return kase.trailIds.map((id) => {
+  return kase.trailIds.flatMap((id) => {
     const clue = getLevel(id).clue
     if (!clue) throw new Error(`Rastro sin pista: ${id}`)
-    return clue.kind
+    return clue.extraKind ? [clue.kind, clue.extraKind] : [clue.kind]
   })
 }
 
