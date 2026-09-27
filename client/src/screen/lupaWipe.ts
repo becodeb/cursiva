@@ -228,33 +228,28 @@ export const LUPA_VT_BASE_DIAMETER_PX = 300
 // test: "hay una lupa en el centro de la pantalla ... se queda siempre"). The
 // live `.cv-lupa-rim--vt` element exists only so the browser can CAPTURE it
 // for the crossing — it is drawn at its full `LUPA_VT_BASE_DIAMETER_PX` size
-// with `animation: none`, and nothing ever unmounted or hid it once the View
-// Transition's pseudo-element tree was torn down. So on every screen reached
-// through the native path the live element itself was left painted: an
-// empty 300px magnifier ring (rim, glint, handle) sitting over the centre
-// of the level for as long as the level stayed on screen.
+// with `animation: none`, and nothing ever hid it once the View Transition's
+// pseudo-element tree was torn down, nor on a screen reached WITHOUT a native
+// crossing at all (the first screen after the map, which `App.tsx` enters
+// through its own manual wipe). Either way the live element itself stayed
+// painted: an empty 300px magnifier ring (rim, glint, handle) over the centre.
 //
-// Fix: the wrapper hides itself on its own, one discrete `visibility` step
-// `LUPA_VT_SETTLE_MS` after it mounts. `::view-transition-new(lupa-rim)` is a
-// LIVE rendering of that element, so hiding it also empties the transition's
-// own copy — which is why the step lands a little BEFORE the crossing ends
-// rather than after it: by then the ease-out scale has already carried the
-// captured ring far past every viewport edge (radius > the 1:1 worst-case
-// half-diagonal of 70.7vmax long before 80% of the duration), so nothing on
-// screen changes when it goes; hiding it AFTER the crossing would instead
-// flash the 300px ring in the centre for the gap. CSS only, no timer: the
-// wrapper is keyed per screen, so the step replays exactly once per crossing
-// and an in-place re-render of the same screen never brings the ring back.
-export const LUPA_VT_SETTLE_MS = LUPA_WIPE_DURATION_MS - 50
+// Fix: the wrapper is `visibility: hidden` by default and is shown ONLY while
+// the document has an active View Transition (`:active-view-transition`, set
+// from `document.startViewTransition()` until the crossing finishes). That
+// window covers the "new" capture (taken after the update callback, while the
+// transition is already active) and the whole animation, where
+// `::view-transition-new(lupa-rim)` is a LIVE rendering of this element; the
+// moment the crossing ends the pseudo tree and the match go away together, so
+// the live ring never paints on its own. A screen mounted with no native
+// crossing in flight never matches, so it never shows the ring. A browser
+// that has `startViewTransition` but not the pseudo-class drops the rule and
+// simply loses the decorative rim — never a stuck one.
+export const LUPA_VT_ACTIVE_SELECTOR = ':root:active-view-transition .cv-lupa-rim--vt'
 
 export const LUPA_VT_CSS = `
-.cv-lupa-rim--vt {
-  animation: cv-lupa-vt-settle 1ms linear ${LUPA_VT_SETTLE_MS}ms both;
-}
-@keyframes cv-lupa-vt-settle {
-  from { visibility: visible; }
-  to { visibility: hidden; }
-}
+.cv-lupa-rim--vt { visibility: hidden; }
+${LUPA_VT_ACTIVE_SELECTOR} { visibility: visible; }
 .cv-lupa-rim--vt .cv-lupa-circle {
   view-transition-name: ${LUPA_VT_NAME};
   width: ${LUPA_VT_BASE_DIAMETER_PX}px;
