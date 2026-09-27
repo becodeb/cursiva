@@ -503,6 +503,11 @@ and feet #e8893a.
 
 ## 6. Hoja "Pistas": B11, B12, B13, B17
 
+> **2026-09-27: las pistas se piden desde `docs/22_PROMPTS_ARTE_PISTAS.md`.**
+> B11 y B13 quedan reemplazados ahí (C1, C5, C11, C12). B12 y B17 siguen acá,
+> pero sin la fila gris y adjuntando `hoja.png` en vez de `pluma verde.png` y
+> `huella palmeada.png`, que se rehacen (`docs/22` §6).
+
 Reglas de `docs/09` §9 que se pegan con cada una: **apuntan hacia ARRIBA**,
 se piden **dos veces** (a color y en `#838383` apagado) y tienen que
 entenderse a 24 px. Cada hoja es una imagen: arriba la fila a color, abajo la
@@ -512,6 +517,8 @@ misma fila en gris. Recortar cada objeto a 1024×1024 transparente.
 todas: son las pistas que ya funcionan, y lo nuevo tiene que sentarse al lado.
 
 #### B11 — Las semillas y las gotas del pato (media)
+
+**Reemplazado por `docs/22` C5 (semillas) y C1 (charco). No pedir desde acá.**
 
 La autora contó que no se ven "las gotas" ni "las semillas". Este pedido
 asume que son `miga de pan.png`/`grano de maiz.png` (semillas) y
@@ -546,6 +553,8 @@ BOTTOM ROW: the exact same two shapes again, all filled flat grey
 ```
 
 #### B13 — Las pistas del mono (baja)
+
+**Reemplazado por `docs/22` C11 (cáscara) y C12 (banana). No pedir desde acá.**
 
 ```
 <bloque de estilo de docs/09 §9>
