@@ -565,6 +565,152 @@ export function revealScore(
   return Math.round((100 * lit) / objects.length)
 }
 
+// T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"): the
+// night's own SECOND-LEVEL hint — the removed exact-object halo (T2) made
+// searching honest, but a child who has been sweeping the torch for a while
+// with no find at all gets nothing back. After `NIGHT_HINT_DELAY_MS` of
+// active searching since the last find (or since the search began, for the
+// first one), a faint sparkle appears somewhere in the REGION of the
+// nearest still-hidden object — offset by a random angle at a distance
+// between `NIGHT_HINT_MIN_FACTOR` and `NIGHT_HINT_MAX_FACTOR` times the find
+// radius, so it never sits on the object's own exact spot (that halo was
+// removed on purpose) but still narrows the search. Each later hint (still
+// no find) uses a SMALLER factor, so the sparkle drifts closer with every
+// occurrence — never all the way to 0, which would just be the halo again
+// under a different name.
+//
+// Pure time-derived selectors, the SAME style `growthFraction`/
+// `completionGrowthFraction` above already use: every function below is
+// `f(elapsedMs, ...) -> value`, so a caller polling a plain timer never
+// needs to carry its own hint-specific state beyond "when did the last find
+// (or the search start) happen" — one timestamp, not a stepped machine.
+
+/** How long the child searches with no find before the first sparkle, and
+ *  the gap between each later one (T33's own "~15 s"). */
+export const NIGHT_HINT_DELAY_MS = 15000
+
+/** The sparkle's own distance from the true object, as a multiple of the
+ *  find radius — `1.5x` on the very first hint, shrinking by
+ *  `NIGHT_HINT_STEP_FACTOR` on each later one, floored at
+ *  `NIGHT_HINT_MIN_FACTOR` so it NEVER reaches the object's own exact spot
+ *  (T2's removed halo) no matter how many hints have played. */
+export const NIGHT_HINT_MAX_FACTOR = 1.5
+export const NIGHT_HINT_MIN_FACTOR = 0.35
+const NIGHT_HINT_STEP_FACTOR = 0.3
+
+/**
+ * Which hint occurrence is current at `elapsedSinceProgressMs` — `-1` before
+ * the first `NIGHT_HINT_DELAY_MS` has passed, `0` for the first hint's own
+ * window, `1` for the second, and so on, one every `NIGHT_HINT_DELAY_MS`.
+ * `elapsedSinceProgressMs` is the caller's own clock, measured from
+ * whichever is MORE RECENT: the search's own start, or the last object
+ * found (`state.litAt`) — a fresh find resets the wait, exactly like a
+ * genuinely new search.
+ */
+export function nightHintIndex(elapsedSinceProgressMs: number): number {
+  const elapsed = Math.max(0, elapsedSinceProgressMs)
+  if (elapsed < NIGHT_HINT_DELAY_MS) return -1
+  return Math.floor(elapsed / NIGHT_HINT_DELAY_MS) - 1
+}
+
+/**
+ * The sparkle's own distance factor for hint occurrence `hintIndex` (0-based)
+ * — monotonically NON-INCREASING in `hintIndex`, floored at
+ * `NIGHT_HINT_MIN_FACTOR`, and always strictly positive: `nightHintFor`
+ * below relies on that positivity for its own "never the exact spot"
+ * guarantee, so this function can never be asked to return 0.
+ */
+export function nightHintDistanceFactor(hintIndex: number): number {
+  const factor = NIGHT_HINT_MAX_FACTOR - Math.max(0, hintIndex) * NIGHT_HINT_STEP_FACTOR
+  return Math.max(NIGHT_HINT_MIN_FACTOR, factor)
+}
+
+/** A cheap deterministic `[0, 1)` value from an integer seed (a sine-based
+ *  hash, the same trick `Math.random()`-free procedural placement commonly
+ *  uses) — never `Math.random()`, so the SAME (object, hint occurrence) pair
+ *  always draws the same angle: a re-render mid-hint must not jitter the
+ *  sparkle to a new spot, and a test must be able to assert an exact value. */
+function pseudoRandom01(seed: number): number {
+  const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453
+  return x - Math.floor(x)
+}
+
+/** The nearest still-hidden object to `from`, by index into
+ *  `reveal.objects` — `null` once every object has already been found. Ties
+ *  resolve to the lowest index (`<`, not `<=`, in the scan below), so the
+ *  result is deterministic regardless of iteration order. */
+export function nearestUnfoundObject(
+  reveal: Extract<RevealConfig, { mode: 'light' }>,
+  state: RevealState,
+  from: Point,
+): { index: number; obj: RevealObject } | null {
+  let best: { index: number; obj: RevealObject } | null = null
+  let bestDist = Infinity
+  for (let i = 0; i < reveal.objects.length; i++) {
+    if (state.lit.has(i)) continue
+    const obj = reveal.objects[i]
+    const d = Math.hypot(obj.x - from.x, obj.y - from.y)
+    if (d < bestDist) {
+      bestDist = d
+      best = { index: i, obj }
+    }
+  }
+  return best
+}
+
+/** Where the night's own second-level hint sparkle sits, or `null` when no
+ *  hint is due yet (`elapsedSinceProgressMs` short of `NIGHT_HINT_DELAY_MS`)
+ *  or every object is already found. `from` is the reference point the
+ *  "nearest" unfound object is measured against — the caller's own last
+ *  known torch position, since a child mid-search is more helped by "closer
+ *  to where you already are" than by an absolute nearest-to-origin rule. */
+export interface NightHintPlacement {
+  readonly objectIndex: number
+  readonly x: number
+  readonly y: number
+}
+
+/** How far from every edge of the sheet the sparkle is kept — browser QA
+ *  (`capturas/2026-09-27-tanda4/night-hint-1-after-15s-searching.png`)
+ *  caught an UNCLAMPED offset landing above the sheet's own top edge, where
+ *  it rendered under the floating header chrome instead of over the dark
+ *  veil it is meant to twinkle in. 60 clears that chrome band on every
+ *  shipped viewport (the same order of magnitude `ARROW_DISTANCE`,
+ *  `screen/directionArrow.ts`, uses for "comfortably clear of the start
+ *  dot") without meaningfully weakening the hint at any authored find
+ *  radius (night1-4's own 110-200). */
+const NIGHT_HINT_EDGE_MARGIN = 60
+
+export function nightHintFor(
+  reveal: Extract<RevealConfig, { mode: 'light' }>,
+  state: RevealState,
+  elapsedSinceProgressMs: number,
+  from: Point,
+  width: number = 1000,
+): NightHintPlacement | null {
+  const hintIndex = nightHintIndex(elapsedSinceProgressMs)
+  if (hintIndex < 0) return null
+  const nearest = nearestUnfoundObject(reveal, state, from)
+  if (!nearest) return null
+  const factor = nightHintDistanceFactor(hintIndex)
+  const distance = factor * reveal.radius
+  // `+ 1`: keeps the seed away from a literal 0 (object 0, hint 0), the one
+  // input worth avoiding on principle for a sine-based hash even though the
+  // `+ 78.233` phase inside `pseudoRandom01` already makes `seed = 0`
+  // well-behaved in practice.
+  const seed = nearest.index * 97 + hintIndex * 31 + 1
+  const angle = pseudoRandom01(seed) * Math.PI * 2
+  const rawX = nearest.obj.x + Math.cos(angle) * distance
+  const rawY = nearest.obj.y + Math.sin(angle) * distance
+  const maxX = Math.max(NIGHT_HINT_EDGE_MARGIN, width - NIGHT_HINT_EDGE_MARGIN)
+  const maxY = Math.max(NIGHT_HINT_EDGE_MARGIN, SHEET_HEIGHT - NIGHT_HINT_EDGE_MARGIN)
+  return {
+    objectIndex: nearest.index,
+    x: Math.max(NIGHT_HINT_EDGE_MARGIN, Math.min(maxX, rawX)),
+    y: Math.max(NIGHT_HINT_EDGE_MARGIN, Math.min(maxY, rawY)),
+  }
+}
+
 /** Pure, deterministic pre-clear for `?debug=revelado:<pct>` (Phase 6): the
  *  top `round(fraction * rows)` tile ROWS, so a screenshot can show a
  *  partially-revealed erase level without a live playthrough. `fraction` is
