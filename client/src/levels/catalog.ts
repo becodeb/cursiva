@@ -1142,6 +1142,11 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
+    // T33 (`odd/tasks/prewriting-stage-completion.md`, docs/18 P5/D24): the
+    // night's own first level plays a one-shot torch-sweep intro instead of
+    // the (never-available, `kind: 'free'`) route demo — "mostrar antes de
+    // pedir" for the one mechanic in this app with no demo at all until now.
+    introCue: true,
     // Defect fix (play-test 2026-09-25, T2 item 1: "a single tap anywhere
     // turns the whole level to day"): the chest used to sit at (500, 300) —
     // the sheet's exact geometric centre, which is also where a curious
@@ -1410,6 +1415,11 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
+    // T33 (`odd/tasks/prewriting-stage-completion.md`, docs/18 P5/D24): the
+    // bee's own first level plays a one-shot intro nudging toward the first
+    // flower instead of the (never-available, `kind: 'free'`) route demo —
+    // D24's own "sin demo ni consigna; no se entiende qué hacer".
+    introCue: true,
     waypoints: {
       start: { x: 250, y: 400 },
       stops: [{ x: 500, y: 265, radius: 110 }],

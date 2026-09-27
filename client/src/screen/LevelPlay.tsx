@@ -38,10 +38,18 @@ import {
   EMPTY_REVEAL,
   isLightAnimating,
   LIGHT_COMPLETE_GROWTH_MS,
+  nightHintFor,
   revealTick,
   revealTiles,
   type RevealState,
 } from '../levels/revealGrid'
+import {
+  DEFAULT_IDLE_NUDGE_CONFIG,
+  idleNudgeCueIndex,
+  idleNudgePhase,
+  shouldSpeakIdleHint,
+} from './idleNudge'
+import { hasIntroCue, idleCueForLevel, INTRO_CUE_MS, type IdleCueVisual } from './idleNudgeCue'
 import {
   arrangeDebugCount,
   cameraDebugOrigin,
@@ -153,7 +161,7 @@ import TrailProgressBar from '../detective/TrailProgressBar'
 import CollectBar from '../detective/CollectBar'
 import { BackIcon, PlaceholderAnimalBadge, ReplayIcon } from '../detective/icons'
 import { useNarration } from '../voice/useNarration'
-import { speak } from '../voice/narrator'
+import { canAutoSpeak, speak } from '../voice/narrator'
 import SpeakButton from '../voice/SpeakButton'
 
 /** Seconds one demonstration sub-path takes, and the gap before the next one. */
@@ -1316,6 +1324,45 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-snake-next { animation: none; opacity: 1; }
 }
 
+/* T33 ('odd/tasks/prewriting-stage-completion.md', "help a stuck child"):
+ * the start marker's own STRONGER pulse during an idle nudge — the plain dot/
+ * 'startArt' otherwise sits at a flat, unanimated opacity ('canvas/
+ * TraceCanvas.tsx''s own start-marker block), so this is new motion, not an
+ * amplified existing one. 'transform-box: fill-box'/'transform-origin:
+ * center' is the same guard '.cv-spine-mark-filled' documents: an SVG
+ * element's default transform origin is the outer '<svg>''s (0,0), not its
+ * own box, so a bare 'scale()' here would visibly jump the dot toward the
+ * sheet's corner instead of pulsing in place. */
+.cv-idle-nudge-start {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cv-idle-nudge-start-pulse 1s ease-in-out infinite;
+}
+@keyframes cv-idle-nudge-start-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-idle-nudge-start { animation: none; opacity: 1; }
+}
+
+/* T33: the night hint's own faint twinkle ('canvas/RevealLayer.tsx''s
+ * 'NIGHT_HINT_SPARKLE_PATH') — opacity only, since the shape is already
+ * translated to its own point in SVG (a 'transform: scale()' here would
+ * still need the same fill-box guard above, and a sparkle reads fine as a
+ * pure fade anyway). Reduced motion holds it at a single faint, legible
+ * opacity instead of animating. */
+.cv-night-hint-sparkle {
+  animation: cv-night-hint-twinkle 1.6s ease-in-out infinite;
+}
+@keyframes cv-night-hint-twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.75; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-night-hint-sparkle { animation: none; opacity: 0.55; }
+}
+
 /* Upright and narrow is genuinely width-limited: show guidance instead of
  * shrinking the play surface into an unusable mini game. Header and actions
  * stay outside this block, so Back/Return and keyboard navigation are never
@@ -2140,6 +2187,56 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // is not worth it here.
   const reducedMotionRef = useRef(prefersReducedMotion())
 
+  // T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
+  // the idle nudge's own clocks — plain refs, not state, because every one
+  // of them is written far more often (every live `onFrame` sample while
+  // drawing) than it needs to trigger a render; `pollNow` below is the ONE
+  // state value a slow poll actually bumps, and every idle-nudge/night-hint
+  // value this screen renders is derived FROM it plus these refs, the same
+  // "the caller's clock, this file's own pure selector" split
+  // `screen/idleNudge.ts`'s own header documents.
+  const lastTouchAtRef = useRef(performance.now())
+  const lastProgressAtRef = useRef(performance.now())
+  const lastHintSpokenAtRef = useRef(Number.NEGATIVE_INFINITY)
+  const lastNudgeCueIndexRef = useRef(-1)
+  // `bee1`/`night1` play a ONE-SHOT intro cue instead of the shared route
+  // demo, which their own `kind: 'free'` shape can never animate (`demoPaths`
+  // is always empty for them — `levels/catalog.ts`'s own `bee1` header).
+  const [introCuePlaying, setIntroCuePlaying] = useState<boolean>(() => hasIntroCue(level))
+  // Ticked on a slow poll while the sheet is actually waiting for a touch —
+  // see the dedicated effect below. Every idle-nudge/night-hint value is
+  // computed FROM this plus the refs above, never from a second clock.
+  const [idlePollNow, setIdlePollNow] = useState<number>(() => performance.now())
+
+  useEffect(() => {
+    if (introCuePlaying) {
+      const t = window.setTimeout(() => setIntroCuePlaying(false), INTRO_CUE_MS)
+      return () => window.clearTimeout(t)
+    }
+  }, [introCuePlaying])
+
+  // Polls at a resolution far coarser than the 60fps ink loop — the idle
+  // nudge and the night hint both reason in whole seconds, so 250ms is
+  // plenty to hit the ~6s/~15s/~20s thresholds within a fraction of a
+  // second, at a cost of at most 4 `setState`s/second while the child is
+  // genuinely idle (never while drawing — `enabled` below only runs the
+  // interval for as long as there is something to wait FOR: no demo/intro
+  // cue in the way, and the level not already approved).
+  const idleNudgeArmed = phase === 'ready' && !introCuePlaying && !attempt?.approved
+  useEffect(() => {
+    if (!idleNudgeArmed) return
+    const id = window.setInterval(() => setIdlePollNow(performance.now()), 250)
+    return () => window.clearInterval(id)
+  }, [idleNudgeArmed])
+
+  // The night hint's own "since progress" clock resets on every NEW find —
+  // `revealState.lit.size` only ever grows within an attempt (`revealTick`'s
+  // own latch), so this fires exactly once per object found, never on an
+  // unrelated re-render.
+  useEffect(() => {
+    lastProgressAtRef.current = performance.now()
+  }, [revealState.lit.size])
+
   // The waypoint fold's live latch (`free-trail-waypoints` capability,
   // design.md §2.3) — the lit-flower / home set for THIS attempt. `waypointRef`
   // mirrors the same shape `corridorTrackRef` already uses: the pulse needs a
@@ -2301,6 +2398,23 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     setDepartingCollectMarks([])
   }, [level.id, playDemo, resetSurface, trailClueMarks.length, collectItems, debugSearch])
 
+  // T33: the idle nudge's own clocks belong to THIS level — deliberately its
+  // own effect, keyed on `level.id` alone, for the same reason the T20 snake-
+  // colour effect below is not folded into the combined mount effect above
+  // (that effect's own `resetSurface` dependency churns far more often than
+  // "a genuinely new level started", which is the only thing that should
+  // ever rewind these). `bee1`/`night1` re-arm their one-shot intro cue here
+  // too — the ONE place a level is known to have just started fresh.
+  useEffect(() => {
+    const now = performance.now()
+    lastTouchAtRef.current = now
+    lastProgressAtRef.current = now
+    lastHintSpokenAtRef.current = Number.NEGATIVE_INFINITY
+    lastNudgeCueIndexRef.current = -1
+    setIntroCuePlaying(hasIntroCue(level))
+    setIdlePollNow(now)
+  }, [level.id])
+
   // T20: a snake level's own colour reveal belongs to a genuinely NEW attempt
   // at THIS level — deliberately its OWN effect, keyed on `level.id` alone
   // (plus `debugSearch` for `?debug=vibora:<k>`), rather than folded into the
@@ -2387,6 +2501,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     const t = window.setTimeout(() => setPhase('ready'), demoMs)
     return () => window.clearTimeout(t)
   }, [phase, demoMs, demoRun])
+
+  // T33: the idle nudge's own "no touch for ~6s" is measured from when the
+  // sheet actually becomes touchable — the moment `phase` reaches `'ready'`,
+  // whether that is immediately (no demo for this level) or only once a
+  // route demo/replay has finished. Without this, a level with a multi-
+  // second demo would silently eat part of its own idle countdown before
+  // the child could touch anything at all.
+  useEffect(() => {
+    if (phase === 'ready') lastTouchAtRef.current = performance.now()
+  }, [phase])
 
   // ---- Live feedback channels (docs/01 principle 2, docs/02 §7.2) ----------
   const feedback = level.feedback
@@ -2578,6 +2702,11 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // this file to sit after `drawnPlace`.
   const clearOnFailedRetryRef = useRef(false)
   const onStart = useCallback((): void => {
+    // T33: a touch is the one thing that stops the idle nudge outright — the
+    // intro cue too, since a child who is already touching does not need a
+    // demo of where to start.
+    lastTouchAtRef.current = performance.now()
+    setIntroCuePlaying(false)
     setRestarted(false)
     setPhase(endDemoOnStrokeStart)
     if (clearOnFailedRetryRef.current && attempt && !attempt.approved) {
@@ -2592,6 +2721,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // the cloud again.
   const onFrame = useCallback(
     (points: TracePoint[], drawing: boolean, timeMs: number) => {
+      // T33: any live sample means the child is actively on the sheet —
+      // resets the idle nudge's own clock every such frame, so it can only
+      // ever fire during a genuine pause. A plain ref write, not a
+      // `setState`: nothing needs to re-render on every one of these, only
+      // the slow poll (`idlePollNow`, above) that reads it later.
+      if (drawing) lastTouchAtRef.current = timeMs
       // T10: the flashlight grow's own clock tick — rides this SAME sample,
       // ahead of every early return below, so a growing light still animates
       // even mid-arrange or mid-drag. `isLightAnimating` is a cheap scan (at
@@ -3025,6 +3160,75 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     return standBesideArtCorridor(startMarker, piece0, OCTOPUS_STAND_MARGIN, true)
   }, [target.artCorridor, startMarker])
   const directionArrow = useMemo(() => directionArrowOf(target), [target])
+
+  // T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
+  // the idle nudge's own derived values — every one of them a pure function
+  // of `idlePollNow`/the refs above, recomputed on each slow poll (never on
+  // the 60fps ink loop). `idleCueForLevel` picks the right geometry for this
+  // level's own kind (`screen/idleNudgeCue.ts`'s own header).
+  const idleCueSegment = useMemo(
+    () =>
+      idleCueForLevel(level, {
+        startMarker,
+        directionArrowPoint: directionArrow ? { x: directionArrow.x, y: directionArrow.y } : undefined,
+        spineState,
+      }),
+    [level, startMarker, directionArrow, spineState],
+  )
+  const nudgeElapsedMs = idlePollNow - lastTouchAtRef.current
+  const nudgePhase = idleNudgePhase(nudgeElapsedMs)
+  const nudgeCueIndex = idleNudgeCueIndex(nudgeElapsedMs)
+  // The spoken hint repeats at most every ~20s, independent of how often the
+  // VISUAL cue itself repeats — fires once per `nudgeCueIndex` RISING EDGE
+  // (never once per poll, or a still-showing cue would retrigger speech
+  // every 250ms).
+  useEffect(() => {
+    if (nudgeCueIndex < 0 || nudgeCueIndex === lastNudgeCueIndexRef.current) return
+    lastNudgeCueIndexRef.current = nudgeCueIndex
+    const now = performance.now()
+    if (!shouldSpeakIdleHint(now - lastHintSpokenAtRef.current, DEFAULT_IDLE_NUDGE_CONFIG)) return
+    lastHintSpokenAtRef.current = now
+    if (canAutoSpeak()) speak(level.hint)
+  }, [nudgeCueIndex, level.hint])
+  // Shows the cue for the general idle nudge (`nudgePhase === 'nudge'`) OR,
+  // once per level, the one-shot intro for `bee1`/`night1` — the two never
+  // overlap (`idleNudgeArmed`, above, only starts the poll once the intro
+  // cue is done). `-1` is a key no real `nudgeCueIndex` ever takes (it starts
+  // at 0), so the intro's own mount never collides with the nudge's first
+  // occurrence.
+  const showIdleCue = introCuePlaying || nudgePhase === 'nudge'
+  const idleCueKey = introCuePlaying ? -1 : nudgeCueIndex
+  const idleCue =
+    showIdleCue && idleCueSegment
+      ? {
+          visual: idleCueSegment.visual as IdleCueVisual,
+          from: idleCueSegment.from,
+          to: idleCueSegment.to,
+          cueKey: idleCueKey,
+          reducedMotion: reducedMotionRef.current,
+        }
+      : null
+  // The start dot's own stronger pulse belongs to the ONGOING nudge, not the
+  // one-shot level intro — the intro is "here is how this works", the nudge
+  // is "you seem stuck", and only the second one needs the dot itself to
+  // insist.
+  const idleNudgeActive = nudgePhase === 'nudge'
+
+  // The night hint (T33 item 2) — a SEPARATE, much more targeted cue than
+  // the general idle nudge above: it needs real elapsed searching time
+  // (measured from the last find, or the level's own start) rather than
+  // "elapsed since last touch", and it only ever applies to a `light`
+  // reveal. `from` is the last known torch position — live if the finger is
+  // down, the fading ghost if it just lifted, the sheet's own centre before
+  // any touch at all — so "nearest" is measured from where the child
+  // actually is, not an arbitrary origin.
+  const nightHint = useMemo(() => {
+    if (level.reveal?.mode !== 'light') return null
+    const from = revealState.point ?? revealState.torchGhost ?? { x: target.viewBoxWidth / 2, y: 300 }
+    const elapsed = idlePollNow - lastProgressAtRef.current
+    return nightHintFor(level.reveal, revealState, elapsed, from, target.viewBoxWidth)
+  }, [level.reveal, revealState, idlePollNow, target.viewBoxWidth])
+
   // Where the route ends. A `kind: 'free'` level has no route, so it gets no
   // goal — and no start dot and no arrow either, which is why the standing line
   // below has to be derived rather than fixed.
@@ -3783,6 +3987,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         insetLeft={SIDE_INSET}
         insetRight={SIDE_INSET}
         startMarker={showMarkers ? startMarker : undefined}
+        idleNudgeActive={idleNudgeActive}
+        idleCue={idleCue}
         // The octopus stands where the route begins, in place of the green dot
         // (see `TraceStandingArt`): with a character already standing there the
         // dot says nothing the octopus does not. Every non-detective level
@@ -3926,6 +4132,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // The reveal grid's covering layer (`reveal-grid` capability).
         // Absent on every level without a `reveal` config.
         reveal={reveal}
+        nightHint={nightHint}
         // The waypoint fold's render projection (`free-trail-waypoints`
         // capability). Absent on every level without a `waypoints` config.
         waypoints={waypoints}

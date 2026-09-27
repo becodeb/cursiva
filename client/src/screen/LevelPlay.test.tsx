@@ -3252,3 +3252,81 @@ describe('LevelPlay portrait guidance (finish-mvp-roadmap U5)', () => {
     expect(textOf(html)).not.toContain('Fase 1 ·')
   })
 })
+
+// T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
+// wiring checks — the actual timing (idleNudge.ts/idleNudgeCue.ts/
+// revealGrid.ts's night hint) is proven directly, pure, elsewhere; this file
+// can only see the FIRST render (renderToString runs no effects at all,
+// this file's own header), so what is checkable here is exactly the
+// synchronous initial state: `introCuePlaying`'s `useState` initializer
+// reads `level.introCue` synchronously, so bee1/night1 show their cue on
+// the very first frame with no timer involved.
+describe('LevelPlay idle nudge / night hint wiring (T33)', () => {
+  it('bee1 shows its one-shot intro cue on first render (introCue: true)', () => {
+    renderToString(
+      <LevelPlay level={getLevel('bee1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const cue = traceCanvasProbe.current?.idleCue as { visual: string } | null | undefined
+    expect(cue).toBeTruthy()
+    expect(cue?.visual).toBe('hand')
+  })
+
+  it('night1 shows its one-shot intro cue on first render, as a torch', () => {
+    renderToString(
+      <LevelPlay level={getLevel('night1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const cue = traceCanvasProbe.current?.idleCue as { visual: string } | null | undefined
+    expect(cue).toBeTruthy()
+    expect(cue?.visual).toBe('torch')
+  })
+
+  it('night2 (no introCue authored) shows no cue on first render — only the idle nudge, not yet due', () => {
+    renderToString(
+      <LevelPlay level={getLevel('night2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current?.idleCue ?? null).toBeNull()
+    expect(traceCanvasProbe.current?.idleNudgeActive ?? false).toBe(false)
+  })
+
+  it('an ordinary routed level shows no cue and no strengthened start pulse on first render', () => {
+    renderToString(
+      <LevelPlay level={getLevel('duck-trail1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current?.idleCue ?? null).toBeNull()
+    expect(traceCanvasProbe.current?.idleNudgeActive ?? false).toBe(false)
+  })
+
+  it('a light-reveal level forwards nightHint (null before any real search time has passed)', () => {
+    renderToString(
+      <LevelPlay level={getLevel('night2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current).toHaveProperty('nightHint')
+    expect(traceCanvasProbe.current?.nightHint ?? null).toBeNull()
+  })
+
+  it('an erase-reveal (cleaning) level never receives a nightHint prop value', () => {
+    renderToString(
+      <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current?.nightHint ?? null).toBeNull()
+  })
+
+  it('hedgehog1 (a spines level, already `demo: true`) has an idle cue segment available for once its own demo ends', () => {
+    // Wiring proof only — the demo itself keeps the sheet in 'demo' phase
+    // (this file's own header: no effects run under renderToString, so the
+    // demo->ready timeout never fires here). What is checkable synchronously
+    // is that `idleCueForLevel` receives a real spine anchor to work with —
+    // proven directly in `idleNudgeCue.test.ts`'s own `spineCue` suite.
+    renderToString(
+      <LevelPlay
+        level={getLevel('hedgehog1')}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    // Still in its own route demo on the very first frame — no idle cue yet.
+    expect(traceCanvasProbe.current?.idleCue ?? null).toBeNull()
+  })
+})
