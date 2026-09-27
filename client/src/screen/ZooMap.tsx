@@ -19,7 +19,6 @@ import {
   OCTOPUS_ART,
   ZOO_ANIMAL_ART,
   ZOO_BACKPACK_ART,
-  ZOO_CARETAKER_ART,
   ZOO_FOG_ART,
   ZOO_MAP_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
@@ -93,10 +92,12 @@ const BUBBLE_AUTO_HIDE_MS = 10000
  * own bubble used to go silent — `bubbleSector` falls back to
  * `recentlyDiscovered`, which is ALSO `null` in exactly this state (nothing
  * left is untouched, and nothing left has any unfiled adventure), so the
- * bubble simply never rendered and the story had no ending. This line, the
- * caretaker's own portrait (`ZOO_CARETAKER_ART`), and a short
- * `RescueCelebration` burst are what fill that gap — the Pulpito's own
- * closing word once there is truly nothing left to do in the whole zoo.
+ * bubble simply never rendered and the story had no ending. This line, a
+ * celebration picture (`ZOO_STAR_ART` — T36 follow-up, docs/18 D3: NOT the
+ * caretaker's own portrait, which would duplicate the detective octopus
+ * already standing full-body at `PLAZA_CENTRE` right below this bubble), and
+ * a short `RescueCelebration` burst are what fill that gap — the Pulpito's
+ * own closing word once there is truly nothing left to do in the whole zoo.
  * Copy approved verbatim (`odd/tasks/promised-animals.md` task B). */
 const FINALE_LINE = '¡Volvieron todos los animales! Gracias por ayudarme a cuidar el zoológico.'
 
@@ -804,8 +805,18 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // rather than branching again at every render site below. `finaleBubblePlacement`
   // (`zoo/adventures.ts`) is what actually answers "where does a bubble with
   // no spotlight target to avoid belong" — see its own header.
+  //
+  // T36 follow-up (docs/18 D3, again): this used to be `ZOO_CARETAKER_ART` —
+  // the SAME caretaker already standing full-body at `PLAZA_CENTRE` right
+  // below the bubble (`OCTOPUS_ART` once `finale`, above), the exact
+  // duplicate the prologue's own D3 fix removed. `ZOO_STAR_ART` instead: a
+  // celebration image, never the Pulpito himself, and already the SAME
+  // picture `RescueCelebration`'s own burst scatters around this bubble
+  // (`ZooMap.tsx`'s own `{finale && <RescueCelebration />}` below), so it
+  // reads as one consistent celebratory moment rather than an unrelated
+  // fourth image.
   const bubbleContent = finale
-    ? { art: ZOO_CARETAKER_ART, label: FINALE_LINE }
+    ? { art: ZOO_STAR_ART, label: FINALE_LINE }
     : bubbleSector
       ? mapBubble(bubbleSector, records, spotlightSector !== null)
       : null

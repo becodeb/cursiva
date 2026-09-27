@@ -494,10 +494,24 @@ describe('ZooMap spotlight (T4, D5: exactly one place highlighted)', () => {
 describe('ZooMap finale (promised-animals task B: the story has an ending)', () => {
   const allLevelIds = ADVENTURES.flatMap((a) => a.levelIds)
 
-  it('shows the caretaker\'s own line and portrait once every adventure is filed', () => {
+  it('shows the caretaker\'s own closing line once every adventure is filed', () => {
     const html = render(filed(...allLevelIds))
     expect(html).toContain('¡Volvieron todos los animales! Gracias por ayudarme a cuidar el zoológico.')
-    expect(html).toContain('/art/zoo-octopus-caretaker.png')
+  })
+
+  // T36 follow-up (docs/18 D3, again): the finale bubble used to carry
+  // ZOO_CARETAKER_ART — the SAME caretaker already standing full-body at
+  // PLAZA_CENTRE right below the bubble (as OCTOPUS_ART, T36's own earlier
+  // fix) — the exact duplicate D3 already removed from the prologue.
+  it('never repeats the caretaker inside the finale bubble (docs/18 D3)', () => {
+    const html = render(filed(...allLevelIds))
+    expect(html).not.toContain('/art/zoo-octopus-caretaker.png')
+    // The one standing figure is the detective (his own lens), not the
+    // mochila-only figure — proven already by the dedicated test below, but
+    // restated here so this test alone documents "one octopus picture, not
+    // two" for the finale as a whole.
+    expect(html).toContain('/art/carrier-octopus.png')
+    expect(html).not.toContain('/art/zoo-octopus-backpack.png')
   })
 
   it('does not show the finale merely because a single level anywhere is still missing', () => {
