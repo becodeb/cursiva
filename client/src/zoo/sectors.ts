@@ -842,3 +842,24 @@ export function stageRectToPercent(
     height: (rect.h / displayBounds.height) * 100,
   }
 }
+
+/**
+ * A real CSS-pixel length, converted into `displayBounds`'s own viewBox
+ * units (T36, `odd/tasks/prewriting-stage-completion.md`: `playBadgePlacement`'s
+ * own `edgeMargin` needs a real "at least 12px" guarantee, but everything
+ * that function reasons about lives in viewBox units). Valid under the SAME
+ * "matching aspect" precondition `stageRectToPercent`'s own header states —
+ * `containerWidthPx` and `displayBounds.width` describe the SAME horizontal
+ * extent at two different scales, so their ratio is the one uniform
+ * scale factor the `<svg>` itself draws with (`fitContentWithInsets`'s own
+ * `coverAspectRatio` guarantee, `canvas/TraceCanvas.tsx`). `containerWidthPx
+ * <= 0` (not yet measured — SSR, or the client's very first paint, before
+ * `ResizeObserver` fires) falls back to `px` UNCHANGED: a pre-measurement
+ * viewBox is `MAP_STAGE_BOX` itself, close enough to 1:1 with a typical
+ * viewport width that treating "12 CSS px" as "12 viewBox units" is a
+ * reasonable placeholder for the one transient frame before a real
+ * measurement replaces it, never a value this function's own caller keeps.
+ */
+export function pxToViewBoxUnits(px: number, containerWidthPx: number, displayBounds: ArtBox): number {
+  return containerWidthPx > 0 ? (px / containerWidthPx) * displayBounds.width : px
+}

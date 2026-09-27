@@ -8,9 +8,11 @@ import { describe, expect, it } from 'vitest'
 import ZooMap, { fogClassFor, playBadgePlacement, spotlightHolePath } from './ZooMap'
 import { auditCaptions } from '../detective/captionAudit'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
-import { hitCentre, SECTORS, type Records } from '../zoo/sectors'
+import { hitCentre, MAP_STAGE_BOX, pxToViewBoxUnits, SECTORS, type Records } from '../zoo/sectors'
 import { ADVENTURES } from '../zoo/adventures'
 import { totalStars } from '../zoo/stars'
+import { notebookEntries } from '../zoo/notebook'
+import { fitContentWithInsets } from '../canvas/TraceCanvas'
 
 function filed(...ids: readonly string[]): Records {
   const out: Record<string, LevelRecord> = {}
@@ -532,6 +534,38 @@ describe('ZooMap finale (promised-animals task B: the story has an ending)', () 
     const html = render(filed(...allLevelIds), true)
     expect(html).not.toContain('url(#')
   })
+
+  // T36 (odd/tasks/prewriting-stage-completion.md, "the ending in the new
+  // style"): the plaza's own standing Pulpito — already centre-stage by
+  // construction, PLAZA_CENTRE sits within a few units of the 1000×600
+  // stage's own centre (sectors.ts) — becomes the detective with his own
+  // lens (OCTOPUS_ART, "carrier-octopus.png", already shipped for
+  // LevelPlay's own carrier) once the finale is reached, instead of the
+  // mochila-only figure he wears during ordinary play.
+  it('stands in the plaza as the detective with his own lens once the finale is reached', () => {
+    const html = render(filed(...allLevelIds))
+    expect(html).toContain('/art/carrier-octopus.png')
+    expect(html).not.toContain('/art/zoo-octopus-backpack.png')
+  })
+
+  it('keeps the ordinary mochila octopus in the plaza during any non-finale state', () => {
+    const html = render(filed('duck-trail4'))
+    expect(html).toContain('/art/zoo-octopus-backpack.png')
+    expect(html).not.toContain('/art/carrier-octopus.png')
+  })
+
+  // "the notebook shown complete if cheap": the notebook needs no special
+  // finale-only code path — `notebookEntries` is derived straight from
+  // `records`, so once every adventure is filed, opening it (unchanged,
+  // via the backpack pill) already shows every animal rescued, with no
+  // silhouette or placeholder card left. Checked directly against the pure
+  // function rather than by forcing `notebookOpen` open in this SSR-only
+  // render, which never runs the effects that state depends on.
+  it('the notebook is already complete at the finale — no code path needed to force it open', () => {
+    const entries = notebookEntries(filed(...allLevelIds))
+    expect(entries.length).toBeGreaterThan(0)
+    expect(entries.every((entry) => entry.rescued)).toBe(true)
+  })
 })
 
 describe('ZooMap accessibility (finish-mvp-roadmap U5)', () => {
@@ -761,5 +795,75 @@ describe('playBadgePlacement (T32, N4: the play badge must never sit on top of a
     const placed = playBadgePlacement(hit, [everywhere])
     expect(Number.isFinite(placed.x)).toBe(true)
     expect(Number.isFinite(placed.y)).toBe(true)
+  })
+
+  // T36 (odd/tasks/prewriting-stage-completion.md): "the badge's right side
+  // at the screen's right border" — measured at 1024×768 on the lagoon
+  // (estanque). Reproduces the defect with the OLD two-argument call (no
+  // `outer`/`edgeMargin`, this function's own byte-identical default), then
+  // proves the NEW call (the exact `displayBounds`/`pxToViewBoxUnits` pair
+  // `screen/ZooMap.tsx`'s own render now passes) keeps a real 12px margin at
+  // all four required viewports.
+  describe('never touches the viewport edge, at a real 12px margin (T36)', () => {
+    const REQUIRED_VIEWPORTS: ReadonlyArray<readonly [number, number]> = [
+      [1024, 768],
+      [1180, 820],
+      [768, 1024],
+      [844, 390],
+    ]
+    const hit = estanque.hit!
+    // A small obstacle sitting exactly on the hit's own centre — the same
+    // "something occupies the centre" trigger `playBadgePlacement`'s own
+    // existing tests above use — forces the ring's FIRST candidate (0°,
+    // straight along +x, `BADGE_RING_ANGLES_DEG`'s own order): this is
+    // EXACTLY the case that reproduced the reported defect, not the
+    // untouched-centre case (which was always in-bounds).
+    const centreOccupied = () => {
+      const c = hitCentre(hit)
+      return [{ x: c.x - 10, y: c.y - 10, w: 20, h: 20 }]
+    }
+
+    it('the OLD call (no outer/margin) really does spill past a real viewport at 1024x768 — the bug this task fixes', () => {
+      const [vw] = [1024, 768]
+      const displayBounds = fitContentWithInsets(MAP_STAGE_BOX, vw, 768)
+      const placed = playBadgePlacement(hit, centreOccupied())
+      // Real px position of the badge's own right edge, against the SAME
+      // scale ZooMap.tsx's own svg viewBox draws at.
+      const scale = vw / displayBounds.width
+      const rightEdgePx = (placed.x + 30 - displayBounds.x) * scale
+      // Measured: exactly 1024 — the badge's own right edge lands precisely
+      // on the viewport's own right border, the reported defect verbatim.
+      expect(rightEdgePx).toBeGreaterThan(vw - 1)
+    })
+
+    for (const [vw, vh] of REQUIRED_VIEWPORTS) {
+      it(`viewport=${vw}x${vh}: the badge's own drawn edge clears every side by at least 12px`, () => {
+        const displayBounds = fitContentWithInsets(MAP_STAGE_BOX, vw, vh)
+        const edgeMargin = pxToViewBoxUnits(12, vw, displayBounds)
+        const placed = playBadgePlacement(hit, centreOccupied(), undefined, undefined, displayBounds, edgeMargin)
+        const scale = vw / displayBounds.width
+        const leftPx = (placed.x - 30 - displayBounds.x) * scale
+        const rightPx = vw - (placed.x + 30 - displayBounds.x) * scale
+        const topPx = (placed.y - 30 - displayBounds.y) * scale
+        const bottomPx = vh - (placed.y + 30 - displayBounds.y) * scale
+        expect(leftPx, 'left').toBeGreaterThanOrEqual(12 - 1e-6)
+        expect(rightPx, 'right').toBeGreaterThanOrEqual(12 - 1e-6)
+        expect(topPx, 'top').toBeGreaterThanOrEqual(12 - 1e-6)
+        expect(bottomPx, 'bottom').toBeGreaterThanOrEqual(12 - 1e-6)
+      })
+    }
+
+    it('a real animal obstacle still gets avoided while staying in-bounds', () => {
+      const [vw, vh] = [1024, 768]
+      const displayBounds = fitContentWithInsets(MAP_STAGE_BOX, vw, vh)
+      const edgeMargin = pxToViewBoxUnits(12, vw, displayBounds)
+      const centre = hitCentre(hit)
+      const animalBox = { x: centre.x - 40, y: centre.y - 40, w: 80, h: 80 }
+      const placed = playBadgePlacement(hit, [animalBox], undefined, undefined, displayBounds, edgeMargin)
+      const overlapX = Math.min(placed.x + 30, animalBox.x + animalBox.w) - Math.max(placed.x - 30, animalBox.x)
+      const overlapY = Math.min(placed.y + 30, animalBox.y + animalBox.h) - Math.max(placed.y - 30, animalBox.y)
+      expect(Math.max(0, overlapX) * Math.max(0, overlapY)).toBe(0)
+      expect(placed.x - 30).toBeGreaterThanOrEqual(displayBounds.x + edgeMargin - 1e-6)
+    })
   })
 })

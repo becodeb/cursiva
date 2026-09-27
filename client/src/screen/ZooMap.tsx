@@ -16,6 +16,7 @@ import CaptionedArt from '../detective/CaptionedArt'
 import { fitContentWithInsets, SHEET_PAPER } from '../canvas/TraceCanvas'
 import {
   isPlaceholderArt,
+  OCTOPUS_ART,
   ZOO_ANIMAL_ART,
   ZOO_BACKPACK_ART,
   ZOO_CARETAKER_ART,
@@ -58,6 +59,7 @@ import {
   hitCentre,
   isOpen,
   nextAdventure,
+  pxToViewBoxUnits,
   recentlyDiscovered,
   stageRectToPercent,
   type FootprintMark,
@@ -467,6 +469,12 @@ function SpotlightRing({ hit, pad = SPOTLIGHT_PAD }: { hit: Rect; pad?: number }
  *  footprint the badge actually draws instead of a second guessed number. */
 const SPOTLIGHT_BADGE_RADIUS = 30
 
+/** T36 (`odd/tasks/prewriting-stage-completion.md`): the smallest real
+ *  on-screen gap the badge's own drawn edge keeps from the viewport's own
+ *  edge, at every required viewport — `playBadgePlacement`'s own header on
+ *  why this is expressed in real px rather than a viewBox-unit constant. */
+const BADGE_MIN_EDGE_MARGIN_PX = 12
+
 /** Compass points around `SpotlightRing`'s own ellipse (`hit.w/2 + pad`,
  *  `hit.h/2 + pad`) `playBadgePlacement` tries, in order, once the hit's own
  *  centre is occupied — 0° is "along +x" (screen-right), so the FIRST clear
@@ -491,35 +499,76 @@ function badgeBoxAt(at: { x: number; y: number }, radius: number): Rect {
  * measured directly: a 30-radius badge at `hitCentre(ESTANQUE_HIT)` overlaps
  * the duck's box by a real, non-zero sliver).
  *
- * Tries the hit's own centre FIRST — unchanged whenever nothing occupies it,
- * so this is a no-op for the common case — then eight points around
- * `SpotlightRing`'s own ellipse in turn (`BADGE_RING_ANGLES_DEG`), and if
- * every one of those still overlaps something, picks whichever candidate
- * (centre included) has the LEAST total overlap — the same "never leave it
- * undefined" fallback `bubblePlacement` (`zoo/adventures.ts`) already uses
- * for the identical reason: a spot still has to be picked. Pure and
- * exported so `ZooMap.test.tsx` can assert it directly against real
- * sector/animal data, no renderer needed.
+ * T36 (`odd/tasks/prewriting-stage-completion.md`, "the badge never touches
+ * the viewport edge"): before this, NEITHER the hit's own centre NOR any
+ * ring candidate was ever checked against the stage's own bounds — only
+ * against `avoid` — so a sector whose hit sits near an edge (the lagoon, at
+ * 1024×768: measured, the badge's own right edge landed exactly on the
+ * screen's right border) could return a point the drawn badge spills out of.
+ * `outer` (`ArtBox`, defaulting to `MAP_STAGE_BOX` — the same pre-T32
+ * default `spotlightHolePath` already uses) and `edgeMargin` (viewBox units,
+ * defaulting to `0` — a bare two-argument call stays byte-identical to every
+ * pre-T36 caller/test) together define the SAFE inner box a candidate's own
+ * centre must land inside: `radius + edgeMargin` from every side of `outer`,
+ * so the badge's own DRAWN edge — not just its centre — clears `outer` by at
+ * least `edgeMargin`. `screen/ZooMap.tsx`'s own render is what converts a
+ * real 12px screen margin into `edgeMargin`'s own viewBox-unit scale
+ * (`pxToViewBoxUnits`, `zoo/sectors.ts`).
+ *
+ * Tries the hit's own centre FIRST — unchanged whenever nothing occupies it
+ * and it is already in-bounds, so this is a no-op for the common case — then
+ * eight points around `SpotlightRing`'s own ellipse in turn
+ * (`BADGE_RING_ANGLES_DEG`), preferring one that is BOTH clear of every
+ * `avoid` box AND inside the safe box. If none qualifies, the least-overlap
+ * candidate among whichever are in-bounds wins (or, failing that, the
+ * least-overlap candidate overall) — the same "never leave it undefined"
+ * fallback `bubblePlacement` (`zoo/adventures.ts`) already uses — and its
+ * own position is then CLAMPED into the safe box, so the function's return
+ * value is guaranteed in-bounds even in that worst case. Pure and exported
+ * so `ZooMap.test.tsx` can assert it directly against real sector/animal
+ * data, no renderer needed.
  */
 export function playBadgePlacement(
   hit: Rect,
   avoid: readonly Rect[],
   radius: number = SPOTLIGHT_BADGE_RADIUS,
   pad: number = SPOTLIGHT_PAD,
+  outer: ArtBox = MAP_STAGE_BOX,
+  edgeMargin: number = 0,
 ): { x: number; y: number } {
   const centre = hitCentre(hit)
   const totalOverlap = (at: { x: number; y: number }) =>
     avoid.reduce((sum, box) => sum + overlapArea(badgeBoxAt(at, radius), box), 0)
-  if (totalOverlap(centre) === 0) return centre
+
+  const inset = radius + edgeMargin
+  // A degenerate `outer` narrower/shorter than two insets (never a real map
+  // stage, only a defensive floor) still returns a finite point at the
+  // safe box's own midline rather than an inverted [min, max] range.
+  const minX = outer.x + Math.min(inset, outer.width / 2)
+  const maxX = outer.x + outer.width - Math.min(inset, outer.width / 2)
+  const minY = outer.y + Math.min(inset, outer.height / 2)
+  const maxY = outer.y + outer.height - Math.min(inset, outer.height / 2)
+  const inBounds = (at: { x: number; y: number }) => at.x >= minX && at.x <= maxX && at.y >= minY && at.y <= maxY
+  const clamp = (at: { x: number; y: number }) => ({
+    x: Math.min(Math.max(at.x, minX), maxX),
+    y: Math.min(Math.max(at.y, minY), maxY),
+  })
+
   const rx = hit.w / 2 + pad
   const ry = hit.h / 2 + pad
   const ringCandidates = BADGE_RING_ANGLES_DEG.map((deg) => {
     const rad = (deg * Math.PI) / 180
     return { x: centre.x + rx * Math.cos(rad), y: centre.y + ry * Math.sin(rad) }
   })
-  const clear = ringCandidates.find((at) => totalOverlap(at) === 0)
+  const candidates = [centre, ...ringCandidates]
+
+  const clear = candidates.find((at) => totalOverlap(at) === 0 && inBounds(at))
   if (clear) return clear
-  return [centre, ...ringCandidates].reduce((min, at) => (totalOverlap(at) < totalOverlap(min) ? at : min))
+
+  const inBoundsCandidates = candidates.filter(inBounds)
+  const pool = inBoundsCandidates.length > 0 ? inBoundsCandidates : candidates
+  const best = pool.reduce((min, at) => (totalOverlap(at) < totalOverlap(min) ? at : min))
+  return clamp(best)
 }
 
 /** The round "play" badge, placed at `at` (`playBadgePlacement`'s own
@@ -1134,8 +1183,23 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
                 {/* T32 (N4): `playBadgePlacement` moves the badge off the
                     hit's own centre only when an animal already stands
                     there — `recoveredBoxes` is the SAME list `bubblePlacement`
-                    (above) avoids. */}
-                <SpotlightBadge at={playBadgePlacement(spotlightSector.hit, recoveredBoxes)} />
+                    (above) avoids. T36: `displayBounds` and a real 12px
+                    margin (`pxToViewBoxUnits`, converted through the
+                    CURRENT `containerSize` — `null` pre-measurement falls
+                    back to that function's own placeholder) keep the badge's
+                    own drawn edge off the viewport's own edge too — the
+                    lagoon's own reported defect (the badge's right side
+                    exactly on the screen's right border at 1024×768). */}
+                <SpotlightBadge
+                  at={playBadgePlacement(
+                    spotlightSector.hit,
+                    recoveredBoxes,
+                    undefined,
+                    undefined,
+                    displayBounds,
+                    pxToViewBoxUnits(BADGE_MIN_EDGE_MARGIN_PX, containerSize?.width ?? 0, displayBounds),
+                  )}
+                />
               </g>
             </>
           )}
@@ -1155,7 +1219,17 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               it has been dismissed or has auto-hidden, the same
               role="button"/tabIndex pattern the sector hits below use.
               Default (box-centre) grip on the image itself — design.md §7's
-              own worked call. */}
+              own worked call.
+              T36 (odd/tasks/prewriting-stage-completion.md, the ending "in
+              the new style"): once the finale is reached, PLAZA_CENTRE (498,
+              282 of the 1000×600 stage — already centre-stage by
+              construction, sectors.ts's own header) shows him as the
+              detective he became at the end of the prologue (docs/16 §5)
+              instead of the mochila-only figure he wears during ordinary
+              play — OCTOPUS_ART ("the octopus holding the glass", already
+              shipped for LevelPlay's own carrier, no new art) rather than
+              ZOO_OCTOPUS_BACKPACK_ART. Same box, same control, same
+              aria-label — only the picture changes. */}
           <g
             role="button"
             tabIndex={0}
@@ -1169,8 +1243,8 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
             }}
           >
             <image
-              href={ZOO_OCTOPUS_BACKPACK_ART.href}
-              {...placeArt(ZOO_OCTOPUS_BACKPACK_ART, 150, PLAZA_CENTRE)}
+              href={finale ? OCTOPUS_ART.href : ZOO_OCTOPUS_BACKPACK_ART.href}
+              {...placeArt(finale ? OCTOPUS_ART : ZOO_OCTOPUS_BACKPACK_ART, 150, PLAZA_CENTRE)}
               preserveAspectRatio="xMidYMid meet"
             />
           </g>
