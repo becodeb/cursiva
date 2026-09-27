@@ -230,6 +230,39 @@ function isPageHidden(): boolean {
   }
 }
 
+/** `window.__sfxDebug` — a per-name fire count, ONLY kept while `?debug=sfx`
+ *  is on the URL. Browser QA (this task's own brief: "instrument: count the
+ *  scheduled sounds by name") reads this off a live page instead of needing
+ *  a real speaker; it is never referenced by production code. */
+declare global {
+  interface Window {
+    __sfxDebug?: Partial<Record<SfxName, number>>
+  }
+}
+
+function debugEnabled(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return new URLSearchParams(window.location.search).get('debug') === 'sfx'
+  } catch {
+    return false
+  }
+}
+
+/** Bump `window.__sfxDebug[name]` — called only once `playSfx` has already
+ *  passed every real gate (mute, hidden tab, no audio device), so the count
+ *  is exactly "how many times this sound was actually scheduled to play",
+ *  the number the QA script's own expectations compare against. */
+function recordDebugFire(name: SfxName): void {
+  if (!debugEnabled()) return
+  try {
+    window.__sfxDebug = window.__sfxDebug ?? {}
+    window.__sfxDebug[name] = (window.__sfxDebug[name] ?? 0) + 1
+  } catch {
+    // best-effort: a debug counter must never break real playback
+  }
+}
+
 /** Schedule one note's own oscillator + gain envelope, `origin` seconds
  *  after `ctx`'s own clock zero. A stepped gain clicks (the same reason
  *  `canvas/traceTone.ts` ramps instead of stepping), so both edges are
@@ -289,6 +322,7 @@ export function playSfx(name: SfxName, options: PlaySfxOptions = {}): void {
   const def = name === 'collect' ? collectDef(options.index ?? 0) : FIXED_PALETTE[name]
   const audio = options.ctx === undefined ? sharedAudioContext() : options.ctx
   if (!audio) return
+  recordDebugFire(name) // ?debug=sfx QA counter — only past every real gate above
   try {
     resumeAudio(audio) // autoplay policy, best-effort
     const origin = audio.currentTime
