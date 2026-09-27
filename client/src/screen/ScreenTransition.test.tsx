@@ -9,7 +9,7 @@
 // unchanged.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import ScreenTransition from './ScreenTransition'
+import ScreenTransition, { ROOT_VIEW_TRANSITION_CSS, ROOT_VIEW_TRANSITION_DURATION_MS } from './ScreenTransition'
 
 describe('ScreenTransition (T24: the lupa wipe replaces the plain fade)', () => {
   it('wraps its children in the wipe class by default, unchanged otherwise', () => {
@@ -87,5 +87,39 @@ describe('ScreenTransition (T24: the lupa wipe replaces the plain fade)', () => 
     expect(html).not.toContain('cv-screen-wipe')
     expect(html).not.toContain('clip-path')
     expect(html).toContain('<p>hola</p>')
+  })
+})
+
+// T31 follow-up (`odd/tasks/prewriting-stage-completion.md`, "the abrupt
+// night ending"): `GameScreen.tsx` renders `ROOT_VIEW_TRANSITION_CSS`
+// itself, globally, whenever a native View Transition might play for a real
+// screen change — never from THIS component (the test above proves
+// `kind='none'` stays exactly what it always was: no animation, no
+// clip-path, of ITS own).
+describe('ROOT_VIEW_TRANSITION_CSS (T31 follow-up)', () => {
+  it('keeps the outgoing snapshot static (no fade) and grows the incoming one via clip-path — never the UA default cross-fade', () => {
+    expect(ROOT_VIEW_TRANSITION_CSS).toContain('::view-transition-old(root)')
+    expect(ROOT_VIEW_TRANSITION_CSS).toContain('animation: none')
+    expect(ROOT_VIEW_TRANSITION_CSS).toContain('::view-transition-new(root)')
+    expect(ROOT_VIEW_TRANSITION_CSS).toContain('clip-path: circle(0%')
+    expect(ROOT_VIEW_TRANSITION_CSS).toContain('clip-path: circle(150%')
+  })
+
+  it('carries a reduced-motion override that collapses the crossing to a direct cut', () => {
+    expect(ROOT_VIEW_TRANSITION_CSS).toContain('@media (prefers-reduced-motion: reduce)')
+    expect(ROOT_VIEW_TRANSITION_CSS).toContain('::view-transition-group(root)')
+  })
+
+  it('introduces no url(#…) or SVG mask reference of its own', () => {
+    expect(ROOT_VIEW_TRANSITION_CSS).not.toContain('url(#')
+    expect(ROOT_VIEW_TRANSITION_CSS).not.toContain('<mask')
+  })
+
+  it('the growth duration matches the constant this file exports (no drift between the two)', () => {
+    expect(ROOT_VIEW_TRANSITION_CSS).toContain(`cv-root-view-transition-wipe-in ${ROOT_VIEW_TRANSITION_DURATION_MS}ms`)
+  })
+
+  it('finishes within the ≤350ms transition budget', () => {
+    expect(ROOT_VIEW_TRANSITION_DURATION_MS).toBeLessThanOrEqual(350)
   })
 })

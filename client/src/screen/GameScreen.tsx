@@ -4,6 +4,7 @@
 // through the pure `nextView` reducer so the flow is node-testable without a DOM
 // (same pattern as MainScreen's `nextWord`/`flowWord`).
 import { useState, type CSSProperties, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import LevelMap from './LevelMap'
 import LevelPlay from './LevelPlay'
 import Deduction from './Deduction'
@@ -19,7 +20,8 @@ import { isDevMode } from '../canvas/devMode'
 import { sectorOf } from '../zoo/sectors'
 import { adventureFor, closingLevel, introLevel, isRescued } from '../zoo/adventures'
 import { adventureProgress } from '../zoo/progress'
-import ScreenTransition from './ScreenTransition'
+import { prefersReducedMotion, supportsViewTransitions } from '../zoo/rescueFlight'
+import ScreenTransition, { ROOT_VIEW_TRANSITION_CSS, type ScreenTransitionKind } from './ScreenTransition'
 
 /** Where the session currently is. `finished` marks the end of the catalog.
  * `deduce` is the detective mode's own view (design.md "Decision: deduction
@@ -67,6 +69,33 @@ export function screenTransitionKey(view: GameView): string {
     case 'deduce':
       return `deduce:${view.caseId}`
   }
+}
+
+/**
+ * `odd/tasks/prewriting-stage-completion.md` T31 follow-up ("the abrupt
+ * night ending"): a real screen change (`level → next-level`, `level →
+ * closing`, and every other hop this shell drives) used to cut instantly —
+ * `ScreenTransition`'s own key-swap remount tears the outgoing screen down
+ * before its growing-circle wipe has anything left to reveal OVER. Handing
+ * a real change to the browser's native View Transitions API
+ * (`document.startViewTransition`, `screen/ScreenTransition.tsx`'s own
+ * `ROOT_VIEW_TRANSITION_CSS`) fixes that: it snapshots the outgoing DOM
+ * BEFORE the state update unmounts it, something no React-only mechanism
+ * can do once `LevelPlay`'s own `key={state.levelId}` remounts it.
+ *
+ * An IN-PLACE update (same `screenTransitionKey`, e.g. `AdventureClosing`
+ * advancing to its next beat) must never take this path: `ScreenTransition`
+ * itself does not even remount for it (D3, this file's own header), and
+ * wrapping an in-place re-render in `startViewTransition` would compete
+ * with `AdventureClosing`'s own `cv-bubble-pop` pop-in for a change nothing
+ * asked to be captured as an outgoing/incoming snapshot pair. `capable`/
+ * `reduced` are passed in (never read from `document`/`window` here) so
+ * this stays a pure, directly-testable decision — the same split
+ * `zoo/rescueFlight.ts`'s own `supportsViewTransitions`/
+ * `prefersReducedMotion` already keep pure for the exact same reason.
+ */
+export function shouldUseViewTransition(from: GameView, to: GameView, capable: boolean, reduced: boolean): boolean {
+  return capable && !reduced && screenTransitionKey(from) !== screenTransitionKey(to)
 }
 
 /**
@@ -546,7 +575,49 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
   // re-renders this shell so both children re-read them after a write.
   const [version, setVersion] = useState(0)
 
-  const dispatch = (action: GameAction): void => setState((s) => nextView(s, action))
+  // T31 follow-up (`odd/tasks/prewriting-stage-completion.md`, "the abrupt
+  // night ending"): every real screen change in this shell now routes
+  // through `advanceView`, which hands the crossing to the browser's native
+  // View Transitions API when it is available (this file's own
+  // `shouldUseViewTransition`) — `document.startViewTransition` snapshots
+  // the OUTGOING screen before `setState` unmounts it, which is what lets
+  // `screen/ScreenTransition.tsx`'s own `ROOT_VIEW_TRANSITION_CSS` grow a
+  // circle OVER a still-visible frozen frame instead of blank page
+  // background. `capable` is read fresh per call (never cached in state):
+  // a `document.startViewTransition` capability check is a plain feature
+  // test, the same "read it where it is used" convention
+  // `zoo/rescueFlight.ts`'s own callers already follow for the identical
+  // check. An in-place update (same screen, e.g. a closing beat advancing)
+  // still calls `setState` directly, unwrapped — `shouldUseViewTransition`'s
+  // own header explains why.
+  const advanceView = (next: GameView): void => {
+    const capable =
+      typeof document !== 'undefined' && supportsViewTransitions(document as unknown as { startViewTransition?: unknown })
+    const reduced = prefersReducedMotion(
+      typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-reduced-motion: reduce)')
+        : null,
+    )
+    if (!shouldUseViewTransition(state, next, capable, reduced)) {
+      setState(next)
+      return
+    }
+    ;(document as unknown as { startViewTransition: (cb: () => void) => void }).startViewTransition(() => {
+      flushSync(() => setState(next))
+    })
+  }
+  // Whether THIS render's screen is (about to be) crossed via a native View
+  // Transition — decides `ScreenTransition`'s own `kind` for every branch
+  // below: `'none'` hands the whole visual event to
+  // `ROOT_VIEW_TRANSITION_CSS` (never both a manual wipe AND a native
+  // crossfade for the same hop); `'wipe'` is the fallback for a browser
+  // without View Transitions, where there is no outgoing snapshot to bridge
+  // from either way, so the pre-existing manual wipe is the best available.
+  const nativeTransitionsAvailable =
+    typeof document !== 'undefined' && supportsViewTransitions(document as unknown as { startViewTransition?: unknown })
+  const screenTransitionKind: ScreenTransitionKind = nativeTransitionsAvailable ? 'none' : 'wipe'
+
+  const dispatch = (action: GameAction): void => advanceView(nextView(state, action))
 
   if (state.view === 'intro') {
     // The narrative entry (docs/13 §5 item 1, design.md §4): shown once per
@@ -557,12 +628,15 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
     const adventure = introLevel(state.levelId)
     if (adventure) {
       return (
-        <ScreenTransition screenKey={screenTransitionKey(state)}>
-          <AdventureIntro
-            adventure={adventure}
-            onStart={() => dispatch({ type: 'play', levelId: state.levelId })}
-          />
-        </ScreenTransition>
+        <>
+          <style>{ROOT_VIEW_TRANSITION_CSS}</style>
+          <ScreenTransition screenKey={screenTransitionKey(state)} kind={screenTransitionKind}>
+            <AdventureIntro
+              adventure={adventure}
+              onStart={() => dispatch({ type: 'play', levelId: state.levelId })}
+            />
+          </ScreenTransition>
+        </>
       )
     }
     // Unknown/stale id: fall through to the ordinary play render below,
@@ -589,18 +663,21 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
       const index = state.beat ?? 0
       const beat = adventure.closingBeat![index] ?? adventure.closingBeat![0]
       return (
-        <ScreenTransition screenKey={screenTransitionKey(state)}>
-          <AdventureClosing
-            adventure={adventure}
-            beat={beat}
-            onContinue={() => {
-              const action = advanceClosing(state.levelId, index, store.all())
-              if (action.type === 'exit') onExit()
-              else if (action.type === 'enter') setState(action.view)
-              else setState({ view: 'close', levelId: state.levelId, beat: action.beat })
-            }}
-          />
-        </ScreenTransition>
+        <>
+          <style>{ROOT_VIEW_TRANSITION_CSS}</style>
+          <ScreenTransition screenKey={screenTransitionKey(state)} kind={screenTransitionKind}>
+            <AdventureClosing
+              adventure={adventure}
+              beat={beat}
+              onContinue={() => {
+                const action = advanceClosing(state.levelId, index, store.all())
+                if (action.type === 'exit') onExit()
+                else if (action.type === 'enter') advanceView(action.view)
+                else advanceView({ view: 'close', levelId: state.levelId, beat: action.beat })
+              }}
+            />
+          </ScreenTransition>
+        </>
       )
     }
     // Unknown/stale id: fall through to the ordinary play render below, the
@@ -625,12 +702,14 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
       // shell", "show the transformation" or "enter the next adventure".
       const action = resolveNextAction(state.levelId, store.all())
       if (action.type === 'exit') onExit()
-      else if (action.type === 'close') setState({ view: 'close', levelId: action.levelId })
-      else if (action.type === 'enter') setState(action.view)
+      else if (action.type === 'close') advanceView({ view: 'close', levelId: action.levelId })
+      else if (action.type === 'enter') advanceView(action.view)
       else dispatch(action)
     }
     return (
-      <ScreenTransition screenKey={screenTransitionKey(state)}>
+      <>
+      <style>{ROOT_VIEW_TRANSITION_CSS}</style>
+      <ScreenTransition screenKey={screenTransitionKey(state)} kind={screenTransitionKind}>
         <LevelPlay
           key={state.levelId}
           level={level}
@@ -668,6 +747,7 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
           </button>
         )}
       </ScreenTransition>
+      </>
     )
   }
 
@@ -699,7 +779,9 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
       if (afterLevelId) dispatch({ type: 'next', levelId: afterLevelId })
     }
     return (
-      <ScreenTransition screenKey={screenTransitionKey(state)}>
+      <>
+      <style>{ROOT_VIEW_TRANSITION_CSS}</style>
+      <ScreenTransition screenKey={screenTransitionKey(state)} kind={screenTransitionKind}>
         <Deduction
           kase={kase}
           solved={store.get(solvedId).approvals >= 1}
@@ -715,11 +797,14 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
           </button>
         )}
       </ScreenTransition>
+      </>
     )
   }
 
   return (
-    <ScreenTransition screenKey={screenTransitionKey(state)}>
+    <>
+    <style>{ROOT_VIEW_TRANSITION_CSS}</style>
+    <ScreenTransition screenKey={screenTransitionKey(state)} kind={screenTransitionKind}>
       <LevelMap
         key={version}
         store={store}
@@ -734,6 +819,7 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
       />
       {footer}
     </ScreenTransition>
+    </>
   )
 }
 
