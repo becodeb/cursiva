@@ -23,6 +23,7 @@ import {
 import {
   animalPlacements,
   isFiled,
+  overlapArea,
   PLAZA_CENTRE,
   type Records,
   type Rect,
@@ -726,12 +727,6 @@ function bubbleBoxFor(anchor: BubbleAnchor): Rect {
   return { x: onLeft ? left : right, y: onTop ? above : below, w: BUBBLE_WIDTH, h: BUBBLE_HEIGHT }
 }
 
-function overlapArea(a: Rect, b: Rect): number {
-  const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x))
-  const oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y))
-  return ox * oy
-}
-
 function insideStage(box: Rect): boolean {
   return box.x >= 0 && box.y >= 0 && box.x + box.w <= 1000 && box.y + box.h <= 600
 }
@@ -741,20 +736,30 @@ function insideStage(box: Rect): boolean {
  * `targetHit` (the spotlight's own destination, `screen/ZooMap.tsx`) and
  * stays fully on-screen at every measured viewport (`docs/18` D4, D7). The
  * four anchors (`BUBBLE_ANCHORS`, in that order) are tried in turn; the
- * first that both fits the stage and does not intersect `targetHit` wins.
- * If all four intersect it (a target hit large or central enough to reach
- * every quadrant), the one with the SMALLEST overlap area wins instead of
- * leaving the choice undefined — a corner still has to be picked, and the
- * least-bad one reads better than an arbitrary fixed default. Pure: no
- * randomness, no DOM, so `adventures.test.ts` asserts it directly against
- * every sector's own hit rect.
+ * first that both fits the stage and does not intersect `targetHit` OR any
+ * of `avoid` wins. If every anchor intersects something (a target hit large
+ * or central enough to reach every quadrant, or enough `avoid` boxes
+ * scattered around the plaza), the one with the SMALLEST TOTAL overlap area
+ * wins instead of leaving the choice undefined — a corner still has to be
+ * picked, and the least-bad one reads better than an arbitrary fixed
+ * default. Pure: no randomness, no DOM, so `adventures.test.ts` asserts it
+ * directly against every sector's own hit rect.
+ *
+ * `avoid` (T32, `odd/tasks/prewriting-stage-completion.md`, N1 — `docs/18`
+ * §7: "el globo del mapa esquiva el lugar destacado, pero puede tapar un
+ * animal ya rescatado de otro sector, por ejemplo el pato, cuando el foco
+ * está en el bosque") defaults to `[]`, so every pre-T32 call — including
+ * `finaleBubblePlacement` below — stays byte-identical: `targetHit` alone is
+ * still the only obstacle unless a caller hands in more. `screen/ZooMap.tsx`
+ * is the one caller that does, passing every currently-standing animal's own
+ * box alongside the spotlight target.
  */
-export function bubblePlacement(targetHit: Rect): BubbleBox {
+export function bubblePlacement(targetHit: Rect, avoid: readonly Rect[] = []): BubbleBox {
+  const obstacles = [targetHit, ...avoid]
+  const totalOverlap = (box: Rect) => obstacles.reduce((sum, o) => sum + overlapArea(box, o), 0)
   const candidates = BUBBLE_ANCHORS.map((anchor) => ({ anchor, box: bubbleBoxFor(anchor) }))
-  const clear = candidates.find((c) => insideStage(c.box) && overlapArea(c.box, targetHit) === 0)
-  const chosen =
-    clear ??
-    candidates.reduce((min, c) => (overlapArea(c.box, targetHit) < overlapArea(min.box, targetHit) ? c : min))
+  const clear = candidates.find((c) => insideStage(c.box) && totalOverlap(c.box) === 0)
+  const chosen = clear ?? candidates.reduce((min, c) => (totalOverlap(c.box) < totalOverlap(min.box) ? c : min))
   return { ...chosen.box, anchor: chosen.anchor }
 }
 

@@ -5,7 +5,7 @@
 // `HomeScreen.test.tsx`/`CaptionedArt.test.tsx` already use.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import ZooMap, { fogClassFor, spotlightHolePath } from './ZooMap'
+import ZooMap, { fogClassFor, playBadgePlacement, spotlightHolePath } from './ZooMap'
 import { auditCaptions } from '../detective/captionAudit'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import { hitCentre, SECTORS, type Records } from '../zoo/sectors'
@@ -685,5 +685,81 @@ describe('ZooMap backpack discoverability (T31)', () => {
     const block = styleMatch![1].slice(styleMatch![1].indexOf('.cv-zoo-hud-left--pulse'))
     expect(block).not.toContain('url(#')
     expect(block).not.toContain('<mask')
+  })
+})
+
+describe('ZooMap full-bleed viewBox (T32, prewriting-stage-completion.md): SSR baseline', () => {
+  it('renders the plain 1000x600 stage server-side — no container size is ever measurable under renderToString, so displayBounds falls back to MAP_STAGE_BOX byte-identically to before T32', () => {
+    const html = render()
+    expect(html).toContain('viewBox="0 0 1000 600"')
+    // The background rect and the map image are sized to the SAME box.
+    expect(html).toContain('<rect x="0" y="0" width="1000" height="600"')
+  })
+})
+
+describe('spotlightHolePath outer param (T32): the dim layer covers whatever box is actually drawn', () => {
+  const hit = { x: 100, y: 50, w: 200, h: 120 }
+
+  it('defaults to MAP_STAGE_BOX — byte-identical to the pre-T32 fixed 1000x600 outer rect', () => {
+    expect(spotlightHolePath(hit)).toBe(spotlightHolePath(hit, 30, { x: 0, y: 0, width: 1000, height: 600 }))
+    expect(spotlightHolePath(hit).startsWith('M 0 0 H 1000 V 600 H 0 Z')).toBe(true)
+  })
+
+  it('grows the outer rect to a wider/taller/off-origin displayBounds, keeping the SAME hole', () => {
+    const grown = spotlightHolePath(hit, 30, { x: 0, y: -75, width: 1000, height: 750 })
+    expect(grown.startsWith('M 0 -75 H 1000 V 675 H 0 Z')).toBe(true)
+    // The hole itself (everything after the outer rect's own "Z") is
+    // unaffected by the outer box growing — only the dimmed AREA changes.
+    const plain = spotlightHolePath(hit)
+    const plainHole = plain.slice(plain.indexOf('Z') + 1)
+    const grownHole = grown.slice(grown.indexOf('Z') + 1)
+    expect(grownHole).toBe(plainHole)
+  })
+})
+
+describe('playBadgePlacement (T32, N4: the play badge must never sit on top of a rescued animal)', () => {
+  it('stays at the hit centre when nothing occupies it (the pre-T32 placement, unchanged)', () => {
+    const hit = { x: 100, y: 50, w: 200, h: 120 }
+    expect(playBadgePlacement(hit, [])).toEqual(hitCentre(hit))
+  })
+
+  it('moves off-centre when an animal box sits on the hit centre, landing clear of it', () => {
+    const hit = { x: 660, y: 68, w: 280, h: 200 } // ESTANQUE_HIT
+    const centre = hitCentre(hit)
+    const animalBox = { x: centre.x - 40, y: centre.y - 40, w: 80, h: 80 }
+    const placed = playBadgePlacement(hit, [animalBox])
+    expect(placed).not.toEqual(centre)
+    const overlapX = Math.min(placed.x + 30, animalBox.x + animalBox.w) - Math.max(placed.x - 30, animalBox.x)
+    const overlapY = Math.min(placed.y + 30, animalBox.y + animalBox.h) - Math.max(placed.y - 30, animalBox.y)
+    expect(Math.max(0, overlapX) * Math.max(0, overlapY)).toBe(0)
+  })
+
+  it("N4's own named example: the estanque's hit centre and the duck's own box (`animalPlacements`) genuinely overlap before this fix, and playBadgePlacement resolves it", () => {
+    const hit = estanque.hit!
+    const duck = { id: 'pato' as const, dx: 0, dy: 0, size: 96, appearsWhen: [] }
+    const duckArt = { w: 368, h: 448 } // ZOO_ANIMAL_ART.pato, STANDING_GRIP
+    const centre = hitCentre(hit)
+    const spot = estanque.animalSpot
+    const width = (duck.size * duckArt.w) / duckArt.h
+    const duckBox = { x: spot.x + duck.dx - width / 2, y: spot.y + duck.dy - duck.size, w: width, h: duck.size }
+    // Confirms the bug this task fixes: the OLD placement (bare hit centre)
+    // really did overlap the duck's own box.
+    const oldOverlapX = Math.min(centre.x + 30, duckBox.x + duckBox.w) - Math.max(centre.x - 30, duckBox.x)
+    const oldOverlapY = Math.min(centre.y + 30, duckBox.y + duckBox.h) - Math.max(centre.y - 30, duckBox.y)
+    expect(Math.max(0, oldOverlapX) * Math.max(0, oldOverlapY)).toBeGreaterThan(0)
+    const placed = playBadgePlacement(hit, [duckBox])
+    const newOverlapX = Math.min(placed.x + 30, duckBox.x + duckBox.w) - Math.max(placed.x - 30, duckBox.x)
+    const newOverlapY = Math.min(placed.y + 30, duckBox.y + duckBox.h) - Math.max(placed.y - 30, duckBox.y)
+    expect(Math.max(0, newOverlapX) * Math.max(0, newOverlapY)).toBe(0)
+  })
+
+  it('still resolves to a real point when every ring candidate and the centre overlap something (least-overlap fallback, never undefined)', () => {
+    const hit = { x: 0, y: 0, w: 100, h: 100 }
+    // A single huge obstacle covering the whole ring's own bounding box —
+    // every candidate, including the centre, overlaps it.
+    const everywhere = { x: -1000, y: -1000, w: 3000, h: 3000 }
+    const placed = playBadgePlacement(hit, [everywhere])
+    expect(Number.isFinite(placed.x)).toBe(true)
+    expect(Number.isFinite(placed.y)).toBe(true)
   })
 })

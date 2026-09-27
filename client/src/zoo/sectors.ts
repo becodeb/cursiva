@@ -131,6 +131,23 @@ const STAGE_W = 1000
 const STAGE_H = 600
 
 /**
+ * The whole map stage, exactly the box every registered layer below is
+ * already authored against (`SECTORS`' own `hit`/`animalSpot`/`fog`, `PLAZA`,
+ * `footprintTrail`) — nothing in this registry moves for T32
+ * (`odd/tasks/prewriting-stage-completion.md`, full-bleed map). It is the
+ * `box` `screen/ZooMap.tsx` hands `canvas/TraceCanvas.tsx`'s
+ * `fitContentWithInsets` (the SAME minimum-zoom-cover function `docs/18` §7's
+ * T7/T14/T22 rows already proved for level backdrops): that function grows
+ * the VIEWBOX drawn around this box to cover the real container at whatever
+ * aspect the device has, while this box itself — and therefore every
+ * coordinate inside it — never changes. `ArtBox`'s own `width`/`height`
+ * naming (rather than this file's `Rect`'s `w`/`h`) is deliberate: this is
+ * the literal argument shape `fitContentWithInsets` takes, not a second
+ * struct it has to be converted into at the one call site.
+ */
+export const MAP_STAGE_BOX: ArtBox = { x: 0, y: 0, width: STAGE_W, height: STAGE_H }
+
+/**
  * A point on `zoo-map.png`, in its own pixels, expressed in viewBox units.
  *
  * `xMidYMid slice` covers the stage, so it scales by the LARGER of the two
@@ -526,7 +543,20 @@ export const SECTORS: readonly ZooSector[] = [
     // The sector's first recovered animal (`radial-spines` design.md §8.2):
     // the erizo, at the existing `animalSpot`, once `hedgehog4` is filed —
     // the same shape every other recovered animal uses (`vibora` above).
-    animals: [{ id: 'erizo', dx: 0, dy: 0, size: 90, appearsWhen: ['hedgehog4'] }],
+    //
+    // [T32, `odd/tasks/prewriting-stage-completion.md`, N2] `size` used to be
+    // 90 — `HEDGEHOG_ART.profile` is 448×306 (aspect 1.464, a wide side-on
+    // profile, `detective/assets.ts`), so 90 rendered a 131.8-unit-WIDE box,
+    // wider than every other animal standing alone in its own sector
+    // (`oveja` 78.75, `pato` 78.9, `delfin` 77.3, `llama` 64 — measured the
+    // same way, `size × art.w / art.h`) and second only to `vibora`'s own
+    // explicitly-documented 130-unit exception for a snake's long body. A
+    // hedgehog is not a llama or a duck; 48 — `abeja`'s own height, the
+    // closest single-animal peer in scale — renders 70.3 units wide,
+    // squarely inside the 64-79 cluster the rest of the solo animals share.
+    // Confirmed by measuring rendered `getBoundingClientRect()` heights in
+    // the real browser (T32 QA), side by side with `oveja`/`delfin`/`abeja`.
+    animals: [{ id: 'erizo', dx: 0, dy: 0, size: 48, appearsWhen: ['hedgehog4'] }],
     // A second adventure joins an already-open sector (design.md §8.2,
     // amendment 9's precedent: `entrada` — glass then sand; `montañas` —
     // sheep then llama). `unlockedWhen` below is UNCHANGED: adding an
@@ -762,3 +792,53 @@ export function coversRect(boxes: readonly ArtBox[], target: Rect): boolean {
  *  registry↔catalog structural test both need this same set, so it is
  *  computed once here rather than twice. */
 export const REAL_LEVEL_IDS: ReadonlySet<string> = new Set(LEVELS.map((level) => level.id))
+
+/**
+ * The overlap AREA of two axis-aligned `Rect`s, 0 when they do not intersect
+ * at all — T32's (`odd/tasks/prewriting-stage-completion.md`) shared
+ * obstacle-avoidance primitive: `zoo/adventures.ts`'s `bubblePlacement` (N1,
+ * "never cover a rescued animal") and `screen/ZooMap.tsx`'s
+ * `playBadgePlacement` (N4, "never sit on top of an animal") both need "does
+ * this candidate box collide with that obstacle", and neither should carry
+ * its own independent copy of the same four-line rectangle-intersection
+ * formula — `bubblePlacement`'s own pre-T32 private copy is now this
+ * function, imported rather than restated.
+ */
+export function overlapArea(a: Rect, b: Rect): number {
+  const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x))
+  const oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y))
+  return ox * oy
+}
+
+/**
+ * A stage-space `Rect` (the same coordinate system `hit`/`animalSpot`/the
+ * bubble's own box already use) converted into a PERCENT-of-container box —
+ * T32's own answer to "how does an HTML overlay outside the `<svg>` (the
+ * speech bubble, `screen/ZooMap.tsx`) track a viewBox coordinate once the
+ * viewBox is no longer the fixed `MAP_STAGE_BOX`, but `displayBounds`, the
+ * container-covering box `fitContentWithInsets` returns".
+ *
+ * Valid whenever the `<svg>`'s own rendered CSS box has EXACTLY
+ * `displayBounds`'s aspect ratio — true by construction whenever
+ * `displayBounds` came from feeding `fitContentWithInsets` the SAME measured
+ * container size this percent is placed against (`coverAspectRatio`'s own
+ * proven guarantee, `canvas/TraceCanvas.tsx`'s header) — which is why this
+ * needs no separate "rendered svg box" argument at all, unlike
+ * `zoo/rescueFlight.ts`'s `viewBoxRectToScreenRect` (that one converts to
+ * actual CSS PIXELS for an `<img>` overlay measured against a real
+ * `getBoundingClientRect`, where a mismatched aspect under a `meet`/`slice`
+ * fit still has to be centred for). Percent-of-a-matching-aspect-container is
+ * resolution-independent: no separate scale from the one the `<svg>` itself
+ * already draws with.
+ */
+export function stageRectToPercent(
+  rect: Rect,
+  displayBounds: ArtBox,
+): { left: number; top: number; width: number; height: number } {
+  return {
+    left: ((rect.x - displayBounds.x) / displayBounds.width) * 100,
+    top: ((rect.y - displayBounds.y) / displayBounds.height) * 100,
+    width: (rect.w / displayBounds.width) * 100,
+    height: (rect.h / displayBounds.height) * 100,
+  }
+}
