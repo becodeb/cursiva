@@ -17,6 +17,7 @@ import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 import {
   OCTOPUS_CORNER_INSET,
   OCTOPUS_CORNER_SIZE_PCT,
+  PROLOGUE_OCTOPUS_SIZE_PCT,
   octopusBoxAtCorner,
   stageSizePx,
   stanceBubbleSide,
@@ -193,7 +194,7 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
   interface Case {
     readonly id: string
     readonly text: string
-    readonly art: ArtImage
+    readonly art?: ArtImage
   }
 
   const cases: Case[] = []
@@ -203,16 +204,20 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
       cases.push({ id: `${adventure.id}: closingBeat[${i}]`, text: beat.line, art: beat.art })
     }
   }
-  // The prologue's own three lines (`PrologueOpening.tsx` is explicitly out
-  // of scope for T18, `docs/19` §4.2 — "sin cambios por ahora" — so it does
-  // not call this engine today), included anyway per the orchestrator's own
-  // follow-up ("no line of any adventure/prologue line breaks... at the 4
-  // viewports"): this proves the FIT ENGINE ITSELF is word-safe for every
-  // line of story text this game ships, not only the two screens T18
-  // happens to have wired it into yet.
-  for (const plate of PROLOGUE_PLATES) {
-    cases.push({ id: `prologue: ${plate.line}`, text: plate.line, art: plate.art })
-  }
+  // The prologue's own three lines are deliberately NOT swept here any more
+  // (T36, `odd/tasks/prewriting-stage-completion.md`): `PrologueOpening.tsx`
+  // now DOES call this engine (it used to sit outside T18's scope entirely,
+  // `docs/19` §4.2), but with its OWN geometry — `ZOO_CARETAKER_ART` sized
+  // by HEIGHT (`PROLOGUE_OCTOPUS_SIZE_PCT`), never the
+  // `ZOO_OCTOPUS_BACKPACK_ART`-by-width pair this block validates for every
+  // adventure. Reusing this block's own headBox for the prologue's lines
+  // would validate a geometry the app never actually ships — exactly the
+  // `screen/Deduction.tsx` mismatch the orchestrator's own T21 follow-up
+  // round 3 review caught (comment below). See the dedicated
+  // "screen/PrologueOpening.tsx's own bubble lines" describe block instead,
+  // which builds the EXACT octopusBoxAtCorner/frame-size pair that screen
+  // actually renders with.
+  //
   // screen/Deduction.tsx's own lines are deliberately NOT swept here any
   // more (T21 follow-up round 3): that screen's own Pulpito stage is a
   // DIFFERENT size from every other screen this sweep validates
@@ -296,6 +301,67 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
         }
       })
     }
+  }
+})
+
+// T36 (`odd/tasks/prewriting-stage-completion.md`, docs/18 D3):
+// screen/PrologueOpening.tsx now calls this SAME engine, but with its own
+// geometry — the caretaker (`ZOO_CARETAKER_ART`) sized BY HEIGHT
+// (`PROLOGUE_OCTOPUS_SIZE_PCT`), always in the LEFT corner, never varied —
+// the same "build the exact octopusBoxAtCorner/frame-size pair the screen
+// actually renders with" precedent `screen/Deduction.tsx`'s own dedicated
+// block below already establishes, restated here rather than folded into
+// the generic sweep above (this file's own comment on why, above).
+describe("placeAndFitBubble — screen/PrologueOpening.tsx's own bubble lines, at its own real stage size", () => {
+  const REQUIRED_VIEWPORTS: ReadonlyArray<readonly [number, number]> = [
+    [1024, 768],
+    [1180, 820],
+    [768, 1024],
+    [844, 390],
+  ]
+
+  it('the registry sweep actually covers every shipped plate (sanity: not accidentally empty)', () => {
+    expect(PROLOGUE_PLATES.length).toBeGreaterThanOrEqual(3)
+  })
+
+  const octopusBox = octopusBoxAtCorner(ZOO_CARETAKER_ART, {
+    corner: 'left',
+    sizeBy: 'height',
+    size: PROLOGUE_OCTOPUS_SIZE_PCT,
+    bottom: 2,
+    inset: OCTOPUS_CORNER_INSET,
+  })
+  const side = stanceBubbleSide('left')
+
+  for (const [vw, vh] of REQUIRED_VIEWPORTS) {
+    it(`viewport=${vw}x${vh}: every plate fits, at a readable font size, no word ever breaks`, () => {
+      const frame = { w: 100, h: 100 }
+      const framePx = stageSizePx(vw, vh)
+
+      for (const plate of PROLOGUE_PLATES) {
+        const { placement, content } = placeAndFitBubble({
+          frame,
+          headBox: octopusBox,
+          tail: ZOO_SPEECH_BUBBLE_TAIL,
+          side,
+          text: plate.line,
+          art: plate.art,
+        })
+        const fontPx = (content.fontSize / 100) * framePx
+        expect(content.fits, `${plate.line} (fontPx=${fontPx.toFixed(1)})`).toBe(true)
+        expect(fontPx, `${plate.line} (${vw}x${vh})`).toBeGreaterThanOrEqual(11)
+
+        const wideWidth = placement.width * CONTENT_WIDTH_FRAC
+        const assignments =
+          content.layout === 'float'
+            ? assignFloatingWordColumns(plate.line, content.fontSize, content.captionWidth, wideWidth, content.imageHeight, content.lineHeight)
+            : assignWordColumns(plate.line, content.fontSize, content.captionWidth)
+        expect(assignments.length, plate.line).toBe(plate.line.split(' ').filter((w) => w.length > 0).length)
+        for (const { word, width, columnWidth } of assignments) {
+          expect(width, `${plate.line} (${vw}x${vh}): "${word}" vs its own column`).toBeLessThanOrEqual(columnWidth + 1e-6)
+        }
+      }
+    })
   }
 })
 

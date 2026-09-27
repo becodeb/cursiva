@@ -33,7 +33,20 @@
 //                   duplicate was removed) — the big animal's <img> is a
 //                   sibling within this frame, exactly the `cv-deduction-
 //                   frame` precedent restated for this screen.
-export const CAPTION_CONTAINERS = ['cv-captioned', 'pistas-bar', 'cv-deduction-frame', 'cv-closing-frame'] as const
+// - `cv-prologue-frame` (T36, `odd/tasks/prewriting-stage-completion.md`,
+//                   `screen/PrologueOpening.tsx`): the SAME move again, for
+//                   the prologue's own first plate — its bubble is TEXT ONLY
+//                   (docs/18 D3: showing the caretaker's own portrait a
+//                   SECOND time, inside the bubble, was the defect this
+//                   fixes), and the big standing caretaker's own <img> is a
+//                   sibling within this frame.
+export const CAPTION_CONTAINERS = [
+  'cv-captioned',
+  'pistas-bar',
+  'cv-deduction-frame',
+  'cv-closing-frame',
+  'cv-prologue-frame',
+] as const
 
 export interface CaptionAudit {
   /** Words inside a licensed container that really does carry an image. */
