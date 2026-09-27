@@ -316,10 +316,17 @@ describe('LevelPlay chrome branch (design.md Orchestrator Correction C1)', () =>
 })
 
 describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
-  it('passes the glass art, drawn in ink, on a detective trail', () => {
+  // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "in the
+  // duckling levels I no longer move the magnifying glass but something
+  // weird"). `makeDetectiveLevel()`'s own default carries `carrier: false`
+  // (every OTHER test using it wants a plain, carrier-less fixture), so —
+  // like every real detective trail in `catalog.ts` ("Every trail sets
+  // `carrier: true`: that carrier IS the magnifying glass") — this test now
+  // asks for one explicitly, the same way `bee1`'s own carrier art test does.
+  it('passes the glass art, drawn in ink, on a detective trail that asks for a carrier', () => {
     renderToString(
       <LevelPlay
-        level={makeDetectiveLevel()}
+        level={makeDetectiveLevel({ carrier: true })}
         record={EMPTY_RECORD}
         onAttempt={noop}
         onNext={noop}
@@ -337,10 +344,20 @@ describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
     expect(art).toEqual(CARRIER_LENS_ART)
   })
 
-  it('passes the glass art on a world-only level too (gated on inDetectiveWorld, not isCaseTrail)', () => {
+  // T29: the gate used to be `inDetectiveWorld` alone (this test's own OLD
+  // title), independent of `level.carrier` — which is exactly what let
+  // `duck-trail3`/`duck-trail4` (and `dolphin1..4`/`f2-agua3`/`f2-agua4`,
+  // `carrier: true` but none of them `inDetectiveWorld` since T21/T26 traded
+  // their `clue` for `collect`) silently draw the OTHER `TraceCanvas.tsx`
+  // fallback (a plain rect+circle blob) instead of the lupa. The gate is now
+  // `level.carrier` alone, decoupled from world membership entirely — a
+  // world-only level with `carrier: true` still gets the lupa (proving world
+  // membership plays no part any more, not even to help), but so does any
+  // OTHER level that merely asks for a carrier.
+  it('passes the glass art on a world-only level with its own carrier too (gated on level.carrier, not world membership)', () => {
     renderToString(
       <LevelPlay
-        level={makeWorldOnlyLevel()}
+        level={makeWorldOnlyLevel({ carrier: true })}
         record={EMPTY_RECORD}
         onAttempt={noop}
         onNext={noop}
@@ -353,7 +370,7 @@ describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
     expect(art).toEqual(CARRIER_LENS_ART)
   })
 
-  it('passes no glass art on an ordinary level', () => {
+  it('passes no glass art on an ordinary level (carrier: false)', () => {
     renderToString(
       <LevelPlay
         level={makeLevel()}
@@ -438,9 +455,14 @@ describe('LevelPlay carrier-presence regression (§7.2: carrier:true + kind:"fre
       />,
     )
     expect(traceCanvasProbe.current?.carrier).toEqual(start)
-    // Not `inWorld` (no `clue`, no `detectiveWorld`), so the shipped default
-    // is `undefined` — the hard-wired lens is only for the detective world.
-    expect(traceCanvasProbe.current?.carrierArt).toBeUndefined()
+    // T29: this level is not `inWorld` (no `clue`, no `detectiveWorld`) — the
+    // shipped default USED TO read `undefined` here, on the theory that the
+    // hard-wired lens was only ever for the detective world. That theory is
+    // exactly what let `duck-trail3`/`duck-trail4` regress (see
+    // `LevelPlay.tsx`'s own `carrierArt` comment): the gate is now
+    // `level.carrier` alone, so a `carrier: true` level gets the lupa
+    // regardless of world membership, matching this test's own title.
+    expect(traceCanvasProbe.current?.carrierArt).toEqual(CARRIER_LENS_ART)
   })
 
   it('bee1 (the real catalog level) renders the bee at its authored start, with its own carrierArt and no CARRIER_LENS_ART', () => {
@@ -1162,6 +1184,45 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
     expect(traceCanvasProbe.current?.clues).toBeUndefined()
   })
 
+  // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
+  // wanted about 4 clues, not just 2"). Before this fix, `traceClueMarks`
+  // resolved every mark's picture off the level's single `clueDef.kind`
+  // (`LevelPlay.tsx`), so an alternating trail would have shown the SAME
+  // droplet at every mark, silently repainting over the corn kernels —
+  // `ClueMark.kind` was already per-mark in the type, just never read that
+  // way at the one render site that mattered.
+  it('duck-trail1 alternates droplet/corn art per mark, drained before any attempt', () => {
+    renderToString(
+      <LevelPlay level={getLevel('duck-trail1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const clues = traceCanvasProbe.current?.clues as
+      | { marks: readonly { href: string }[] }
+      | undefined
+    expect(clues?.marks.length).toBeGreaterThan(1)
+    const hrefs = clues!.marks.map((m) => m.href)
+    expect(hrefs[0]).toBe(CLUE_ART.droplet.art.drained.href)
+    expect(hrefs[1]).toBe(CLUE_ART.corn.art.drained.href)
+    expect(hrefs[2]).toBe(CLUE_ART.droplet.art.drained.href)
+    // Every mark is one of the two authored kinds — never a third, and never
+    // uniformly one kind repainted over the other.
+    expect(new Set(hrefs)).toEqual(
+      new Set([CLUE_ART.droplet.art.drained.href, CLUE_ART.corn.art.drained.href]),
+    )
+  })
+
+  it('duck-trail2 alternates feather/webfoot art per mark', () => {
+    renderToString(
+      <LevelPlay level={getLevel('duck-trail2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const clues = traceCanvasProbe.current?.clues as
+      | { marks: readonly { href: string }[] }
+      | undefined
+    const hrefs = clues!.marks.map((m) => m.href)
+    expect(new Set(hrefs)).toEqual(
+      new Set([CLUE_ART.feather.art.drained.href, CLUE_ART.webfoot.art.drained.href]),
+    )
+  })
+
   it('passes `ground` only on a detective trail, and memoises one field per route', () => {
     type Layer = { marks: unknown[]; art: unknown[] }
     const render = (level: LevelConfig): unknown => {
@@ -1352,6 +1413,68 @@ describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', (
       ).not.toThrow()
     }
     expect(() => onFrame([target.polyline[1]], true, 2000)).not.toThrow()
+  })
+
+  // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "if I
+  // pass quickly through the last sheep and lose by leaving the line, it
+  // counts as grabbed but not as passing the level, so I have to do it again
+  // with no sheep left"). Root cause: approval used to be decided ONLY at
+  // `onRelease`, but a wall-contact reset (`restartRun`, fired from THIS SAME
+  // `onFrame`) bumps `resetSignal`, which `TraceCanvas.tsx`'s reset effect
+  // answers with `abortStroke()` (`canvas/useTraceInput.ts`) — and that
+  // function's own doc comment says plainly: "both buffers are emptied and
+  // `onEnd` does NOT fire". So the very run that had just finished collecting
+  // could be discarded with NO `onRelease` ever called for it, and `onAttempt`
+  // never ran. The fix decides approval the INSTANT the last item is
+  // collected, in `onFrame` itself (`LevelPlay.tsx`'s `collectApprovedRef`),
+  // and stops `resetOnContact` from resetting a level that is already done.
+  it('T29: collecting the last item and then leaving the line long enough to normally trigger a wall-contact reset still approves the level immediately — no `onRelease` needed, and no later contradicting call', () => {
+    const level = getLevel('sheep-hill1')
+    const target = buildLevelTarget(level)
+    const onAttempt = vi.fn<(a: LevelAttempt) => void>()
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={onAttempt} onNext={noop} onBack={noop} />,
+    )
+    const onFrame = traceCanvasProbe.current?.onFrame as (
+      points: TracePoint[],
+      drawing: boolean,
+      timeMs: number,
+    ) => void
+    const onRelease = traceCanvasProbe.current?.onRelease as (
+      points: TracePoint[],
+      pointerType: string,
+      all: TracePoint[][],
+    ) => void
+    // Walk the whole route, in order — the LAST sample crosses the route's
+    // own end tolerance and collects the final item.
+    let t = 200
+    for (const p of target.polyline) {
+      onFrame([p], true, t)
+      t += 200
+    }
+    // Approved already, straight out of `onFrame` — no release happened yet.
+    expect(onAttempt).toHaveBeenCalledTimes(1)
+    expect(onAttempt.mock.calls[0][0].approved).toBe(true)
+    // Now leave the line, far off the corridor, for several consecutive
+    // samples — comfortably past `contactTick`'s own 2-sample debounce, so a
+    // wall-contact reset would normally fire here (`sheep-hill1` sets
+    // `resetOnContact: true`). The SAME/NEXT-sample scenario the playtest
+    // describes: the last item was JUST collected, and now the finger is
+    // off the line.
+    const half = (target.corridorWidth || 60) / 2
+    const last = target.polyline[target.polyline.length - 1]
+    for (let i = 0; i < 6; i++) {
+      onFrame([{ x: last.x + half * 10, y: last.y + half * 10 }], true, t)
+      t += 200
+    }
+    // No reset ever un-approves a finished collect level: still exactly the
+    // one call, from before the finger ever left the line.
+    expect(onAttempt).toHaveBeenCalledTimes(1)
+    // Whatever happens next — including an eventual release with a trivial,
+    // unrelated stroke — must not report a second, contradicting attempt for
+    // the same approval (`zoo/progress.ts` counts approvals/streaks per call).
+    onRelease([{ x: 0, y: 0 }], 'touch', [[{ x: 0, y: 0 }]])
+    expect(onAttempt).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -1666,6 +1789,27 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     render(getLevel('duck-trail4'))
     expect(traceCanvasProbe.current?.endArt).toBeUndefined()
   })
+
+  // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "in the
+  // duckling levels I no longer move the magnifying glass but something
+  // weird"). `duck-trail3`/`duck-trail4` kept `carrier: true` from before T21
+  // repurposed them from a clue trail to `collect`, but lost `inDetectiveWorld`
+  // in the same move (no `clue` left, and neither ever authored
+  // `detectiveWorld: true`) — and `LevelPlay.tsx`'s own `carrierArt` default
+  // used to be gated on THAT, not on `level.carrier`, so these two silently
+  // fell back to `TraceCanvas.tsx`'s OTHER fallback (a plain rect+circle
+  // blob, the "something weird") instead of the lupa every other trail in
+  // this sector shows. `dolphin1`/`f2-agua3` are the same defect class
+  // (`carrier: true`, `collect`, never `inDetectiveWorld`) on two entirely
+  // different families this task's own brief asked to check — proving the
+  // fix is the general `carrierArt` rule, not a duck-only patch.
+  it.each(['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4', 'dolphin1', 'f2-agua3'] as const)(
+    '%s keeps the lupa as its carrier art (not the plain rect+circle fallback)',
+    (id) => {
+      render(getLevel(id))
+      expect(traceCanvasProbe.current?.carrierArt).toEqual(CARRIER_LENS_ART)
+    },
+  )
 
   it('shows the star on every other routed level of a multi-level adventure with no clue of its own and no goalArt (hedgehog)', () => {
     // T17 moved this fixture off sheep-hill1..3: those levels now author

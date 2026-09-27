@@ -147,6 +147,26 @@ describe('the fish case (T26): the lineup is enclosure SIGNS, not animal silhoue
   })
 })
 
+// T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
+// wanted about 4 clues, not just 2"). `duck-trail1`/`duck-trail2` now each
+// author `clue.extraKind` (`levels/catalog.ts`) alongside their existing
+// RULING kind — `clueKindsOf` contributes both per trail, so the case's own
+// chip row shows all four while `ruledOutBy` (the actual deduction logic)
+// stays exactly as it was.
+describe("duck case: four clues from two trails (T29)", () => {
+  const duckCase = DETECTIVE_CASES.find((k) => k.id === 'duck')!
+
+  it('clueKindsOf derives all four kinds, in trail then kind/extraKind order', () => {
+    expect(clueKindsOf(duckCase)).toEqual(['droplet', 'corn', 'feather', 'webfoot'])
+  })
+
+  it('ruledOutBy is untouched: still exactly the two RULING kinds, never the two new bonus ones', () => {
+    expect(duckCase.ruledOutBy).toEqual({ vaca: 'feather', gato: 'droplet' })
+    expect(Object.values(duckCase.ruledOutBy)).not.toContain('corn')
+    expect(Object.values(duckCase.ruledOutBy)).not.toContain('webfoot')
+  })
+})
+
 describe('nightCaseOptions/resolveCase (the live lineup Deduction.tsx actually renders)', () => {
   it('always leads with the erizo, the culprit, regardless of progress', () => {
     expect(nightCaseOptions(rescuedOnly([]))[0]).toBe('erizo')

@@ -685,7 +685,20 @@ const PHASE_1: LevelConfig[] = [
     // [T21] `droplet`, not the pre-T21 `webfoot` — the duck case's own first
     // RULING clue (`cases.ts`'s `ruledOutBy.gato`), "the duck came out of the
     // water dripping" (`docs/19` §3's own pato flavour line).
-    clue: { kind: 'droplet', spacing: 60 },
+    //
+    // [T29, `odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
+    // wanted about 4 clues, not just 2"] `extraKind: 'corn'` — a SECOND,
+    // non-ruling collectible alternating with `droplet` along this same
+    // trail (`detective/clues.ts`'s `clueMarks` own `extraKind` parameter):
+    // corn kernels the duck pecked at the puddle's edge. Never added to
+    // `ruledOutBy` — `cases.test.ts`'s own "webfoot and breadcrumb rule
+    // nobody out" invariant is about those TWO kinds specifically, but the
+    // same principle applies here by choice: this task's own brief keeps
+    // the case's existing two-verdict shape (`vaca`/`feather`,
+    // `gato`/`droplet`) untouched, and only widens what the child physically
+    // collects and what the deduction's chip row shows (`clueKindsOf`, this
+    // trail now contributing BOTH kinds).
+    clue: { kind: 'droplet', spacing: 60, extraKind: 'corn' },
   },
   {
     id: 'duck-trail2',
@@ -709,7 +722,13 @@ const PHASE_1: LevelConfig[] = [
     // feathers"). This is the LAST pistas level (`cases.ts`'s
     // `duck.trailIds`): finishing it is what the map/`GameScreen` routes
     // into the deduction (`zoo/adventures.ts`'s `duck.deduction.after`).
-    clue: { kind: 'feather', spacing: 60 },
+    //
+    // [T29] `extraKind: 'webfoot'` — see `duck-trail1`'s own comment above
+    // for the full reasoning; the webbed footprint alternates with `feather`
+    // here, never ruling anyone out (`webfoot` reuses `PRINT`'s colour on
+    // purpose, `detective/assets.ts`, and `footprint` never appears in this
+    // case, so no palette collision).
+    clue: { kind: 'feather', spacing: 60, extraKind: 'webfoot' },
   },
   {
     id: 'duck-trail3',
@@ -2023,9 +2042,13 @@ const PHASE_2: LevelConfig[] = [
   // would get — necessary here because the sand channel (`SAND_HOLLOW`,
   // luma 52) fails the 55-luma law against the default slate ink by 12,
   // the same reason the snake adventure needs the identical override.
-  // `carrier: true` would be a silent no-op without `inWorld` true (no
-  // `carrierArt` would ever resolve, `LevelPlay.tsx:2526-2531`), which is
-  // exactly why sheep/llama leave it off too.
+  // `carrier: false` here is purely the ink-colour choice above — the lupa
+  // itself no longer depends on `inWorld` (T29 fixed `LevelPlay.tsx`'s
+  // `carrierArt` default, which used to silently drop it outside the
+  // detective world; see that fix's own comment). Turtle simply never asks
+  // for a carrier at all, the same choice sheep/llama make, because a
+  // magnifying glass has no place in a sand/nature sector that is not the
+  // detective's own story.
   //
   // `rules(2, true, true, fluency)`: `mustBeContinuous: true` because a
   // closed loop drawn with a pen lift is not the shape at all — turtle2-4's
