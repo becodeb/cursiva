@@ -47,7 +47,7 @@ import {
 import { DRAWN_SPINE } from './artCorridor'
 import type { Phase } from './types'
 import { HEDGEHOG_SILHOUETTE } from '../detective/assets'
-import { spineAnchors } from './spines'
+import { spineAnchors, spineSpikeLength } from './spines'
 import { TolTouch as TOL_TOUCH } from '../canvas/validation/constants'
 
 // docs/08 section 5 tables, after the detective-mode retheme and the reveal
@@ -1007,7 +1007,7 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
     // most half the anchor's own distance from the centroid, so a spike
     // never reaches anywhere near the far side of the body.
     //
-    // T30: checked against the RENDERED length — `(lenMin+lenMax)/2`, the
+    // T30: checked against the RENDERED length — `spineSpikeLength` (T39; the band midpoint before), the
     // one `spineSpikeOf` (`spines.ts`) actually draws — rather than `lenMax`
     // itself. `lenMax` is now a genuinely generous ACCEPTANCE ceiling (the
     // family header's own widened bands), never what reaches the screen: a
@@ -1021,7 +1021,7 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
       const anchors = spineAnchors(cfg)
       const { centre } = cfg.body
       const avgR = anchors.reduce((sum, a) => sum + Math.hypot(a.x - centre.x, a.y - centre.y), 0) / anchors.length
-      const renderedLen = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+      const renderedLen = spineSpikeLength(cfg.rules)
       expect(renderedLen, id).toBeLessThanOrEqual(avgR * 0.5)
     }
     // T19 (`odd/tasks/prewriting-stage-completion.md`, third tablet

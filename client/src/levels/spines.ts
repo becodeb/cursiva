@@ -48,6 +48,17 @@ export interface SpineRules {
   readonly straightness: number // measure 3, in (0, 1]
   readonly lenMin: number // measure 4, CHORD
   readonly lenMax: number
+  /** The length every accepted spine is DRAWN at (its spike, the demo, the
+   *  debug seed), viewBox units — never the child's own drawn length.
+   *  Absent = the band's midpoint, `(lenMin + lenMax) / 2`. T39: an explicit
+   *  value lets `lenMax` stay a generous ACCEPTANCE ceiling without making
+   *  the spike on screen any longer. */
+  readonly spikeLen?: number
+}
+
+/** The length a filled spine is drawn at — see {@link SpineRules.spikeLen}. */
+export function spineSpikeLength(rules: SpineRules): number {
+  return rules.spikeLen ?? (rules.lenMin + rules.lenMax) / 2
 }
 
 export interface SpineAnchor {
@@ -162,30 +173,88 @@ function dist(p: Point, a: { x: number; y: number }): number {
 }
 
 /**
+ * How far from an anchor a touch-down may land and still address it,
+ * viewBox units (≈ screen px at 1024×768) — measure 1's OUTER zone. T39
+ * (tablet play-test, "sometimes I draw it quite well and it still says I
+ * didn't"): `baseRadius` is capped by its own geometric ceiling (`2 ·
+ * baseRadius ≤` the nearest two anchors' chord, so two tolerance circles
+ * never overlap) — 27-28 units on the profile levels, less than a
+ * six-year-old's fingertip error once the finger lands on the small mark
+ * that sits `SPINE_MARK_R` OUTSIDE the anchor. Past `baseRadius`, a start
+ * still binds, up to this reach, but only to the anchor it is NEAREST to
+ * of ALL anchors (a Voronoi cell, so zones still never overlap) and only
+ * when that anchor is unfilled — a start closest to a spine that is
+ * already drawn never "steals" its neighbour.
+ */
+export const SPINE_START_REACH = 46
+
+/** Measure 1's outer zone for `rules`: never smaller than `baseRadius`. */
+export function spineStartReach(rules: SpineRules): number {
+  return Math.max(rules.baseRadius, SPINE_START_REACH)
+}
+
+/**
  * Measure 1: the nearest anchor to `p0` that is NOT in `filled`, among those
  * within `baseRadius`. Ties go to the LOWEST index — iterating ascending and
  * requiring a STRICT improvement keeps the first (lowest-index) winner on an
- * exact tie. `null` when no unfilled anchor is within radius (including the
- * case where every anchor within radius is already filled — it is never
- * reassigned).
+ * exact tie. When no unfilled anchor is within `baseRadius`, the outer zone
+ * applies ({@link SPINE_START_REACH}): the nearest anchor of ALL, if it is
+ * within `reach` and unfilled. `null` otherwise — a filled anchor is never
+ * reassigned.
  */
 function nearestUnfilledAnchor(
   anchors: readonly SpineAnchor[],
   filled: ReadonlySet<number>,
   p0: Point,
   baseRadius: number,
+  reach: number = baseRadius,
 ): number | null {
   let best = -1
   let bestDist = Infinity
+  let nearest = -1
+  let nearestDist = Infinity
   for (let i = 0; i < anchors.length; i++) {
-    if (filled.has(i)) continue
     const d = dist(p0, anchors[i])
+    if (d < nearestDist) {
+      nearestDist = d
+      nearest = i
+    }
+    if (filled.has(i)) continue
     if (d <= baseRadius && d < bestDist) {
       bestDist = d
       best = i
     }
   }
-  return best === -1 ? null : best
+  if (best !== -1) return best
+  if (nearest !== -1 && nearestDist <= reach && !filled.has(nearest)) return nearest
+  return null
+}
+
+/**
+ * Measure 3's sampling step, viewBox units (≈ screen px at 1024×768). T39
+ * (tablet play-test: "sometimes I draw it quite well and it still says I
+ * didn't"), measured with `spines.strokeSimulator.test.ts`: `chord / arc`
+ * over the RAW pointer stream is not a property of the stroke's shape but
+ * of how fast it was drawn — a slow, careful drag emits 3-5× more samples,
+ * and every sample's own ~1-2px of finger/sensor noise adds its own zigzag
+ * to `arc`. A slow stroke by itself dropped the simulated acceptance to
+ * 47-76%. Thinning the stroke to one point per ~10 units first keeps the
+ * real shape (a scribble still doubles back over tens of units and fails)
+ * while the sub-step jitter no longer counts as length.
+ */
+const STRAIGHTNESS_STEP = 10
+
+/** `points` thinned so consecutive kept points are at least `step` apart;
+ *  the first and last points are always kept, so the chord never moves. */
+function decimateByDistance(points: readonly Point[], step: number): Point[] {
+  if (points.length <= 2) return [...points]
+  const out: Point[] = [points[0]]
+  for (let i = 1; i < points.length - 1; i++) {
+    const last = out[out.length - 1]
+    if (Math.hypot(points[i].x - last.x, points[i].y - last.y) >= step) out.push(points[i])
+  }
+  out.push(points[points.length - 1])
+  return out
 }
 
 /** Total arc length of a polyline. */
@@ -208,7 +277,7 @@ function angleBetweenDeg(ax: number, ay: number, bx: number, by: number): number
 }
 
 /**
- * Measure 5: no sample of `S`, except those within `baseRadius` of its own
+ * Measure 5: no sample of `S`, except those within measure 1's start reach of its own
  * assigned anchor, lies inside `r(θ)` of the centroid — the geometric form
  * of the derived undrawability (design.md §2 D1(b)). Each consecutive pair
  * of points is subdivided at `BODY_STEP`, so a fast frame-rate-thin stroke
@@ -219,7 +288,10 @@ function crossesBody(stroke: readonly Point[], anchor: SpineAnchor, cfg: SpineCo
   const profile = HEDGEHOG_SILHOUETTE[cfg.pose]
   const scale = bodyScale(cfg)
   const { centre } = cfg.body
-  const { baseRadius } = cfg.rules
+  // T39: the start zone around the anchor is measure 1's outer reach, not
+  // just `baseRadius` — a touch-down measure 1 accepted on the fur just
+  // inside the silhouette must not then fail here for the same point.
+  const baseRadius = spineStartReach(cfg.rules)
 
   const test = (p: Point): boolean => {
     const dx = p.x - centre.x
@@ -308,8 +380,10 @@ function remainingMeasureFailure(
   const idealY = localStart.y - cfg.body.centre.y
   if (angleBetweenDeg(dx, dy, idealX, idealY) > cfg.rules.tolDeg) return 'direction'
 
-  // Measure 3 — straightness, chord/arclength.
-  const arc = arclength(stroke)
+  // Measure 3 — straightness, chord/arclength, measured on the stroke
+  // thinned to one point per `STRAIGHTNESS_STEP` units (T39, see that
+  // constant) so the ratio no longer depends on how fast the finger moved.
+  const arc = arclength(decimateByDistance(stroke, STRAIGHTNESS_STEP))
   if (arc <= 0 || chord / arc < cfg.rules.straightness) return 'straightness'
 
   // Measure 4 — chord length inside the authored band.
@@ -383,10 +457,10 @@ function bindStroke(
   cfg: SpineConfig,
 ): SpineJudgement {
   if (stroke.length === 0) return { anchor: null, rejection: 'no-anchor' }
-  let idx = nearestUnfilledAnchor(anchors, filled, stroke[0], cfg.rules.baseRadius)
+  let idx = nearestUnfilledAnchor(anchors, filled, stroke[0], cfg.rules.baseRadius, spineStartReach(cfg.rules))
   let reversed = false
   if (idx === null && stroke.length > 1) {
-    idx = nearestUnfilledAnchor(anchors, filled, stroke[stroke.length - 1], cfg.rules.baseRadius)
+    idx = nearestUnfilledAnchor(anchors, filled, stroke[stroke.length - 1], cfg.rules.baseRadius, spineStartReach(cfg.rules))
     reversed = idx !== null
   }
   if (idx === null) return { anchor: null, rejection: 'no-anchor' }
@@ -502,9 +576,9 @@ export function spineAim(
     return { filled: prev.filled, aiming: null }
   }
   const anchors = spineAnchors(cfg)
-  let idx = nearestUnfilledAnchor(anchors, prev.filled, points[0], cfg.rules.baseRadius)
+  let idx = nearestUnfilledAnchor(anchors, prev.filled, points[0], cfg.rules.baseRadius, spineStartReach(cfg.rules))
   if (idx === null && points.length > 1) {
-    idx = nearestUnfilledAnchor(anchors, prev.filled, points[points.length - 1], cfg.rules.baseRadius)
+    idx = nearestUnfilledAnchor(anchors, prev.filled, points[points.length - 1], cfg.rules.baseRadius, spineStartReach(cfg.rules))
   }
   if (idx === prev.aiming) return prev
   return { filled: prev.filled, aiming: idx }
@@ -615,7 +689,7 @@ export function spineSpikePath(spike: SpineSpike): string {
  */
 export function spineSpikePaths(cfg: SpineConfig, state: SpineState): readonly string[] {
   const anchors = spineAnchors(cfg)
-  const len = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+  const len = spineSpikeLength(cfg.rules)
   const paths: string[] = []
   for (let i = 0; i < anchors.length; i++) {
     if (!state.filled.has(i)) continue
@@ -647,7 +721,7 @@ export function spineRings(cfg: SpineConfig): readonly { x: number; y: number; r
 function spineSegments(cfg: SpineConfig, k: number): readonly (readonly [Point, Point])[] {
   const anchors = spineAnchors(cfg)
   const n = Math.max(0, Math.min(Math.trunc(k), anchors.length))
-  const len = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+  const len = spineSpikeLength(cfg.rules)
   const segments: (readonly [Point, Point])[] = []
   for (let i = 0; i < n; i++) {
     const a = anchors[i]
