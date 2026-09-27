@@ -24,6 +24,7 @@ import {
   isOpen,
   nextAdventure,
   overlapArea,
+  pxToViewBoxUnits,
   recentlyDiscovered,
   sectorOf,
   stageRectToPercent,
@@ -888,5 +889,27 @@ describe('stageRectToPercent (T32, full-bleed map): converting a stage-space Rec
     expect(percent.top).toBeGreaterThanOrEqual(0)
     expect(percent.left + percent.width).toBeLessThanOrEqual(100)
     expect(percent.top + percent.height).toBeLessThanOrEqual(100)
+  })
+})
+
+describe('pxToViewBoxUnits (T36, odd/tasks/prewriting-stage-completion.md): a real CSS-pixel length converted into viewBox units', () => {
+  it('at the pre-T32 default (a 1000-wide container, the plain 1000x600 stage), 1 px is 1 viewBox unit', () => {
+    expect(pxToViewBoxUnits(12, 1000, MAP_STAGE_BOX)).toBeCloseTo(12, 6)
+  })
+
+  it('scales with the SAME ratio stageRectToPercent\'s own worked 1024x768 example uses', () => {
+    // displayBounds.width stays 1000 at 1024x768 (fitContentWithInsets's own
+    // cover-fit — width = containerWidth / k, `k = 1024/1000` here), so 12
+    // real px is slightly LESS than 12 viewBox units once the container is
+    // wider than the viewBox's own natural 1:1 scale.
+    const displayBounds = { x: 0, y: -75, width: 1000, height: 750 }
+    const units = pxToViewBoxUnits(12, 1024, displayBounds)
+    expect(units).toBeCloseTo((12 / 1024) * 1000, 6)
+    expect(units).toBeLessThan(12)
+  })
+
+  it('falls back to px unchanged when the container has not been measured yet (containerWidthPx <= 0)', () => {
+    expect(pxToViewBoxUnits(12, 0, MAP_STAGE_BOX)).toBe(12)
+    expect(pxToViewBoxUnits(12, -1, MAP_STAGE_BOX)).toBe(12)
   })
 })

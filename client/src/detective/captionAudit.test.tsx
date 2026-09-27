@@ -60,14 +60,21 @@ describe('auditCaptions (spec: detective-mode "Captioned Art Invariant")', () =>
     expect(audit.uncaptioned).toEqual(['real'])
   })
 
-  it('CAPTION_CONTAINERS names exactly the four shipped licensed containers', () => {
+  it('CAPTION_CONTAINERS names exactly the five shipped licensed containers', () => {
     // [T21 follow-up] cv-deduction-frame joined the other two: Pulpito's own
     // corner stage on screen/Deduction.tsx, where his spoken line is text
     // only but his own <img> sits in the same frame (that module's own
     // header has the full reasoning). [T24 follow-up] cv-closing-frame
     // joined next, the same move for a rescue closing's own bubble now that
-    // the big rescue animal is the one picture.
-    expect(CAPTION_CONTAINERS).toEqual(['cv-captioned', 'pistas-bar', 'cv-deduction-frame', 'cv-closing-frame'])
+    // the big rescue animal is the one picture. [T36] cv-prologue-frame
+    // joined last, the same move again for the prologue's own first plate.
+    expect(CAPTION_CONTAINERS).toEqual([
+      'cv-captioned',
+      'pistas-bar',
+      'cv-deduction-frame',
+      'cv-closing-frame',
+      'cv-prologue-frame',
+    ])
   })
 
   it('an unrelated class name is not a licensed container, and its container is invisible to imagelessContainers', () => {

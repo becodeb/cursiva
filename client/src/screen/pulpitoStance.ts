@@ -61,8 +61,7 @@ export const OCTOPUS_CORNER_INSET = 4
 
 /** The octopus's own size for a CORNER stance, percent of the stage width
  *  — slightly smaller than the OLD centred layout's `44%`
- *  (`bubblePlacement.ts`'s own `octopusBoxBySize`, still `44` for
- *  `PrologueOpening.tsx`, unchanged by this task). A corner stance needs
+ *  (`bubblePlacement.ts`'s own `octopusBoxBySize`). A corner stance needs
  *  MORE vertical clearance above his head for the bubble than a centred one
  *  did: `bubbleFit.test.ts`'s own registry sweep is what set this exact
  *  number — smaller than 44 raises the octopus's own top edge, which is
@@ -72,8 +71,24 @@ export const OCTOPUS_CORNER_INSET = 4
  *  to keep every real intro/closing line comfortably above the readable
  *  floor at the smallest required viewport (844×390). A secondary benefit,
  *  not the reason this number was chosen: a smaller octopus also leaves
- *  more of the backdrop visible around him (`docs/19` §4.1 rule 1). */
+ *  more of the backdrop visible around him (`docs/19` §4.1 rule 1). This is
+ *  sized BY WIDTH, for `ZOO_OCTOPUS_BACKPACK_ART` (near-square) — see
+ *  `PROLOGUE_OCTOPUS_SIZE_PCT` below for the caretaker's own, different,
+ *  height-based sibling. */
 export const OCTOPUS_CORNER_SIZE_PCT = 40
+
+/** `screen/PrologueOpening.tsx`'s own corner octopus size (T36,
+ *  `odd/tasks/prewriting-stage-completion.md`) — a SIBLING of
+ *  `OCTOPUS_CORNER_SIZE_PCT` above, not a shared constant, for the same
+ *  reason `octopusBoxAtCorner` takes a `sizeBy` option at all: the caretaker
+ *  (`ZOO_CARETAKER_ART`, 235×320) is a taller, narrower figure than
+ *  `ZOO_OCTOPUS_BACKPACK_ART` (442×448, near square), so it is sized BY
+ *  HEIGHT (`octopusBoxBySize`'s own pre-T36 header explained the same
+ *  choice for the centred layout this replaces) rather than by width.
+ *  Proven, not guessed, by `bubbleFit.test.ts`'s own dedicated
+ *  `PrologueOpening.tsx` sweep block — the same "found empirically, then
+ *  checked" convention `OCTOPUS_CORNER_SIZE_PCT`'s own header describes. */
+export const PROLOGUE_OCTOPUS_SIZE_PCT = 40
 
 /** The stage's own bounded width/height, in real CSS pixels, for a given
  *  viewport — the pure arithmetic behind `min(100%, ${STAGE_MAX_PX}px,

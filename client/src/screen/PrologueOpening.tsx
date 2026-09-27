@@ -1,76 +1,76 @@
 // The prologue's opening screen (`docs/16_PROLOGO_EL_CUIDADOR.md` §4;
-// add-caretaker-prologue design.md D1, D2, D8). Three chained fixed plates
-// shown before the zoo map on a child's first visit — `AdventureIntro`'s own
-// stage pattern (backdrop, octopus, speech bubble, one short line, tap to
-// advance), restated under its own `.cv-prologue` prefix rather than shared
-// (`main-screen` spec "The Opening Reuses AdventureIntro's Stage Pattern
-// Without Modifying It" — `AdventureIntro.tsx` stays byte-identical). The
-// component's ENTIRE external contract is `{ from?, onDone }` (design.md D1):
-// no caller may reach into its internal plate index, and swapping the plates
-// for a `<video>` later (`prologue-opening` spec "The Video Swap Point")
-// touches no call site.
+// add-caretaker-prologue design.md D1, D2, D8; T36, `odd/tasks/prewriting-
+// stage-completion.md`, `docs/18_DIAGNOSTICO_Y_REDISENO_PEDAGOGICO.md` D3).
+// Three chained fixed plates shown before the zoo map on a child's first
+// visit.
 //
-// No `url(#…)` anywhere (`canvas/TraceCanvas.tsx:70-84`'s ban): the octopus
-// and the bubble are plain `<img src>`, the plate's own art and the skip
-// control are both `CaptionedArt`'s SVG `<image href>`. `PROLOGUE_CSS`'s
-// comments carry NO BACKTICKS — this is a template literal, and one backtick
-// inside a comment ends the string.
-import { useState } from 'react'
+// T36 rebuild: this screen used to sit on a FLAT colour (`backdrop.quiet`)
+// with the caretaker centred and a bubble whose inline picture, on the
+// FIRST plate, was the caretaker AGAIN (docs/18 D3 — "el Pulpito aparece dos
+// veces en la primera lámina"). It now follows `AdventureIntro.tsx`'s own
+// T18 pattern exactly: the zoo map art (`docs/16` §4's own "el zoológico
+// abierto y con animales" — the only shipped picture of the whole, open,
+// populated zoo; no new art commissioned) drawn FULL SCREEN behind him, and
+// the caretaker moved into a bottom CORNER (`screen/pulpitoStance.ts`) with
+// his bubble opening toward the screen's own centre — the SAME
+// `octopusBoxAtCorner`/`placeAndFitBubble`/`stanceBubbleSide` machinery
+// `AdventureIntro.tsx` and `AdventureClosing.tsx` already ship, reused
+// rather than restated (`zoo/prologue.ts`'s own `ProloguePlate.art` header
+// is the other half of the D3 fix: the first plate's bubble carries no
+// picture at all now, since the big caretaker is already the picture for
+// that line). The component's ENTIRE external contract is still
+// `{ from?, onDone }`: no caller may reach into its internal plate index,
+// and swapping the plates for a `<video>` later (`prologue-opening` spec
+// "The Video Swap Point") touches no call site.
+//
+// No `url(#…)` anywhere (`canvas/TraceCanvas.tsx:70-84`'s ban): the
+// backdrop, the octopus and the bubble are plain `<img src>`, the plate's
+// own art and the skip control are both `CaptionedArt`'s SVG `<image
+// href>`. `PROLOGUE_CSS`'s comments carry NO BACKTICKS — this is a template
+// literal, and one backtick inside a comment ends the string.
+import { useState, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
-import { ZOO_CARETAKER_ART, ZOO_MAP_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import { ZOO_MAP_ART, ZOO_CARETAKER_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
-import { backdropFor } from '../zoo/backdrops'
 import { PROLOGUE_PLATES, advancePlate } from '../zoo/prologue'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import { BUBBLE_POP_CSS } from './BubblePop'
-import { octopusBoxBySize, placeSpeechBubble, ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
+import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
+import { CONTENT_HEIGHT_FRAC, CONTENT_LEFT_FRAC, CONTENT_TOP_FRAC, CONTENT_WIDTH_FRAC, GAP_FRAC, LINE_HEIGHT, placeAndFitBubble } from './bubbleFit'
+import {
+  OCTOPUS_CORNER_INSET,
+  PROLOGUE_OCTOPUS_SIZE_PCT,
+  octopusBoxAtCorner,
+  resolvePulpitoStance,
+  stanceBubbleSide,
+  STAGE_MARGIN_PCT,
+  STAGE_MAX_PX,
+  STAGE_MAX_VH_FRAC,
+} from './pulpitoStance'
+import { bubbleContentCssVars } from './bubbleCssVars'
 
-/* Same stage geometry as `AdventureIntro.tsx`'s `INTRO_CSS` — see that
-   file's header for the derivation of every number below (the 84dvh
-   landscape clamp, the container-type: inline-size cqw sizing). The skip
-   control is new here: a pill pinned to the frame's own BOTTOM-right
-   corner, a SIBLING of the stage button (never a descendant — a nested
-   button is invalid HTML and would swallow the tap meant for the stage
-   underneath it, design.md D1/D8).
-
-   Two things about it are load-bearing and were both found by looking at a
-   capture, not by reading the markup. It sits at the BOTTOM because the
-   speech bubble occupies the top 4%-62% of the frame at 82% width, so a
-   top-right pill overlaps the one thing the child is meant to read; the
-   octopus is only 44% wide and centred, so the bottom corners are the
-   frame's free space. And it carries its OWN size rules: `CaptionedArt`
-   renders bare, so without them the skip lands as a 28px thumbnail beside
-   unstyled 16px text and reads as a rendering bug rather than a control.
-   The frame therefore gets its own `container-type` so these cqw units
-   track the stage instead of the viewport. */
+/* `AdventureIntro.tsx`'s own `INTRO_CSS`, restated under `.cv-prologue*`
+   rather than shared — the two screens have separate top-level elements
+   (`GameScreen.tsx`/`App.tsx` mount them at different points in the flow)
+   and this repo's own convention is one CSS block per screen component
+   (`AdventureIntro.tsx`'s header on why it does not share `.cv-intro*`
+   either). NO BACKTICKS anywhere in this block — one inside a comment ends
+   the template literal early. */
 const PROLOGUE_CSS = `
-.cv-prologue { height: 100dvh; display: flex; align-items: center; justify-content: center; background-color: ${SHEET_PAPER}; box-sizing: border-box; padding: 4%; }
-.cv-prologue-frame { position: relative; width: min(100%, 620px, 84dvh); aspect-ratio: 1 / 1; container-type: inline-size; }
+.cv-prologue { position: relative; height: 100dvh; width: 100vw; overflow: hidden; background-color: ${SHEET_PAPER}; }
+.cv-prologue-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.cv-prologue-frame { position: absolute; bottom: ${STAGE_MARGIN_PCT}%; width: min(100%, ${STAGE_MAX_PX}px, ${STAGE_MAX_VH_FRAC * 100}dvh); aspect-ratio: 1 / 1; container-type: inline-size; }
 .cv-prologue-stage { position: absolute; inset: 0; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; }
-/* Sized by HEIGHT, unlike AdventureIntro's own octopus rule, and the
-   difference is not cosmetic. That rule says width: 44% because
-   ZOO_OCTOPUS_BACKPACK_ART is 442x448 -- near square, so width and height
-   land in the same place. The caretaker is 235x320: at width: 44% it stands
-   36% taller than the backpack octopus does and its head disappears behind
-   the bubble. Height is what has to be pinned here, because what the layout
-   actually needs is for the figure to stop below the bubble. */
 /* T8 item 1 (odd/tasks/prewriting-stage-completion.md): idle life, using
-   only the existing art. Breathing lives on THIS box (the one that already
-   carries the static translateX(-50%) centring), so its own keyframes
-   restate that translateX in every frame — animating transform replaces the
-   whole property rather than composing with a separate static rule
-   (BubblePop.ts's own header explains the same defect class). The
-   occasional blink is a SEPARATE animation on the nested .cv-octopus-life
-   image instead, which carries no static transform of its own to protect —
-   two animations on ONE transform property would fight each other the
-   same way, so each lives on its own element. NO BACKTICKS in this block —
-   see this file's own top-of-file note: one inside a comment ends the
-   template literal early. */
-.cv-prologue-octopus { position: absolute; left: 50%; bottom: 2%; height: 44%; width: auto; transform: translateX(-50%); animation: cv-octopus-breathe 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
+   only the existing art. T36: a corner octopus is positioned by a plain
+   inline left/right (octopusBoxAtCorner's own x coordinate), so the
+   breathing keyframes need no centring transform inside them (this file's
+   own pre-T36 centred layout did). NO BACKTICKS in this block. */
+.cv-prologue-octopus { position: absolute; bottom: 2%; height: ${PROLOGUE_OCTOPUS_SIZE_PCT}%; width: auto; animation: cv-octopus-breathe 3.6s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes cv-octopus-breathe {
-  0%, 100% { transform: translateX(-50%) scale(1); }
-  50% { transform: translateX(-50%) scale(1.02) translateY(-1%); }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02) translateY(-1%); }
 }
 .cv-octopus-life { display: block; height: 100%; width: auto; animation: cv-octopus-blink 6.4s ease-in-out infinite; transform-origin: 50% 50%; }
 @keyframes cv-octopus-blink {
@@ -82,40 +82,44 @@ const PROLOGUE_CSS = `
   .cv-octopus-life { animation: none; }
 }
 ${BUBBLE_POP_CSS}
-/* T16 (odd/tasks/prewriting-stage-completion.md), following a tablet
-   play-test: left/top/width used to be a fixed CENTRED box
-   (left: 50%; transform: translateX(-50%); width: 82%) -- that centres the
-   IMAGE'S OWN BOUNDING BOX, not the tail inside it, so the tail (the art's
-   bottom-left corner, bubblePlacement.ts's own ZOO_SPEECH_BUBBLE_TAIL)
-   ended up pointing at empty space beside the octopus rather than at him.
-   Left/top/width are now an INLINE style computed by placeSpeechBubble
-   (below) from the octopus's own rendered box -- a static rule cannot know
-   where the octopus's head sits. NO BACKTICKS in this block -- one inside
-   a comment ends this template literal early (this file's own top note). */
-.cv-prologue-bubble { position: absolute; }
+/* T36: the bubble's own placement/content now come from placeAndFitBubble
+   (screen/bubbleFit.ts), the same T18 engine AdventureIntro.tsx uses — see
+   that file's own .cv-intro-bubble header for the container-type/cqw
+   reasoning and the float-vs-stack layout this rule supports. NO BACKTICKS
+   in this block — one inside a comment ends this template literal early
+   (this file's own top-of-file note). */
+.cv-prologue-bubble { position: absolute; container-type: inline-size; }
 .cv-prologue-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
-/* The mirrored orientation (placeSpeechBubble's own "mirrored"): flips
-   the SHAPE only, never the caption -- "don't mirror the text" (this task's
-   own brief), the same split ZooMap.tsx's own .cv-zoo-bubble--mirror-x
-   rule makes. */
 .cv-prologue-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
-.cv-prologue-bubble .cv-captioned { position: absolute; left: 10%; right: 10%; top: 16%; height: 58%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4cqw; }
-.cv-prologue-bubble .cv-captioned > svg { width: auto; height: 62%; flex: none; }
-.cv-prologue-bubble .cv-caption { font-size: 5.6cqw; line-height: 1.16; font-weight: 700; color: #1e293b; text-align: left; }
-.cv-prologue-skip { position: absolute; bottom: 1.5cqw; right: 1.5cqw; border: 0.5cqw solid #1a1a1a; border-radius: 999px; background: ${SHEET_PAPER}; padding: 1cqw 2.6cqw 1cqw 1.4cqw; cursor: pointer; z-index: 1; }
-.cv-prologue-skip .cv-captioned { display: flex; flex-direction: row; align-items: center; gap: 1.6cqw; }
-.cv-prologue-skip .cv-captioned > svg { width: auto; height: 5.4cqw; flex: none; }
-.cv-prologue-skip .cv-caption { font-size: 3.4cqw; line-height: 1; font-weight: 700; color: #1e293b; white-space: nowrap; }
-/* T7 (docs/18 D1): the "hear it again" button, pinned to the bubble's own
-   top-right corner (the bubble spans left 9%-91%, top starts at 4% — see
-   the derivation above .cv-prologue-bubble) rather than the frame's own
-   corner, so it reads as PART of the bubble rather than as a fourth,
-   unrelated control. Never in the bottom-right corner, which is
-   .cv-prologue-skip's own spot. A SIBLING of .cv-prologue-stage, never a
-   descendant — see this file's own header on why a nested button cannot be
-   used here. NOTE: no backticks anywhere in this block, same reason the
-   header above states — this is a template literal. */
-.cv-prologue-speak { position: absolute; top: 2%; right: 4%; z-index: 1; }
+/* T36 (docs/18 D3's own fix): the first plate's bubble carries no picture
+   (zoo/prologue.ts's own ProloguePlate.art header) -- .cv-prologue-bubble-
+   text is its bare-caption sibling of .cv-captioned, sharing the SAME
+   positioning rule so both land in the exact same content box bubbleFit.ts
+   computed, without wrapping the bare word in .cv-captioned itself
+   (detective/captionAudit.ts's own licence: a .cv-captioned span that never
+   carries an image fails the audit outright) -- the big caretaker's own
+   img is a SIBLING elsewhere in this frame, not inside this span, so this
+   text is licensed through .cv-prologue-frame instead, the same
+   .cv-deduction-frame/.cv-closing-frame precedent captionAudit.ts's own
+   header lists. NO BACKTICKS in this block. */
+.cv-prologue-bubble .cv-captioned, .cv-prologue-bubble .cv-prologue-bubble-text { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); }
+.cv-prologue-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
+.cv-prologue-bubble .cv-captioned--stack > svg { float: none; display: block; margin: 0 auto var(--cv-gap) auto; }
+.cv-prologue-bubble .cv-caption { font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; }
+/* The "hear it again" button and the "go to the map" skip pill: both
+   SIBLINGS of .cv-prologue-frame inside .cv-prologue, pinned to the SCREEN's
+   own top corners — AdventureIntro.tsx's own .cv-intro-speak/.cv-intro-tool
+   convention (docs/19 §4.2's "arriba están los botones"), restated here
+   rather than the frame's own bottom corner this screen used pre-T36: the
+   frame now sits at a bottom CORNER, not centred, so a corner-pinned pill
+   would sit right on top of the octopus or the bubble depending on which
+   corner. Never both in the SAME corner — skip stays at top-LEFT, speak at
+   top-RIGHT, matching AdventureIntro's own split. NOTE: no backticks
+   anywhere in this block — one inside a comment ends this template literal
+   early (this file's own top-of-file note). */
+.cv-prologue-speak { position: absolute; top: ${STAGE_MARGIN_PCT}%; right: ${STAGE_MARGIN_PCT}%; z-index: 2; }
+.cv-prologue-skip { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; border-radius: 16px; padding: 6px 10px; cursor: pointer; }
+.cv-prologue-skip .cv-caption { font-size: 14px; font-weight: 700; color: #1e293b; }
 `
 
 export interface PrologueOpeningProps {
@@ -145,10 +149,7 @@ function clampPlate(from: number | undefined): number {
 export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) {
   const [index, setIndex] = useState(() => clampPlate(from))
   const plate = PROLOGUE_PLATES[index]
-  // `'glass1'` is a LEVEL id, unaffected by the `peces` adventure rename
-  // (task 2.5) — `backdropFor` resolves through the level, not the id this
-  // change renamed.
-  const backdrop = backdropFor('glass1')
+
   // Voice narration (docs/18 D1, "sin voz no se entera de la historia"; T7):
   // every plate speaks its own line the instant it appears. The FIRST plate
   // mounts before any tap has happened at all, so `canAutoSpeak()` (inside
@@ -157,14 +158,27 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
   // advances past it is what makes every LATER plate's own autoplay allowed.
   useNarration(plate.line)
 
-  // T16: the bubble's own placement, so its tail tip lands beside the
-  // caretaker's head instead of the box's centre (this file's own header on
-  // `.cv-prologue-bubble`, above). The caretaker (`ZOO_CARETAKER_ART`,
-  // 235x320) is sized by HEIGHT — `octopusBoxBySize`'s own header on why —
-  // and every plate stands the SAME caretaker, so this is computed once per
-  // render rather than per plate.
-  const octopusBox = octopusBoxBySize(ZOO_CARETAKER_ART, { sizeBy: 'height', size: 44, bottom: 2 })
-  const bubblePlaced = placeSpeechBubble({ frame: { w: 100, h: 100 }, headBox: octopusBox, tail: ZOO_SPEECH_BUBBLE_TAIL })
+  // T36: always the LEFT corner — every plate stands the same caretaker
+  // with the same stance, and `docs/16` names no reason for any plate to
+  // stand on the other side (unlike an adventure's own per-line
+  // `introStance`, which the story registry can opt into later if a future
+  // plate ever needs it).
+  const stance = resolvePulpitoStance(undefined)
+  const octopusBox = octopusBoxAtCorner(ZOO_CARETAKER_ART, {
+    corner: stance.corner,
+    sizeBy: 'height',
+    size: PROLOGUE_OCTOPUS_SIZE_PCT,
+    bottom: 2,
+    inset: OCTOPUS_CORNER_INSET,
+  })
+  const { placement, content } = placeAndFitBubble({
+    frame: { w: 100, h: 100 },
+    headBox: octopusBox,
+    tail: ZOO_SPEECH_BUBBLE_TAIL,
+    side: stanceBubbleSide(stance.corner),
+    text: plate.line,
+    art: plate.art,
+  })
 
   const handleTap = (): void => {
     const next = advancePlate(index)
@@ -173,40 +187,84 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
   }
 
   return (
-    <main className="cv-prologue" style={{ background: backdrop?.quiet ?? SHEET_PAPER }}>
+    <main className="cv-prologue">
       <style>{PROLOGUE_CSS}</style>
+      {/* docs/16 §4's own beat 0 brief: "el zoológico abierto y con
+          animales" — the map art is the only shipped picture of the whole,
+          populated zoo (`zoo/prologue.ts`'s own header on why no new art
+          was commissioned for this). Shared, unchanged, across all three
+          plates — the scene does not change while the caretaker talks, only
+          the map itself does once the child reaches it for real. */}
+      <img className="cv-prologue-backdrop" src={ZOO_MAP_ART.href} alt="" />
       <div className="cv-prologue-frame">
         <button type="button" className="cv-prologue-stage" onClick={handleTap}>
-          <span className="cv-prologue-octopus">
+          <span className="cv-prologue-octopus" style={{ [stance.corner]: `${octopusBox.x}%` } as CSSProperties}>
             <img src={ZOO_CARETAKER_ART.href} alt="" className="cv-octopus-life" />
           </span>
           <span
-            className={`cv-prologue-bubble${bubblePlaced.mirrored ? ' cv-prologue-bubble--mirror-x' : ''}`}
-            style={{ left: `${bubblePlaced.left}%`, top: `${bubblePlaced.top}%`, width: `${bubblePlaced.width}%` }}
+            className={`cv-prologue-bubble${placement.mirrored ? ' cv-prologue-bubble--mirror-x' : ''}`}
+            style={{
+              left: `${placement.left}%`,
+              top: `${placement.top}%`,
+              width: `${placement.width}%`,
+              ...bubbleContentCssVars(placement, content, {
+                contentLeftFrac: CONTENT_LEFT_FRAC,
+                contentTopFrac: CONTENT_TOP_FRAC,
+                contentWidthFrac: CONTENT_WIDTH_FRAC,
+                gapFrac: GAP_FRAC,
+                contentHeightFrac: CONTENT_HEIGHT_FRAC,
+              }),
+            }}
           >
             {/* Keyed on the line itself (T8 item 2): a fresh key on every
                 plate forces React to remount this span, replaying the
                 pop-in — while `useNarration` above, unaffected by this
                 child remounting, keeps deciding on its own when to speak.
-                T16: `transform-origin` is set inline to the tail tip's own
-                position within the box (`bubblePlaced.tailOriginX/Y`), so
-                the pop-in grows OUT of the tail — out of the octopus —
+                `transform-origin` is set inline to the tail tip's own
+                position within the box (`placement.tailOriginX/Y`), so the
+                pop-in grows OUT of the tail — out of the caretaker —
                 instead of the box's geometric centre. */}
             <span
               key={plate.line}
               className="cv-bubble-pop"
-              style={{ transformOrigin: `${bubblePlaced.tailOriginX}% ${bubblePlaced.tailOriginY}%` }}
+              style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
             >
               <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-              <CaptionedArt art={plate.art} label={plate.line} size={76} />
+              {/* `plate.art` absent (the first plate, docs/18 D3's own fix,
+                  `zoo/prologue.ts`'s header) renders a TEXT-ONLY bubble —
+                  `CaptionedArt` itself requires an `art` prop, so this plate
+                  renders the caption directly instead, in `.cv-prologue-
+                  bubble-text` rather than `.cv-captioned` (that class's own
+                  header, above, on why a picture-less `.cv-captioned` fails
+                  `captionAudit.ts` outright — this text is licensed through
+                  `.cv-prologue-frame` instead, which already saw the big
+                  caretaker's own `<img>` above). `screen/bubbleFit.ts`'s
+                  art-absent case (already proven by `screen/Deduction.tsx`)
+                  is what computed `content`'s placement either way. */}
+              {plate.art ? (
+                <CaptionedArt
+                  art={plate.art}
+                  label={plate.line}
+                  size={76}
+                  className={content.layout === 'stack' ? 'cv-captioned--stack' : undefined}
+                />
+              ) : (
+                <span className="cv-prologue-bubble-text">
+                  <span className="cv-caption">{plate.line}</span>
+                </span>
+              )}
             </span>
           </span>
         </button>
-        <SpeakButton line={plate.line} className="cv-prologue-speak" />
-        <button type="button" className="cv-prologue-skip" onClick={onDone}>
-          <CaptionedArt art={ZOO_MAP_ART} label="Ir al mapa" size={28} />
-        </button>
       </div>
+      <SpeakButton line={plate.line} className="cv-prologue-speak" />
+      {/* The "go to the map" skip control — a marker-style pill, always
+          reachable (design.md D1/D8: the opening is never mandatory). Text
+          + picture, never bare (`docs/12` §3, `detective/captionAudit.ts`):
+          the map thumbnail is what the word "mapa" refers to. */}
+      <button type="button" className="cv-prologue-skip" onClick={onDone}>
+        <CaptionedArt art={ZOO_MAP_ART} label="Ir al mapa" size={28} />
+      </button>
     </main>
   )
 }
