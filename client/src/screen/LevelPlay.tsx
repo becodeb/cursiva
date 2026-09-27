@@ -703,26 +703,23 @@ export function initialRevealState(reveal: LevelConfig['reveal'], search: string
 }
 
 /**
- * T35: the two reveal-family sound cues, decided from a plain `prev`/`next`
- * diff — pure, so a call site never has to re-derive "did a NEW object just
- * light up" or "did the whole level just finish" itself.
+ * T35: the `found` cue (night family only) — `light` per object whose index
+ * just entered `lit` — `lit` only ever grows (`revealTick`'s own header), so
+ * a size increase IS a genuinely new find, never a re-count of one already
+ * lit. Pure, so a call site never has to re-derive "did a NEW object just
+ * light up" itself.
  *
- * `light` (the night family): `found` once per object whose index just
- * entered `lit` — `lit` only ever grows (`revealTick`'s own header), so a
- * size increase IS a genuinely new find, never a re-count of one already lit.
- *
- * `erase` (glass/sand/mud/leaves): `clean` exactly once, the tick
- * `completeAt` first stops being `null` (`onRisingEdge`'s edge gate) — never
- * on a replay of an already-clean level (`prev.completeAt` is already set by
- * then, so the edge never re-fires).
+ * `erase` (glass/sand/mud/leaves) has NO matching field here to diff:
+ * `RevealState.completeAt` is set ONLY inside `revealTick`'s `light` branch
+ * (`levels/revealGrid.ts`) — an erase level's own "done" is decided at
+ * RELEASE, by `evaluateLevel`'s cleared-fraction accuracy against
+ * `rules.minAccuracy`, the SAME measurement `result.approved` already is.
+ * `clean` fires from THAT approval instead (`onRelease`, alongside
+ * `playApprovalTone()`), not from this function.
  */
 export function fireRevealSfx(reveal: RevealConfig | undefined, prev: RevealState, next: RevealState): void {
-  if (!reveal || next === prev) return
-  if (reveal.mode === 'light') {
-    for (let i = 0; i < next.lit.size - prev.lit.size; i++) playSfx('found')
-  } else {
-    onRisingEdge(prev.completeAt !== null, next.completeAt !== null, () => playSfx('clean'))
-  }
+  if (!reveal || reveal.mode !== 'light' || next === prev) return
+  for (let i = 0; i < next.lit.size - prev.lit.size; i++) playSfx('found')
 }
 
 /**
@@ -2187,6 +2184,23 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   useEffect(() => {
     revealStateRef.current = revealState
   }, [revealState])
+  // T35: the reveal-family SFX (`clean`/`found`) fire from a DEDICATED
+  // effect over the committed `revealState`, never from a ref read inside
+  // `onFrame`'s own rAF loop. `revealTick` is a sliding-WINDOW fold keyed by
+  // `prev.seen` (`levels/revealGrid.ts`'s own header) — feeding it a ref
+  // that has not yet caught up with the last commit re-processes an
+  // overlapping window and can double-count a find. Diffing the actual
+  // COMMITTED value here, once per real state change, cannot: `prevRevealSfxRef`
+  // starts at THIS component's own initial `revealState` (so a debug-seeded
+  // partial reveal never fires on mount) and both directions of a level
+  // reset (a completed level's own state falling back to `EMPTY_REVEAL`) are
+  // FALLING transitions that `fireRevealSfx`'s own rising-edge/growth-only
+  // checks already ignore — no manual reset needed on a level change.
+  const prevRevealSfxRef = useRef(revealState)
+  useEffect(() => {
+    fireRevealSfx(level.reveal, prevRevealSfxRef.current, revealState)
+    prevRevealSfxRef.current = revealState
+  }, [level.reveal, revealState])
   const lastAnimTickRef = useRef(0)
   // Read once per mount, the same one-shot convention `isPortraitGuidanceViewport`
   // itself uses — see `prefersReducedMotion`'s own header for why a listener
@@ -2746,10 +2760,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // the same sentence). Skipped while `?debug=linterna` pins the
         // point — the flag replaces live pointer input entirely.
         if (level.reveal && !debugLightPoint) {
-          const prevReveal = revealStateRef.current
-          const nextReveal = revealTick(prevReveal, points, false, level.reveal!, target.viewBoxWidth, timeMs)
-          fireRevealSfx(level.reveal, prevReveal, nextReveal)
-          setRevealState(nextReveal)
+          setRevealState((prev) => revealTick(prev, points, false, level.reveal!, target.viewBoxWidth, timeMs))
         }
         return
       }
@@ -2793,10 +2804,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // Skipped while `?debug=linterna` pins the point (same guard as the
       // `!drawing` branch above).
       if (level.reveal && !debugLightPoint) {
-        const prevReveal = revealStateRef.current
-        const nextReveal = revealTick(prevReveal, points, drawing, level.reveal!, target.viewBoxWidth, now)
-        fireRevealSfx(level.reveal, prevReveal, nextReveal)
-        setRevealState(nextReveal)
+        setRevealState((prev) => revealTick(prev, points, drawing, level.reveal!, target.viewBoxWidth, now))
       }
       // Detective mode's clue marks ride this SAME sample (design.md "The rAF
       // loop is not touched"; spec "Clue Collection State Machine") — no
@@ -3023,12 +3031,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // RAW points, always. `snapshot` is the captured stroke, never the
       // rail-warped copy the canvas draws — scoring the assist would make
       // accuracy a measurement of the rail instead of the child (see `rail.ts`).
-      const prevReveal = revealStateRef.current
-      const releasedReveal = releasedRevealState(level.reveal, snapshot, target.viewBoxWidth, prevReveal)
-      if (releasedReveal) {
-        fireRevealSfx(level.reveal, prevReveal, releasedReveal)
-        setRevealState(releasedReveal)
-      }
+      const releasedReveal = releasedRevealState(level.reveal, snapshot, target.viewBoxWidth, revealStateRef.current)
+      if (releasedReveal) setRevealState(releasedReveal)
       const evaluated = evaluateLevel(snapshot, target, pointerType)
       // T17 (docs/19 §2.2 point 4): accuracy/order/fluency stay MEASURED
       // (`evaluated` above is untouched — every internal pillar score still
@@ -3060,7 +3064,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // the earlier partial one.
       const alreadyFinalized = !!collectDef && collectApprovedRef.current
       if (alreadyFinalized) return
-      if (result.approved) playApprovalTone() // best-effort, approval only
+      if (result.approved) {
+        playApprovalTone() // best-effort, approval only
+        // T35: an erase-family level (glass/sand/mud/leaves) has no
+        // `completeAt` to diff (`fireRevealSfx`'s own header) — its "done"
+        // IS this exact approval, so `clean` fires from it directly.
+        if (level.reveal?.mode === 'erase') playSfx('clean')
+      }
       // `result` is reported to `onAttempt` exactly as before on every
       // level — the parent (`GameScreen`) persists it and bumps its own
       // `version`, which is what recomputes this level's `progress` prop
