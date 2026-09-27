@@ -52,6 +52,46 @@ const MARK_HEIGHT = 18
  *  payoff, not one more collectible among equals. */
 const ANIMAL_HEIGHT = 46
 
+/** T34 (`odd/tasks/prewriting-stage-completion.md`): the end-cap's own width
+ *  cap, keeping the bar's rhythm — an UNCAPPED `ANIMAL_HEIGHT * art.w / art.h`
+ *  let the snake's own art (`vibora`, `w:492 h:114`, aspect ~4.32:1) render
+ *  at ~199px wide, more than four slots' worth of horizontal space for one
+ *  icon. Every OTHER shipped animal's own aspect ratio already renders
+ *  comfortably under this cap unconstrained (the widest, `erizo` at aspect
+ *  ~1.46, is ~67px) — this is headroom above that real ceiling, not a value
+ *  tuned to the snake specifically, so a future animal art asset does not
+ *  quietly need this constant revisited too. Exported so `LevelPlay.tsx`'s
+ *  `LAYOUT_CSS` can set the SAME cap as a CSS `max-width` (`object-fit:
+ *  contain` alongside it) — the JS attribute above covers the UNCONSTRAINED
+ *  base breakpoint; the CSS cap is what keeps the snake capped once a
+ *  smaller-viewport media query overrides `.pistas-animal img`'s `height`
+ *  (`LAYOUT_CSS`'s own comment on why: only setting `height` there lets the
+ *  browser re-derive `width` from the image's OWN intrinsic aspect ratio,
+ *  undoing the JS-computed cap). */
+export const ANIMAL_MAX_WIDTH = 72
+
+/**
+ * Contain-fit for the end-cap: scales `art` to the largest size whose width
+ * never exceeds `maxWidth` and whose height never exceeds `maxHeight`,
+ * preserving its own aspect ratio — the same `Math.min(maxWidth,
+ * maxHeight/aspect)` shape `bubbleFit.ts`'s own image cap uses, for the same
+ * reason (never distort a drawn animal to force it into a box). A normal
+ * animal (aspect <= `ANIMAL_MAX_WIDTH / ANIMAL_HEIGHT`) is height-bound and
+ * comes back unchanged from the old plain `ANIMAL_HEIGHT * art.w / art.h`
+ * math; only a wide one (the snake) is ever actually width-bound here.
+ * Exported for direct testing, the same convention `bubbleFit.ts`'s own pure
+ * geometry functions follow.
+ */
+export function containAnimalSize(
+  art: { w: number; h: number },
+  maxWidth: number,
+  maxHeight: number,
+): { width: number; height: number } {
+  const aspect = art.h / art.w
+  const width = aspect > 0 ? Math.min(maxWidth, maxHeight / aspect) : maxWidth
+  return { width, height: width * aspect }
+}
+
 /** Spanish names for the animals a real `ADVENTURES` row can name
  *  (`zoo/adventures.ts`) — voseo-neutral, third person, matching the
  *  register the registry's own `intro`/`closing` lines already use. Partial
@@ -181,10 +221,10 @@ function Slot({ slot, justFiled }: { slot: AdventureProgressSlot; justFiled: boo
 function AnimalEndCap({ progress }: { progress: AdventureProgress }) {
   if (!progress.animal) return null
   const art = ZOO_ANIMAL_ART[progress.animal]
-  const width = (ANIMAL_HEIGHT * art.w) / art.h
+  const { width, height } = containAnimalSize(art, ANIMAL_MAX_WIDTH, ANIMAL_HEIGHT)
   return (
     <span className={`pistas-animal${progress.rescued ? ' pistas-animal-rescued' : ''}`}>
-      <img src={art.href} width={width} height={ANIMAL_HEIGHT} alt="" aria-hidden="true" />
+      <img src={art.href} width={width} height={height} alt="" aria-hidden="true" />
     </span>
   )
 }

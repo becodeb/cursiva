@@ -92,8 +92,9 @@ import { INK_COLOR, SHEET_PAPER } from '../canvas/TraceCanvas'
 import type { InkRenderPolicy } from '../canvas/ink'
 import { SPINE_BACKDROPS, TORCH_CHALK } from '../zoo/backdrops'
 import { adventureProgress } from '../zoo/progress'
-import { PRINT, luma } from '../detective/palette'
+import { CLUE_DRAINED, PRINT, luma } from '../detective/palette'
 import { getLevel } from '../levels/catalog'
+import { ANIMAL_MAX_WIDTH } from '../detective/TrailProgressBar'
 import { buildLevelTarget } from '../levels/buildLevel'
 import { spineAnchors } from '../levels/spines'
 import type { RevealConfig } from '../levels/types'
@@ -767,6 +768,46 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
       <LevelPlay level={getLevel('hedgehog4')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={rescued} />,
     )
     expect(rescuedHtml.replace(/<style>[\s\S]*?<\/style>/, '')).toContain('class="pistas-animal pistas-animal-rescued"')
+  })
+
+  // T34 (odd/tasks/prewriting-stage-completion.md): the snake's own art
+  // (`vibora`, aspect ~4.32:1) rendered the end-cap at ~199px wide with the
+  // old plain height-only sizing — more than four slots' worth of
+  // horizontal space for one icon, breaking the bar's rhythm. `snake`
+  // (`zoo/adventures.ts`) is a plain, deduction-less, collect-less
+  // multi-level adventure, the same shape hedgehog's own fixture above uses,
+  // so `TrailProgressBar` draws its real end-cap here.
+  it("caps the snake silhouette's rendered width to the bar's own rhythm, unlike every other shipped animal (T34)", () => {
+    const midway = adventureProgress('snake2', filedRecords(['snake1']))!
+    const html = renderToString(
+      <LevelPlay level={getLevel('snake2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={midway} />,
+    )
+    const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
+    const img = body.match(/<span class="pistas-animal">\s*<img[^>]*>/)?.[0] ?? ''
+    expect(img).toContain(`src="${ZOO_ANIMAL_ART.vibora.href}"`)
+    const width = Number(img.match(/width="([^"]+)"/)?.[1] ?? NaN)
+    const height = Number(img.match(/height="([^"]+)"/)?.[1] ?? NaN)
+    expect(width).toBeLessThanOrEqual(ANIMAL_MAX_WIDTH + 1e-6)
+    // Never distorted: the rendered box keeps the art's own real aspect ratio.
+    expect(width / height).toBeCloseTo(ZOO_ANIMAL_ART.vibora.w / ZOO_ANIMAL_ART.vibora.h, 3)
+  })
+
+  // T34: the bar used to have no shared background at all — a socket's own
+  // translucent white rect and the bare silhouette img both let a busy
+  // backdrop show through, especially at 844x390. This asserts the actual
+  // ON-BACKDROP contrast (a real luma gap), not just that some CSS property
+  // changed — the same discipline RevealLayer.test.tsx's own T34 puddle test
+  // uses for its colour claim.
+  it('gives the whole bar a paper backing that clears the 55-luma legibility bar against every socket outline colour (T34)', () => {
+    expect(LAYOUT_CSS).toMatch(/\.pistas-bar\s*\{\s*position:\s*absolute;[^}]*background:\s*#fdfcf7;/)
+    expect(LAYOUT_CSS).toMatch(/\.pistas-bar\s*\{[^}]*border:\s*3px solid #1a1a1a;/)
+    // The pending-slot outline (CLUE_DRAINED) and the earned-star gold
+    // (TrailProgressBar.tsx's own private STAR_COLOR, mirrored here the same
+    // way CollectBar.tsx already mirrors it as EARNED_COLOR) both clear
+    // docs/09's own legibility law against the new paper backing.
+    const STAR_COLOR = '#eab308'
+    expect(Math.abs(luma(SHEET_PAPER) - luma(CLUE_DRAINED))).toBeGreaterThanOrEqual(55)
+    expect(Math.abs(luma(SHEET_PAPER) - luma(STAR_COLOR))).toBeGreaterThanOrEqual(55)
   })
 
   it('leaves an animal-less adventure (night) with no end-cap at all', () => {
