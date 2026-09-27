@@ -71,6 +71,7 @@ import LevelPlay, {
   drawingBand,
   eraseResultMessage,
   isOffPath,
+  octopusHoldsLens,
   releasedRevealState,
   resultSpeechLine,
   seedCameraFor,
@@ -382,6 +383,58 @@ describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
       />,
     )
     expect(traceCanvasProbe.current?.carrierArt).toBeUndefined()
+  })
+})
+
+// T38 (`odd/tasks/prewriting-stage-completion.md`, the author's tablet play-
+// test): the octopus already holds the glass in his own art, so at rest the
+// loose glass must not ALSO stand beside him; only while the finger is down
+// is he drawn empty-handed with the glass on the fingertip. The rest/drawing
+// flip itself lives in `TraceCanvas`'s `heldCarrierView` (tested there);
+// this suite pins which levels hand the canvas the empty-handed art.
+describe('LevelPlay: the octopus holds the magnifying glass at rest (T38)', () => {
+  it('octopusHoldsLens is true exactly when the carrier is the default glass', () => {
+    expect(octopusHoldsLens({ carrier: true })).toBe(true)
+    expect(octopusHoldsLens({ carrier: false })).toBe(false)
+    expect(octopusHoldsLens({ carrier: true, carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 } })).toBe(false)
+  })
+
+  it('hands TraceCanvas the empty-handed octopus on a world level whose carrier is the glass', () => {
+    renderToString(
+      <LevelPlay level={makeWorldOnlyLevel({ carrier: true })} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const probe = traceCanvasProbe.current
+    const standing = probe?.startArt as { href: string; at?: unknown; size: number } | undefined
+    const emptyHanded = probe?.startArtEmptyHanded as { href: string; at?: unknown; size: number } | undefined
+    expect(standing?.href).toBe(OCTOPUS_ART.href)
+    // A real picture that is NOT the one holding the glass (today the home
+    // octopus as a stand-in, `docs/20` B18 until the matching pose ships).
+    expect(emptyHanded?.href).toMatch(/^\/art\/.+\.png$/)
+    expect(emptyHanded?.href).not.toBe(OCTOPUS_ART.href)
+    // Same spot, same size: only the picture changes on touch.
+    expect(emptyHanded?.size).toBe(standing?.size)
+    expect(emptyHanded?.at).toEqual(standing?.at)
+  })
+
+  it('hands no empty-handed art when the carrier is something else (the bee)', () => {
+    renderToString(
+      <LevelPlay
+        level={makeWorldOnlyLevel({ carrier: true, carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 } })}
+        record={EMPTY_RECORD}
+        onAttempt={noop}
+        onNext={noop}
+        onBack={noop}
+      />,
+    )
+    expect(traceCanvasProbe.current?.startArtEmptyHanded).toBeUndefined()
+  })
+
+  it('hands no empty-handed art on an ordinary level with no octopus', () => {
+    renderToString(
+      <LevelPlay level={makeLevel({ carrier: true })} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current?.startArt).toBeUndefined()
+    expect(traceCanvasProbe.current?.startArtEmptyHanded).toBeUndefined()
   })
 })
 

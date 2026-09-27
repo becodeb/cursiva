@@ -224,7 +224,32 @@ export const LUPA_VT_NAME = 'lupa-rim'
  *  cropped, lopsided circle instead of a clean one to scale up. */
 export const LUPA_VT_BASE_DIAMETER_PX = 300
 
+// T38 (`odd/tasks/prewriting-stage-completion.md`, the author's tablet play-
+// test: "hay una lupa en el centro de la pantalla ... se queda siempre"). The
+// live `.cv-lupa-rim--vt` element exists only so the browser can CAPTURE it
+// for the crossing — it is drawn at its full `LUPA_VT_BASE_DIAMETER_PX` size
+// with `animation: none`, and nothing ever hid it once the View Transition's
+// pseudo-element tree was torn down, nor on a screen reached WITHOUT a native
+// crossing at all (the first screen after the map, which `App.tsx` enters
+// through its own manual wipe). Either way the live element itself stayed
+// painted: an empty 300px magnifier ring (rim, glint, handle) over the centre.
+//
+// Fix: the wrapper is `visibility: hidden` by default and is shown ONLY while
+// the document has an active View Transition (`:active-view-transition`, set
+// from `document.startViewTransition()` until the crossing finishes). That
+// window covers the "new" capture (taken after the update callback, while the
+// transition is already active) and the whole animation, where
+// `::view-transition-new(lupa-rim)` is a LIVE rendering of this element; the
+// moment the crossing ends the pseudo tree and the match go away together, so
+// the live ring never paints on its own. A screen mounted with no native
+// crossing in flight never matches, so it never shows the ring. A browser
+// that has `startViewTransition` but not the pseudo-class drops the rule and
+// simply loses the decorative rim — never a stuck one.
+export const LUPA_VT_ACTIVE_SELECTOR = ':root:active-view-transition .cv-lupa-rim--vt'
+
 export const LUPA_VT_CSS = `
+.cv-lupa-rim--vt { visibility: hidden; }
+${LUPA_VT_ACTIVE_SELECTOR} { visibility: visible; }
 .cv-lupa-rim--vt .cv-lupa-circle {
   view-transition-name: ${LUPA_VT_NAME};
   width: ${LUPA_VT_BASE_DIAMETER_PX}px;

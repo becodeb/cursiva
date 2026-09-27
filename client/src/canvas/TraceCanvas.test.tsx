@@ -15,6 +15,7 @@ import TraceCanvas, {
   DEMO_STROKE,
   fitCameraContentWithInsets,
   fitContentWithInsets,
+  heldCarrierView,
   type DrawDemo,
   type SafeInsets,
 } from './TraceCanvas'
@@ -2281,5 +2282,67 @@ describe('TraceCanvas idleCue (T33 follow-up: an unmistakable marker-style hand)
     expect(html).toContain('opacity="1"') // the live hand
     expect(html).toContain('opacity="0.4"') // first ghost
     expect(html).toContain('opacity="0.18"') // second ghost
+  })
+})
+
+// T38 (`odd/tasks/prewriting-stage-completion.md`, the author's tablet play-
+// test): the character at the start holds the carrier while nobody touches,
+// and hands it to the fingertip only while a stroke is live.
+describe('TraceCanvas startArtEmptyHanded — the carrier rests in the start character\'s hand (T38)', () => {
+  const HOLDING = { href: '/art/carrier-octopus.png', w: 384, h: 353, size: 96 }
+  const EMPTY = { href: '/art/home-octopus.png', w: 448, h: 399, size: 96 }
+  const LENS = { href: '/art/carrier-lens.png', w: 361, h: 384, grip: [0.603, 0.391] as const }
+
+  it('heldCarrierView: at rest the holding art shows and the carrier is hidden', () => {
+    expect(heldCarrierView(false, HOLDING, EMPTY)).toEqual({ standing: HOLDING, carrierVisible: false })
+  })
+
+  it('heldCarrierView: while drawing the empty-handed art shows and the carrier rides the finger', () => {
+    expect(heldCarrierView(true, HOLDING, EMPTY)).toEqual({ standing: EMPTY, carrierVisible: true })
+  })
+
+  it('heldCarrierView: without an empty-handed art nothing changes (pre-T38 behaviour, in both states)', () => {
+    expect(heldCarrierView(false, HOLDING, undefined)).toEqual({ standing: HOLDING, carrierVisible: true })
+    expect(heldCarrierView(true, HOLDING, undefined)).toEqual({ standing: HOLDING, carrierVisible: true })
+    expect(heldCarrierView(false, undefined, EMPTY)).toEqual({ standing: undefined, carrierVisible: true })
+  })
+
+  it('renders at rest with the carrier group hidden and only the holding art visible', () => {
+    const html = renderToString(
+      <TraceCanvas
+        startMarker={{ x: 200, y: 300 }}
+        startArt={HOLDING}
+        startArtEmptyHanded={EMPTY}
+        carrier={{ x: 200, y: 300 }}
+        carrierArt={LENS}
+      />,
+    )
+    const carrierGroup = html.slice(html.lastIndexOf('<g', html.indexOf(LENS.href)), html.indexOf(LENS.href))
+    expect(carrierGroup).toContain('visibility="hidden"')
+    const imageTag = (href: string) => html.match(new RegExp(`<image href="${href}"[^>]*>`))?.[0] ?? ''
+    const holding = imageTag(HOLDING.href)
+    expect(holding).not.toBe('')
+    expect(holding).not.toContain('visibility')
+    // The empty-handed art is mounted (so it is already decoded when the
+    // finger lands) but hidden.
+    const empty = imageTag(EMPTY.href)
+    expect(empty).toContain('visibility="hidden"')
+  })
+
+  it('without startArtEmptyHanded the carrier is shown at rest, exactly as before', () => {
+    const html = renderToString(
+      <TraceCanvas startMarker={{ x: 200, y: 300 }} startArt={HOLDING} carrier={{ x: 200, y: 300 }} carrierArt={LENS} />,
+    )
+    expect(html).not.toContain('visibility=')
+    expect(html).not.toContain(EMPTY.href)
+  })
+
+  it('has no effect without a carrier: the holding art stays and nothing is hidden', () => {
+    const html = renderToString(
+      <TraceCanvas startMarker={{ x: 200, y: 300 }} startArt={HOLDING} startArtEmptyHanded={EMPTY} />,
+    )
+    expect(html).toContain(HOLDING.href)
+    expect(html).not.toContain(EMPTY.href)
+    expect(html).not.toContain('visibility=')
   })
 })
