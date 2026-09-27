@@ -212,19 +212,23 @@ describe('evaluateLevel — fluency pillar', () => {
   })
 
   it('does not approve a continuous level traced in two hesitant strokes', () => {
-    const points = perfectStroke(bucles)
+    // A letter, not `f2-letterL`: T40 dropped the fluency floor before the
+    // letters (it paired with the metronome it removed), so the pillar is now
+    // exercised where it still applies.
+    const letterL = buildLevelTarget(getLevel('f3-l'))
+    const points = perfectStroke(letterL)
     const mid = Math.floor(points.length / 2)
     // The second stroke is restarted with a lurching rhythm — the real shape of
     // a child who lifts, loses the thread and pushes through in jerks.
     const second = points.slice(mid).map((p, i) => ({ ...p, t: i * (i % 2 === 0 ? 4 : 120) }))
-    const attempt = evaluateLevel([points.slice(0, mid), second], bucles, 'pen')
+    const attempt = evaluateLevel([points.slice(0, mid), second], letterL, 'pen')
     expect(attempt.extraLifts).toBe(1)
-    expect(attempt.fluency).toBeLessThan(bucles.config.rules.minFluency)
+    expect(attempt.fluency).toBeLessThan(letterL.config.rules.minFluency)
     expect(attempt.approved).toBe(false)
     expect(attempt.failedPillar).toBe('fluency')
     // Accuracy and direction are intact: the child drew the right shape the
     // right way, in the wrong number of movements.
-    expect(attempt.accuracy).toBeGreaterThanOrEqual(bucles.config.rules.minAccuracy)
+    expect(attempt.accuracy).toBeGreaterThanOrEqual(letterL.config.rules.minAccuracy)
     expect(attempt.directionOk).toBe(true)
   })
 

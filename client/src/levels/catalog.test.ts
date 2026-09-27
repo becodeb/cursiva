@@ -38,8 +38,6 @@ import { SECTORS } from '../zoo/sectors'
 /** The duck adventure's levels in PLAY order (T40 put two new pistas levels
  *  between the old ones, so id order is not play order any more). */
 const DUCK_ADVENTURE_IDS = ADVENTURES.find((a) => a.id === 'duck')!.levelIds
-/** The fish adventure's four garland levels (T40's named maze exception). */
-const FISH_ADVENTURE_IDS = ADVENTURES.find((a) => a.id === 'fish')!.levelIds
 import {
   armClearance,
   cornerClearance,
@@ -307,22 +305,22 @@ describe('LEVELS — authored values match the doc tables', () => {
     'llama-peak2': 0,
     'llama-peak3': 0,
     'llama-peak4': 0,
-    'turtle1': 35,
-    'turtle2': 38,
-    'turtle3': 40,
-    'turtle4': 42,
-    'monkey1': 35,
-    'monkey2': 38,
-    'monkey3': 40,
-    'monkey4': 42,
+    'turtle1': 0,
+    'turtle2': 0,
+    'turtle3': 0,
+    'turtle4': 0,
+    'monkey1': 0,
+    'monkey2': 0,
+    'monkey3': 0,
+    'monkey4': 0,
     // T40: the fish adventure lost its beat, and the fluency floor with it.
     'f2-guirnalda': 0,
     'f2-agua2': 0,
     'f2-agua3': 0,
     'f2-agua4': 0,
-    'f2-colinas': 40,
-    'f2-bucles': 45,
-    'f2-crestas': 45,
+    'f2-colinas': 0,
+    'f2-bucles': 0,
+    'f2-crestas': 0,
     'f3-l': 40,
     'f3-a': 40,
     'f3-m': 45,
@@ -448,63 +446,28 @@ describe('LEVELS — surface, kind and feedback', () => {
     for (const l of free) expect(l.phase, l.id).toBe(1)
   })
 
-  it('renders only the phase-1 routes as real mazes', () => {
-    // "Laberinto" means walls knocked out of a solid field. A phase-2 garland
-    // is a movement, not a maze, so it stays a soft corridor. The snake
-    // family is the one NAMED exception (design.md §6.1): its corridor is a
-    // drawn cutout over a sand hollow, not a wall knocked out of a field —
-    // `maze: false` on all four is deliberate, not an oversight.
-    //
-    // [T40] The fish adventure is the second named exception: the author
-    // asked for the same plain white corridor every other adventure trail
-    // draws ("tiene un trazo gris en el medio en vez de ser solo blanco"),
-    // and `maze` is what drops the grey centreline and the guide line.
+  it('renders every routed level before the letters as a plain maze corridor', () => {
+    // [T40, the author's play-test] "¿Por qué es tan distinto? Tiene un trazo
+    // gris en el medio." `maze` is what draws the plain white corridor with no
+    // grey centreline and no guide line, so every routed level of phases 1-2
+    // is a maze. The snake family is the one NAMED exception (design.md
+    // §6.1): its corridor is a drawn cutout over a sand hollow — `maze: false`
+    // on all four is deliberate. From phase 3 on the guide line IS the letter
+    // to copy (docs/08's crisp line over the soft channel, withdrawn by
+    // `guideWithdrawal`), so the letters keep their soft corridor.
     for (const level of LEVELS) {
       if (level.artCorridor) {
         expect(level.maze, level.id).toBe(false)
         continue
       }
-      if (FISH_ADVENTURE_IDS.includes(level.id)) {
-        expect(level.phase, level.id).toBe(2)
-        expect(level.maze, level.id).toBe(true)
-        continue
-      }
-      expect(level.maze, level.id).toBe(level.phase === 1 && level.kind === 'path')
+      expect(level.maze, level.id).toBe(level.phase <= 2 && level.kind === 'path')
     }
   })
 
-  it('metronomes phase 2 and only phase 2, between 50 and 70 bpm where it beats at all', () => {
+  it('asks no level for a steady speed before the letters (T40: the beat that paired with it is gone)', () => {
     for (const level of LEVELS) {
-      if (level.phase !== 2) {
-        expect(level.feedback.metronomeBpm).toBe(0)
-        continue
-      }
-      // `f2-agua4` is the one named exemption (see the guard below): its beat
-      // is silenced on purpose, not a hole in the 50-70 rule.
-      if (level.feedback.metronomeBpm === 0) continue
-      expect(level.feedback.metronomeBpm).toBeGreaterThanOrEqual(50)
-      expect(level.feedback.metronomeBpm).toBeLessThanOrEqual(70)
+      if (level.phase <= 2) expect(level.rules.minFluency, level.id).toBe(0)
     }
-  })
-
-  it('silences the beat and the fluency bar on exactly the fish adventure', () => {
-    // design.md §3's exact exemption guard, widened by T40: a named guard so
-    // the silent levels cannot become an unguarded hole for a future level to
-    // hide in. `f2-agua4` was silent first (it asks the child to STOP); T40
-    // silenced the rest of the fish adventure because the author found the
-    // beat meaningless ("un coso de ritmo que no sé para qué sirve").
-    const silent = levelsByPhase(2).filter((l) => l.feedback.metronomeBpm === 0)
-    expect(silent.map((l) => l.id)).toEqual([...FISH_ADVENTURE_IDS])
-    for (const level of silent) expect(level.rules.minFluency, level.id).toBe(0)
-    expect(silent.filter((l) => l.obstacles?.length).map((l) => l.id)).toEqual(['f2-agua4'])
-  })
-
-  it('slows the beat down as the pattern cycle gets longer', () => {
-    // One beat = one cycle: the three-cycle patterns cover more ground per
-    // beat than the four-cycle ones, so they must be slower.
-    const bpm = (id: string): number => getLevel(id).feedback.metronomeBpm
-    expect(bpm('f2-colinas')).toBeGreaterThan(bpm('f2-crestas'))
-    expect(bpm('f2-crestas')).toBeGreaterThan(bpm('f2-bucles'))
   })
 
   it('turns the assisted rail on at FIRST CONTACT only', () => {
@@ -2308,7 +2271,6 @@ describe('the bee family — C1-C6 and R1-R5 (design.md §4.2/§6.2)', () => {
       expect(level.rules.enforceOrder, id).toBe(false)
       expect(level.feedback.tone, id).toBe(false)
       expect(level.feedback.haptics, id).toBe(true)
-      expect(level.feedback.metronomeBpm, id).toBe(0)
       expect(level.feedback.rail, id).toBe(false)
       expect(level.corridorWidth, id).toBe(0)
       expect(level.rules.minFluency, id).toBe(0)

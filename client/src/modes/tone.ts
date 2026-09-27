@@ -7,9 +7,8 @@
 // through the optional `ctx` parameter.
 //
 // The context itself now lives in `canvas/audio.ts` and is SHARED with the live
-// corridor tone and the metronome (`canvas/traceTone.ts`) — browsers cap how
-// many contexts one page may open, and three feedback channels must not each
-// claim one.
+// corridor tone (`canvas/traceTone.ts`) — browsers cap how many contexts one
+// page may open, and no feedback channel may claim its own.
 import { resumeAudio, sharedAudioContext } from '../canvas/audio'
 
 /** Play the soft approval tone; no-op outside a browser or on audio failure. */

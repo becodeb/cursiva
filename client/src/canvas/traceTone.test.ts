@@ -2,7 +2,7 @@
 // AudioContext is touched until the child is actually inside the corridor, the
 // gain is RAMPED (a stepped gain clicks), and every failure path is silent.
 import { describe, expect, it, vi } from 'vitest'
-import { createTraceTone, playBeatTick } from './traceTone'
+import { createTraceTone } from './traceTone'
 
 interface FakeParam {
   value: number
@@ -126,21 +126,5 @@ describe('createTraceTone (sustained corridor tone)', () => {
     } as unknown as AudioContext
     const tone = createTraceTone(broken)
     expect(() => tone.setActive(true)).not.toThrow()
-  })
-})
-
-describe('playBeatTick (metronome)', () => {
-  it('plays one short bounded click', () => {
-    const { ctx, osc } = fakeAudio()
-    playBeatTick(ctx)
-    expect(osc.start).toHaveBeenCalledTimes(1)
-    expect(osc.stop).toHaveBeenCalledTimes(1)
-    const stopAt = osc.stop.mock.calls[0][0] as number
-    expect(stopAt).toBeGreaterThan(0)
-    expect(stopAt).toBeLessThan(0.2) // never overlaps the next beat
-  })
-
-  it('is a no-op without audio, so a muted tablet still gets the visual beat', () => {
-    expect(() => playBeatTick(null)).not.toThrow()
   })
 })

@@ -111,7 +111,7 @@ function makeLevel(over: Partial<LevelConfig> = {}): LevelConfig {
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: false, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: false, rail: false },
     hint: 'Seguí el camino',
     // At least 3 points, or `flattenPathD` rejects the path as degenerate
     // (`letters/svgLetter.ts`: `points.length < 3` returns empty) — the

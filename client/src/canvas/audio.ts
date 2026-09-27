@@ -1,7 +1,7 @@
 // One AudioContext for the whole app. Browsers cap the number of contexts a
 // page may open and refuse to start any of them outside a user gesture, so the
-// approval tone, the sustained corridor tone and the metronome all share this
-// one and all create it LAZILY — the first sound a child triggers is what
+// approval tone, the sustained corridor tone and the sound effects all share
+// this one and all create it LAZILY — the first sound a child triggers is what
 // brings it up.
 //
 // Every consumer treats a `null` here as "this device has no audio" and carries

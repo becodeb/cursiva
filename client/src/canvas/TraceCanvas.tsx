@@ -380,27 +380,6 @@ export interface TraceCorridor {
   taper?: Taper
 }
 
-/** A metronome beat made visible (docs/01 fase 2, "ritmo"). A classroom tablet
- * is very often muted, so the audible tick alone would silently drop the whole
- * rhythm cue for that child.
- *
- * It is drawn as a RING concentric with the start marker. An offset dot was
- * tried first and collided with the direction arrow, which sits a fixed 70
- * units along a path whose heading changes per level — no fixed offset is safe.
- * Concentric is safe by construction, and it puts the beat exactly where the
- * child is already looking before they start. */
-export interface TraceBeatPulse {
-  x: number
-  y: number
-  /** True on the beat, false between beats — the swell is a CSS transition
-   * between the two, so no animation library and no rAF are involved. */
-  on: boolean
-}
-
-/** Beat ring radius. Larger than the r=22 start dot so the dot stays readable,
- * smaller than the 56 units of clear space before the direction arrow begins. */
-const BEAT_RING_R = 32
-
 /** Where the stroke must begin (docs/03 §7: "empezá desde el punto verde"). */
 export interface TraceMarker {
   x: number
@@ -1004,8 +983,6 @@ export interface TraceCanvasProps {
    * SVG mask. A fase-1 sendero is a laberinto (docs/01 fase 1) — a grey hint on
    * open paper is not, and a child can leave it without noticing. */
   maze?: boolean
-  /** Visual metronome beat, drawn over the sheet (phase-2 rhythm cue). */
-  beatPulse?: TraceBeatPulse
   /** T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
    *  strengthen the START marker's own pulse — absent/`false` leaves the
    *  static dot/art exactly as it always rendered (`.cv-idle-nudge-start`,
@@ -1254,7 +1231,6 @@ export default function TraceCanvas({
   showCentreLine = false,
   surface = 'ruled',
   maze = false,
-  beatPulse,
   idleNudgeActive = false,
   idleCue,
   inkWarp,
@@ -2030,28 +2006,6 @@ export default function TraceCanvas({
             />
           ))}
         </g>
-      )}
-      {beatPulse && (
-        // Visual metronome (docs/01 fase 2, "ritmo"). It swells ON the beat and
-        // settles between beats, so a MUTED tablet still carries the pacing cue
-        // the audible tick carries. A RING around the start marker: the green
-        // dot says WHERE to begin, the ring says WHEN to move, and concentric
-        // is the only placement that cannot collide with the direction arrow.
-        <circle
-          cx={beatPulse.x}
-          cy={beatPulse.y}
-          r={BEAT_RING_R}
-          fill="none"
-          stroke="#0ea5e9"
-          strokeWidth={4}
-          opacity={beatPulse.on ? 0.6 : 0.2}
-          style={{
-            transform: `scale(${beatPulse.on ? 1.35 : 1})`,
-            transformOrigin: `${beatPulse.x}px ${beatPulse.y}px`,
-            transition: 'transform 120ms ease-out, opacity 120ms ease-out',
-          }}
-          pointerEvents="none"
-        />
       )}
       {vertexArt && (
         // Static art standing at one or more points on the route

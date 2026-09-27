@@ -82,8 +82,6 @@ export interface LevelFeedback {
   tone: boolean
   /** navigator.vibrate pulse on leaving the corridor. Best-effort. */
   haptics: boolean
-  /** Rhythm cue in beats per minute; 0 = off. Phase 2 only. */
-  metronomeBpm: number
   /** Magnetize the ink toward the ideal route (docs/03 section 6, "riel asistido"). */
   rail: boolean
 }

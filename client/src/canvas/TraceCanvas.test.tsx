@@ -508,7 +508,6 @@ describe('TraceCanvas maze walls (docs/01 fase 1: senderos y laberintos)', () =>
         startMarker={{ x: 100, y: 300 }}
         endMarker={{ x: 900, y: 300 }}
         directionArrow={{ x: 170, y: 300, angle: 0 }}
-        beatPulse={{ x: 100, y: 300, on: true }}
         guide={['M 100 300 L 900 300']}
         guideD="M 100 300 L 900 300"
         carrier={{ x: 100, y: 300 }}
@@ -584,41 +583,6 @@ describe('TraceCanvas tapered corridor (LevelConfig.taper)', () => {
       <TraceCanvas corridor={{ paths: ['M 10 10'], width: 90, taper: { from: 1, to: 0.5 } }} />,
     )
     expect(html).toContain('stroke-width="90"')
-  })
-})
-
-describe('TraceCanvas beat pulse (docs/01 fase 2: ritmo, visible when muted)', () => {
-  it('renders nothing without the prop', () => {
-    // The middle ruled line is also #0ea5e9, so the pulse is identified by its
-    // transition instead of its colour.
-    expect(renderToString(<TraceCanvas />)).not.toContain('transition:transform')
-  })
-
-  it('swells on the beat and settles between beats', () => {
-    const on = renderToString(<TraceCanvas beatPulse={{ x: 120, y: 240, on: true }} />)
-    const off = renderToString(<TraceCanvas beatPulse={{ x: 120, y: 240, on: false }} />)
-    expect(on).toContain('scale(1.35)')
-    expect(off).toContain('scale(1)')
-    expect(on).toContain('cx="120"')
-    expect(on).not.toEqual(off)
-  })
-
-  it('is a RING, concentric with the start marker, so it cannot hide it', () => {
-    const html = renderToString(
-      <TraceCanvas beatPulse={{ x: 120, y: 240, on: true }} startMarker={{ x: 120, y: 240 }} />,
-    )
-    // Stroked, not filled: the green start dot stays visible inside it.
-    expect(html).toContain('stroke="#0ea5e9"')
-    expect(html).toContain('fill="none"')
-    // Wider than the r=22 marker, and clear of the arrow's nearest point (56).
-    const r = Number(html.match(/r="(\d+)"[^>]*fill="none"[^>]*stroke="#0ea5e9"/)?.[1] ?? 0)
-    expect(r).toBeGreaterThan(22)
-    expect(r).toBeLessThan(56)
-  })
-
-  it('the swell is a CSS transition, so no animation library and no rAF', () => {
-    const html = renderToString(<TraceCanvas beatPulse={{ x: 120, y: 240, on: true }} />)
-    expect(html).toContain('transition:transform 120ms ease-out')
   })
 })
 
