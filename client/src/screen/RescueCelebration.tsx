@@ -7,6 +7,8 @@
 //
 // No `url(#…)` anywhere (`canvas/TraceCanvas.tsx:70-84`'s ban): plain `<img>`
 // elements only.
+import { useEffect } from 'react'
+import { playSfx } from '../audio/sfx'
 import { ZOO_STAR_ART } from '../detective/assets'
 
 /**
@@ -59,6 +61,14 @@ const CELEBRATION_STARS: readonly { top: string; left: string; delay: string }[]
  * once every animal is back (`ZooMap`).
  */
 export default function RescueCelebration() {
+  // T35: "something just came home" is exactly the moment the rescue fanfare
+  // is for, on BOTH callers (an adventure's own closing beat and the zoo
+  // map's finale). A mount effect fires it once per actual mount, never on a
+  // re-render of an already-mounted burst — this component's own "closed
+  // unmounts" convention (this file's header) means every open IS a mount.
+  useEffect(() => {
+    playSfx('rescue')
+  }, [])
   return (
     <div className="cv-rescue-celebration" aria-hidden="true">
       {CELEBRATION_STARS.map((spot, i) => (

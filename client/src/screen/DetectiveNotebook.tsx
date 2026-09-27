@@ -23,6 +23,8 @@
 // aspect slot) rather than a JS-computed pixel size: any aspect ratio, from
 // the llama's tall portrait to vibora's long low body, simply shrinks to
 // fit the same card shape.
+import { useEffect } from 'react'
+import { playSfx } from '../audio/sfx'
 import { CloseIcon, NotebookPadIcon, PawPrintIcon } from '../detective/icons'
 import { CARRIER_LENS_ART, type ZooAnimalId } from '../detective/assets'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
@@ -178,6 +180,14 @@ export default function DetectiveNotebook({ records, onClose, highlightId }: Det
   const animals = notebookEntries(records)
   const earnedIds = new Set(earnedItems(records).map((item) => item.id))
 
+  // T35: "closed unmounts, no internal visibility state" (this file's own
+  // header) means every mount IS an open — a mount effect fires the
+  // page-flip swish exactly once per open, never again while the same
+  // instance stays mounted.
+  useEffect(() => {
+    playSfx('notebook')
+  }, [])
+
   return (
     <div className="cv-notebook" role="dialog" aria-label="Libreta del detective">
       <style>{NOTEBOOK_CSS}</style>
@@ -187,7 +197,15 @@ export default function DetectiveNotebook({ records, onClose, highlightId }: Det
           <img src={CARRIER_LENS_ART.href} alt="" />
           <NotebookPadIcon />
         </div>
-        <button type="button" className="cv-notebook-close" aria-label="Cerrar la libreta" onClick={onClose}>
+        <button
+          type="button"
+          className="cv-notebook-close"
+          aria-label="Cerrar la libreta"
+          onClick={() => {
+            playSfx('tap')
+            onClose()
+          }}
+        >
           <CloseIcon />
         </button>
       </div>
