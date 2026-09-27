@@ -132,6 +132,16 @@ export interface LevelConfig {
   letters: string[]
   /** Animated demonstration before the attempt. */
   demo?: boolean
+  /** T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child",
+   *  `docs/18` P5/D24): a short, ONE-SHOT intro cue in place of `demo` —
+   *  for a level whose `kind: 'free'` shape means `demoPaths` is always
+   *  empty, so `demo: true` could never animate anything
+   *  (`screen/LevelPlay.tsx`'s own `demoPlays`). `screen/idleNudgeCue.ts`'s
+   *  `idleCueForLevel` supplies the geometry (the bee's own first flower, or
+   *  a torch sweep for the night); this field only says WHICH levels get
+   *  the one-shot treatment. Absent/`false` everywhere else, including
+   *  every level that predates this field. */
+  introCue?: boolean
   /**
    * Marks this level as a detective trail (`detective-mode`). A trail owns
    * exactly one clue kind and places clue marks along its route, spaced by

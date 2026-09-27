@@ -459,6 +459,63 @@ const HAZARD_COLOR = '#7e6a9e'
 const HAZARD_OPACITY = 0.9
 
 /**
+ * T33 follow-up (orchestrator screenshot review, "the cues work but are
+ * nearly invisible"): the idle-nudge cue's own hand — a marker-style
+ * pointing hand, drawn from three plain rounded rects (never a filled dot or
+ * a grey cloth-coloured rect, both too small/muted to register for a
+ * 6-year-old), paper-filled with the SAME thick dark ink outline the rest of
+ * the app's chrome uses. Local coordinates: `(0, 0)` is the WRIST — the
+ * anchor a caller translates to `from`/`to` and rotates toward the
+ * direction of travel around, the same convention `directionArrow`'s own
+ * dart already uses (rotate around its own local origin, never the SVG's).
+ * The palm/thumb sit BEHIND the wrist (negative x), the index finger points
+ * AHEAD of it (positive x) — rest orientation +x, `rotate(deg)` matches
+ * `screen/directionArrow.ts`'s own SVG-clockwise convention.
+ *
+ * Overall bounding box: x in [-30, 48] (78 wide), y in [-36, 26] (62 tall).
+ * BOTH dimensions matter, not just the larger one: a rotated hand's
+ * on-screen AXIS-ALIGNED box shrinks toward its SMALLER local dimension at
+ * a 90-degree direction of travel (a level whose route starts nearly
+ * vertical) — 62 stays comfortably above the task's own "56px" measured
+ * floor even then, confirmed live (`hedgehog1`, whose spine anchors point in
+ * every direction around the body, measured 59.7-93px across several
+ * anchors, never below the floor; the horizontal `glass1` wipe, the one
+ * angle with NO rotation gain, measured 77.4x51.6 — its own local size,
+ * unrotated). The un-rotated width (78) lands just past the task's own
+ * "64-80 px" TARGET band, on purpose: that band describes the icon at its
+ * OWN size, and the 90-degree case needed height raised to match rather than
+ * width trimmed down.
+ */
+const HAND_CUE_PALM = { x: -30, y: -26, width: 42, height: 52, rx: 18 }
+const HAND_CUE_THUMB = { x: -24, y: -36, width: 18, height: 16, rx: 8 }
+const HAND_CUE_FINGER = { x: 8, y: -8, width: 40, height: 16, rx: 8 }
+const HAND_CUE_STROKE = 4
+
+/** One hand instance (palm + thumb + finger), reused for the live cue and
+ *  each trailing ghost behind it — `opacity` is the only thing that ever
+ *  differs between calls. */
+function HandCueShape({ opacity }: { opacity: number }): ReactNode {
+  return (
+    <g opacity={opacity}>
+      <rect {...HAND_CUE_PALM} fill={SHEET_PAPER} stroke={INK_COLOR} strokeWidth={HAND_CUE_STROKE} />
+      <rect {...HAND_CUE_THUMB} fill={SHEET_PAPER} stroke={INK_COLOR} strokeWidth={HAND_CUE_STROKE} />
+      <rect {...HAND_CUE_FINGER} fill={SHEET_PAPER} stroke={INK_COLOR} strokeWidth={HAND_CUE_STROKE} />
+    </g>
+  )
+}
+
+/** Trailing ghost copies behind the live hand — a delayed START of the SAME
+ *  translate animation reads as "a moment behind", the cheapest correct way
+ *  to trail a translate+rotate without a second geometry system. The first
+ *  entry (`delay: 0`, full opacity) IS the live hand a child actually reads
+ *  as "the hand"; the other two are the fading trail. */
+const HAND_CUE_TRAIL: readonly { delay: number; opacity: number }[] = [
+  { delay: 0, opacity: 1 },
+  { delay: 0.12, opacity: 0.4 },
+  { delay: 0.24, opacity: 0.18 },
+]
+
+/**
  * The carried character (`LevelConfig.carrier`), and the point it rests on
  * before the stroke begins — the start of the route.
  *
@@ -926,6 +983,31 @@ export interface TraceCanvasProps {
   maze?: boolean
   /** Visual metronome beat, drawn over the sheet (phase-2 rhythm cue). */
   beatPulse?: TraceBeatPulse
+  /** T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
+   *  strengthen the START marker's own pulse — absent/`false` leaves the
+   *  static dot/art exactly as it always rendered (`.cv-idle-nudge-start`,
+   *  `LAYOUT_CSS` in `screen/LevelPlay.tsx`, is the only thing this flag
+   *  adds). Applied to whichever of the two start blocks below actually
+   *  renders (the plain green dot, or `startArt` when a level authors one)
+   *  — never both, since only one of the two ever mounts. */
+  idleNudgeActive?: boolean
+  /** T33: the short "look here" cue that slides once from `from` to `to`
+   *  when the child has left the sheet untouched for a while (or, once per
+   *  level, as a stand-in intro for the two levels with no route to
+   *  demonstrate — `screen/idleNudgeCue.ts`'s own `hasIntroCue`). `cueKey`
+   *  changes on every fresh occurrence so the mount-triggered slide replays
+   *  instead of freezing at its finished frame; `reducedMotion` renders the
+   *  cue sitting still at `to`, no animation at all (docs/01 accessibility:
+   *  a reduced-motion viewer is owed the finished frame, the same contract
+   *  `levels/revealGrid.ts`'s own `growthFraction` already documents).
+   *  `null`/absent renders nothing. */
+  idleCue?: {
+    visual: 'hand' | 'wipe' | 'torch'
+    from: { x: number; y: number }
+    to: { x: number; y: number }
+    cueKey: number
+    reducedMotion: boolean
+  } | null
   /** RENDER-ONLY point transform for the assisted rail (`canvas/rail.ts`).
    *
    * It is applied to the live ink and to nothing else. `onRelease` still hands
@@ -1073,6 +1155,13 @@ export interface TraceCanvasProps {
    * at all, byte-identical to before this prop existed. See
    * {@link TraceReveal}. */
   reveal?: TraceReveal
+  /** T33 (`odd/tasks/prewriting-stage-completion.md`): the night's own
+   *  second-level hint sparkle (`levels/revealGrid.ts`'s `nightHintFor`),
+   *  forwarded straight to `RevealLayer` — this component owns no geometry
+   *  of its own for it. `null`/absent draws nothing, which is every level
+   *  that is not a `light` reveal, and a `light` reveal before its own
+   *  15s-of-no-find delay has elapsed. */
+  nightHint?: { x: number; y: number } | null
   /** The waypoint fold's render projection (`free-trail-waypoints`
    * capability), rendered in the SAME slot as `reveal` — a bee level has no
    * corridor, no ground and no reveal, so this is the only thing between
@@ -1134,6 +1223,8 @@ export default function TraceCanvas({
   surface = 'ruled',
   maze = false,
   beatPulse,
+  idleNudgeActive = false,
+  idleCue,
   inkWarp,
   multiStroke = false,
   completedStrokes,
@@ -1163,6 +1254,7 @@ export default function TraceCanvas({
   vertexArt,
   vertexArtDeparting,
   reveal,
+  nightHint,
   waypoints,
   spines,
   camera,
@@ -1646,7 +1738,7 @@ export default function TraceCanvas({
         // margin patch (`RevealLayer`'s own header) reach the same area the
         // backdrop `<image>` now covers — never leaving unclean/undark art
         // visible in the margin `sheetBounds` alone would leave uncovered.
-        <RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />
+        <RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} nightHint={nightHint} />
       )}
       {waypoints && (
         // The waypoint fold's render projection (`free-trail-waypoints`
@@ -2019,6 +2111,7 @@ export default function TraceCanvas({
         // REPLACES the green dot rather than joining it (see `startArt`).
         <image
           href={startArt.href}
+          className={idleNudgeActive ? 'cv-idle-nudge-start' : undefined}
           {...clampArtBox(
             placeArt({ ...startArt, grip: STANDING_GRIP }, startArt.size, startArt.at ?? startMarker),
             sheetBounds,
@@ -2029,7 +2122,7 @@ export default function TraceCanvas({
       )}
       {startMarker && !startArt && (
         // "Empezá desde el punto verde" (docs/03 §7).
-        <g pointerEvents="none">
+        <g pointerEvents="none" className={idleNudgeActive ? 'cv-idle-nudge-start' : undefined}>
           <circle
             cx={startMarker.x}
             cy={startMarker.y}
@@ -2042,6 +2135,67 @@ export default function TraceCanvas({
           <circle cx={startMarker.x} cy={startMarker.y} r={5} fill="#ffffff" />
         </g>
       )}
+      {idleCue && (() => {
+        // T33 follow-up (orchestrator screenshot review, "the cues work but
+        // are nearly invisible… make every cue unmistakable"): every
+        // `idleCue.visual` now draws the SAME marker-style hand
+        // (`HandCueShape`) — a filled dot and a small grey rect both read as
+        // decoration, not an instruction, at this size. Only the MOTION
+        // differs: `'hand'` (a routed level, the bee, a hedgehog spine)
+        // slides ONCE from `from` to `to`; `'wipe'`/`'torch'` (cleaning /
+        // night) scrub back and forth twice — "a wiping motion over the
+        // cover" and "the hand sweeps the torch" are both a repeated pass,
+        // never a one-shot slide, over ground with no single target point.
+        // Keyed on `cueKey` so a fresh occurrence remounts and replays
+        // `initial -> animate` instead of freezing at its last finished
+        // frame. `reducedMotion` renders ONE static hand at `to`, at the
+        // SAME full size — "static but still large", never shrunk.
+        const angleDeg =
+          (Math.atan2(idleCue.to.y - idleCue.from.y, idleCue.to.x - idleCue.from.x) * 180) / Math.PI
+        const xs =
+          idleCue.visual === 'hand'
+            ? [idleCue.from.x, idleCue.to.x]
+            : [idleCue.from.x, idleCue.to.x, idleCue.from.x, idleCue.to.x, idleCue.from.x]
+        const ys =
+          idleCue.visual === 'hand'
+            ? [idleCue.from.y, idleCue.to.y]
+            : [idleCue.from.y, idleCue.to.y, idleCue.from.y, idleCue.to.y, idleCue.from.y]
+        const duration = idleCue.visual === 'hand' ? 2 : 2.4
+        return (
+          <g pointerEvents="none" data-idle-cue={idleCue.visual}>
+            {(idleCue.reducedMotion ? [HAND_CUE_TRAIL[0]] : HAND_CUE_TRAIL).map((ghost) => (
+              <motion.g
+                key={`${idleCue.cueKey}-${ghost.delay}`}
+                // ONLY translate here — framer-motion's `x`/`y` on an SVG
+                // element compiles to `transform: translate(...)`, which
+                // transform-origin never affects, so no pivot concern exists
+                // for this element at all. Rotation is a SEPARATE, plain SVG
+                // `transform="rotate(...)"` ATTRIBUTE one level in (below),
+                // never a framer-motion CSS value: framer defaults an SVG
+                // element's `transform-origin` to its own bounding-box
+                // CENTRE (`transform-box: fill-box`), which would rotate the
+                // hand around the wrong point (its visual centre, not the
+                // wrist this group is being translated to) — measured
+                // directly in this file's own SSR output before this split.
+                // A plain attribute rotates around local `(0, 0)` with no
+                // origin concept at all, exactly matching `directionArrow`'s
+                // own dart below.
+                initial={idleCue.reducedMotion ? { x: idleCue.to.x, y: idleCue.to.y } : { x: xs[0], y: ys[0] }}
+                animate={idleCue.reducedMotion ? { x: idleCue.to.x, y: idleCue.to.y } : { x: xs, y: ys }}
+                transition={
+                  idleCue.reducedMotion
+                    ? { duration: 0 }
+                    : { duration, delay: ghost.delay, ease: 'easeInOut' }
+                }
+              >
+                <g transform={`rotate(${angleDeg})`}>
+                  <HandCueShape opacity={ghost.opacity} />
+                </g>
+              </motion.g>
+            ))}
+          </g>
+        )
+      })()}
       {directionArrow && (
         // A NOTCHED DART, not a plain triangle. The previous `0,-12 26,0 0,12`
         // was 26 long and 24 wide — near-equilateral, so at the ~23 CSS px it

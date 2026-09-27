@@ -294,7 +294,43 @@ export interface RevealLayerProps {
    * covers for ANY image aspect — a wide 2:1 backdrop needs no change here.
    */
   displayBounds?: ArtBox
+  /** T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
+   *  the night's own second-level hint — a faint sparkle somewhere in the
+   *  REGION of the nearest still-hidden object (`levels/revealGrid.ts`'s
+   *  `nightHintFor`), never its exact spot. Rendered only under `nightVeil`
+   *  (a `light` reveal); harmless and unused on an `erase` reveal, which has
+   *  no notion of "found"/"hidden" objects at all. `null`/absent draws
+   *  nothing — every level before this task, and a `light` level before its
+   *  own 15s-of-no-find delay. Deliberately NOT the T2-removed exact-object
+   *  halo (see the `revealedArt`/"Defect fix" comments further down this
+   *  file): that one sat AT the object and showed always; this one sits
+   *  OFFSET from it and only after a real delay of active, unsuccessful
+   *  searching. */
+  nightHint?: { x: number; y: number } | null
 }
+
+/**
+ * T33 follow-up (orchestrator screenshot review, "the sparkle is a tiny
+ * faint star (~15 px) up by the back button… too small and too faint"): a
+ * 4-point sparkle/twinkle, centred on the origin — plain `M`/`L`/`Z` path
+ * data (no `url(#...)`, no `<mask>`, this file's own header ban), meant to
+ * be translated to the hint's own `(x, y)` by the caller. Distinct in SHAPE
+ * from the plain filled/ringed circles this file draws for a torch or a
+ * found object, so it reads as "something twinkling" rather than a third
+ * kind of light source.
+ *
+ * Scaled to a 36px-diameter bounding box (outer points at radius 18) — the
+ * task's own "~32-40 px" band, more than double the original radius-9 shape
+ * the screenshot caught reading as a stray pixel. `NIGHT_HINT_GLOW_R` (18,
+ * matching the star's own extent) is a plain soft circle drawn UNDER it, the
+ * same warm tone as `NIGHT_SUCCESS_WASH` (this file's own "lit-object glow")
+ * rather than the star's pale original fill — together they read as one
+ * small glow with a twinkle inside it, not a flat icon.
+ */
+const NIGHT_HINT_SPARKLE_PATH =
+  'M 0,-18 L 5,-5 L 18,0 L 5,5 L 0,18 L -5,5 L -18,0 L -5,-5 Z'
+const NIGHT_HINT_GLOW_R = 18
+const NIGHT_HINT_WARM = '#ffe88a' // NIGHT_SUCCESS_WASH's own tone
 
 /**
  * The frame `outer` minus `inner`, as up to four non-overlapping bands (top,
@@ -1069,7 +1105,7 @@ function wholePaneLeafRakes(sheetBounds: ArtBox): readonly { path: string; probe
   })
 }
 
-export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }: RevealLayerProps) {
+export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds, nightHint = null }: RevealLayerProps) {
   const glassFog = isGlassFog(reveal.fill)
   const nightVeil = isNightVeil(reveal.fill)
   const sand = reveal.visual === 'sand'
@@ -1472,6 +1508,22 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }
             {...(glassFog || sand || leaves || mud ? { opacity: 0 } : tile.opacity < 1 ? { opacity: tile.opacity } : {})}
           />
         ))
+      )}
+      {nightVeil && nightHint && (
+        // T33: drawn AFTER the dark veil paint above (so it reads on top of
+        // the darkness, the same stacking `night-star`'s own celebration
+        // circles below rely on), never inside a `data-night-veil-ring`
+        // layer — a real torch-found glow and this hint must stay
+        // structurally distinct so a test (and a future reader) can never
+        // confuse "found" with "a hint toward something still hidden".
+        // `.cv-night-hint-sparkle` (`LAYOUT_CSS`, `screen/LevelPlay.tsx`)
+        // gives it a gentle twinkle, static under reduced motion.
+        <g data-night-hint-sparkle="true" transform={`translate(${nightHint.x} ${nightHint.y})`} pointerEvents="none">
+          <g className="cv-night-hint-sparkle">
+            <circle r={NIGHT_HINT_GLOW_R} fill={NIGHT_HINT_WARM} opacity={0.35} />
+            <path d={NIGHT_HINT_SPARKLE_PATH} fill={NIGHT_HINT_WARM} />
+          </g>
+        </g>
       )}
       {nightVeil && reveal.light?.complete && completionSettled && (
         // T7 rework: `displayBounds`, not `sheetBounds` — the completion

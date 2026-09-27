@@ -13,11 +13,18 @@ import {
   isLightAnimating,
   LIGHT_COMPLETE_GROWTH_MS,
   LIGHT_FOUND_GROWTH_MS,
+  NIGHT_HINT_DELAY_MS,
+  NIGHT_HINT_MAX_FACTOR,
+  NIGHT_HINT_MIN_FACTOR,
   REVEAL_EPSILON,
   clearedTiles,
   debugClearedTiles,
   lightOpacity,
   lightSources,
+  nearestUnfoundObject,
+  nightHintDistanceFactor,
+  nightHintFor,
+  nightHintIndex,
   revealScore,
   revealTick,
   revealTiles,
@@ -577,5 +584,222 @@ describe('lightSources — T19 live torch grow-in and fade-out', () => {
     state = revealTick(state, [], false, light, 1000, pressAt + TORCH_FADE_MS)
     expect(isLightAnimating(state, pressAt + TORCH_FADE_MS)).toBe(true)
     expect(isLightAnimating(state, pressAt + 2 * TORCH_FADE_MS)).toBe(false)
+  })
+})
+
+// T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"): the
+// night's own second-level hint.
+describe('nightHintIndex', () => {
+  it('is -1 before NIGHT_HINT_DELAY_MS has passed', () => {
+    expect(nightHintIndex(0)).toBe(-1)
+    expect(nightHintIndex(NIGHT_HINT_DELAY_MS - 1)).toBe(-1)
+  })
+
+  it('becomes 0 exactly at the delay, and stays 0 through the whole first window', () => {
+    expect(nightHintIndex(NIGHT_HINT_DELAY_MS)).toBe(0)
+    expect(nightHintIndex(NIGHT_HINT_DELAY_MS * 2 - 1)).toBe(0)
+  })
+
+  it('increases by one every further NIGHT_HINT_DELAY_MS', () => {
+    expect(nightHintIndex(NIGHT_HINT_DELAY_MS * 2)).toBe(1)
+    expect(nightHintIndex(NIGHT_HINT_DELAY_MS * 5)).toBe(4)
+  })
+
+  it('clamps a negative elapsed to "no hint yet" rather than going positive', () => {
+    expect(nightHintIndex(-1000)).toBe(-1)
+  })
+})
+
+describe('nightHintDistanceFactor', () => {
+  it('starts at NIGHT_HINT_MAX_FACTOR for the first hint', () => {
+    expect(nightHintDistanceFactor(0)).toBe(NIGHT_HINT_MAX_FACTOR)
+  })
+
+  it('is non-increasing as hints repeat', () => {
+    let prev = nightHintDistanceFactor(0)
+    for (let i = 1; i <= 10; i++) {
+      const next = nightHintDistanceFactor(i)
+      expect(next).toBeLessThanOrEqual(prev)
+      prev = next
+    }
+  })
+
+  it('never reaches 0 or below, no matter how many hints have played — the object\'s exact spot is never handed out', () => {
+    for (let i = 0; i <= 50; i++) {
+      expect(nightHintDistanceFactor(i)).toBeGreaterThanOrEqual(NIGHT_HINT_MIN_FACTOR)
+      expect(nightHintDistanceFactor(i)).toBeGreaterThan(0)
+    }
+  })
+
+  it('floors at NIGHT_HINT_MIN_FACTOR once enough hints have played', () => {
+    expect(nightHintDistanceFactor(100)).toBe(NIGHT_HINT_MIN_FACTOR)
+  })
+})
+
+describe('nearestUnfoundObject', () => {
+  const twoObjects: Extract<RevealConfig, { mode: 'light' }> = {
+    mode: 'light',
+    cols: 15,
+    rows: 9,
+    radius: 100,
+    objects: [
+      { art: { href: '/art/a.png', w: 1, h: 1 }, size: 50, x: 100, y: 100 },
+      { art: { href: '/art/b.png', w: 1, h: 1 }, size: 50, x: 800, y: 500 },
+    ],
+  }
+
+  it('picks the closer of two unfound objects', () => {
+    const near = nearestUnfoundObject(twoObjects, EMPTY_REVEAL, { x: 120, y: 110 })
+    expect(near?.index).toBe(0)
+    const far = nearestUnfoundObject(twoObjects, EMPTY_REVEAL, { x: 780, y: 480 })
+    expect(far?.index).toBe(1)
+  })
+
+  it('skips an already-found object', () => {
+    const state: RevealState = { ...EMPTY_REVEAL, lit: new Set([0]) }
+    const nearest = nearestUnfoundObject(twoObjects, state, { x: 120, y: 110 })
+    expect(nearest?.index).toBe(1) // object 0 is closer but already found
+  })
+
+  it('is null once every object is found', () => {
+    const state: RevealState = { ...EMPTY_REVEAL, lit: new Set([0, 1]) }
+    expect(nearestUnfoundObject(twoObjects, state, { x: 0, y: 0 })).toBeNull()
+  })
+
+  it('is null with no objects at all', () => {
+    const empty: Extract<RevealConfig, { mode: 'light' }> = { mode: 'light', cols: 1, rows: 1, radius: 10, objects: [] }
+    expect(nearestUnfoundObject(empty, EMPTY_REVEAL, { x: 0, y: 0 })).toBeNull()
+  })
+})
+
+describe('nightHintFor', () => {
+  // Well clear of every edge (margin 60, on a 1000x600 sheet) at every
+  // factor `nightHintDistanceFactor` ever returns (max 1.5 x radius 100 =
+  // 150 in any direction from (500, 300)) — so the exact-distance/monotone
+  // formulas below are checked on the UNCLAMPED case; the clamp itself is a
+  // separate, dedicated suite below (`nightHintFor — edge clamping`).
+  const single: Extract<RevealConfig, { mode: 'light' }> = {
+    mode: 'light',
+    cols: 15,
+    rows: 9,
+    radius: 100,
+    objects: [{ art: { href: '/art/leaf.png', w: 1, h: 1 }, size: 64, x: 500, y: 300 }],
+  }
+  const from = { x: 700, y: 300 }
+
+  it('is null before the delay has elapsed', () => {
+    expect(nightHintFor(single, EMPTY_REVEAL, NIGHT_HINT_DELAY_MS - 1, from)).toBeNull()
+  })
+
+  it('is null once every object is already found', () => {
+    const state: RevealState = { ...EMPTY_REVEAL, lit: new Set([0]) }
+    expect(nightHintFor(single, state, NIGHT_HINT_DELAY_MS, from)).toBeNull()
+  })
+
+  it('places the sparkle at NIGHT_HINT_MAX_FACTOR × radius from the true object on the first hint', () => {
+    const hint = nightHintFor(single, EMPTY_REVEAL, NIGHT_HINT_DELAY_MS, from)
+    expect(hint).not.toBeNull()
+    expect(hint!.objectIndex).toBe(0)
+    const obj = single.objects[0]
+    const dist = Math.hypot(hint!.x - obj.x, hint!.y - obj.y)
+    expect(dist).toBeCloseTo(NIGHT_HINT_MAX_FACTOR * single.radius, 5)
+  })
+
+  it('never lands exactly on the object\'s own spot, on any hint occurrence', () => {
+    for (let occurrence = 0; occurrence <= 8; occurrence++) {
+      const elapsed = NIGHT_HINT_DELAY_MS * (occurrence + 1)
+      const hint = nightHintFor(single, EMPTY_REVEAL, elapsed, from)
+      const obj = single.objects[0]
+      const dist = Math.hypot(hint!.x - obj.x, hint!.y - obj.y)
+      expect(dist).toBeGreaterThan(0)
+    }
+  })
+
+  it('gets closer (or at least no farther) on each later hint occurrence', () => {
+    const obj = single.objects[0]
+    let prevDist = Infinity
+    for (let occurrence = 0; occurrence <= 6; occurrence++) {
+      const elapsed = NIGHT_HINT_DELAY_MS * (occurrence + 1)
+      const hint = nightHintFor(single, EMPTY_REVEAL, elapsed, from)!
+      const dist = Math.hypot(hint.x - obj.x, hint.y - obj.y)
+      expect(dist).toBeLessThanOrEqual(prevDist + 1e-6)
+      prevDist = dist
+    }
+  })
+
+  it('is deterministic for the same (object, occurrence) pair — no re-render jitter', () => {
+    const a = nightHintFor(single, EMPTY_REVEAL, NIGHT_HINT_DELAY_MS, from)
+    const b = nightHintFor(single, EMPTY_REVEAL, NIGHT_HINT_DELAY_MS + 500, from) // same occurrence, later poll
+    expect(a).toEqual(b)
+  })
+
+  it('targets the nearest unfound object to the given reference point', () => {
+    const two: Extract<RevealConfig, { mode: 'light' }> = {
+      mode: 'light',
+      cols: 15,
+      rows: 9,
+      radius: 100,
+      objects: [
+        { art: { href: '/art/a.png', w: 1, h: 1 }, size: 50, x: 100, y: 100 },
+        { art: { href: '/art/b.png', w: 1, h: 1 }, size: 50, x: 800, y: 500 },
+      ],
+    }
+    const hint = nightHintFor(two, EMPTY_REVEAL, NIGHT_HINT_DELAY_MS, { x: 780, y: 480 })
+    expect(hint?.objectIndex).toBe(1)
+  })
+})
+
+// Browser QA (`capturas/2026-09-27-tanda4/night-hint-1-after-15s-searching.png`)
+// caught an unclamped sparkle rendering above the sheet's own top edge —
+// visually under the floating header chrome — for night1's REAL object
+// position/radius (near a corner, at the family's widest radius). This
+// suite pins that exact regression.
+describe('nightHintFor — edge clamping', () => {
+  // night1's own real reveal config (`levels/catalog.ts`): a corner-ish
+  // object at the family's widest radius, the combination the browser QA
+  // screenshot actually caught escaping the sheet.
+  const nearCorner: Extract<RevealConfig, { mode: 'light' }> = {
+    mode: 'light',
+    cols: 15,
+    rows: 9,
+    radius: 200,
+    objects: [{ art: { href: '/art/leaf.png', w: 1, h: 1 }, size: 64, x: 180, y: 460 }],
+  }
+  const from = { x: 500, y: 300 }
+  const width = 1000
+
+  it('never places the sparkle above, below, left of, or right of the sheet, across every hint occurrence', () => {
+    for (let occurrence = 0; occurrence <= 10; occurrence++) {
+      const elapsed = NIGHT_HINT_DELAY_MS * (occurrence + 1)
+      const hint = nightHintFor(nearCorner, EMPTY_REVEAL, elapsed, from, width)!
+      expect(hint.x).toBeGreaterThanOrEqual(0)
+      expect(hint.x).toBeLessThanOrEqual(width)
+      expect(hint.y).toBeGreaterThanOrEqual(0)
+      expect(hint.y).toBeLessThanOrEqual(600) // SHEET_HEIGHT
+    }
+  })
+
+  it('keeps a real margin from every edge, not just a bare non-negative clamp', () => {
+    const hint = nightHintFor(nearCorner, EMPTY_REVEAL, NIGHT_HINT_DELAY_MS, from, width)!
+    expect(hint.x).toBeGreaterThanOrEqual(60)
+    expect(hint.y).toBeGreaterThanOrEqual(60)
+  })
+
+  it('defaults to a 1000-wide sheet when no width is given — every pre-existing caller stays clamp-safe too', () => {
+    const hint = nightHintFor(nearCorner, EMPTY_REVEAL, NIGHT_HINT_DELAY_MS, from)!
+    expect(hint.x).toBeLessThanOrEqual(1000)
+  })
+
+  it('an interior object at a small radius is never actually clamped — the fix is edge-only', () => {
+    const interior: Extract<RevealConfig, { mode: 'light' }> = {
+      mode: 'light',
+      cols: 15,
+      rows: 9,
+      radius: 50,
+      objects: [{ art: { href: '/art/leaf.png', w: 1, h: 1 }, size: 64, x: 500, y: 300 }],
+    }
+    const hint = nightHintFor(interior, EMPTY_REVEAL, NIGHT_HINT_DELAY_MS, from, width)!
+    const dist = Math.hypot(hint.x - 500, hint.y - 300)
+    expect(dist).toBeCloseTo(NIGHT_HINT_MAX_FACTOR * 50, 5)
   })
 })
