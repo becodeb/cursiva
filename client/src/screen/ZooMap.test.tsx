@@ -214,7 +214,14 @@ describe('ZooMap (HUD is DOM, outside the svg)', () => {
   it('renders the backpack as an openable button, with no notebook open and no recovered-animals HUD row by default', () => {
     const html = render(filed('duck-trail4'))
     expect(html).toContain('aria-label="Abrir la libreta del detective"')
-    expect(html).toContain('class="cv-zoo-hud-left"')
+    // T31 (notebook discoverability): under `renderToString` there is no
+    // `window`/`localStorage` (`screen/notebookDiscovery.ts`'s own
+    // `hasOpenedNotebookOnce` reads `false` for a null storage), so a fresh
+    // render with at least one rescued animal always shows the PERSISTENT
+    // pulse — the exact "nobody has discovered the notebook yet" state a
+    // real first visit is in. The dedicated `describe` block below covers
+    // every other discoverability case.
+    expect(html).toContain('class="cv-zoo-hud-left cv-zoo-hud-left--pulse"')
     expect(html).not.toContain('class="cv-notebook"')
     expect(html).not.toContain('class="cv-zoo-hud-mid"')
   })
@@ -622,5 +629,61 @@ describe('ZooMap rescue flight (T24)', () => {
   it('the overlay class is pointer-events: none, so a mid-flight tap always reaches the map underneath it', () => {
     const html = render()
     expect(html).toContain('.cv-zoo-rescue-flight { position: fixed; pointer-events: none;')
+  })
+})
+
+// T31 (`odd/tasks/prewriting-stage-completion.md`, notebook discoverability).
+// `renderToString` never runs effects (this file's own header, repeated
+// throughout), so the one-shot receive bounce/badge (only ever set from the
+// rescue-flight-consuming effect) never appears here — that half is exercised
+// by browser QA instead. The PERSISTENT pulse, though, is a plain function of
+// `recovered.length` and `notebookDiscovered`'s own lazy initializer (`false`
+// under a null `window`, `screen/notebookDiscovery.ts`), both fully decided
+// before the first paint — directly testable here.
+// The BODY markup only (after the `<style>` block closes) — the stylesheet
+// itself always mentions every one of these bare class SELECTORS (twice,
+// counting each reduced-motion override), so a raw whole-HTML substring
+// check can never tell "no element carries the class" apart from "some
+// element does" (the same trap `DetectiveNotebook.test.tsx`'s own
+// `bodyOf` helper exists for).
+function bodyOf(html: string): string {
+  const closeStyle = html.indexOf('</style>')
+  return closeStyle >= 0 ? html.slice(closeStyle + '</style>'.length) : html
+}
+
+describe('ZooMap backpack discoverability (T31)', () => {
+  it('shows no pulse on a fresh install with nothing rescued yet (nothing to discover)', () => {
+    const html = render()
+    expect(bodyOf(html)).toContain('class="cv-zoo-hud-left"')
+    expect(bodyOf(html)).not.toContain('cv-zoo-hud-left--pulse')
+  })
+
+  it('shows the persistent pulse once at least one animal has been rescued (renderToString: notebook always reads as undiscovered)', () => {
+    const html = render(filed(...estanque.adventureIds))
+    expect(bodyOf(html)).toContain('class="cv-zoo-hud-left cv-zoo-hud-left--pulse"')
+  })
+
+  it('never renders the one-shot receive class or its badge on an ordinary render (no departure consumed, effects never run under renderToString)', () => {
+    const html = render(filed(...estanque.adventureIds))
+    expect(bodyOf(html)).not.toContain('cv-zoo-backpack-receive')
+    expect(bodyOf(html)).not.toContain('cv-zoo-backpack-badge')
+  })
+
+  it('carries reduced-motion overrides for the pulse, the receive bounce, and the badge — none of them loop forever once reduced', () => {
+    const html = render()
+    expect(html).toContain(
+      '@media (prefers-reduced-motion: reduce) {\n  .cv-zoo-hud-left--pulse { animation: none; box-shadow: 0 0 0 4px rgba(242, 211, 119, 0.9); }\n}',
+    )
+    expect(html).toContain('@media (prefers-reduced-motion: reduce) { .cv-zoo-backpack-receive { animation: none; } }')
+    expect(html).toContain('@media (prefers-reduced-motion: reduce) { .cv-zoo-backpack-badge { animation: none; } }')
+  })
+
+  it('introduces no url(#…) or mask reference of its own', () => {
+    const html = render(filed(...estanque.adventureIds))
+    const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/)
+    expect(styleMatch).not.toBeNull()
+    const block = styleMatch![1].slice(styleMatch![1].indexOf('.cv-zoo-hud-left--pulse'))
+    expect(block).not.toContain('url(#')
+    expect(block).not.toContain('<mask')
   })
 })

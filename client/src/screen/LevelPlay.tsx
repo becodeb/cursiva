@@ -302,8 +302,15 @@ export function celebrationHold(level: Pick<LevelConfig, 'reveal'>): Celebration
  * the surface the child is cleaning. The approved art already includes the
  * animal, uppercase word, and wooden frame, so this stays a narrow LevelPlay
  * projection rather than becoming another level-engine field.
+ *
+ * Exported (`odd/tasks/prewriting-stage-completion.md` T31 follow-up,
+ * "the intro must use the SAME framing as the level"): `screen/introChrome.tsx`
+ * reads this SAME table to render an invisible replica of this row's own
+ * header for `AdventureIntro.tsx`'s own chrome-inset measurement — a second,
+ * independently-maintained copy would silently drift the instant a sign is
+ * added or removed here.
  */
-const PROLOGUE_ZOO_SIGNS = {
+export const PROLOGUE_ZOO_SIGNS = {
   glass1: { art: SIGN_ART.fish, label: 'PECES' },
   glass2: { art: SIGN_ART.fish, label: 'PECES' },
   sand1: { art: SIGN_ART.turtles, label: 'TORTUGAS' },
@@ -1744,6 +1751,14 @@ function Pillar({
   )
 }
 
+/** The chrome's own left/right safe inset (`docs/09`'s "small side insets" —
+ *  no element on either side needs protecting, unlike the top/bottom rows).
+ *  Exported (T31 follow-up) so `screen/introChrome.tsx` feeds
+ *  `canvas/TraceCanvas.tsx`'s `fitContentWithInsets` the EXACT same four
+ *  numbers this screen does — see this component's own `SIDE_INSET` below,
+ *  which reads from here rather than restating the literal a second time. */
+export const LEVEL_CHROME_SIDE_INSET = 16
+
 export default function LevelPlay({ level, record, onAttempt, onNext, onBack, progress }: LevelPlayProps) {
   // T7 rework #2 (orchestrator review, "fit the content box into the
   // viewport minus the chrome's safe insets"): .cv-top/.cv-foot's own
@@ -1774,7 +1789,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     measure()
     return () => observer.disconnect()
   }, [])
-  const SIDE_INSET = 16
+  const SIDE_INSET = LEVEL_CHROME_SIDE_INSET
 
   // Building the dense ideal cloud is the expensive part of a level load; it
   // may only re-run when the level or the adaptive width actually changes.

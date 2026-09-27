@@ -67,6 +67,7 @@ import { BUBBLE_POP_CSS } from './BubblePop'
 import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 import { recordDeparture, RESCUE_FLIGHT_VT_NAME } from '../zoo/rescueFlight'
 import { resolveRescueAnimalBox } from './rescueAnimalPlacement'
+import { hasOpenedNotebookOnce, NOTEBOOK_HINT_LINE } from './notebookDiscovery'
 import { CONTENT_LEFT_FRAC, CONTENT_TOP_FRAC, CONTENT_WIDTH_FRAC, GAP_FRAC, LINE_HEIGHT, placeAndFitBubble } from './bubbleFit'
 import {
   OCTOPUS_CORNER_INSET,
@@ -202,6 +203,23 @@ ${BUBBLE_POP_CSS}
 ${RESCUE_CELEBRATION_CSS}
 `
 
+/**
+ * The bubble/spoken text for one beat (`odd/tasks/prewriting-stage-
+ * completion.md` T31, notebook discoverability): a rescue beat's own line,
+ * plus `NOTEBOOK_HINT_LINE` appended, exactly once, the first time an animal
+ * is delivered while the notebook is still undiscovered — never for a
+ * non-rescue beat (the four entrance enclosures, `night`), and never again
+ * once the child has opened the notebook at least once
+ * (`screen/notebookDiscovery.ts`'s own `hasOpenedNotebookOnce`, checked by
+ * the caller). Exported as a pure function, the same reason
+ * `AdventureIntro.tsx`'s own `introSpokenLine` is: directly testable without
+ * a DOM, and the one seam `notebookDiscovery.test.ts`'s own bubbleFit-style
+ * check exercises against the longest real rescue line in the registry.
+ */
+export function closingBubbleText(beat: ClosingBeat, showNotebookHint: boolean): string {
+  return showNotebookHint ? `${beat.line} ${NOTEBOOK_HINT_LINE}` : beat.line
+}
+
 export interface AdventureClosingProps {
   adventure: Adventure
   /** The ONE beat to render this mount — `GameScreen`'s `'close'` view picks
@@ -229,12 +247,20 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
   // own header for why the handoff has to be a module-scope variable
   // rather than React state.
   const rescueAnimalRef = useRef<HTMLSpanElement | null>(null)
+  const isRescue = adventure.animal !== undefined
+  // T31 (notebook discoverability): the hint is appended to THIS rescue
+  // beat's own line, once, only while the notebook is still undiscovered —
+  // `hasOpenedNotebookOnce` reads real `localStorage` (absent under
+  // `renderToString`, this file's own `typeof window` guard, the same
+  // convention `AdventureClosing.tsx`'s own `currentViewport` already uses).
+  const showNotebookHint = isRescue && typeof window !== 'undefined' && !hasOpenedNotebookOnce(window.localStorage)
+  const bubbleText = closingBubbleText(beat, showNotebookHint)
   // Voice narration (docs/18 D1; T7): each beat speaks its own line as soon
   // as it appears. `GameScreen`'s own 'close' view (this file's own header)
   // re-renders this SAME component with the NEXT beat rather than
   // remounting it, so this relies on `useNarration`'s "speaks again when
   // `line` changes" behaviour, not on a fresh mount.
-  useNarration(beat.line)
+  useNarration(bubbleText)
   // T18: the stance (`docs/19` §4.1) — this beat's own, falling back to the
   // shared default.
   const stance = resolvePulpitoStance(beat.stance)
@@ -246,7 +272,6 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
     bottom: 2,
     inset: OCTOPUS_CORNER_INSET,
   })
-  const isRescue = adventure.animal !== undefined
   // T24 follow-up: text-only for a rescue beat (no `art`) — the big animal
   // below is the one picture now; a non-rescue beat (entrance enclosures,
   // night) keeps its own small caption image exactly as before.
@@ -255,7 +280,7 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
     headBox: octopusBox,
     tail: ZOO_SPEECH_BUBBLE_TAIL,
     side: stanceBubbleSide(stance.corner),
-    text: beat.line,
+    text: bubbleText,
     art: isRescue ? undefined : beat.art,
   })
   const rescueAnimalBox = isRescue
@@ -348,7 +373,7 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
             >
               <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
               {isRescue ? (
-                <p className="cv-closing-bubble-text">{beat.line}</p>
+                <p className="cv-closing-bubble-text">{bubbleText}</p>
               ) : (
                 <CaptionedArt
                   art={beat.art}
@@ -362,7 +387,7 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
           {adventure.animal !== undefined && <RescueCelebration />}
         </button>
       </div>
-      <SpeakButton line={beat.line} className="cv-closing-speak" />
+      <SpeakButton line={bubbleText} className="cv-closing-speak" />
     </main>
   )
 }
