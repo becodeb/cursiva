@@ -877,17 +877,22 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
     // profile's per-anchor radii vary along the arc. T19 (`odd/tasks/
     // prewriting-stage-completion.md` §3.3) redesigned every hedgehog
     // level's pose/count/body (`catalog.ts`'s own T19 comment on the family
-    // has the full rationale) — margins recomputed against the NEW
-    // counts/poses/bodies below. `hedgehog3`/`hedgehog4`'s margins are
-    // noticeably thinner than `hedgehog1`/`hedgehog2`'s: packing 10-11
-    // anchors into the profile's 180° arc, keeping `baseRadius ≥ TolTouch`
-    // (26) and keeping the body on the 600-tall sheet, leaves little slack
-    // — still comfortably positive, never the geometric ceiling itself.
+    // has the full rationale) — margins first recomputed against the NEW
+    // counts/poses/bodies, then AGAIN by T30 (same file's own T30 comment,
+    // "it detects fewer times than before"): `baseRadius` deliberately moved
+    // much closer to this same ceiling on every level (a realistic child
+    // stroke simulator measured the old margins as mostly UNUSED headroom,
+    // the single largest rejector on hedgehog2-4). `hedgehog3`/`hedgehog4`'s
+    // margins stay noticeably thinner than `hedgehog1`/`hedgehog2`'s: packing
+    // 10-11 anchors into the profile's 180° arc, keeping `baseRadius ≥
+    // TolTouch` (26) and keeping the body on the 600-tall sheet, leaves
+    // little slack — still comfortably positive, never the geometric ceiling
+    // itself.
     const margins: Record<string, number> = {
-      hedgehog1: 14.0,
-      hedgehog2: 9.9,
-      hedgehog3: 2.5,
-      hedgehog4: 2.9,
+      hedgehog1: 4.0,
+      hedgehog2: 2.9,
+      hedgehog3: 1.5,
+      hedgehog4: 1.9,
     }
     for (const id of HEDGEHOG_IDS) {
       const cfg = getLevel(id).spines!
@@ -957,8 +962,6 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
     const cfgs = HEDGEHOG_IDS.map((id) => getLevel(id).spines!)
     for (let i = 1; i < cfgs.length; i++) {
       expect(cfgs[i].rules.baseRadius, HEDGEHOG_IDS[i]).toBeLessThanOrEqual(cfgs[i - 1].rules.baseRadius)
-      expect(cfgs[i].rules.tolDeg, HEDGEHOG_IDS[i]).toBeLessThan(cfgs[i - 1].rules.tolDeg)
-      expect(cfgs[i].rules.straightness, HEDGEHOG_IDS[i]).toBeGreaterThan(cfgs[i - 1].rules.straightness)
       expect(cfgs[i].count, HEDGEHOG_IDS[i]).toBeGreaterThan(cfgs[i - 1].count)
       expect(cfgs[i].rules.baseRadius, HEDGEHOG_IDS[i]).toBeGreaterThanOrEqual(TOL_TOUCH)
     }
@@ -971,6 +974,24 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
     // ladder that still holds is WITHIN each pose pair — harder means
     // shorter, same as every other rule above — not a flat decrease across
     // the whole family (the old "level-engine spec" line this replaced).
+    //
+    // T30 (`catalog.ts`'s own T30 comment on the family, realistic
+    // child-stroke simulator): `tolDeg`/`straightness` moved into this SAME
+    // pose-pair scoping, replacing the old "strictly across all four levels"
+    // assertion this test used to make. That old ladder assumed a harder
+    // level always needs a STRICTER tolDeg and a HIGHER straightness floor,
+    // uniformly; measured against real strokes, the opposite holds for
+    // straightness WITHIN a pose pair — a shorter spine (hedgehog2 within
+    // the curled pair, hedgehog4 within the profile pair) is proportionately
+    // MORE distorted by the same absolute ±4px hand tremor, so it needs a
+    // LOOSER floor, not a tighter one, to stay reachable at all. `tolDeg`
+    // also does not compare meaningfully ACROSS poses: the curled pair's
+    // smaller anchor radius (~140-150 units) amplifies a given touch-down
+    // offset into a larger angular error than the profile pair's larger one
+    // (~210-230 units) does, so hedgehog1/2 legitimately carry a looser
+    // tolDeg than hedgehog3/4 even though they are "easier" in the family's
+    // own ladder — the family header's own measured acceptance rates are the
+    // real evidence, not this comparison.
     for (const [harder, easier] of [
       ['hedgehog2', 'hedgehog1'],
       ['hedgehog4', 'hedgehog3'],
@@ -979,16 +1000,29 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
       const b = getLevel(easier).spines!.rules
       expect(a.lenMin, harder).toBeLessThan(b.lenMin)
       expect(a.lenMax, harder).toBeLessThan(b.lenMax)
+      expect(a.tolDeg, harder).toBeLessThan(b.tolDeg)
+      expect(a.straightness, harder).toBeLessThan(b.straightness)
     }
     // Every level's spine is genuinely SHORT relative to its own body: at
     // most half the anchor's own distance from the centroid, so a spike
     // never reaches anywhere near the far side of the body.
+    //
+    // T30: checked against the RENDERED length — `(lenMin+lenMax)/2`, the
+    // one `spineSpikeOf` (`spines.ts`) actually draws — rather than `lenMax`
+    // itself. `lenMax` is now a genuinely generous ACCEPTANCE ceiling (the
+    // family header's own widened bands), never what reaches the screen: a
+    // child who draws a longer stroke than the demonstrated spine still gets
+    // the SAME short rendered spike, so bounding the acceptance ceiling by
+    // "half the body's own radius" would only re-impose the T19 regression
+    // (rejecting realistic length variance) without changing anything a
+    // child ever sees.
     for (const id of HEDGEHOG_IDS) {
       const cfg = getLevel(id).spines!
       const anchors = spineAnchors(cfg)
       const { centre } = cfg.body
       const avgR = anchors.reduce((sum, a) => sum + Math.hypot(a.x - centre.x, a.y - centre.y), 0) / anchors.length
-      expect(cfg.rules.lenMax, id).toBeLessThanOrEqual(avgR * 0.5)
+      const renderedLen = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+      expect(renderedLen, id).toBeLessThanOrEqual(avgR * 0.5)
     }
     // T19 (`odd/tasks/prewriting-stage-completion.md`, third tablet
     // playtest, "with one spine left, a mere tap completes the level"):
