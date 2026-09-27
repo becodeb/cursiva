@@ -2450,7 +2450,11 @@ const PHASE_2: LevelConfig[] = [
     title: 'Tres rulos colgado',
     // [T27] The case's LAST pistas level — finishing it routes into the
     // `monkeys` deduction (`zoo/adventures.ts`'s `monkeys.deduction.after`).
-    hint: 'Otra vez colgado: encontrá la banana que se les cayó.',
+    // [T40] The spoken hint names only what is on screen: the marks are the
+    // `corn` stand-in until `docs/20` B13's banana art lands, so "la banana"
+    // promised a picture the child could not find. "La comida" stays true
+    // for both the stand-in and the real banana.
+    hint: 'Otra vez colgado: juntá la comida que se les cayó.',
     kind: 'path',
     surface: 'blank',
     maze: false,
@@ -2634,11 +2638,14 @@ const PHASE_2: LevelConfig[] = [
     // Renamed from "Las olas cambian" (P3 follow-up) — see `f2-guirnalda`'s
     // own comment above. `f2-agua4`'s own "La estrella de mar" already
     // named the hazard, not the medusa, so it is untouched.
-    title: 'Las burbujas cambian',
+    // [T40] Past the deduction this level carries no bubbles (it collects
+    // the fish family), so neither the title nor the spoken hint may name
+    // them — the author heard "sigue las burbujas" with none on screen.
+    title: 'Los peces en las curvas',
     // The microprogression's third step: SIZE and SPACING both vary within
     // one path (docs/11 Nivel 3), not just from level to level — the reason
     // `garlandVaried` exists rather than a wider `garland` call.
-    hint: 'Las burbujas se achican: curvas más chiquitas, despacio.',
+    hint: 'Las curvas se achican: juntá a los peces, despacito.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -2692,7 +2699,9 @@ const PHASE_2: LevelConfig[] = [
     // 1 (the new demand is TIMING, not precision), but with a hazard that
     // means no beat and no fluency bar (design.md §3) — a real child's stop is
     // a deceleration, and fluency (`1 − CV(speed)`) would fail them for it.
-    hint: '¡Cuidado con las estrellas de mar! Seguí las burbujas sin tocarlas.',
+    // [T40] One starfish and no bubbles on screen: the hint says what the
+    // child sees, and names the stop the level is about.
+    hint: '¡Cuidado con la estrella de mar! Esperá que pase y juntá a los peces.',
     kind: 'path',
     surface: 'blank',
     maze: true,

@@ -554,6 +554,37 @@ describe('LEVELS — surface, kind and feedback', () => {
   })
 })
 
+describe('LEVELS — the spoken hint names only what is on screen (T40)', () => {
+  // The author's play-test: "la voz dice sigue las burbujas pero no hay
+  // ninguna". `level.hint` is what the narrator speaks on arrival and on every
+  // idle nudge (`LevelPlay.tsx`'s `useNarration(level.hint)`), so a hint that
+  // names a trail picture must be on a level that draws that picture.
+  const WORDS_BY_KIND: ReadonlyArray<{ kinds: readonly string[]; word: RegExp }> = [
+    { kinds: ['bubble'], word: /burbuj/i },
+    { kinds: ['droplet'], word: /\bgot(a|ita)s?\b/i },
+    { kinds: ['feather'], word: /\bpluma/i },
+    { kinds: ['breadcrumb'], word: /\bmiga/i },
+    { kinds: ['corn'], word: /maíz|\bgranit?os?\b/i },
+    { kinds: ['footprint', 'webfoot'], word: /\bhuella/i },
+    // No clue draws a banana yet (`docs/20` B13): never promise one.
+    { kinds: [], word: /\bbanana/i },
+  ]
+
+  it('never names a trail picture the level does not draw', () => {
+    for (const level of LEVELS) {
+      for (const { kinds, word } of WORDS_BY_KIND) {
+        if (!word.test(level.hint)) continue
+        expect(kinds, `${level.id}: "${level.hint}"`).toContain(level.clue?.kind)
+      }
+    }
+  })
+
+  it('names the ducklings and the fish on the levels that collect them', () => {
+    for (const id of ['duck-trail3', 'duck-trail4']) expect(getLevel(id).hint, id).toMatch(/patitos/)
+    for (const id of ['f2-agua3', 'f2-agua4']) expect(getLevel(id).hint, id).toMatch(/peces/)
+  })
+})
+
 describe('LEVELS — hazards and reset', () => {
   it('resets the run on every case trail and on the one level with a hazard', () => {
     // `resetOnContact` is a RULE, not a punishment (types.ts). Every trail in
