@@ -105,7 +105,7 @@ import { multiCorridorTick, routeTrackStart, type RouteTrack } from './corridorT
 import { releaseOutcome } from './levelCompletion'
 import {
   emptySnakeColourState,
-  nextWakingIndex,
+  wakingPulseIndex,
   snakeColourTick,
   type SnakeColourState,
 } from './snakeColour'
@@ -798,7 +798,7 @@ export function initialSnakeColourState(n: number, search: string): SnakeColourS
   const done = Math.max(0, Math.min(Math.trunc(k), n))
   return {
     pieces: base.pieces.map((piece, i) =>
-      i < done ? { track: piece.track, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true } : piece,
+      i < done ? { track: piece.track, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true, started: true } : piece,
     ),
   }
 }
@@ -2118,12 +2118,18 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     initialSnakeColourState(level.artCorridor?.length ?? 0, debugSearch),
   )
   const [snakeColourState, setSnakeColourState] = useState<SnakeColourState>(snakeColourStateRef.current)
+  // T39: whether a stroke is in progress, for the "wake me next" pulse only
+  // (`wakingPulseIndex` hides it while drawing). Mirrored from `onFrame`'s
+  // own `drawing` flag and set only when it flips, so a snake level pays
+  // two re-renders per stroke for it, never one per frame.
+  const snakeDrawingRef = useRef(false)
+  const [snakeDrawing, setSnakeDrawing] = useState(false)
   // Whether a box is the trace-phase `placeArtCorridor` placement or the live
   // arrange-phase scatter/held/snapped position is decided here; the layer
   // itself (`canvas/ArtCorridorLayer.tsx`) only ever draws the box it is
   // given. T20: a piece carrying its own `greyArt` additionally gets
   // `colourHref`/`progress` (from `snakeColourState`, this run's own reveal)
-  // and `next` (`nextWakingIndex` — the piece the child should wake next,
+  // and `next` (`wakingPulseIndex` — the piece the child should wake next,
   // docs/19 §3.1 point 5) — never during `arrangeOpen`, since no snake level
   // authors `arrange` any more (the drag step this task removes).
   const traceArtCorridor: TraceArtCorridor | undefined = useMemo(() => {
@@ -2139,7 +2145,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         arrangeConfig,
       )
     }
-    const nextIdx = hasSnakeColour ? nextWakingIndex(snakeColourState) : null
+    const nextIdx = hasSnakeColour ? wakingPulseIndex(snakeColourState, snakeDrawing) : null
     return configPieces.map((piece, i) => {
       const base: TraceArtCorridor[number] = {
         href: piece.art.href,
@@ -2176,6 +2182,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     arrangeConfig,
     hasSnakeColour,
     snakeColourState,
+    snakeDrawing,
   ])
   // T17 follow-up: a just-collected item's own picture hops away from its
   // spot instead of just vanishing — the SAME transient-list-plus-timeout
@@ -2837,6 +2844,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // short polylines), so it runs unthrottled, every frame — no separate
       // `LIGHT_ANIM_TICK_MS`-style gate is worth the complexity here.
       if (hasSnakeColour) {
+        if (drawing !== snakeDrawingRef.current) {
+          snakeDrawingRef.current = drawing
+          setSnakeDrawing(drawing)
+        }
         const head = drawing ? points[points.length - 1] : undefined
         const next = snakeColourTick(
           snakeColourStateRef.current,
