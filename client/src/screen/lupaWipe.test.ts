@@ -9,6 +9,7 @@ import {
   LUPA_VT_BASE_DIAMETER_PX,
   LUPA_VT_CSS,
   LUPA_VT_NAME,
+  LUPA_VT_ACTIVE_SELECTOR,
   LUPA_WIPE_CSS,
   LUPA_WIPE_DURATION_MS,
   lupaEdgeAnchorPercent,
@@ -150,5 +151,36 @@ describe('lupaRimOriginStyle', () => {
   it('carries the same --cv-wipe-x/--cv-wipe-y custom properties an explicit origin gives ScreenTransition.tsx\'s own wrapper', () => {
     const style = lupaRimOriginStyle({ xPct: 12, yPct: 88 })
     expect(style).toEqual({ '--cv-wipe-x': '12%', '--cv-wipe-y': '88%' })
+  })
+})
+
+// T38 (`odd/tasks/prewriting-stage-completion.md`, "hay una lupa en el centro
+// de la pantalla ... se queda siempre"): the live `.cv-lupa-rim--vt` element is
+// drawn at full size for capture, so without a gate it stayed painted in the
+// centre of every screen — after a native crossing, and on a screen reached
+// with no native crossing at all (map -> intro, via App's manual wipe).
+describe('LUPA_VT_CSS — the capture rim is visible only during a native View Transition (T38)', () => {
+  const rules = (css: string) =>
+    [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2].trim() }))
+
+  it('no native transition: the wrapper defaults to visibility: hidden', () => {
+    expect(rules(LUPA_VT_CSS)).toContainEqual({ selector: '.cv-lupa-rim--vt', body: 'visibility: hidden;' })
+  })
+
+  it('the ONLY rule that shows it is gated on an active View Transition', () => {
+    const showing = rules(LUPA_VT_CSS).filter((r) => r.body.includes('visibility: visible'))
+    expect(showing).toEqual([{ selector: LUPA_VT_ACTIVE_SELECTOR, body: 'visibility: visible;' }])
+    expect(LUPA_VT_ACTIVE_SELECTOR).toContain(':active-view-transition')
+  })
+
+  it('nothing else in the rim CSS un-hides it (no opacity/display toggles, no timed step)', () => {
+    expect(LUPA_VT_CSS).not.toContain('cv-lupa-vt-settle')
+    expect(LUPA_WIPE_CSS).not.toContain('cv-lupa-rim--vt')
+  })
+
+  it('the visibility gate sits on the wrapper, so the captured circle keeps its own view-transition-name untouched', () => {
+    const gate = rules(LUPA_VT_CSS).filter((r) => r.body.startsWith('visibility'))
+    for (const r of gate) expect(r.body).not.toContain('view-transition-name')
+    expect(LUPA_VT_CSS).toContain(`view-transition-name: ${LUPA_VT_NAME};`)
   })
 })

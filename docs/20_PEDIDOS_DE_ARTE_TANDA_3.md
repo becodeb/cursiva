@@ -19,7 +19,7 @@ Tres cosas para leer primero:
 
 ## 1. En 30 segundos
 
-Diecisiete pedidos en ocho hojas. **Una hoja = una conversación o una imagen
+Dieciocho pedidos en ocho hojas. **Una hoja = una conversación o una imagen
 con ChatGPT**: un personaje pedido en la misma imagen sale igual en todas sus
 poses; pedido en dos veces, sale distinto (`docs/17` §3).
 
@@ -42,6 +42,7 @@ poses; pedido en dos veces, sale distinto (`docs/17` §3).
 | B15 | El Pulpito detective: señalar, pensar, festejar | Pulpito | baja | el Pulpito sobre la escena | — |
 | B16 | Los patitos | Patitos | baja | juntar la familia del pato | — |
 | B17 | Piel mudada de víbora | Pistas | baja | la entrada de las víboras | A4 (parte) |
+| B18 | El Pulpito sin la lupa, en la misma pose que con lupa | Pulpito | media | todos los niveles con lupa, mientras el dedo apoya (T38) | `home-octopus.png` como suplente |
 
 **Por dónde empezar:** B1, B4 y B10. La laguna y el bosque son los fondos que
 más niveles cubren, y el mono es el único placeholder que el chico ve hoy
@@ -461,7 +462,7 @@ Recortar a `erizo con espinas.png` y `erizo desenroscando.png`, 1024×1024
 cada uno. La pose 2 sirve para el paso de bola a perfil de `docs/19` §3.3; si
 no sale bien, alcanza con la 1.
 
-### Hoja "Pulpito": B15 (baja)
+### Hoja "Pulpito": B15 (baja), B18 (media)
 
 Para el Pulpito sobre la escena (`docs/19` §4). Hoy hay tres figuras (con
 mochila, con lupa, cuidador) y ninguna señala ni piensa. **Adjuntar
@@ -483,6 +484,50 @@ Pose 3 (right): celebrating, several arms raised.
 
 Recortar a `pulpo senala.png`, `pulpo piensa.png`, `pulpo festeja.png`. El
 señalar hacia la izquierda sale espejando la pose 1.
+
+#### B18 — El Pulpito sin la lupa, en la misma pose (media)
+
+Para la lupa que sigue el dedo (T38 de
+`odd/tasks/prewriting-stage-completion.md`). En cada nivel con lupa el Pulpito
+está parado al principio del camino con la lupa en la mano
+(`carrier-octopus.png`, de `art-source/pulpo con lupa.png`). Cuando el chico
+apoya el dedo, la lupa se va al dedo y el Pulpito tiene que quedar **sin**
+lupa; cuando levanta el dedo, la vuelve a tener. Hoy, mientras el dedo apoya,
+se muestra `home-octopus.png` (el Pulpito de la oficina): es el mismo
+personaje, pero con otra pose (los ocho brazos enrulados hacia afuera), así
+que al tocar la pantalla el pulpo "cambia de postura" además de soltar la
+lupa. Hace falta el mismo dibujo que `pulpo con lupa.png` con la lupa sacada.
+
+Las dos poses van **en la misma imagen**, para que salgan idénticas (§1: pedido
+en dos veces, sale distinto). **Adjuntar `art-source/pulpo con lupa.png` como
+referencia de personaje y de pose**, nunca de contorno (`docs/09` §9).
+
+```
+<bloque de estilo de docs/09 §9>
+
+One image, 1536x1024, transparent background, TWO separate full-body
+poses of THE SAME friendly cartoon octopus as the attached reference,
+side by side, evenly spaced, not touching. Both poses are IDENTICAL to
+the reference and to each other: same body, same eyes, same size, same
+position of all eight arms. The only difference between them:
+Pose 1 (left): exactly the reference, holding the small magnifying
+glass up in his raised right arm (viewer's right).
+Pose 2 (right): the same octopus in the same pose, WITHOUT the
+magnifying glass. The raised right arm stays raised in the same place,
+its tip curled and empty, as if he had just let go of the glass.
+Nothing else changes.
+```
+
+Recortar a `pulpo con lupa.png` (reemplaza al actual) y `pulpo sin lupa.png`,
+los dos del **mismo tamaño de recorte**, con los pies a la misma altura: el
+juego pone uno en lugar del otro parado sobre el mismo punto y con la misma
+altura, y cualquier diferencia de recorte se ve como un salto al tocar.
+
+Al volver: sumar `('pulpo sin lupa.png', 'carrier-octopus-empty.png', 384,
+'contour', True)` a `build_art.py`, al lado de la fila de `pulpo con lupa.png`,
+correrlo, agregar la constante con el `w`/`h` del manifest en
+`detective/assets.ts` y apuntar `OCTOPUS_EMPTY_HANDED_ART` de
+`screen/LevelPlay.tsx` a ella (hoy es `HOME_OCTOPUS_ART`). Nada más cambia.
 
 ### Hoja "Patitos": B16 (baja)
 
