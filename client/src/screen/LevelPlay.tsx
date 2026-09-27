@@ -3148,6 +3148,27 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // dependency array can name plain numbers instead of a fresh object every
   // render.
   const hold = useMemo(() => celebrationHold(level), [level])
+  // T30 (`odd/tasks/prewriting-stage-completion.md`, tablet play-test: "I
+  // think when you finish the level it goes away abruptly"): investigated
+  // and NOT fixed here, on purpose — this timer's own contract is correct
+  // and already covered (`LevelPlay.test.tsx`'s `celebrationHold` suite): a
+  // Playwright replay of a real night1 completion showed the scene staying
+  // fully lit and stable for the ENTIRE `hold.startDelayMs + hold.holdMs`
+  // window (1.4s completion growth, then 4s hold, confirmed frame-by-frame),
+  // with no premature cut. The actual abrupt moment is ONE FRAME LATER: the
+  // instant `onNextRef.current()` fires below, `screen/GameScreen.tsx`
+  // swaps `state.levelId`, which changes `ScreenTransition`'s own key
+  // (`screenTransitionKey`) and REMOUNTS its wrapper — the fully-lit night
+  // scene unmounts immediately, with nothing left on screen to fade FROM
+  // while the wipe grows IN the next level, so the area outside the
+  // growing circle briefly shows the page's own plain background (a stark
+  // white flash) between the warm lit scene and the next level's own dark
+  // starting frame. That is a property of `ScreenTransition.tsx`/
+  // `GameScreen.tsx`'s key-swap remount, not of this file's own timing or
+  // of `levels/revealGrid.ts`'s growth animation — outside this task's own
+  // file scope (`canvas/ArtCorridorLayer.tsx`, `levels/revealGrid.ts`,
+  // `canvas/RevealLayer.tsx`, and this file's own localized wiring), and
+  // squarely the screen-transition capability another task already owns.
   useEffect(() => {
     advancingRef.current = false
     setSkipReady(false)
