@@ -628,30 +628,38 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
   },
   // ───────────────────────────────────────────────────────────────────────
-  // The duck case (case-registry-and-captions design.md §3): four themed
-  // trails inserted BEFORE `trail1`, corridor width strictly decreasing
-  // 100→70. `game/migrateDuckCase.ts` protects a returning child's
-  // positional unlock of `trail1..4` across this insertion — it must ship
-  // before these four levels do (Ordering Summary, S1 before S2).
+  // The duck case (case-registry-and-captions design.md §3): themed trails
+  // inserted BEFORE `trail1`. `game/migrateDuckCase.ts` protects a returning
+  // child's positional unlock of `trail1..4` across that first insertion.
   //
-  // The four are one undulation family (`docs/13` §2, duck-undulations design
-  // §1): amplitude, then repetition, then per-cycle variation, then a
-  // narrowing corridor — never a shape that belongs to another animal
-  // (`docs/13` §4: the spiral is the snail's, the square/triangular shapes
-  // are the sheep's).
+  // One undulation family (`docs/13` §2, duck-undulations design §1): each
+  // step is a wave with more half-arches, a steeper peak slope and a
+  // narrower corridor than the one before (100 → 95 → 90 → 85 → 80 → 70) —
+  // never a shape that belongs to another animal (`docs/13` §4: the spiral
+  // is the snail's, the garland the fish's, the loops the monkey's, the
+  // square/triangular shapes the sheep's).
   //
-  // [T21, `docs/19` §2.3/§7 slice 3] Split into recipe A's own two halves
-  // (`odd/tasks/prewriting-stage-completion.md`): levels 1-2 are the CASE's
-  // own pistas (`detective/cases.ts`'s `duck` case now names only these two
-  // as `trailIds`), levels 3-4 gather the recovered duck FAMILY instead —
-  // `LevelConfig.collect` (T17's engine), the same mechanic
-  // `sheep-hill`/`llama-peak` already ship, never a clue. `duck-trail1`'s
-  // `droplet`/`duck-trail2`'s `feather` are the case's own two RULING clues
-  // (`cases.ts`'s `ruledOutBy`, whose header explains why `webfoot`/
-  // `breadcrumb` are not used here any more):
+  // [T21, `docs/19` §2.3/§7 slice 3] Recipe A: the case's own pistas levels
+  // first, then the deduction, then the recovered duck FAMILY gathered with
+  // `LevelConfig.collect` (T17's engine), never a clue.
+  //
+  // [T40, author's tablet play-test 2026-09-27: "Las pistas del pato quiero
+  // que haya una por nivel así que tiene que haber un par más de niveles del
+  // pato."] ONE clue kind per level. T29 had squeezed four clues into two
+  // levels by alternating a second kind along each trail; that alternation
+  // is gone, and two new levels (`duck-trail5`, `duck-trail6`) carry the two
+  // clues it used to double up. Ids are persisted keys, so the new ones are
+  // numbered after the old ones even though they play in between;
+  // `zoo/adventures.ts`'s `duck.levelIds` is the play order, and
+  // `game/migrateDuckOneCluePerLevel.ts` files both for a child who already
+  // collected all four clues. `droplet` (rules out the cat) and `feather`
+  // (rules out the cow) stay the case's two RULING clues (`cases.ts`'s
+  // `ruledOutBy`); `corn` and `webfoot` are the duck's other two traces.
   //
   //   duck-trail1  droplet (pistas) / one broad cycle — the pond's edge
+  //   duck-trail5  corn    (pistas) / one and a half cycles, ending on a crest
   //   duck-trail2  feather (pistas) / two cycles
+  //   duck-trail6  webfoot (pistas) / two and a half cycles → the deduction
   //   duck-trail3  collect the duck family / two cycles with per-cycle amplitude variation
   //   duck-trail4  collect the duck family / three cycles, tapered narrower
   // ───────────────────────────────────────────────────────────────────────
@@ -659,7 +667,9 @@ const PHASE_1: LevelConfig[] = [
     id: 'duck-trail1',
     phase: 1,
     title: 'El charco del pato',
-    hint: 'Seguí el charco de punta a punta.',
+    // [T40] The trail carries droplets and nothing else now; the hint names
+    // them rather than a puddle the screen does not draw.
+    hint: 'Seguí las gotitas del pato de punta a punta.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -672,10 +682,10 @@ const PHASE_1: LevelConfig[] = [
     // vertical span of exactly 280 units, failing the pre-existing "phase 1
     // uses the whole blank sheet" guard (`catalog.test.ts`: every phase-1
     // routed level's vertical span MUST exceed the 300-420 writing band, i.e.
-    // amplitude > 150) by 20 units. Widened to 170 — the same amplitude
-    // design.md gives `duck-trail2` — which clears the guard with margin
-    // (span 340, minY 130, maxY 470) while corridorWidth (100 vs 90) and
-    // cycle count (1 vs 2) still carry the progression between the two.
+    // amplitude > 150) by 20 units. Widened to 170, the amplitude every
+    // plain-wave duck level shares, which clears the guard with margin (span
+    // 340, minY 130, maxY 470); cycle count and corridor width carry the
+    // progression instead.
     paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 1 })],
     corridorWidth: 100,
     rules: rules(1, false, true, 0),
@@ -685,26 +695,39 @@ const PHASE_1: LevelConfig[] = [
     // [T21] `droplet`, not the pre-T21 `webfoot` — the duck case's own first
     // RULING clue (`cases.ts`'s `ruledOutBy.gato`), "the duck came out of the
     // water dripping" (`docs/19` §3's own pato flavour line).
-    //
-    // [T29, `odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
-    // wanted about 4 clues, not just 2"] `extraKind: 'corn'` — a SECOND,
-    // non-ruling collectible alternating with `droplet` along this same
-    // trail (`detective/clues.ts`'s `clueMarks` own `extraKind` parameter):
-    // corn kernels the duck pecked at the puddle's edge. Never added to
-    // `ruledOutBy` — `cases.test.ts`'s own "webfoot and breadcrumb rule
-    // nobody out" invariant is about those TWO kinds specifically, but the
-    // same principle applies here by choice: this task's own brief keeps
-    // the case's existing two-verdict shape (`vaca`/`feather`,
-    // `gato`/`droplet`) untouched, and only widens what the child physically
-    // collects and what the deduction's chip row shows (`clueKindsOf`, this
-    // trail now contributing BOTH kinds).
-    clue: { kind: 'droplet', spacing: 60, extraKind: 'corn' },
+    clue: { kind: 'droplet', spacing: 60 },
+  },
+  {
+    id: 'duck-trail5',
+    phase: 1,
+    title: 'El maíz del pato',
+    hint: 'Seguí los granitos de maíz sin salirte.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    // [T40] Three half-arches (crest, trough, crest): the first wave that
+    // ends climbing, a shape no other duck level draws. Peak slope
+    // 4·170/273 ≈ 2.49, between `duck-trail1`'s 1.66 and `duck-trail2`'s 3.32.
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 1.5 })],
+    corridorWidth: 95,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    // [T40] The corn kernels the duck pecked at the puddle's edge — T29's
+    // non-ruling second kind on `duck-trail1`, now a level of its own.
+    clue: { kind: 'corn', spacing: 60 },
   },
   {
     id: 'duck-trail2',
     phase: 1,
-    title: 'El sendero de migas',
-    hint: 'Seguí las migas sin salirte.',
+    // [T40] Renamed from "El sendero de migas" / "Seguí las migas": this
+    // trail has carried feathers since T21, never crumbs.
+    title: 'Las plumas del pato',
+    hint: 'Seguí las plumas sin salirte.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -719,29 +742,52 @@ const PHASE_1: LevelConfig[] = [
     demo: true,
     // [T21] `feather`, not the pre-T21 `breadcrumb` — the duck case's own
     // second RULING clue (`cases.ts`'s `ruledOutBy.vaca`, "a cow has no
-    // feathers"). This is the LAST pistas level (`cases.ts`'s
-    // `duck.trailIds`): finishing it is what the map/`GameScreen` routes
-    // into the deduction (`zoo/adventures.ts`'s `duck.deduction.after`).
-    //
-    // [T29] `extraKind: 'webfoot'` — see `duck-trail1`'s own comment above
-    // for the full reasoning; the webbed footprint alternates with `feather`
-    // here, never ruling anyone out (`webfoot` reuses `PRINT`'s colour on
-    // purpose, `detective/assets.ts`, and `footprint` never appears in this
-    // case, so no palette collision).
-    clue: { kind: 'feather', spacing: 60, extraKind: 'webfoot' },
+    // feathers").
+    clue: { kind: 'feather', spacing: 60 },
   },
   {
-    id: 'duck-trail3',
+    id: 'duck-trail6',
     phase: 1,
-    title: 'Las burbujas suben y bajan',
-    hint: 'Seguí las burbujas: unas ondas son más grandes.',
+    title: 'Las huellas del pato',
+    hint: 'Seguí las huellas del pato, ola por ola.',
     kind: 'path',
     surface: 'blank',
     maze: true,
     resetOnContact: true,
     carrier: true,
     feedback: feedback(0, false),
-    // Step 3 of the undulation family (`docs/13` §2, "variación de
+    // [T40] Five half-arches, ending on a crest like `duck-trail5` but with
+    // two more humps. Peak slope 4·170/164 ≈ 4.15, between `duck-trail2`'s
+    // 3.32 and `duck-trail3`'s 4.69.
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 2.5 })],
+    corridorWidth: 85,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    // [T40] The webbed footprint — T29's non-ruling second kind on
+    // `duck-trail2`, now a level of its own. Never a `ruledOutBy` verdict
+    // (`cases.test.ts`'s "webfoot and breadcrumb rule nobody out"). This is
+    // the LAST pistas level (`cases.ts`'s `duck.trailIds`): finishing it is
+    // what routes into the deduction (`zoo/adventures.ts`'s
+    // `duck.deduction.after`).
+    clue: { kind: 'webfoot', spacing: 60 },
+  },
+  {
+    id: 'duck-trail3',
+    phase: 1,
+    // [T40] Renamed from "Las burbujas suben y bajan" / "Seguí las
+    // burbujas": the level collects ducklings, and the author heard the
+    // narrator send the child after bubbles that were not there.
+    title: 'Los patitos en las olas',
+    hint: 'Juntá a los patitos: unas olas son más grandes.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(0, false),
+    // The per-cycle variation step (`docs/13` §2, "variación de
     // amplitud"): two cycles of differing amplitude via `waveVaried`, the
     // one thing a plain `wave` cannot express (one global amplitude only).
     // The two cycles meet at a real 8.71° kink (C1 holds within a cycle, not
@@ -759,8 +805,6 @@ const PHASE_1: LevelConfig[] = [
       }),
     ],
     corridorWidth: 80,
-    // The switchback's reversal was the only thing that justified continuity
-    // here; with no reversal it aligns with its three undulation siblings.
     rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
@@ -781,8 +825,10 @@ const PHASE_1: LevelConfig[] = [
   {
     id: 'duck-trail4',
     phase: 1,
-    title: 'El rastro de plumas',
-    hint: 'Seguí el rastro de plumas, el camino se angosta.',
+    // [T40] Renamed from "El rastro de plumas" / "Seguí el rastro de
+    // plumas": no feathers here either, only the last ducklings.
+    title: 'Los últimos patitos',
+    hint: 'El camino se angosta: juntá a los últimos patitos.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -793,8 +839,8 @@ const PHASE_1: LevelConfig[] = [
     resetOnContact: true,
     carrier: true,
     feedback: feedback(0, false),
-    // Step 4 of the undulation family: the most cycles (three) AND the
-    // tightest, narrowing corridor — the directive's progression
+    // The last step of the undulation family: the most cycles (three) AND
+    // the tightest, narrowing corridor — the directive's progression
     // accumulates, so the last step keeps everything before it and adds the
     // final demand.
     paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 3 })],

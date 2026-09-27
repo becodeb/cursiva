@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { LEVELS } from '../levels/catalog'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import { ZOO_ANIMAL_ART } from '../detective/assets'
-import { adventureFor } from './adventures'
+import { ADVENTURES, adventureFor } from './adventures'
 import { totalStars } from './stars'
 import {
   MAP_STAGE_BOX,
@@ -208,10 +208,12 @@ describe('Fog Containment Invariant', () => {
 describe('Registry↔Catalog Structural Consistency', () => {
   const catalogIds = new Set(LEVELS.map((l) => l.id))
 
-  it("estanque's twelve adventures are in the exact documented order (patos → medusa → delfines)", () => {
+  it("estanque's fourteen adventures are in the exact documented order (patos → medusa → delfines)", () => {
     expect(estanque.adventureIds).toEqual([
       'duck-trail1',
+      'duck-trail5',
       'duck-trail2',
+      'duck-trail6',
       'duck-trail3',
       'duck-trail4',
       'f2-guirnalda',
@@ -430,8 +432,8 @@ describe('footprintTrail (pitch and alternation)', () => {
 
 describe('nextAdventure Resolution (OD2)', () => {
   it('returns the first unfinished adventure', () => {
-    const records = filed('duck-trail1', 'duck-trail2')
-    expect(nextAdventure(estanque, records)).toBe('duck-trail3')
+    const records = filed('duck-trail1', 'duck-trail5')
+    expect(nextAdventure(estanque, records)).toBe('duck-trail2')
   })
 
   it('returns the FIRST adventure once every one is filed, so a finished sector replays from the start (D10)', () => {
@@ -466,9 +468,10 @@ describe('Progression consistency (finish-mvp-roadmap U2)', () => {
   })
 
   it('uses the same pond records for stars, recovered animal, next adventure, and sector unlock', () => {
-    const records = filed(...entrada.adventureIds, 'duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4')
+    const duck = ADVENTURES.find((a) => a.id === 'duck')!.levelIds
+    const records = filed(...entrada.adventureIds, ...duck)
 
-    expect(totalStars(records)).toBe(entrada.adventureIds.length + 4)
+    expect(totalStars(records)).toBe(entrada.adventureIds.length + duck.length)
     expect(animalPlacements(estanque, records).map((p) => p.art)).toEqual([ZOO_ANIMAL_ART.pato])
     expect(nextAdventure(estanque, records)).toBe('f2-guirnalda')
     expect(isOpen(montanas, records)).toBe(true)

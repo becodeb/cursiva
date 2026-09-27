@@ -1927,7 +1927,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
             target.length,
             clueCountFor(target.length, clueDef.spacing),
             clueDef.kind,
-            clueDef.extraKind,
           )
         : [],
     [clueDef, target.polyline, target.length],
@@ -3466,12 +3465,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // fill swap did.
   const traceClueMarks = useMemo<TraceClueMark[]>(() => {
     if (!clueDef) return []
-    // T29: each MARK's own `kind` (`clueMarks`'s `extraKind` alternation),
-    // not the level's single `clueDef.kind` — every trail but duck's own two
-    // still has every mark share `clueDef.kind`, so this is byte-identical
-    // for them; a duck trail's odd-indexed marks now correctly draw
-    // `extraKind`'s art instead of silently repainting the primary kind's
-    // picture over a mark that is a genuinely different collectible.
     return trailClueMarks.map((mark, idx) => {
       const art = CLUE_ART[mark.kind]
       const img = clueState.lit[idx] ? art.art.earned : art.art.drained

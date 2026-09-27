@@ -4,6 +4,7 @@
 // than hand-picking one case, so a future third case is checked for free.
 import { describe, expect, it } from 'vitest'
 import { ANIMAL_SILHOUETTE_ART, SIGN_ART } from './assets'
+import { getLevel } from '../levels/catalog'
 import {
   DETECTIVE_CASES,
   clueKindsOf,
@@ -147,20 +148,29 @@ describe('the fish case (T26): the lineup is enclosure SIGNS, not animal silhoue
   })
 })
 
-// T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
-// wanted about 4 clues, not just 2"). `duck-trail1`/`duck-trail2` now each
-// author `clue.extraKind` (`levels/catalog.ts`) alongside their existing
-// RULING kind — `clueKindsOf` contributes both per trail, so the case's own
-// chip row shows all four while `ruledOutBy` (the actual deduction logic)
+// T40 (`odd/tasks/prewriting-stage-completion.md`, author's play-test: "Las
+// pistas del pato quiero que haya una por nivel"). The duck's four clues come
+// from four pistas levels, one kind each, instead of T29's two levels with
+// two alternating kinds apiece; `ruledOutBy` (the actual deduction logic)
 // stays exactly as it was.
-describe("duck case: four clues from two trails (T29)", () => {
+describe('duck case: four clues, one per pistas level (T40)', () => {
   const duckCase = DETECTIVE_CASES.find((k) => k.id === 'duck')!
 
-  it('clueKindsOf derives all four kinds, in trail then kind/extraKind order', () => {
+  it('names four pistas levels, in play order', () => {
+    expect(duckCase.trailIds).toEqual(['duck-trail1', 'duck-trail5', 'duck-trail2', 'duck-trail6'])
+  })
+
+  it('clueKindsOf derives one kind per level: droplet, corn, feather, webfoot', () => {
     expect(clueKindsOf(duckCase)).toEqual(['droplet', 'corn', 'feather', 'webfoot'])
   })
 
-  it('ruledOutBy is untouched: still exactly the two RULING kinds, never the two new bonus ones', () => {
+  it('each pistas level authors exactly one clue kind (no second kind hides on the trail)', () => {
+    for (const id of duckCase.trailIds) {
+      expect(Object.keys(getLevel(id).clue ?? {}).sort(), id).toEqual(['kind', 'spacing'])
+    }
+  })
+
+  it('ruledOutBy is untouched: still exactly the two RULING kinds, never corn or webfoot', () => {
     expect(duckCase.ruledOutBy).toEqual({ vaca: 'feather', gato: 'droplet' })
     expect(Object.values(duckCase.ruledOutBy)).not.toContain('corn')
     expect(Object.values(duckCase.ruledOutBy)).not.toContain('webfoot')

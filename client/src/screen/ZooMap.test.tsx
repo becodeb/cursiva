@@ -345,7 +345,9 @@ describe('ZooMap bubble (zoo-map spec "Octopus Phrase Reads as a Closing")', () 
     const records: Records = filed(
       ...entrada.adventureIds,
       'duck-trail1',
+      'duck-trail5',
       'duck-trail2',
+      'duck-trail6',
       'duck-trail3',
       'duck-trail4',
       'sheep-hill1',
@@ -375,7 +377,9 @@ describe('ZooMap bubble (zoo-map spec "Octopus Phrase Reads as a Closing")', () 
     const records: Records = filed(
       ...entrada.adventureIds,
       'duck-trail1',
+      'duck-trail5',
       'duck-trail2',
+      'duck-trail6',
       'duck-trail3',
       'duck-trail4',
       ...montanas.adventureIds,
@@ -448,7 +452,9 @@ describe('ZooMap spotlight (T4, D5: exactly one place highlighted)', () => {
     const records: Records = filed(
       ...entrada.adventureIds,
       'duck-trail1',
+      'duck-trail5',
       'duck-trail2',
+      'duck-trail6',
       'duck-trail3',
       'duck-trail4',
       'sheep-hill1',

@@ -453,12 +453,15 @@ export const SECTORS: readonly ZooSector[] = [
       // disjoint from the duck's own box.
       { id: 'delfin', dx: 105, dy: 60, size: 72, appearsWhen: ['dolphin4'] },
     ],
-    // The exact order docs/13 §3 assigns to the estanque: the duck's four
-    // trails, then the medusa's four, then the dolphin's four (design.md §3,
+    // The exact order docs/13 §3 assigns to the estanque: the duck's trails
+    // (six since T40, in `ADVENTURES`' own play order), then the medusa's
+    // four, then the dolphin's four (design.md §3,
     // §8 — patos → medusa → delfines).
     adventureIds: [
       'duck-trail1',
+      'duck-trail5',
       'duck-trail2',
+      'duck-trail6',
       'duck-trail3',
       'duck-trail4',
       'f2-guirnalda',

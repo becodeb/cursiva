@@ -82,7 +82,14 @@ describe('ADVENTURES', () => {
     ])
 
     const duck = ADVENTURES[0]
-    expect(duck.levelIds).toEqual(['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4'])
+    expect(duck.levelIds).toEqual([
+      'duck-trail1',
+      'duck-trail5',
+      'duck-trail2',
+      'duck-trail6',
+      'duck-trail3',
+      'duck-trail4',
+    ])
     expect(duck.sector).toBe('estanque')
     expect(duck.animal).toBe('pato')
 
@@ -258,7 +265,7 @@ describe('the four dropped enclosure ids (T1)', () => {
 
 describe('adventureFor', () => {
   it('resolves every duck id to the same row', () => {
-    for (const id of ['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4']) {
+    for (const id of ['duck-trail1', 'duck-trail5', 'duck-trail2', 'duck-trail6', 'duck-trail3', 'duck-trail4']) {
       expect(adventureFor(id)).toBe(ADVENTURES[0])
     }
   })

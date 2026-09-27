@@ -123,7 +123,7 @@ describe('resolveShell (prologue-opening spec: the routing order)', () => {
 })
 
 describe('App/GameScreen/ZooMap progression composition (finish-mvp-roadmap U2)', () => {
-  it('completes duck-trail1, refreshes App map records, and the same sector enters duck-trail2', () => {
+  it('completes duck-trail1, refreshes App map records, and the same sector enters the next duck level (duck-trail5)', () => {
     const storage = new MemoryStorage()
     storage.setItem(LEVEL_PROGRESS_KEY, JSON.stringify({ sand4: { ...EMPTY_RECORD, approvals: 1 } }))
     installInteractiveGlobals(storage, '?nivel=duck-trail1')
@@ -146,13 +146,14 @@ describe('App/GameScreen/ZooMap progression composition (finish-mvp-roadmap U2)'
     expect(refreshed['duck-trail1']?.approvals).toBe(1)
     const estanque = SECTORS.find((sector) => sector.id === 'estanque')!
     const next = nextAdventure(estanque, refreshed)
-    expect(next).toBe('duck-trail2')
+    // T40: the duck's second pistas level is `duck-trail5` (play order, not id order).
+    expect(next).toBe('duck-trail5')
 
     act(() => {
       ;(zooMapProbe.current?.onEnter as (levelId: string) => void)(next!)
     })
 
-    expect(gameScreenProbe.current?.initial).toEqual({ view: 'play', levelId: 'duck-trail2' })
+    expect(gameScreenProbe.current?.initial).toEqual({ view: 'play', levelId: 'duck-trail5' })
   })
 })
 

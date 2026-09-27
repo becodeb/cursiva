@@ -13,9 +13,10 @@ import { HEDGEHOG_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
 import { LevelProgressStore } from '../game/LevelProgressStore'
 import type { StorageLike } from '../game/LevelProgressStore'
 import { migratePhase1 } from '../game/migratePhase1'
-import { DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
+import { DETECTIVE_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
 import type { LevelRecord } from '../game/types'
 import { migrateDuckCase } from '../game/migrateDuckCase'
+import { migrateDuckOneCluePerLevel } from '../game/migrateDuckOneCluePerLevel'
 import { BAND_INSET, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget } from './buildLevel'
 import { routeExtrema } from './dolphinExtrema'
 import { resolveCollectItems } from './collect'
@@ -34,6 +35,9 @@ import { hazardGapFraction } from './obstacles'
 import { ADVENTURES } from '../zoo/adventures'
 import { SECTORS } from '../zoo/sectors'
 
+/** The duck adventure's levels in PLAY order (T40 put two new pistas levels
+ *  between the old ones, so id order is not play order any more). */
+const DUCK_ADVENTURE_IDS = ADVENTURES.find((a) => a.id === 'duck')!.levelIds
 /** The fish adventure's four garland levels (T40's named maze exception). */
 const FISH_ADVENTURE_IDS = ADVENTURES.find((a) => a.id === 'fish')!.levelIds
 import {
@@ -69,7 +73,9 @@ const EXPECTED_IDS = [
   'sand4',
   'f1-libre',
   'duck-trail1',
+  'duck-trail5',
   'duck-trail2',
+  'duck-trail6',
   'duck-trail3',
   'duck-trail4',
   'trail1',
@@ -206,7 +212,9 @@ describe('LEVELS — authored values match the doc tables', () => {
     'hedgehog4': 0,
     'f1-libre': 0,
     'duck-trail1': 100,
+    'duck-trail5': 95,
     'duck-trail2': 90,
+    'duck-trail6': 85,
     'duck-trail3': 80,
     'duck-trail4': 70,
     trail1: 90,
@@ -282,7 +290,9 @@ describe('LEVELS — authored values match the doc tables', () => {
     'hedgehog4': 0,
     'f1-libre': 0,
     'duck-trail1': 0,
+    'duck-trail5': 0,
     'duck-trail2': 0,
+    'duck-trail6': 0,
     'duck-trail3': 0,
     'duck-trail4': 0,
     trail1: 0,
@@ -553,7 +563,9 @@ describe('LEVELS — hazards and reset', () => {
     const resetting = LEVELS.filter((l) => l.resetOnContact).map((l) => l.id)
     expect(resetting).toEqual([
       'duck-trail1',
+      'duck-trail5',
       'duck-trail2',
+      'duck-trail6',
       'duck-trail3',
       'duck-trail4',
       'trail1',
@@ -778,7 +790,11 @@ describe('LEVELS — the duck adventure is one undulation family', () => {
   // not just an emergent property of whatever shape happens to be there.
   const PEAK_SLOPE_INPUTS: ReadonlyArray<{ id: string; halfWidth: number; amplitude: number }> = [
     { id: 'duck-trail1', halfWidth: (910 - 90) / 2, amplitude: 170 },
+    // T40: one and a half cycles = three half-arches.
+    { id: 'duck-trail5', halfWidth: (910 - 90) / 3, amplitude: 170 },
     { id: 'duck-trail2', halfWidth: (910 - 90) / (2 * 2), amplitude: 170 },
+    // T40: two and a half cycles = five half-arches.
+    { id: 'duck-trail6', halfWidth: (910 - 90) / 5, amplitude: 170 },
     // duck-trail3's tighter, higher second cycle is the one that sets its
     // peak slope (waveVaried's cycles differ; the family compares its worst).
     { id: 'duck-trail3', halfWidth: 350 / 2, amplitude: 205 },
@@ -786,7 +802,7 @@ describe('LEVELS — the duck adventure is one undulation family', () => {
   ]
 
   it('gives every duck level exactly one M/C-only path (no switchback, no square wave)', () => {
-    for (const id of DUCK_TRAIL_IDS) {
+    for (const id of DUCK_ADVENTURE_IDS) {
       const level = getLevel(id)
       expect(level.paths, id).toHaveLength(1)
       const commands = new Set(level.paths[0].match(/[A-Za-z]/g))
@@ -794,20 +810,33 @@ describe('LEVELS — the duck adventure is one undulation family', () => {
     }
   })
 
-  it('increases peak slope (4A/halfWidth) strictly across the four steps', () => {
+  it('lists the slope inputs in the adventure\'s own play order', () => {
+    expect(PEAK_SLOPE_INPUTS.map((p) => p.id)).toEqual([...DUCK_ADVENTURE_IDS])
+  })
+
+  it('increases peak slope (4A/halfWidth) strictly across the six steps', () => {
     const slopes = PEAK_SLOPE_INPUTS.map(({ halfWidth, amplitude }) =>
       (4 * amplitude) / halfWidth,
     )
     expect(slopes[0]).toBeCloseTo(1.66, 2)
-    expect(slopes[1]).toBeCloseTo(3.32, 2)
-    expect(slopes[2]).toBeCloseTo(4.69, 2)
-    expect(slopes[3]).toBeCloseTo(4.98, 2)
+    expect(slopes[1]).toBeCloseTo(2.49, 2)
+    expect(slopes[2]).toBeCloseTo(3.32, 2)
+    expect(slopes[3]).toBeCloseTo(4.15, 2)
+    expect(slopes[4]).toBeCloseTo(4.69, 2)
+    expect(slopes[5]).toBeCloseTo(4.98, 2)
     for (let i = 1; i < slopes.length; i++) expect(slopes[i]).toBeGreaterThan(slopes[i - 1])
   })
 
-  it('decreases corridorWidth strictly across the four steps: 100 → 90 → 80 → 70', () => {
-    const widths = DUCK_TRAIL_IDS.map((id) => getLevel(id).corridorWidth)
-    expect(widths).toEqual([100, 90, 80, 70])
+  it('never draws the same wave twice: each plain-wave step has its own half-arch count', () => {
+    // T40's brief: the two new levels reuse the wave, never an existing
+    // level's exact shape.
+    const paths = DUCK_ADVENTURE_IDS.map((id) => getLevel(id).paths[0])
+    expect(new Set(paths).size).toBe(paths.length)
+  })
+
+  it('decreases corridorWidth strictly across the six steps: 100 → 95 → 90 → 85 → 80 → 70', () => {
+    const widths = DUCK_ADVENTURE_IDS.map((id) => getLevel(id).corridorWidth)
+    expect(widths).toEqual([100, 95, 90, 85, 80, 70])
     for (let i = 1; i < widths.length; i++) expect(widths[i]).toBeLessThan(widths[i - 1])
   })
 
@@ -832,8 +861,29 @@ describe('LEVELS — the duck adventure is one undulation family', () => {
     expect(Math.abs(depth2 - depth1)).toBeGreaterThanOrEqual(40)
   })
 
-  it('drops mustBeContinuous on all four duck levels', () => {
-    for (const id of DUCK_TRAIL_IDS) expect(getLevel(id).rules.mustBeContinuous, id).toBe(false)
+  it('drops mustBeContinuous on every duck level', () => {
+    for (const id of DUCK_ADVENTURE_IDS) expect(getLevel(id).rules.mustBeContinuous, id).toBe(false)
+  })
+
+  it('gives every pistas level exactly one clue and every level after the deduction none (T40)', () => {
+    const duck = ADVENTURES.find((a) => a.id === 'duck')!
+    const cut = DUCK_ADVENTURE_IDS.indexOf(duck.deduction!.after)
+    DUCK_ADVENTURE_IDS.forEach((id, i) => {
+      const level = getLevel(id)
+      if (i <= cut) {
+        expect(level.clue, id).toBeDefined()
+        expect(level.collect, id).toBeUndefined()
+      } else {
+        expect(level.clue, id).toBeUndefined()
+        expect(level.collect, id).toBeDefined()
+      }
+    })
+    expect(DUCK_ADVENTURE_IDS.slice(0, cut + 1).map((id) => getLevel(id).clue!.kind)).toEqual([
+      'droplet',
+      'corn',
+      'feather',
+      'webfoot',
+    ])
   })
 })
 
@@ -1138,7 +1188,9 @@ describe('levelsByPhase', () => {
       'sand4',
       'f1-libre',
       'duck-trail1',
+      'duck-trail5',
       'duck-trail2',
+      'duck-trail6',
       'duck-trail3',
       'duck-trail4',
       'trail1',
@@ -1220,7 +1272,7 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
       'sand3',
       'sand4',
       'f1-libre',
-      ...DUCK_TRAIL_IDS,
+      ...DUCK_ADVENTURE_IDS,
       ...DETECTIVE_TRAIL_IDS,
       'sheep-hill1',
       'sheep-hill2',
@@ -1577,14 +1629,16 @@ describe('detective-mode — progress migration reaches a mid-campaign child wit
     store.save('f1-libre', record({ approvals: 2 }))
     for (const id of REMOVED_IDS.slice(0, 4)) store.save(id, record({ approvals: 2 }))
 
-    // Both migrations apply, in either order (they share no id): the phase-1
-    // retheme migration AND the duck-case insertion migration, which is what
-    // protects `trail1`'s new positional predecessor (`duck-trail4`).
-    for (const migrated of [migratePhase1(store.all()), migrateDuckCase(store.all())]) {
-      for (const [id, r] of Object.entries(migrated)) store.save(id, r)
+    // The phase-1 retheme migration AND the duck-case insertion migration,
+    // which is what protects `trail1`'s new positional predecessor
+    // (`duck-trail4`) — then T40's one-clue-per-level split, which reads the
+    // `duck-trail2` the duck-case migration just seeded (applied in sequence,
+    // as `openProgressStore` does).
+    for (const migrate of [migratePhase1, migrateDuckCase, migrateDuckOneCluePerLevel]) {
+      for (const [id, r] of Object.entries(migrate(store.all()))) store.save(id, r)
     }
 
-    for (const id of DUCK_TRAIL_IDS) {
+    for (const id of DUCK_ADVENTURE_IDS) {
       expect(store.isUnlocked(id)).toBe(true)
     }
     for (const id of DETECTIVE_TRAIL_IDS) {

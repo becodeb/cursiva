@@ -110,7 +110,9 @@ describe('nextJourneyStep', () => {
     const records: Records = filed(
       ...entrada.adventureIds,
       'duck-trail1',
+      'duck-trail5',
       'duck-trail2',
+      'duck-trail6',
       'duck-trail3',
       'duck-trail4',
       'sheep-hill1',

@@ -51,8 +51,9 @@ export interface DetectiveCase {
    * (id).clue`, `clueKindsOf` below) — NOT every level of the adventure that
    * carries the case. T21 (`docs/19` §2.3: "en una aventura A de cuatro
    * niveles: niveles 1–2 pistas... niveles 3–4 juntar") splits the duck's
-   * four levels: `duck-trail1`/`duck-trail2` still carry a clue and feed
-   * this list; `duck-trail3`/`duck-trail4` were repurposed to
+   * levels: the pistas levels (four since T40: `duck-trail1`/`5`/`2`/`6`)
+   * carry a clue and feed this list; `duck-trail3`/`duck-trail4` were
+   * repurposed to
    * `LevelConfig.collect` (the duck FAMILY, gathered after the case is
    * solved) and carry no clue at all, so they are deliberately absent here —
    * `game/types.ts`'s `DUCK_TRAIL_IDS` (all four, used only by
@@ -170,23 +171,18 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     // duck's own "salió del agua chorreando" beat (`docs/19` §3, the pato
     // row's own flavour line) and a cat is exactly the animal that is never
     // dripping wet, so it reads as a real deduction rather than an arbitrary
-    // rule. `webfoot` and `breadcrumb` stay unused by the duck case on
-    // purpose — this repo's own invariant (`cases.test.ts`, "webfoot and
-    // breadcrumb rule nobody out") already bans either from ever discriminating,
-    // and `LevelConfig.clue` carries exactly one kind per level, so only two
-    // of the four pato clue arts `docs/19` §3 lists can double as the CASE's
-    // own two ruling clues within the two pistas levels the split leaves it
-    // (`duck-trail1`/`duck-trail2`, below) — a follow-up could widen `clue`
-    // to a mixed per-level array so a level can carry more than one kind at
-    // once (`docs/19` §2.2's "mixed as §3 says" allows it), but that touches
-    // the rail/case-registry contract for every OTHER case too and is left
-    // for whoever picks up the fish/night/monkey cases next.
+    // rule. `webfoot` and `breadcrumb` never appear in `ruledOutBy` — this
+    // repo's own invariant (`cases.test.ts`, "webfoot and breadcrumb rule
+    // nobody out") bans either from ever discriminating. [T40] One clue per
+    // pistas level: the duck's four traces (droplet, corn, feather, webfoot)
+    // take four levels, and `corn`/`webfoot` sit on the chip row without
+    // ruling anybody out.
     ruledOutBy: { vaca: 'feather', gato: 'droplet' },
     hint: {
       vaca: 'La vaca no tiene plumas: no fue ella.',
       gato: 'El gato no vino mojado: no fue él.',
     },
-    trailIds: ['duck-trail1', 'duck-trail2'],
+    trailIds: ['duck-trail1', 'duck-trail5', 'duck-trail2', 'duck-trail6'],
   },
   {
     id: 'hen',
@@ -395,23 +391,14 @@ export function resolveCase(
  *  clue — the same failure `caseState.railSlots` already raises by name.
  *  `[]` for a case that supplies its own chip art directly (`clueArt`,
  *  above) — there is no `ClueKind` to derive, by design, not by omission.
- *
- *  T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
- *  wanted about 4 clues, not just 2"): a trail authoring `clue.extraKind`
- *  (`levels/types.ts`) contributes BOTH kinds, `kind` first — this is what
- *  lets the deduction's own chip row (`screen/Deduction.tsx`'s
- *  `clueKindsOf(kase).map(...)`) show all four of the duck case's clues
- *  instead of just its two RULING ones, with no change to `ruledOutBy`
- *  (still keyed on `kind` alone) and no widening of `cases.test.ts`'s own
- *  "ruledOutBy values ⊆ clueKindsOf(kase)" invariant — `extraKind` only ever
- *  grows the carried set, never narrows what `ruledOutBy` could already
- *  point at. */
+ *  One kind per trail (T40): a case with four clues has four pistas
+ *  levels. */
 export function clueKindsOf(kase: DetectiveCase): readonly ClueKind[] {
   if (kase.clueArt) return []
-  return kase.trailIds.flatMap((id) => {
+  return kase.trailIds.map((id) => {
     const clue = getLevel(id).clue
     if (!clue) throw new Error(`Rastro sin pista: ${id}`)
-    return clue.extraKind ? [clue.kind, clue.extraKind] : [clue.kind]
+    return clue.kind
   })
 }
 

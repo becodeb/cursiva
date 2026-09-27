@@ -11,33 +11,38 @@
 // records to render the home; the game shell needs the store itself), so they
 // live here instead.
 //
-// `migrateDuckCase` (design.md §6), `migrateNivel3` (design.md §7) and
-// `migrateEntrance` (design.md §8) run the same way, alongside
-// `migratePhase1`: order is irrelevant, since the four migrations share no
-// id.
+// `migrateDuckCase` (design.md §6), `migrateNivel3` (design.md §7),
+// `migrateEntrance` (design.md §8) and `migrateDuckOneCluePerLevel` (T40)
+// run the same way, alongside `migratePhase1`. No two migrations write the
+// same id.
 import { LevelProgressStore } from './LevelProgressStore'
 import { migratePhase1 } from './migratePhase1'
 import { migrateDuckCase } from './migrateDuckCase'
 import { migrateNivel3 } from './migrateNivel3'
 import { migrateEntrance } from './migrateEntrance'
+import { migrateDuckOneCluePerLevel } from './migrateDuckOneCluePerLevel'
 
 /**
  * A freshly-loaded store, migrated.
  *
- * All four migrations are idempotent by construction — a destination id
+ * Every migration is idempotent by construction — a destination id
  * that already carries a record is never touched again — so calling this on
  * every visit to the home costs one storage read and changes nothing on
  * later calls.
  */
 export function openProgressStore(): LevelProgressStore {
   const store = new LevelProgressStore()
-  for (const migrated of [
-    migratePhase1(store.all()),
-    migrateDuckCase(store.all()),
-    migrateNivel3(store.all()),
-    migrateEntrance(store.all()),
+  // Applied one after another, each reading the store the previous one left:
+  // `migrateDuckOneCluePerLevel` reads `duck-trail2`, which `migrateDuckCase`
+  // may have just seeded for a child coming from the pre-duck catalog.
+  for (const migrate of [
+    migratePhase1,
+    migrateDuckCase,
+    migrateNivel3,
+    migrateEntrance,
+    migrateDuckOneCluePerLevel,
   ]) {
-    for (const [levelId, record] of Object.entries(migrated)) {
+    for (const [levelId, record] of Object.entries(migrate(store.all()))) {
       store.save(levelId, record)
     }
   }
