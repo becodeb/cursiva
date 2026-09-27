@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { flattenPathD } from '../letters/svgLetter'
 import { buildLevelTarget } from './buildLevel'
 import { spinePolyline } from './paths'
-import { DRAWN_SPINE, placeArtCorridor, type ArtCorridorPiece } from './artCorridor'
+import { DRAWN_SPINE, placeArtCorridor, revealFractionAt, type ArtCorridorPiece } from './artCorridor'
 import type { LevelConfig } from './types'
 import { SECTOR_ADVENTURE_ART } from '../detective/assets'
 
@@ -222,4 +222,78 @@ describe("DRAWN_SPINE.points against an independently hand-measured fixture", ()
       }
     })
   }
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T30 (`odd/tasks/prewriting-stage-completion.md`, tablet play-test: "the
+// colour doesn't follow my finger that well; it lags behind"): `revealFractionAt`
+// replaces the naive `progress * box.width` `canvas/ArtCorridorLayer.tsx` used
+// to compute the reveal window from — see that function's own header for the
+// measured live gap (up to +111px) this closes.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('revealFractionAt (T30: the reveal tracks the drawn wave, not a naive linear width)', () => {
+  function snakePiece(spine: ArtCorridorPiece['spine']): ArtCorridorPiece {
+    return { art: SECTOR_ADVENTURE_ART[spine], spine, span: 640, at: { x: 500, y: 300 } }
+  }
+
+  for (const key of ['snakeSmall', 'snakeMedium', 'snakeLarge'] as const) {
+    describe(key, () => {
+      const piece = snakePiece(key)
+      const { traceFrom, traceTo } = DRAWN_SPINE[key]
+
+      it('is exactly 0 at rest (progress <= 0) — never traceFrom, which is what a genuinely untouched piece would wrongly show', () => {
+        expect(revealFractionAt(piece, 0)).toBe(0)
+        expect(revealFractionAt(piece, -1)).toBe(0)
+      })
+
+      it('jumps to traceFrom the instant progress turns positive — the untraceable head has nothing smoother to reveal it with', () => {
+        expect(revealFractionAt(piece, 1e-6)).toBeCloseTo(traceFrom, 3)
+      })
+
+      it('reaches traceTo at progress = 1 — never 1 itself; a `done` piece is the caller\'s own separate decision', () => {
+        expect(revealFractionAt(piece, 1)).toBeCloseTo(traceTo, 3)
+      })
+
+      it('is monotonically non-decreasing across the whole [0, 1] domain', () => {
+        let prev = -Infinity
+        for (let p = 0; p <= 1; p += 0.02) {
+          const frac = revealFractionAt(piece, p)
+          expect(frac, `progress=${p.toFixed(2)}`).toBeGreaterThanOrEqual(prev)
+          prev = frac
+        }
+      })
+
+      it('stays within [traceFrom, traceTo] for every progress in (0, 1)', () => {
+        for (let p = 0.05; p < 1; p += 0.05) {
+          const frac = revealFractionAt(piece, p)
+          expect(frac).toBeGreaterThanOrEqual(traceFrom - 1e-6)
+          expect(frac).toBeLessThanOrEqual(traceTo + 1e-6)
+        }
+      })
+
+      // The actual regression: a naive `traceFrom + progress * (traceTo -
+      // traceFrom)` (linear-in-x) is what the OLD `progress * box.width`
+      // effectively was, restricted to the traceable span. The drawn body
+      // waves, so arc length is NOT proportional to x — SOME progress value
+      // across the run must show a measurable gap against the naive linear
+      // reading for a real, non-degenerate wave (an exact midpoint sample
+      // can coincidentally land near the linear reading for a roughly
+      // symmetric S-curve, which is why this scans a spread of samples
+      // rather than asserting on one fixed point).
+      it('differs from a naive linear-in-x interpolation somewhere across the run — proof the arc-length wave is actually honoured', () => {
+        let maxGap = 0
+        for (let p = 0.1; p < 1; p += 0.05) {
+          const naive = traceFrom + p * (traceTo - traceFrom)
+          const actual = revealFractionAt(piece, p)
+          maxGap = Math.max(maxGap, Math.abs(actual - naive))
+        }
+        expect(maxGap).toBeGreaterThan(0.002)
+      })
+    })
+  }
+
+  it('is a pure function of (piece, progress) — same inputs, same output, called twice', () => {
+    const piece = snakePiece('snakeSmall')
+    expect(revealFractionAt(piece, 0.37)).toBe(revealFractionAt(piece, 0.37))
+  })
 })

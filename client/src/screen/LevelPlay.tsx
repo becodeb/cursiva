@@ -87,6 +87,7 @@ import { buildLevelTarget } from '../levels/buildLevel'
 import { hitObstacle, obstacleAt } from '../levels/obstacles'
 import { routeApexes } from '../levels/vertexArt'
 import { routeExtrema, vertexArtPoints } from '../levels/dolphinExtrema'
+import { revealFractionAt } from '../levels/artCorridor'
 import { evaluateLevel } from '../game/evaluateLevel'
 import { coachMessage } from '../game/adaptiveTolerance'
 import { playApprovalTone } from '../modes/tone'
@@ -2026,11 +2027,23 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       }
       if (!piece.greyArt) return base
       const pieceState = snakeColourState.pieces[i]
+      // T30 (`odd/tasks/prewriting-stage-completion.md`, "the colour doesn't
+      // follow my finger that well; it lags behind"): `ArtCorridorLayer`'s
+      // `progress` prop is a FRACTION OF `box.width`, not an arc-length
+      // fraction — `revealFractionAt` (`levels/artCorridor.ts`) converts
+      // between the two, correcting for the drawn body's own wave and its
+      // untraceable head/tail (see that function's own header for the
+      // measured gap this closes). A `done` piece is the one exception: it
+      // shows the FULL box (`progress: 1`), never `revealFractionAt`'s own
+      // `traceTo`-bounded fraction — `docs/19` §3.1 point 3, "the ones
+      // already awake are untouched", stays a state `revealFractionAt` is
+      // never asked about.
+      const progress = pieceState?.done ? 1 : revealFractionAt(piece, pieceState?.progress ?? 0)
       return {
         ...base,
         href: piece.greyArt.href,
         colourHref: piece.art.href,
-        progress: pieceState?.progress ?? 0,
+        progress,
         next: i === nextIdx,
       }
     })
@@ -2191,11 +2204,23 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // is never bypassed either.
     waypointRef.current = initialWaypointState(level.waypoints, debugSearch)
     setWaypointState(waypointRef.current)
-    // The spine latch resets with the run too, THROUGH `initialSpineState`,
-    // never the bare `EMPTY_SPINES` — `initialWaypointState`'s own reason
-    // above, restated (`radial-spines` capability, design.md §6).
-    spineRef.current = initialSpineState(level.spines, debugSearch)
-    setSpineState(spineRef.current)
+    // T30 (`odd/tasks/prewriting-stage-completion.md`, browser QA on the
+    // hedgehog acceptance fix — "it detects fewer times than before"): the
+    // spine latch is DELIBERATELY NOT reset here any more — see the T20
+    // comment on `snakeColourStateRef`'s own dedicated effect below for the
+    // exact same mechanism, now confirmed live for spines too: THIS function
+    // is a dependency of the level.id-keyed mount effect below, and its OWN
+    // identity churns on every adaptive-tolerance `record.widthFactor`
+    // change (`game/adaptiveTolerance.ts`) — which fires after the THIRD
+    // consecutive un-approved release, and every hedgehog release except the
+    // very last is un-approved by construction (`minAccuracy: 100`). A
+    // Playwright drag-by-drag replay showed exactly this: two anchors fill
+    // correctly, then the THIRD release (still geometrically perfect, not a
+    // rejection) wipes BOTH back to unfilled — no wall touch, no explicit
+    // retry, `record.widthFactor` alone. A spine, once earned, must stay
+    // earned (design.md §6, `docs/01` "no punishment") regardless of how
+    // many further releases this same attempt takes; the dedicated effect
+    // below resets it only for a genuinely NEW attempt at the level.
     // T13: a rejected stroke's fade resets with the run too — otherwise a
     // fade already in flight would keep counting down and vanish over the
     // FRESH attempt's own first spines.
@@ -2229,7 +2254,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   }, [
     level.reveal,
     level.waypoints,
-    level.spines,
     level.camera,
     debugSearch,
     target.routes.length,
@@ -2284,6 +2308,33 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // 1:1 from `level.id`'s own authored `paths` (never from the adaptive
     // `record.widthFactor` `target` itself also depends on), so it can only
     // ever change together with `level.id`, which IS listed.
+  }, [level.id, debugSearch])
+
+  // T30 (`odd/tasks/prewriting-stage-completion.md`, browser QA on the
+  // hedgehog acceptance fix): the spine latch belongs to a genuinely NEW
+  // attempt at THIS level — the SAME fix as `snakeColourStateRef`'s own
+  // effect just above, for the identical reason. A hedgehog level's
+  // `minAccuracy: 100` (T19) means every release except the very last
+  // reports `approved: false`, which is exactly the input `game/
+  // adaptiveTolerance.ts` counts toward its three-consecutive-failure
+  // corridor widen — and that widen changes `record.widthFactor`, which
+  // changes `target`, which changes `resetSurface`'s own identity, which
+  // used to refire the combined mount effect above (`resetSurface` sits in
+  // its dependency list) and wipe every already-filled spine right there,
+  // mid-attempt, with no wall touch and no explicit retry. A Playwright
+  // drag-by-drag replay caught it directly: two anchors filled correctly,
+  // then the third release — itself accepted, not a rejection — reset both
+  // back to unfilled. A spine, once earned, stays earned for the rest of
+  // this attempt (design.md §6, `docs/01` "no punishment"); only a genuinely
+  // new attempt (this effect) starts every spine unfilled again.
+  useEffect(() => {
+    spineRef.current = initialSpineState(level.spines, debugSearch)
+    setSpineState(spineRef.current)
+    // `level.spines` is not listed: like `target.routes.length` above, it is
+    // a fixed config derived 1:1 from `level.id`'s own authored catalog
+    // entry, never from the adaptive `record.widthFactor` `target` also
+    // depends on, so it can only ever change together with `level.id`,
+    // which IS listed.
   }, [level.id, debugSearch])
 
   // Voice narration (docs/18 D1/D24/D26, §3 "Todo se escucha"; T7): every
@@ -3179,6 +3230,27 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // dependency array can name plain numbers instead of a fresh object every
   // render.
   const hold = useMemo(() => celebrationHold(level), [level])
+  // T30 (`odd/tasks/prewriting-stage-completion.md`, tablet play-test: "I
+  // think when you finish the level it goes away abruptly"): investigated
+  // and NOT fixed here, on purpose — this timer's own contract is correct
+  // and already covered (`LevelPlay.test.tsx`'s `celebrationHold` suite): a
+  // Playwright replay of a real night1 completion showed the scene staying
+  // fully lit and stable for the ENTIRE `hold.startDelayMs + hold.holdMs`
+  // window (1.4s completion growth, then 4s hold, confirmed frame-by-frame),
+  // with no premature cut. The actual abrupt moment is ONE FRAME LATER: the
+  // instant `onNextRef.current()` fires below, `screen/GameScreen.tsx`
+  // swaps `state.levelId`, which changes `ScreenTransition`'s own key
+  // (`screenTransitionKey`) and REMOUNTS its wrapper — the fully-lit night
+  // scene unmounts immediately, with nothing left on screen to fade FROM
+  // while the wipe grows IN the next level, so the area outside the
+  // growing circle briefly shows the page's own plain background (a stark
+  // white flash) between the warm lit scene and the next level's own dark
+  // starting frame. That is a property of `ScreenTransition.tsx`/
+  // `GameScreen.tsx`'s key-swap remount, not of this file's own timing or
+  // of `levels/revealGrid.ts`'s growth animation — outside this task's own
+  // file scope (`canvas/ArtCorridorLayer.tsx`, `levels/revealGrid.ts`,
+  // `canvas/RevealLayer.tsx`, and this file's own localized wiring), and
+  // squarely the screen-transition capability another task already owns.
   useEffect(() => {
     advancingRef.current = false
     setSkipReady(false)

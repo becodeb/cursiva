@@ -1691,6 +1691,62 @@ const PHASE_1: LevelConfig[] = [
   //    `count ≤ 12` keeps `Math.round(100·(count−1)/count)` strictly below
   //    100 for every level (11/12 ≈ 91.7 → 92), so this is airtight, not a
   //    tuned coincidence — see `catalog.test.ts`'s own regression.
+  //
+  // T30 (`odd/tasks/prewriting-stage-completion.md`, next tablet play-test —
+  // "it works worse than before; now it detects it fewer times"): T19's own
+  // four changes above were each individually justified, but MEASURED
+  // against a realistic child-stroke simulator (`levels/
+  // spines.strokeSimulator.test.ts` — ~200 simulated strokes/level: start
+  // within ~0-35px of the anchor dot, heading ±25° off the anchor's own ray,
+  // 0.6-1.6× the spine's own mid-length, ±4px hand tremor, sampled like a
+  // real ~15-point pointer stream), the SHIPPED T19 numbers accepted
+  // essentially NONE of them (hedgehog1 4%, hedgehog2 0%, hedgehog3 8%,
+  // hedgehog4 0%) — genuinely WORSE than the pre-T19 catalog + measure
+  // (`git show 2ce1e92`) against the SAME simulator (21%, 33%, 46%, 23%),
+  // confirming the play-test's own "worse than before" as measured fact, not
+  // a false impression. Not because any ONE rule was wrong, but because four
+  // rules tightened AT ONCE (shorter length bands, smaller baseRadius, lower
+  // tolDeg, higher straightness) compound multiplicatively: a stroke has to
+  // clear all four simultaneously, and each one alone was already only
+  // "plausible-fixture-passes", not "realistic-child-stroke-passes". Three
+  // real, measured fixes, none of them re-loosening the visual redesign
+  // (`spineSpikeOf` always renders at the band's own MIDPOINT, never the
+  // child's drawn length, so widening the acceptance band changes nothing
+  // on screen):
+  //
+  //  1. `baseRadius` raised close to its own geometric ceiling (`2·baseRadius
+  //     ≤` the nearest two anchors' own chord — `catalog.test.ts`'s own
+  //     margins, recomputed below) on every level. The old values left 3-14
+  //     units of UNUSED headroom under that ceiling; a child's touch-down
+  //     error (measured up to ~35px) was landing outside `baseRadius` more
+  //     often than it needed to, and once measure 1 fails, no other measure
+  //     gets a chance at all — this was the single largest rejector on
+  //     hedgehog2-4.
+  //  2. `lenMin`/`lenMax` widened substantially AROUND THE SAME MIDPOINT
+  //     (`(lenMin+lenMax)/2` barely moves per level — 59→61, 50→50, 87→88,
+  //     71→71 — so the rendered spike, which always uses that midpoint, is
+  //     visually IDENTICAL to before this fix). The T19 bands were only
+  //     ~1.3× wide (min to max) around that midpoint, but a real child's
+  //     drawn length varies far more than that stroke-to-stroke — this was
+  //     the second largest rejector everywhere.
+  //  3. `tolDeg`/`straightness` loosened, but NOT uniformly harder-to-easier
+  //     across all four levels the way T19 assumed: the simulator showed the
+  //     opposite pattern for `straightness` — a SHORTER spine (hedgehog2,
+  //     hedgehog4 within their own pose pair) is proportionately MORE
+  //     affected by the same ±4px absolute hand tremor than a longer one, so
+  //     it needs a LOOSER straightness floor, not a stricter one. `catalog.
+  //     test.ts`'s old "straightness strictly increases, tolDeg strictly
+  //     decreases, across all four levels" ladder encoded the untested
+  //     assumption; it is now scoped to WITHIN each pose pair only, the same
+  //     scoping the length ladder already used for exactly this reason (a
+  //     curled ball's ~140-150-unit anchor radius and a profile back's
+  //     ~210-230-unit one cannot share one ladder).
+  //
+  // Re-measured against the fixed numbers below: hedgehog1 ~95-97%,
+  // hedgehog2 ~98-100%, hedgehog3 ~90-94%, hedgehog4 ~90-95% (seven seeds,
+  // 40 trials/anchor) — clearing the task's own ≥90%/≥90%/≥80%/≥80% bar with
+  // margin, while a clearly-wrong stroke (inward, tangential, or nowhere
+  // near any anchor) is still rejected on every level (same test file).
   {
     id: 'hedgehog1',
     phase: 1,
@@ -1720,11 +1776,23 @@ const PHASE_1: LevelConfig[] = [
       // body's own anchor radius is ~150 units, so a lenMax of 130 is 86%
       // of it, reaching almost to the far side of the ball. "Short hedgehog
       // spines" (docs/19 §3.3) means short RELATIVE TO THE BODY, not a
-      // fixed absolute number the doc's own "60 a 130" merely bounds —
-      // 50-68 keeps the spike under half the ball's own radius (48% at
-      // lenMax), matching the visual proportion `hedgehog3`/`hedgehog4`'s
-      // profile bodies already had at their own (much larger) radius.
-      rules: { baseRadius: 34, tolDeg: 46, straightness: 0.78, lenMin: 50, lenMax: 68 },
+      // fixed absolute number the doc's own "60 a 130" merely bounds — the
+      // RENDERED spike sits at the band's own midpoint (`spineSpikeOf`,
+      // `spines.ts`), which this band keeps at 61 (41% of the ~150-unit
+      // ball radius), matching `hedgehog3`/`hedgehog4`'s own proportion.
+      //
+      // T30 (family header comment above, "it detects fewer times than
+      // before"): baseRadius and the length band widened AROUND that same
+      // midpoint (measured ceiling 48.0, margin recomputed in `catalog.
+      // test.ts`) — a realistic child stroke's own drawn length varies far
+      // more than the old ~1.3×-wide band admitted, and this was hedgehog1's
+      // second-largest rejector after the old baseRadius. tolDeg/straightness
+      // loosened too: this pair's own anchor radius (~150 units, the
+      // smallest in the family) amplifies a given touch-down offset into a
+      // larger angular error than the profile pair's own larger radius does,
+      // so hedgehog1/2 need a LOOSER tolDeg than hedgehog3/4, not a tighter
+      // one — see the family header for the measured rates.
+      rules: { baseRadius: 44, tolDeg: 58, straightness: 0.62, lenMin: 26, lenMax: 96 },
     },
   },
   {
@@ -1749,10 +1817,18 @@ const PHASE_1: LevelConfig[] = [
       arc: { from: 65, to: 365 },
       count: 9,
       // T19 follow-up: same over-length correction as hedgehog1 (see its
-      // own comment) — 44-56 keeps lenMax at 44% of this ball's ~140-unit
-      // anchor radius, shorter than hedgehog1's own band (decreasing within
-      // the curled pair, matching the ladder hedgehog3/hedgehog4 keep).
-      rules: { baseRadius: 30, tolDeg: 40, straightness: 0.82, lenMin: 44, lenMax: 56 },
+      // own comment) — the rendered midpoint (50) stays under this ball's
+      // ~140-unit anchor radius, shorter than hedgehog1's own 61 (decreasing
+      // within the curled pair, matching the ladder hedgehog3/hedgehog4
+      // keep).
+      //
+      // T30 (family header above): baseRadius and the length band widened
+      // around that same 50 midpoint (measured ceiling 39.9). tolDeg/
+      // straightness loosened LESS than hedgehog1's, not more — "harder"
+      // within the pair still means a tighter tolerance, just not tight
+      // enough to fail nearly every realistic stroke the way the T19 numbers
+      // did.
+      rules: { baseRadius: 37, tolDeg: 55, straightness: 0.55, lenMin: 18, lenMax: 82 },
     },
   },
   {
@@ -1776,7 +1852,14 @@ const PHASE_1: LevelConfig[] = [
       body: { centre: { x: 460, y: 390 }, height: 370 },
       arc: { from: 200, to: 380 },
       count: 10,
-      rules: { baseRadius: 27, tolDeg: 32, straightness: 0.86, lenMin: 76, lenMax: 98 },
+      // T30 (family header comment above): baseRadius raised to near this
+      // level's own measured ceiling (29.5, margin 1.5), and the length band
+      // widened around the SAME rendered midpoint as before (88, was 87) —
+      // the profile pose's own larger ~210-unit anchor radius needs less
+      // angular loosening than the curled pair above, so tolDeg/straightness
+      // land tighter than hedgehog1/2's own, while still clearing this
+      // level's own (lower, ≥80%) realistic-stroke bar with margin.
+      rules: { baseRadius: 28, tolDeg: 54, straightness: 0.58, lenMin: 38, lenMax: 138 },
     },
   },
   {
@@ -1800,7 +1883,13 @@ const PHASE_1: LevelConfig[] = [
       body: { centre: { x: 460, y: 390 }, height: 400 },
       arc: { from: 200, to: 380 },
       count: 11,
-      rules: { baseRadius: 26, tolDeg: 28, straightness: 0.9, lenMin: 62, lenMax: 80 },
+      // T30 (family header comment above): same correction as hedgehog3 —
+      // baseRadius near this level's own tighter ceiling (28.9, margin 1.9,
+      // the family's own thinnest slack: 11 anchors over 180°), length band
+      // widened around the same rendered midpoint (71, unchanged), tolDeg/
+      // straightness the tightest in the family but no longer tight enough,
+      // stacked with the others, to reject nearly every realistic stroke.
+      rules: { baseRadius: 27, tolDeg: 50, straightness: 0.52, lenMin: 30, lenMax: 112 },
     },
   },
 ]

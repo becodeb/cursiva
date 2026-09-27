@@ -2914,11 +2914,25 @@ describe('LevelPlay camera reseed call-site guard (verify-report R1: restartRun 
 // ─────────────────────────────────────────────────────────────────────────────
 // `radial-spines` capability, design.md §6/§11.1 item 3: reset coverage by
 // source-read count, `seedCameraFor`'s exact precedent above. `initialSpineState`
-// must be called at exactly THREE sites — mount, `resetSurface`, `restartRun`
-// — never through the bare `EMPTY_SPINES` constant directly.
+// must be called at exactly THREE sites — mount, `restartRun`, and (T30,
+// `odd/tasks/prewriting-stage-completion.md`) a DEDICATED `[level.id,
+// debugSearch]`-keyed effect that replaced the old `resetSurface` call site.
+// That old site was removed on purpose, not lost by accident: `resetSurface`
+// is a dependency of the level's combined mount effect, and its OWN identity
+// changes on every adaptive-tolerance `record.widthFactor` update
+// (`game/adaptiveTolerance.ts`) — which fires after the third consecutive
+// un-approved release, and every hedgehog release except the very last is
+// un-approved by construction (`minAccuracy: 100`, T19). Calling
+// `initialSpineState` from inside `resetSurface` meant a hedgehog child's
+// already-filled spines were silently wiped mid-attempt, with no wall touch
+// and no explicit retry — caught live via a Playwright drag-by-drag replay,
+// not guessed. This guard's own COUNT stays 3, and the removal regex below
+// now targets the dedicated effect instead of `resetSurface`, but the
+// invariant it protects is unchanged: never through the bare `EMPTY_SPINES`
+// constant directly, at exactly three named sites.
 // ─────────────────────────────────────────────────────────────────────────────
 describe('LevelPlay spine reseed call-site guard (radial-spines capability, design.md §11.1 item 3)', () => {
-  it('calls initialSpineState(level.spines, debugSearch) at exactly the three reset sites — mount, resetSurface, restartRun', () => {
+  it('calls initialSpineState(level.spines, debugSearch) at exactly the three reset sites — mount, its own dedicated effect, restartRun', () => {
     const modules = import.meta.glob('./LevelPlay.tsx', {
       eager: true,
       query: '?raw',
@@ -2942,6 +2956,45 @@ describe('LevelPlay spine reseed call-site guard (radial-spines capability, desi
     // Reset Site, Never the Bare Empty Constant".
     expect(source).not.toMatch(/spineRef\.current = EMPTY_SPINES/)
     expect(source).not.toMatch(/setSpineState\(EMPTY_SPINES\)/)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T30 (`odd/tasks/prewriting-stage-completion.md`, browser QA on the
+// hedgehog acceptance fix — "it detects fewer times than before"): a
+// Playwright drag-by-drag replay against hedgehog1 found that `resetSurface`
+// wiped every already-filled spine mid-attempt, with no wall touch and no
+// explicit retry — `resetSurface` sits in the level's combined mount
+// effect's own dependency array, and `resetSurface`'s identity churns on
+// every adaptive-tolerance `record.widthFactor` change (`game/
+// adaptiveTolerance.ts`), which fires after the third consecutive
+// un-approved release — exactly what every hedgehog release except the last
+// one is, by construction (`minAccuracy: 100`). This harness cannot drive a
+// live re-render to reproduce the effect re-firing directly (this file's own
+// header: no jsdom, no rAF, state dispatches after `renderToString` are
+// no-ops) — the source-read guard above already proves the CORRECT three
+// call sites; this one additionally proves the REGRESSION cannot silently
+// come back through `resetSurface`'s own body, which is exactly how it
+// shipped the first time.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('LevelPlay resetSurface never reaches the spine latch again (T30 regression)', () => {
+  it('resetSurface\'s own function body contains neither initialSpineState nor setSpineState', () => {
+    const modules = import.meta.glob('./LevelPlay.tsx', {
+      eager: true,
+      query: '?raw',
+      import: 'default',
+    })
+    const source = (Object.values(modules)[0] as string).replace(/\r\n/g, '\n')
+    const start = source.indexOf('const resetSurface = useCallback((): void => {')
+    expect(start).toBeGreaterThan(-1)
+    // `resetSurface`'s own closing `}, [` — the same convention the call-site
+    // guard above already relies on for `restartRun`'s own block boundary.
+    const end = source.indexOf('\n  }, [', start)
+    expect(end).toBeGreaterThan(start)
+    const body = source.slice(start, end)
+    expect(body).not.toContain('initialSpineState')
+    expect(body).not.toContain('setSpineState')
+    expect(body).not.toContain('spineRef.current')
   })
 })
 
