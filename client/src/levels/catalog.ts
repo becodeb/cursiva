@@ -2120,10 +2120,12 @@ const PHASE_2: LevelConfig[] = [
   // sector: `ovals()`'s own shape is the LESSON (a pattern to learn), so it
   // needs `maze: false` to keep `guide={showShapeLine && !level.maze}`
   // (`TraceCanvas.tsx`) drawing the ideal line — the exact reason
-  // `f2-guirnalda`/`f2-colinas`/`f2-bucles` all keep `maze: false` too. But
+  // `f2-colinas`/`f2-bucles` keep `maze: false` too (the fish adventure's
+  // `f2-guirnalda` family dropped it in T40, a named exception). But
   // `catalog.test.ts`'s own "renders only the phase-1 routes as real
-  // mazes" guard is unconditional: `level.maze === (phase === 1 && kind ===
-  // 'path')` for every level without an `artCorridor` — so a `maze: false`
+  // mazes" guard holds `level.maze === (phase === 1 && kind === 'path')`
+  // for every level without an `artCorridor`, save the fish adventure's
+  // named T40 exception — so a `maze: false`
   // routed level MUST be phase 2, full stop. Phase 2 also means these four
   // must stay INSIDE the 149-451 writing band (`catalog.test.ts`'s own
   // "keeps phase 2 in the writing band"), the opposite requirement phase 1
@@ -2495,13 +2497,26 @@ const PHASE_2: LevelConfig[] = [
     hint: 'Seguí las burbujas: bajá, hacé la curva y subí, sin levantar el dedo.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    // [T40, author's tablet play-test 2026-09-27: "¿Por qué el nivel de los
+    // peces es tan distinto? Tiene un trazo gris en el medio... Además tiene
+    // un coso de ritmo... sacalo."] The whole fish adventure (this level and
+    // `f2-agua2..4`) draws the same plain white corridor every other
+    // adventure trail draws: `maze: true` is what drops the grey centreline
+    // and the crisp guide (`LevelPlay.tsx`'s `showCentreLine`/`guide`, both
+    // gated on `!level.maze`). The metronome is off (`metronomeBpm: 0`
+    // removes the pulsing beat ring at the start, `TraceCanvas`'s
+    // `beatPulse`) and so is the fluency floor it paired with: without a
+    // beat to keep, an invisible "steady speed" rule would fail a child for
+    // a reason nothing on screen explains. The engine keeps both features —
+    // the turtle, monkey and `f2-colinas`/`f2-bucles`/`f2-crestas` levels
+    // still use them.
+    maze: true,
     resetOnContact: false,
     carrier: true,
-    feedback: feedback(54, false),
+    feedback: feedback(0, false),
     paths: [garland({ x0: 120, x1: 880, yTop: 190, yBottom: 430, cycles: 3 })],
     corridorWidth: 100,
-    rules: rules(2, true, true, 35),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2552,13 +2567,13 @@ const PHASE_2: LevelConfig[] = [
     hint: 'Seguí las gotitas: hacé las curvas redonditas, como una U.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: true,
-    feedback: feedback(64, false),
+    feedback: feedback(0, false),
     paths: [garland({ x0: 120, x1: 880, yTop: 290, yBottom: 430, cycles: 4 })],
     corridorWidth: 80,
-    rules: rules(2, true, true, 38),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2580,10 +2595,10 @@ const PHASE_2: LevelConfig[] = [
     hint: 'Las burbujas se achican: curvas más chiquitas, despacio.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: true,
-    feedback: feedback(68, false),
+    feedback: feedback(0, false),
     paths: [
       garlandVaried({
         x0: 95,
@@ -2598,7 +2613,7 @@ const PHASE_2: LevelConfig[] = [
       }),
     ],
     corridorWidth: 68,
-    rules: rules(2, true, true, 40),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2634,7 +2649,7 @@ const PHASE_2: LevelConfig[] = [
     hint: '¡Cuidado con las estrellas de mar! Seguí las burbujas sin tocarlas.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     // The one Nivel 3 level with a hazard: touching the border (or the
     // starfish) restarts the run, same rule trail1 carries (D3).
     resetOnContact: true,
