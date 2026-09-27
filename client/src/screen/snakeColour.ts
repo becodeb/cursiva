@@ -57,6 +57,11 @@ export interface SnakePieceColourState {
    *  están despiertas no se tocan: nada ganado se pierde". Never touched by
    *  this module again once set. */
   readonly done: boolean
+  /** T39: once the finger has been on this piece's own body at all, it
+   *  stays `true` for the rest of the run — even after a lift fades the
+   *  piece back to grey. It is what retires this piece's "wake me next"
+   *  pulse for good ({@link wakingPulseIndex}). */
+  readonly started: boolean
 }
 
 export interface SnakeColourState {
@@ -69,7 +74,12 @@ const IDLE_PIECE: SnakePieceColourState = {
   fadeFrom: null,
   fadeStartProgress: 0,
   done: false,
+  started: false,
 }
+
+/** {@link IDLE_PIECE}, but already started — a piece that faded all the way
+ *  back to grey after the child had begun it. */
+const IDLE_STARTED_PIECE: SnakePieceColourState = { ...IDLE_PIECE, started: true }
 
 /** `n` pieces, every one grey and untouched — the state a level's own run
  *  starts in (mirrors `emptyCollectState`'s own shape and reset story). */
@@ -126,10 +136,17 @@ export function snakeColourTick(
       // start fading it back to grey — the opposite of "las que ya están
       // despiertas no se tocan" (docs/19 §3.1 point 3).
       if (sample.track.maxArc >= trailEndArc(route.length, corridorWidth)) {
-        return { track: CORRIDOR_TRACK_START, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true }
+        return {
+          track: CORRIDOR_TRACK_START,
+          progress: 1,
+          fadeFrom: null,
+          fadeStartProgress: 1,
+          done: true,
+          started: true,
+        }
       }
       const raw = Math.max(0, Math.min(1, sample.track.maxArc / route.length))
-      return { track: sample.track, progress: raw, fadeFrom: null, fadeStartProgress: raw, done: false }
+      return { track: sample.track, progress: raw, fadeFrom: null, fadeStartProgress: raw, done: false, started: true }
     }
 
     // Off this piece's own body (or the finger is up entirely): start, or
@@ -142,8 +159,8 @@ export function snakeColourTick(
     const fadeFrom = piece.fadeFrom ?? now
     const fadeStartProgress = piece.fadeFrom === null ? piece.progress : piece.fadeStartProgress
     const eased = fadeStartProgress * Math.max(0, 1 - (now - fadeFrom) / SNAKE_COLOUR_FADE_MS)
-    if (eased <= 0) return IDLE_PIECE
-    return { track: CORRIDOR_TRACK_START, progress: eased, fadeFrom, fadeStartProgress, done: false }
+    if (eased <= 0) return piece.started ? IDLE_STARTED_PIECE : IDLE_PIECE
+    return { track: CORRIDOR_TRACK_START, progress: eased, fadeFrom, fadeStartProgress, done: false, started: piece.started }
   })
   return changed ? { pieces } : state
 }
@@ -157,4 +174,28 @@ export function snakeColourTick(
 export function nextWakingIndex(state: SnakeColourState): number | null {
   const i = state.pieces.findIndex((p) => !p.done)
   return i === -1 ? null : i
+}
+
+/**
+ * T39 (`odd/tasks/prewriting-stage-completion.md`, tablet play-test: "once I
+ * start the stroke the snakes should stop blinking"): which piece shows the
+ * "wake me next" pulse right now, or `null` for none.
+ *
+ *  - never while a stroke is in progress (`drawing`) — the child has already
+ *    acted on the invitation, and a blink under the finger only distracts;
+ *  - never again on a piece the child has already started
+ *    (`SnakePieceColourState.started`), even after a lift faded it back to
+ *    grey: it has done its job for that snake, and the colour itself is now
+ *    the feedback. The next, untouched snake still gets its own pulse once
+ *    the finger is up.
+ *
+ * The idle nudge (`screen/idleNudge.ts`) is untouched by this: it is a
+ * separate, time-based cue for a child who stopped touching the screen
+ * altogether, and it keeps working exactly as before.
+ */
+export function wakingPulseIndex(state: SnakeColourState, drawing: boolean): number | null {
+  if (drawing) return null
+  const i = nextWakingIndex(state)
+  if (i === null || state.pieces[i].started) return null
+  return i
 }

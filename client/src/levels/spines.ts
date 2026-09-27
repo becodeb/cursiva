@@ -48,6 +48,17 @@ export interface SpineRules {
   readonly straightness: number // measure 3, in (0, 1]
   readonly lenMin: number // measure 4, CHORD
   readonly lenMax: number
+  /** The length every accepted spine is DRAWN at (its spike, the demo, the
+   *  debug seed), viewBox units — never the child's own drawn length.
+   *  Absent = the band's midpoint, `(lenMin + lenMax) / 2`. T39: an explicit
+   *  value lets `lenMax` stay a generous ACCEPTANCE ceiling without making
+   *  the spike on screen any longer. */
+  readonly spikeLen?: number
+}
+
+/** The length a filled spine is drawn at — see {@link SpineRules.spikeLen}. */
+export function spineSpikeLength(rules: SpineRules): number {
+  return rules.spikeLen ?? (rules.lenMin + rules.lenMax) / 2
 }
 
 export interface SpineAnchor {
@@ -162,30 +173,88 @@ function dist(p: Point, a: { x: number; y: number }): number {
 }
 
 /**
+ * How far from an anchor a touch-down may land and still address it,
+ * viewBox units (≈ screen px at 1024×768) — measure 1's OUTER zone. T39
+ * (tablet play-test, "sometimes I draw it quite well and it still says I
+ * didn't"): `baseRadius` is capped by its own geometric ceiling (`2 ·
+ * baseRadius ≤` the nearest two anchors' chord, so two tolerance circles
+ * never overlap) — 27-28 units on the profile levels, less than a
+ * six-year-old's fingertip error once the finger lands on the small mark
+ * that sits `SPINE_MARK_R` OUTSIDE the anchor. Past `baseRadius`, a start
+ * still binds, up to this reach, but only to the anchor it is NEAREST to
+ * of ALL anchors (a Voronoi cell, so zones still never overlap) and only
+ * when that anchor is unfilled — a start closest to a spine that is
+ * already drawn never "steals" its neighbour.
+ */
+export const SPINE_START_REACH = 46
+
+/** Measure 1's outer zone for `rules`: never smaller than `baseRadius`. */
+export function spineStartReach(rules: SpineRules): number {
+  return Math.max(rules.baseRadius, SPINE_START_REACH)
+}
+
+/**
  * Measure 1: the nearest anchor to `p0` that is NOT in `filled`, among those
  * within `baseRadius`. Ties go to the LOWEST index — iterating ascending and
  * requiring a STRICT improvement keeps the first (lowest-index) winner on an
- * exact tie. `null` when no unfilled anchor is within radius (including the
- * case where every anchor within radius is already filled — it is never
- * reassigned).
+ * exact tie. When no unfilled anchor is within `baseRadius`, the outer zone
+ * applies ({@link SPINE_START_REACH}): the nearest anchor of ALL, if it is
+ * within `reach` and unfilled. `null` otherwise — a filled anchor is never
+ * reassigned.
  */
 function nearestUnfilledAnchor(
   anchors: readonly SpineAnchor[],
   filled: ReadonlySet<number>,
   p0: Point,
   baseRadius: number,
+  reach: number = baseRadius,
 ): number | null {
   let best = -1
   let bestDist = Infinity
+  let nearest = -1
+  let nearestDist = Infinity
   for (let i = 0; i < anchors.length; i++) {
-    if (filled.has(i)) continue
     const d = dist(p0, anchors[i])
+    if (d < nearestDist) {
+      nearestDist = d
+      nearest = i
+    }
+    if (filled.has(i)) continue
     if (d <= baseRadius && d < bestDist) {
       bestDist = d
       best = i
     }
   }
-  return best === -1 ? null : best
+  if (best !== -1) return best
+  if (nearest !== -1 && nearestDist <= reach && !filled.has(nearest)) return nearest
+  return null
+}
+
+/**
+ * Measure 3's sampling step, viewBox units (≈ screen px at 1024×768). T39
+ * (tablet play-test: "sometimes I draw it quite well and it still says I
+ * didn't"), measured with `spines.strokeSimulator.test.ts`: `chord / arc`
+ * over the RAW pointer stream is not a property of the stroke's shape but
+ * of how fast it was drawn — a slow, careful drag emits 3-5× more samples,
+ * and every sample's own ~1-2px of finger/sensor noise adds its own zigzag
+ * to `arc`. A slow stroke by itself dropped the simulated acceptance to
+ * 47-76%. Thinning the stroke to one point per ~10 units first keeps the
+ * real shape (a scribble still doubles back over tens of units and fails)
+ * while the sub-step jitter no longer counts as length.
+ */
+const STRAIGHTNESS_STEP = 10
+
+/** `points` thinned so consecutive kept points are at least `step` apart;
+ *  the first and last points are always kept, so the chord never moves. */
+function decimateByDistance(points: readonly Point[], step: number): Point[] {
+  if (points.length <= 2) return [...points]
+  const out: Point[] = [points[0]]
+  for (let i = 1; i < points.length - 1; i++) {
+    const last = out[out.length - 1]
+    if (Math.hypot(points[i].x - last.x, points[i].y - last.y) >= step) out.push(points[i])
+  }
+  out.push(points[points.length - 1])
+  return out
 }
 
 /** Total arc length of a polyline. */
@@ -208,7 +277,7 @@ function angleBetweenDeg(ax: number, ay: number, bx: number, by: number): number
 }
 
 /**
- * Measure 5: no sample of `S`, except those within `baseRadius` of its own
+ * Measure 5: no sample of `S`, except those within measure 1's start reach of its own
  * assigned anchor, lies inside `r(θ)` of the centroid — the geometric form
  * of the derived undrawability (design.md §2 D1(b)). Each consecutive pair
  * of points is subdivided at `BODY_STEP`, so a fast frame-rate-thin stroke
@@ -219,7 +288,10 @@ function crossesBody(stroke: readonly Point[], anchor: SpineAnchor, cfg: SpineCo
   const profile = HEDGEHOG_SILHOUETTE[cfg.pose]
   const scale = bodyScale(cfg)
   const { centre } = cfg.body
-  const { baseRadius } = cfg.rules
+  // T39: the start zone around the anchor is measure 1's outer reach, not
+  // just `baseRadius` — a touch-down measure 1 accepted on the fur just
+  // inside the silhouette must not then fail here for the same point.
+  const baseRadius = spineStartReach(cfg.rules)
 
   const test = (p: Point): boolean => {
     const dx = p.x - centre.x
@@ -287,13 +359,13 @@ function crossesBody(stroke: readonly Point[], anchor: SpineAnchor, cfg: SpineCo
  * in `spines.test.ts`), `localStart` IS the anchor and this reduces to the
  * old comparison exactly — no fixture using an on-anchor stroke moves.
  */
-function passesRemainingMeasures(
+function remainingMeasureFailure(
   stroke: readonly Point[],
   anchor: SpineAnchor,
   cfg: SpineConfig,
   reversed: boolean,
-): boolean {
-  if (stroke.length < 2) return false
+): SpineRejection | null {
+  if (stroke.length < 2) return 'direction'
   const p0 = stroke[0]
   const pEnd = stroke[stroke.length - 1]
   const dx = reversed ? p0.x - pEnd.x : pEnd.x - p0.x
@@ -306,19 +378,21 @@ function passesRemainingMeasures(
   const localStart = reversed ? pEnd : p0
   const idealX = localStart.x - cfg.body.centre.x
   const idealY = localStart.y - cfg.body.centre.y
-  if (angleBetweenDeg(dx, dy, idealX, idealY) > cfg.rules.tolDeg) return false
+  if (angleBetweenDeg(dx, dy, idealX, idealY) > cfg.rules.tolDeg) return 'direction'
 
-  // Measure 3 — straightness, chord/arclength.
-  const arc = arclength(stroke)
-  if (arc <= 0 || chord / arc < cfg.rules.straightness) return false
+  // Measure 3 — straightness, chord/arclength, measured on the stroke
+  // thinned to one point per `STRAIGHTNESS_STEP` units (T39, see that
+  // constant) so the ratio no longer depends on how fast the finger moved.
+  const arc = arclength(decimateByDistance(stroke, STRAIGHTNESS_STEP))
+  if (arc <= 0 || chord / arc < cfg.rules.straightness) return 'straightness'
 
   // Measure 4 — chord length inside the authored band.
-  if (chord < cfg.rules.lenMin || chord > cfg.rules.lenMax) return false
+  if (chord < cfg.rules.lenMin || chord > cfg.rules.lenMax) return 'length'
 
   // Measure 5 — no body crossing beyond the anchor's own base radius.
-  if (crossesBody(stroke, anchor, cfg)) return false
+  if (crossesBody(stroke, anchor, cfg)) return 'body'
 
-  return true
+  return null
 }
 
 /**
@@ -337,7 +411,7 @@ function passesRemainingMeasures(
  *
  * A stroke may also be drawn REVERSED (tip→base): if the FIRST point is not
  * within radius of any unfilled anchor, the LAST point is tried instead,
- * and `passesRemainingMeasures` is told so it reorients the chord the same
+ * and `remainingMeasureFailure` is told so it reorients the chord the same
  * way a forward stroke's own p0→pEnd already reads. Forward is tried first
  * and wins ties, since it is how most strokes are actually drawn.
  */
@@ -350,15 +424,8 @@ export function spineSettle(
   let filled = prev.filled
   let changed = false
   for (const stroke of strokes) {
-    if (stroke.length === 0) continue
-    let idx = nearestUnfilledAnchor(anchors, filled, stroke[0], cfg.rules.baseRadius)
-    let reversed = false
-    if (idx === null && stroke.length > 1) {
-      idx = nearestUnfilledAnchor(anchors, filled, stroke[stroke.length - 1], cfg.rules.baseRadius)
-      reversed = idx !== null
-    }
+    const idx = bindStroke(anchors, filled, stroke, cfg).anchor
     if (idx === null) continue
-    if (!passesRemainingMeasures(stroke, anchors[idx], cfg, reversed)) continue
     const next = new Set(filled)
     next.add(idx)
     filled = next
@@ -366,6 +433,80 @@ export function spineSettle(
   }
   if (!changed) return prev
   return { filled, aiming: prev.aiming }
+}
+
+/** Why a stroke did not become a spine — the FIRST measure that failed it,
+ *  in this file's own order (1 start zone, 2 direction, 3 straightness,
+ *  4 length band, 5 body crossing). */
+export type SpineRejection = 'no-anchor' | 'direction' | 'straightness' | 'length' | 'body'
+
+/** The anchor ONE stroke fills against a given `filled` set, or why it
+ *  fills none. `anchor` and `rejection` are never both set. */
+export interface SpineJudgement {
+  readonly anchor: number | null
+  readonly rejection: SpineRejection | null
+}
+
+/** Measures 1-5 for ONE stroke against `filled` — the single place every
+ *  caller below decides "is this a spine". Forward first, reversed
+ *  (tip→base) only when the first point binds no unfilled anchor. */
+function bindStroke(
+  anchors: readonly SpineAnchor[],
+  filled: ReadonlySet<number>,
+  stroke: ReadonlyArray<Point>,
+  cfg: SpineConfig,
+): SpineJudgement {
+  if (stroke.length === 0) return { anchor: null, rejection: 'no-anchor' }
+  let idx = nearestUnfilledAnchor(anchors, filled, stroke[0], cfg.rules.baseRadius, spineStartReach(cfg.rules))
+  let reversed = false
+  if (idx === null && stroke.length > 1) {
+    idx = nearestUnfilledAnchor(anchors, filled, stroke[stroke.length - 1], cfg.rules.baseRadius, spineStartReach(cfg.rules))
+    reversed = idx !== null
+  }
+  if (idx === null) return { anchor: null, rejection: 'no-anchor' }
+  const failure = remainingMeasureFailure(stroke, anchors[idx], cfg, reversed)
+  return failure === null ? { anchor: idx, rejection: null } : { anchor: null, rejection: failure }
+}
+
+/** Public diagnosis of one stroke (the stroke simulator's attribution, and
+ *  any future dev overlay) — exactly the decision {@link spineSettle} makes. */
+export function judgeSpineStroke(
+  stroke: ReadonlyArray<Point>,
+  cfg: SpineConfig,
+  filled: ReadonlySet<number> = EMPTY_SPINES.filled,
+): SpineJudgement {
+  return bindStroke(spineAnchors(cfg), filled, stroke, cfg)
+}
+
+/**
+ * T39 (`odd/tasks/prewriting-stage-completion.md`, tablet play-test: "I
+ * finished every spine, they all appeared, and the level did not end"):
+ * what ONE release does to the spine latch — fold the stroke JUST released,
+ * and nothing else, into `prev`.
+ *
+ * The release path used to call `spineSettle(prev, everyStrokeSoFar)`,
+ * re-walking every earlier stroke against a `filled` set that had grown
+ * since that stroke's own release — so an old stroke could retroactively
+ * bind a second anchor, and the latch (what the child SEES) and a fresh
+ * walk of the stroke list (what the score counted) could disagree. Folding
+ * only the new stroke makes `accepted` mean exactly "this release drew a
+ * spine": one release, at most one new spike, never a retroactive one.
+ */
+export function settleSpineRelease(
+  prev: SpineState,
+  stroke: ReadonlyArray<Point>,
+  cfg: SpineConfig,
+): { readonly state: SpineState; readonly accepted: boolean } {
+  const idx = bindStroke(spineAnchors(cfg), prev.filled, stroke, cfg).anchor
+  if (idx === null) return { state: prev, accepted: false }
+  const filled = new Set(prev.filled)
+  filled.add(idx)
+  return { state: { filled, aiming: prev.aiming }, accepted: true }
+}
+
+/** Whether the latch holds every anchor — the hedgehog's own "done". */
+export function spinesComplete(state: SpineState, cfg: SpineConfig): boolean {
+  return state.filled.size >= cfg.count
 }
 
 /**
@@ -393,8 +534,7 @@ export function spineScore(strokes: ReadonlyArray<ReadonlyArray<Point>>, cfg: Sp
  * and returns the SAME reference when nothing new fills (a contract several
  * callers/tests already depend on); this always folds fresh from EMPTY,
  * `spineScore`'s own convention (the live fold never feeds either). Both
- * still call the exact same measure functions — `nearestUnfilledAnchor` and
- * `passesRemainingMeasures`, this file's one place measures 1-5 are decided —
+ * still call the exact same measure function — `bindStroke`, this file's one place measures 1-5 are decided —
  * so what counts as a spine cannot drift between the two callers; only the
  * bookkeeping loop (which needs the stroke's own index, `spineSettle` never
  * does) is restated.
@@ -407,16 +547,8 @@ export function acceptedSpineStrokeIndices(
   const filled = new Set<number>()
   const accepted = new Set<number>()
   for (let i = 0; i < strokes.length; i++) {
-    const stroke = strokes[i]
-    if (stroke.length === 0) continue
-    let idx = nearestUnfilledAnchor(anchors, filled, stroke[0], cfg.rules.baseRadius)
-    let reversed = false
-    if (idx === null && stroke.length > 1) {
-      idx = nearestUnfilledAnchor(anchors, filled, stroke[stroke.length - 1], cfg.rules.baseRadius)
-      reversed = idx !== null
-    }
+    const idx = bindStroke(anchors, filled, strokes[i], cfg).anchor
     if (idx === null) continue
-    if (!passesRemainingMeasures(stroke, anchors[idx], cfg, reversed)) continue
     filled.add(idx)
     accepted.add(i)
   }
@@ -444,9 +576,9 @@ export function spineAim(
     return { filled: prev.filled, aiming: null }
   }
   const anchors = spineAnchors(cfg)
-  let idx = nearestUnfilledAnchor(anchors, prev.filled, points[0], cfg.rules.baseRadius)
+  let idx = nearestUnfilledAnchor(anchors, prev.filled, points[0], cfg.rules.baseRadius, spineStartReach(cfg.rules))
   if (idx === null && points.length > 1) {
-    idx = nearestUnfilledAnchor(anchors, prev.filled, points[points.length - 1], cfg.rules.baseRadius)
+    idx = nearestUnfilledAnchor(anchors, prev.filled, points[points.length - 1], cfg.rules.baseRadius, spineStartReach(cfg.rules))
   }
   if (idx === prev.aiming) return prev
   return { filled: prev.filled, aiming: idx }
@@ -557,7 +689,7 @@ export function spineSpikePath(spike: SpineSpike): string {
  */
 export function spineSpikePaths(cfg: SpineConfig, state: SpineState): readonly string[] {
   const anchors = spineAnchors(cfg)
-  const len = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+  const len = spineSpikeLength(cfg.rules)
   const paths: string[] = []
   for (let i = 0; i < anchors.length; i++) {
     if (!state.filled.has(i)) continue
@@ -589,7 +721,7 @@ export function spineRings(cfg: SpineConfig): readonly { x: number; y: number; r
 function spineSegments(cfg: SpineConfig, k: number): readonly (readonly [Point, Point])[] {
   const anchors = spineAnchors(cfg)
   const n = Math.max(0, Math.min(Math.trunc(k), anchors.length))
-  const len = (cfg.rules.lenMin + cfg.rules.lenMax) / 2
+  const len = spineSpikeLength(cfg.rules)
   const segments: (readonly [Point, Point])[] = []
   for (let i = 0; i < n; i++) {
     const a = anchors[i]

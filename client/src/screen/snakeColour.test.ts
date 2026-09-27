@@ -9,6 +9,7 @@ import {
   snakeColourTick,
   SNAKE_COLOUR_FADE_MS,
   type SnakeColourState,
+  wakingPulseIndex,
 } from './snakeColour'
 import { CORRIDOR_TRACK_START } from './corridorTrack'
 import type { RouteSegment } from '../levels/types'
@@ -153,6 +154,7 @@ describe('snakeColourTick — leaving the line fades back to grey and restarts',
       fadeFrom: null,
       fadeStartProgress: 0,
       done: false,
+      started: false,
     })
   })
 })
@@ -161,9 +163,9 @@ describe('nextWakingIndex', () => {
   it('is the first piece in authored order that is not done', () => {
     const state: SnakeColourState = {
       pieces: [
-        { track: CORRIDOR_TRACK_START, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true },
-        { track: CORRIDOR_TRACK_START, progress: 0.4, fadeFrom: null, fadeStartProgress: 0.4, done: false },
-        { track: CORRIDOR_TRACK_START, progress: 0, fadeFrom: null, fadeStartProgress: 0, done: false },
+        { track: CORRIDOR_TRACK_START, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true, started: true },
+        { track: CORRIDOR_TRACK_START, progress: 0.4, fadeFrom: null, fadeStartProgress: 0.4, done: false, started: true },
+        { track: CORRIDOR_TRACK_START, progress: 0, fadeFrom: null, fadeStartProgress: 0, done: false, started: false },
       ],
     }
     expect(nextWakingIndex(state)).toBe(1)
@@ -172,8 +174,8 @@ describe('nextWakingIndex', () => {
   it('is null once every piece is done', () => {
     const state: SnakeColourState = {
       pieces: [
-        { track: CORRIDOR_TRACK_START, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true },
-        { track: CORRIDOR_TRACK_START, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true },
+        { track: CORRIDOR_TRACK_START, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true, started: true },
+        { track: CORRIDOR_TRACK_START, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true, started: true },
       ],
     }
     expect(nextWakingIndex(state)).toBeNull()
@@ -181,5 +183,46 @@ describe('nextWakingIndex', () => {
 
   it('is 0 for a fresh empty state', () => {
     expect(nextWakingIndex(emptySnakeColourState(3))).toBe(0)
+  })
+})
+
+// T39 (tablet play-test: "once I start the stroke the snakes should stop
+// blinking").
+describe('wakingPulseIndex', () => {
+  it('pulses the first untouched piece while no stroke is in progress', () => {
+    expect(wakingPulseIndex(emptySnakeColourState(3), false)).toBe(0)
+  })
+
+  it('stops the instant a stroke starts, anywhere', () => {
+    expect(wakingPulseIndex(emptySnakeColourState(3), true)).toBeNull()
+  })
+
+  it('never comes back for a piece once the finger has been on it, even after it fades back to grey', () => {
+    let state = emptySnakeColourState(3)
+    // Onto the first piece, part-way along it.
+    state = snakeColourTick(state, ROUTES, { x: 25, y: 0 }, true, WIDTH, 1000)
+    expect(state.pieces[0].started).toBe(true)
+    expect(wakingPulseIndex(state, true)).toBeNull()
+    // Lift and let the fade finish completely.
+    state = snakeColourTick(state, ROUTES, null, false, WIDTH, 1001)
+    state = snakeColourTick(state, ROUTES, null, false, WIDTH, 1001 + SNAKE_COLOUR_FADE_MS + 1)
+    expect(state.pieces[0].progress).toBe(0)
+    expect(state.pieces[0].started).toBe(true)
+    expect(wakingPulseIndex(state, false)).toBeNull()
+  })
+
+  it('moves on to the next untouched piece once the started one is done', () => {
+    let state = emptySnakeColourState(3)
+    state = snakeColourTick(state, ROUTES, { x: 25, y: 0 }, true, WIDTH, 1000)
+    state = snakeColourTick(state, ROUTES, { x: 75, y: 0 }, true, WIDTH, 1100)
+    state = snakeColourTick(state, ROUTES, { x: 100, y: 0 }, true, WIDTH, 1200)
+    state = snakeColourTick(state, ROUTES, null, false, WIDTH, 1300)
+    expect(state.pieces[0].done).toBe(true)
+    expect(wakingPulseIndex(state, false)).toBe(1)
+  })
+
+  it('is null once every piece is done', () => {
+    const done = { track: CORRIDOR_TRACK_START, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true, started: true }
+    expect(wakingPulseIndex({ pieces: [done, done] }, false)).toBeNull()
   })
 })

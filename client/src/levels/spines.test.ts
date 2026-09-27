@@ -667,7 +667,7 @@ describe('debugSpineStrokes — the ink `?debug=espinas:<k>` paints (drift guard
 // child starts off the anchor and then does the natural thing: pull straight
 // away from the body from THEIR OWN fingertip (a vector that matches the
 // LOCAL radial ray through their own start point, not the anchor's). The fix
-// (`passesRemainingMeasures`, `spines.ts`) compares against that local ray
+// (`remainingMeasureFailure`, `spines.ts`) compares against that local ray
 // instead. The next block proves the OLD comparison would reject a stroke
 // the NEW one accepts, then the realistic-stroke block proves the family is
 // passable by a genuinely wobbly child hand.

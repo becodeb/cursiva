@@ -76,14 +76,12 @@ import {
 import {
   EMPTY_SPINES,
   SPINE_MARK_R,
-  acceptedSpineStrokeIndices,
   debugSpineStrokes,
   seedSpines,
   spineAim,
   spineBody,
   spineMarks,
   spineRings,
-  spineSettle,
   spineSpikePaths,
   type SpineState,
 } from '../levels/spines'
@@ -104,9 +102,10 @@ import { createTraceTone, playBeatTick, type TraceTone } from '../canvas/traceTo
 import { pulseOnLeaving } from '../canvas/haptics'
 import { railFade, railPull } from '../canvas/rail'
 import { multiCorridorTick, routeTrackStart, type RouteTrack } from './corridorTrack'
+import { releaseOutcome } from './levelCompletion'
 import {
   emptySnakeColourState,
-  nextWakingIndex,
+  wakingPulseIndex,
   snakeColourTick,
   type SnakeColourState,
 } from './snakeColour'
@@ -825,7 +824,7 @@ export function initialSnakeColourState(n: number, search: string): SnakeColourS
   const done = Math.max(0, Math.min(Math.trunc(k), n))
   return {
     pieces: base.pieces.map((piece, i) =>
-      i < done ? { track: piece.track, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true } : piece,
+      i < done ? { track: piece.track, progress: 1, fadeFrom: null, fadeStartProgress: 1, done: true, started: true } : piece,
     ),
   }
 }
@@ -1971,6 +1970,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       collectDef ? resolveCollectItems(collectDef, target.polyline, target.length, level.corridorWidth) : [],
     [collectDef, target.polyline, target.length, level.corridorWidth],
   )
+  // T39: the level mount effect below reads the items through this ref —
+  // see that effect's own comment for why they must not be its dependency.
+  const collectItemsRef = useRef(collectItems)
+  collectItemsRef.current = collectItems
 
   // T20 (`odd/tasks/prewriting-stage-completion.md`, docs/19 §3.1): whether
   // this level's art corridor uses the colour-follows-the-finger mechanic —
@@ -2141,12 +2144,18 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     initialSnakeColourState(level.artCorridor?.length ?? 0, debugSearch),
   )
   const [snakeColourState, setSnakeColourState] = useState<SnakeColourState>(snakeColourStateRef.current)
+  // T39: whether a stroke is in progress, for the "wake me next" pulse only
+  // (`wakingPulseIndex` hides it while drawing). Mirrored from `onFrame`'s
+  // own `drawing` flag and set only when it flips, so a snake level pays
+  // two re-renders per stroke for it, never one per frame.
+  const snakeDrawingRef = useRef(false)
+  const [snakeDrawing, setSnakeDrawing] = useState(false)
   // Whether a box is the trace-phase `placeArtCorridor` placement or the live
   // arrange-phase scatter/held/snapped position is decided here; the layer
   // itself (`canvas/ArtCorridorLayer.tsx`) only ever draws the box it is
   // given. T20: a piece carrying its own `greyArt` additionally gets
   // `colourHref`/`progress` (from `snakeColourState`, this run's own reveal)
-  // and `next` (`nextWakingIndex` — the piece the child should wake next,
+  // and `next` (`wakingPulseIndex` — the piece the child should wake next,
   // docs/19 §3.1 point 5) — never during `arrangeOpen`, since no snake level
   // authors `arrange` any more (the drag step this task removes).
   const traceArtCorridor: TraceArtCorridor | undefined = useMemo(() => {
@@ -2162,7 +2171,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         arrangeConfig,
       )
     }
-    const nextIdx = hasSnakeColour ? nextWakingIndex(snakeColourState) : null
+    const nextIdx = hasSnakeColour ? wakingPulseIndex(snakeColourState, snakeDrawing) : null
     return configPieces.map((piece, i) => {
       const base: TraceArtCorridor[number] = {
         href: piece.art.href,
@@ -2199,6 +2208,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     arrangeConfig,
     hasSnakeColour,
     snakeColourState,
+    snakeDrawing,
   ])
   // T17 follow-up: a just-collected item's own picture hops away from its
   // spot instead of just vanishing — the SAME transient-list-plus-timeout
@@ -2486,7 +2496,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // T17: a level's collected items belong to THIS run too, same as the
     // clue state above — but through the ref FIRST (see `collectStateRef`'s
     // own comment: `onFrame`/`onRelease` must never read a stale value).
-    collectStateRef.current = initialCollectState(collectItems, debugSearch)
+    collectStateRef.current = initialCollectState(collectItemsRef.current, debugSearch)
     setCollectState(collectStateRef.current)
     // T29: this run has not reported its own completion yet.
     collectApprovedRef.current = false
@@ -2495,7 +2505,20 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     for (const t of departingCollectTimeoutsRef.current) window.clearTimeout(t)
     departingCollectTimeoutsRef.current.clear()
     setDepartingCollectMarks([])
-  }, [level.id, playDemo, resetSurface, trailClueMarks.length, collectItems, debugSearch])
+    // T39: `collectItems` is read through a ref and is NOT a dependency.
+    // It is a `useMemo` over `target.polyline`, and `target` is rebuilt on
+    // every adaptive widen (`record.widthFactor`, after every third
+    // unapproved release) — so `collectItems` (even the plain `[]` of a
+    // level with no collect at all) came back as a NEW array with the SAME
+    // content, and this whole effect re-ran mid-attempt: `resetSurface`
+    // emptied the canvas's stroke buffer, the attempt, the reveal/waypoint
+    // progress and the collected items, and a demo level replayed its demo
+    // over the child's work. Measured on the hedgehog (every spine but the
+    // last is an unapproved release): the buffer was wiped on releases 3,
+    // 6 and 9, which is why the score could never reach the spines the
+    // latch already showed. The items only change with the level itself
+    // (`collectDef`, listed), never with the corridor's width.
+  }, [level.id, playDemo, resetSurface, trailClueMarks.length, collectDef, debugSearch])
 
   // T33: the idle nudge's own clocks belong to THIS level — deliberately its
   // own effect, keyed on `level.id` alone, for the same reason the T20 snake-
@@ -2847,6 +2870,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // short polylines), so it runs unthrottled, every frame — no separate
       // `LIGHT_ANIM_TICK_MS`-style gate is worth the complexity here.
       if (hasSnakeColour) {
+        if (drawing !== snakeDrawingRef.current) {
+          snakeDrawingRef.current = drawing
+          setSnakeDrawing(drawing)
+        }
         const head = drawing ? points[points.length - 1] : undefined
         const next = snakeColourTick(
           snakeColourStateRef.current,
@@ -3136,85 +3163,67 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       setOffPath(false)
       offPathRef.current = false
       toneRef.current?.setActive(false)
-      // The spine fold's AUTHORITATIVE recount (`radial-spines` capability,
-      // design.md §2 D1) — the live fold never feeds the score, so the
-      // settled `filled` set is recomputed here, from the SAME snapshot
-      // `evaluateLevel` below scores, at RELEASE only: a spine is a spine
-      // only once it ends. The one-shot haptic edge fires here, mirroring
-      // the waypoint fold's own `opened` edge in `onFrame` above, but at
-      // release rather than mid-stroke.
-      if (level.spines && !spinePin) {
-        const next = spineSettle(spineRef.current, snapshot, level.spines)
-        const grew = next !== spineRef.current
-        if (grew) {
-          spineRef.current = next
-          setSpineState(next)
-          if (feedback.haptics) pulseOnLeaving(false, true)
-          playSfx('spine') // T35: one tiny click-pop per accepted spine
-        }
-        // T13 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest
-        // #2: "a stroke that isn't a spine could be erased as soon as I
-        // lift the finger"): the stroke just released is the LAST entry of
-        // `snapshot` (one new stroke per release). It is never added to
-        // `strokes` as permanent ink when rejected — that filtering lives in
-        // `shownStrokes` (`acceptedSpineStrokeIndices`, `levels/spines.ts`)
-        // — instead it fades out through `SpineLayer` (`fadingSpineStrokes`
-        // below, `LAYOUT_CSS`'s `.cv-spine-fading`).
-        //
-        // T19 (third tablet playtest, "sometimes… the stroke stays drawn
-        // until I start a new stroke; it doesn't go away by itself"): this
-        // used to gate on `!grew` — but `grew` only says whether ANY anchor
-        // newly filled THIS call, across the WHOLE stroke list, not whether
-        // THIS release's own stroke was the one that filled it. `spineSettle`
-        // folds anchors GREEDILY in stroke order against `filled`, which
-        // grows across releases — so an EARLIER stroke that missed its
-        // nearest-unfilled anchor on ITS OWN release can, on a LATER
-        // release, retroactively match a DIFFERENT anchor that only became
-        // "nearest unfilled" once something else filled the one in between.
-        // When that happens, `grew` reads `true` on a release whose OWN
-        // new stroke is actually the rejected one — so `!grew` was `false`
-        // and the fade never scheduled, leaving that stroke's raw ink sitting
-        // in `strokes` with nothing to remove it until the next release
-        // re-evaluates and (usually) drops it from `shownStrokes` outright.
-        // Rather than infer this from the aggregate `grew` flag, ask the
-        // SAME canonical, order-independent walk `shownStrokes` and
-        // `spineScore` already trust — `acceptedSpineStrokeIndices`, folded
-        // fresh from empty every time — whether THIS specific stroke's own
-        // index earned an anchor. That can never disagree with what ends up
-        // shown as permanent ink, by construction.
-        const lastIndex = snapshot.length - 1
-        const lastAccepted = acceptedSpineStrokeIndices(snapshot, level.spines).has(lastIndex)
-        const lastStroke = snapshot[lastIndex]
-        if (!lastAccepted && lastStroke && lastStroke.length > 0) {
-          const id = ++fadingSpineIdRef.current
-          setFadingSpineStrokes((prev) => [...prev, { id, points: lastStroke }])
-          const timeout = window.setTimeout(() => {
-            fadingSpineTimeoutsRef.current.delete(timeout)
-            setFadingSpineStrokes((prev) => prev.filter((f) => f.id !== id))
-          }, SPINE_REJECT_FADE_MS)
-          fadingSpineTimeoutsRef.current.add(timeout)
-        }
-      }
       // RAW points, always. `snapshot` is the captured stroke, never the
       // rail-warped copy the canvas draws — scoring the assist would make
       // accuracy a measurement of the rail instead of the child (see `rail.ts`).
       const releasedReveal = releasedRevealState(level.reveal, snapshot, target.viewBoxWidth, revealStateRef.current)
       if (releasedReveal) setRevealState(releasedReveal)
       const evaluated = evaluateLevel(snapshot, target, pointerType)
-      // T17 (docs/19 §2.2 point 4): accuracy/order/fluency stay MEASURED
-      // (`evaluated` above is untouched — every internal pillar score still
-      // comes straight out of `evaluateLevel`), but they do not GATE passing
-      // on a collect level. Approval is decided by the LAST item being
-      // collected instead — through the ref, since a same-tick `onFrame`
+      // T39: the release decision lives in `screen/levelCompletion.ts`
+      // (`releaseOutcome`, which states the root cause in full): a level
+      // whose "done" is COUNTED in parts — spines, snake colour, collect
+      // items — is approved by those parts, read from the latch the child
+      // sees, never by re-scoring a canvas buffer that `onStart`'s
+      // clear-on-failed-retry (or any mid-attempt reset) may already have
+      // emptied of the earlier parts' strokes.
+      //
+      // T17 (docs/19 §2.2 point 4): on a collect level approval is the LAST
+      // item being collected — through the ref, since a same-tick `onFrame`
       // `setState` is not guaranteed to have committed yet (the same race
       // `reachedEndRef` above is read through a ref to avoid). No failure
       // pillar is attached to a collect miss (`failedPillar: null`): the
       // collect bar's own remaining count is the only "what's left" signal
       // these levels ever show (design.md §2.2 point 5, `docs/01` "no
       // punishment, no red, no failure sound").
-      const result = collectDef
-        ? { ...evaluated, approved: isCollectComplete(collectStateRef.current), failedPillar: null }
-        : evaluated
+      const outcome = releaseOutcome({
+        evaluated,
+        snapshot,
+        collectComplete: collectDef ? isCollectComplete(collectStateRef.current) : undefined,
+        spines: level.spines && !spinePin ? { prev: spineRef.current, cfg: level.spines } : undefined,
+        snakes: hasSnakeColour ? snakeColourStateRef.current : undefined,
+      })
+      const result = outcome.attempt
+      // The spine latch (`radial-spines` capability, design.md §2 D1): a
+      // spine is a spine only once it ends, so the latch moves at RELEASE
+      // only, by the stroke JUST released and nothing else
+      // (`settleSpineRelease`). The one-shot haptic edge fires here,
+      // mirroring the waypoint fold's own `opened` edge in `onFrame` above.
+      if (outcome.spineState && outcome.spineState !== spineRef.current) {
+        spineRef.current = outcome.spineState
+        setSpineState(outcome.spineState)
+        if (feedback.haptics) pulseOnLeaving(false, true)
+        playSfx('spine') // T35: one tiny click-pop per accepted spine
+      }
+      // T13 (tablet playtest #2, "a stroke that isn't a spine could be
+      // erased as soon as I lift the finger"): a released stroke that did
+      // not become a spine is never shown as permanent ink (`shownStrokes`
+      // is empty on a `spines` level); it fades out through `SpineLayer`
+      // (`fadingSpineStrokes` below, `LAYOUT_CSS`'s `.cv-spine-fading`).
+      // T19's fix for a stroke lingering un-faded read this from a fresh
+      // walk of the whole buffer because the latch used to re-walk old
+      // strokes (and could "grow" on a release whose own stroke was the
+      // rejected one); T39's `settleSpineRelease` folds only this stroke,
+      // so `spineAccepted` IS "this stroke became a spine", exactly.
+      const lastStroke = snapshot[snapshot.length - 1]
+      if (outcome.spineAccepted === false && lastStroke && lastStroke.length > 0) {
+        const id = ++fadingSpineIdRef.current
+        setFadingSpineStrokes((prev) => [...prev, { id, points: lastStroke }])
+        const timeout = window.setTimeout(() => {
+          fadingSpineTimeoutsRef.current.delete(timeout)
+          setFadingSpineStrokes((prev) => prev.filter((f) => f.id !== id))
+        }, SPINE_REJECT_FADE_MS)
+        fadingSpineTimeoutsRef.current.add(timeout)
+      }
       setAttempt(result)
       setPhase('result')
       // T29: on a collect level, `onFrame` already ran this exact override
@@ -3244,7 +3253,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // (`zoo/progress.ts`) with this attempt's own filing already in it.
       onAttempt(result)
     },
-    [target, onAttempt, clueDef, collectDef, arrangeOpen, level.spines, level.reveal, spinePin, feedback.haptics],
+    [target, onAttempt, clueDef, collectDef, arrangeOpen, level.spines, level.reveal, spinePin, feedback.haptics, hasSnakeColour],
   )
 
   const replayDemo = (): void => {

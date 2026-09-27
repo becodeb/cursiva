@@ -1675,7 +1675,7 @@ const PHASE_1: LevelConfig[] = [
   //    `hedgehog1`/`hedgehog2` bodies, already measured safe against the
   //    silhouette's feet/belly).
   // 3. The REAL acceptance blocker, measured (not re-guessed): `spines.ts`'s
-  //    `passesRemainingMeasures` compared the drawn direction against the
+  //    `passesRemainingMeasures` (now `remainingMeasureFailure`) compared the drawn direction against the
   //    ANCHOR's own idealised ray, but measure 1 already admits a start
   //    point anywhere within `baseRadius` — not ON the anchor. A child who
   //    starts at the EDGE of that tolerance circle and pulls perfectly
@@ -1683,7 +1683,7 @@ const PHASE_1: LevelConfig[] = [
   //    differs from the anchor's own ray by `atan(baseRadius / r)` — worth
   //    20°+ by itself on the old `hedgehog4` (baseRadius a third of
   //    `lenMin`), charged as a drawing mistake it never was. Fixed at the
-  //    source (`spines.ts`'s own header on `passesRemainingMeasures`); this
+  //    source (`spines.ts`'s own header on `remainingMeasureFailure`); this
   //    alone recovers real headroom without loosening `tolDeg` further than
   //    the shorter spines already require.
   // 4. Every level now requires ALL its anchors: `minAccuracy: 100` on all
@@ -1757,6 +1757,19 @@ const PHASE_1: LevelConfig[] = [
   // 40 trials/anchor) — clearing the task's own ≥90%/≥90%/≥80%/≥80% bar with
   // margin, while a clearly-wrong stroke (inward, tangential, or nowhere
   // near any anchor) is still rejected on every level (same test file).
+  //
+  // T39 (next tablet play-test: "sometimes I draw it quite well and it still
+  // says I didn't"): a harsher simulator (slow 25-70-sample drags, landing on
+  // the mark, touch-down settle and lift flick, ±30°, 0.5-1.7× length) read
+  // 27.5% / 29.2% / 63.2% / 59.8% on the numbers above. Two catalog changes
+  // here, beside two measure fixes in `spines.ts` (straightness no longer
+  // depends on the sample rate; a Voronoi start zone out to
+  // `SPINE_START_REACH` past `baseRadius`'s geometric ceiling): `lenMax`
+  // raised to ~2.2× the drawn spike (a long, confident pull is still a
+  // spine), and `spikeLen` pinned to each level's old band midpoint so the
+  // spike on screen does not grow with it. Now 98.8% / 99.4% / 99.8% /
+  // 99.8%; scribbles, loops, taps, out-and-back and big-wiggle strokes are
+  // still rejected on every level (`spines.strokeSimulator.test.ts`).
   {
     id: 'hedgehog1',
     phase: 1,
@@ -1802,7 +1815,7 @@ const PHASE_1: LevelConfig[] = [
       // larger angular error than the profile pair's own larger radius does,
       // so hedgehog1/2 need a LOOSER tolDeg than hedgehog3/4, not a tighter
       // one — see the family header for the measured rates.
-      rules: { baseRadius: 44, tolDeg: 58, straightness: 0.62, lenMin: 26, lenMax: 96 },
+      rules: { baseRadius: 44, tolDeg: 58, straightness: 0.62, lenMin: 26, lenMax: 130, spikeLen: 61 },
     },
   },
   {
@@ -1838,7 +1851,7 @@ const PHASE_1: LevelConfig[] = [
       // within the pair still means a tighter tolerance, just not tight
       // enough to fail nearly every realistic stroke the way the T19 numbers
       // did.
-      rules: { baseRadius: 37, tolDeg: 55, straightness: 0.55, lenMin: 18, lenMax: 82 },
+      rules: { baseRadius: 37, tolDeg: 55, straightness: 0.55, lenMin: 18, lenMax: 110, spikeLen: 50 },
     },
   },
   {
@@ -1869,7 +1882,7 @@ const PHASE_1: LevelConfig[] = [
       // angular loosening than the curled pair above, so tolDeg/straightness
       // land tighter than hedgehog1/2's own, while still clearing this
       // level's own (lower, ≥80%) realistic-stroke bar with margin.
-      rules: { baseRadius: 28, tolDeg: 54, straightness: 0.58, lenMin: 38, lenMax: 138 },
+      rules: { baseRadius: 28, tolDeg: 54, straightness: 0.58, lenMin: 38, lenMax: 194, spikeLen: 88 },
     },
   },
   {
@@ -1899,7 +1912,7 @@ const PHASE_1: LevelConfig[] = [
       // widened around the same rendered midpoint (71, unchanged), tolDeg/
       // straightness the tightest in the family but no longer tight enough,
       // stacked with the others, to reject nearly every realistic stroke.
-      rules: { baseRadius: 27, tolDeg: 50, straightness: 0.52, lenMin: 30, lenMax: 112 },
+      rules: { baseRadius: 27, tolDeg: 50, straightness: 0.52, lenMin: 30, lenMax: 156, spikeLen: 71 },
     },
   },
 ]
