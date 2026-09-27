@@ -2156,3 +2156,103 @@ describe('T22 (prewriting-stage-completion, wide backdrops): per-image aspect, n
     expect(backdropSafeZoneCoversAt(0.75, 2048 / 1024)).toBe(false)
   })
 })
+
+// T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
+// the idle nudge's own two additive props.
+describe('TraceCanvas idleNudgeActive', () => {
+  it('adds no class to the start dot by default', () => {
+    const html = renderToString(<TraceCanvas startMarker={{ x: 100, y: 300 }} />)
+    expect(html).not.toContain('cv-idle-nudge-start')
+  })
+
+  it('tags the plain start dot group when active', () => {
+    const html = renderToString(<TraceCanvas startMarker={{ x: 100, y: 300 }} idleNudgeActive />)
+    expect(html).toContain('cv-idle-nudge-start')
+  })
+
+  it('tags startArt instead of the dot when the level authors one', () => {
+    const html = renderToString(
+      <TraceCanvas
+        startMarker={{ x: 100, y: 300 }}
+        startArt={{ href: '/art/octopus.png', w: 100, h: 100, size: 80 }}
+        idleNudgeActive
+      />,
+    )
+    expect(html).toContain('cv-idle-nudge-start')
+    // exactly one occurrence — never both the dot and the art at once
+    expect(html.match(/cv-idle-nudge-start/g)).toHaveLength(1)
+  })
+
+  it('has no effect with no start marker at all', () => {
+    const html = renderToString(<TraceCanvas idleNudgeActive />)
+    expect(html).not.toContain('cv-idle-nudge-start')
+  })
+})
+
+describe('TraceCanvas idleCue', () => {
+  it('renders nothing when absent', () => {
+    const html = renderToString(<TraceCanvas startMarker={{ x: 100, y: 300 }} />)
+    expect(html).not.toContain('cv-night-hint-sparkle') // sanity: unrelated marker
+  })
+
+  it('renders a hand cue as a dot in the demo-stroke blue', () => {
+    const html = renderToString(
+      <TraceCanvas
+        idleCue={{
+          visual: 'hand',
+          from: { x: 100, y: 300 },
+          to: { x: 170, y: 280 },
+          cueKey: 0,
+          reducedMotion: false,
+        }}
+      />,
+    )
+    expect(html).toContain(DEMO_STROKE)
+  })
+
+  it('renders a torch cue in a warm amber, not the hand/demo blue', () => {
+    const html = renderToString(
+      <TraceCanvas
+        idleCue={{
+          visual: 'torch',
+          from: { x: 430, y: 260 },
+          to: { x: 570, y: 340 },
+          cueKey: 0,
+          reducedMotion: false,
+        }}
+      />,
+    )
+    expect(html).toContain('#f5a524')
+    expect(html).not.toContain(DEMO_STROKE)
+  })
+
+  it('renders a wipe cue as a rounded rect, not a circle', () => {
+    const html = renderToString(
+      <TraceCanvas
+        idleCue={{
+          visual: 'wipe',
+          from: { x: 430, y: 300 },
+          to: { x: 570, y: 300 },
+          cueKey: 0,
+          reducedMotion: false,
+        }}
+      />,
+    )
+    expect(html).toContain('<rect')
+  })
+
+  it('reduced motion still renders the cue (a static frame), never nothing at all', () => {
+    const html = renderToString(
+      <TraceCanvas
+        idleCue={{
+          visual: 'hand',
+          from: { x: 100, y: 300 },
+          to: { x: 170, y: 280 },
+          cueKey: 0,
+          reducedMotion: true,
+        }}
+      />,
+    )
+    expect(html).toContain(DEMO_STROKE)
+  })
+})

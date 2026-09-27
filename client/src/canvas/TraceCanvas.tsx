@@ -926,6 +926,31 @@ export interface TraceCanvasProps {
   maze?: boolean
   /** Visual metronome beat, drawn over the sheet (phase-2 rhythm cue). */
   beatPulse?: TraceBeatPulse
+  /** T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
+   *  strengthen the START marker's own pulse — absent/`false` leaves the
+   *  static dot/art exactly as it always rendered (`.cv-idle-nudge-start`,
+   *  `LAYOUT_CSS` in `screen/LevelPlay.tsx`, is the only thing this flag
+   *  adds). Applied to whichever of the two start blocks below actually
+   *  renders (the plain green dot, or `startArt` when a level authors one)
+   *  — never both, since only one of the two ever mounts. */
+  idleNudgeActive?: boolean
+  /** T33: the short "look here" cue that slides once from `from` to `to`
+   *  when the child has left the sheet untouched for a while (or, once per
+   *  level, as a stand-in intro for the two levels with no route to
+   *  demonstrate — `screen/idleNudgeCue.ts`'s own `hasIntroCue`). `cueKey`
+   *  changes on every fresh occurrence so the mount-triggered slide replays
+   *  instead of freezing at its finished frame; `reducedMotion` renders the
+   *  cue sitting still at `to`, no animation at all (docs/01 accessibility:
+   *  a reduced-motion viewer is owed the finished frame, the same contract
+   *  `levels/revealGrid.ts`'s own `growthFraction` already documents).
+   *  `null`/absent renders nothing. */
+  idleCue?: {
+    visual: 'hand' | 'wipe' | 'torch'
+    from: { x: number; y: number }
+    to: { x: number; y: number }
+    cueKey: number
+    reducedMotion: boolean
+  } | null
   /** RENDER-ONLY point transform for the assisted rail (`canvas/rail.ts`).
    *
    * It is applied to the live ink and to nothing else. `onRelease` still hands
@@ -1073,6 +1098,13 @@ export interface TraceCanvasProps {
    * at all, byte-identical to before this prop existed. See
    * {@link TraceReveal}. */
   reveal?: TraceReveal
+  /** T33 (`odd/tasks/prewriting-stage-completion.md`): the night's own
+   *  second-level hint sparkle (`levels/revealGrid.ts`'s `nightHintFor`),
+   *  forwarded straight to `RevealLayer` — this component owns no geometry
+   *  of its own for it. `null`/absent draws nothing, which is every level
+   *  that is not a `light` reveal, and a `light` reveal before its own
+   *  15s-of-no-find delay has elapsed. */
+  nightHint?: { x: number; y: number } | null
   /** The waypoint fold's render projection (`free-trail-waypoints`
    * capability), rendered in the SAME slot as `reveal` — a bee level has no
    * corridor, no ground and no reveal, so this is the only thing between
@@ -1134,6 +1166,8 @@ export default function TraceCanvas({
   surface = 'ruled',
   maze = false,
   beatPulse,
+  idleNudgeActive = false,
+  idleCue,
   inkWarp,
   multiStroke = false,
   completedStrokes,
@@ -1163,6 +1197,7 @@ export default function TraceCanvas({
   vertexArt,
   vertexArtDeparting,
   reveal,
+  nightHint,
   waypoints,
   spines,
   camera,
@@ -1646,7 +1681,7 @@ export default function TraceCanvas({
         // margin patch (`RevealLayer`'s own header) reach the same area the
         // backdrop `<image>` now covers — never leaving unclean/undark art
         // visible in the margin `sheetBounds` alone would leave uncovered.
-        <RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} />
+        <RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} nightHint={nightHint} />
       )}
       {waypoints && (
         // The waypoint fold's render projection (`free-trail-waypoints`
@@ -2019,6 +2054,7 @@ export default function TraceCanvas({
         // REPLACES the green dot rather than joining it (see `startArt`).
         <image
           href={startArt.href}
+          className={idleNudgeActive ? 'cv-idle-nudge-start' : undefined}
           {...clampArtBox(
             placeArt({ ...startArt, grip: STANDING_GRIP }, startArt.size, startArt.at ?? startMarker),
             sheetBounds,
@@ -2029,7 +2065,7 @@ export default function TraceCanvas({
       )}
       {startMarker && !startArt && (
         // "Empezá desde el punto verde" (docs/03 §7).
-        <g pointerEvents="none">
+        <g pointerEvents="none" className={idleNudgeActive ? 'cv-idle-nudge-start' : undefined}>
           <circle
             cx={startMarker.x}
             cy={startMarker.y}
@@ -2041,6 +2077,75 @@ export default function TraceCanvas({
           />
           <circle cx={startMarker.x} cy={startMarker.y} r={5} fill="#ffffff" />
         </g>
+      )}
+      {idleCue && (
+        // T33: the "look here" slide — one filled dot easing from `from` to
+        // `to` and back, keyed on `cueKey` so React remounts it (and
+        // `framer-motion` replays `initial` -> `animate`) on every fresh
+        // occurrence instead of freezing at its previous finished frame.
+        // `reducedMotion` skips the motion outright and sits the dot at
+        // `to` — the finished frame, docs/01's own accessibility contract
+        // for a cue rather than a decoration. Colour carries the THREE
+        // flavours T33 asks for (a fingertip, a wiping cloth, a torch),
+        // never an SVG filter/mask/pattern (this file's own ban, header
+        // above) — the wipe is a rounded rect instead of a disc so it
+        // reads as cloth rather than a second fingertip.
+        <motion.g pointerEvents="none" key={idleCue.cueKey} opacity={0.9}>
+          {idleCue.visual === 'wipe' ? (
+            <motion.rect
+              width={30}
+              height={18}
+              rx={7}
+              fill="#a8a29e"
+              stroke="#78716c"
+              strokeWidth={2}
+              initial={
+                idleCue.reducedMotion
+                  ? { x: idleCue.to.x - 15, y: idleCue.to.y - 9 }
+                  : { x: idleCue.from.x - 15, y: idleCue.from.y - 9 }
+              }
+              animate={
+                idleCue.reducedMotion
+                  ? { x: idleCue.to.x - 15, y: idleCue.to.y - 9 }
+                  : { x: [idleCue.from.x - 15, idleCue.to.x - 15, idleCue.from.x - 15, idleCue.to.x - 15, idleCue.from.x - 15], y: idleCue.from.y - 9 }
+              }
+              transition={idleCue.reducedMotion ? { duration: 0 } : { duration: 2, ease: 'easeInOut' }}
+            />
+          ) : (
+            <>
+              <motion.circle
+                r={16}
+                fill={idleCue.visual === 'torch' ? '#f5a524' : DEMO_STROKE}
+                initial={idleCue.reducedMotion ? { cx: idleCue.to.x, cy: idleCue.to.y } : { cx: idleCue.from.x, cy: idleCue.from.y }}
+                animate={
+                  idleCue.reducedMotion
+                    ? { cx: idleCue.to.x, cy: idleCue.to.y }
+                    : { cx: [idleCue.from.x, idleCue.to.x, idleCue.from.x], cy: [idleCue.from.y, idleCue.to.y, idleCue.from.y] }
+                }
+                transition={idleCue.reducedMotion ? { duration: 0 } : { duration: 2, ease: 'easeInOut' }}
+              />
+              <motion.circle
+                r={5}
+                fill="#ffffff"
+                opacity={0.85}
+                initial={
+                  idleCue.reducedMotion
+                    ? { cx: idleCue.to.x - 4, cy: idleCue.to.y - 4 }
+                    : { cx: idleCue.from.x - 4, cy: idleCue.from.y - 4 }
+                }
+                animate={
+                  idleCue.reducedMotion
+                    ? { cx: idleCue.to.x - 4, cy: idleCue.to.y - 4 }
+                    : {
+                        cx: [idleCue.from.x - 4, idleCue.to.x - 4, idleCue.from.x - 4],
+                        cy: [idleCue.from.y - 4, idleCue.to.y - 4, idleCue.from.y - 4],
+                      }
+                }
+                transition={idleCue.reducedMotion ? { duration: 0 } : { duration: 2, ease: 'easeInOut' }}
+              />
+            </>
+          )}
+        </motion.g>
       )}
       {directionArrow && (
         // A NOTCHED DART, not a plain triangle. The previous `0,-12 26,0 0,12`

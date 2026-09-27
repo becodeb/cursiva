@@ -294,7 +294,29 @@ export interface RevealLayerProps {
    * covers for ANY image aspect — a wide 2:1 backdrop needs no change here.
    */
   displayBounds?: ArtBox
+  /** T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
+   *  the night's own second-level hint — a faint sparkle somewhere in the
+   *  REGION of the nearest still-hidden object (`levels/revealGrid.ts`'s
+   *  `nightHintFor`), never its exact spot. Rendered only under `nightVeil`
+   *  (a `light` reveal); harmless and unused on an `erase` reveal, which has
+   *  no notion of "found"/"hidden" objects at all. `null`/absent draws
+   *  nothing — every level before this task, and a `light` level before its
+   *  own 15s-of-no-find delay. Deliberately NOT the T2-removed exact-object
+   *  halo (see the `revealedArt`/"Defect fix" comments further down this
+   *  file): that one sat AT the object and showed always; this one sits
+   *  OFFSET from it and only after a real delay of active, unsuccessful
+   *  searching. */
+  nightHint?: { x: number; y: number } | null
 }
+
+/** A small 4-point sparkle/twinkle, centred on the origin — plain `M`/`L`/`Z`
+ *  path data (no `url(#...)`, no `<mask>`, this file's own header ban), meant
+ *  to be translated to the hint's own `(x, y)` by the caller. Distinct in
+ *  SHAPE from the plain filled/ringed circles this file draws for a torch or
+ *  a found object, so it reads as "something twinkling" rather than a third
+ *  kind of light source. */
+const NIGHT_HINT_SPARKLE_PATH =
+  'M 0,-9 L 2.5,-2.5 L 9,0 L 2.5,2.5 L 0,9 L -2.5,2.5 L -9,0 L -2.5,-2.5 Z'
 
 /**
  * The frame `outer` minus `inner`, as up to four non-overlapping bands (top,
@@ -1055,7 +1077,7 @@ function wholePaneLeafRakes(sheetBounds: ArtBox): readonly { path: string; probe
   })
 }
 
-export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }: RevealLayerProps) {
+export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds, nightHint = null }: RevealLayerProps) {
   const glassFog = isGlassFog(reveal.fill)
   const nightVeil = isNightVeil(reveal.fill)
   const sand = reveal.visual === 'sand'
@@ -1446,6 +1468,19 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds }
             {...(glassFog || sand || leaves || mud ? { opacity: 0 } : tile.opacity < 1 ? { opacity: tile.opacity } : {})}
           />
         ))
+      )}
+      {nightVeil && nightHint && (
+        // T33: drawn AFTER the dark veil paint above (so it reads on top of
+        // the darkness, the same stacking `night-star`'s own celebration
+        // circles below rely on), never inside a `data-night-veil-ring`
+        // layer — a real torch-found glow and this hint must stay
+        // structurally distinct so a test (and a future reader) can never
+        // confuse "found" with "a hint toward something still hidden".
+        // `.cv-night-hint-sparkle` (`LAYOUT_CSS`, `screen/LevelPlay.tsx`)
+        // gives it a gentle twinkle, static under reduced motion.
+        <g data-night-hint-sparkle="true" transform={`translate(${nightHint.x} ${nightHint.y})`} pointerEvents="none">
+          <path d={NIGHT_HINT_SPARKLE_PATH} fill="#fff6bf" className="cv-night-hint-sparkle" />
+        </g>
       )}
       {nightVeil && reveal.light?.complete && completionSettled && (
         // T7 rework: `displayBounds`, not `sheetBounds` — the completion

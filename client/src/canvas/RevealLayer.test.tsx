@@ -1214,3 +1214,49 @@ describe('RevealLayer displayBounds (T7 rework) — the outer margin and the exp
     expect(veilDarknessAt([{ cx: 530, cy: 300, radius: 50 }], 530, 300)).toBe(0)
   })
 })
+
+// T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
+// the night's own second-level hint sparkle.
+describe('RevealLayer nightHint', () => {
+  const nightReveal: TraceReveal = { fill: '#12161f', tiles: [] }
+  const erase: TraceReveal = { fill: '#7a6a58', tiles: [] }
+
+  it('renders nothing by default (absent nightHint)', () => {
+    const html = renderToString(<RevealLayer reveal={nightReveal} sheetBounds={sheetBounds} />)
+    expect(html).not.toContain('data-night-hint-sparkle')
+  })
+
+  it('renders the sparkle group, translated to the hint\'s own point, under a night veil', () => {
+    const html = renderToString(
+      <RevealLayer reveal={nightReveal} sheetBounds={sheetBounds} nightHint={{ x: 240, y: 180 }} />,
+    )
+    expect(html).toContain('data-night-hint-sparkle="true"')
+    expect(html).toContain('translate(240 180)')
+  })
+
+  it('never renders on an erase (non-night) reveal, even if a caller passes nightHint anyway', () => {
+    const html = renderToString(
+      <RevealLayer reveal={erase} sheetBounds={sheetBounds} nightHint={{ x: 240, y: 180 }} />,
+    )
+    expect(html).not.toContain('data-night-hint-sparkle')
+  })
+
+  it('uses no url(#...), <mask>, <pattern> or <filter> — this file\'s own ban', () => {
+    const html = renderToString(
+      <RevealLayer reveal={nightReveal} sheetBounds={sheetBounds} nightHint={{ x: 500, y: 300 }} />,
+    )
+    expect(html).not.toMatch(/url\(#/)
+    expect(html).not.toContain('<mask')
+    expect(html).not.toContain('<pattern')
+    expect(html).not.toContain('<filter')
+  })
+
+  it('is never red', () => {
+    const html = renderToString(
+      <RevealLayer reveal={nightReveal} sheetBounds={sheetBounds} nightHint={{ x: 500, y: 300 }} />,
+    )
+    const fillMatch = html.match(/data-night-hint-sparkle="true"[\s\S]*?fill="([^"]+)"/)
+    expect(fillMatch?.[1]).toBeDefined()
+    expect(fillMatch?.[1].toLowerCase()).not.toMatch(/^#f[0-9a-f]?0{2,3}$|red/)
+  })
+})
