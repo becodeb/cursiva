@@ -81,15 +81,15 @@ hoja (1000 × 600). El orden es el de `zoo/journey.ts`.
 | 5 | `duck-trail1` | Una onda amplia (amplitud 170), corredor 100 | Ondulación continua de izquierda a derecha | Discriminación visual (pistas: gotas, maíz) |
 | 6 | `duck-trail2` | Dos ondas, corredor 90 | Repetir la onda con ritmo | Pistas: pluma, huella palmeada |
 | — | Deducción del pato | Tocar una de tres siluetas | Razonamiento por descarte | Relacionar pista y animal |
-| 7 | `duck-trail3` | Ondas de amplitud variada, corredor 80 | Regular la amplitud | Juntar patos en las crestas |
+| 7 | `duck-trail3` | Ondas de amplitud variada, corredor 80 | Regular la amplitud | Juntar patos en las crestas; **inhibición**: esperar al pez (T41) |
 | 8 | `duck-trail4` | Tres ondas, corredor 70 | Precisión en un espacio más chico | Juntar |
 | 9 | `sheep-hill1` | Dos picos de 320, corredor 100 | Subir y bajar con cambio de dirección | Juntar ovejas en los picos |
 | 10 | `sheep-hill2` | Tres picos iguales, corredor 90 | Repetición del pico | — |
-| 11 | `sheep-hill3` | Alto, bajo, alto | Regular la altura | — |
+| 11 | `sheep-hill3` | Alto, bajo, alto | Regular la altura | **Inhibición**: esperar a la piedra (T41) |
 | 12 | `sheep-hill4` | Alto-bajo-alto-bajo, corredor 60 | Precisión | — |
 | 13 | `llama-peak1` | Un pico de 360, corredor 90 | Cambio de dirección marcado | Es casi el mismo trazo que `sheep-hill1` |
 | 14 | `llama-peak2` | Pico alto y pico bajo | Regular la altura | Repite `sheep-hill3` |
-| 15 | `llama-peak3` | Tres picos iguales | Repetición | Repite `sheep-hill2` |
+| 15 | `llama-peak3` | Tres picos iguales | Repetición | Repite `sheep-hill2`; **inhibición**: esperar a la piedra (T41) |
 | 16 | `llama-peak4` | Cuatro picos, corredor 60 | Precisión | Repite `sheep-hill4` |
 | 17 | `night1` | Linterna libre, 1 objeto | Búsqueda visual (figura-fondo) | Movimiento lento y exploratorio |
 | 18 | `night2` | Linterna, 2 objetos | Barrido visual sistemático | — |
@@ -106,7 +106,7 @@ hoja (1000 × 600). El orden es el de `zoo/journey.ts`.
 | 28 | `snake4` | Acostadas, corredor 28 | El corredor más angosto del juego | — |
 | 29 | `bee1` | Camino libre hasta una flor y el panal | Planificar un recorrido | Trazo sin corredor |
 | 30 | `bee2` | Tres flores | Planificar con paradas | — |
-| 31 | `bee3` | Trayecto largo | Sostener un trazo libre | — |
+| 31 | `bee3` | Trayecto largo | Sostener un trazo libre | **Inhibición**: esperar a la hoja (T41) |
 | 32 | `bee4` | Flores más chicas | Precisión de llegada | — |
 | 33 | `f2-guirnalda` | Tres U (guirnalda), corredor 100 | Guirnalda sin levantar el dedo | Pistas: burbujas |
 | 34 | `f2-agua2` | Cuatro U bajitas, corredor 80 | Repetir la U con ritmo | Pistas: gotas |
@@ -119,12 +119,12 @@ hoja (1000 × 600). El orden es el de `zoo/journey.ts`.
 | 40 | `dolphin4` | Siete ondas | Resistencia del trazo continuo | — |
 | 41 | `turtle1` | Un óvalo antihorario | Giro antihorario cerrado (familia Ola: `c a d g q o`) | Cerrar la forma |
 | 42 | `turtle2` | Dos óvalos seguidos | Enlazar dos giros sin levantar | — |
-| 43 | `turtle3` | Tres óvalos más angostos | Achicar el giro | — |
+| 43 | `turtle3` | Tres óvalos más angostos | Achicar el giro | **Inhibición**: esperar a dos caracoles (T41) |
 | 44 | `turtle4` | Cuatro óvalos ("oooo") | Giro chico y repetido | — |
 | 45 | `monkey1` | Dos bucles que suben | Bucle ascendente que se cruza (familia Rulo: `e l b h k f`) | Pistas: huellas |
 | 46 | `monkey2` | Tres bucles | Repetir el bucle | Pistas: "banana" |
 | — | Deducción de los monos | Siluetas con descarte | Razonamiento por descarte | — |
-| 47 | `monkey3` | Cuatro bucles, corredor 80 | Achicar el bucle | Juntar monos |
+| 47 | `monkey3` | Cuatro bucles, corredor 80 | Achicar el bucle | Juntar monos; **inhibición**: esperar a dos hojas (T41) |
 | 48 | `monkey4` | Cuatro bucles ("llll"), corredor 70 | Bucle chico y repetido | Juntar monos |
 
 **Cosas que se ven en la tabla y no son habilidades:**
@@ -151,7 +151,7 @@ hoja (1000 × 600). El orden es el de `zoo/journey.ts`.
 | Bucle ascendente | monos (4) | buena |
 | Trazo radial, trazos sueltos | erizo (4) | buena |
 | Búsqueda y barrido visual | noche, prólogo | buena |
-| Inhibición (frenar a propósito) | `f2-agua4` (1) | escasa; T41 la agrega en más niveles |
+| Inhibición (frenar a propósito) | `duck-trail3`, `sheep-hill3`, `llama-peak3`, `bee3`, `f2-agua4`, `turtle3`, `monkey3` (7) | buena desde T41; sin obstáculo: noche, erizo, víboras y delfines (ver T41) |
 | Planificar un recorrido libre | abeja (4) | buena |
 | Seriación | víboras (4) | buena |
 | Puentes (∩) | ninguno | **falta** |
