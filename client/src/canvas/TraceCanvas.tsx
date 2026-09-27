@@ -719,6 +719,29 @@ export interface TraceStandingArt {
 }
 
 /**
+ * T38 (`odd/tasks/prewriting-stage-completion.md`, the author's tablet play-
+ * test): "cuando no estoy apretando que la lupa esté en la mano del pulpo ...
+ * una vez que pongo el dedo ... debería cambiar a una imagen sin la lupa y
+ * debería aparecer la lupa que me sigue el dedo". One object, one place at a
+ * time: at rest the character standing at the start holds it (so the loose
+ * carrier is hidden), while a stroke is live the character is drawn empty-
+ * handed and the carrier rides the fingertip.
+ *
+ * Pure so the rest/drawing split is testable without a DOM (`isDrawing` only
+ * flips on a real pointer, which `renderToString` cannot produce). With no
+ * `emptyHanded` art the carrier is not held by anyone and keeps its pre-T38
+ * behaviour: always shown, `startArt` unchanged.
+ */
+export function heldCarrierView(
+  drawing: boolean,
+  startArt: TraceStandingArt | undefined,
+  emptyHanded: TraceStandingArt | undefined,
+): { standing: TraceStandingArt | undefined; carrierVisible: boolean } {
+  if (!startArt || !emptyHanded) return { standing: startArt, carrierVisible: true }
+  return drawing ? { standing: emptyHanded, carrierVisible: true } : { standing: startArt, carrierVisible: false }
+}
+
+/**
  * One tile of the reveal grid's covering layer (`reveal-grid` capability,
  * design.md §4.1). Structural, no import from `levels/`/`zoo/` — the same
  * convention {@link TraceBackdrop} and {@link TraceVertexArt} follow.
@@ -1026,6 +1049,15 @@ export interface TraceCanvasProps {
    * a second thing saying the same thing — and `docs/01` principle 1 spends
    * the child's attention on one. Has no effect without `startMarker`. */
   startArt?: TraceStandingArt
+  /** T38: the same character as `startArt`, drawn WITHOUT the carried
+   * object in hand. Present = the carrier rests IN `startArt`'s hand: while
+   * no stroke is live only `startArt` shows (it already holds the object, so
+   * the separate carrier is hidden), and while the finger is down this art
+   * replaces `startArt` and the carrier rides the fingertip. Absent = the
+   * carrier is always shown, resting on its home point — every caller that
+   * predates T38. Has no effect without `startArt` and `carrier`. See
+   * {@link heldCarrierView}. */
+  startArtEmptyHanded?: TraceStandingArt
   /** Goal mark — where the route ends. Drawn UNDER the start dot and the arrow
    * and always HOLLOW, which is what makes a collision harmless by
    * construction: on a closed shape like `f3-o` the route ends about where it
@@ -1230,6 +1262,7 @@ export default function TraceCanvas({
   completedStrokes,
   startMarker,
   startArt,
+  startArtEmptyHanded,
   endMarker,
   endArt,
   directionArrow,
@@ -1301,6 +1334,9 @@ export default function TraceCanvas({
     onEnd: onRelease,
     multiStroke,
   })
+  // T38: who holds the carrier right now — see `heldCarrierView`.
+  const held = heldCarrierView(isDrawing, startArt, carrier ? startArtEmptyHanded : undefined)
+  const standingStartArt = held.standing
   const showLiveInkLayer = inkPolicyAllowsLive(inkPolicy)
   const showSettledInk = inkPolicyAllowsSettled(inkPolicy)
   useEffect(() => {
@@ -2105,21 +2141,28 @@ export default function TraceCanvas({
           />
         </g>
       )}
-      {startMarker && startArt && (
+      {startMarker &&
         // Registry art standing where the route begins, feet on the point and
         // clamped into the sheet — same convention as `endArt` above, and it
         // REPLACES the green dot rather than joining it (see `startArt`).
-        <image
-          href={startArt.href}
-          className={idleNudgeActive ? 'cv-idle-nudge-start' : undefined}
-          {...clampArtBox(
-            placeArt({ ...startArt, grip: STANDING_GRIP }, startArt.size, startArt.at ?? startMarker),
-            sheetBounds,
-          )}
-          preserveAspectRatio="xMidYMid meet"
-          pointerEvents="none"
-        />
-      )}
+        //
+        // T38: with an empty-handed variant BOTH pictures are mounted and
+        // only the one `heldCarrierView` picks is visible — the swap on touch
+        // is then a visibility flip on an already-decoded image, never a
+        // fresh request that would leave the spot blank for the first touch.
+        [startArt, carrier ? startArtEmptyHanded : undefined].map((art, idx) =>
+          art ? (
+            <image
+              key={`start-art-${idx}`}
+              href={art.href}
+              className={idleNudgeActive ? 'cv-idle-nudge-start' : undefined}
+              {...clampArtBox(placeArt({ ...art, grip: STANDING_GRIP }, art.size, art.at ?? startMarker), sheetBounds)}
+              preserveAspectRatio="xMidYMid meet"
+              pointerEvents="none"
+              visibility={art === standingStartArt ? undefined : 'hidden'}
+            />
+          ) : null,
+        )}
       {startMarker && !startArt && (
         // "Empezá desde el punto verde" (docs/03 §7).
         <g pointerEvents="none" className={idleNudgeActive ? 'cv-idle-nudge-start' : undefined}>
@@ -2356,6 +2399,9 @@ export default function TraceCanvas({
           ref={carrierEl}
           pointerEvents="none"
           transform={`translate(${carrier.x} ${carrier.y})`}
+          // T38: hidden (never unmounted — the rAF loop keeps its ref) while
+          // the character at the start holds it (`heldCarrierView`).
+          visibility={held.carrierVisible ? undefined : 'hidden'}
         >
           {carrierArt ? (
             // Registry art (`detective/assets.ts`'s `CARRIER_LENS_ART`).

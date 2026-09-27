@@ -151,6 +151,7 @@ import {
   CLUE_ART,
   GROUND_GRASS,
   GROUND_MUD,
+  HOME_OCTOPUS_ART,
   isPlaceholderArt,
   OCTOPUS_ART,
   SIGN_ART,
@@ -488,6 +489,31 @@ export function resultSpeechLine(
  * the home point moves the glass only where it rests.
  */
 const GLASS_REST_DX = 53
+
+/**
+ * T38: the octopus standing at the start WITHOUT the magnifying glass, shown
+ * while the finger is down (the glass is then on the fingertip).
+ *
+ * `home-octopus.png` is a stand-in: same character, same marker style and
+ * colours, but it is the home screen's pose (all eight tentacles curled
+ * out), not `carrier-octopus.png`'s pose with the glass taken out of the
+ * raised tentacle. `docs/20_PEDIDOS_DE_ARTE_TANDA_3.md` B18 asks for the
+ * matching drawing; once it ships only this constant changes.
+ */
+const OCTOPUS_EMPTY_HANDED_ART = HOME_OCTOPUS_ART
+
+/**
+ * T38: whether the octopus standing at the start is the one holding this
+ * level's carrier. His art (`OCTOPUS_ART`) already has the magnifying glass
+ * in his raised tentacle, so this is true exactly when the carrier IS that
+ * glass — `level.carrier` with no `level.carrierArt` of its own (the same
+ * gate `carrierArt` below uses to pick `CARRIER_LENS_ART`). A level that
+ * carries something else (the bee family's own bee) is not the octopus's to
+ * hold: that carrier keeps resting on its home point.
+ */
+export function octopusHoldsLens(level: Pick<LevelConfig, 'carrier' | 'carrierArt'>): boolean {
+  return !!level.carrier && !level.carrierArt
+}
 const GLASS_REST_DY = -90
 
 /**
@@ -4098,6 +4124,17 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // moves its feet beside the drawn body instead of onto it (N3).
         startArt={
           drawnPlace ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE, at: startArtAt } : undefined
+        }
+        // T38: the octopus's own art already holds the magnifying glass, so
+        // on a level whose carrier IS that glass he keeps it in his hand while
+        // nobody touches, and only while the finger is down is he drawn
+        // without it and the big glass follows the finger
+        // (`TraceCanvas`'s `heldCarrierView`). `octopusHoldsLens` has the
+        // exact gate.
+        startArtEmptyHanded={
+          drawnPlace && octopusHoldsLens(level) && !waypointDebugCarrier
+            ? { ...OCTOPUS_EMPTY_HANDED_ART, size: OCTOPUS_SIZE, at: startArtAt }
+            : undefined
         }
         // Shown wherever the start dot is shown (docs/03 §3): from phase 3 on,
         // "where the letter ends" is real information, not decoration. At the
