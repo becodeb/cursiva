@@ -2042,9 +2042,13 @@ const PHASE_2: LevelConfig[] = [
   // would get — necessary here because the sand channel (`SAND_HOLLOW`,
   // luma 52) fails the 55-luma law against the default slate ink by 12,
   // the same reason the snake adventure needs the identical override.
-  // `carrier: true` would be a silent no-op without `inWorld` true (no
-  // `carrierArt` would ever resolve, `LevelPlay.tsx:2526-2531`), which is
-  // exactly why sheep/llama leave it off too.
+  // `carrier: false` here is purely the ink-colour choice above — the lupa
+  // itself no longer depends on `inWorld` (T29 fixed `LevelPlay.tsx`'s
+  // `carrierArt` default, which used to silently drop it outside the
+  // detective world; see that fix's own comment). Turtle simply never asks
+  // for a carrier at all, the same choice sheep/llama make, because a
+  // magnifying glass has no place in a sand/nature sector that is not the
+  // detective's own story.
   //
   // `rules(2, true, true, fluency)`: `mustBeContinuous: true` because a
   // closed loop drawn with a pen lift is not the shape at all — turtle2-4's

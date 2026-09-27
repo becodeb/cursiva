@@ -316,10 +316,17 @@ describe('LevelPlay chrome branch (design.md Orchestrator Correction C1)', () =>
 })
 
 describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
-  it('passes the glass art, drawn in ink, on a detective trail', () => {
+  // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "in the
+  // duckling levels I no longer move the magnifying glass but something
+  // weird"). `makeDetectiveLevel()`'s own default carries `carrier: false`
+  // (every OTHER test using it wants a plain, carrier-less fixture), so —
+  // like every real detective trail in `catalog.ts` ("Every trail sets
+  // `carrier: true`: that carrier IS the magnifying glass") — this test now
+  // asks for one explicitly, the same way `bee1`'s own carrier art test does.
+  it('passes the glass art, drawn in ink, on a detective trail that asks for a carrier', () => {
     renderToString(
       <LevelPlay
-        level={makeDetectiveLevel()}
+        level={makeDetectiveLevel({ carrier: true })}
         record={EMPTY_RECORD}
         onAttempt={noop}
         onNext={noop}
@@ -337,10 +344,20 @@ describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
     expect(art).toEqual(CARRIER_LENS_ART)
   })
 
-  it('passes the glass art on a world-only level too (gated on inDetectiveWorld, not isCaseTrail)', () => {
+  // T29: the gate used to be `inDetectiveWorld` alone (this test's own OLD
+  // title), independent of `level.carrier` — which is exactly what let
+  // `duck-trail3`/`duck-trail4` (and `dolphin1..4`/`f2-agua3`/`f2-agua4`,
+  // `carrier: true` but none of them `inDetectiveWorld` since T21/T26 traded
+  // their `clue` for `collect`) silently draw the OTHER `TraceCanvas.tsx`
+  // fallback (a plain rect+circle blob) instead of the lupa. The gate is now
+  // `level.carrier` alone, decoupled from world membership entirely — a
+  // world-only level with `carrier: true` still gets the lupa (proving world
+  // membership plays no part any more, not even to help), but so does any
+  // OTHER level that merely asks for a carrier.
+  it('passes the glass art on a world-only level with its own carrier too (gated on level.carrier, not world membership)', () => {
     renderToString(
       <LevelPlay
-        level={makeWorldOnlyLevel()}
+        level={makeWorldOnlyLevel({ carrier: true })}
         record={EMPTY_RECORD}
         onAttempt={noop}
         onNext={noop}
@@ -353,7 +370,7 @@ describe('LevelPlay hands the magnifying glass to TraceCanvas', () => {
     expect(art).toEqual(CARRIER_LENS_ART)
   })
 
-  it('passes no glass art on an ordinary level', () => {
+  it('passes no glass art on an ordinary level (carrier: false)', () => {
     renderToString(
       <LevelPlay
         level={makeLevel()}
@@ -438,9 +455,14 @@ describe('LevelPlay carrier-presence regression (§7.2: carrier:true + kind:"fre
       />,
     )
     expect(traceCanvasProbe.current?.carrier).toEqual(start)
-    // Not `inWorld` (no `clue`, no `detectiveWorld`), so the shipped default
-    // is `undefined` — the hard-wired lens is only for the detective world.
-    expect(traceCanvasProbe.current?.carrierArt).toBeUndefined()
+    // T29: this level is not `inWorld` (no `clue`, no `detectiveWorld`) — the
+    // shipped default USED TO read `undefined` here, on the theory that the
+    // hard-wired lens was only ever for the detective world. That theory is
+    // exactly what let `duck-trail3`/`duck-trail4` regress (see
+    // `LevelPlay.tsx`'s own `carrierArt` comment): the gate is now
+    // `level.carrier` alone, so a `carrier: true` level gets the lupa
+    // regardless of world membership, matching this test's own title.
+    expect(traceCanvasProbe.current?.carrierArt).toEqual(CARRIER_LENS_ART)
   })
 
   it('bee1 (the real catalog level) renders the bee at its authored start, with its own carrierArt and no CARRIER_LENS_ART', () => {
@@ -1705,6 +1727,27 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     render(getLevel('duck-trail4'))
     expect(traceCanvasProbe.current?.endArt).toBeUndefined()
   })
+
+  // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "in the
+  // duckling levels I no longer move the magnifying glass but something
+  // weird"). `duck-trail3`/`duck-trail4` kept `carrier: true` from before T21
+  // repurposed them from a clue trail to `collect`, but lost `inDetectiveWorld`
+  // in the same move (no `clue` left, and neither ever authored
+  // `detectiveWorld: true`) — and `LevelPlay.tsx`'s own `carrierArt` default
+  // used to be gated on THAT, not on `level.carrier`, so these two silently
+  // fell back to `TraceCanvas.tsx`'s OTHER fallback (a plain rect+circle
+  // blob, the "something weird") instead of the lupa every other trail in
+  // this sector shows. `dolphin1`/`f2-agua3` are the same defect class
+  // (`carrier: true`, `collect`, never `inDetectiveWorld`) on two entirely
+  // different families this task's own brief asked to check — proving the
+  // fix is the general `carrierArt` rule, not a duck-only patch.
+  it.each(['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4', 'dolphin1', 'f2-agua3'] as const)(
+    '%s keeps the lupa as its carrier art (not the plain rect+circle fallback)',
+    (id) => {
+      render(getLevel(id))
+      expect(traceCanvasProbe.current?.carrierArt).toEqual(CARRIER_LENS_ART)
+    },
+  )
 
   it('shows the star on every other routed level of a multi-level adventure with no clue of its own and no goalArt (hedgehog)', () => {
     // T17 moved this fixture off sheep-hill1..3: those levels now author

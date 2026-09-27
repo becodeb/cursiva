@@ -3694,10 +3694,35 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // own argument, `:1196-1201`) — the carrier-visibility repair,
         // general (design.md §2.3). Absent `level.carrierArt` = the shipped
         // hard-wire, byte-for-byte.
+        //
+        // T29 (tablet playtest: "in the duckling levels I no longer move the
+        // magnifying glass but something weird"). This used to read `inWorld
+        // ? CARRIER_LENS_ART : undefined` — so `carrier: true` silently drew
+        // NO art at all once a level fell outside `inDetectiveWorld` (a plain
+        // rect+circle placeholder, `TraceCanvas.tsx`'s own `carrier &&
+        // !carrierArt` fallback, is what actually renders then — the "weird"
+        // shape). `duck-trail3`/`duck-trail4` kept `carrier: true` from
+        // before T21 but lost `inWorld` the moment T21 replaced their `clue`
+        // with `collect` (no case trail left to be `isCaseTrail`, and
+        // neither ever got a `detectiveWorld: true`) — the exact same thing
+        // T26 did to `f2-agua3`/`f2-agua4` and T26's own dolphin family
+        // never had `inWorld` in the first place. `catalog.ts`'s own header
+        // above `duck-trail1..4` states the rule this contradicted: "Every
+        // trail sets `carrier: true`: that carrier IS the magnifying glass"
+        // — not "IS the magnifying glass, except outside the detective
+        // world". `inWorld` governs mud ink and the drawn-place surface
+        // (both real, separate concerns, untouched here); it was never a
+        // correct proxy for "does this level want the lupa", and gating the
+        // hard-wired default behind it is what made the two silently drift
+        // apart the first time a family dropped its `clue` while keeping its
+        // `carrier`. The fix is direct: gate the default on `level.carrier`
+        // itself (whether a carrier is asked for at all) instead of
+        // `inWorld` — exactly what `level.carrierArt`'s own doc comment
+        // above already claimed the rule was.
         carrierArt={
           level.carrierArt
             ? { ...level.carrierArt.art, size: level.carrierArt.size }
-            : inWorld
+            : level.carrier
               ? CARRIER_LENS_ART
               : undefined
         }
