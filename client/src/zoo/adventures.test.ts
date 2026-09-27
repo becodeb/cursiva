@@ -696,6 +696,34 @@ describe('bubblePlacement (adventure-flow-and-map-guidance T4, D4/D7: never over
     expect(placed.w).toBe(240)
     expect(placed.h).toBeCloseTo((240 * 372) / 488, 6)
   })
+
+  it('T32 (N1): a zero-length avoid list is byte-identical to the pre-T32 signature', () => {
+    for (const hit of hits) {
+      expect(bubblePlacement(hit, [])).toEqual(bubblePlacement(hit))
+    }
+  })
+
+  it('T32 (N1): also dodges an `avoid` box even when it does not intersect `targetHit` — a rescued animal from ANOTHER sector, e.g. the duck while the spotlight is on the bosque', () => {
+    const bosque = hits.find((h) => h === SECTORS.find((s) => s.id === 'bosque')!.hit)!
+    // The above-left anchor (bosque's own first clear pick with no avoid list)
+    // would land right on this animal box — chosen so the test actually
+    // exercises the new branch rather than passing by coincidence.
+    const withoutAvoid = bubblePlacement(bosque)
+    const duckLikeBox = { x: withoutAvoid.x + 5, y: withoutAvoid.y + 5, w: 10, h: 10 }
+    const placed = bubblePlacement(bosque, [duckLikeBox])
+    const overlapX = Math.min(placed.x + placed.w, duckLikeBox.x + duckLikeBox.w) - Math.max(placed.x, duckLikeBox.x)
+    const overlapY = Math.min(placed.y + placed.h, duckLikeBox.y + duckLikeBox.h) - Math.max(placed.y, duckLikeBox.y)
+    expect(Math.max(0, overlapX) * Math.max(0, overlapY)).toBe(0)
+    expect(placed.anchor).not.toBe(withoutAvoid.anchor)
+  })
+
+  it('T32 (N1): still resolves to a real box when every anchor overlaps either the target or an avoid box (smallest-total-overlap fallback)', () => {
+    const wholeStage = { x: 0, y: 0, w: 1000, h: 600 }
+    const placed = bubblePlacement(wholeStage, [{ x: 0, y: 0, w: 1000, h: 600 }])
+    expect(['above-left', 'above-right', 'below-left', 'below-right']).toContain(placed.anchor)
+    expect(placed.w).toBeGreaterThan(0)
+    expect(placed.h).toBeGreaterThan(0)
+  })
 })
 
 // The story's own ending condition (promised-animals task B, docs/18 §4

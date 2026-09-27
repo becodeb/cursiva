@@ -63,6 +63,23 @@ describe('viewBoxRectToScreenRect (T24: mapping a viewBox box into on-screen CSS
     })
     expect(result).toEqual({ x: 400, y: 250, width: 50, height: 30 })
   })
+
+  it('T32: a non-zero viewBox origin (the full-bleed map`s expanded, off-origin displayBounds) shifts the box before scaling', () => {
+    // A 1000x750 viewBox starting at (0, -75) — exactly `fitContentWithInsets`'s
+    // own shape at a 4:3 (1024x768) container (`canvas/TraceCanvas.test.tsx`'s
+    // own worked example) — rendered 1:1 in an 1000x750 svg box at the origin.
+    const svgScreenRect = { x: 0, y: 0, width: 1000, height: 750 }
+    const result = viewBoxRectToScreenRect({ x: 400, y: 0, width: 100, height: 60 }, svgScreenRect, {
+      x: 0,
+      y: -75,
+      width: 1000,
+      height: 750,
+    })
+    // scale = 1; offset = box.x - viewBoxX = 400 - 0 = 400; box.y - viewBoxY =
+    // 0 - (-75) = 75 — the stage's own y=0 now sits 75px down the rendered svg,
+    // exactly the amount the viewBox grew upward past the stage's own top edge.
+    expect(result).toEqual({ x: 400, y: 75, width: 100, height: 60 })
+  })
 })
 
 describe('flipDelta (T24: the manual-fallback FLIP invert)', () => {

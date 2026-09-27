@@ -116,26 +116,40 @@ export function __resetPendingDepartureForTests(): void {
 /**
  * Maps an axis-aligned box in SVG VIEWBOX units into on-screen CSS pixels,
  * for an `<svg>` rendered with `preserveAspectRatio="xMidYMid meet"`
- * (`ZooMap.tsx`'s own root `<svg viewBox="0 0 1000 600">`) — a plain
- * "contain" fit: the whole viewBox is scaled uniformly to fit inside the
- * element's own rendered box, then centred within whatever margin is left
- * on the other axis. Pure arithmetic, no DOM: `svgScreenRect` is the
- * caller's own `getBoundingClientRect()` reading, handed in rather than
- * read here, so this stays directly testable with plain numbers.
+ * (`ZooMap.tsx`'s own root `<svg>`) — a plain "contain" fit: the whole
+ * viewBox is scaled uniformly to fit inside the element's own rendered box,
+ * then centred within whatever margin is left on the other axis. Pure
+ * arithmetic, no DOM: `svgScreenRect` is the caller's own
+ * `getBoundingClientRect()` reading, handed in rather than read here, so
+ * this stays directly testable with plain numbers.
+ *
+ * `viewBox.x`/`.y` (T32, `odd/tasks/prewriting-stage-completion.md`, the
+ * full-bleed map): before T32 the root `<svg>`'s own `viewBox` was always the
+ * literal `"0 0 1000 600"`, so every pre-T32 caller passed only
+ * `{width, height}` and this function only ever needed to scale `box.x`/`.y`
+ * directly. T32 grows that viewBox to `screen/ZooMap.tsx`'s own
+ * `displayBounds` (`canvas/TraceCanvas.tsx`'s `fitContentWithInsets`, the
+ * SAME minimum-zoom-cover box a level's own backdrop already uses) to cover
+ * the real container at whatever aspect the device has — an `ArtBox` with a
+ * generally NON-zero `x`/`y` origin (`fitContentWithInsets`'s own centring
+ * term). Both default to `0`, so a pre-T32 `{width, height}`-only call stays
+ * byte-identical.
  */
 export function viewBoxRectToScreenRect(
   box: Rect,
   svgScreenRect: Rect,
-  viewBox: { width: number; height: number },
+  viewBox: { x?: number; y?: number; width: number; height: number },
 ): Rect {
+  const viewBoxX = viewBox.x ?? 0
+  const viewBoxY = viewBox.y ?? 0
   const scale = Math.min(svgScreenRect.width / viewBox.width, svgScreenRect.height / viewBox.height)
   const renderedWidth = viewBox.width * scale
   const renderedHeight = viewBox.height * scale
   const offsetX = svgScreenRect.x + (svgScreenRect.width - renderedWidth) / 2
   const offsetY = svgScreenRect.y + (svgScreenRect.height - renderedHeight) / 2
   return {
-    x: offsetX + box.x * scale,
-    y: offsetY + box.y * scale,
+    x: offsetX + (box.x - viewBoxX) * scale,
+    y: offsetY + (box.y - viewBoxY) * scale,
     width: box.width * scale,
     height: box.height * scale,
   }

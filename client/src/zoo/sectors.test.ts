@@ -10,6 +10,7 @@ import { ZOO_ANIMAL_ART } from '../detective/assets'
 import { adventureFor } from './adventures'
 import { totalStars } from './stars'
 import {
+  MAP_STAGE_BOX,
   PLAZA,
   PLAZA_CENTRE,
   SECTORS,
@@ -22,8 +23,10 @@ import {
   isFiled,
   isOpen,
   nextAdventure,
+  overlapArea,
   recentlyDiscovered,
   sectorOf,
+  stageRectToPercent,
   viewBoxToImage,
   type FogPatch,
   type Records,
@@ -826,5 +829,64 @@ describe('imageToViewBox/viewBoxToImage — optional imgW/imgH parameters (T22, 
     expect(at32).toBeCloseTo(204.8, 1)
     expect(at21).toBeCloseTo(170.667, 1)
     expect(at32).not.toBeCloseTo(at21, 1)
+  })
+})
+
+describe('overlapArea (T32, prewriting-stage-completion, N1/N4 shared obstacle-avoidance primitive)', () => {
+  it('is 0 for disjoint rects', () => {
+    expect(overlapArea({ x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 20, w: 10, h: 10 })).toBe(0)
+  })
+
+  it('is 0 for rects that only touch at an edge (no real overlap area)', () => {
+    expect(overlapArea({ x: 0, y: 0, w: 10, h: 10 }, { x: 10, y: 0, w: 10, h: 10 })).toBe(0)
+  })
+
+  it('is the exact intersection area for overlapping rects', () => {
+    expect(overlapArea({ x: 0, y: 0, w: 10, h: 10 }, { x: 5, y: 5, w: 10, h: 10 })).toBe(25)
+  })
+
+  it('is symmetric', () => {
+    const a = { x: 0, y: 0, w: 10, h: 10 }
+    const b = { x: 5, y: 5, w: 10, h: 10 }
+    expect(overlapArea(a, b)).toBe(overlapArea(b, a))
+  })
+})
+
+describe('MAP_STAGE_BOX (T32): the ArtBox restating the fixed 1000x600 stage', () => {
+  it('matches the stage every hit/animalSpot/fog patch is already authored against', () => {
+    expect(MAP_STAGE_BOX).toEqual({ x: 0, y: 0, width: 1000, height: 600 })
+  })
+})
+
+describe('stageRectToPercent (T32, full-bleed map): converting a stage-space Rect into percent-of-container', () => {
+  it('at the pre-T32 default displayBounds (the plain 1000x600 stage), matches the old /1000, /600 percent maths exactly', () => {
+    const rect = { x: 250, y: 150, w: 100, h: 60 }
+    const percent = stageRectToPercent(rect, MAP_STAGE_BOX)
+    expect(percent).toEqual({ left: 25, top: 25, width: 10, height: 10 })
+  })
+
+  it('shifts and rescales against a grown, off-origin displayBounds (a 4:3 container, T14/T22 shape)', () => {
+    // Same worked example TraceCanvas.test.tsx's own fitContentWithInsets
+    // cases use for a 1024x768 container: viewBox grows to 1000x750, y
+    // shifted up by 75 (T22's own centring term).
+    const displayBounds = { x: 0, y: -75, width: 1000, height: 750 }
+    const rect = { x: 0, y: 0, w: 1000, h: 600 }
+    const percent = stageRectToPercent(rect, displayBounds)
+    expect(percent.left).toBeCloseTo(0, 6)
+    // (0 - (-75)) / 750 * 100 = 10
+    expect(percent.top).toBeCloseTo(10, 6)
+    expect(percent.width).toBeCloseTo(100, 6)
+    // 600 / 750 * 100 = 80
+    expect(percent.height).toBeCloseTo(80, 6)
+  })
+
+  it('a rect entirely inside the stage stays entirely inside [0, 100] percent for any positive displayBounds that contains the stage', () => {
+    const displayBounds = { x: -40, y: -20, width: 1080, height: 640 }
+    const rect = { x: 100, y: 50, w: 200, h: 100 }
+    const percent = stageRectToPercent(rect, displayBounds)
+    expect(percent.left).toBeGreaterThanOrEqual(0)
+    expect(percent.top).toBeGreaterThanOrEqual(0)
+    expect(percent.left + percent.width).toBeLessThanOrEqual(100)
+    expect(percent.top + percent.height).toBeLessThanOrEqual(100)
   })
 })
