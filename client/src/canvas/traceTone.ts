@@ -7,15 +7,13 @@
 // docs/02 §7.2 now records. They are also per-level data (`LevelFeedback`), off
 // wherever the catalogue leaves them off.
 //
-//  - `createTraceTone` — the "linterna encendida" of docs/01 principle 2. A
-//    soft low tone sounds while the finger is INSIDE the corridor and fades out
-//    when it leaves. The child hears that they are doing it right, and hears it
-//    stop; nothing ever announces an error.
-//  - `playBeatTick`   — the phase-2 rhythm cue (docs/01 fase 2: "planificación
-//    motora, ritmo"). A pulse to pace the pattern against, not a metronome to
-//    obey.
+// `createTraceTone` is the "linterna encendida" of docs/01 principle 2. A soft
+// low tone sounds while the finger is INSIDE the corridor and fades out when it
+// leaves. The child hears that they are doing it right, and hears it stop;
+// nothing ever announces an error. (A phase-2 metronome tick lived here until
+// T40 removed the rhythm cue.)
 //
-// Both are best-effort: no Web Audio, no sound, no thrown error, level plays.
+// Best-effort: no Web Audio, no sound, no thrown error, level plays.
 import { resumeAudio, sharedAudioContext } from './audio'
 
 /** G3. Low enough to sit under a classroom without cutting through it, and far
@@ -117,37 +115,5 @@ export function createTraceTone(ctx?: AudioContext | null): TraceTone {
       osc = null
       gain = null
     },
-  }
-}
-
-/** Beat click: high, very short, very quiet. */
-const TICK_HZ = 880
-const TICK_GAIN = 0.06
-const TICK_S = 0.05
-
-/**
- * One metronome beat (docs/01 fase 2, "ritmo"). Short enough that it never
- * overlaps the next beat at any BPM a child can trace to, and quiet enough that
- * a muted classroom tablet loses nothing the visual pulse does not also carry.
- */
-export function playBeatTick(ctx?: AudioContext | null): void {
-  const audio = ctx === undefined ? sharedAudioContext() : ctx
-  if (!audio) return
-  try {
-    resumeAudio(audio)
-    const osc = audio.createOscillator()
-    const gain = audio.createGain()
-    const t = audio.currentTime
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(TICK_HZ, t)
-    gain.gain.setValueAtTime(SILENCE, t)
-    gain.gain.exponentialRampToValueAtTime(TICK_GAIN, t + 0.005)
-    gain.gain.exponentialRampToValueAtTime(SILENCE, t + TICK_S)
-    osc.connect(gain)
-    gain.connect(audio.destination)
-    osc.start(t)
-    osc.stop(t + TICK_S + 0.01)
-  } catch {
-    // best-effort: the visual beat pulse carries the same cue
   }
 }

@@ -208,14 +208,16 @@ export function adventureIcon(a: Adventure): ArtImage {
 export const ADVENTURES: readonly Adventure[] = [
   {
     id: 'duck',
-    levelIds: ['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4'],
+    // [T40] Play order, not id order: one clue per level, so the two new
+    // pistas levels (`duck-trail5`, `duck-trail6`) sit between the old ones.
+    levelIds: ['duck-trail1', 'duck-trail5', 'duck-trail2', 'duck-trail6', 'duck-trail3', 'duck-trail4'],
     // [T21, `docs/19` §2.3] Recipe A's first, binding case (the user's
     // decision 3, `odd/tasks/prewriting-stage-completion.md`): after
-    // `duck-trail2` — the case's own last pistas level
+    // `duck-trail6` — the case's own last pistas level
     // (`detective/cases.ts`'s `duck.trailIds`) — the flow detours into the
     // `duck` case's deduction before continuing to `duck-trail3` (the duck
     // family, `LevelConfig.collect`).
-    deduction: { after: 'duck-trail2', caseId: 'duck' },
+    deduction: { after: 'duck-trail6', caseId: 'duck' },
     sector: 'estanque',
     animal: 'pato',
     intro: 'El pato se fue por la laguna. ¿Lo seguimos?',

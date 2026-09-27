@@ -111,7 +111,7 @@ function makeLevel(over: Partial<LevelConfig> = {}): LevelConfig {
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: false, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: false, rail: false },
     hint: 'Seguí el camino',
     // At least 3 points, or `flattenPathD` rejects the path as degenerate
     // (`letters/svgLetter.ts`: `points.length < 3` returns empty) — the
@@ -786,7 +786,8 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
     // (`zoo/adventures.ts`), so `adventureProgress` withholds `animal` for
     // it and `accessibleTrailName` drops the "hacia X" clause entirely — the
     // accessible name is exactly as much a spoiler surface as the picture.
-    expect(html).toContain('aria-label="Camino: 1 de 4"')
+    // T40: six duck levels now (four pistas, two collect).
+    expect(html).toContain('aria-label="Camino: 1 de 6"')
   })
 
   it('shows the animal as a dark silhouette until rescued, then in colour (hedgehog: a real adventure with no deduction gate)', () => {
@@ -1278,43 +1279,23 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
     expect(traceCanvasProbe.current?.clues).toBeUndefined()
   })
 
-  // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
-  // wanted about 4 clues, not just 2"). Before this fix, `traceClueMarks`
-  // resolved every mark's picture off the level's single `clueDef.kind`
-  // (`LevelPlay.tsx`), so an alternating trail would have shown the SAME
-  // droplet at every mark, silently repainting over the corn kernels —
-  // `ClueMark.kind` was already per-mark in the type, just never read that
-  // way at the one render site that mattered.
-  it('duck-trail1 alternates droplet/corn art per mark, drained before any attempt', () => {
+  // T40 (`odd/tasks/prewriting-stage-completion.md`: "quiero que haya una
+  // [pista] por nivel"). Every duck pistas level draws ONE clue picture along
+  // its whole trail — T29's alternating second kind is gone.
+  it.each([
+    ['duck-trail1', 'droplet'],
+    ['duck-trail5', 'corn'],
+    ['duck-trail2', 'feather'],
+    ['duck-trail6', 'webfoot'],
+  ] as const)('%s draws only %s marks, drained before any attempt', (id, kind) => {
     renderToString(
-      <LevelPlay level={getLevel('duck-trail1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      <LevelPlay level={getLevel(id)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
     const clues = traceCanvasProbe.current?.clues as
       | { marks: readonly { href: string }[] }
       | undefined
     expect(clues?.marks.length).toBeGreaterThan(1)
-    const hrefs = clues!.marks.map((m) => m.href)
-    expect(hrefs[0]).toBe(CLUE_ART.droplet.art.drained.href)
-    expect(hrefs[1]).toBe(CLUE_ART.corn.art.drained.href)
-    expect(hrefs[2]).toBe(CLUE_ART.droplet.art.drained.href)
-    // Every mark is one of the two authored kinds — never a third, and never
-    // uniformly one kind repainted over the other.
-    expect(new Set(hrefs)).toEqual(
-      new Set([CLUE_ART.droplet.art.drained.href, CLUE_ART.corn.art.drained.href]),
-    )
-  })
-
-  it('duck-trail2 alternates feather/webfoot art per mark', () => {
-    renderToString(
-      <LevelPlay level={getLevel('duck-trail2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
-    )
-    const clues = traceCanvasProbe.current?.clues as
-      | { marks: readonly { href: string }[] }
-      | undefined
-    const hrefs = clues!.marks.map((m) => m.href)
-    expect(new Set(hrefs)).toEqual(
-      new Set([CLUE_ART.feather.art.drained.href, CLUE_ART.webfoot.art.drained.href]),
-    )
+    expect(new Set(clues!.marks.map((m) => m.href))).toEqual(new Set([CLUE_ART[kind].art.drained.href]))
   })
 
   it('passes `ground` only on a detective trail, and memoises one field per route', () => {
@@ -1897,7 +1878,7 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
   // (`carrier: true`, `collect`, never `inDetectiveWorld`) on two entirely
   // different families this task's own brief asked to check — proving the
   // fix is the general `carrierArt` rule, not a duck-only patch.
-  it.each(['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4', 'dolphin1', 'f2-agua3'] as const)(
+  it.each(['duck-trail1', 'duck-trail5', 'duck-trail2', 'duck-trail6', 'duck-trail3', 'duck-trail4', 'dolphin1', 'f2-agua3'] as const)(
     '%s keeps the lupa as its carrier art (not the plain rect+circle fallback)',
     (id) => {
       render(getLevel(id))

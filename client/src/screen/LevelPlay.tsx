@@ -98,7 +98,7 @@ import { evaluateLevel } from '../game/evaluateLevel'
 import { coachMessage } from '../game/adaptiveTolerance'
 import { playApprovalTone } from '../modes/tone'
 import { onRisingEdge, playSfx } from '../audio/sfx'
-import { createTraceTone, playBeatTick, type TraceTone } from '../canvas/traceTone'
+import { createTraceTone, type TraceTone } from '../canvas/traceTone'
 import { pulseOnLeaving } from '../canvas/haptics'
 import { railFade, railPull } from '../canvas/rail'
 import { multiCorridorTick, routeTrackStart, type RouteTrack } from './corridorTrack'
@@ -226,9 +226,6 @@ const OFF_PATH_PERIOD_MS = 33
  *  actually consulted, since `arrangeOpen` is `false` whenever
  *  `level.arrange` itself is absent. */
 const EMPTY_ARRANGE_CONFIG: ArrangeConfig = { from: [], snapRadius: 0 }
-/** How long the visual metronome stays swollen after a beat. Short enough to
- * read as a pulse, long enough to see at 60 BPM on a slow panel. */
-const BEAT_FLASH_MS = 140
 
 /**
  * T7 (prewriting-stage-completion, "the next-level one could either appear
@@ -1952,7 +1949,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
             target.length,
             clueCountFor(target.length, clueDef.spacing),
             clueDef.kind,
-            clueDef.extraKind,
           )
         : [],
     [clueDef, target.polyline, target.length],
@@ -2659,30 +2655,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   useEffect(() => {
     if (phase !== 'ready') toneRef.current?.setActive(false)
   }, [phase])
-
-  // Rhythm cue (docs/01 fase 2: "planificación motora, ritmo"). Runs only while
-  // the level is actually traceable — never under the demonstration, never over
-  // a result — and is torn down by the effect cleanup on both.
-  const [beatOn, setBeatOn] = useState(false)
-  const metronomeBpm = feedback.metronomeBpm
-  useEffect(() => {
-    if (metronomeBpm <= 0 || phase !== 'ready') {
-      setBeatOn(false)
-      return
-    }
-    let flash = 0
-    const id = window.setInterval(() => {
-      playBeatTick() // best-effort; stays silent until the first gesture
-      setBeatOn(true)
-      window.clearTimeout(flash)
-      flash = window.setTimeout(() => setBeatOn(false), BEAT_FLASH_MS)
-    }, 60000 / metronomeBpm)
-    return () => {
-      window.clearInterval(id)
-      window.clearTimeout(flash)
-      setBeatOn(false)
-    }
-  }, [metronomeBpm, phase, level.id])
 
   // Assisted rail (docs/03 §6). Strength decays with attempts at THIS level and
   // with proximity to the route; at zero the transform is dropped entirely so
@@ -3501,12 +3473,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // fill swap did.
   const traceClueMarks = useMemo<TraceClueMark[]>(() => {
     if (!clueDef) return []
-    // T29: each MARK's own `kind` (`clueMarks`'s `extraKind` alternation),
-    // not the level's single `clueDef.kind` — every trail but duck's own two
-    // still has every mark share `clueDef.kind`, so this is byte-identical
-    // for them; a duck trail's odd-indexed marks now correctly draw
-    // `extraKind`'s art instead of silently repainting the primary kind's
-    // picture over a mark that is a genuinely different collectible.
     return trailClueMarks.map((mark, idx) => {
       const art = CLUE_ART[mark.kind]
       const img = clueState.lit[idx] ? art.art.earned : art.art.drained
@@ -4098,11 +4064,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // pre-reader this app is for, which is why the hint is an ARROW at all.
         // The ordered-waypoint idea needs its own child-facing rendering before
         // it earns a place on the sheet.
-        beatPulse={
-          metronomeBpm > 0 && phase === 'ready' && startMarker
-            ? { x: startMarker.x, y: startMarker.y, on: beatOn }
-            : undefined
-        }
         // A long word gets a wider sheet, never smaller letters (docs/02 §3).
         viewBoxWidth={target.viewBoxWidth}
         // The window, narrower than the world, on the two levels that author

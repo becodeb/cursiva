@@ -82,8 +82,6 @@ export interface LevelFeedback {
   tone: boolean
   /** navigator.vibrate pulse on leaving the corridor. Best-effort. */
   haptics: boolean
-  /** Rhythm cue in beats per minute; 0 = off. Phase 2 only. */
-  metronomeBpm: number
   /** Magnetize the ink toward the ideal route (docs/03 section 6, "riel asistido"). */
   rail: boolean
 }
@@ -158,22 +156,12 @@ export interface LevelConfig {
    * absent too (design unit 9, task 10.5: "no clue mark, no PISTAS entry,
    * not tracked by the clue reducer").
    *
-   * `extraKind` (T29, `odd/tasks/prewriting-stage-completion.md`, tablet
-   * playtest: "I wanted about 4 clues, not just 2") widens a trail to TWO
-   * kinds instead of one, alternating along the SAME evenly-spaced marks
-   * `clueMarks` already places (`detective/clues.ts`'s own `extraKind`
-   * parameter) — the trail still reads as one continuous, densely-covered
-   * path, just carrying two distinct pictures instead of one. It is
-   * deliberately NOT a general array (`docs/19` §2.2's "mixed as §3 says"
-   * would allow one): the duck case is the one trail this task widens, its
-   * own `ruledOutBy` still keys off `kind` alone (`extraKind` never rules
-   * anyone out — `cases.test.ts`'s own "webfoot and breadcrumb rule nobody
-   * out" invariant), and a second optional field is the smallest change
-   * that lets `detective/cases.ts`'s `clueKindsOf` — and therefore the
-   * deduction's own chip row — surface both without touching any OTHER
-   * case's single-kind trails, which simply never set it.
+   * ONE kind per level (T40, `odd/tasks/prewriting-stage-completion.md`:
+   * "quiero que haya una [pista] por nivel"). T29's `extraKind`, which
+   * alternated a second kind along the same marks, is gone: a case that
+   * wants more clues gets more pistas levels.
    */
-  clue?: { kind: ClueKind; spacing: number; extraKind?: ClueKind }
+  clue?: { kind: ClueKind; spacing: number }
   /**
    * Marks this level as DRAWN IN the detective world (grass, mud ink, the
    * standing octopus, the wordless shell) without making it a case trail

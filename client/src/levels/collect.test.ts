@@ -783,7 +783,7 @@ describe('invariant: the shipped turtle1..4 levels (T28, ovals() loops)', () => 
 // keep the flattened polyline's apex ON the top line across more than one
 // sample, so no point is STRICTLY lower than both its immediate neighbours.
 // `waveCrestArcs`'s window-based comparison finds exactly one crest per loop.
-describe('invariant: the shipped monkey3/monkey4 collect config (crests, four loops each)', () => {
+describe('invariant: the shipped monkey3/monkey4 collect config (crests, three loops each since T40)', () => {
   const IDS = ['monkey3', 'monkey4']
 
   it("authors collect: { items: 'crests' } — routeApexes finds NOTHING on either shipped route", () => {
@@ -793,7 +793,7 @@ describe('invariant: the shipped monkey3/monkey4 collect config (crests, four lo
       expect(level.collect!.items, id).toBe('crests')
       const target = buildLevelTarget(level)
       expect(routeApexes(target.polyline), id).toHaveLength(0)
-      expect(waveCrestArcs(target.polyline), id).toHaveLength(4)
+      expect(waveCrestArcs(target.polyline), id).toHaveLength(3)
     }
   })
 
@@ -802,7 +802,7 @@ describe('invariant: the shipped monkey3/monkey4 collect config (crests, four lo
       const level = getLevel(id)
       const target = buildLevelTarget(level)
       const items = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
-      expect(items, id).toHaveLength(5)
+      expect(items, id).toHaveLength(4)
       const last = target.polyline[target.polyline.length - 1]
       expect(items[items.length - 1].x, id).toBeCloseTo(last.x, 6)
       expect(items[items.length - 1].y, id).toBeCloseTo(last.y, 6)

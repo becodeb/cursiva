@@ -118,7 +118,7 @@ describe('migratePhase1 — task 9.5: no locked dead end for a mid-campaign chil
       maze: false,
       resetOnContact: false,
       carrier: false,
-      feedback: { tone: false, haptics: false, metronomeBpm: 0, rail: false },
+      feedback: { tone: false, haptics: false, rail: false },
       hint: '',
       paths: ['M100,300 L500,300 L900,300'],
       corridorWidth: 100,

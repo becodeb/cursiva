@@ -86,13 +86,16 @@ function minAccuracyFor(phase: Phase): number {
  * on everywhere: leaving the corridor dims the trace and buzzes, it never marks
  * an error.
  *
- * `metronomeBpm` is phase 2 only — the rhythm phase. `rail` is the "riel
- * asistido" first-contact assist: it magnetizes the ink toward the route, so it
- * belongs to the FIRST route of a new kind of task and nowhere else. Left on it
- * stops being an assist and becomes the child's motor plan.
+ * `rail` is the "riel asistido" first-contact assist: it magnetizes the ink
+ * toward the route, so it belongs to the FIRST route of a new kind of task and
+ * nowhere else. Left on it stops being an assist and becomes the child's motor
+ * plan.
+ *
+ * There is no metronome any more (T40, the author's play-test: "un coso de
+ * ritmo que no sé para qué sirve ni nadie lo va a entender, sacalo").
  */
-function feedback(metronomeBpm: number, rail: boolean): LevelFeedback {
-  return { tone: true, haptics: true, metronomeBpm, rail }
+function feedback(rail: boolean): LevelFeedback {
+  return { tone: true, haptics: true, rail }
 }
 
 /** Compact rule builder — every level declares the same four switches. */
@@ -321,7 +324,7 @@ function snakeVerticalPieces(): readonly ArtCorridorPiece[] {
 
 /** Live feedback shared by all four snake levels (design.md §6.1's frozen
  *  shape). */
-const SNAKE_FEEDBACK: LevelFeedback = { tone: true, haptics: true, metronomeBpm: 0, rail: false }
+const SNAKE_FEEDBACK: LevelFeedback = { tone: true, haptics: true, rail: false }
 
 /** Level ids that fell back to a degraded path at import time (diagnostics). */
 const degraded: string[] = []
@@ -433,7 +436,7 @@ const ENTRANCE: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 55 },
@@ -451,7 +454,7 @@ const ENTRANCE: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 68 },
@@ -474,7 +477,7 @@ const ENTRANCE: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 76 },
@@ -492,7 +495,7 @@ const ENTRANCE: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 82 },
@@ -514,7 +517,7 @@ const ENTRANCE: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 60 },
@@ -532,7 +535,7 @@ const ENTRANCE: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 70 },
@@ -550,7 +553,7 @@ const ENTRANCE: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 78 },
@@ -568,7 +571,7 @@ const ENTRANCE: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 85 },
@@ -617,7 +620,7 @@ const PHASE_1: LevelConfig[] = [
     carrier: false,
     // Nothing to be inside of, so there is no tone to sustain and no wall to
     // buzz against: the only feedback is the ink itself.
-    feedback: { tone: false, haptics: false, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: false, rail: false },
     paths: [],
     corridorWidth: 0,
     // No path means no checkpoints, so order cannot be validated; and lifting
@@ -628,30 +631,38 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
   },
   // ───────────────────────────────────────────────────────────────────────
-  // The duck case (case-registry-and-captions design.md §3): four themed
-  // trails inserted BEFORE `trail1`, corridor width strictly decreasing
-  // 100→70. `game/migrateDuckCase.ts` protects a returning child's
-  // positional unlock of `trail1..4` across this insertion — it must ship
-  // before these four levels do (Ordering Summary, S1 before S2).
+  // The duck case (case-registry-and-captions design.md §3): themed trails
+  // inserted BEFORE `trail1`. `game/migrateDuckCase.ts` protects a returning
+  // child's positional unlock of `trail1..4` across that first insertion.
   //
-  // The four are one undulation family (`docs/13` §2, duck-undulations design
-  // §1): amplitude, then repetition, then per-cycle variation, then a
-  // narrowing corridor — never a shape that belongs to another animal
-  // (`docs/13` §4: the spiral is the snail's, the square/triangular shapes
-  // are the sheep's).
+  // One undulation family (`docs/13` §2, duck-undulations design §1): each
+  // step is a wave with more half-arches, a steeper peak slope and a
+  // narrower corridor than the one before (100 → 95 → 90 → 85 → 80 → 70) —
+  // never a shape that belongs to another animal (`docs/13` §4: the spiral
+  // is the snail's, the garland the fish's, the loops the monkey's, the
+  // square/triangular shapes the sheep's).
   //
-  // [T21, `docs/19` §2.3/§7 slice 3] Split into recipe A's own two halves
-  // (`odd/tasks/prewriting-stage-completion.md`): levels 1-2 are the CASE's
-  // own pistas (`detective/cases.ts`'s `duck` case now names only these two
-  // as `trailIds`), levels 3-4 gather the recovered duck FAMILY instead —
-  // `LevelConfig.collect` (T17's engine), the same mechanic
-  // `sheep-hill`/`llama-peak` already ship, never a clue. `duck-trail1`'s
-  // `droplet`/`duck-trail2`'s `feather` are the case's own two RULING clues
-  // (`cases.ts`'s `ruledOutBy`, whose header explains why `webfoot`/
-  // `breadcrumb` are not used here any more):
+  // [T21, `docs/19` §2.3/§7 slice 3] Recipe A: the case's own pistas levels
+  // first, then the deduction, then the recovered duck FAMILY gathered with
+  // `LevelConfig.collect` (T17's engine), never a clue.
+  //
+  // [T40, author's tablet play-test 2026-09-27: "Las pistas del pato quiero
+  // que haya una por nivel así que tiene que haber un par más de niveles del
+  // pato."] ONE clue kind per level. T29 had squeezed four clues into two
+  // levels by alternating a second kind along each trail; that alternation
+  // is gone, and two new levels (`duck-trail5`, `duck-trail6`) carry the two
+  // clues it used to double up. Ids are persisted keys, so the new ones are
+  // numbered after the old ones even though they play in between;
+  // `zoo/adventures.ts`'s `duck.levelIds` is the play order, and
+  // `game/migrateDuckOneCluePerLevel.ts` files both for a child who already
+  // collected all four clues. `droplet` (rules out the cat) and `feather`
+  // (rules out the cow) stay the case's two RULING clues (`cases.ts`'s
+  // `ruledOutBy`); `corn` and `webfoot` are the duck's other two traces.
   //
   //   duck-trail1  droplet (pistas) / one broad cycle — the pond's edge
+  //   duck-trail5  corn    (pistas) / one and a half cycles, ending on a crest
   //   duck-trail2  feather (pistas) / two cycles
+  //   duck-trail6  webfoot (pistas) / two and a half cycles → the deduction
   //   duck-trail3  collect the duck family / two cycles with per-cycle amplitude variation
   //   duck-trail4  collect the duck family / three cycles, tapered narrower
   // ───────────────────────────────────────────────────────────────────────
@@ -659,7 +670,9 @@ const PHASE_1: LevelConfig[] = [
     id: 'duck-trail1',
     phase: 1,
     title: 'El charco del pato',
-    hint: 'Seguí el charco de punta a punta.',
+    // [T40] The trail carries droplets and nothing else now; the hint names
+    // them rather than a puddle the screen does not draw.
+    hint: 'Seguí las gotitas del pato de punta a punta.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -667,15 +680,15 @@ const PHASE_1: LevelConfig[] = [
     carrier: true,
     // FIRST CONTACT with a routed trail in the duck case: the rail is on
     // here and nowhere else, the same convention `trail1` carries.
-    feedback: feedback(0, true),
+    feedback: feedback(true),
     // [deviation from design.md §3's literal `amplitude: 140`] 140 draws a
     // vertical span of exactly 280 units, failing the pre-existing "phase 1
     // uses the whole blank sheet" guard (`catalog.test.ts`: every phase-1
     // routed level's vertical span MUST exceed the 300-420 writing band, i.e.
-    // amplitude > 150) by 20 units. Widened to 170 — the same amplitude
-    // design.md gives `duck-trail2` — which clears the guard with margin
-    // (span 340, minY 130, maxY 470) while corridorWidth (100 vs 90) and
-    // cycle count (1 vs 2) still carry the progression between the two.
+    // amplitude > 150) by 20 units. Widened to 170, the amplitude every
+    // plain-wave duck level shares, which clears the guard with margin (span
+    // 340, minY 130, maxY 470); cycle count and corridor width carry the
+    // progression instead.
     paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 1 })],
     corridorWidth: 100,
     rules: rules(1, false, true, 0),
@@ -685,32 +698,45 @@ const PHASE_1: LevelConfig[] = [
     // [T21] `droplet`, not the pre-T21 `webfoot` — the duck case's own first
     // RULING clue (`cases.ts`'s `ruledOutBy.gato`), "the duck came out of the
     // water dripping" (`docs/19` §3's own pato flavour line).
-    //
-    // [T29, `odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
-    // wanted about 4 clues, not just 2"] `extraKind: 'corn'` — a SECOND,
-    // non-ruling collectible alternating with `droplet` along this same
-    // trail (`detective/clues.ts`'s `clueMarks` own `extraKind` parameter):
-    // corn kernels the duck pecked at the puddle's edge. Never added to
-    // `ruledOutBy` — `cases.test.ts`'s own "webfoot and breadcrumb rule
-    // nobody out" invariant is about those TWO kinds specifically, but the
-    // same principle applies here by choice: this task's own brief keeps
-    // the case's existing two-verdict shape (`vaca`/`feather`,
-    // `gato`/`droplet`) untouched, and only widens what the child physically
-    // collects and what the deduction's chip row shows (`clueKindsOf`, this
-    // trail now contributing BOTH kinds).
-    clue: { kind: 'droplet', spacing: 60, extraKind: 'corn' },
+    clue: { kind: 'droplet', spacing: 60 },
   },
   {
-    id: 'duck-trail2',
+    id: 'duck-trail5',
     phase: 1,
-    title: 'El sendero de migas',
-    hint: 'Seguí las migas sin salirte.',
+    title: 'El maíz del pato',
+    hint: 'Seguí los granitos de maíz sin salirte.',
     kind: 'path',
     surface: 'blank',
     maze: true,
     resetOnContact: true,
     carrier: true,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
+    // [T40] Three half-arches (crest, trough, crest): the first wave that
+    // ends climbing, a shape no other duck level draws. Peak slope
+    // 4·170/273 ≈ 2.49, between `duck-trail1`'s 1.66 and `duck-trail2`'s 3.32.
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 1.5 })],
+    corridorWidth: 95,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    // [T40] The corn kernels the duck pecked at the puddle's edge — T29's
+    // non-ruling second kind on `duck-trail1`, now a level of its own.
+    clue: { kind: 'corn', spacing: 60 },
+  },
+  {
+    id: 'duck-trail2',
+    phase: 1,
+    // [T40] Renamed from "El sendero de migas" / "Seguí las migas": this
+    // trail has carried feathers since T21, never crumbs.
+    title: 'Las plumas del pato',
+    hint: 'Seguí las plumas sin salirte.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(false),
     paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 2 })],
     corridorWidth: 90,
     rules: rules(1, false, true, 0),
@@ -719,29 +745,52 @@ const PHASE_1: LevelConfig[] = [
     demo: true,
     // [T21] `feather`, not the pre-T21 `breadcrumb` — the duck case's own
     // second RULING clue (`cases.ts`'s `ruledOutBy.vaca`, "a cow has no
-    // feathers"). This is the LAST pistas level (`cases.ts`'s
-    // `duck.trailIds`): finishing it is what the map/`GameScreen` routes
-    // into the deduction (`zoo/adventures.ts`'s `duck.deduction.after`).
-    //
-    // [T29] `extraKind: 'webfoot'` — see `duck-trail1`'s own comment above
-    // for the full reasoning; the webbed footprint alternates with `feather`
-    // here, never ruling anyone out (`webfoot` reuses `PRINT`'s colour on
-    // purpose, `detective/assets.ts`, and `footprint` never appears in this
-    // case, so no palette collision).
-    clue: { kind: 'feather', spacing: 60, extraKind: 'webfoot' },
+    // feathers").
+    clue: { kind: 'feather', spacing: 60 },
   },
   {
-    id: 'duck-trail3',
+    id: 'duck-trail6',
     phase: 1,
-    title: 'Las burbujas suben y bajan',
-    hint: 'Seguí las burbujas: unas ondas son más grandes.',
+    title: 'Las huellas del pato',
+    hint: 'Seguí las huellas del pato, ola por ola.',
     kind: 'path',
     surface: 'blank',
     maze: true,
     resetOnContact: true,
     carrier: true,
-    feedback: feedback(0, false),
-    // Step 3 of the undulation family (`docs/13` §2, "variación de
+    feedback: feedback(false),
+    // [T40] Five half-arches, ending on a crest like `duck-trail5` but with
+    // two more humps. Peak slope 4·170/164 ≈ 4.15, between `duck-trail2`'s
+    // 3.32 and `duck-trail3`'s 4.69.
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 2.5 })],
+    corridorWidth: 85,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    // [T40] The webbed footprint — T29's non-ruling second kind on
+    // `duck-trail2`, now a level of its own. Never a `ruledOutBy` verdict
+    // (`cases.test.ts`'s "webfoot and breadcrumb rule nobody out"). This is
+    // the LAST pistas level (`cases.ts`'s `duck.trailIds`): finishing it is
+    // what routes into the deduction (`zoo/adventures.ts`'s
+    // `duck.deduction.after`).
+    clue: { kind: 'webfoot', spacing: 60 },
+  },
+  {
+    id: 'duck-trail3',
+    phase: 1,
+    // [T40] Renamed from "Las burbujas suben y bajan" / "Seguí las
+    // burbujas": the level collects ducklings, and the author heard the
+    // narrator send the child after bubbles that were not there.
+    title: 'Los patitos en las olas',
+    hint: 'Juntá a los patitos: unas olas son más grandes.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: true,
+    carrier: true,
+    feedback: feedback(false),
+    // The per-cycle variation step (`docs/13` §2, "variación de
     // amplitud"): two cycles of differing amplitude via `waveVaried`, the
     // one thing a plain `wave` cannot express (one global amplitude only).
     // The two cycles meet at a real 8.71° kink (C1 holds within a cycle, not
@@ -759,8 +808,6 @@ const PHASE_1: LevelConfig[] = [
       }),
     ],
     corridorWidth: 80,
-    // The switchback's reversal was the only thing that justified continuity
-    // here; with no reversal it aligns with its three undulation siblings.
     rules: rules(1, false, true, 0),
     showGuide: true,
     letters: [],
@@ -781,8 +828,10 @@ const PHASE_1: LevelConfig[] = [
   {
     id: 'duck-trail4',
     phase: 1,
-    title: 'El rastro de plumas',
-    hint: 'Seguí el rastro de plumas, el camino se angosta.',
+    // [T40] Renamed from "El rastro de plumas" / "Seguí el rastro de
+    // plumas": no feathers here either, only the last ducklings.
+    title: 'Los últimos patitos',
+    hint: 'El camino se angosta: juntá a los últimos patitos.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -792,9 +841,9 @@ const PHASE_1: LevelConfig[] = [
     taper: { from: 1, to: 0.85 },
     resetOnContact: true,
     carrier: true,
-    feedback: feedback(0, false),
-    // Step 4 of the undulation family: the most cycles (three) AND the
-    // tightest, narrowing corridor — the directive's progression
+    feedback: feedback(false),
+    // The last step of the undulation family: the most cycles (three) AND
+    // the tightest, narrowing corridor — the directive's progression
     // accumulates, so the last step keeps everything before it and adds the
     // final demand.
     paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 3 })],
@@ -829,7 +878,7 @@ const PHASE_1: LevelConfig[] = [
     // actual first routed level of phase 1, and the rail is on there and
     // nowhere else, same convention the retired `f1-travesia` carried
     // (docs/03 section 6).
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // A broad sinusoid across the whole sheet — the droplet's open water.
     paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 200, cycles: 3 })],
     corridorWidth: 90,
@@ -860,7 +909,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: true,
     carrier: true,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // Shipped defaults, counter-clockwise: no override, so the radial gap
     // stays exactly the 120 units the corridor width below is measured against.
     paths: [spiral()],
@@ -884,7 +933,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: true,
     carrier: true,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // Sharp-corner sibling of `wave()`: every footprint sits at a real elbow,
     // not a rounded crest (level-engine spec, "Generators emit only supported
     // commands" — `triangularWave` is `M`/`L` only).
@@ -909,7 +958,7 @@ const PHASE_1: LevelConfig[] = [
     taper: { from: 1.2, to: 0.8 },
     resetOnContact: true,
     carrier: true,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // `run: 220`, `amplitude: 160` against `corridorWidth: 70` satisfies BOTH
     // `cornerClearance` (run ≥ 2·corridorWidth ⇒ 220 ≥ 140) and `armClearance`
     // (amplitude ≥ corridorWidth ⇒ 160 ≥ 70, wall 250 against a 49 threshold —
@@ -950,7 +999,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: true,
     carrier: false,
-    feedback: feedback(0, true),
+    feedback: feedback(true),
     paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [320, 320] })],
     corridorWidth: 100,
     rules: rules(1, false, true, 0),
@@ -975,7 +1024,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: true,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [320, 320, 320] })],
     corridorWidth: 90,
     rules: rules(1, false, true, 0),
@@ -994,7 +1043,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: true,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [320, 170, 320] })],
     corridorWidth: 80,
     rules: rules(1, false, true, 0),
@@ -1014,7 +1063,7 @@ const PHASE_1: LevelConfig[] = [
     taper: { from: 1, to: 0.85 },
     resetOnContact: true,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [320, 170, 320, 170] })],
     corridorWidth: 60,
     rules: rules(1, false, true, 0),
@@ -1033,7 +1082,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: true,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [360] })],
     corridorWidth: 90,
     rules: rules(1, false, true, 0),
@@ -1054,7 +1103,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: true,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [360, 180] })],
     corridorWidth: 80,
     rules: rules(1, false, true, 0),
@@ -1073,7 +1122,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: true,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [360, 360, 360] })],
     corridorWidth: 70,
     rules: rules(1, false, true, 0),
@@ -1093,7 +1142,7 @@ const PHASE_1: LevelConfig[] = [
     taper: { from: 1, to: 0.85 },
     resetOnContact: true,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: [peakRidge({ x0: 90, x1: 910, base: 480, heights: [360, 360, 360, 360] })],
     corridorWidth: 60,
     rules: rules(1, false, true, 0),
@@ -1136,7 +1185,7 @@ const PHASE_1: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1182,7 +1231,7 @@ const PHASE_1: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1219,7 +1268,7 @@ const PHASE_1: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1250,7 +1299,7 @@ const PHASE_1: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1409,7 +1458,7 @@ const PHASE_1: LevelConfig[] = [
     resetOnContact: false,
     carrier: true,
     carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 },
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1441,7 +1490,7 @@ const PHASE_1: LevelConfig[] = [
     resetOnContact: false,
     carrier: true,
     carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 },
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1472,7 +1521,7 @@ const PHASE_1: LevelConfig[] = [
     resetOnContact: false,
     carrier: true,
     carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 },
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1503,7 +1552,7 @@ const PHASE_1: LevelConfig[] = [
     resetOnContact: false,
     carrier: true,
     carrierArt: { art: SECTOR_ADVENTURE_ART.bee, size: 76 },
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1533,7 +1582,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: false,
     carrier: true,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // §2 step 1 — pocos delfines y separación amplia: 2 cycles, the widest
     // channel and the widest half-period in the family (design.md §4.2).
     paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 160, cycles: 2 })],
@@ -1571,7 +1620,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: false,
     carrier: true,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // §2 step 2 — más delfines: 3 cycles, same view, same corridor family
     // pace, narrower channel than step 1.
     paths: [wave({ x0: 80, x1: 920, y: 300, amplitude: 160, cycles: 3 })],
@@ -1592,7 +1641,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: false,
     carrier: true,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // §2 step 3 — recorrido desplazable: the new mechanic enters here. 5
     // cycles across a sheet wider than the window (design.md §4.2, §1).
     paths: [wave({ x0: 80, x1: 1480, y: 300, amplitude: 160, cycles: 5 })],
@@ -1617,7 +1666,7 @@ const PHASE_1: LevelConfig[] = [
     maze: true,
     resetOnContact: false,
     carrier: true,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // §2 step 4 — sostener el patrón más tiempo: the most cycles AND the
     // narrowest channel in the family (design.md §4.2).
     paths: [wave({ x0: 80, x1: 2040, y: 300, amplitude: 160, cycles: 7 })],
@@ -1780,7 +1829,7 @@ const PHASE_1: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1828,7 +1877,7 @@ const PHASE_1: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1864,7 +1913,7 @@ const PHASE_1: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1895,7 +1944,7 @@ const PHASE_1: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: false, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: false, haptics: true, rail: false },
     paths: [],
     corridorWidth: 0,
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
@@ -1949,7 +1998,7 @@ export const LEGACY_PHASE_1: readonly LevelConfig[] = [
     carrier: false,
     // FIRST CONTACT with a route in the whole app: the rail is on here and
     // nowhere else in phase 1 (docs/03 section 6).
-    feedback: feedback(0, true),
+    feedback: feedback(true),
     paths: [sweep()],
     corridorWidth: 120,
     rules: rules(1, false, true, 0),
@@ -1987,7 +2036,7 @@ export const LEGACY_PHASE_1: readonly LevelConfig[] = [
     ],
     resetOnContact: true,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // A broad, gentle arch: one rise and one fall across the whole sheet, with
     // no corner anywhere. The route is deliberately EASY to read — a shape that
     // also had to be solved would hide what the child is actually learning.
@@ -2007,7 +2056,7 @@ export const LEGACY_PHASE_1: readonly LevelConfig[] = [
     maze: true,
     resetOnContact: true,
     carrier: true,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // FIRST CONTACT with the escort rule, so the SHAPE gives nothing away: a
     // long diagonal with a bow of 45, barely more than a straight line. When a
     // new rule arrives the geometry has to get out of its way (docs/01
@@ -2032,7 +2081,7 @@ export const LEGACY_PHASE_1: readonly LevelConfig[] = [
     taper: { from: 1.2, to: 0.8 },
     resetOnContact: true,
     carrier: true,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // Nearly twice the length of any other phase-1 route, so precision has to
     // be HELD rather than found, plus one half-turn — stop, reverse, keep the
     // ink off the wall.
@@ -2055,7 +2104,7 @@ export const LEGACY_PHASE_1: readonly LevelConfig[] = [
     maze: true,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     // The same wave, TILTED: an oblique route is a different wrist rotation,
     // and a horizontal one would quietly rehearse the writing line again.
     paths: [transformPath(wave(), { rotate: -22 })],
@@ -2075,7 +2124,7 @@ export const LEGACY_PHASE_1: readonly LevelConfig[] = [
     maze: true,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: [spiral()],
     // 70 against the generator's 120 radial gap leaves ~50 units of visible
     // wall between the arms; wider merges the turns into a filled disc.
@@ -2094,29 +2143,30 @@ export const LEGACY_PHASE_1: readonly LevelConfig[] = [
 // bucles and crestas are letter shapes, and their proportions against the
 // pauta are the whole point of the phase. What they lose is the DRAWN pauta
 // (`surface: 'blank'`) — the rules still mean nothing to the child until
-// phase 3 — and what they gain is the metronome: this is the rhythm phase
-// (docs/01 phase 2, "planificación motora, ritmo").
+// phase 3.
 //
-// One beat = one cycle of the pattern, so the bpm falls as the cycle gets
-// longer: 63 for the four short arcs of the montañas, 56/52 for the three
-// tall ones of the crestas and the rulos. Everything stays inside 50-70 bpm,
-// which is a pace a six-to-eight-year-old can actually follow — fast enough
-// to be a rhythm, slow enough to be a movement and not a scribble.
+// [T40, the author's play-test 2026-09-27] This phase used to be the "rhythm
+// phase" (docs/01 fase 2, "planificación motora, ritmo"): a pulsing
+// metronome ring at the start, a grey centreline and crisp guide inside a
+// soft corridor, and a fluency floor (`1 − CV(speed)`) that paired with the
+// beat. The author: "¿Por qué es tan distinto? Tiene un trazo gris en el
+// medio... un coso de ritmo que nadie lo va a entender, sacalo." Every
+// routed level before the letters now draws the same plain white corridor
+// (`maze: true`, which is what drops the centreline and the guide), the
+// metronome is gone from the engine, and phase 2's fluency floor is 0: with
+// no beat to keep, a "steady speed" rule would fail a child for a reason
+// nothing on screen explains. The rhythm is still in the shapes (equal
+// cycles, one after another); nothing asks the child to match a tempo.
 //
-// `f2-guirnalda` is the SAME garland shape, retimed and rethemed as Nivel 3's
-// entry point (docs/11): its id STAYS — it is a persisted unlock key — but its
-// cycle widens (180×150 → 253×240) and its beat therefore falls with the same
-// rule (66 → 54); the ordering pair this rule proves moves from
-// `f2-guirnalda > f2-crestas` to `f2-agua2 > f2-guirnalda`. Nivel 3's own
-// microprogression axis (`f2-guirnalda` → `f2-agua2` → `f2-agua3` →
-// `f2-agua4`) is amplitude and proximity moving together and in opposite
-// directions — cycle width 253→190→130…195(varied)→253, dip depth
-// 240→140→95…200(varied)→240 — while the corridor narrows to match
-// (100→80→68→90) and the beat climbs with it (54→64→68→silent). Desafío 4
-// deliberately RETURNS to desafío 1's wide, easy-to-read geometry and drops
-// both the metronome and the fluency bar: fluency is `1 − CV(speed)`, so it
-// punishes the exact deceleration the level asks for, and a metronome would
-// tell the child to keep going while the starfish says wait (design.md §3).
+// `f2-guirnalda` is the SAME garland shape, rethemed as Nivel 3's entry point
+// (docs/11): its id STAYS — it is a persisted unlock key — but its cycle
+// widens (180×150 → 253×240). Nivel 3's own microprogression axis
+// (`f2-guirnalda` → `f2-agua2` → `f2-agua3` → `f2-agua4`) is amplitude and
+// proximity moving together and in opposite directions — cycle width
+// 253→190→130…195(varied)→253, dip depth 240→140→95…200(varied)→240 — while
+// the corridor narrows to match (100→80→68→90). Desafío 4 deliberately
+// RETURNS to desafío 1's wide, easy-to-read geometry and adds the starfish:
+// the new demand is stopping, not precision (design.md §3).
 // ─────────────────────────────────────────────────────────────────────────────
 const PHASE_2: LevelConfig[] = [
   // ───────────────────────────────────────────────────────────────────────
@@ -2129,16 +2179,14 @@ const PHASE_2: LevelConfig[] = [
   // array's own order is catalog bookkeeping only.
   //
   // PHASE 2, NOT PHASE 1, despite being zoo-native side content like sheep/
-  // llama/snake/bee/dolphin/hedgehog — the reason is `maze`, not the
-  // sector: `ovals()`'s own shape is the LESSON (a pattern to learn), so it
-  // needs `maze: false` to keep `guide={showShapeLine && !level.maze}`
-  // (`TraceCanvas.tsx`) drawing the ideal line — the exact reason
-  // `f2-guirnalda`/`f2-colinas`/`f2-bucles` all keep `maze: false` too. But
-  // `catalog.test.ts`'s own "renders only the phase-1 routes as real
-  // mazes" guard is unconditional: `level.maze === (phase === 1 && kind ===
-  // 'path')` for every level without an `artCorridor` — so a `maze: false`
-  // routed level MUST be phase 2, full stop. Phase 2 also means these four
-  // must stay INSIDE the 149-451 writing band (`catalog.test.ts`'s own
+  // llama/snake/bee/dolphin/hedgehog — the reason is the shape, not the
+  // sector: `ovals()`'s closed turn is a letter-family pattern (the `o`/`a`),
+  // phase 2's own continuity rule applies to it, and it sits in the writing
+  // band like every other phase-2 pattern. [T40] It no longer draws the
+  // ideal line inside a soft corridor: every routed level before the letters
+  // is `maze: true` now (the plain white corridor the author asked for, no
+  // grey centreline, no guide — PHASE_2's own header). Phase 2 also means
+  // these four must stay INSIDE the 149-451 writing band (`catalog.test.ts`'s own
   // "keeps phase 2 in the writing band"), the opposite requirement phase 1
   // pattern levels carry — `ry: 150` uniform across all four keeps every
   // ring's own top/bottom exactly on that band's edge with a hair of
@@ -2173,9 +2221,6 @@ const PHASE_2: LevelConfig[] = [
   // ids (`duck-trail1`, `sheep-hill1`, `f3-l`), not "every family's own
   // first level" — `llama-peak1`/`dolphin1`/`snake1`/`bee1`/`hedgehog1` all
   // introduce a family of their own and none of them get it either.
-  // `feedback.metronomeBpm` climbs 55 → 60 → 64 → 68 as the rings shrink
-  // and multiply — inside `catalog.test.ts`'s own required 50-70 band for
-  // any phase-2 level whose beat is not silenced.
   //
   // T28 (`odd/tasks/prewriting-stage-completion.md`; `docs/19` §3 recipe B,
   // "cada vuelta hace asomar una tortuga"): every level here also authors
@@ -2202,15 +2247,15 @@ const PHASE_2: LevelConfig[] = [
     hint: 'Empezá arriba, andá para la izquierda y dá toda la vuelta, como la tortuga.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(55, false),
+    feedback: feedback(false),
     // A single ring: `ovalTurnRadius(150, 150) = 150`, comfortably clear of
     // `100/2 − 6 = 44`.
     paths: [ovals({ x0: 350, x1: 650, cy: 300, rx: 150, ry: 150, count: 1 })],
     corridorWidth: 100,
-    rules: rules(2, true, true, 35),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2230,17 +2275,17 @@ const PHASE_2: LevelConfig[] = [
     hint: 'Dos vueltas seguidas: terminá una y seguí con la otra sin levantar el dedo.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(60, false),
+    feedback: feedback(false),
     // `ovalTurnRadius(120, 150) = 96`, clear of `90/2 − 6 = 39`.
     // `ovalSpacingClearance(360, 120, 90, 2)`: gap left over is
     // `360 − 240 − 90 = 30`, which is `⅓` of the corridor width — clear of
     // the quarter-width floor.
     paths: [ovals({ x0: 140, x1: 860, cy: 300, rx: 120, ry: 150, count: 2 })],
     corridorWidth: 90,
-    rules: rules(2, true, true, 38),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2254,16 +2299,16 @@ const PHASE_2: LevelConfig[] = [
     hint: 'Tres vueltas más chiquitas, siempre para el mismo lado.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(64, false),
+    feedback: feedback(false),
     // `ovalTurnRadius(95, 150) ≈ 60.2`, clear of `80/2 − 6 = 34`.
     // `ovalSpacingClearance(300, 95, 80, 3)`: leftover `300 − 190 − 80 = 30`,
     // `⅜` of the corridor width.
     paths: [ovals({ x0: 50, x1: 950, cy: 300, rx: 95, ry: 150, count: 3 })],
     corridorWidth: 80,
-    rules: rules(2, true, true, 40),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2277,10 +2322,10 @@ const PHASE_2: LevelConfig[] = [
     hint: 'Cuatro vueltas redonditas, ¡como escribir oooo!',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(68, false),
+    feedback: feedback(false),
     // `ovalTurnRadius(75, 150) = 37.5`, clear of `70/2 − 6 = 29` — this
     // family's own tightest margin, the same role `f2-agua3`'s worst cycle
     // plays for the garland family.
@@ -2288,7 +2333,7 @@ const PHASE_2: LevelConfig[] = [
     // exactly the quarter-width floor (`0.25 × 70 = 17.5`, cleared by 2.5).
     paths: [ovals({ x0: 20, x1: 980, cy: 300, rx: 75, ry: 150, count: 4 })],
     corridorWidth: 70,
-    rules: rules(2, true, true, 42),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2299,12 +2344,12 @@ const PHASE_2: LevelConfig[] = [
   // The monkeys' own family (P4, `odd/tasks/promised-animals.md`): the Rulo
   // letter family's own rising, self-crossing loop (`docs/01` §8: `e l b h
   // k f`), taught by monkeys swinging on the forest's lianas — the same
-  // `loops()` generator `f2-bucles` already ships (never changed, never
-  // reused here: a fresh call with this family's own sizes).
+  // `loops()` generator `f2-bucles` already ships (a fresh call with this
+  // family's own sizes).
   //
   // Every field this family shares with the turtles above carries the SAME
-  // reasoning, restated once rather than per level: phase 2 (the same
-  // `maze: false` ⇒ phase-2-only rule); `yTop: 150, yBase: 450` on every
+  // reasoning, restated once rather than per level: phase 2 (a letter-
+  // family pattern, the turtles' own reasoning); `yTop: 150, yBase: 450` on every
   // level — `f2-bucles`' own exact band — rather than a shrinking one,
   // because phase 2's own "keeps phase 2 in the writing band" ceiling
   // leaves no room to grow BEYOND that band and still clears phase 1's
@@ -2359,22 +2404,21 @@ const PHASE_2: LevelConfig[] = [
   // still pending) — flagged the same way `duck-trail3`/`4`'s scaled-down
   // `ANIMAL_ART.pato` duckling stand-in already is.
   //
-  // Sizes are chosen against `loopHoleClearance(width, height,
-  // corridorWidth)` (`paths.ts`/`paths.test.ts`): `loops()`'s own crossing
-  // makes the strict `ovalTurnRadius`-style "never folds" bound unreachable
-  // for this shape at ANY size this sheet can hold (that function's own
-  // header shows the arithmetic), so this asks the achievable question
-  // instead — stays at least as open, proportionally, as `f2-bucles`' own
-  // shipped hole. `width` here is each cycle's own span, `(x1 − x0) /
-  // cycles` — the exact quantity `loops()` itself divides by. `monkey4`'s
-  // own `corridorWidth: 60` — narrower than the `≈70` first sketched for
-  // this family — is a deliberate, measured departure: fitting five rings
-  // across the sheet at `corridorWidth: 70` leaves no `x0`/`x1` span left
-  // that ALSO clears the hole-clearance floor (checked, not assumed: every
-  // span wide enough to clear the floor overflows the viewBox, and every
-  // span that fits the viewBox falls short of the floor) — narrowing the
-  // corridor by 10 units is what actually resolves the conflict, not a
-  // loosened guard.
+  // [T40] Sizes are chosen so every loop's HOLE stays visible with the plain
+  // corridor (no centreline): `loopHoleClearances` (`paths.ts`) measures the
+  // largest circle that fits inside each loop, and `catalog.test.ts` holds
+  // every loop level to a visible hole (`2·clearance − corridorWidth`) at
+  // least one corridor wide, and to round, smooth loops (the author: "un
+  // rulo más suave y prolijo") whose tightest bend is the loop itself. Round
+  // loops that keep their hole are about 0.55 of a cycle across, so the
+  // family tops out at three loops, and no corridor goes below 70 (the
+  // journey's narrowest, `duck-trail4`/`llama-peak4`). Loop radius and
+  // measured hole clearance (visible hole = 2·clearance − corridor):
+  //
+  //   monkey1  2 loops r≈96, corridor 90, clearance ≈96 (visible ≈102)
+  //   monkey2  3 loops r≈90, corridor 80, clearance ≈88 (≈96)
+  //   monkey3  3 loops r≈83, corridor 75, clearance ≈80 (≈85)
+  //   monkey4  3 loops r≈77, corridor 70, clearance ≈76 (≈82)
   // ───────────────────────────────────────────────────────────────────────
   {
     id: 'monkey1',
@@ -2388,17 +2432,16 @@ const PHASE_2: LevelConfig[] = [
     hint: 'Subí como el mono y juntá las huellas en la liana.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     // [T27] `carrier: true` — the lens default, `catalog.test.ts`'s
     // "every detective trail gets the fingertip carrier" invariant.
     carrier: true,
-    feedback: feedback(55, false),
-    // width 260, height 300: `loopHoleClearance(260, 300, 100)` — ratio
-    // ≈0.135, clear of the 0.12 floor.
-    paths: [loops({ x0: 240, x1: 760, yTop: 150, yBase: 450, cycles: 2 })],
-    corridorWidth: 100,
-    rules: rules(2, true, true, 35),
+    feedback: feedback(false),
+    // [T40] Two round loops (see this family's header for the hole numbers).
+    paths: [loops({ x0: 140, x1: 860, yTop: 150, yBase: 450, cycles: 2, loopWidth: 0.267, loopHeight: 0.32 })],
+    corridorWidth: 90,
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2415,17 +2458,21 @@ const PHASE_2: LevelConfig[] = [
     title: 'Tres rulos colgado',
     // [T27] The case's LAST pistas level — finishing it routes into the
     // `monkeys` deduction (`zoo/adventures.ts`'s `monkeys.deduction.after`).
-    hint: 'Otra vez colgado: encontrá la banana que se les cayó.',
+    // [T40] The spoken hint names only what is on screen: the marks are the
+    // `corn` stand-in until `docs/20` B13's banana art lands, so "la banana"
+    // promised a picture the child could not find. "La comida" stays true
+    // for both the stand-in and the real banana.
+    hint: 'Otra vez colgado: juntá la comida que se les cayó.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: true,
-    feedback: feedback(60, false),
-    // width 240, height 300: ratio ≈0.133.
-    paths: [loops({ x0: 140, x1: 860, yTop: 150, yBase: 450, cycles: 3 })],
-    corridorWidth: 90,
-    rules: rules(2, true, true, 38),
+    feedback: feedback(false),
+    // [T40] Three round loops (hole numbers in this family's header).
+    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 3, loopWidth: 0.307, loopHeight: 0.3 })],
+    corridorWidth: 80,
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2440,14 +2487,14 @@ const PHASE_2: LevelConfig[] = [
     hint: 'Las lianas se juntan: vueltas más chiquitas.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(64, false),
-    // width 220, height 300: ratio ≈0.130.
-    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 4 })],
-    corridorWidth: 80,
-    rules: rules(2, true, true, 40),
+    feedback: feedback(false),
+    // [T40] Three round loops, a little smaller than monkey2's.
+    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 3, loopWidth: 0.28, loopHeight: 0.28 })],
+    corridorWidth: 75,
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2466,28 +2513,24 @@ const PHASE_2: LevelConfig[] = [
     id: 'monkey4',
     phase: 2,
     title: 'Muchos rulos seguidos',
-    // Four rings, like `monkey3`, but in a narrower corridor. The first cut
-    // squeezed five rings into a 60-unit corridor, the tightest path in the
-    // game, for a first grader's last level before the letters. Difficulty now
-    // comes from the corridor alone.
-    hint: '¡Cuatro vueltas seguidas, como escribir llll!',
+    // [T40] Three loops, the smallest of the family, in the journey's
+    // narrowest corridor (70). Four loops no longer fit: at four per sheet no
+    // round loop keeps a visible hole at any corridor of 70 or more.
+    hint: '¡Tres rulos redonditos seguidos, sin levantar el dedo!',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(68, false),
-    // width 220, height 300 (monkey3's own geometry) at corridor 70: the
-    // hole ratio rises above monkey3's ≈0.130, comfortably clear of the 0.12
-    // floor.
-    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 4 })],
+    feedback: feedback(false),
+    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 3, loopWidth: 0.26, loopHeight: 0.26 })],
     corridorWidth: 70,
-    rules: rules(2, true, true, 42),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
     // [T27] Same reasoning as `monkey3` above — the last of the monkey
-    // family, gathered along the route's own four loop apexes.
+    // family, gathered along the route's own loop apexes.
     collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, size: 50 },
   },
   {
@@ -2508,13 +2551,24 @@ const PHASE_2: LevelConfig[] = [
     hint: 'Seguí las burbujas: bajá, hacé la curva y subí, sin levantar el dedo.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    // [T40, author's tablet play-test 2026-09-27: "¿Por qué el nivel de los
+    // peces es tan distinto? Tiene un trazo gris en el medio... Además tiene
+    // un coso de ritmo... sacalo."] The whole fish adventure (this level and
+    // `f2-agua2..4`) draws the same plain white corridor every other
+    // adventure trail draws: `maze: true` is what drops the grey centreline
+    // and the crisp guide (`LevelPlay.tsx`'s `showCentreLine`/`guide`, both
+    // gated on `!level.maze`). The pulsing beat ring is gone and so is the
+    // fluency floor it paired with: without a beat to keep, an invisible
+    // "steady speed" rule would fail a child for a reason nothing on screen
+    // explains. The follow-up extended both to every phase-2 level and
+    // removed the metronome from the engine (PHASE_2's own header).
+    maze: true,
     resetOnContact: false,
     carrier: true,
-    feedback: feedback(54, false),
+    feedback: feedback(false),
     paths: [garland({ x0: 120, x1: 880, yTop: 190, yBottom: 430, cycles: 3 })],
     corridorWidth: 100,
-    rules: rules(2, true, true, 35),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2565,13 +2619,13 @@ const PHASE_2: LevelConfig[] = [
     hint: 'Seguí las gotitas: hacé las curvas redonditas, como una U.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: true,
-    feedback: feedback(64, false),
+    feedback: feedback(false),
     paths: [garland({ x0: 120, x1: 880, yTop: 290, yBottom: 430, cycles: 4 })],
     corridorWidth: 80,
-    rules: rules(2, true, true, 38),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2586,17 +2640,20 @@ const PHASE_2: LevelConfig[] = [
     // Renamed from "Las olas cambian" (P3 follow-up) — see `f2-guirnalda`'s
     // own comment above. `f2-agua4`'s own "La estrella de mar" already
     // named the hazard, not the medusa, so it is untouched.
-    title: 'Las burbujas cambian',
+    // [T40] Past the deduction this level carries no bubbles (it collects
+    // the fish family), so neither the title nor the spoken hint may name
+    // them — the author heard "sigue las burbujas" with none on screen.
+    title: 'Los peces en las curvas',
     // The microprogression's third step: SIZE and SPACING both vary within
     // one path (docs/11 Nivel 3), not just from level to level — the reason
     // `garlandVaried` exists rather than a wider `garland` call.
-    hint: 'Las burbujas se achican: curvas más chiquitas, despacio.',
+    hint: 'Las curvas se achican: juntá a los peces, despacito.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: true,
-    feedback: feedback(68, false),
+    feedback: feedback(false),
     paths: [
       garlandVaried({
         x0: 95,
@@ -2611,7 +2668,7 @@ const PHASE_2: LevelConfig[] = [
       }),
     ],
     corridorWidth: 68,
-    rules: rules(2, true, true, 40),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
@@ -2642,17 +2699,19 @@ const PHASE_2: LevelConfig[] = [
     title: 'La estrella de mar',
     // The fourth step of the microprogression: same wide geometry as desafío
     // 1 (the new demand is TIMING, not precision), but with a hazard that
-    // means no beat and no fluency bar (design.md §3) — a real child's stop is
-    // a deceleration, and fluency (`1 − CV(speed)`) would fail them for it.
-    hint: '¡Cuidado con las estrellas de mar! Seguí las burbujas sin tocarlas.',
+    // means no fluency bar (design.md §3) — a real child's stop is a
+    // deceleration, and fluency (`1 − CV(speed)`) would fail them for it.
+    // [T40] One starfish and no bubbles on screen: the hint says what the
+    // child sees, and names the stop the level is about.
+    hint: '¡Cuidado con la estrella de mar! Esperá que pase y juntá a los peces.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     // The one Nivel 3 level with a hazard: touching the border (or the
     // starfish) restarts the run, same rule trail1 carries (D3).
     resetOnContact: true,
     carrier: true,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: [garland({ x0: 120, x1: 880, yTop: 190, yBottom: 430, cycles: 3 })],
     corridorWidth: 90,
     // travel 280 against a 90-unit corridor is 3.1× the channel, `f1-pelotas`'s
@@ -2702,33 +2761,36 @@ const PHASE_2: LevelConfig[] = [
     id: 'f2-colinas',
     phase: 2,
     title: 'Las montañas',
-    hint: 'Subí y bajá las montañas al ritmo, sin levantar el dedo.',
+    // [T40] "al ritmo" named the metronome, which is gone.
+    hint: 'Subí y bajá las montañas, sin levantar el dedo.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(63, false),
+    feedback: feedback(false),
     paths: [hills({ cycles: 4 })],
     corridorWidth: 85,
-    rules: rules(2, true, true, 40),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
   },
   {
     id: 'f2-bucles',
     phase: 2,
-    title: 'Los rulos altos',
-    hint: 'Un rulo por golpe: subí bien alto y cruzá, todos iguales.',
+    // [T40] Round loops now, not tall ones.
+    title: 'Los rulos redondos',
+    // [T40] "por golpe" named the metronome's beat, which is gone.
+    hint: 'Rulo por rulo: subí, dá la vuelta y cruzá, todos iguales.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(52, false),
-    paths: [loops({ cycles: 3 })],
+    feedback: feedback(false),
+    paths: [loops({ x0: 60, x1: 940, cycles: 3, loopWidth: 0.307, loopHeight: 0.3 })],
     corridorWidth: 80,
-    rules: rules(2, true, true, 45),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
   },
@@ -2736,16 +2798,17 @@ const PHASE_2: LevelConfig[] = [
     id: 'f2-crestas',
     phase: 2,
     title: 'Las olas grandes',
-    hint: 'Una ola por golpe, de arriba abajo, sin frenar.',
+    // [T40] "por golpe" named the metronome's beat, which is gone.
+    hint: 'Ola por ola, de arriba abajo, sin frenar.',
     kind: 'path',
     surface: 'blank',
-    maze: false,
+    maze: true,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(56, false),
+    feedback: feedback(false),
     paths: [crests({ cycles: 3 })],
     corridorWidth: 80,
-    rules: rules(2, true, true, 45),
+    rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
   },
@@ -2766,7 +2829,7 @@ const PHASE_3: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(0, true),
+    feedback: feedback(true),
     paths: letterPaths('f3-l', 'l'),
     corridorWidth: 42,
     rules: rules(3, true, true, 40),
@@ -2784,7 +2847,7 @@ const PHASE_3: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: letterPaths('f3-a', 'a'),
     corridorWidth: 42,
     rules: rules(3, true, true, 40),
@@ -2802,7 +2865,7 @@ const PHASE_3: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: letterPaths('f3-m', 'm'),
     corridorWidth: 42,
     rules: rules(3, true, true, 45),
@@ -2820,7 +2883,7 @@ const PHASE_3: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: letterPaths('f3-o', 'o'),
     corridorWidth: 42,
     rules: rules(3, true, true, 45),
@@ -2845,7 +2908,7 @@ const PHASE_4: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: wordPaths('f4-la', ['l', 'a']),
     corridorWidth: 40,
     rules: rules(4, true, true, 50),
@@ -2863,7 +2926,7 @@ const PHASE_4: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: wordPaths('f4-ma', ['m', 'a']),
     corridorWidth: 40,
     rules: rules(4, true, true, 50),
@@ -2888,7 +2951,7 @@ const PHASE_5: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: wordPaths('f5-ala', ['a', 'l', 'a']),
     corridorWidth: 40,
     rules: rules(5, true, true, 55),
@@ -2906,7 +2969,7 @@ const PHASE_5: LevelConfig[] = [
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: feedback(0, false),
+    feedback: feedback(false),
     paths: wordPaths('f5-mama', ['m', 'a', 'm', 'a']),
     corridorWidth: 40,
     rules: rules(5, true, true, 55),

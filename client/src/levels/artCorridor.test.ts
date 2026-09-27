@@ -47,7 +47,7 @@ function makeConfig(pieces: readonly ArtCorridorPiece[], paths: string[]): Level
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: true, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: true, haptics: true, rail: false },
     hint: '',
     paths,
     corridorWidth: 60,

@@ -20,7 +20,7 @@ function makeConfig(over: Partial<LevelConfig> = {}): LevelConfig {
     maze: true,
     resetOnContact: true,
     carrier: false,
-    feedback: { tone: true, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: true, haptics: true, rail: false },
     paths: [straight()],
     corridorWidth: 100,
     rules: { mustBeContinuous: false, enforceOrder: true, minFluency: 0, minAccuracy: 55 },

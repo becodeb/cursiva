@@ -31,7 +31,7 @@ function makeConfig(over: Partial<LevelConfig> = {}): LevelConfig {
     maze: false,
     resetOnContact: false,
     carrier: false,
-    feedback: { tone: true, haptics: true, metronomeBpm: 0, rail: false },
+    feedback: { tone: true, haptics: true, rail: false },
     hint: 'Seguí el camino.',
     paths: [straight()],
     corridorWidth: 100,

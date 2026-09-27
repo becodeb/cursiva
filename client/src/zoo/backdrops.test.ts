@@ -327,7 +327,9 @@ describe('ADVENTURE_BACKDROP.corridorRows coverage', () => {
   // side of the route's own minY/maxY.
   const DUCK_CHANNELS: ReadonlyArray<{ id: string; top: number; bottom: number }> = [
     { id: 'duck-trail1', top: 80, bottom: 520 },
+    { id: 'duck-trail5', top: 82.5, bottom: 517.5 },
     { id: 'duck-trail2', top: 85, bottom: 515 },
+    { id: 'duck-trail6', top: 87.5, bottom: 512.5 },
     { id: 'duck-trail3', top: 55, bottom: 545 },
     { id: 'duck-trail4', top: 95, bottom: 505 },
   ]
@@ -605,7 +607,7 @@ describe('SPINE_BACKDROPS ink law (radial-spines design.md §2 D1(a)/D4, §8.2)'
 
 describe('backdropFor', () => {
   it('is defined for every duck trail', () => {
-    for (const id of ['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4']) {
+    for (const id of ['duck-trail1', 'duck-trail5', 'duck-trail2', 'duck-trail6', 'duck-trail3', 'duck-trail4']) {
       expect(backdropFor(id), id).toBe(ADVENTURE_BACKDROP.duck)
     }
   })

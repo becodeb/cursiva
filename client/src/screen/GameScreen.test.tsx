@@ -366,38 +366,46 @@ describe('resolveNextAction (adventure-flow-and-map-guidance T2: "an unfinished 
 })
 
 // [T21, `docs/19` §2.3/§7 slice 3] The duck's own deduction gate
-// (`zoo/adventures.ts`'s `deduction: { after: 'duck-trail2', caseId: 'duck'
-// }`), the one adventure that declares it today. `duck-trail1` is NOT the
-// gate (it is covered by the generic sweep above, unaffected); this block
-// is only what changes right at `duck-trail2`.
-describe("resolveNextAction: the duck's deduction gate sits between duck-trail2 and duck-trail3", () => {
-  it('unsolved: finishing duck-trail2 detours to deduce, carrying duck-trail3 as afterLevelId', () => {
-    expect(resolveNextAction('duck-trail2', {})).toEqual({
+// (`zoo/adventures.ts`'s `deduction: { after: 'duck-trail6', caseId: 'duck'
+// }` since T40, which added `duck-trail5`/`duck-trail6` so each pistas level
+// carries one clue). The earlier pistas levels are NOT the gate; this block
+// is only what changes right at `duck-trail6`.
+describe("resolveNextAction: the duck's deduction gate sits between duck-trail6 and duck-trail3", () => {
+  it('unsolved: finishing duck-trail6 detours to deduce, carrying duck-trail3 as afterLevelId', () => {
+    expect(resolveNextAction('duck-trail6', {})).toEqual({
       type: 'deduce',
       caseId: 'duck',
       afterLevelId: 'duck-trail3',
     })
   })
 
-  it('unsolved even with duck-trail1 already filed: only the case\'s own solved pseudo-record skips the gate, not ordinary trail progress', () => {
-    expect(resolveNextAction('duck-trail2', recordsWith(['duck-trail1'], 1))).toEqual({
+  it('unsolved even with the earlier pistas levels filed: only the case\'s own solved pseudo-record skips the gate, not ordinary trail progress', () => {
+    expect(
+      resolveNextAction('duck-trail6', recordsWith(['duck-trail1', 'duck-trail5', 'duck-trail2'], 1)),
+    ).toEqual({
       type: 'deduce',
       caseId: 'duck',
       afterLevelId: 'duck-trail3',
     })
   })
 
-  it("solved (duck-deduce filed): a replay of duck-trail2 continues straight to duck-trail3, never re-asking a solved case", () => {
+  it("solved (duck-deduce filed): a replay of duck-trail6 continues straight to duck-trail3, never re-asking a solved case", () => {
     const records = recordsWith(['duck-deduce'], 1)
-    expect(resolveNextAction('duck-trail2', records)).toEqual({ type: 'next', levelId: 'duck-trail3' })
+    expect(resolveNextAction('duck-trail6', records)).toEqual({ type: 'next', levelId: 'duck-trail3' })
   })
 
-  it('duck-trail1 (not the gate) is unaffected, solved or not', () => {
-    expect(resolveNextAction('duck-trail1', {})).toEqual({ type: 'next', levelId: 'duck-trail2' })
-    expect(resolveNextAction('duck-trail1', recordsWith(['duck-deduce'], 1))).toEqual({
-      type: 'next',
-      levelId: 'duck-trail2',
-    })
+  it('the pistas levels before the gate chain in play order, solved or not: 1 → 5 → 2 → 6', () => {
+    for (const [from, to] of [
+      ['duck-trail1', 'duck-trail5'],
+      ['duck-trail5', 'duck-trail2'],
+      ['duck-trail2', 'duck-trail6'],
+    ] as const) {
+      expect(resolveNextAction(from, {}), from).toEqual({ type: 'next', levelId: to })
+      expect(resolveNextAction(from, recordsWith(['duck-deduce'], 1)), from).toEqual({
+        type: 'next',
+        levelId: to,
+      })
+    }
   })
 })
 
@@ -431,7 +439,7 @@ describe("resolveNextAction: the monkeys' deduction gate sits between monkey2 an
 describe("nextView: deduce carries afterLevelId through (T21)", () => {
   it('threads afterLevelId from the action into the view, so GameScreen can resume the adventure once solved', () => {
     expect(
-      nextView(playing('duck-trail2'), { type: 'deduce', caseId: 'duck', afterLevelId: 'duck-trail3' }),
+      nextView(playing('duck-trail6'), { type: 'deduce', caseId: 'duck', afterLevelId: 'duck-trail3' }),
     ).toEqual({ view: 'deduce', caseId: 'duck', afterLevelId: 'duck-trail3' })
   })
 

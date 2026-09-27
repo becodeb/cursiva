@@ -10,12 +10,10 @@ import {
   armClearance,
   cornerClearance,
   crests,
-  F2_BUCLES_HOLE_RATIO,
   garland,
   garlandVaried,
   hills,
-  loopHoleClearance,
-  loopHoleRadius,
+  loopHoleClearances,
   loops,
   ovals,
   ovalSpacingClearance,
@@ -87,7 +85,7 @@ const GENERATORS: ReadonlyArray<{ name: string; d: string; start: Point }> = [
   { name: 'garland', d: garland(), start: { x: 140, y: 285 } },
   { name: 'garlandVaried', d: garlandVaried(), start: { x: 140, y: 285 } },
   { name: 'hills', d: hills(), start: { x: 140, y: 435 } },
-  { name: 'loops', d: loops(), start: { x: 160, y: 450 } },
+  { name: 'loops', d: loops(), start: { x: 60, y: 450 } },
   { name: 'crests', d: crests(), start: { x: 120, y: 310 } },
   { name: 'triangularWave', d: triangularWave(), start: { x: 120, y: 300 } },
   { name: 'squareWave', d: squareWave(), start: { x: 120, y: 190 } },
@@ -546,9 +544,9 @@ describe('loops', () => {
   it('reverses horizontally inside every cycle (the crossing signature)', () => {
     const cycles = 3
     const points = poly(loops({ cycles }))
-    const w = (840 - 160) / cycles
+    const w = (940 - 60) / cycles
     for (let c = 0; c < cycles; c++) {
-      const lo = 160 + c * w
+      const lo = 60 + c * w
       const hi = lo + w
       const inCycle = points.filter((p) => p.x >= lo - 1e-6 && p.x <= hi + 1e-6)
       const backwards = inCycle.some((p, i) => i > 0 && p.x < inCycle[i - 1].x - 1e-6)
@@ -558,49 +556,35 @@ describe('loops', () => {
 
   it('starts and ends on the baseline', () => {
     const points = poly(loops())
-    expect(points[0]).toEqual({ x: 160, y: 450 })
+    expect(points[0]).toEqual({ x: 60, y: 450 })
     const last = points[points.length - 1]
-    expect(last.x).toBeCloseTo(840, 1)
+    expect(last.x).toBeCloseTo(940, 1)
     expect(last.y).toBeCloseTo(450, 1)
   })
 })
 
-describe('loopHoleRadius (promised-animals P4: does a loop leave a real hole)', () => {
-  it("reproduces f2-bucles' own measured value (width ≈ 227, height 300)", () => {
-    expect(loopHoleRadius((840 - 160) / 3, 300)).toBeCloseTo(10.91, 1)
-  })
-
-  it('scales linearly under ISOTROPIC scaling (same factor on width and height) — a pure consequence of curvature scaling as 1/scale', () => {
-    const base = loopHoleRadius(200, 260)
-    expect(loopHoleRadius(400, 520)).toBeCloseTo(base * 2, 1)
-    expect(loopHoleRadius(100, 130)).toBeCloseTo(base / 2, 1)
-  })
-
-  it('F2_BUCLES_HOLE_RATIO matches a fresh re-derivation from the shipped size, not a copied guess', () => {
-    const ratio = loopHoleRadius((840 - 160) / 3, 300) / 80
-    expect(F2_BUCLES_HOLE_RATIO).toBeCloseTo(ratio, 3)
-  })
-})
-
-describe('loopHoleClearance', () => {
-  it("f2-bucles' own shipped size clears its own ratio, at its own floor", () => {
-    expect(loopHoleClearance((840 - 160) / 3, 300, 80)).toBe(true)
-  })
-
-  it('holds for every authored monkey size (promised-animals P4)', () => {
-    const cases: ReadonlyArray<{ name: string; width: number; height: number; corridorWidth: number }> = [
-      { name: 'monkey1', width: 420, height: 275, corridorWidth: 100 },
-      { name: 'monkey2', width: 290, height: 265, corridorWidth: 90 },
-      { name: 'monkey3', width: 225, height: 255, corridorWidth: 80 },
-      { name: 'monkey4', width: 184, height: 250, corridorWidth: 70 },
-    ]
-    for (const c of cases) {
-      expect(loopHoleClearance(c.width, c.height, c.corridorWidth), c.name).toBe(true)
+describe('loopHoleClearances (T40: a loop hole the child can see)', () => {
+  it('finds one hole per loop and measures it as the largest circle that fits', () => {
+    const holes = loopHoleClearances(poly(loops({ cycles: 3 })))
+    expect(holes).toHaveLength(3)
+    // Default loops: half-axes 0.28·w by 0.30·H (w = 880/3, H = 300), so the
+    // hole is limited by its 90-unit vertical half-axis, minus what the
+    // crossing strokes take below it.
+    for (const h of holes) {
+      expect(h.clearance).toBeGreaterThan(75)
+      expect(h.clearance).toBeLessThan(90)
     }
   })
 
-  it('goes false for a loop scaled small enough that the corridor would swallow the hole (sensitivity proof)', () => {
-    expect(loopHoleClearance(60, 80, 80)).toBe(false)
+  it('grows with the loop (sensitivity proof: a small loop leaves almost no hole)', () => {
+    const small = loopHoleClearances(poly(loops({ cycles: 3, loopWidth: 0.12, loopHeight: 0.12 })))
+    const big = loopHoleClearances(poly(loops({ cycles: 3 })))
+    expect(small[0].clearance).toBeLessThan(40)
+    expect(big[0].clearance).toBeGreaterThan(small[0].clearance * 2)
+  })
+
+  it('finds nothing on a route that never crosses itself', () => {
+    expect(loopHoleClearances(poly(garland({ cycles: 3 })))).toEqual([])
   })
 })
 

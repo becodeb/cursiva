@@ -130,47 +130,6 @@ describe('clueMarks', () => {
       for (const m of marks) expect(m.y).toBeCloseTo(0, 6)
     }
   })
-
-  // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
-  // wanted about 4 clues, not just 2"). `extraKind` alternates a SECOND kind
-  // into the same evenly-spaced marks — never a second, separate array.
-  describe('extraKind alternation (T29)', () => {
-    it('keeps every mark on `kind` when extraKind is absent — byte-identical to before this parameter existed', () => {
-      const withoutParam = clueMarks(LINE, LENGTH, 5, 'droplet')
-      const withUndefined = clueMarks(LINE, LENGTH, 5, 'droplet', undefined)
-      expect(withUndefined).toEqual(withoutParam)
-      for (const m of withUndefined) expect(m.kind).toBe('droplet')
-    })
-
-    it('alternates kind/extraKind by index: even stays `kind`, odd becomes `extraKind`', () => {
-      const marks = clueMarks(LINE, LENGTH, 6, 'droplet', 'corn')
-      expect(marks.map((m) => m.kind)).toEqual(['droplet', 'corn', 'droplet', 'corn', 'droplet', 'corn'])
-    })
-
-    it("does not change WHERE any mark sits — x/y/angle/arc are identical to the same call with no extraKind, for every EVEN index (kind is unaffected)", () => {
-      const plain = clueMarks(LINE, LENGTH, 6, 'droplet')
-      const mixed = clueMarks(LINE, LENGTH, 6, 'droplet', 'corn')
-      for (let i = 0; i < plain.length; i += 2) {
-        expect(mixed[i]).toEqual(plain[i])
-      }
-    })
-
-    it('an odd-indexed footprint half still gets the left/right offset the plain footprint case does', () => {
-      const marks = clueMarks(LINE, LENGTH, 4, 'droplet', 'footprint')
-      // Index 1 and 3 are `footprint` (odd), and must sit off the centreline;
-      // index 0 and 2 are `droplet` (even) and must stay exactly on it.
-      expect(marks[0].y).toBeCloseTo(0, 6)
-      expect(marks[2].y).toBeCloseTo(0, 6)
-      expect(marks[1].y).not.toBeCloseTo(0, 3)
-      expect(marks[3].y).not.toBeCloseTo(0, 3)
-    })
-
-    it('never doubles the count — alternation reuses the SAME marks, it never adds a second pass', () => {
-      const plain = clueMarks(LINE, LENGTH, 7, 'droplet')
-      const mixed = clueMarks(LINE, LENGTH, 7, 'droplet', 'feather')
-      expect(mixed).toHaveLength(plain.length)
-    })
-  })
 })
 
 describe('clueTick (lights by ARC PROGRESS, not by proximity)', () => {
@@ -306,10 +265,12 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
     expect(trails.map((t) => t.id)).toEqual([
       // [T21] `duck-trail3`/`duck-trail4` no longer carry a `clue` — they
       // were repurposed to `LevelConfig.collect` (the duck family gathered
-      // after the deduction, `docs/19` §2.3) — so only the case's own two
-      // pistas levels remain here.
+      // after the deduction, `docs/19` §2.3) — so only the case's own
+      // pistas levels remain here (four since T40, one clue each).
       'duck-trail1',
+      'duck-trail5',
       'duck-trail2',
+      'duck-trail6',
       'trail1',
       'trail2',
       'trail3',

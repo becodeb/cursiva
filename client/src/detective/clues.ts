@@ -6,6 +6,7 @@
 // pointer sample, this module owns the decision.
 import { indexAtDistance, tangentAngleAt } from '../screen/directionArrow'
 import { pointAtArcLength } from '../letters/svgLetter'
+import { selfCrossingPoints } from '../levels/paths'
 import type { Point } from '../letters/types'
 import type { ClueKind } from './assets'
 
@@ -21,6 +22,13 @@ const TANGENT_SPAN_UNITS = 25
  * every trail's corridor half-width (35-45 in the catalog), so a footprint
  * never reads as off the route even on the narrowest trail. */
 const FOOTPRINT_OFFSET = 10
+
+/** How close, in sheet units, a clue mark may sit to a point where the route
+ * crosses itself (T40: the monkeys' loops). About one mark wide
+ * (`CLUE_MARK_SIZE`, 28, in `screen/LevelPlay.tsx`) plus a little air: a mark
+ * any closer covers the crossing, the one place the child has to see which way
+ * the line goes on. Such a mark is simply not placed. */
+export const CROSSING_CLEAR_RADIUS = 30
 
 /**
  * One clue mark's fixed placement along a trail: where it sits, which way it
@@ -126,29 +134,15 @@ export function clueCountFor(length: number, spacing: number): number {
   return Math.max(1, Math.round(length / spacing) - 1)
 }
 
-/**
- * T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "I
- * wanted about 4 clues, not just 2"). `extraKind`, when given, ALTERNATES
- * with `kind` across the same evenly-spaced marks this function already
- * places (even index `i` keeps `kind`, odd `i` becomes `extraKind`) —
- * everything about WHERE a mark sits (`x`/`y`/`angle`/`arc`, the footprint
- * offset) is unchanged; only WHICH picture a given index draws differs. The
- * trail still reads as one continuous, densely-covered path (`clueCountFor`'s
- * own spacing is untouched), now carrying two distinct pictures instead of
- * one — never a second, separate mark array, which would double the count
- * and the "how many droplets on this trail" answer nobody asked to change.
- * Absent (every trail but duck's own two), every mark keeps `kind`, byte-
- * identical to before this parameter existed.
- */
 export function clueMarks(
   polyline: ReadonlyArray<{ x: number; y: number }>,
   length: number,
   count: number,
   kind: ClueKind,
-  extraKind?: ClueKind,
 ): readonly ClueMark[] {
   if (count <= 0 || polyline.length < 2 || length <= 0) return []
   const marks: ClueMark[] = []
+  const crossings = selfCrossingPoints(polyline)
   // Marks sit in the INTERIOR of the trail: `(i + 1) / (count + 1)`, so five
   // marks land at 1/6 .. 5/6 of the arc and none at an endpoint.
   //
@@ -167,19 +161,13 @@ export function clueMarks(
     const angle = tangentAngleAt(polyline, index, TANGENT_SPAN_UNITS)
     let x = point.x
     let y = point.y
-    // T29: this mark's OWN kind — `extraKind` on every odd index when one is
-    // authored, `kind` everywhere else (including every index when
-    // `extraKind` is absent, the pre-T29 behaviour). Resolved before the
-    // footprint check below so an alternating trail that happens to use
-    // `footprint` as either half still gets the alternation's own offset.
-    const markKind = extraKind && i % 2 === 1 ? extraKind : kind
     // Footprints alternate left/right off the centreline (defect fix: "the
     // footprint kind should alternate left/right down the trail... that is
     // what makes a track read as walking"). Cheap — it reuses the SAME
     // tangent angle already computed for the mark's facing direction,
     // rotated 90° for the normal, so no extra geometry lookup is needed.
     // Every other clue kind stays exactly on the centreline, unchanged.
-    if (markKind === 'footprint') {
+    if (kind === 'footprint') {
       const rad = (angle * Math.PI) / 180
       // SVG convention (y grows down, `rotate(deg)` turns clockwise — same
       // as `directionArrow.ts`'s `tangentAngleAt`): rotating the tangent
@@ -193,7 +181,10 @@ export function clueMarks(
     // `arc` is the UNOFFSET position along the route (see `ClueMark.arc`): the
     // footprint branch above moved the drawn point sideways, never the mark's
     // place in the walk.
-    marks.push({ x, y, angle, kind: markKind, arc })
+    // T40: never on a crossing (see `CROSSING_CLEAR_RADIUS`). `lit` state is
+    // sized from the returned array, so a skipped mark leaves no gap.
+    if (crossings.some((c) => Math.hypot(c.x - x, c.y - y) < CROSSING_CLEAR_RADIUS)) continue
+    marks.push({ x, y, angle, kind, arc })
   }
   return marks
 }

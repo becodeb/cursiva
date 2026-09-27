@@ -54,7 +54,7 @@ describe('adventureProgress', () => {
   })
 
   it('reports a mid-adventure duck trail: filed levels, the current one flagged, clues in play order', () => {
-    const progress = adventureProgress('duck-trail2', recordsFor(['duck-trail1']))
+    const progress = adventureProgress('duck-trail5', recordsFor(['duck-trail1']))
     expect(progress).toEqual({
       adventureId: 'duck',
       // [T21] `undefined`, not `'pato'` — the duck adventure declares a
@@ -65,12 +65,13 @@ describe('adventureProgress', () => {
       animal: undefined,
       rescued: false,
       slots: [
-        // [T21] `duck-trail1`/`duck-trail2` are now the case's own two
-        // RULING clues (`droplet`/`feather`, `detective/cases.ts`);
+        // [T40] Four pistas levels, one clue each, in play order;
         // `duck-trail3`/`duck-trail4` were repurposed to `collect` (the duck
-        // family) and carry no clue any more.
+        // family, T21) and carry no clue.
         { levelId: 'duck-trail1', clue: 'droplet', filed: true, current: false },
-        { levelId: 'duck-trail2', clue: 'feather', filed: false, current: true },
+        { levelId: 'duck-trail5', clue: 'corn', filed: false, current: true },
+        { levelId: 'duck-trail2', clue: 'feather', filed: false, current: false },
+        { levelId: 'duck-trail6', clue: 'webfoot', filed: false, current: false },
         { levelId: 'duck-trail3', clue: undefined, filed: false, current: false },
         { levelId: 'duck-trail4', clue: undefined, filed: false, current: false },
       ],
@@ -86,8 +87,8 @@ describe('adventureProgress', () => {
   })
 
   it('reports rescued once every level of the adventure is filed', () => {
-    const allFour = recordsFor(['duck-trail1', 'duck-trail2', 'duck-trail3', 'duck-trail4'])
-    const progress = adventureProgress('duck-trail4', allFour)
+    const allSix = recordsFor(['duck-trail1', 'duck-trail5', 'duck-trail2', 'duck-trail6', 'duck-trail3', 'duck-trail4'])
+    const progress = adventureProgress('duck-trail4', allSix)
     expect(progress?.rescued).toBe(true)
     expect(progress?.slots.every((s) => s.filed)).toBe(true)
     expect(progress?.slots.find((s) => s.current)?.levelId).toBe('duck-trail4')

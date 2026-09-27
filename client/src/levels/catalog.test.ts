@@ -13,14 +13,15 @@ import { HEDGEHOG_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
 import { LevelProgressStore } from '../game/LevelProgressStore'
 import type { StorageLike } from '../game/LevelProgressStore'
 import { migratePhase1 } from '../game/migratePhase1'
-import { DETECTIVE_TRAIL_IDS, DUCK_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
+import { DETECTIVE_TRAIL_IDS, EMPTY_RECORD } from '../game/types'
 import type { LevelRecord } from '../game/types'
 import { migrateDuckCase } from '../game/migrateDuckCase'
+import { migrateDuckOneCluePerLevel } from '../game/migrateDuckOneCluePerLevel'
 import { BAND_INSET, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget } from './buildLevel'
 import { routeExtrema } from './dolphinExtrema'
 import { resolveCollectItems } from './collect'
 import { EMPTY_REVEAL, revealTick } from './revealGrid'
-import { clueCountFor } from '../detective/clues'
+import { CROSSING_CLEAR_RADIUS, clueCountFor, clueMarks } from '../detective/clues'
 import {
   DEGRADED_LEVEL_IDS,
   LEGACY_PHASE_1,
@@ -33,11 +34,14 @@ import {
 import { hazardGapFraction } from './obstacles'
 import { ADVENTURES } from '../zoo/adventures'
 import { SECTORS } from '../zoo/sectors'
+
+/** The duck adventure's levels in PLAY order (T40 put two new pistas levels
+ *  between the old ones, so id order is not play order any more). */
+const DUCK_ADVENTURE_IDS = ADVENTURES.find((a) => a.id === 'duck')!.levelIds
 import {
   armClearance,
   cornerClearance,
-  loopHoleClearance,
-  loopHoleRadius,
+  loopHoleClearances,
   ovalSpacingClearance,
   ovalTurnRadius,
   peakRidgeCorridorLimit,
@@ -66,7 +70,9 @@ const EXPECTED_IDS = [
   'sand4',
   'f1-libre',
   'duck-trail1',
+  'duck-trail5',
   'duck-trail2',
+  'duck-trail6',
   'duck-trail3',
   'duck-trail4',
   'trail1',
@@ -203,7 +209,9 @@ describe('LEVELS — authored values match the doc tables', () => {
     'hedgehog4': 0,
     'f1-libre': 0,
     'duck-trail1': 100,
+    'duck-trail5': 95,
     'duck-trail2': 90,
+    'duck-trail6': 85,
     'duck-trail3': 80,
     'duck-trail4': 70,
     trail1: 90,
@@ -222,9 +230,9 @@ describe('LEVELS — authored values match the doc tables', () => {
     'turtle2': 90,
     'turtle3': 80,
     'turtle4': 70,
-    'monkey1': 100,
-    'monkey2': 90,
-    'monkey3': 80,
+    'monkey1': 90,
+    'monkey2': 80,
+    'monkey3': 75,
     // Four rings at 70 (see this level's own comment in `catalog.ts`).
     'monkey4': 70,
     'f2-guirnalda': 100,
@@ -279,7 +287,9 @@ describe('LEVELS — authored values match the doc tables', () => {
     'hedgehog4': 0,
     'f1-libre': 0,
     'duck-trail1': 0,
+    'duck-trail5': 0,
     'duck-trail2': 0,
+    'duck-trail6': 0,
     'duck-trail3': 0,
     'duck-trail4': 0,
     trail1: 0,
@@ -294,21 +304,22 @@ describe('LEVELS — authored values match the doc tables', () => {
     'llama-peak2': 0,
     'llama-peak3': 0,
     'llama-peak4': 0,
-    'turtle1': 35,
-    'turtle2': 38,
-    'turtle3': 40,
-    'turtle4': 42,
-    'monkey1': 35,
-    'monkey2': 38,
-    'monkey3': 40,
-    'monkey4': 42,
-    'f2-guirnalda': 35,
-    'f2-agua2': 38,
-    'f2-agua3': 40,
+    'turtle1': 0,
+    'turtle2': 0,
+    'turtle3': 0,
+    'turtle4': 0,
+    'monkey1': 0,
+    'monkey2': 0,
+    'monkey3': 0,
+    'monkey4': 0,
+    // T40: the fish adventure lost its beat, and the fluency floor with it.
+    'f2-guirnalda': 0,
+    'f2-agua2': 0,
+    'f2-agua3': 0,
     'f2-agua4': 0,
-    'f2-colinas': 40,
-    'f2-bucles': 45,
-    'f2-crestas': 45,
+    'f2-colinas': 0,
+    'f2-bucles': 0,
+    'f2-crestas': 0,
     'f3-l': 40,
     'f3-a': 40,
     'f3-m': 45,
@@ -434,51 +445,28 @@ describe('LEVELS — surface, kind and feedback', () => {
     for (const l of free) expect(l.phase, l.id).toBe(1)
   })
 
-  it('renders only the phase-1 routes as real mazes', () => {
-    // "Laberinto" means walls knocked out of a solid field. A phase-2 garland
-    // is a movement, not a maze, so it stays a soft corridor. The snake
-    // family is the one NAMED exception (design.md §6.1): its corridor is a
-    // drawn cutout over a sand hollow, not a wall knocked out of a field —
-    // `maze: false` on all four is deliberate, not an oversight.
+  it('renders every routed level before the letters as a plain maze corridor', () => {
+    // [T40, the author's play-test] "¿Por qué es tan distinto? Tiene un trazo
+    // gris en el medio." `maze` is what draws the plain white corridor with no
+    // grey centreline and no guide line, so every routed level of phases 1-2
+    // is a maze. The snake family is the one NAMED exception (design.md
+    // §6.1): its corridor is a drawn cutout over a sand hollow — `maze: false`
+    // on all four is deliberate. From phase 3 on the guide line IS the letter
+    // to copy (docs/08's crisp line over the soft channel, withdrawn by
+    // `guideWithdrawal`), so the letters keep their soft corridor.
     for (const level of LEVELS) {
       if (level.artCorridor) {
         expect(level.maze, level.id).toBe(false)
         continue
       }
-      expect(level.maze).toBe(level.phase === 1 && level.kind === 'path')
+      expect(level.maze, level.id).toBe(level.phase <= 2 && level.kind === 'path')
     }
   })
 
-  it('metronomes phase 2 and only phase 2, between 50 and 70 bpm where it beats at all', () => {
+  it('asks no level for a steady speed before the letters (T40: the beat that paired with it is gone)', () => {
     for (const level of LEVELS) {
-      if (level.phase !== 2) {
-        expect(level.feedback.metronomeBpm).toBe(0)
-        continue
-      }
-      // `f2-agua4` is the one named exemption (see the guard below): its beat
-      // is silenced on purpose, not a hole in the 50-70 rule.
-      if (level.feedback.metronomeBpm === 0) continue
-      expect(level.feedback.metronomeBpm).toBeGreaterThanOrEqual(50)
-      expect(level.feedback.metronomeBpm).toBeLessThanOrEqual(70)
+      if (level.phase <= 2) expect(level.rules.minFluency, level.id).toBe(0)
     }
-  })
-
-  it('silences the beat and the fluency bar on exactly the level that asks the child to STOP', () => {
-    // design.md §3's exact exemption guard: a named guard so the one silent
-    // level cannot become an unguarded hole for a future level to hide in.
-    const silent = levelsByPhase(2).filter((l) => l.feedback.metronomeBpm === 0)
-    expect(silent.map((l) => l.id)).toEqual(['f2-agua4'])
-    expect(silent[0].obstacles).toHaveLength(1)
-    expect(silent[0].rules.minFluency).toBe(0)
-  })
-
-  it('slows the beat down as the pattern cycle gets longer', () => {
-    // One beat = one cycle: the three-cycle patterns cover more ground per
-    // beat than the four-cycle ones, so they must be slower.
-    const bpm = (id: string): number => getLevel(id).feedback.metronomeBpm
-    expect(bpm('f2-agua2')).toBeGreaterThan(bpm('f2-guirnalda'))
-    expect(bpm('f2-colinas')).toBeGreaterThan(bpm('f2-crestas'))
-    expect(bpm('f2-crestas')).toBeGreaterThan(bpm('f2-bucles'))
   })
 
   it('turns the assisted rail on at FIRST CONTACT only', () => {
@@ -528,6 +516,37 @@ describe('LEVELS — surface, kind and feedback', () => {
   })
 })
 
+describe('LEVELS — the spoken hint names only what is on screen (T40)', () => {
+  // The author's play-test: "la voz dice sigue las burbujas pero no hay
+  // ninguna". `level.hint` is what the narrator speaks on arrival and on every
+  // idle nudge (`LevelPlay.tsx`'s `useNarration(level.hint)`), so a hint that
+  // names a trail picture must be on a level that draws that picture.
+  const WORDS_BY_KIND: ReadonlyArray<{ kinds: readonly string[]; word: RegExp }> = [
+    { kinds: ['bubble'], word: /burbuj/i },
+    { kinds: ['droplet'], word: /\bgot(a|ita)s?\b/i },
+    { kinds: ['feather'], word: /\bpluma/i },
+    { kinds: ['breadcrumb'], word: /\bmiga/i },
+    { kinds: ['corn'], word: /maíz|\bgranit?os?\b/i },
+    { kinds: ['footprint', 'webfoot'], word: /\bhuella/i },
+    // No clue draws a banana yet (`docs/20` B13): never promise one.
+    { kinds: [], word: /\bbanana/i },
+  ]
+
+  it('never names a trail picture the level does not draw', () => {
+    for (const level of LEVELS) {
+      for (const { kinds, word } of WORDS_BY_KIND) {
+        if (!word.test(level.hint)) continue
+        expect(kinds, `${level.id}: "${level.hint}"`).toContain(level.clue?.kind)
+      }
+    }
+  })
+
+  it('names the ducklings and the fish on the levels that collect them', () => {
+    for (const id of ['duck-trail3', 'duck-trail4']) expect(getLevel(id).hint, id).toMatch(/patitos/)
+    for (const id of ['f2-agua3', 'f2-agua4']) expect(getLevel(id).hint, id).toMatch(/peces/)
+  })
+})
+
 describe('LEVELS — hazards and reset', () => {
   it('resets the run on every case trail and on the one level with a hazard', () => {
     // `resetOnContact` is a RULE, not a punishment (types.ts). Every trail in
@@ -537,7 +556,9 @@ describe('LEVELS — hazards and reset', () => {
     const resetting = LEVELS.filter((l) => l.resetOnContact).map((l) => l.id)
     expect(resetting).toEqual([
       'duck-trail1',
+      'duck-trail5',
       'duck-trail2',
+      'duck-trail6',
       'duck-trail3',
       'duck-trail4',
       'trail1',
@@ -682,31 +703,151 @@ describe('LEVELS — every turtle level keeps a real hole and a real gap between
   })
 })
 
-describe('LEVELS — every monkey level keeps a hole at least as open as f2-bucles, proportionally (promised-animals P4)', () => {
-  // `width` restates each level's own per-cycle span, `(x1 − x0) / cycles`
-  // — the exact quantity `loops()` itself divides by — tying the live
-  // `corridorWidth` field to the geometry the same way every other family's
-  // own catalog-level guard does.
-  const CASES: ReadonlyArray<{ id: string; width: number; height: number }> = [
-    { id: 'monkey1', width: (760 - 240) / 2, height: 300 },
-    { id: 'monkey2', width: (860 - 140) / 3, height: 300 },
-    { id: 'monkey3', width: (940 - 60) / 4, height: 300 },
-    { id: 'monkey4', width: (940 - 60) / 4, height: 300 },
-  ]
+// [T40, author's play-test] Once every level before the letters draws the
+// plain corridor (no centreline), a loop is only readable if its HOLE shows,
+// and the author asked for round, tidy loops ("un rulo más suave y prolijo").
+describe('LEVELS — every loop keeps a visible hole and a smooth, round shape (T40)', () => {
+  const LOOP_IDS = ['monkey1', 'monkey2', 'monkey3', 'monkey4', 'f2-bucles']
+  const RING_IDS = ['turtle1', 'turtle2', 'turtle3', 'turtle4']
 
-  it('clears loopHoleClearance on every monkey level', () => {
-    for (const { id, width, height } of CASES) {
+  function distanceToRoute(p: { x: number; y: number }, route: readonly { x: number; y: number }[]): number {
+    let best = Infinity
+    for (let k = 0; k < route.length - 1; k++) {
+      const a = route[k]
+      const b = route[k + 1]
+      const vx = b.x - a.x
+      const vy = b.y - a.y
+      const len2 = vx * vx + vy * vy
+      const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2))
+      best = Math.min(best, Math.hypot(p.x - a.x - t * vx, p.y - a.y - t * vy))
+    }
+    return best
+  }
+
+  /** The cubic segments of a generated `d` (M then C/L only). */
+  function cubics(d: string): { p0: number[]; c1: number[]; c2: number[]; p3: number[] }[] {
+    const tokens = d.match(/[MCL]|-?\d+(?:\.\d+)?/g) ?? []
+    const out: { p0: number[]; c1: number[]; c2: number[]; p3: number[] }[] = []
+    let pen = [0, 0]
+    for (let i = 0; i < tokens.length; ) {
+      const cmd = tokens[i++]
+      const n = (): number => Number(tokens[i++])
+      if (cmd === 'M' || cmd === 'L') {
+        pen = [n(), n()]
+      } else if (cmd === 'C') {
+        const c1 = [n(), n()]
+        const c2 = [n(), n()]
+        const p3 = [n(), n()]
+        out.push({ p0: pen, c1, c2, p3 })
+        pen = p3
+      }
+    }
+    return out
+  }
+
+  it('leaves every loop a visible hole at least one corridor wide (2·clearance − corridor ≥ corridor)', () => {
+    for (const id of LOOP_IDS) {
       const level = getLevel(id)
-      expect(loopHoleClearance(width, height, level.corridorWidth), id).toBe(true)
+      const holes = loopHoleClearances(buildLevelTarget(level).polyline)
+      expect(holes.length, id).toBeGreaterThanOrEqual(2)
+      for (const hole of holes) {
+        expect(2 * hole.clearance - level.corridorWidth, id).toBeGreaterThanOrEqual(level.corridorWidth)
+      }
     }
   })
 
-  it("holds even at monkey4's own tightest margin", () => {
-    const level = getLevel('monkey4')
-    const ratio = loopHoleRadius((940 - 60) / 4, 300) / level.corridorWidth
-    expect(ratio).toBeGreaterThanOrEqual(0.12)
-    // Same rings as monkey3 in a narrower corridor, so a wider hole ratio.
-    expect(ratio).toBeGreaterThan(loopHoleRadius((940 - 60) / 4, 300) / getLevel('monkey3').corridorWidth)
+  it("leaves every turtle ring the same visible hole, measured from the turtle standing in it", () => {
+    for (const id of RING_IDS) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const rings = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
+      for (const ring of rings) {
+        const clearance = distanceToRoute(ring, target.polyline)
+        expect(2 * clearance - level.corridorWidth, id).toBeGreaterThanOrEqual(level.corridorWidth)
+      }
+    }
+  })
+
+  it('never goes below the journey\'s narrowest corridor (70) to open a hole', () => {
+    for (const id of [...LOOP_IDS, ...RING_IDS]) expect(getLevel(id).corridorWidth, id).toBeGreaterThanOrEqual(70)
+  })
+
+  it('bends no stroke tighter than the loop itself, and never below the corridor\'s half-width', () => {
+    // Exact curvature of every cubic, sampled on its own derivatives (no
+    // flattening noise). A kink or a pointed top would show as a tiny radius.
+    for (const id of LOOP_IDS) {
+      const level = getLevel(id)
+      let minRadius = Infinity
+      for (const { p0, c1, c2, p3 } of cubics(level.paths[0])) {
+        for (let i = 0; i <= 200; i++) {
+          const t = i / 200
+          const mt = 1 - t
+          const xp = 3 * mt * mt * (c1[0] - p0[0]) + 6 * mt * t * (c2[0] - c1[0]) + 3 * t * t * (p3[0] - c2[0])
+          const yp = 3 * mt * mt * (c1[1] - p0[1]) + 6 * mt * t * (c2[1] - c1[1]) + 3 * t * t * (p3[1] - c2[1])
+          const xpp = 6 * mt * (c2[0] - 2 * c1[0] + p0[0]) + 6 * t * (p3[0] - 2 * c2[0] + c1[0])
+          const ypp = 6 * mt * (c2[1] - 2 * c1[1] + p0[1]) + 6 * t * (p3[1] - 2 * c2[1] + c1[1])
+          const curvature = Math.abs(xp * ypp - yp * xpp) / (xp * xp + yp * yp) ** 1.5
+          if (curvature > 0) minRadius = Math.min(minRadius, 1 / curvature)
+        }
+      }
+      expect(minRadius, id).toBeGreaterThan(level.corridorWidth / 2)
+      expect(minRadius, id).toBeGreaterThan(70)
+    }
+  })
+
+  it('joins every segment without a corner (tangent continuity within 1°)', () => {
+    for (const id of LOOP_IDS) {
+      const segs = cubics(getLevel(id).paths[0])
+      for (let i = 1; i < segs.length; i++) {
+        const out = segs[i - 1]
+        const next = segs[i]
+        const a = Math.atan2(out.p3[1] - out.c2[1], out.p3[0] - out.c2[0])
+        const b = Math.atan2(next.c1[1] - next.p0[1], next.c1[0] - next.p0[0])
+        let turn = Math.abs(a - b)
+        if (turn > Math.PI) turn = 2 * Math.PI - turn
+        expect((turn * 180) / Math.PI, `${id} join ${i}`).toBeLessThan(1)
+      }
+    }
+  })
+
+  it('draws every loop the same size, round (half-axes within 10%)', () => {
+    for (const id of LOOP_IDS) {
+      const holes = loopHoleClearances(buildLevelTarget(getLevel(id)).polyline)
+      const sizes = holes.map((h) => h.clearance)
+      expect(Math.max(...sizes) - Math.min(...sizes), id).toBeLessThan(1)
+      // The loop top: each C that runs right-to-left over yTop is a quarter
+      // ellipse whose chord spans one half-axis in x and one in y.
+      const tops = cubics(getLevel(id).paths[0]).filter((c) => c.p3[1] === 150 || c.p0[1] === 150)
+      for (const q of tops) {
+        const rx = Math.abs(q.p3[0] - q.p0[0])
+        const ry = Math.abs(q.p3[1] - q.p0[1])
+        expect(Math.abs(rx - ry) / Math.max(rx, ry), id).toBeLessThan(0.1)
+      }
+    }
+  })
+
+  it('keeps every clue mark off the crossings, and every collected monkey on the path', () => {
+    for (const id of LOOP_IDS) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const crossings = loopHoleClearances(target.polyline).map((h) => h.crossing)
+      if (level.clue) {
+        const marks = clueMarks(target.polyline, target.length, clueCountFor(target.length, level.clue.spacing), level.clue.kind)
+        expect(marks.length, id).toBeGreaterThan(10)
+        for (const m of marks) {
+          for (const c of crossings) {
+            expect(Math.hypot(m.x - c.x, m.y - c.y), id).toBeGreaterThanOrEqual(CROSSING_CLEAR_RADIUS)
+          }
+        }
+      }
+      if (level.collect) {
+        const items = resolveCollectItems(level.collect, target.polyline, target.length, level.corridorWidth)
+        for (const item of items) {
+          expect(distanceToRoute(item, target.polyline), id).toBeLessThan(level.corridorWidth / 2)
+          for (const c of crossings) expect(Math.hypot(item.x - c.x, item.y - c.y), id).toBeGreaterThan(level.corridorWidth)
+        }
+      }
+    }
   })
 })
 
@@ -762,7 +903,11 @@ describe('LEVELS — the duck adventure is one undulation family', () => {
   // not just an emergent property of whatever shape happens to be there.
   const PEAK_SLOPE_INPUTS: ReadonlyArray<{ id: string; halfWidth: number; amplitude: number }> = [
     { id: 'duck-trail1', halfWidth: (910 - 90) / 2, amplitude: 170 },
+    // T40: one and a half cycles = three half-arches.
+    { id: 'duck-trail5', halfWidth: (910 - 90) / 3, amplitude: 170 },
     { id: 'duck-trail2', halfWidth: (910 - 90) / (2 * 2), amplitude: 170 },
+    // T40: two and a half cycles = five half-arches.
+    { id: 'duck-trail6', halfWidth: (910 - 90) / 5, amplitude: 170 },
     // duck-trail3's tighter, higher second cycle is the one that sets its
     // peak slope (waveVaried's cycles differ; the family compares its worst).
     { id: 'duck-trail3', halfWidth: 350 / 2, amplitude: 205 },
@@ -770,7 +915,7 @@ describe('LEVELS — the duck adventure is one undulation family', () => {
   ]
 
   it('gives every duck level exactly one M/C-only path (no switchback, no square wave)', () => {
-    for (const id of DUCK_TRAIL_IDS) {
+    for (const id of DUCK_ADVENTURE_IDS) {
       const level = getLevel(id)
       expect(level.paths, id).toHaveLength(1)
       const commands = new Set(level.paths[0].match(/[A-Za-z]/g))
@@ -778,20 +923,33 @@ describe('LEVELS — the duck adventure is one undulation family', () => {
     }
   })
 
-  it('increases peak slope (4A/halfWidth) strictly across the four steps', () => {
+  it('lists the slope inputs in the adventure\'s own play order', () => {
+    expect(PEAK_SLOPE_INPUTS.map((p) => p.id)).toEqual([...DUCK_ADVENTURE_IDS])
+  })
+
+  it('increases peak slope (4A/halfWidth) strictly across the six steps', () => {
     const slopes = PEAK_SLOPE_INPUTS.map(({ halfWidth, amplitude }) =>
       (4 * amplitude) / halfWidth,
     )
     expect(slopes[0]).toBeCloseTo(1.66, 2)
-    expect(slopes[1]).toBeCloseTo(3.32, 2)
-    expect(slopes[2]).toBeCloseTo(4.69, 2)
-    expect(slopes[3]).toBeCloseTo(4.98, 2)
+    expect(slopes[1]).toBeCloseTo(2.49, 2)
+    expect(slopes[2]).toBeCloseTo(3.32, 2)
+    expect(slopes[3]).toBeCloseTo(4.15, 2)
+    expect(slopes[4]).toBeCloseTo(4.69, 2)
+    expect(slopes[5]).toBeCloseTo(4.98, 2)
     for (let i = 1; i < slopes.length; i++) expect(slopes[i]).toBeGreaterThan(slopes[i - 1])
   })
 
-  it('decreases corridorWidth strictly across the four steps: 100 → 90 → 80 → 70', () => {
-    const widths = DUCK_TRAIL_IDS.map((id) => getLevel(id).corridorWidth)
-    expect(widths).toEqual([100, 90, 80, 70])
+  it('never draws the same wave twice: each plain-wave step has its own half-arch count', () => {
+    // T40's brief: the two new levels reuse the wave, never an existing
+    // level's exact shape.
+    const paths = DUCK_ADVENTURE_IDS.map((id) => getLevel(id).paths[0])
+    expect(new Set(paths).size).toBe(paths.length)
+  })
+
+  it('decreases corridorWidth strictly across the six steps: 100 → 95 → 90 → 85 → 80 → 70', () => {
+    const widths = DUCK_ADVENTURE_IDS.map((id) => getLevel(id).corridorWidth)
+    expect(widths).toEqual([100, 95, 90, 85, 80, 70])
     for (let i = 1; i < widths.length; i++) expect(widths[i]).toBeLessThan(widths[i - 1])
   })
 
@@ -816,8 +974,29 @@ describe('LEVELS — the duck adventure is one undulation family', () => {
     expect(Math.abs(depth2 - depth1)).toBeGreaterThanOrEqual(40)
   })
 
-  it('drops mustBeContinuous on all four duck levels', () => {
-    for (const id of DUCK_TRAIL_IDS) expect(getLevel(id).rules.mustBeContinuous, id).toBe(false)
+  it('drops mustBeContinuous on every duck level', () => {
+    for (const id of DUCK_ADVENTURE_IDS) expect(getLevel(id).rules.mustBeContinuous, id).toBe(false)
+  })
+
+  it('gives every pistas level exactly one clue and every level after the deduction none (T40)', () => {
+    const duck = ADVENTURES.find((a) => a.id === 'duck')!
+    const cut = DUCK_ADVENTURE_IDS.indexOf(duck.deduction!.after)
+    DUCK_ADVENTURE_IDS.forEach((id, i) => {
+      const level = getLevel(id)
+      if (i <= cut) {
+        expect(level.clue, id).toBeDefined()
+        expect(level.collect, id).toBeUndefined()
+      } else {
+        expect(level.clue, id).toBeUndefined()
+        expect(level.collect, id).toBeDefined()
+      }
+    })
+    expect(DUCK_ADVENTURE_IDS.slice(0, cut + 1).map((id) => getLevel(id).clue!.kind)).toEqual([
+      'droplet',
+      'corn',
+      'feather',
+      'webfoot',
+    ])
   })
 })
 
@@ -859,7 +1038,7 @@ describe('LEVELS — every path is engine-ready', () => {
 
 describe('getLevel', () => {
   it('returns the level by id', () => {
-    expect(getLevel('f2-bucles').title).toBe('Los rulos altos')
+    expect(getLevel('f2-bucles').title).toBe('Los rulos redondos')
   })
 
   it('throws for an unknown id', () => {
@@ -1122,7 +1301,9 @@ describe('levelsByPhase', () => {
       'sand4',
       'f1-libre',
       'duck-trail1',
+      'duck-trail5',
       'duck-trail2',
+      'duck-trail6',
       'duck-trail3',
       'duck-trail4',
       'trail1',
@@ -1204,7 +1385,7 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
       'sand3',
       'sand4',
       'f1-libre',
-      ...DUCK_TRAIL_IDS,
+      ...DUCK_ADVENTURE_IDS,
       ...DETECTIVE_TRAIL_IDS,
       'sheep-hill1',
       'sheep-hill2',
@@ -1561,14 +1742,16 @@ describe('detective-mode — progress migration reaches a mid-campaign child wit
     store.save('f1-libre', record({ approvals: 2 }))
     for (const id of REMOVED_IDS.slice(0, 4)) store.save(id, record({ approvals: 2 }))
 
-    // Both migrations apply, in either order (they share no id): the phase-1
-    // retheme migration AND the duck-case insertion migration, which is what
-    // protects `trail1`'s new positional predecessor (`duck-trail4`).
-    for (const migrated of [migratePhase1(store.all()), migrateDuckCase(store.all())]) {
-      for (const [id, r] of Object.entries(migrated)) store.save(id, r)
+    // The phase-1 retheme migration AND the duck-case insertion migration,
+    // which is what protects `trail1`'s new positional predecessor
+    // (`duck-trail4`) — then T40's one-clue-per-level split, which reads the
+    // `duck-trail2` the duck-case migration just seeded (applied in sequence,
+    // as `openProgressStore` does).
+    for (const migrate of [migratePhase1, migrateDuckCase, migrateDuckOneCluePerLevel]) {
+      for (const [id, r] of Object.entries(migrate(store.all()))) store.save(id, r)
     }
 
-    for (const id of DUCK_TRAIL_IDS) {
+    for (const id of DUCK_ADVENTURE_IDS) {
       expect(store.isUnlocked(id)).toBe(true)
     }
     for (const id of DETECTIVE_TRAIL_IDS) {
@@ -2207,7 +2390,6 @@ describe('the bee family — C1-C6 and R1-R5 (design.md §4.2/§6.2)', () => {
       expect(level.rules.enforceOrder, id).toBe(false)
       expect(level.feedback.tone, id).toBe(false)
       expect(level.feedback.haptics, id).toBe(true)
-      expect(level.feedback.metronomeBpm, id).toBe(0)
       expect(level.feedback.rail, id).toBe(false)
       expect(level.corridorWidth, id).toBe(0)
       expect(level.rules.minFluency, id).toBe(0)
