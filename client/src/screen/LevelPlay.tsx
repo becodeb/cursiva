@@ -99,6 +99,7 @@ import { revealFractionAt } from '../levels/artCorridor'
 import { evaluateLevel } from '../game/evaluateLevel'
 import { coachMessage } from '../game/adaptiveTolerance'
 import { playApprovalTone } from '../modes/tone'
+import { onRisingEdge, playSfx } from '../audio/sfx'
 import { createTraceTone, playBeatTick, type TraceTone } from '../canvas/traceTone'
 import { pulseOnLeaving } from '../canvas/haptics'
 import { railFade, railPull } from '../canvas/rail'
@@ -120,7 +121,7 @@ import {
 import type { TraceArtCorridor } from '../canvas/TraceCanvas'
 import { directionArrowOf } from './directionArrow'
 import { goalMarkerOf } from './goalMarker'
-import type { LevelConfig, LevelTarget } from '../levels/types'
+import type { LevelConfig, LevelTarget, RevealConfig } from '../levels/types'
 import { isCaseTrail, inDetectiveWorld } from '../levels/world'
 import type { LevelAttempt, LevelRecord } from '../game/types'
 // Detective mode (design unit 6, spec: detective-mode "Clue Collection State
@@ -707,6 +708,26 @@ export function initialRevealState(reveal: LevelConfig['reveal'], search: string
   const point = lightDebugPoint(search)
   if (point === null) return EMPTY_REVEAL
   return { ...EMPTY_REVEAL, point }
+}
+
+/**
+ * T35: the `found` cue (night family only) — `light` per object whose index
+ * just entered `lit` — `lit` only ever grows (`revealTick`'s own header), so
+ * a size increase IS a genuinely new find, never a re-count of one already
+ * lit. Pure, so a call site never has to re-derive "did a NEW object just
+ * light up" itself.
+ *
+ * `erase` (glass/sand/mud/leaves) has NO matching field here to diff:
+ * `RevealState.completeAt` is set ONLY inside `revealTick`'s `light` branch
+ * (`levels/revealGrid.ts`) — an erase level's own "done" is decided at
+ * RELEASE, by `evaluateLevel`'s cleared-fraction accuracy against
+ * `rules.minAccuracy`, the SAME measurement `result.approved` already is.
+ * `clean` fires from THAT approval instead (`onRelease`, alongside
+ * `playApprovalTone()`), not from this function.
+ */
+export function fireRevealSfx(reveal: RevealConfig | undefined, prev: RevealState, next: RevealState): void {
+  if (!reveal || reveal.mode !== 'light' || next === prev) return
+  for (let i = 0; i < next.lit.size - prev.lit.size; i++) playSfx('found')
 }
 
 /**
@@ -2216,6 +2237,23 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   useEffect(() => {
     revealStateRef.current = revealState
   }, [revealState])
+  // T35: the reveal-family SFX (`clean`/`found`) fire from a DEDICATED
+  // effect over the committed `revealState`, never from a ref read inside
+  // `onFrame`'s own rAF loop. `revealTick` is a sliding-WINDOW fold keyed by
+  // `prev.seen` (`levels/revealGrid.ts`'s own header) — feeding it a ref
+  // that has not yet caught up with the last commit re-processes an
+  // overlapping window and can double-count a find. Diffing the actual
+  // COMMITTED value here, once per real state change, cannot: `prevRevealSfxRef`
+  // starts at THIS component's own initial `revealState` (so a debug-seeded
+  // partial reveal never fires on mount) and both directions of a level
+  // reset (a completed level's own state falling back to `EMPTY_REVEAL`) are
+  // FALLING transitions that `fireRevealSfx`'s own rising-edge/growth-only
+  // checks already ignore — no manual reset needed on a level change.
+  const prevRevealSfxRef = useRef(revealState)
+  useEffect(() => {
+    fireRevealSfx(level.reveal, prevRevealSfxRef.current, revealState)
+    prevRevealSfxRef.current = revealState
+  }, [level.reveal, revealState])
   const lastAnimTickRef = useRef(0)
   // Read once per mount, the same one-shot convention `isPortraitGuidanceViewport`
   // itself uses — see `prefersReducedMotion`'s own header for why a listener
@@ -2793,6 +2831,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
           timeMs,
         )
         if (next !== snakeColourStateRef.current) {
+          // T35: fire the shimmer exactly once, on the tick where the LAST
+          // piece finishes — `onRisingEdge`'s own "edge, not level" gate, so
+          // an already-fully-coloured snake never replays it on every later
+          // frame this branch still runs.
+          const wasDone = snakeColourStateRef.current.pieces.length > 0 && snakeColourStateRef.current.pieces.every((p) => p.done)
+          const isDone = next.pieces.length > 0 && next.pieces.every((p) => p.done)
+          onRisingEdge(wasDone, isDone, () => playSfx('snakeColour'))
           snakeColourStateRef.current = next
           setSnakeColourState(next)
         }
@@ -2937,8 +2982,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
           // the departing-hop animation is cosmetic/browser-only, so a node
           // environment simply skips scheduling it rather than throwing.
           if (typeof window !== 'undefined') {
+            // T35: the running collected-count BEFORE this tick's own flips —
+            // `playSfx('collect', { index })` rises a little per item, so a
+            // level's pieces are given consecutive indices even when more
+            // than one flips in the same tick (a debug-seeded start).
+            let collectIndex = prevCollected.collected.filter(Boolean).length
             next.collected.forEach((isCollected, i) => {
               if (!isCollected || prevCollected.collected[i]) return
+              playSfx('collect', { index: collectIndex++ })
               const item = collectItems[i]
               const id = ++departingCollectIdRef.current
               setDepartingCollectMarks((marks) => [...marks, { id, x: item.x, y: item.y }])
@@ -3073,6 +3124,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
           spineRef.current = next
           setSpineState(next)
           if (feedback.haptics) pulseOnLeaving(false, true)
+          playSfx('spine') // T35: one tiny click-pop per accepted spine
         }
         // T13 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest
         // #2: "a stroke that isn't a spine could be erased as soon as I
@@ -3153,7 +3205,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // the earlier partial one.
       const alreadyFinalized = !!collectDef && collectApprovedRef.current
       if (alreadyFinalized) return
-      if (result.approved) playApprovalTone() // best-effort, approval only
+      if (result.approved) {
+        playApprovalTone() // best-effort, approval only
+        // T35: an erase-family level (glass/sand/mud/leaves) has no
+        // `completeAt` to diff (`fireRevealSfx`'s own header) — its "done"
+        // IS this exact approval, so `clean` fires from it directly.
+        if (level.reveal?.mode === 'erase') playSfx('clean')
+      }
       // `result` is reported to `onAttempt` exactly as before on every
       // level — the parent (`GameScreen`) persists it and bumps its own
       // `version`, which is what recomputes this level's `progress` prop
@@ -3865,7 +3923,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       <header className={`cv-head${zooSign || hasProgressBar ? ' cv-head-wide' : ''}`}>
         <button
           type="button"
-          onClick={onBack}
+          onClick={() => {
+            playSfx('tap')
+            onBack()
+          }}
           className="cv-btn cv-btn-back"
           aria-label={drawnPlace ? 'Volver' : undefined}
         >
@@ -4360,14 +4421,24 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
          * out of this task's scope, `clearOnFailedRetryRef`'s own comment
          * above covers what replaces it here. */}
         {!drawnPlace && (
-          <button type="button" onClick={clearAttempt} className="cv-btn">
+          <button
+            type="button"
+            onClick={() => {
+              playSfx('tap')
+              clearAttempt()
+            }}
+            className="cv-btn"
+          >
             Borrar
           </button>
         )}
         {playDemo && (
           <button
             type="button"
-            onClick={replayDemo}
+            onClick={() => {
+              playSfx('tap')
+              replayDemo()
+            }}
             className="cv-btn"
             aria-label={drawnPlace ? 'Ver de nuevo' : undefined}
           >
@@ -4379,7 +4450,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
          * this never renders for it. Gated on `inWorld` too as belt-and-
          * braces against a future change to that rule. */}
         {!drawnPlace && level.showGuide && earnedGuideLevel !== 'full' && !guideRequested && (
-          <button type="button" onClick={() => setGuideRequested(true)} className="cv-btn">
+          <button
+            type="button"
+            onClick={() => {
+              playSfx('tap')
+              setGuideRequested(true)
+            }}
+            className="cv-btn"
+          >
             Ver la guía
           </button>
         )}
@@ -4389,7 +4467,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         {!drawnPlace && (
           <button
             type="button"
-            onClick={onNext}
+            onClick={() => {
+              playSfx('tap')
+              onNext()
+            }}
             disabled={!attempt?.approved}
             // D21/T3: an approved attempt makes this button say "now!" on its
             // own (`.cv-next-ready` in `LAYOUT_CSS`) instead of only swapping a

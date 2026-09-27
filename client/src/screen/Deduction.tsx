@@ -38,6 +38,7 @@ import {
   type ArtImage,
   type ZooAnimalId,
 } from '../detective/assets'
+import { playSfx } from '../audio/sfx'
 import { clueKindsOf, type DetectiveCase } from '../detective/cases'
 import CaptionedArt from '../detective/CaptionedArt'
 import { BackIcon, PawPrintIcon } from '../detective/icons'
@@ -619,7 +620,15 @@ export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProp
       <style>{LAYOUT_CSS + DEDUCTION_CSS}</style>
       {backdrop && <img className="cv-deduction-backdrop" src={backdrop.art.href} alt="" />}
       <header className="cv-head">
-        <button type="button" onClick={onExit} className="cv-btn cv-btn-back" aria-label="Volver">
+        <button
+          type="button"
+          onClick={() => {
+            playSfx('tap')
+            onExit()
+          }}
+          className="cv-btn cv-btn-back"
+          aria-label="Volver"
+        >
           <BackIcon />
         </button>
       </header>
@@ -703,7 +712,18 @@ export default function Deduction({ kase, solved, onSolved, onExit }: DeductionP
       kase={kase}
       state={state}
       onPick={(animal) => {
-        if (solvesCase(state, animal, kase.culprit)) onSolved()
+        // T35: decided BEFORE the state update (`pickAnimal` is pure and
+        // does not know about sound) — the SAME `solvesCase` call `onSolved`
+        // already gates on, so right/wrong never drifts from what the
+        // screen actually does with this pick. `wrong` is deliberately NOT
+        // a failure sound (`docs/01` principle 2, `audio/sfx.ts`'s own
+        // header) — see `pickAnimal`'s own "a wrong pick costs nothing".
+        if (solvesCase(state, animal, kase.culprit)) {
+          onSolved()
+          playSfx('right')
+        } else {
+          playSfx('wrong')
+        }
         setState((s) => pickAnimal(s, animal, kase.culprit))
       }}
       onExit={onExit}
