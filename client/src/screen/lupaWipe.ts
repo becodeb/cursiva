@@ -168,3 +168,79 @@ export function lupaRimOriginStyle(origin: { xPct: number; yPct: number } | unde
   if (!origin) return undefined
   return { ['--cv-wipe-x' as string]: `${origin.xPct}%`, ['--cv-wipe-y' as string]: `${origin.yPct}%` } as CSSProperties
 }
+
+// T31 follow-up (`odd/tasks/prewriting-stage-completion.md`, "the lupa look
+// regressed on the View Transitions path"): the coordinator's own report —
+// live DOM (this file's own rim/handle/highlight included) is hidden behind
+// a native View Transition's snapshot overlay for the whole crossing
+// (`screen/ScreenTransition.tsx`'s own investigation), so a browser that
+// takes that path (Chrome — the author's own tablet) never saw the rim at
+// all, regressing straight back to "a white circle expanding", the exact
+// complaint T31 was meant to fix.
+//
+// Fix (the coordinator's own option (a)): give the rim its OWN
+// `view-transition-name` (`LUPA_VT_NAME`) so it becomes a SEPARATE
+// `::view-transition-group`, captured and composited independently of
+// `root` — drawn ABOVE both the old and new root snapshots by default
+// (later `view-transition-name` in paint order), never clipped by root's
+// own `clip-path` (a different, unrelated pseudo-element tree).
+//
+// The captured "new" snapshot is the rim at a FIXED, already-fully-formed
+// size (`LUPA_VT_BASE_DIAMETER_PX` — `.cv-lupa-circle--vt` overrides the
+// live element's own `cv-lupa-grow` animation with `animation: none` so
+// what gets captured is a CLEAR, readable lupa, never a near-zero sliver
+// frozen mid-keyframe): capturing at 0 width/height would freeze an EMPTY
+// bitmap with nothing to scale up into anything visible. The VT group's own
+// `transform: scale()` keyframe then grows that captured image from a small
+// fraction up to `calc(${LUPA_RIM_FINAL_DIAMETER_VMAX}vmax / ${LUPA_VT_BASE_DIAMETER_PX}px)`
+// (a plain CSS division of two lengths, yielding the unitless scale factor
+// that reaches the SAME final on-screen diameter the manual path's own
+// `cv-lupa-grow` keyframe targets) — SAME duration/easing as
+// `screen/ScreenTransition.tsx`'s own `ROOT_VIEW_TRANSITION_CSS`, so the two
+// groups grow in step; not pixel-identical to root's own clip-path radius
+// (this file's own header on why that was never the goal). Scaling one
+// already-captured bitmap as a whole is what makes the handle and highlight
+// track the circle's edge for free — they are baked into the SAME image,
+// so their relative geometry never needs a second, independent keyframe.
+//
+// `::view-transition-old(lupa-rim) { display: none }` is load-bearing: a
+// browser that ALSO uses the native path for the PREVIOUS hop into this
+// same screen already has its OWN `.cv-lupa-rim--vt` element (from that
+// earlier entrance), left by its `both`-fill keyframe at its own FINAL
+// (fully grown) state — captured as "old" that would show a giant, already-
+// expanded circle instead of a fresh pop-in. Hiding the old snapshot
+// entirely makes every crossing start clean regardless of what the
+// previous one left behind.
+export const LUPA_VT_NAME = 'lupa-rim'
+
+/** The rim's own FIXED captured size for the View Transition path (CSS
+ *  px) — large enough to read clearly as a lupa once captured, small
+ *  enough that scaling it up to `LUPA_RIM_FINAL_DIAMETER_VMAX` does not
+ *  visibly pixelate a flat-coloured, bold-stroked shape over a fast
+ *  ≤400ms grow. 300, not larger: the CAPTURED "new" image is whatever is
+ *  actually PAINTED on screen, including `.cv-lupa-rim`'s own ancestor
+ *  `overflow: hidden` clip — a diameter that does not comfortably fit
+ *  inside the SMALLEST required viewport (844x390) would capture a
+ *  cropped, lopsided circle instead of a clean one to scale up. */
+export const LUPA_VT_BASE_DIAMETER_PX = 300
+
+export const LUPA_VT_CSS = `
+.cv-lupa-rim--vt .cv-lupa-circle {
+  view-transition-name: ${LUPA_VT_NAME};
+  width: ${LUPA_VT_BASE_DIAMETER_PX}px;
+  height: ${LUPA_VT_BASE_DIAMETER_PX}px;
+  animation: none;
+}
+::view-transition-group(${LUPA_VT_NAME}) {
+  transform-origin: center;
+  animation: cv-lupa-vt-grow ${LUPA_WIPE_DURATION_MS}ms ease-out both;
+}
+::view-transition-old(${LUPA_VT_NAME}) { display: none; }
+@keyframes cv-lupa-vt-grow {
+  0% { transform: scale(0.001); }
+  100% { transform: scale(calc(${LUPA_RIM_FINAL_DIAMETER_VMAX}vmax / ${LUPA_VT_BASE_DIAMETER_PX}px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(${LUPA_VT_NAME}) { animation-duration: 0.01ms !important; }
+}
+`

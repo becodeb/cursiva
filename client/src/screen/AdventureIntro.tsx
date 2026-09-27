@@ -23,7 +23,7 @@
 // `CaptionedArt`'s own SVG `<image href>`. `INTRO_CSS`'s comments carry NO
 // BACKTICKS — this is a template literal, and one backtick inside a
 // comment ends the string.
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
 import { ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
 import { SHEET_PAPER, fitContentWithInsets } from '../canvas/TraceCanvas'
@@ -177,7 +177,18 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
   // snake's grey art), not the bare backdrop `AdventureIntro` used to show
   // alone. `null` for every adventure whose first level has neither
   // (`introCover.ts`'s own header) — those keep the plain backdrop `<img>`.
-  const cover = introCoverFor(adventure)
+  // `useMemo`, keyed on `adventure` (a stable reference per row — `ADVENTURES`
+  // is a module-level constant array `GameScreen.tsx`'s own `introLevel`
+  // always resolves to the SAME entry): `introCoverFor` returns a fresh
+  // object every call, and the `useEffect` below depends on `[cover]` — a
+  // bare `introCoverFor(adventure)` call here would hand that effect a NEW
+  // reference on every render, re-running it, calling `setChromeInsets`/
+  // `setContainerSize` again, forcing another render, forcing a fresh
+  // `cover` reference again — an infinite render loop found live in the
+  // browser ("Maximum update depth exceeded"), not merely a theoretical
+  // risk. Memoizing keeps the reference stable across a render this
+  // component's OWN state (not `adventure`) triggered.
+  const cover = useMemo(() => introCoverFor(adventure), [adventure])
   // T31 follow-up (coordinator review: "the intro must use the SAME framing
   // as the level" — a bare crop mismatched the level's own, so the snakes
   // jumped bigger/shifted the instant play started). `chromeFacts`/
@@ -187,8 +198,11 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
   // `fitContentWithInsets` `screen/LevelPlay.tsx` itself calls — see that
   // module's own header for why this beats hand-computing the same numbers.
   // Only needed when there is a cover to frame; a trail adventure keeps its
-  // simple `object-fit: cover` crop, unaffected by any of this.
-  const chromeFacts = cover ? levelChromeFacts(adventure.levelIds[0]) : null
+  // simple `object-fit: cover` crop, unaffected by any of this. Memoized for
+  // the same reason `cover` is (never itself a `useEffect` dependency today,
+  // but no need to re-derive it — a fresh `getLevel`/`adventureProgress`
+  // call — on every unrelated re-render either).
+  const chromeFacts = useMemo(() => (cover ? levelChromeFacts(adventure.levelIds[0]) : null), [cover, adventure])
   const topGhostRef = useRef<HTMLDivElement | null>(null)
   const bottomGhostRef = useRef<HTMLDivElement | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)

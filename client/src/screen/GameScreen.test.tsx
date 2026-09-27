@@ -72,6 +72,7 @@ import GameScreen, {
   resolveEnterAction,
   resolveNextAction,
   screenTransitionKey,
+  shouldUseViewTransition,
   SKIP_ATTEMPT,
   type GameView,
 } from './GameScreen'
@@ -930,5 +931,41 @@ describe('screenTransitionKey (prewriting-stage-completion T8 item 4)', () => {
     const beat0 = screenTransitionKey({ view: 'close', levelId: 'sand4', beat: 0 })
     const beat1 = screenTransitionKey({ view: 'close', levelId: 'sand4', beat: 1 })
     expect(beat1).toBe(beat0)
+  })
+})
+
+// `shouldUseViewTransition` (`odd/tasks/prewriting-stage-completion.md` T31
+// follow-up, "the abrupt night ending"): the pure decision `advanceView`
+// makes before ever touching `document`/`window` — real screen change AND
+// native support AND no reduced-motion preference.
+describe('shouldUseViewTransition (prewriting-stage-completion T31 follow-up)', () => {
+  const night2 = { view: 'play', levelId: 'night2' } as const
+  const night3 = { view: 'play', levelId: 'night3' } as const
+  const closingBeat0 = { view: 'close', levelId: 'sand4', beat: 0 } as const
+  const closingBeat1 = { view: 'close', levelId: 'sand4', beat: 1 } as const
+
+  it('true for a real screen change (level -> next-level), when capable and not reduced', () => {
+    expect(shouldUseViewTransition(night2, night3, true, false)).toBe(true)
+  })
+
+  it('true for a real screen change (level -> closing)', () => {
+    const closing = { view: 'close', levelId: 'night4' } as const
+    expect(shouldUseViewTransition(night2, closing, true, false)).toBe(true)
+  })
+
+  it('false when the browser cannot do it', () => {
+    expect(shouldUseViewTransition(night2, night3, false, false)).toBe(false)
+  })
+
+  it('false under prefers-reduced-motion, even when capable', () => {
+    expect(shouldUseViewTransition(night2, night3, true, true)).toBe(false)
+  })
+
+  it('false for an IN-PLACE update (a closing beat advancing) — the same key screenTransitionKey already keeps stable, even when capable and not reduced', () => {
+    expect(shouldUseViewTransition(closingBeat0, closingBeat1, true, false)).toBe(false)
+  })
+
+  it('false for a no-op "change" to the exact same view', () => {
+    expect(shouldUseViewTransition(night2, night2, true, false)).toBe(false)
   })
 })

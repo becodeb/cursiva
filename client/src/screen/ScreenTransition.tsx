@@ -62,8 +62,95 @@
 // magnifying glass. Never rendered for `kind='none'` (T24's rescue flight)
 // — the decorative rim would otherwise grow over the flying animal exactly
 // like the reveal itself is already excused from doing.
+//
+// T31 follow-up (`odd/tasks/prewriting-stage-completion.md`, "the abrupt
+// night ending"): a play-test found the completion-growth-then-hold
+// sequence itself correct (T30's own verification) — the actual cut is ONE
+// FRAME LATER, when `GameScreen.tsx` swaps `state` and this file's own
+// key-swap remount tears the fully-lit scene down with nothing left to
+// bridge FROM: the growing circle above reveals the NEXT screen over
+// whatever is behind it, which for a screen that has ALREADY unmounted is
+// blank page background, not the outgoing frame.
+//
+// `ROOT_VIEW_TRANSITION_CSS` fixes this for `level → next-level` and
+// `level → closing` (`GameScreen.tsx`'s own `advanceView`) by handing the
+// crossing to the browser's native View Transitions API — the SAME
+// mechanism `zoo/rescueFlight.ts`/`ZooMap.tsx` already use for the rescue
+// flight, proven in this exact environment. `document.startViewTransition`
+// captures a REAL PIXEL SNAPSHOT of the outgoing DOM before it unmounts —
+// something no amount of clever React state can do once `LevelPlay`'s own
+// `key={state.levelId}` remounts it — so there IS an outgoing frame to
+// reveal over, unlike the manual `.cv-screen-wipe` path. `::view-transition-
+// old(root)` is given `animation: none` so the OUTGOING snapshot simply
+// STAYS at full opacity underneath for the whole crossing (never fading, so
+// the lit scene is visibly still there right up until the moment the new
+// one covers it); `::view-transition-new(root)` grows the SAME lupa-style
+// circle (`clip-path`, `0%` to `150%`, centred — VT pseudo-elements are
+// ordinary styleable/animatable boxes, replacing the UA stylesheet's own
+// default cross-fade entirely) to reveal the incoming screen OVER that
+// still-visible old frame. `GameScreen.tsx` passes `kind='native'` to this
+// component's own manual wipe whenever native View Transitions are
+// available (and motion is not reduced), so the two mechanisms are never
+// both active for the same hop — a manual `.cv-screen-wipe`/its decorative
+// rim is the FALLBACK for a browser without View Transitions (where there
+// is no outgoing snapshot to bridge from either way, so the pre-existing
+// behaviour is the best available).
+//
+// T31 follow-up #2 (coordinator review, "the lupa look regressed on the
+// View Transitions path"): live DOM (this file's own decorative rim/handle/
+// highlight included) IS hidden behind the View Transition's own snapshot
+// overlay for the crossing's whole duration — that investigation stands —
+// but a browser taking that path (Chrome, the author's own tablet) is most
+// browsers, so falling back to a plain growing circle there regressed
+// exactly the "parece más un círculo blanco que crece" complaint T31 itself
+// was meant to fix. `kind='native'` now ALSO renders `.cv-lupa-rim--vt`
+// (`lupaWipe.ts`'s own `LUPA_VT_CSS`) — the SAME rim/handle/highlight
+// markup, given its OWN `view-transition-name` (`LUPA_VT_NAME`) so it
+// becomes a SEPARATE `::view-transition-group`, captured and animated
+// independently of `root` and painted ABOVE both of its snapshots (a later
+// `view-transition-name` in paint order) — never clipped by root's own
+// `clip-path`, since that pseudo-element tree has nothing to do with this
+// one. `lupaWipe.ts`'s own header has the full derivation (the fixed
+// captured size, why `::view-transition-old(lupa-rim)` is suppressed, why
+// scaling one already-captured bitmap keeps the handle tracking the
+// circle's edge for free).
 import type { CSSProperties, ReactNode } from 'react'
-import { LUPA_WIPE_CSS, lupaRimOriginStyle } from './lupaWipe'
+import { LUPA_VT_CSS, LUPA_WIPE_CSS, lupaRimOriginStyle } from './lupaWipe'
+
+/** How long the native View Transition's own circle grows for — matches
+ *  `WIPE_DURATION_MS` below so the two paths feel the same regardless of
+ *  which one a given browser takes. */
+export const ROOT_VIEW_TRANSITION_DURATION_MS = 300
+
+/**
+ * Global — `::view-transition-*` pseudo-elements attach to the DOCUMENT
+ * root, never to wherever a `<style>` tag happens to sit in the DOM, so this
+ * is safe to render from anywhere exactly once (`GameScreen.tsx` renders it
+ * unconditionally, alongside its own `advanceView` — never from THIS
+ * component: `kind='none'` already means "no clip-path from me", and this
+ * file's own `kind='none'` test asserts exactly that string is absent, so
+ * mixing this export into that branch would falsify a test that is still
+ * correct about what THIS component itself does). Inert everywhere it is
+ * rendered unless a View Transition is actually in flight: the pseudo-
+ * elements this file selects only exist for the brief window
+ * `document.startViewTransition` itself creates them.
+ */
+export const ROOT_VIEW_TRANSITION_CSS = `
+::view-transition-old(root) {
+  animation: none;
+}
+::view-transition-new(root) {
+  animation: cv-root-view-transition-wipe-in ${ROOT_VIEW_TRANSITION_DURATION_MS}ms ease-out both;
+}
+@keyframes cv-root-view-transition-wipe-in {
+  0% { clip-path: circle(0% at 50% 50%); }
+  100% { clip-path: circle(150% at 50% 50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root) { animation-duration: 0.01ms !important; }
+}
+${LUPA_VT_CSS}
+`
 
 /** How long the wipe (or the old fade, kept only for this constant's own
  *  external reference — no caller asks for `kind='fade'` any more) takes —
@@ -83,7 +170,7 @@ export const SCREEN_TRANSITION_CSS = `
 ${LUPA_WIPE_CSS}
 `
 
-export type ScreenTransitionKind = 'wipe' | 'none'
+export type ScreenTransitionKind = 'wipe' | 'none' | 'native'
 
 export interface ScreenTransitionProps {
   /** Identifies WHICH screen this is — stable across an in-place update,
@@ -91,9 +178,14 @@ export interface ScreenTransitionProps {
    *  why that distinction is what keeps a narrated line from ever speaking
    *  twice or being cut. */
   screenKey: string
-  /** `'wipe'` (default) for every ordinary screen change; `'none'` for the
-   *  one hop T24's own rescue flight animates instead (this file's own
-   *  header). */
+  /** `'wipe'` (default) for every ordinary screen change on a browser
+   *  without native View Transitions; `'native'` for the SAME kind of
+   *  ordinary change on a browser that has them (`GameScreen.tsx`'s own
+   *  `advanceView`/`screenTransitionKind`) — the rim/handle/highlight still
+   *  render, given their own `view-transition-name` so the browser's own
+   *  snapshot overlay carries them (T31 follow-up #2, this file's own
+   *  header); `'none'` for the one hop T24's own rescue flight animates
+   *  instead. */
   kind?: ScreenTransitionKind
   /** Where the circle grows FROM, percent of the wrapper's own box — default
    *  centred. `docs/19` §6 also allows "at the Pulpito's lupa"; no caller
@@ -105,10 +197,35 @@ export interface ScreenTransitionProps {
 
 export default function ScreenTransition({ screenKey, kind = 'wipe', origin, children }: ScreenTransitionProps) {
   if (kind === 'none') {
-    // No animation class, no clip-path — the flight (or whatever else this
-    // hop is doing) is the whole visual event. Still keyed, so narration
-    // keeps the exact same mount/unmount contract every other kind gives.
+    // No animation class, no clip-path, no rim — T24's rescue flight is the
+    // whole visual event for this ONE hop (this file's own header); the
+    // exemption `GameScreen.tsx`'s own `advanceView` never touches. Still
+    // keyed, so narration keeps the exact same mount/unmount contract every
+    // other kind gives.
     return <div key={screenKey}>{children}</div>
+  }
+  if (kind === 'native') {
+    // T31 follow-up #2: the crossing itself is a native View Transition
+    // (`GameScreen.tsx`'s own `advanceView` — that file renders
+    // `ROOT_VIEW_TRANSITION_CSS`, which now also carries `lupaWipe.ts`'s own
+    // `LUPA_VT_CSS`, once, globally, never from here). This wrapper renders
+    // NO manual `.cv-screen-wipe` clip-path of its own (the native crossing
+    // already reveals `children` via `::view-transition-new(root)`) — only
+    // the rim/handle/highlight, tagged `cv-lupa-rim--vt` so the browser's
+    // own snapshot overlay carries it as a separate, independently
+    // animated group instead of hiding it behind that same overlay the way
+    // the ORDINARY live DOM is hidden for the whole crossing.
+    return (
+      <div key={screenKey}>
+        {children}
+        <div className="cv-lupa-rim cv-lupa-rim--vt" style={lupaRimOriginStyle(origin)} aria-hidden="true">
+          <div className="cv-lupa-circle">
+            <div className="cv-lupa-highlight" />
+            <div className="cv-lupa-handle" />
+          </div>
+        </div>
+      </div>
+    )
   }
   const originStyle: CSSProperties | undefined = origin
     ? ({ ['--cv-wipe-x' as string]: `${origin.xPct}%`, ['--cv-wipe-y' as string]: `${origin.yPct}%` } as CSSProperties)
