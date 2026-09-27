@@ -1950,6 +1950,30 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // has necessarily committed.
   const collectStateRef = useRef<CollectState>(initialCollectState(collectItems, debugSearch))
   const [collectState, setCollectState] = useState<CollectState>(collectStateRef.current)
+  // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "if I
+  // pass quickly through the last sheep and lose by leaving the line, it
+  // counts as grabbed but not as passing the level"). Root cause: approval
+  // for a collect level was decided ONLY at `onRelease`, but a wall-contact
+  // reset (`restartRun`, below) can fire from `onFrame` BEFORE the finger is
+  // ever lifted — and `restartRun` bumps `resetSignal`, which
+  // `TraceCanvas.tsx`'s own reset effect answers by calling `abortStroke()`
+  // (`canvas/useTraceInput.ts`), whose own doc comment states plainly: "both
+  // buffers are emptied and `onEnd` does NOT fire". So the very run that
+  // just finished collecting the last item could be discarded with NO
+  // `onRelease` ever called for it — `onAttempt` never runs, nothing is
+  // persisted, and the child has to retrace the whole route with nothing
+  // left standing on it. `isCollectComplete` cannot fix this by being
+  // checked more carefully at release: release itself is what can be
+  // skipped. The fix is to decide approval the INSTANT the last item is
+  // collected, in `onFrame`, rather than deferring it to a release that a
+  // reset can pre-empt — see the `collectDef` branch of `onFrame` and the
+  // `resetOnContact` guard right below it. `false` until this run's own
+  // `onFrame` reports completion; latched `true` exactly once so a later
+  // `onRelease` (the same gesture continuing, or a fresh one) never re-fires
+  // `onAttempt` for the same approval. Reset alongside `collectStateRef` in
+  // the level-id-keyed mount effect below — a genuinely new attempt owes
+  // nobody a stale approval.
+  const collectApprovedRef = useRef(false)
   // T20: a snake level's own colour-reveal state (`screen/snakeColour.ts`).
   // The SAME dual ref+state convention as `collectStateRef`/`spineRef` above
   // — `onFrame` needs the fresh value synchronously every frame (the fade
@@ -2229,6 +2253,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // own comment: `onFrame`/`onRelease` must never read a stale value).
     collectStateRef.current = initialCollectState(collectItems, debugSearch)
     setCollectState(collectStateRef.current)
+    // T29: this run has not reported its own completion yet.
+    collectApprovedRef.current = false
     // T17 follow-up: any hop still in flight belongs to the level that is
     // ENDING, never to the fresh one about to start.
     for (const t of departingCollectTimeoutsRef.current) window.clearTimeout(t)
@@ -2687,6 +2713,28 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
               departingCollectTimeoutsRef.current.add(timeout)
             })
           }
+          // T29: the LAST item just flipped to collected — the level is
+          // PASSED right now, whatever the finger does next (leaving the
+          // line, lifting, or a wall-contact reset: see `collectApprovedRef`'s
+          // own comment for why waiting for `onRelease` is not safe here).
+          // Approval never depends on the pillars below (docs/19 §2.2 point
+          // 4, `failedPillar: null`, same override `onRelease` already
+          // applies) — `evaluateLevel` is still called, on the CURRENT
+          // in-progress stroke, only to fill the record's accuracy/fluency
+          // fields with a real measurement instead of a placeholder.
+          // `pointerType` is unknown this early (only `onRelease` receives
+          // it) — 'touch' matches this app's actual device (docs/02) and,
+          // like every other pillar value here, is never shown for a collect
+          // level and never gates this outcome.
+          if (!collectApprovedRef.current && isCollectComplete(next)) {
+            collectApprovedRef.current = true
+            const evaluated = evaluateLevel([points], target, 'touch')
+            const result: LevelAttempt = { ...evaluated, approved: true, failedPillar: null }
+            setAttempt(result)
+            setPhase('result')
+            playApprovalTone() // best-effort, approval only
+            onAttempt(result)
+          }
         }
       }
       // Arriving at the end of the trail lights the lamp standing there. Same
@@ -2714,7 +2762,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // already computed above and the hazard answer is one point-in-circle
       // test per obstacle — no second cloud scan, which is the rule docs/02
       // §7.2 sets for every live channel.
-      if (resetOnContact) {
+      //
+      // T29: `!collectApprovedRef.current` — once a collect level's last item
+      // is collected there is nothing left ON THE SHEET for a reset to send
+      // the child back to (every item's own picture is already gone,
+      // permanently: `collectStateRef` is never rewound by `restartRun`), and
+      // the level is already passed regardless (see the `collectDef` block
+      // above). Restarting it anyway would be pure busywork — retracing an
+      // empty route — and, worse, `restartRun` calls `setAttempt(null)`,
+      // which would erase the very approval this same tick may just have
+      // set. "No reset may ever leave the child on a level with nothing left
+      // to collect" (T29's own binding rule) is satisfied by never resetting
+      // a collect level once it is done.
+      if (resetOnContact && !collectApprovedRef.current) {
         const hazardHit =
           obstaclesRef.current.length > 0 &&
           hitObstacle(head, obstaclesRef.current, target, now) >= 0
@@ -2744,6 +2804,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       arrangeOpen,
       arrangeConfig,
       hasSnakeColour,
+      onAttempt,
     ],
   )
 
@@ -2842,6 +2903,20 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         : evaluated
       setAttempt(result)
       setPhase('result')
+      // T29: on a collect level, `onFrame` already ran this exact override
+      // (`{ ...evaluated, approved: true, failedPillar: null }`) and reported
+      // it to `onAttempt` the instant the last item was collected, precisely
+      // so a wall-contact reset could never swallow it (see
+      // `collectApprovedRef`'s own comment). This release may be that SAME
+      // gesture simply continuing (nothing more to approve) or, if a reset
+      // did fire (now a no-op past that point, see the `onFrame` guard), a
+      // later one — either way `onAttempt` must not fire a SECOND time for
+      // one approval (`zoo/progress.ts` counts approvals/streaks per call).
+      // `setAttempt`/`setPhase` above still run unconditionally, so the UI
+      // reflects this release's own (equally approved) snapshot rather than
+      // the earlier partial one.
+      const alreadyFinalized = !!collectDef && collectApprovedRef.current
+      if (alreadyFinalized) return
       if (result.approved) playApprovalTone() // best-effort, approval only
       // `result` is reported to `onAttempt` exactly as before on every
       // level — the parent (`GameScreen`) persists it and bumps its own

@@ -1414,6 +1414,68 @@ describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', (
     }
     expect(() => onFrame([target.polyline[1]], true, 2000)).not.toThrow()
   })
+
+  // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "if I
+  // pass quickly through the last sheep and lose by leaving the line, it
+  // counts as grabbed but not as passing the level, so I have to do it again
+  // with no sheep left"). Root cause: approval used to be decided ONLY at
+  // `onRelease`, but a wall-contact reset (`restartRun`, fired from THIS SAME
+  // `onFrame`) bumps `resetSignal`, which `TraceCanvas.tsx`'s reset effect
+  // answers with `abortStroke()` (`canvas/useTraceInput.ts`) — and that
+  // function's own doc comment says plainly: "both buffers are emptied and
+  // `onEnd` does NOT fire". So the very run that had just finished collecting
+  // could be discarded with NO `onRelease` ever called for it, and `onAttempt`
+  // never ran. The fix decides approval the INSTANT the last item is
+  // collected, in `onFrame` itself (`LevelPlay.tsx`'s `collectApprovedRef`),
+  // and stops `resetOnContact` from resetting a level that is already done.
+  it('T29: collecting the last item and then leaving the line long enough to normally trigger a wall-contact reset still approves the level immediately — no `onRelease` needed, and no later contradicting call', () => {
+    const level = getLevel('sheep-hill1')
+    const target = buildLevelTarget(level)
+    const onAttempt = vi.fn<(a: LevelAttempt) => void>()
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={onAttempt} onNext={noop} onBack={noop} />,
+    )
+    const onFrame = traceCanvasProbe.current?.onFrame as (
+      points: TracePoint[],
+      drawing: boolean,
+      timeMs: number,
+    ) => void
+    const onRelease = traceCanvasProbe.current?.onRelease as (
+      points: TracePoint[],
+      pointerType: string,
+      all: TracePoint[][],
+    ) => void
+    // Walk the whole route, in order — the LAST sample crosses the route's
+    // own end tolerance and collects the final item.
+    let t = 200
+    for (const p of target.polyline) {
+      onFrame([p], true, t)
+      t += 200
+    }
+    // Approved already, straight out of `onFrame` — no release happened yet.
+    expect(onAttempt).toHaveBeenCalledTimes(1)
+    expect(onAttempt.mock.calls[0][0].approved).toBe(true)
+    // Now leave the line, far off the corridor, for several consecutive
+    // samples — comfortably past `contactTick`'s own 2-sample debounce, so a
+    // wall-contact reset would normally fire here (`sheep-hill1` sets
+    // `resetOnContact: true`). The SAME/NEXT-sample scenario the playtest
+    // describes: the last item was JUST collected, and now the finger is
+    // off the line.
+    const half = (target.corridorWidth || 60) / 2
+    const last = target.polyline[target.polyline.length - 1]
+    for (let i = 0; i < 6; i++) {
+      onFrame([{ x: last.x + half * 10, y: last.y + half * 10 }], true, t)
+      t += 200
+    }
+    // No reset ever un-approves a finished collect level: still exactly the
+    // one call, from before the finger ever left the line.
+    expect(onAttempt).toHaveBeenCalledTimes(1)
+    // Whatever happens next — including an eventual release with a trivial,
+    // unrelated stroke — must not report a second, contradicting attempt for
+    // the same approval (`zoo/progress.ts` counts approvals/streaks per call).
+    onRelease([{ x: 0, y: 0 }], 'touch', [[{ x: 0, y: 0 }]])
+    expect(onAttempt).toHaveBeenCalledTimes(1)
+  })
 })
 
 // The turtles' own collect wiring (T28, `odd/tasks/prewriting-stage-
