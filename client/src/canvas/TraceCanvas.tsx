@@ -438,6 +438,28 @@ const HAZARD_COLOR = '#7e6a9e'
 const HAZARD_OPACITY = 0.9
 
 /**
+ * T41 follow-up: the "sticker" edge every hazard PICTURE wears — a paper
+ * outline cut ~3 units around the drawn shape plus a faint lift shadow — so a
+ * hazard reads on any corridor: the grey stone on the grey mountain path, the
+ * snail on the brown sand channel, the fish on the white pond corridor (where
+ * the outline disappears into the paper and the lift shadow does the work).
+ *
+ * CSS filter FUNCTIONS, deliberately: no `<filter>` element, no `<defs>`, no
+ * `url(#…)` — this file's own scar (see the maze notes above). A browser that
+ * ignored filter functions on SVG content would just draw the plain picture,
+ * never a blank sheet. Offsets are in the sheet's own units (the image lives
+ * in the viewBox), so the edge scales with the sheet like the stroke does.
+ * Hazards only: collect items and clue marks never wear it.
+ */
+export const HAZARD_STICKER_FILTER = [
+  `drop-shadow(4px 0 0.8px ${SHEET_PAPER})`,
+  `drop-shadow(-4px 0 0.8px ${SHEET_PAPER})`,
+  `drop-shadow(0 4px 0.8px ${SHEET_PAPER})`,
+  `drop-shadow(0 -4px 0.8px ${SHEET_PAPER})`,
+  'drop-shadow(0 2px 2.5px rgba(26, 26, 26, 0.3))',
+].join(' ')
+
+/**
  * T33 follow-up (orchestrator screenshot review, "the cues work but are
  * nearly invisible"): the idle-nudge cue's own hand — a marker-style
  * pointing hand, drawn from three plain rounded rects (never a filled dot or
@@ -2326,6 +2348,7 @@ export default function TraceCanvas({
                   {...placeArt(hazards.art, 2 * r, { x: 0, y: 0 })}
                   preserveAspectRatio="xMidYMid meet"
                   opacity={HAZARD_OPACITY}
+                  style={{ filter: HAZARD_STICKER_FILTER }}
                 />
               </g>
             ) : (

@@ -1490,6 +1490,25 @@ describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', (
     expect(() => onFrame([target.polyline[1]], true, 2000)).not.toThrow()
   })
 
+  // T41: a hazard restarts the run even where the walls are forgiving
+  // (turtles, monkeys) and on a routeless sheet (the bee), so the surface
+  // must be handed the restart signal there too — and the hazard picture.
+  it('T41: hands the hazards and the restart signal to the surface on every hazard level', () => {
+    for (const id of ['duck-trail3', 'sheep-hill3', 'llama-peak3', 'bee3', 'turtle3', 'monkey3']) {
+      const level = getLevel(id)
+      renderToString(<LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />)
+      const hazards = traceCanvasProbe.current?.hazards as { radii: number[]; art?: { href: string } } | undefined
+      expect(hazards?.radii, id).toHaveLength(level.obstacles?.length ?? -1)
+      expect(hazards?.art?.href, id).toBe(level.hazardArt?.href)
+      expect(typeof traceCanvasProbe.current?.resetSignal, id).toBe('number')
+    }
+    // A forgiving level with no hazard still never restarts.
+    renderToString(
+      <LevelPlay level={getLevel('turtle2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(traceCanvasProbe.current?.resetSignal).toBeUndefined()
+  })
+
   // T29 (`odd/tasks/prewriting-stage-completion.md`, tablet playtest: "if I
   // pass quickly through the last sheep and lose by leaving the line, it
   // counts as grabbed but not as passing the level, so I have to do it again

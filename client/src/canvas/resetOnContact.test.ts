@@ -2,7 +2,7 @@
 // The whole risk of this rule is resetting a child who never actually left the
 // corridor, so these tests are mostly about what must NOT trip it.
 import { describe, expect, it } from 'vitest'
-import { contactTick, NO_CONTACT, RESET_CONTACT_TICKS } from './resetOnContact'
+import { contactThisSample, contactTick, NO_CONTACT, RESET_CONTACT_TICKS } from './resetOnContact'
 
 describe('contactTick (debouncing the ~10 Hz contact sample)', () => {
   it('never resets while the fingertip stays inside', () => {
@@ -75,5 +75,22 @@ describe('contactTick (debouncing the ~10 Hz contact sample)', () => {
     // sample that reported no contact at all.
     expect(contactTick(NO_CONTACT, true, 0).reset).toBe(true)
     expect(contactTick(NO_CONTACT, false, 0).reset).toBe(false)
+  })
+})
+
+describe('contactThisSample (T41: a hazard bites even where the walls forgive)', () => {
+  it('counts the wall only when the level resets on walls', () => {
+    expect(contactThisSample(true, true, false)).toBe(true)
+    expect(contactThisSample(false, true, false)).toBe(false)
+  })
+
+  it('always counts a hazard, whatever the wall rule says', () => {
+    expect(contactThisSample(false, false, true)).toBe(true)
+    expect(contactThisSample(true, false, true)).toBe(true)
+  })
+
+  it('nothing touched is no contact', () => {
+    expect(contactThisSample(true, false, false)).toBe(false)
+    expect(contactThisSample(false, false, false)).toBe(false)
   })
 })

@@ -16,6 +16,8 @@ import {
   waypointRings,
   waypointScore,
   waypointTick,
+  waypointLatchScore,
+  waypointsComplete,
   type WaypointConfig,
   type WaypointState,
 } from './waypoints'
@@ -298,5 +300,22 @@ describe('seedWaypoints — the one function every reset site must call', () => 
   it('returns debugWaypoints(cfg, k) when a debug count is present', () => {
     const cfg = makeConfig()
     expect(seedWaypoints(cfg, 2)).toEqual(debugWaypoints(cfg, 2))
+  })
+})
+
+describe('waypointsComplete / waypointLatchScore (T41: approval from the latch)', () => {
+  it('is complete only with every flower open AND the hive reached', () => {
+    const cfg = makeConfig()
+    expect(waypointsComplete(EMPTY_WAYPOINTS, cfg)).toBe(false)
+    expect(waypointsComplete({ lit: new Set([0, 1, 2]), home: false, seen: 0 }, cfg)).toBe(false)
+    expect(waypointsComplete({ lit: new Set([0, 2]), home: true, seen: 0 }, cfg)).toBe(false)
+    expect(waypointsComplete({ lit: new Set([0, 1, 2]), home: true, seen: 0 }, cfg)).toBe(true)
+  })
+
+  it("scores the latch with waypointScore's own formula", () => {
+    const cfg = makeConfig()
+    expect(waypointLatchScore(EMPTY_WAYPOINTS, cfg)).toBe(0)
+    expect(waypointLatchScore({ lit: new Set([1]), home: true, seen: 0 }, cfg)).toBe(50)
+    expect(waypointLatchScore({ lit: new Set([0, 1, 2]), home: true, seen: 0 }, cfg)).toBe(100)
   })
 })

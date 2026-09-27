@@ -58,3 +58,13 @@ export function contactTick(
   if (consecutive >= Math.max(1, ticks)) return { consecutive: 0, reset: true }
   return { consecutive, reset: false }
 }
+
+/**
+ * T41: what counts as contact on one sample. The wall only when the level's
+ * own `resetOnContact` rule is on; a hazard always — a hazard the child may
+ * touch freely is an animation, not a reason to stop, so every level that
+ * has one (forgiving walls or none at all, like the bee) restarts on it.
+ */
+export function contactThisSample(wallRule: boolean, outside: boolean, hazardHit: boolean): boolean {
+  return (wallRule && outside) || hazardHit
+}

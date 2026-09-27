@@ -783,7 +783,9 @@ const PHASE_1: LevelConfig[] = [
     // burbujas": the level collects ducklings, and the author heard the
     // narrator send the child after bubbles that were not there.
     title: 'Los patitos en las olas',
-    hint: 'Juntá a los patitos: unas olas son más grandes.',
+    // [T41] The duck adventure's inhibition step: the first hazard of the
+    // journey, one slow fish. The hint names it and the strategy.
+    hint: '¡Cuidado con el pez que salta! Esperá que pase y juntá a los patitos.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -824,6 +826,16 @@ const PHASE_1: LevelConfig[] = [
     // a new art request, `docs/20`'s own `B…` numbering; T21's own report
     // names it `B16`).
     collect: { items: 'crests', art: ANIMAL_ART.pato, size: 40 },
+    // [T41, author: "que aprendan cuándo frenar y no hacer todo apurado"]
+    // One fish jumping across the pond, on the first descending flank, well
+    // clear of the first crest's duckling (`catalog.test.ts`'s T41 block
+    // measures every clearance, including the stretch where a child stops to
+    // wait). `travel` 272 is 3.4× the 80 corridor, shifted 20 toward the open
+    // water below the flank; the slowest period of all (3200) because this is
+    // the child's first hazard in the journey. The corridor walls keep this
+    // level's own reset rule (T29: collected ducklings stay collected).
+    obstacles: [{ at: 0.25, travel: 272, shift: 20, periodMs: 3200, phase: 0, radius: 30 }],
+    hazardArt: ZOO_ANIMAL_ART.pez,
   },
   {
     id: 'duck-trail4',
@@ -1037,7 +1049,8 @@ const PHASE_1: LevelConfig[] = [
     id: 'sheep-hill3',
     phase: 1,
     title: 'Una alta y una bajita',
-    hint: 'Subí alto, después una lomita más baja.',
+    // [T41] Names the stone and the strategy (the stop is the new demand).
+    hint: '¡Cuidado con la piedra que rueda! Esperá que pase y seguí las lomas.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -1051,6 +1064,16 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     // T17: same mechanic as sheep-hill1's own `collect` — see its comment.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.sheep, size: 56 },
+    // [T41] One stone rolling across the climb to the last tall peak. The
+    // ridge's flanks stand close (an 80 corridor on 273-unit peaks), so this
+    // is the one spot where a swing opens a real gap without reaching the
+    // flank before it: a small stone (radius 22) on a swing shifted 35 units
+    // up the slope's outer side, measured in `catalog.test.ts`'s T41 block
+    // (a first try at the valley swept back over the flank the child waits
+    // on). Not on `sheep-hill4`: its 60 corridor is the narrowest of the
+    // family, and a stop there would stack two demands on the hardest step.
+    obstacles: [{ at: 0.71, travel: 240, shift: -35, periodMs: 3200, phase: 0, radius: 22 }],
+    hazardArt: SECTOR_ADVENTURE_ART.stone,
   },
   {
     id: 'sheep-hill4',
@@ -1116,7 +1139,8 @@ const PHASE_1: LevelConfig[] = [
     id: 'llama-peak3',
     phase: 1,
     title: 'Tres picos seguidos',
-    hint: 'Seguí los tres picos, uno tras otro.',
+    // [T41] Names the stone and the strategy.
+    hint: '¡Cuidado con la piedra que rueda! Esperá que pase y seguí los picos.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -1130,6 +1154,14 @@ const PHASE_1: LevelConfig[] = [
     letters: [],
     // T17: same mechanic as llama-peak1's own `collect` — see its comment.
     collect: { items: 'peaks', art: SECTOR_ADVENTURE_ART.llama, size: 64 },
+    // [T41] One stone rolling through the valley between the second and
+    // third peaks, down into the open ground under the ridge. Mid-flank the
+    // peaks stand too close for any swing that opens a gap (it reaches the
+    // flank before); the valley is where the sheet opens up. 245 travel
+    // (3.5 × 70) keeps the clear window over half the cycle
+    // (`hazardGapFraction`). `llama-peak4` (60, the narrowest) stays free.
+    obstacles: [{ at: 0.665, travel: 245, shift: 10, periodMs: 3000, phase: 0, radius: 28 }],
+    hazardArt: SECTOR_ADVENTURE_ART.stone,
   },
   {
     id: 'llama-peak4',
@@ -1514,7 +1546,8 @@ const PHASE_1: LevelConfig[] = [
     id: 'bee3',
     phase: 1,
     title: 'El trayecto más largo',
-    hint: 'El panal está lejos. Pasá por las flores y llevá a la abeja hasta llegar.',
+    // [T41] Names the leaf and the strategy; the flowers stay in the hint.
+    hint: 'Pasá por las flores. ¡Cuidado con la hoja! Esperá que pase y seguí.',
     kind: 'free',
     surface: 'blank',
     maze: false,
@@ -1540,6 +1573,17 @@ const PHASE_1: LevelConfig[] = [
       goalArt: SECTOR_ADVENTURE_ART.honeycomb,
       goalSize: 96,
     },
+    // [T41] A leaf blown back and forth across the way from the second
+    // flower to the third. A bee level has no route, so the hazard is pinned
+    // to the midpoint of that leg (`centre`) and swings across it (39°, the
+    // leg's own perpendicular) far enough that going around it is a long
+    // detour: waiting is the short way. Touching it sends the bee back to
+    // its start with every opened flower still open (T29's rule; the latch
+    // approves, `levelCompletion.ts`). `bee4` (smallest flowers) stays free.
+    obstacles: [
+      { at: 0, centre: { x: 680, y: 307 }, swingDeg: 39, travel: 300, periodMs: 3000, phase: 0, radius: 30 },
+    ],
+    hazardArt: SECTOR_ADVENTURE_ART.leaf,
   },
   {
     id: 'bee4',
@@ -2296,7 +2340,8 @@ const PHASE_2: LevelConfig[] = [
     id: 'turtle3',
     phase: 2,
     title: 'Tres vueltas chiquitas',
-    hint: 'Tres vueltas más chiquitas, siempre para el mismo lado.',
+    // [T41] Names the snails and the strategy.
+    hint: 'Tres vueltas chiquitas. ¡Cuidado con los caracoles! Esperá que pasen.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -2314,6 +2359,21 @@ const PHASE_2: LevelConfig[] = [
     demo: true,
     // T28: same mechanic as turtle1's own `collect` — see its comment.
     collect: { items: 'loops', art: ZOO_ANIMAL_ART.tortuga, size: 48 },
+    // [T41] Two snails, late in the journey, at the bottoms of the second
+    // and third rings (the first ring is the warm-up). A ring bottom is the
+    // only open sheet a ring has: its neighbours sit 30 units away sideways
+    // and its own turtle sits in the hole above. So the swing is short
+    // (radius 22) and shifted 10 units OUTWARD (down): it reaches from just
+    // under the turtle to the sheet's bottom margin and still leaves the
+    // corridor clear for half of every cycle (`hazardGapFraction`). Periods
+    // 3000/2600 and half a cycle apart, like `f1-pelotas`, so each snail is
+    // read on its own. The walls stay forgiving; only a snail restarts
+    // (T41, `LevelPlay`'s `hazardResets`), and ringed turtles stay out.
+    obstacles: [
+      { at: 0.518, travel: 214, shift: 10, periodMs: 3000, phase: 0, radius: 22 },
+      { at: 0.885, travel: 214, shift: 10, periodMs: 2600, phase: 0.5, radius: 22 },
+    ],
+    hazardArt: SECTOR_ADVENTURE_ART.snail,
   },
   {
     id: 'turtle4',
@@ -2484,7 +2544,8 @@ const PHASE_2: LevelConfig[] = [
     id: 'monkey3',
     phase: 2,
     title: 'Rulos más chiquitos',
-    hint: 'Las lianas se juntan: vueltas más chiquitas.',
+    // [T41] Names the leaves and the strategy.
+    hint: 'Vueltas chiquitas. ¡Cuidado con las hojas! Esperá que pasen y seguí.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -2498,6 +2559,18 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
+    // [T41] Two falling leaves, last adventure of the journey: one in each
+    // valley between two loops, where the route runs level and the sheet is
+    // open below (and, above, the leaf rises into the gap between the two
+    // loops, clear of both). Never on a loop's own crossing. Radius 24 and a
+    // 5-unit outward shift keep the rising leaf off both loops' strands.
+    // Periods and phases as `turtle3`'s. `monkey4` (70, the narrowest)
+    // stays free.
+    obstacles: [
+      { at: 0.335, travel: 218, shift: 5, periodMs: 3000, phase: 0, radius: 24 },
+      { at: 0.665, travel: 218, shift: 5, periodMs: 2600, phase: 0.5, radius: 24 },
+    ],
+    hazardArt: SECTOR_ADVENTURE_ART.leaf,
     // [T27] Past the deduction, the case is solved — this level (and
     // `monkey4`) gathers the recovered monkey FAMILY along the loops'
     // own crests, the `collect` mechanic `sheep-hill`/`llama-peak`/

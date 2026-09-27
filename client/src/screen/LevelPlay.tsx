@@ -71,6 +71,7 @@ import {
   waypointArt,
   waypointRings,
   waypointTick,
+  waypointsComplete,
   type WaypointState,
 } from '../levels/waypoints'
 import {
@@ -88,7 +89,7 @@ import {
 import { grassScatter, mudScatter } from '../canvas/groundScatter'
 import type { TracePoint } from '../canvas/useTraceInput'
 import { resolveInkPolicy } from '../canvas/ink'
-import { contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnContact'
+import { contactThisSample, contactTick, NO_CONTACT, type ResetDebounce } from '../canvas/resetOnContact'
 import { buildLevelTarget } from '../levels/buildLevel'
 import { hitObstacle, obstacleAt } from '../levels/obstacles'
 import { routeApexes } from '../levels/vertexArt'
@@ -2675,6 +2676,11 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const obstacles = useMemo(() => level.obstacles ?? [], [level.obstacles])
   const obstaclesRef = useRef(obstacles)
   obstaclesRef.current = obstacles
+  // T41: a hazard ALWAYS restarts the run on contact, on every level that
+  // has one — including a level whose walls are forgiving (`resetOnContact:
+  // false`: turtles, monkeys) and a routeless one (the bee). The walls keep
+  // their own rule; only the thing the child is asked to wait for bites.
+  const hazardResets = obstacles.length > 0
   const hazards = useMemo<TraceHazards | undefined>(
     () =>
       obstacles.length > 0
@@ -2729,17 +2735,18 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     setResetSignal((n) => n + 1)
     setRestarted(true)
     setRevealState(EMPTY_REVEAL)
-    // A FOUND, LATENT DEFECT, recorded rather than silently fixed here
-    // (`radial-spines` design.md §6/§9 item 5): this resets the waypoint
-    // fold with the BARE `EMPTY_WAYPOINTS` constant, exactly the shipped-bug
-    // shape `arrange.ts`'s own `seedArrange` doc comment warns about — it
-    // would wipe a `?debug=estela:<k>` seed instead of reseeding through
-    // `initialWaypointState`. It is unreachable today (only
-    // `resetOnContact: true` reaches `restartRun`, and no free level sets
-    // it), so a neighbouring capability's bug is not repaired in passing
-    // here; it stays exactly as it was before this change.
-    waypointRef.current = EMPTY_WAYPOINTS
-    setWaypointState(EMPTY_WAYPOINTS)
+    // T41: a bee level reaches `restartRun` now (its hazard), and the
+    // flowers it already opened STAY open — the rule T29 set for collected
+    // items ("collected things persist"). Only `seen` goes back to 0, because
+    // the next stroke is a new one; approval reads the latch
+    // (`levelCompletion.ts`), not the buffer this restart empties. This also
+    // retires the old latent defect recorded here (`radial-spines` design.md
+    // §6/§9 item 5): the bare `EMPTY_WAYPOINTS` reset would have wiped a
+    // `?debug=estela:<k>` seed.
+    if (waypointRef.current.seen !== 0) {
+      waypointRef.current = { ...waypointRef.current, seen: 0 }
+      setWaypointState(waypointRef.current)
+    }
     // The spine latch resets the SAME way `resetSurface` does — THROUGH
     // `initialSpineState`, never a bare constant, so this new field does
     // not repeat the waypoint fold's own bug the moment it is born.
@@ -3086,11 +3093,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // set. "No reset may ever leave the child on a level with nothing left
       // to collect" (T29's own binding rule) is satisfied by never resetting
       // a collect level once it is done.
-      if (resetOnContact && !collectApprovedRef.current) {
-        const hazardHit =
-          obstaclesRef.current.length > 0 &&
-          hitObstacle(head, obstaclesRef.current, target, now) >= 0
-        const next = contactTick(contactRef.current, out || hazardHit)
+      //
+      // T41: the same guard for a waypoint level — once the bee has every
+      // flower and the hive, a hazard has nothing left to send it back from.
+      if (
+        (resetOnContact || hazardResets) &&
+        !collectApprovedRef.current &&
+        !(level.waypoints && waypointsComplete(waypointRef.current, level.waypoints))
+      ) {
+        const hazardHit = hazardResets && hitObstacle(head, obstaclesRef.current, target, now) >= 0
+        const next = contactTick(contactRef.current, contactThisSample(resetOnContact, out, hazardHit))
         contactRef.current = next
         if (next.reset) restartRun()
       }
@@ -3100,6 +3112,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       feedback.tone,
       feedback.haptics,
       resetOnContact,
+      hazardResets,
       restartRun,
       clueDef,
       trailClueMarks,
@@ -3157,9 +3170,23 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // collect bar's own remaining count is the only "what's left" signal
       // these levels ever show (design.md §2.2 point 5, `docs/01` "no
       // punishment, no red, no failure sound").
+      // T41: the bee's latch, folded with the stroke just released (the last
+      // frame's segment may not have been sampled yet), so approval reads
+      // the flowers the child sees open.
+      let releasedWaypoints: WaypointState | undefined
+      if (level.waypoints && !waypointPin) {
+        const lastReleased = snapshot[snapshot.length - 1] ?? []
+        releasedWaypoints = waypointTick(waypointRef.current, lastReleased, true, level.waypoints)
+        if (releasedWaypoints !== waypointRef.current) {
+          waypointRef.current = releasedWaypoints
+          setWaypointState(releasedWaypoints)
+        }
+      }
       const outcome = releaseOutcome({
         evaluated,
         snapshot,
+        waypoints:
+          level.waypoints && releasedWaypoints ? { state: releasedWaypoints, cfg: level.waypoints } : undefined,
         collectComplete: collectDef ? isCollectComplete(collectStateRef.current) : undefined,
         spines: level.spines && !spinePin ? { prev: spineRef.current, cfg: level.spines } : undefined,
         snakes: hasSnakeColour ? snakeColourStateRef.current : undefined,
@@ -3225,7 +3252,20 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // (`zoo/progress.ts`) with this attempt's own filing already in it.
       onAttempt(result)
     },
-    [target, onAttempt, clueDef, collectDef, arrangeOpen, level.spines, level.reveal, spinePin, feedback.haptics, hasSnakeColour],
+    [
+      target,
+      onAttempt,
+      clueDef,
+      collectDef,
+      arrangeOpen,
+      level.spines,
+      level.reveal,
+      level.waypoints,
+      spinePin,
+      waypointPin,
+      feedback.haptics,
+      hasSnakeColour,
+    ],
   )
 
   const replayDemo = (): void => {
@@ -4218,8 +4258,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         inkHidden={arrangeOpen}
         inkPolicy={inkPolicy}
         artCorridor={traceArtCorridor}
-        // Any bump restarts the run (docs/01 principle 2).
-        resetSignal={resetOnContact ? resetSignal : undefined}
+        // Any bump restarts the run (docs/01 principle 2); a hazard always
+        // does (T41).
+        resetSignal={resetOnContact || hazardResets ? resetSignal : undefined}
         // Clue marks (design unit 4/6). Absent on every level without a
         // `clue` config, so the surface pays nothing for the feature.
         clues={clueDef ? { marks: traceClueMarks } : undefined}

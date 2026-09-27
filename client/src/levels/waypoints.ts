@@ -139,6 +139,24 @@ export function waypointTick(
 }
 
 /**
+ * T41: the errand the child SEES done — every flower open and the hive
+ * reached, read from the latch. What a waypoint level's release approves by
+ * (`screen/levelCompletion.ts`), because a hazard restart empties the stroke
+ * buffer `waypointScore` would otherwise re-read while the opened flowers
+ * stay open (collected things persist, T29).
+ */
+export function waypointsComplete(state: WaypointState, cfg: WaypointConfig): boolean {
+  return state.home && cfg.stops.every((_, i) => state.lit.has(i))
+}
+
+/** The latch's own share of the errand, `waypointScore`'s formula over what
+ *  the child has already opened rather than over the strokes still held. */
+export function waypointLatchScore(state: WaypointState, cfg: WaypointConfig): number {
+  const reached = cfg.stops.filter((_, i) => state.lit.has(i)).length + (state.home ? 1 : 0)
+  return Math.round((100 * reached) / (cfg.stops.length + 1))
+}
+
+/**
  * The accuracy pillar for a waypoint level: the fraction of the ERRAND that
  * is done, `round(100 * (lit + home) / (stops.length + 1))`.
  *

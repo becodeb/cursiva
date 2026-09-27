@@ -9,7 +9,7 @@
 // configs live on as the unwired, exported `LEGACY_PHASE_1`.
 import { describe, expect, it } from 'vitest'
 import { flattenPathD } from '../letters/svgLetter'
-import { HEDGEHOG_ART, SECTOR_ADVENTURE_ART } from '../detective/assets'
+import { HAZARD_STARFISH_ART, HEDGEHOG_ART, SECTOR_ADVENTURE_ART, ZOO_ANIMAL_ART } from '../detective/assets'
 import { LevelProgressStore } from '../game/LevelProgressStore'
 import type { StorageLike } from '../game/LevelProgressStore'
 import { migratePhase1 } from '../game/migratePhase1'
@@ -31,8 +31,9 @@ import {
   levelsByPhase,
   nextLevelId,
 } from './catalog'
-import { hazardGapFraction } from './obstacles'
+import { OBSTACLE_INK_ALLOWANCE, hazardGapFraction, obstacleAt } from './obstacles'
 import { ADVENTURES } from '../zoo/adventures'
+import { JOURNEY } from '../zoo/journey'
 import { SECTORS } from '../zoo/sectors'
 
 /** The duck adventure's levels in PLAY order (T40 put two new pistas levels
@@ -43,6 +44,7 @@ import {
   cornerClearance,
   loopHoleClearances,
   ovalSpacingClearance,
+  selfCrossingPoints,
   ovalTurnRadius,
   peakRidgeCorridorLimit,
   spiral,
@@ -589,35 +591,48 @@ describe('LEVELS — hazards and reset', () => {
     }
   })
 
-  it('puts hazards on trail 1 and f2-agua4, and exactly one each (design C3, §4)', () => {
+  it('puts hazards on trail 1, f2-agua4 and the T41 inhibition levels', () => {
+    // A hazard without a consequence is an animation, not an obstacle: every
+    // one of these restarts the run on contact, the walls' own
+    // `resetOnContact` notwithstanding (T41, `contactThisSample`).
     const hazardous = LEVELS.filter((l) => (l.obstacles?.length ?? 0) > 0)
-    expect(hazardous.map((l) => l.id)).toEqual(['trail1', 'f2-agua4'])
-    for (const level of hazardous) expect(level.obstacles).toHaveLength(1)
-    // A hazard without the reset rule is an animation, not an obstacle.
-    for (const level of LEVELS) {
-      if ((level.obstacles?.length ?? 0) > 0) expect(level.resetOnContact).toBe(true)
-    }
+    expect(hazardous.map((l) => l.id)).toEqual([
+      'duck-trail3',
+      'trail1',
+      'sheep-hill3',
+      'llama-peak3',
+      'bee3',
+      'turtle3',
+      'monkey3',
+      'f2-agua4',
+    ])
   })
 
-  it('sits every hazard well inside its route, with room to approach and stop', () => {
-    for (const id of ['trail1', 'f2-agua4']) {
-      const obstacles = getLevel(id).obstacles ?? []
-      expect(obstacles, id).toHaveLength(1)
-      expect(obstacles[0].at, id).toBeGreaterThan(0.15)
-      expect(obstacles[0].at, id).toBeLessThan(0.85)
+  it('sits every route hazard well inside its route, with room to approach and stop', () => {
+    // Room measured along the route: at least two corridor widths of track
+    // before the hazard (to approach and stop) and after it (to go on).
+    for (const level of LEVELS) {
+      const target = buildLevelTarget(level)
+      for (const o of level.obstacles ?? []) {
+        if (o.centre) continue
+        expect(o.at * target.length, level.id).toBeGreaterThanOrEqual(2 * level.corridorWidth)
+        expect((1 - o.at) * target.length, level.id).toBeGreaterThanOrEqual(2 * level.corridorWidth)
+      }
     }
   })
 
   it('runs every hazard slowly enough for a six-year-old to read and plan', () => {
     // Band widened from trail1's own 2200-2800/26-34 to admit f2-agua4's
     // slower, wider starfish (periodMs 3000, radius 34) — design.md §4's
-    // numbers, deliberately not trail1's own literals (D3).
-    for (const id of ['trail1', 'f2-agua4']) {
-      for (const o of getLevel(id).obstacles ?? []) {
-        expect(o.periodMs, id).toBeGreaterThanOrEqual(2200)
-        expect(o.periodMs, id).toBeLessThanOrEqual(3200)
-        expect(o.radius, id).toBeGreaterThanOrEqual(26)
-        expect(o.radius, id).toBeLessThanOrEqual(36)
+    // numbers, deliberately not trail1's own literals (D3) — and, T41, down
+    // to radius 22 for `turtle3`'s snails, the only size a ring bottom has
+    // room for between the turtle in the ring and the sheet's edge.
+    for (const level of LEVELS) {
+      for (const o of level.obstacles ?? []) {
+        expect(o.periodMs, level.id).toBeGreaterThanOrEqual(2200)
+        expect(o.periodMs, level.id).toBeLessThanOrEqual(3200)
+        expect(o.radius, level.id).toBeGreaterThanOrEqual(22)
+        expect(o.radius, level.id).toBeLessThanOrEqual(36)
       }
     }
   })
@@ -626,6 +641,238 @@ describe('LEVELS — hazards and reset', () => {
     const level = getLevel('f2-agua4')
     const o = (level.obstacles ?? [])[0]
     expect(hazardGapFraction(o, level.corridorWidth)).toBeGreaterThan(0.5)
+  })
+})
+
+// [T41, author: "En más niveles necesito que agregues alguna dificultad de
+// inhibición ... que aprendan cuándo frenar y no hacer todo apurado."] The
+// f2-agua4 starfish, spread across the journey: one hazard level per
+// adventure where a crossing hazard fits, a gentle ramp (one hazard early,
+// two late), themed art, and a hint that names the hazard and the stop.
+describe('LEVELS — inhibition hazards across the journey (T41)', () => {
+  /** Hazard levels per adventure. `0` rows are skipped on purpose:
+   *  night (a torch search with no route to cross), hedgehog (short loose
+   *  spines, each already ends in a stop), snake (colouring inside the
+   *  journey's narrowest art corridors), dolphin (waves packed 140 units
+   *  apart: no swing opens a gap without entering the next wave's lane). */
+  const EXPECTED: Readonly<Record<string, number>> = {
+    duck: 1,
+    sheep: 1,
+    llama: 1,
+    night: 0,
+    hedgehog: 0,
+    snake: 0,
+    bee: 1,
+    fish: 1,
+    dolphin: 0,
+    turtles: 1,
+    monkeys: 1,
+  }
+  const hazardLevels = (ids: readonly string[]) => ids.filter((id) => (getLevel(id).obstacles?.length ?? 0) > 0)
+
+  /** The word the child hears for each hazard picture. */
+  const HAZARD_WORD: ReadonlyArray<{ href: string; word: RegExp }> = [
+    { href: HAZARD_STARFISH_ART.href, word: /estrella/i },
+    { href: ZOO_ANIMAL_ART.pez.href, word: /\bpez\b/i },
+    { href: SECTOR_ADVENTURE_ART.stone.href, word: /\bpiedra/i },
+    { href: SECTOR_ADVENTURE_ART.leaf.href, word: /\bhojas?\b/i },
+    { href: SECTOR_ADVENTURE_ART.snail.href, word: /\bcaracol/i },
+  ]
+
+  it('gives every adventure of three or more levels its hazard level, or a stated reason not to', () => {
+    for (const adventure of ADVENTURES.filter((a) => a.levelIds.length >= 3)) {
+      expect(EXPECTED, adventure.id).toHaveProperty(adventure.id)
+      expect(hazardLevels(adventure.levelIds), adventure.id).toHaveLength(EXPECTED[adventure.id])
+    }
+  })
+
+  it('never on an adventure’s first level, nor on its narrowest step', () => {
+    for (const adventure of ADVENTURES) {
+      for (const id of hazardLevels(adventure.levelIds)) {
+        expect(adventure.levelIds.indexOf(id), id).toBeGreaterThan(0)
+        const level = getLevel(id)
+        if (level.kind === 'path') {
+          const narrowest = Math.min(...adventure.levelIds.map((l) => getLevel(l).corridorWidth))
+          expect(level.corridorWidth, id).toBeGreaterThan(narrowest)
+        } else {
+          // The bee: never the smallest-flower level.
+          const smallest = Math.min(
+            ...adventure.levelIds.flatMap((l) => getLevel(l).waypoints?.stops.map((w) => w.radius) ?? []),
+          )
+          expect(Math.min(...(level.waypoints?.stops ?? []).map((w) => w.radius)), id).toBeGreaterThan(smallest)
+        }
+      }
+    }
+  })
+
+  it('ramps gently along the journey: one slow hazard first, two only later', () => {
+    const journeyAdventures = JOURNEY.flatMap((entry) => ADVENTURES.filter((a) => a.levelIds[0] === entry))
+    const hazardCount = (id: string) => getLevel(id).obstacles?.length ?? 0
+    const perStop = journeyAdventures
+      .map((a) => hazardLevels(a.levelIds).reduce((n, id) => n + hazardCount(id), 0))
+      .filter((n) => n > 0)
+    expect(perStop[0]).toBe(1)
+    for (let i = 1; i < perStop.length; i++) expect(perStop[i]).toBeGreaterThanOrEqual(perStop[i - 1])
+    expect(Math.max(...perStop)).toBe(2)
+    // The journey's first hazard is the slowest one of all.
+    const firstId = journeyAdventures.flatMap((a) => hazardLevels(a.levelIds))[0]
+    const slowest = Math.max(...LEVELS.flatMap((l) => (l.obstacles ?? []).map((o) => o.periodMs)))
+    expect(firstId).toBe('duck-trail3')
+    expect(getLevel(firstId).obstacles?.[0].periodMs).toBe(slowest)
+  })
+
+  it('themes every journey hazard with existing art the hint names, and names the stop', () => {
+    for (const adventure of ADVENTURES) {
+      for (const id of hazardLevels(adventure.levelIds)) {
+        const level = getLevel(id)
+        expect(level.hazardArt, id).toBeDefined()
+        const entry = HAZARD_WORD.find((h) => h.href === level.hazardArt?.href)
+        expect(entry, `${id}: hazard art has no spoken word`).toBeDefined()
+        expect(level.hint, id).toMatch(entry!.word)
+        expect(level.hint, id).toMatch(/esper[aá]/i)
+      }
+    }
+  })
+
+  it('never warns about a hazard the level does not draw (T40’s rule, for hazards)', () => {
+    for (const level of LEVELS) {
+      const warned = /cuidado con (?:el|la|los|las) ([^!.,]+)/i.exec(level.hint)
+      if (!warned) continue
+      const entry = HAZARD_WORD.find((h) => h.word.test(warned[1]))
+      expect(entry, `${level.id}: "${level.hint}"`).toBeDefined()
+      expect(level.hazardArt?.href, `${level.id}: "${level.hint}"`).toBe(entry!.href)
+      expect(level.obstacles?.length ?? 0, level.id).toBeGreaterThan(0)
+    }
+  })
+
+  it('never puts a crossing hazard on a clue trail (a mark sits every 60 units)', () => {
+    for (const level of LEVELS) {
+      if ((level.obstacles?.length ?? 0) > 0 && level.id !== 'trail1') expect(level.clue, level.id).toBeUndefined()
+    }
+  })
+
+  /** Distance from `p` to segment `ab`. */
+  const segDist = (p: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }) => {
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const l2 = dx * dx + dy * dy
+    const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2))
+    return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy)
+  }
+  /** The two extremes of a hazard's swing (quarter and three-quarter cycle). */
+  const extremes = (o: NonNullable<ReturnType<typeof getLevel>['obstacles']>[number], target: ReturnType<typeof buildLevelTarget>) => {
+    const quarter = o.periodMs / 4 - o.phase * o.periodMs
+    return [obstacleAt(o, target, quarter), obstacleAt(o, target, quarter + o.periodMs / 2)] as const
+  }
+  // `f2-agua4` keeps its own tests above (it predates T41 and is unchanged;
+  // at the far end of its swing it grazes the next U's wall by ~5 units).
+  const T41_ROUTE_IDS = ['duck-trail3', 'sheep-hill3', 'llama-peak3', 'turtle3', 'monkey3']
+  const SHEET_MARGIN = 10
+  /** Track, in sheet units, between where the swing crosses the corridor and
+   *  where a child waiting for it stands. */
+  const STOP_MARGIN = 30
+
+  it('keeps every hazard, at every point of its swing, on the sheet with a margin', () => {
+    for (const id of [...T41_ROUTE_IDS, 'bee3']) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      for (const o of level.obstacles ?? []) {
+        for (const p of extremes(o, target)) {
+          expect(p.x - o.radius, id).toBeGreaterThanOrEqual(SHEET_MARGIN)
+          expect(p.x + o.radius, id).toBeLessThanOrEqual(target.viewBoxWidth - SHEET_MARGIN)
+          expect(p.y - o.radius, id).toBeGreaterThanOrEqual(SHEET_MARGIN)
+          expect(p.y + o.radius, id).toBeLessThanOrEqual(600 - SHEET_MARGIN)
+        }
+      }
+    }
+  })
+
+  it('never sweeps over a collect item, a loop crossing or another stretch of the corridor', () => {
+    for (const id of T41_ROUTE_IDS) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const items = level.collect
+        ? resolveCollectItems(level.collect, target.polyline, target.length, target.corridorWidth)
+        : []
+      const itemHalf = (level.collect?.size ?? 0) / 2
+      const crossings = selfCrossingPoints(target.polyline)
+      for (const o of level.obstacles ?? []) {
+        const [a, b] = extremes(o, target)
+        for (const item of items) {
+          expect(segDist(item, a, b) - o.radius - itemHalf, `${id} item`).toBeGreaterThan(0)
+        }
+        for (const c of crossings) {
+          expect(
+            segDist(c, a, b) - o.radius - OBSTACLE_INK_ALLOWANCE - level.corridorWidth / 2,
+            `${id} crossing`,
+          ).toBeGreaterThan(0)
+        }
+        // The swing may cross the corridor only where it is anchored. Every
+        // route point farther along the track than the crossing's own
+        // half-width (plus a stopping margin) is ANOTHER stretch — including
+        // the spot just before the crossing where a child stops to wait — and
+        // the swing must stay off it. (A hazard near a V valley failed this:
+        // its swing reached back across the flank the child waits on.)
+        const reach = o.radius + OBSTACLE_INK_ALLOWANCE + level.corridorWidth / 2 + STOP_MARGIN
+        // Every 4 units along the route: a peak ridge's polyline is only its
+        // corners, and the flank between two corners is where a swing lands.
+        const anchorArc = o.at * target.length
+        let arc = 0
+        for (let k = 1; k < target.polyline.length; k++) {
+          const p = target.polyline[k - 1]
+          const q = target.polyline[k]
+          const seg = Math.hypot(q.x - p.x, q.y - p.y)
+          const n = Math.max(1, Math.ceil(seg / 4))
+          for (let j = 0; j < n; j++) {
+            const along = arc + (seg * j) / n
+            if (Math.abs(along - anchorArc) < reach) continue
+            const point = { x: p.x + ((q.x - p.x) * j) / n, y: p.y + ((q.y - p.y) * j) / n }
+            expect(
+              segDist(point, a, b) - o.radius - level.corridorWidth / 2,
+              `${id} other stretch at arc ${Math.round(along)}`,
+            ).toBeGreaterThan(0)
+          }
+          arc += seg
+        }
+      }
+    }
+  })
+
+  it('opens a real, majority gap to stop and go in on every route hazard', () => {
+    for (const id of T41_ROUTE_IDS) {
+      const level = getLevel(id)
+      for (const o of level.obstacles ?? []) {
+        expect(hazardGapFraction(o, level.corridorWidth), id).toBeGreaterThanOrEqual(0.5)
+      }
+    }
+  })
+
+  it('reads two hazards on one level separately: different periods, half a cycle apart', () => {
+    for (const level of LEVELS) {
+      const obstacles = level.obstacles ?? []
+      if (obstacles.length < 2) continue
+      const [a, b] = obstacles
+      expect(a.periodMs, level.id).not.toBe(b.periodMs)
+      expect(Math.abs(a.phase - b.phase), level.id).toBeCloseTo(0.5, 6)
+    }
+  })
+
+  it('pins the bee’s leaf across the leg between two flowers, clear of every flower, the hive and the start', () => {
+    const level = getLevel('bee3')
+    const cfg = level.waypoints!
+    const target = buildLevelTarget(level)
+    const [o] = level.obstacles ?? []
+    expect(o.centre).toBeDefined()
+    const [a, b] = extremes(o, target)
+    // The swing crosses the straight way from flower 2 to flower 3.
+    const [, f2, f3] = cfg.stops
+    const cross = (p: { x: number; y: number }, q: { x: number; y: number }, r: { x: number; y: number }) =>
+      (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
+    expect(Math.sign(cross(f2, f3, a))).not.toBe(Math.sign(cross(f2, f3, b)))
+    for (const w of [...cfg.stops, cfg.goal]) {
+      expect(segDist(w, a, b) - o.radius - w.radius, 'waypoint').toBeGreaterThan(0)
+    }
+    expect(segDist(cfg.start, a, b) - o.radius - OBSTACLE_INK_ALLOWANCE, 'start').toBeGreaterThan(40)
   })
 })
 
