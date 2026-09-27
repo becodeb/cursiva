@@ -710,154 +710,181 @@ export function hills(
 }
 
 /**
- * Fase 2 `f2-bucles` — the cursive `l l l` loops: tall ascenders that CROSS
- * THEMSELVES. The self-crossing is the whole point — that is what a cursive `l`
- * is, and a loop drawn without it is a stick.
+ * Fase 2 `f2-bucles` and the monkeys — a chain of round loops, each one
+ * crossing itself: up from the baseline, round over the top, down across the
+ * way up and back to the baseline, where the next loop begins.
  *
- * Each cycle is four segments over its width `w`:
- *  1. upstroke — baseline up and to the right, to `yTop + 0.10·H`;
- *  2. the top — over `yTop` and swinging back LEFT, to `x + 0.14·w`;
- *  3. downstroke — down and to the RIGHT, crossing the upstroke on the way,
- *     landing on the baseline at `x + 0.62·w`;
- *  4. baseline run to the next cycle start.
+ * [T40, author's play-test] "Mejorá esos rulos, son re desprolijos... prefiero
+ * que sean un rulo más suave y prolijo." The old generator drew a lanky
+ * cursive `l`: a narrow teardrop with a pointed top (radius of curvature
+ * about 11 units) and a straight baseline run between loops, whose hole the
+ * plain corridor swallowed. Each loop is now:
  *
- * The horizontal reversal in segment 2 (x decreasing) is the geometric
- * signature of the crossing.
+ *  - ROUND: its top is an ellipse with half-axes `loopWidth·w` and
+ *    `loopHeight·(yBase − yTop)`, drawn as two quarter-ellipse cubics, whose
+ *    top touches `yTop`;
+ *  - SYMMETRIC about its own centre `x + w/2`: the downstroke is the mirror
+ *    of the upstroke, so every loop crosses at the same height;
+ *  - SMOOTH: every join is tangent-continuous (the upstroke leaves the
+ *    baseline flat and arrives at the loop's side vertical; the downstroke
+ *    mirrors it and lands flat, exactly where the next upstroke leaves), and
+ *    the handles are long enough that no stroke bends tighter than the loop
+ *    itself (`catalog.test.ts` measures the curvature).
+ *
+ * {@link loopHoleClearances} measures how much of each hole survives a
+ * corridor. Emits only `M`/`C`.
  */
 export function loops(
-  o: { x0?: number; x1?: number; yBase?: number; yTop?: number; cycles?: number } = {},
+  o: {
+    x0?: number
+    x1?: number
+    yBase?: number
+    yTop?: number
+    cycles?: number
+    loopWidth?: number
+    loopHeight?: number
+  } = {},
 ): string {
-  const x0 = o.x0 ?? 160
-  const x1 = o.x1 ?? 840
+  const x0 = o.x0 ?? 60
+  const x1 = o.x1 ?? 940
   const yBase = o.yBase ?? 450
   const yTop = o.yTop ?? 150
   const cycles = Math.max(1, o.cycles ?? 3)
   const w = (x1 - x0) / cycles
   const H = yBase - yTop
+  const rx = (o.loopWidth ?? 0.3) * w
+  const ry = (o.loopHeight ?? 0.3) * H
+  // Quarter-ellipse control-point factor, 4/3·(√2 − 1).
+  const k = 0.5523
+  // Stroke handles, measured for the smoothest chain (T40): the flat handle
+  // at the baseline is 0.35 of a cycle, the vertical one at the loop's side
+  // 1.6 of the loop's own half-height. Shorter handles bend the strokes
+  // tighter than the loop; these keep the loop itself the tightest curve.
+  const flat = 0.35 * w
+  const rise = 1.6 * ry
   let d = move(x0, yBase)
   for (let i = 0; i < cycles; i++) {
     const sx = x0 + i * w
-    // 1) upstroke, leaning right as it climbs.
-    d += cubic(
-      sx + w * 0.1,
-      yBase - H * 0.35,
-      sx + w * 0.3,
-      yTop + H * 0.42,
-      sx + w * 0.38,
-      yTop + H * 0.1,
-    )
-    // 2) over the top and back to the LEFT (controls above yTop keep the apex
-    // itself ON the top line instead of short of it).
-    d += cubic(
-      sx + w * 0.42,
-      yTop - H * 0.06,
-      sx + w * 0.18,
-      yTop - H * 0.06,
-      sx + w * 0.14,
-      yTop + H * 0.3,
-    )
-    // 3) downstroke: crosses the upstroke, then eases onto the baseline.
-    d += cubic(sx + w * 0.18, yTop + H * 0.625, sx + w * 0.42, yBase, sx + w * 0.62, yBase)
-    // 4) baseline run into the next loop, subdivided so the flattened polyline
-    // keeps a roughly uniform point density across the whole path.
-    const runFrom = sx + w * 0.62
-    const runSteps = 6
-    for (let s = 1; s <= runSteps; s++) {
-      d += line(runFrom + ((sx + w - runFrom) * s) / runSteps, yBase)
-    }
+    const cx = sx + w / 2
+    const cy = yTop + ry
+    // 1) upstroke: leaves the baseline flat, arrives at the right side going up.
+    d += cubic(sx + flat, yBase, cx + rx, cy + rise, cx + rx, cy)
+    // 2) over the top, right to left.
+    d += cubic(cx + rx, cy - k * ry, cx + k * rx, cy - ry, cx, cy - ry)
+    d += cubic(cx - k * rx, cy - ry, cx - rx, cy - k * ry, cx - rx, cy)
+    // 3) downstroke, the mirror of the upstroke: crosses it and lands flat.
+    d += cubic(cx - rx, cy + rise, sx + w - flat, yBase, sx + w, yBase)
   }
   return d
 }
 
-/**
- * The tightest radius of curvature on one {@link loops} cycle's own "top"
- * segment — the swing from the upstroke's own end to the downstroke's own
- * start, `y` measured from `yTop` (so this is scale-invariant in `y`
- * position, only `width`/`height` matter) — found by SAMPLING the cubic's
- * exact calculus derivatives at 1000 points along it, not by a closed form
- * (`odd/tasks/promised-animals.md` P4, the monkeys' own "does the hole stay
- * open" guard).
- *
- * WHY SAMPLED, NOT DERIVED. {@link uTurnRadius}/{@link ovalTurnRadius} both
- * get a clean closed form because their own curves are SYMMETRIC about
- * their tightest point (`t = ½` of a garland U; the end of an ellipse's own
- * major axis) — the derivative of curvature is zero there by symmetry alone,
- * with no calculus needed to find WHERE the extremum sits. The "top"
- * segment's four control points are NOT symmetric (segment 2 of `loops`,
- * above: "swinging back LEFT" is a one-sided correction, not a mirror of
- * the upstroke it continues), so its tightest point sits at whatever `t`
- * happens to minimise `radius(t)` — measured here at `t ≈ 0.34` for the
- * shipped `f2-bucles` size, not `t = ½` — and finding that exactly means
- * either solving a quintic for `dκ/dt = 0` or sampling densely enough that
- * the true minimum cannot hide between two adjacent samples. 1000 steps
- * measured stable to 3 significant figures against 4000 on every size this
- * function is actually called with (checked, not assumed) — the same
- * "measure it" discipline `scripts/art/png.py`'s `sample_spine` already
- * uses for a curve too irregular to have earned a formula of its own.
- *
- * WHY THE RESULT IS SMALL. Measured on the shipped `f2-bucles` size
- * (`width ≈ 227`, `height = 300`): `loopHoleRadius(227, 300) ≈ 10.9`. That
- * is short of `corridorWidth/2 − BAND_INSET` (34, at `f2-bucles`'
- * `corridorWidth: 80`) by a wide margin — the `uTurnRadius`-style STRICT
- * "the corridor's own concave edge never folds through itself" bound a
- * garland/oval level is held to is UNREACHABLE here at any `width`/`height`
- * this app's 1000×600 sheet can hold (scaling the shape enough to clear it
- * would need a loop several sheets tall), which is exactly what a
- * self-crossing shape being asked to leave "a real hole", rather than "an
- * uncrossed edge that never doubles back on itself", should be expected to
- * mean: {@link loopHoleClearance}, below, asks a DIFFERENT, achievable
- * question instead.
- */
-export function loopHoleRadius(width: number, height: number): number {
-  const p0 = { x: width * 0.38, y: height * 0.1 }
-  const c1 = { x: width * 0.42, y: -height * 0.06 }
-  const c2 = { x: width * 0.18, y: -height * 0.06 }
-  const p3 = { x: width * 0.14, y: height * 0.3 }
-  const STEPS = 1000
-  let minRadius = Infinity
-  for (let i = 1; i < STEPS; i++) {
-    const t = i / STEPS
-    const mt = 1 - t
-    const xPrime = 3 * mt * mt * (c1.x - p0.x) + 6 * mt * t * (c2.x - c1.x) + 3 * t * t * (p3.x - c2.x)
-    const yPrime = 3 * mt * mt * (c1.y - p0.y) + 6 * mt * t * (c2.y - c1.y) + 3 * t * t * (p3.y - c2.y)
-    const xDouble = 6 * mt * (c2.x - 2 * c1.x + p0.x) + 6 * t * (p3.x - 2 * c2.x + c1.x)
-    const yDouble = 6 * mt * (c2.y - 2 * c1.y + p0.y) + 6 * t * (p3.y - 2 * c2.y + c1.y)
-    const denominator = (xPrime * xPrime + yPrime * yPrime) ** 1.5
-    if (denominator < 1e-9) continue
-    const curvature = Math.abs(xPrime * yDouble - yPrime * xDouble) / denominator
-    if (curvature === 0) continue
-    const radius = 1 / curvature
-    if (radius < minRadius) minRadius = radius
+/** One self-crossing of a route and the hole it closes. */
+export interface LoopHole {
+  /** Where the route crosses itself. */
+  crossing: { x: number; y: number }
+  /** The largest distance from any point INSIDE the closed loop to the route
+   *  itself — the radius of the biggest circle that fits in the hole. A
+   *  corridor of width `c` paints `c/2` of it on each side, so the visible
+   *  hole is `2·clearance − c` across. */
+  clearance: number
+}
+
+function segmentIntersection(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  c: { x: number; y: number },
+  d: { x: number; y: number },
+): { x: number; y: number } | null {
+  const d1x = b.x - a.x
+  const d1y = b.y - a.y
+  const d2x = d.x - c.x
+  const d2y = d.y - c.y
+  const den = d1x * d2y - d1y * d2x
+  if (Math.abs(den) < 1e-12) return null
+  const t = ((c.x - a.x) * d2y - (c.y - a.y) * d2x) / den
+  const u = ((c.x - a.x) * d1y - (c.y - a.y) * d1x) / den
+  if (t <= 0 || t >= 1 || u <= 0 || u >= 1) return null
+  return { x: a.x + t * d1x, y: a.y + t * d1y }
+}
+
+function distanceToSegment(
+  p: { x: number; y: number },
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  const vx = b.x - a.x
+  const vy = b.y - a.y
+  const len2 = vx * vx + vy * vy
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2))
+  return Math.hypot(p.x - a.x - t * vx, p.y - a.y - t * vy)
+}
+
+function insidePolygon(p: { x: number; y: number }, poly: readonly { x: number; y: number }[]): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i]
+    const b = poly[j]
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) {
+      inside = !inside
+    }
   }
-  return minRadius
+  return inside
 }
 
 /**
- * `f2-bucles`' own measured `loopHoleRadius(width, height) / corridorWidth`
- * — `loopHoleRadius((840 − 160) / 3, 300) / 80`, restated as a literal
- * rather than computed at module load, so this file's only runtime cost is
- * the one call {@link loopHoleClearance} itself makes. `loopHoleRadius`'s
- * own header explains why an absolute bound is unreachable for this shape;
- * this is the achievable question instead — "at least as open,
- * proportionally, as the loop already shipping" — checked against
- * `catalog.test.ts`'s own re-derivation of the same call, not trusted as a
- * bare number.
+ * Where a flattened route crosses itself (strict segment crossings only; two
+ * segments that merely share an endpoint do not count). A cursive `l` has one
+ * per loop.
  */
-export const F2_BUCLES_HOLE_RATIO = 0.1364
+export function selfCrossingPoints(points: readonly { x: number; y: number }[]): { x: number; y: number }[] {
+  const out: { x: number; y: number }[] = []
+  for (let i = 0; i < points.length - 1; i++) {
+    for (let j = i + 2; j < points.length - 1; j++) {
+      const hit = segmentIntersection(points[i], points[i + 1], points[j], points[j + 1])
+      if (hit) out.push(hit)
+    }
+  }
+  return out
+}
 
 /**
- * Whether a {@link loops} cycle at this `width`/`height` keeps a hole at
- * least as open, proportionally, as `f2-bucles`' own shipped one, once a
- * corridor of `corridorWidth` is painted around it — `loopHoleRadius(width,
- * height) / corridorWidth`, floored a hair under {@link
- * F2_BUCLES_HOLE_RATIO} (0.12, not 0.1364) so the LAST, tightest level of a
- * new four-level family can be genuinely harder than the one level already
- * shipping without this guard refusing it outright — the same allowance
- * `catalog.test.ts`'s own `uTurnRadius` table gives `f2-agua3`'s own
- * worst cycle (a documented 4.5-unit margin, not zero).
+ * Every self-crossing of a flattened route, with the clearance of the hole
+ * each one closes (T40: "every loop's hole clearly visible"). MEASURED, not
+ * derived: the closed loop is the route between the two visits to the
+ * crossing, and its clearance is the farthest any point inside it gets from
+ * the WHOLE route (the neighbouring loops and the baseline run count too),
+ * sampled on a `step`-unit grid. The sampling can only under-estimate, by at
+ * most `step·√2/2`, so a guard built on it errs on the safe side.
  */
-export function loopHoleClearance(width: number, height: number, corridorWidth: number): boolean {
-  return loopHoleRadius(width, height) / corridorWidth >= 0.12
+export function loopHoleClearances(
+  points: readonly { x: number; y: number }[],
+  step = 4,
+): LoopHole[] {
+  const holes: LoopHole[] = []
+  const n = points.length
+  for (let i = 0; i < n - 1; i++) {
+    for (let j = i + 2; j < n - 1; j++) {
+      const crossing = segmentIntersection(points[i], points[i + 1], points[j], points[j + 1])
+      if (!crossing) continue
+      const loop = [crossing, ...points.slice(i + 1, j + 1)]
+      const xs = loop.map((p) => p.x)
+      const ys = loop.map((p) => p.y)
+      let clearance = 0
+      for (let y = Math.min(...ys); y <= Math.max(...ys); y += step) {
+        for (let x = Math.min(...xs); x <= Math.max(...xs); x += step) {
+          const p = { x, y }
+          if (!insidePolygon(p, loop)) continue
+          let nearest = Infinity
+          for (let k = 0; k < n - 1 && nearest > clearance; k++) {
+            nearest = Math.min(nearest, distanceToSegment(p, points[k], points[k + 1]))
+          }
+          if (nearest > clearance) clearance = nearest
+        }
+      }
+      holes.push({ crossing, clearance })
+    }
+  }
+  return holes
 }
 
 /**

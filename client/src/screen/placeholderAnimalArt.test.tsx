@@ -39,9 +39,9 @@ describe('no rendered monkey screen ever shows the placeholder file directly', (
         <LevelPlay level={getLevel(id)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
       )
       expect(html, id).not.toContain(MONO_PLACEHOLDER_HREF)
-      // Five items (four crests + the route's end) — the badge stands at
+      // Four items (three crests + the route's end, T40) — the badge stands at
       // every one, not merely at some.
-      expect((html.match(/data-cv-picture="true"/g) ?? []).length, id).toBe(5)
+      expect((html.match(/data-cv-picture="true"/g) ?? []).length, id).toBe(4)
     }
   })
 

@@ -21,7 +21,7 @@ import { BAND_INSET, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget } from '.
 import { routeExtrema } from './dolphinExtrema'
 import { resolveCollectItems } from './collect'
 import { EMPTY_REVEAL, revealTick } from './revealGrid'
-import { clueCountFor } from '../detective/clues'
+import { CROSSING_CLEAR_RADIUS, clueCountFor, clueMarks } from '../detective/clues'
 import {
   DEGRADED_LEVEL_IDS,
   LEGACY_PHASE_1,
@@ -41,8 +41,7 @@ const DUCK_ADVENTURE_IDS = ADVENTURES.find((a) => a.id === 'duck')!.levelIds
 import {
   armClearance,
   cornerClearance,
-  loopHoleClearance,
-  loopHoleRadius,
+  loopHoleClearances,
   ovalSpacingClearance,
   ovalTurnRadius,
   peakRidgeCorridorLimit,
@@ -231,9 +230,9 @@ describe('LEVELS — authored values match the doc tables', () => {
     'turtle2': 90,
     'turtle3': 80,
     'turtle4': 70,
-    'monkey1': 100,
-    'monkey2': 90,
-    'monkey3': 80,
+    'monkey1': 90,
+    'monkey2': 80,
+    'monkey3': 75,
     // Four rings at 70 (see this level's own comment in `catalog.ts`).
     'monkey4': 70,
     'f2-guirnalda': 100,
@@ -704,31 +703,151 @@ describe('LEVELS — every turtle level keeps a real hole and a real gap between
   })
 })
 
-describe('LEVELS — every monkey level keeps a hole at least as open as f2-bucles, proportionally (promised-animals P4)', () => {
-  // `width` restates each level's own per-cycle span, `(x1 − x0) / cycles`
-  // — the exact quantity `loops()` itself divides by — tying the live
-  // `corridorWidth` field to the geometry the same way every other family's
-  // own catalog-level guard does.
-  const CASES: ReadonlyArray<{ id: string; width: number; height: number }> = [
-    { id: 'monkey1', width: (760 - 240) / 2, height: 300 },
-    { id: 'monkey2', width: (860 - 140) / 3, height: 300 },
-    { id: 'monkey3', width: (940 - 60) / 4, height: 300 },
-    { id: 'monkey4', width: (940 - 60) / 4, height: 300 },
-  ]
+// [T40, author's play-test] Once every level before the letters draws the
+// plain corridor (no centreline), a loop is only readable if its HOLE shows,
+// and the author asked for round, tidy loops ("un rulo más suave y prolijo").
+describe('LEVELS — every loop keeps a visible hole and a smooth, round shape (T40)', () => {
+  const LOOP_IDS = ['monkey1', 'monkey2', 'monkey3', 'monkey4', 'f2-bucles']
+  const RING_IDS = ['turtle1', 'turtle2', 'turtle3', 'turtle4']
 
-  it('clears loopHoleClearance on every monkey level', () => {
-    for (const { id, width, height } of CASES) {
+  function distanceToRoute(p: { x: number; y: number }, route: readonly { x: number; y: number }[]): number {
+    let best = Infinity
+    for (let k = 0; k < route.length - 1; k++) {
+      const a = route[k]
+      const b = route[k + 1]
+      const vx = b.x - a.x
+      const vy = b.y - a.y
+      const len2 = vx * vx + vy * vy
+      const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2))
+      best = Math.min(best, Math.hypot(p.x - a.x - t * vx, p.y - a.y - t * vy))
+    }
+    return best
+  }
+
+  /** The cubic segments of a generated `d` (M then C/L only). */
+  function cubics(d: string): { p0: number[]; c1: number[]; c2: number[]; p3: number[] }[] {
+    const tokens = d.match(/[MCL]|-?\d+(?:\.\d+)?/g) ?? []
+    const out: { p0: number[]; c1: number[]; c2: number[]; p3: number[] }[] = []
+    let pen = [0, 0]
+    for (let i = 0; i < tokens.length; ) {
+      const cmd = tokens[i++]
+      const n = (): number => Number(tokens[i++])
+      if (cmd === 'M' || cmd === 'L') {
+        pen = [n(), n()]
+      } else if (cmd === 'C') {
+        const c1 = [n(), n()]
+        const c2 = [n(), n()]
+        const p3 = [n(), n()]
+        out.push({ p0: pen, c1, c2, p3 })
+        pen = p3
+      }
+    }
+    return out
+  }
+
+  it('leaves every loop a visible hole at least one corridor wide (2·clearance − corridor ≥ corridor)', () => {
+    for (const id of LOOP_IDS) {
       const level = getLevel(id)
-      expect(loopHoleClearance(width, height, level.corridorWidth), id).toBe(true)
+      const holes = loopHoleClearances(buildLevelTarget(level).polyline)
+      expect(holes.length, id).toBeGreaterThanOrEqual(2)
+      for (const hole of holes) {
+        expect(2 * hole.clearance - level.corridorWidth, id).toBeGreaterThanOrEqual(level.corridorWidth)
+      }
     }
   })
 
-  it("holds even at monkey4's own tightest margin", () => {
-    const level = getLevel('monkey4')
-    const ratio = loopHoleRadius((940 - 60) / 4, 300) / level.corridorWidth
-    expect(ratio).toBeGreaterThanOrEqual(0.12)
-    // Same rings as monkey3 in a narrower corridor, so a wider hole ratio.
-    expect(ratio).toBeGreaterThan(loopHoleRadius((940 - 60) / 4, 300) / getLevel('monkey3').corridorWidth)
+  it("leaves every turtle ring the same visible hole, measured from the turtle standing in it", () => {
+    for (const id of RING_IDS) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const rings = resolveCollectItems(level.collect!, target.polyline, target.length, level.corridorWidth)
+      for (const ring of rings) {
+        const clearance = distanceToRoute(ring, target.polyline)
+        expect(2 * clearance - level.corridorWidth, id).toBeGreaterThanOrEqual(level.corridorWidth)
+      }
+    }
+  })
+
+  it('never goes below the journey\'s narrowest corridor (70) to open a hole', () => {
+    for (const id of [...LOOP_IDS, ...RING_IDS]) expect(getLevel(id).corridorWidth, id).toBeGreaterThanOrEqual(70)
+  })
+
+  it('bends no stroke tighter than the loop itself, and never below the corridor\'s half-width', () => {
+    // Exact curvature of every cubic, sampled on its own derivatives (no
+    // flattening noise). A kink or a pointed top would show as a tiny radius.
+    for (const id of LOOP_IDS) {
+      const level = getLevel(id)
+      let minRadius = Infinity
+      for (const { p0, c1, c2, p3 } of cubics(level.paths[0])) {
+        for (let i = 0; i <= 200; i++) {
+          const t = i / 200
+          const mt = 1 - t
+          const xp = 3 * mt * mt * (c1[0] - p0[0]) + 6 * mt * t * (c2[0] - c1[0]) + 3 * t * t * (p3[0] - c2[0])
+          const yp = 3 * mt * mt * (c1[1] - p0[1]) + 6 * mt * t * (c2[1] - c1[1]) + 3 * t * t * (p3[1] - c2[1])
+          const xpp = 6 * mt * (c2[0] - 2 * c1[0] + p0[0]) + 6 * t * (p3[0] - 2 * c2[0] + c1[0])
+          const ypp = 6 * mt * (c2[1] - 2 * c1[1] + p0[1]) + 6 * t * (p3[1] - 2 * c2[1] + c1[1])
+          const curvature = Math.abs(xp * ypp - yp * xpp) / (xp * xp + yp * yp) ** 1.5
+          if (curvature > 0) minRadius = Math.min(minRadius, 1 / curvature)
+        }
+      }
+      expect(minRadius, id).toBeGreaterThan(level.corridorWidth / 2)
+      expect(minRadius, id).toBeGreaterThan(70)
+    }
+  })
+
+  it('joins every segment without a corner (tangent continuity within 1°)', () => {
+    for (const id of LOOP_IDS) {
+      const segs = cubics(getLevel(id).paths[0])
+      for (let i = 1; i < segs.length; i++) {
+        const out = segs[i - 1]
+        const next = segs[i]
+        const a = Math.atan2(out.p3[1] - out.c2[1], out.p3[0] - out.c2[0])
+        const b = Math.atan2(next.c1[1] - next.p0[1], next.c1[0] - next.p0[0])
+        let turn = Math.abs(a - b)
+        if (turn > Math.PI) turn = 2 * Math.PI - turn
+        expect((turn * 180) / Math.PI, `${id} join ${i}`).toBeLessThan(1)
+      }
+    }
+  })
+
+  it('draws every loop the same size, round (half-axes within 10%)', () => {
+    for (const id of LOOP_IDS) {
+      const holes = loopHoleClearances(buildLevelTarget(getLevel(id)).polyline)
+      const sizes = holes.map((h) => h.clearance)
+      expect(Math.max(...sizes) - Math.min(...sizes), id).toBeLessThan(1)
+      // The loop top: each C that runs right-to-left over yTop is a quarter
+      // ellipse whose chord spans one half-axis in x and one in y.
+      const tops = cubics(getLevel(id).paths[0]).filter((c) => c.p3[1] === 150 || c.p0[1] === 150)
+      for (const q of tops) {
+        const rx = Math.abs(q.p3[0] - q.p0[0])
+        const ry = Math.abs(q.p3[1] - q.p0[1])
+        expect(Math.abs(rx - ry) / Math.max(rx, ry), id).toBeLessThan(0.1)
+      }
+    }
+  })
+
+  it('keeps every clue mark off the crossings, and every collected monkey on the path', () => {
+    for (const id of LOOP_IDS) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const crossings = loopHoleClearances(target.polyline).map((h) => h.crossing)
+      if (level.clue) {
+        const marks = clueMarks(target.polyline, target.length, clueCountFor(target.length, level.clue.spacing), level.clue.kind)
+        expect(marks.length, id).toBeGreaterThan(10)
+        for (const m of marks) {
+          for (const c of crossings) {
+            expect(Math.hypot(m.x - c.x, m.y - c.y), id).toBeGreaterThanOrEqual(CROSSING_CLEAR_RADIUS)
+          }
+        }
+      }
+      if (level.collect) {
+        const items = resolveCollectItems(level.collect, target.polyline, target.length, level.corridorWidth)
+        for (const item of items) {
+          expect(distanceToRoute(item, target.polyline), id).toBeLessThan(level.corridorWidth / 2)
+          for (const c of crossings) expect(Math.hypot(item.x - c.x, item.y - c.y), id).toBeGreaterThan(level.corridorWidth)
+        }
+      }
+    }
   })
 })
 
@@ -919,7 +1038,7 @@ describe('LEVELS — every path is engine-ready', () => {
 
 describe('getLevel', () => {
   it('returns the level by id', () => {
-    expect(getLevel('f2-bucles').title).toBe('Los rulos altos')
+    expect(getLevel('f2-bucles').title).toBe('Los rulos redondos')
   })
 
   it('throws for an unknown id', () => {

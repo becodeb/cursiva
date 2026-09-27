@@ -2331,8 +2331,8 @@ const PHASE_2: LevelConfig[] = [
   // The monkeys' own family (P4, `odd/tasks/promised-animals.md`): the Rulo
   // letter family's own rising, self-crossing loop (`docs/01` §8: `e l b h
   // k f`), taught by monkeys swinging on the forest's lianas — the same
-  // `loops()` generator `f2-bucles` already ships (never changed, never
-  // reused here: a fresh call with this family's own sizes).
+  // `loops()` generator `f2-bucles` already ships (a fresh call with this
+  // family's own sizes).
   //
   // Every field this family shares with the turtles above carries the SAME
   // reasoning, restated once rather than per level: phase 2 (a letter-
@@ -2391,22 +2391,21 @@ const PHASE_2: LevelConfig[] = [
   // still pending) — flagged the same way `duck-trail3`/`4`'s scaled-down
   // `ANIMAL_ART.pato` duckling stand-in already is.
   //
-  // Sizes are chosen against `loopHoleClearance(width, height,
-  // corridorWidth)` (`paths.ts`/`paths.test.ts`): `loops()`'s own crossing
-  // makes the strict `ovalTurnRadius`-style "never folds" bound unreachable
-  // for this shape at ANY size this sheet can hold (that function's own
-  // header shows the arithmetic), so this asks the achievable question
-  // instead — stays at least as open, proportionally, as `f2-bucles`' own
-  // shipped hole. `width` here is each cycle's own span, `(x1 − x0) /
-  // cycles` — the exact quantity `loops()` itself divides by. `monkey4`'s
-  // own `corridorWidth: 60` — narrower than the `≈70` first sketched for
-  // this family — is a deliberate, measured departure: fitting five rings
-  // across the sheet at `corridorWidth: 70` leaves no `x0`/`x1` span left
-  // that ALSO clears the hole-clearance floor (checked, not assumed: every
-  // span wide enough to clear the floor overflows the viewBox, and every
-  // span that fits the viewBox falls short of the floor) — narrowing the
-  // corridor by 10 units is what actually resolves the conflict, not a
-  // loosened guard.
+  // [T40] Sizes are chosen so every loop's HOLE stays visible with the plain
+  // corridor (no centreline): `loopHoleClearances` (`paths.ts`) measures the
+  // largest circle that fits inside each loop, and `catalog.test.ts` holds
+  // every loop level to a visible hole (`2·clearance − corridorWidth`) at
+  // least one corridor wide, and to round, smooth loops (the author: "un
+  // rulo más suave y prolijo") whose tightest bend is the loop itself. Round
+  // loops that keep their hole are about 0.55 of a cycle across, so the
+  // family tops out at three loops, and no corridor goes below 70 (the
+  // journey's narrowest, `duck-trail4`/`llama-peak4`). Loop radius and
+  // measured hole clearance (visible hole = 2·clearance − corridor):
+  //
+  //   monkey1  2 loops r≈96, corridor 90, clearance ≈96 (visible ≈102)
+  //   monkey2  3 loops r≈90, corridor 80, clearance ≈88 (≈96)
+  //   monkey3  3 loops r≈83, corridor 75, clearance ≈80 (≈85)
+  //   monkey4  3 loops r≈77, corridor 70, clearance ≈76 (≈82)
   // ───────────────────────────────────────────────────────────────────────
   {
     id: 'monkey1',
@@ -2426,10 +2425,9 @@ const PHASE_2: LevelConfig[] = [
     // "every detective trail gets the fingertip carrier" invariant.
     carrier: true,
     feedback: feedback(false),
-    // width 260, height 300: `loopHoleClearance(260, 300, 100)` — ratio
-    // ≈0.135, clear of the 0.12 floor.
-    paths: [loops({ x0: 240, x1: 760, yTop: 150, yBase: 450, cycles: 2 })],
-    corridorWidth: 100,
+    // [T40] Two round loops (see this family's header for the hole numbers).
+    paths: [loops({ x0: 140, x1: 860, yTop: 150, yBase: 450, cycles: 2, loopWidth: 0.267, loopHeight: 0.32 })],
+    corridorWidth: 90,
     rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
@@ -2458,9 +2456,9 @@ const PHASE_2: LevelConfig[] = [
     resetOnContact: false,
     carrier: true,
     feedback: feedback(false),
-    // width 240, height 300: ratio ≈0.133.
-    paths: [loops({ x0: 140, x1: 860, yTop: 150, yBase: 450, cycles: 3 })],
-    corridorWidth: 90,
+    // [T40] Three round loops (hole numbers in this family's header).
+    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 3, loopWidth: 0.307, loopHeight: 0.3 })],
+    corridorWidth: 80,
     rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
@@ -2480,9 +2478,9 @@ const PHASE_2: LevelConfig[] = [
     resetOnContact: false,
     carrier: false,
     feedback: feedback(false),
-    // width 220, height 300: ratio ≈0.130.
-    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 4 })],
-    corridorWidth: 80,
+    // [T40] Three round loops, a little smaller than monkey2's.
+    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 3, loopWidth: 0.28, loopHeight: 0.28 })],
+    corridorWidth: 75,
     rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
@@ -2502,28 +2500,24 @@ const PHASE_2: LevelConfig[] = [
     id: 'monkey4',
     phase: 2,
     title: 'Muchos rulos seguidos',
-    // Four rings, like `monkey3`, but in a narrower corridor. The first cut
-    // squeezed five rings into a 60-unit corridor, the tightest path in the
-    // game, for a first grader's last level before the letters. Difficulty now
-    // comes from the corridor alone.
-    hint: '¡Cuatro vueltas seguidas, como escribir llll!',
+    // [T40] Three loops, the smallest of the family, in the journey's
+    // narrowest corridor (70). Four loops no longer fit: at four per sheet no
+    // round loop keeps a visible hole at any corridor of 70 or more.
+    hint: '¡Tres rulos redonditos seguidos, sin levantar el dedo!',
     kind: 'path',
     surface: 'blank',
     maze: true,
     resetOnContact: false,
     carrier: false,
     feedback: feedback(false),
-    // width 220, height 300 (monkey3's own geometry) at corridor 70: the
-    // hole ratio rises above monkey3's ≈0.130, comfortably clear of the 0.12
-    // floor.
-    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 4 })],
+    paths: [loops({ x0: 60, x1: 940, yTop: 150, yBase: 450, cycles: 3, loopWidth: 0.26, loopHeight: 0.26 })],
     corridorWidth: 70,
     rules: rules(2, true, true, 0),
     showGuide: true,
     letters: [],
     demo: true,
     // [T27] Same reasoning as `monkey3` above — the last of the monkey
-    // family, gathered along the route's own four loop apexes.
+    // family, gathered along the route's own loop apexes.
     collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, size: 50 },
   },
   {
@@ -2771,16 +2765,17 @@ const PHASE_2: LevelConfig[] = [
   {
     id: 'f2-bucles',
     phase: 2,
-    title: 'Los rulos altos',
+    // [T40] Round loops now, not tall ones.
+    title: 'Los rulos redondos',
     // [T40] "por golpe" named the metronome's beat, which is gone.
-    hint: 'Rulo por rulo: subí bien alto y cruzá, todos iguales.',
+    hint: 'Rulo por rulo: subí, dá la vuelta y cruzá, todos iguales.',
     kind: 'path',
     surface: 'blank',
     maze: true,
     resetOnContact: false,
     carrier: false,
     feedback: feedback(false),
-    paths: [loops({ cycles: 3 })],
+    paths: [loops({ x0: 60, x1: 940, cycles: 3, loopWidth: 0.307, loopHeight: 0.3 })],
     corridorWidth: 80,
     rules: rules(2, true, true, 0),
     showGuide: true,
