@@ -25,8 +25,10 @@ import {
   ZOO_OCTOPUS_PRINT_ART,
   ZOO_SPEECH_BUBBLE_ART,
   ZOO_STAR_ART,
+  type ZooAnimalId,
 } from '../detective/assets'
-import { PlaceholderAnimalBadge } from '../detective/icons'
+import { PlaceholderAnimalBadge, PawPrintIcon } from '../detective/icons'
+import { hasOpenedNotebookOnce, markNotebookOpenedOnce } from './notebookDiscovery'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 import { BUBBLE_POP_CSS } from './BubblePop'
 import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
@@ -186,8 +188,53 @@ html, body, #root { margin: 0; height: 100%; }
 .cv-zoo-hud-left img { width: 30px; height: 30px; object-fit: contain; }
 /* The backpack pill is now a real <button> (T23: it opens the notebook) —
    reset the browser's own button chrome so it keeps reading as the exact
-   same pill it always was. */
-.cv-zoo-hud-left { cursor: pointer; font: inherit; }
+   same pill it always was. position: relative (T31) is what lets the
+   receive badge (below) overlay the pill itself, the same reason
+   .cv-zoo-hud-right sets it for the star spark. */
+.cv-zoo-hud-left { cursor: pointer; font: inherit; position: relative; }
+/* T31 (odd/tasks/prewriting-stage-completion.md, notebook discoverability):
+   "no sabia que esto existia" - the backpack pill opened the notebook
+   already but nothing on screen ever pointed at it.
+
+   The PERSISTENT pulse (showBackpackPulse, ZooMap.tsx): a soft glow ring
+   that keeps breathing until the child opens the notebook once, ever
+   (screen/notebookDiscovery.ts). box-shadow rather than a border/outline
+   change: it never affects the pill's own layout box or the HUD row beside
+   it.
+
+   The one-shot RECEIVE bounce (backpackReceived): plays once per rescue,
+   discovered or not - a satisfying "it landed in the bag" flourish, timed
+   to settle just as .cv-zoo-backpack-badge's own pop finishes.
+
+   NO BACKTICKS in this block -- one inside a comment ends this template
+   literal early (this file's own top-of-file note). */
+@keyframes cv-zoo-backpack-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(242, 211, 119, 0.75); }
+  50% { box-shadow: 0 0 0 10px rgba(242, 211, 119, 0); }
+}
+.cv-zoo-hud-left--pulse { animation: cv-zoo-backpack-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .cv-zoo-hud-left--pulse { animation: none; box-shadow: 0 0 0 4px rgba(242, 211, 119, 0.9); }
+}
+@keyframes cv-zoo-backpack-bounce {
+  0% { transform: scale(1) rotate(0deg); }
+  30% { transform: scale(1.24) rotate(-6deg); }
+  55% { transform: scale(0.94) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.cv-zoo-backpack-receive { animation: cv-zoo-backpack-bounce 900ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .cv-zoo-backpack-receive { animation: none; } }
+.cv-zoo-backpack-badge {
+  position: absolute; top: -6px; right: -6px; width: 22px; height: 22px;
+  background: #f2d377; border: 2px solid #1a1a1a; border-radius: 50%; padding: 3px; box-sizing: border-box;
+  animation: cv-zoo-backpack-badge-pop 900ms ease-out;
+}
+@keyframes cv-zoo-backpack-badge-pop {
+  0% { transform: scale(0); opacity: 0; }
+  40% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .cv-zoo-backpack-badge { animation: none; } }
 /* T8 item 3 (odd/tasks/prewriting-stage-completion.md): the star pill pops
    and flashes once, the instant stars reads higher than the session
    remembers (zoo/stars.ts's starsIncreased/seenStars — ZooMap remounts
@@ -671,6 +718,49 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // never keeps `ZooMap` mounted across a trip into a level, so there is no
   // stale "left it open" state to preserve across a visit.
   const [notebookOpen, setNotebookOpen] = useState(false)
+  // T31 (odd/tasks/prewriting-stage-completion.md, notebook discoverability):
+  // "no sabía que esto existía" — the backpack pill opened the notebook
+  // already, but nothing on screen ever pointed at it. `notebookDiscovered`
+  // (localStorage, `screen/notebookDiscovery.ts`) gates the backpack's own
+  // gentle PULSE (below): a lazy initializer, read ONCE on mount, the same
+  // "SSR/no window renders the pulse-off default" convention every other
+  // `typeof window` guard in this file already follows.
+  const [notebookDiscovered, setNotebookDiscovered] = useState(() =>
+    hasOpenedNotebookOnce(typeof window === 'undefined' ? null : window.localStorage),
+  )
+  // Which animal's own card the notebook should open highlighted to — set
+  // only on the FIRST-EVER open (`openNotebook`, below), `null` every other
+  // time (the plain grid, unchanged).
+  const [notebookHighlightId, setNotebookHighlightId] = useState<ZooAnimalId | null>(null)
+  // The animal a fresh mount's own consumed rescue departure named (set
+  // unconditionally below, even under reduced motion where no `rescueFlight`
+  // ever animates) — what a first-ever notebook open highlights.
+  const [justRescuedAnimalId, setJustRescuedAnimalId] = useState<ZooAnimalId | null>(null)
+  // The backpack's own one-shot "just received something" bounce/glow/badge
+  // (ZOO_CSS's own `.cv-zoo-backpack-receive`/`.cv-zoo-backpack-badge`) —
+  // distinct from `notebookDiscovered`'s PERSISTENT pulse: this one plays
+  // once per rescue, discovered or not, the satisfying "it landed" flourish;
+  // the pulse alone is what actually stops once discovered.
+  const [backpackReceived, setBackpackReceived] = useState(false)
+  // The persistent pulse: only once there is at least one rescued animal
+  // worth seeing (an empty notebook is nothing to nag about yet) and only
+  // until the child has opened it once, ever.
+  const showBackpackPulse = !notebookDiscovered && recovered.length > 0
+  const openNotebook = () => {
+    if (!notebookDiscovered) {
+      // The first-ever open: highlight whichever animal just arrived (may
+      // still be `null` if the child opens the notebook before ever
+      // rescuing anyone — nothing to highlight yet, the plain grid shows),
+      // and persist the discovery so neither the pulse nor this branch ever
+      // fires again.
+      setNotebookHighlightId(justRescuedAnimalId)
+      markNotebookOpenedOnce(typeof window === 'undefined' ? null : window.localStorage)
+      setNotebookDiscovered(true)
+    } else {
+      setNotebookHighlightId(null)
+    }
+    setNotebookOpen(true)
+  }
   useEffect(() => {
     setBubbleVisible(true)
     // Voice narration (docs/18 D1/D4, §3 "Todo se escucha"; T7): the bubble
@@ -706,6 +796,18 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
     recordSeenStars(stars)
   }, [stars])
 
+  // T31: the backpack's own one-shot receive flourish settles on its own —
+  // the same "transient state plus a cleanup timeout" idiom `rescueFlight`'s
+  // own landed-cleanup effect (below) and `fadingSpineStrokes` elsewhere in
+  // this app already use, timed to clear comfortably after
+  // `cv-zoo-backpack-bounce`'s own 900ms CSS animation has finished.
+  useEffect(() => {
+    if (!backpackReceived) return undefined
+    if (typeof window === 'undefined') return undefined
+    const timer = window.setTimeout(() => setBackpackReceived(false), 1000)
+    return () => window.clearTimeout(timer)
+  }, [backpackReceived])
+
   // T24 (docs/19 section 6, "Aventura -> mapa (rescate)"): receiving the
   // flying animal. `zoo/rescueFlight.ts`'s own header explains WHY this is a
   // module-scope handoff rather than a prop: `AdventureClosing` and this
@@ -729,6 +831,12 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
     if (typeof window === 'undefined') return
     const departure = takeDeparture()
     if (!departure) return
+    // T31: the backpack's own discoverability signal — set REGARDLESS of
+    // `reduced` below, since a reduced-motion child still deserves the
+    // "it landed" bounce/glow/badge and a first-ever-open highlight, even
+    // though the big SVG-to-map flight itself is skipped for them.
+    setJustRescuedAnimalId(departure.animalId)
+    setBackpackReceived(true)
     const reduced = prefersReducedMotion(
       typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null,
     )
@@ -1014,17 +1122,30 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               that still does something ("Mochila → Abre la libreta del
               detective"). It keeps showing every earned tool beside the
               backpack itself (unchanged from before this task), and now
-              also opens `DetectiveNotebook` on tap. */}
+              also opens `DetectiveNotebook` on tap.
+
+              T31 (notebook discoverability): `cv-zoo-hud-left--pulse` keeps
+              a gentle glow going as long as there is at least one rescued
+              animal to see and the child has never opened the notebook
+              (`showBackpackPulse`, below); `cv-zoo-backpack-receive` plays a
+              one-shot bounce the instant an animal is delivered
+              (`backpackReceived`), and its own small paw badge rides along
+              with it. */}
           <button
             type="button"
-            className="cv-zoo-hud-left"
+            className={
+              'cv-zoo-hud-left' +
+              (showBackpackPulse ? ' cv-zoo-hud-left--pulse' : '') +
+              (backpackReceived ? ' cv-zoo-backpack-receive' : '')
+            }
             aria-label="Abrir la libreta del detective"
-            onClick={() => setNotebookOpen(true)}
+            onClick={openNotebook}
           >
             <img src={ZOO_BACKPACK_ART.href} alt="" height={40} />
             {backpack.map((item) => (
               <img key={item.id} src={item.art.href} alt="" height={32} />
             ))}
+            {backpackReceived && <PawPrintIcon className="cv-zoo-backpack-badge" />}
           </button>
           {/* T7 (docs/18 D1/§3): the mute toggle now shares this SLOT with
               the star pill, as a separate round control beside it rather
@@ -1068,7 +1189,11 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
             (matching every other HUD/bubble element's own coordinate
             space). */}
         {notebookOpen && (
-          <DetectiveNotebook records={records} onClose={() => setNotebookOpen(false)} />
+          <DetectiveNotebook
+            records={records}
+            onClose={() => setNotebookOpen(false)}
+            highlightId={notebookHighlightId}
+          />
         )}
 
         {/* The map bubble (T4, D4; content source T8, D27/D28; the finale

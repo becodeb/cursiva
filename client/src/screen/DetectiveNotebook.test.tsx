@@ -122,3 +122,60 @@ describe('DetectiveNotebook', () => {
     expect(html).not.toContain('<pattern')
   })
 })
+
+// T31 (`odd/tasks/prewriting-stage-completion.md`, notebook discoverability):
+// the first-ever open highlights the animal that just arrived.
+/** The BODY markup only (after the `<style>` block closes) — the stylesheet
+ *  itself always mentions the bare `.cv-notebook-card--highlight` SELECTOR
+ *  (twice: the rule and its reduced-motion override), so a raw whole-HTML
+ *  substring check can never tell "no card carries the class" apart from
+ *  "some card does" the way it can for every other class in this file. */
+function bodyOf(html: string): string {
+  const closeStyle = html.indexOf('</style>')
+  return closeStyle >= 0 ? html.slice(closeStyle + '</style>'.length) : html
+}
+
+describe('DetectiveNotebook highlightId (T31)', () => {
+  it('renders no highlighted card at all when highlightId is absent (every existing render stays byte-identical)', () => {
+    const html = renderToString(<DetectiveNotebook records={filed('duck-trail4')} onClose={() => {}} />)
+    expect(bodyOf(html)).not.toContain('cv-notebook-card--highlight')
+  })
+
+  it('renders no highlighted card when highlightId is null (the "already discovered" case)', () => {
+    const html = renderToString(
+      <DetectiveNotebook records={filed('duck-trail4')} onClose={() => {}} highlightId={null} />,
+    )
+    expect(bodyOf(html)).not.toContain('cv-notebook-card--highlight')
+  })
+
+  it('adds the highlight class to exactly the matching animal\'s own card, and no other', () => {
+    const html = renderToString(
+      <DetectiveNotebook records={filed('duck-trail4')} onClose={() => {}} highlightId="pato" />,
+    )
+    const body = bodyOf(html)
+    const occurrences = body.split('cv-notebook-card--highlight').length - 1
+    expect(occurrences).toBe(1)
+    // The highlighted card is pato's own — its aria-label (right after the
+    // class attribute, within the same opening tag) names it.
+    const highlightIndex = body.indexOf('cv-notebook-card--highlight')
+    const labelAfter = body.indexOf('aria-label="pato', highlightIndex)
+    const nextButton = body.indexOf('<button', highlightIndex + 1)
+    expect(labelAfter).toBeGreaterThanOrEqual(0)
+    expect(nextButton === -1 || labelAfter < nextButton).toBe(true)
+  })
+
+  it('renders no highlighted card for an animal id that is not currently in the notebook grid (defensive: never throws, never matches nothing on purpose)', () => {
+    const html = renderToString(
+      <DetectiveNotebook records={filed('duck-trail4')} onClose={() => {}} highlightId={'gato' as never} />,
+    )
+    expect(bodyOf(html)).not.toContain('cv-notebook-card--highlight')
+  })
+
+  it('carries a reduced-motion override, and the animation is not infinite (settles rather than looping forever)', () => {
+    const html = renderToString(
+      <DetectiveNotebook records={filed('duck-trail4')} onClose={() => {}} highlightId="pato" />,
+    )
+    expect(html).toContain('.cv-notebook-card--highlight { animation: none;')
+    expect(html).not.toContain('cv-notebook-highlight-glow 900ms ease-in-out infinite')
+  })
+})

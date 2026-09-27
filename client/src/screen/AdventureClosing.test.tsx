@@ -4,7 +4,8 @@
 // convention `AdventureIntro.test.tsx` uses.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import AdventureClosing from './AdventureClosing'
+import AdventureClosing, { closingBubbleText } from './AdventureClosing'
+import { NOTEBOOK_HINT_LINE } from './notebookDiscovery'
 import { auditCaptions } from '../detective/captionAudit'
 import {
   CARRIER_LENS_ART,
@@ -312,6 +313,26 @@ describe('AdventureClosing rescue animal and flight (T24)', () => {
     const sendero = ADVENTURES.find((a) => a.id === 'sendero')!
     renderToString(<AdventureClosing adventure={sendero} beat={sendero.closingBeat![0]} onContinue={onContinue} />)
     expect(() => onContinue()).not.toThrow()
+  })
+
+  // T31 (`odd/tasks/prewriting-stage-completion.md`, notebook discoverability).
+  // `renderToString` runs under `typeof window === 'undefined'`, so
+  // `showNotebookHint` is always false there (this file's own `currentViewport`
+  // gives the same `typeof window` guard) — the hint's own text-composition
+  // logic is exercised directly here instead, the same reason
+  // `AdventureIntro.test.tsx` tests `introSpokenLine` as a pure function.
+  it('closingBubbleText appends NOTEBOOK_HINT_LINE when showNotebookHint is true', () => {
+    expect(closingBubbleText(fixtureBeat, true)).toBe(`${fixtureBeat.line} ${NOTEBOOK_HINT_LINE}`)
+  })
+
+  it('closingBubbleText is the bare beat.line when showNotebookHint is false', () => {
+    expect(closingBubbleText(fixtureBeat, false)).toBe(fixtureBeat.line)
+  })
+
+  it('a rescue closing never shows the hint under renderToString (no window, no localStorage — showNotebookHint stays false)', () => {
+    const html = renderToString(<AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />)
+    expect(html.split(duck.closingBeat![0].line).length - 1).toBe(1)
+    expect(html).not.toContain(NOTEBOOK_HINT_LINE)
   })
 })
 

@@ -24,7 +24,7 @@
 // the llama's tall portrait to vibora's long low body, simply shrinks to
 // fit the same card shape.
 import { CloseIcon, NotebookPadIcon, PawPrintIcon } from '../detective/icons'
-import { CARRIER_LENS_ART } from '../detective/assets'
+import { CARRIER_LENS_ART, type ZooAnimalId } from '../detective/assets'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { BACKPACK_ITEMS, earnedItems } from '../zoo/backpack'
 import { notebookEntries } from '../zoo/notebook'
@@ -135,11 +135,35 @@ button.cv-notebook-card:disabled { cursor: default; }
 @media (prefers-reduced-motion: no-preference) {
   .cv-notebook-card { transition: opacity 120ms ease-out; }
 }
+/* T31 (odd/tasks/prewriting-stage-completion.md, notebook discoverability):
+   the first time the notebook is ever opened, the animal that JUST arrived
+   (screen/ZooMap.tsx's own backpack-receive signal) gets its card
+   highlighted -- a warm glow ring, so a child who has never opened this
+   screen before lands on exactly the page the whole flourish was pointing
+   at, rather than a flat unlabelled grid. A box-shadow ring (never moving
+   the card, never resizing the grid track) that pulses twice then holds its
+   final state (animation-iteration-count: 2, not infinite -- nothing
+   else on this static page loops forever once it settles). NO BACKTICKS in
+   this block -- one inside a comment ends this template literal early
+   (this file's own top-of-file note). */
+.cv-notebook-card--highlight { animation: cv-notebook-highlight-glow 900ms ease-in-out 2; }
+@keyframes cv-notebook-highlight-glow {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(242, 211, 119, 0.55); }
+  50% { box-shadow: 0 0 0 4px rgba(242, 211, 119, 1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-notebook-card--highlight { animation: none; box-shadow: 0 0 0 4px rgba(242, 211, 119, 0.9); }
+}
 `
 
 export interface DetectiveNotebookProps {
   records: Records
   onClose: () => void
+  /** The animal whose card should glow, the FIRST time the notebook is ever
+   *  opened (`screen/ZooMap.tsx`'s own `notebookHighlightId`, cleared on
+   *  every later open) — `null`/`undefined` renders the plain grid,
+   *  unchanged. */
+  highlightId?: ZooAnimalId | null
 }
 
 /**
@@ -150,7 +174,7 @@ export interface DetectiveNotebookProps {
  * for the pieces that DO need one (this one does not: there is no auto-hide
  * timer to drive).
  */
-export default function DetectiveNotebook({ records, onClose }: DetectiveNotebookProps) {
+export default function DetectiveNotebook({ records, onClose, highlightId }: DetectiveNotebookProps) {
   const animals = notebookEntries(records)
   const earnedIds = new Set(earnedItems(records).map((item) => item.id))
 
@@ -184,7 +208,7 @@ export default function DetectiveNotebook({ records, onClose }: DetectiveNoteboo
           <button
             key={entry.id}
             type="button"
-            className="cv-notebook-card"
+            className={entry.id === highlightId ? 'cv-notebook-card cv-notebook-card--highlight' : 'cv-notebook-card'}
             disabled={!entry.rescued}
             aria-label={entry.rescued ? `${entry.id}, ${entry.caption}` : 'Animal todavía no encontrado'}
             onClick={
