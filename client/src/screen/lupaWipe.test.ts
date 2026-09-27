@@ -9,6 +9,7 @@ import {
   LUPA_VT_BASE_DIAMETER_PX,
   LUPA_VT_CSS,
   LUPA_VT_NAME,
+  LUPA_VT_SETTLE_MS,
   LUPA_WIPE_CSS,
   LUPA_WIPE_DURATION_MS,
   lupaEdgeAnchorPercent,
@@ -150,5 +151,36 @@ describe('lupaRimOriginStyle', () => {
   it('carries the same --cv-wipe-x/--cv-wipe-y custom properties an explicit origin gives ScreenTransition.tsx\'s own wrapper', () => {
     const style = lupaRimOriginStyle({ xPct: 12, yPct: 88 })
     expect(style).toEqual({ '--cv-wipe-x': '12%', '--cv-wipe-y': '88%' })
+  })
+})
+
+// T38 (`odd/tasks/prewriting-stage-completion.md`, "hay una lupa en el centro
+// de la pantalla ... se queda siempre"): the live `.cv-lupa-rim--vt` element is
+// drawn at full size for capture, so without a way out it stayed painted in
+// the centre of every screen reached through the native path.
+describe('LUPA_VT_CSS — the live capture rim hides itself (T38)', () => {
+  it('the wrapper steps to visibility: hidden once, after the settle delay, and stays hidden', () => {
+    expect(LUPA_VT_CSS).toContain(`animation: cv-lupa-vt-settle 1ms linear ${LUPA_VT_SETTLE_MS}ms both;`)
+    expect(LUPA_VT_CSS).toMatch(/@keyframes cv-lupa-vt-settle \{\s*from \{ visibility: visible; \}\s*to \{ visibility: hidden; \}\s*\}/)
+  })
+
+  it('the step lands inside the crossing, never after it (after it would flash the 300px ring in the centre)', () => {
+    expect(LUPA_VT_SETTLE_MS).toBeGreaterThan(0)
+    expect(LUPA_VT_SETTLE_MS).toBeLessThan(LUPA_WIPE_DURATION_MS)
+  })
+
+  it('by the settle step the scaled ring is already past every viewport edge', () => {
+    // Worst case for an ease-out curve is linear progress (ease-out is always
+    // ahead of it), so this bound is conservative.
+    const t = LUPA_VT_SETTLE_MS / LUPA_WIPE_DURATION_MS
+    const radiusVmax = (t * LUPA_RIM_FINAL_DIAMETER_VMAX) / 2
+    const worstHalfDiagonalVmax = (Math.sqrt(2) * 100) / 2
+    expect(radiusVmax).toBeGreaterThan(worstHalfDiagonalVmax)
+  })
+
+  it('the settle rule targets the wrapper, not the captured circle (the circle keeps its view-transition-name untouched)', () => {
+    const settleRule = LUPA_VT_CSS.slice(LUPA_VT_CSS.indexOf('.cv-lupa-rim--vt {'), LUPA_VT_CSS.indexOf('}', LUPA_VT_CSS.indexOf('.cv-lupa-rim--vt {')))
+    expect(settleRule).toContain('cv-lupa-vt-settle')
+    expect(settleRule).not.toContain('view-transition-name')
   })
 })

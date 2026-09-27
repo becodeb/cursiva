@@ -224,7 +224,37 @@ export const LUPA_VT_NAME = 'lupa-rim'
  *  cropped, lopsided circle instead of a clean one to scale up. */
 export const LUPA_VT_BASE_DIAMETER_PX = 300
 
+// T38 (`odd/tasks/prewriting-stage-completion.md`, the author's tablet play-
+// test: "hay una lupa en el centro de la pantalla ... se queda siempre"). The
+// live `.cv-lupa-rim--vt` element exists only so the browser can CAPTURE it
+// for the crossing — it is drawn at its full `LUPA_VT_BASE_DIAMETER_PX` size
+// with `animation: none`, and nothing ever unmounted or hid it once the View
+// Transition's pseudo-element tree was torn down. So on every screen reached
+// through the native path the live element itself was left painted: an
+// empty 300px magnifier ring (rim, glint, handle) sitting over the centre
+// of the level for as long as the level stayed on screen.
+//
+// Fix: the wrapper hides itself on its own, one discrete `visibility` step
+// `LUPA_VT_SETTLE_MS` after it mounts. `::view-transition-new(lupa-rim)` is a
+// LIVE rendering of that element, so hiding it also empties the transition's
+// own copy — which is why the step lands a little BEFORE the crossing ends
+// rather than after it: by then the ease-out scale has already carried the
+// captured ring far past every viewport edge (radius > the 1:1 worst-case
+// half-diagonal of 70.7vmax long before 80% of the duration), so nothing on
+// screen changes when it goes; hiding it AFTER the crossing would instead
+// flash the 300px ring in the centre for the gap. CSS only, no timer: the
+// wrapper is keyed per screen, so the step replays exactly once per crossing
+// and an in-place re-render of the same screen never brings the ring back.
+export const LUPA_VT_SETTLE_MS = LUPA_WIPE_DURATION_MS - 50
+
 export const LUPA_VT_CSS = `
+.cv-lupa-rim--vt {
+  animation: cv-lupa-vt-settle 1ms linear ${LUPA_VT_SETTLE_MS}ms both;
+}
+@keyframes cv-lupa-vt-settle {
+  from { visibility: visible; }
+  to { visibility: hidden; }
+}
 .cv-lupa-rim--vt .cv-lupa-circle {
   view-transition-name: ${LUPA_VT_NAME};
   width: ${LUPA_VT_BASE_DIAMETER_PX}px;
