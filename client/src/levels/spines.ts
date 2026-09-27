@@ -287,13 +287,13 @@ function crossesBody(stroke: readonly Point[], anchor: SpineAnchor, cfg: SpineCo
  * in `spines.test.ts`), `localStart` IS the anchor and this reduces to the
  * old comparison exactly — no fixture using an on-anchor stroke moves.
  */
-function passesRemainingMeasures(
+function remainingMeasureFailure(
   stroke: readonly Point[],
   anchor: SpineAnchor,
   cfg: SpineConfig,
   reversed: boolean,
-): boolean {
-  if (stroke.length < 2) return false
+): SpineRejection | null {
+  if (stroke.length < 2) return 'direction'
   const p0 = stroke[0]
   const pEnd = stroke[stroke.length - 1]
   const dx = reversed ? p0.x - pEnd.x : pEnd.x - p0.x
@@ -306,19 +306,19 @@ function passesRemainingMeasures(
   const localStart = reversed ? pEnd : p0
   const idealX = localStart.x - cfg.body.centre.x
   const idealY = localStart.y - cfg.body.centre.y
-  if (angleBetweenDeg(dx, dy, idealX, idealY) > cfg.rules.tolDeg) return false
+  if (angleBetweenDeg(dx, dy, idealX, idealY) > cfg.rules.tolDeg) return 'direction'
 
   // Measure 3 — straightness, chord/arclength.
   const arc = arclength(stroke)
-  if (arc <= 0 || chord / arc < cfg.rules.straightness) return false
+  if (arc <= 0 || chord / arc < cfg.rules.straightness) return 'straightness'
 
   // Measure 4 — chord length inside the authored band.
-  if (chord < cfg.rules.lenMin || chord > cfg.rules.lenMax) return false
+  if (chord < cfg.rules.lenMin || chord > cfg.rules.lenMax) return 'length'
 
   // Measure 5 — no body crossing beyond the anchor's own base radius.
-  if (crossesBody(stroke, anchor, cfg)) return false
+  if (crossesBody(stroke, anchor, cfg)) return 'body'
 
-  return true
+  return null
 }
 
 /**
@@ -337,7 +337,7 @@ function passesRemainingMeasures(
  *
  * A stroke may also be drawn REVERSED (tip→base): if the FIRST point is not
  * within radius of any unfilled anchor, the LAST point is tried instead,
- * and `passesRemainingMeasures` is told so it reorients the chord the same
+ * and `remainingMeasureFailure` is told so it reorients the chord the same
  * way a forward stroke's own p0→pEnd already reads. Forward is tried first
  * and wins ties, since it is how most strokes are actually drawn.
  */
@@ -350,15 +350,8 @@ export function spineSettle(
   let filled = prev.filled
   let changed = false
   for (const stroke of strokes) {
-    if (stroke.length === 0) continue
-    let idx = nearestUnfilledAnchor(anchors, filled, stroke[0], cfg.rules.baseRadius)
-    let reversed = false
-    if (idx === null && stroke.length > 1) {
-      idx = nearestUnfilledAnchor(anchors, filled, stroke[stroke.length - 1], cfg.rules.baseRadius)
-      reversed = idx !== null
-    }
+    const idx = bindStroke(anchors, filled, stroke, cfg).anchor
     if (idx === null) continue
-    if (!passesRemainingMeasures(stroke, anchors[idx], cfg, reversed)) continue
     const next = new Set(filled)
     next.add(idx)
     filled = next
@@ -366,6 +359,80 @@ export function spineSettle(
   }
   if (!changed) return prev
   return { filled, aiming: prev.aiming }
+}
+
+/** Why a stroke did not become a spine — the FIRST measure that failed it,
+ *  in this file's own order (1 start zone, 2 direction, 3 straightness,
+ *  4 length band, 5 body crossing). */
+export type SpineRejection = 'no-anchor' | 'direction' | 'straightness' | 'length' | 'body'
+
+/** The anchor ONE stroke fills against a given `filled` set, or why it
+ *  fills none. `anchor` and `rejection` are never both set. */
+export interface SpineJudgement {
+  readonly anchor: number | null
+  readonly rejection: SpineRejection | null
+}
+
+/** Measures 1-5 for ONE stroke against `filled` — the single place every
+ *  caller below decides "is this a spine". Forward first, reversed
+ *  (tip→base) only when the first point binds no unfilled anchor. */
+function bindStroke(
+  anchors: readonly SpineAnchor[],
+  filled: ReadonlySet<number>,
+  stroke: ReadonlyArray<Point>,
+  cfg: SpineConfig,
+): SpineJudgement {
+  if (stroke.length === 0) return { anchor: null, rejection: 'no-anchor' }
+  let idx = nearestUnfilledAnchor(anchors, filled, stroke[0], cfg.rules.baseRadius)
+  let reversed = false
+  if (idx === null && stroke.length > 1) {
+    idx = nearestUnfilledAnchor(anchors, filled, stroke[stroke.length - 1], cfg.rules.baseRadius)
+    reversed = idx !== null
+  }
+  if (idx === null) return { anchor: null, rejection: 'no-anchor' }
+  const failure = remainingMeasureFailure(stroke, anchors[idx], cfg, reversed)
+  return failure === null ? { anchor: idx, rejection: null } : { anchor: null, rejection: failure }
+}
+
+/** Public diagnosis of one stroke (the stroke simulator's attribution, and
+ *  any future dev overlay) — exactly the decision {@link spineSettle} makes. */
+export function judgeSpineStroke(
+  stroke: ReadonlyArray<Point>,
+  cfg: SpineConfig,
+  filled: ReadonlySet<number> = EMPTY_SPINES.filled,
+): SpineJudgement {
+  return bindStroke(spineAnchors(cfg), filled, stroke, cfg)
+}
+
+/**
+ * T39 (`odd/tasks/prewriting-stage-completion.md`, tablet play-test: "I
+ * finished every spine, they all appeared, and the level did not end"):
+ * what ONE release does to the spine latch — fold the stroke JUST released,
+ * and nothing else, into `prev`.
+ *
+ * The release path used to call `spineSettle(prev, everyStrokeSoFar)`,
+ * re-walking every earlier stroke against a `filled` set that had grown
+ * since that stroke's own release — so an old stroke could retroactively
+ * bind a second anchor, and the latch (what the child SEES) and a fresh
+ * walk of the stroke list (what the score counted) could disagree. Folding
+ * only the new stroke makes `accepted` mean exactly "this release drew a
+ * spine": one release, at most one new spike, never a retroactive one.
+ */
+export function settleSpineRelease(
+  prev: SpineState,
+  stroke: ReadonlyArray<Point>,
+  cfg: SpineConfig,
+): { readonly state: SpineState; readonly accepted: boolean } {
+  const idx = bindStroke(spineAnchors(cfg), prev.filled, stroke, cfg).anchor
+  if (idx === null) return { state: prev, accepted: false }
+  const filled = new Set(prev.filled)
+  filled.add(idx)
+  return { state: { filled, aiming: prev.aiming }, accepted: true }
+}
+
+/** Whether the latch holds every anchor — the hedgehog's own "done". */
+export function spinesComplete(state: SpineState, cfg: SpineConfig): boolean {
+  return state.filled.size >= cfg.count
 }
 
 /**
@@ -393,8 +460,7 @@ export function spineScore(strokes: ReadonlyArray<ReadonlyArray<Point>>, cfg: Sp
  * and returns the SAME reference when nothing new fills (a contract several
  * callers/tests already depend on); this always folds fresh from EMPTY,
  * `spineScore`'s own convention (the live fold never feeds either). Both
- * still call the exact same measure functions — `nearestUnfilledAnchor` and
- * `passesRemainingMeasures`, this file's one place measures 1-5 are decided —
+ * still call the exact same measure function — `bindStroke`, this file's one place measures 1-5 are decided —
  * so what counts as a spine cannot drift between the two callers; only the
  * bookkeeping loop (which needs the stroke's own index, `spineSettle` never
  * does) is restated.
@@ -407,16 +473,8 @@ export function acceptedSpineStrokeIndices(
   const filled = new Set<number>()
   const accepted = new Set<number>()
   for (let i = 0; i < strokes.length; i++) {
-    const stroke = strokes[i]
-    if (stroke.length === 0) continue
-    let idx = nearestUnfilledAnchor(anchors, filled, stroke[0], cfg.rules.baseRadius)
-    let reversed = false
-    if (idx === null && stroke.length > 1) {
-      idx = nearestUnfilledAnchor(anchors, filled, stroke[stroke.length - 1], cfg.rules.baseRadius)
-      reversed = idx !== null
-    }
+    const idx = bindStroke(anchors, filled, strokes[i], cfg).anchor
     if (idx === null) continue
-    if (!passesRemainingMeasures(stroke, anchors[idx], cfg, reversed)) continue
     filled.add(idx)
     accepted.add(i)
   }
