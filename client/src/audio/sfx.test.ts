@@ -16,19 +16,17 @@ import {
 import { VOICE_SETTINGS_KEY, type StorageLike } from '../voice/narrator'
 
 function fakeAudio() {
-  const gain = { gain: { value: 0.0001, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn() }
-  const osc = {
-    type: '',
-    frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
-    connect: vi.fn(),
-    start: vi.fn(),
-    stop: vi.fn(),
-  }
   const ctx = {
     currentTime: 0,
     destination: {},
     resume: vi.fn(() => Promise.resolve()),
-    createOscillator: vi.fn(() => ({ ...osc, frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() } })),
+    createOscillator: vi.fn(() => ({
+      type: '',
+      frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+      connect: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    })),
     createGain: vi.fn(() => ({
       gain: { value: 0.0001, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
       connect: vi.fn(),
