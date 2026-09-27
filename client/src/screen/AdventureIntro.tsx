@@ -23,14 +23,17 @@
 // `CaptionedArt`'s own SVG `<image href>`. `INTRO_CSS`'s comments carry NO
 // BACKTICKS — this is a template literal, and one backtick inside a
 // comment ends the string.
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
 import { ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
-import { SHEET_PAPER } from '../canvas/TraceCanvas'
+import { SHEET_PAPER, fitContentWithInsets } from '../canvas/TraceCanvas'
 import { RevealLayer } from '../canvas/RevealLayer'
+import type { ArtBox } from '../canvas/placeArt'
 import { backdropFor } from '../zoo/backdrops'
 import { adventureIcon, type Adventure } from '../zoo/adventures'
 import { introCoverFor, INTRO_COVER_VIEWBOX_HEIGHT } from './introCover'
+import { IntroChromeGhost, levelChromeFacts } from './introChrome'
+import { LEVEL_CHROME_SIDE_INSET } from './LevelPlay'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import { BUBBLE_POP_CSS } from './BubblePop'
@@ -175,6 +178,59 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
   // alone. `null` for every adventure whose first level has neither
   // (`introCover.ts`'s own header) — those keep the plain backdrop `<img>`.
   const cover = introCoverFor(adventure)
+  // T31 follow-up (coordinator review: "the intro must use the SAME framing
+  // as the level" — a bare crop mismatched the level's own, so the snakes
+  // jumped bigger/shifted the instant play started). `chromeFacts`/
+  // `IntroChromeGhost` (`screen/introChrome.tsx`) render an INVISIBLE
+  // replica of the level's own `.cv-top`/`.cv-foot` chrome, measured with
+  // the SAME `ResizeObserver` pattern and fed into the SAME
+  // `fitContentWithInsets` `screen/LevelPlay.tsx` itself calls — see that
+  // module's own header for why this beats hand-computing the same numbers.
+  // Only needed when there is a cover to frame; a trail adventure keeps its
+  // simple `object-fit: cover` crop, unaffected by any of this.
+  const chromeFacts = cover ? levelChromeFacts(adventure.levelIds[0]) : null
+  const topGhostRef = useRef<HTMLDivElement | null>(null)
+  const bottomGhostRef = useRef<HTMLDivElement | null>(null)
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  const [chromeInsets, setChromeInsets] = useState<{ top: number; bottom: number }>({ top: 0, bottom: 0 })
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null)
+  useEffect(() => {
+    if (!cover) return undefined
+    const topEl = topGhostRef.current
+    const bottomEl = bottomGhostRef.current
+    const svgEl = svgRef.current
+    if (!topEl || !bottomEl || !svgEl || typeof ResizeObserver === 'undefined') return undefined
+    const measure = (): void => {
+      setChromeInsets({ top: topEl.getBoundingClientRect().height, bottom: bottomEl.getBoundingClientRect().height })
+      const box = svgEl.getBoundingClientRect()
+      setContainerSize({ width: box.width, height: box.height })
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(topEl)
+    observer.observe(bottomEl)
+    observer.observe(svgEl)
+    measure()
+    return () => observer.disconnect()
+  }, [cover])
+  // `windowBounds` is `sheetBounds` restated as an `ArtBox` (TraceCanvas's
+  // own vocabulary) — `displayBounds` is that box grown to the container's
+  // own aspect ratio minus the SAME four insets `LevelPlay.tsx` measures,
+  // exactly mirroring `TraceCanvas.tsx`'s own `contain && backdrop &&
+  // containerSize` gate: `null`/pre-measurement (SSR, or the client's very
+  // first paint) falls back to the ungrown box, byte-identical to this
+  // screen's own pre-follow-up behaviour.
+  const windowBounds: ArtBox | null = cover
+    ? { x: 0, y: 0, width: cover.viewBoxWidth, height: INTRO_COVER_VIEWBOX_HEIGHT }
+    : null
+  const displayBounds: ArtBox | null =
+    windowBounds && containerSize
+      ? fitContentWithInsets(windowBounds, containerSize.width, containerSize.height, {
+          top: chromeInsets.top,
+          bottom: chromeInsets.bottom,
+          left: LEVEL_CHROME_SIDE_INSET,
+          right: LEVEL_CHROME_SIDE_INSET,
+        })
+      : windowBounds
   const spokenLine = introSpokenLine(adventure)
   // Voice narration (docs/18 D1; T7): this screen is always reached by a
   // tap (leaving the previous screen), so `canAutoSpeak()` is already true
@@ -204,35 +260,43 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
   return (
     <main className="cv-intro" style={{ backgroundColor: backdrop?.quiet ?? SHEET_PAPER }}>
       <style>{INTRO_CSS}</style>
-      {backdrop && cover && (
-        // T31: the SAME picture, now drawn as an SVG `<image>` so the cover
+      {backdrop && cover && windowBounds && displayBounds && (
+        // T31 follow-up: `viewBox`/the backdrop `<image>`'s own box are now
+        // `displayBounds` — the SAME JS-computed, chrome-inset-aware box
+        // `canvas/TraceCanvas.tsx` itself renders with (`preserveAspectRatio
+        // ="xMidYMid meet"` is safe here for the SAME reason it is there:
+        // `fitContentWithInsets` GUARANTEES `displayBounds`'s own aspect
+        // ratio already equals the container's, so "meet" never letterboxes
+        // — `coverAspectRatio`'s own proof, TraceCanvas.tsx). The cover
         // layer (`RevealLayer`, unchanged, reused as-is — or a snake's own
-        // grey pieces) sits in the exact same coordinate space and scales
-        // together with it. `preserveAspectRatio="xMidYMid slice"` is the
-        // SVG-native "cover" crop — the same visual result the plain `<img
-        // object-fit: cover>` fallback below gives, with no JS-measured
-        // margin bands needed (unlike `canvas/TraceCanvas.tsx`'s own
-        // container-driven expansion): the whole sheet already fills this
-        // viewBox edge to edge, so a uniform "slice" crop alone is enough.
+        // grey pieces) gets BOTH `sheetBounds` (`windowBounds`, unchanged)
+        // AND `displayBounds`, exactly like TraceCanvas's own call, so its
+        // margin bands (`RevealLayer.tsx`'s own `marginGridTiles`) extend
+        // the veil into the grown margin instead of leaving it uncovered.
         <svg
+          ref={svgRef}
           className="cv-intro-backdrop"
-          viewBox={`0 0 ${cover.viewBoxWidth} ${INTRO_COVER_VIEWBOX_HEIGHT}`}
-          preserveAspectRatio="xMidYMid slice"
+          viewBox={`${displayBounds.x} ${displayBounds.y} ${displayBounds.width} ${displayBounds.height}`}
+          preserveAspectRatio="xMidYMid meet"
           aria-hidden="true"
         >
+          <rect
+            x={displayBounds.x}
+            y={displayBounds.y}
+            width={displayBounds.width}
+            height={displayBounds.height}
+            fill={backdrop.quiet}
+          />
           <image
             href={cover.backdropHref}
-            x={0}
-            y={0}
-            width={cover.viewBoxWidth}
-            height={INTRO_COVER_VIEWBOX_HEIGHT}
+            x={displayBounds.x}
+            y={displayBounds.y}
+            width={displayBounds.width}
+            height={displayBounds.height}
             preserveAspectRatio="xMidYMid slice"
           />
           {cover.kind === 'veil' ? (
-            <RevealLayer
-              reveal={cover.reveal}
-              sheetBounds={{ x: 0, y: 0, width: cover.viewBoxWidth, height: INTRO_COVER_VIEWBOX_HEIGHT }}
-            />
+            <RevealLayer reveal={cover.reveal} sheetBounds={windowBounds} displayBounds={displayBounds} />
           ) : (
             cover.pieces.map((piece, i) => (
               <image
@@ -247,6 +311,13 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
             ))
           )}
         </svg>
+      )}
+      {/* T31 follow-up: the invisible chrome replica this screen measures
+          its own framing against — never rendered under SSR/tests (no
+          `window`, and nothing there would ever measure it), so every
+          existing `renderToString` assertion stays byte-identical. */}
+      {chromeFacts && typeof window !== 'undefined' && (
+        <IntroChromeGhost facts={chromeFacts} topRef={topGhostRef} bottomRef={bottomGhostRef} />
       )}
       {backdrop && !cover && <img className="cv-intro-backdrop" src={backdrop.art.href} alt="" />}
       <div className="cv-intro-frame">
