@@ -206,6 +206,68 @@ describe('hitObstacle', () => {
     expect(() => obstacleAt(obstacle(), empty, 500)).not.toThrow()
     expect(hitObstacle({ x: 0, y: 0 }, [obstacle()], empty, 500)).toBe(-1)
   })
+
+  it('hits a hazard pinned to its own centre on a routeless sheet (T41)', () => {
+    const empty = buildLevelTarget(makeConfig({ kind: 'free', paths: [] }))
+    const pinned = obstacle({ centre: { x: 400, y: 300 }, swingDeg: 0 })
+    // At its zero crossing it sits on its centre.
+    expect(hitObstacle({ x: 400, y: 300 }, [pinned], empty, 0)).toBe(0)
+    // A route-anchored sibling on the same routeless sheet is still skipped,
+    // so the pinned one keeps its own index.
+    expect(hitObstacle({ x: 400, y: 300 }, [obstacle(), pinned], empty, 0)).toBe(1)
+    expect(hitObstacle({ x: 0, y: 0 }, [pinned], empty, 0)).toBe(-1)
+  })
+})
+
+describe('obstacleAt — T41 shift and pinned centre', () => {
+  it('shifts the whole swing along the same normal, so the extremes move together', () => {
+    const plain = obstacle()
+    const shifted = obstacle({ shift: 20 })
+    for (const t of [0, 250, 750]) {
+      const a = obstacleAt(plain, DIAGONAL, t)
+      const b = obstacleAt(shifted, DIAGONAL, t)
+      // Normal (−ty, tx) times 20.
+      expect(b.x - a.x).toBeCloseTo(-TAN.y * 20, 6)
+      expect(b.y - a.y).toBeCloseTo(TAN.x * 20, 6)
+    }
+  })
+
+  it('swings a pinned hazard along swingDeg through its centre, ignoring `at`', () => {
+    const o = obstacle({ at: 0.9, centre: { x: 500, y: 300 }, swingDeg: 90, travel: 200 })
+    expect(obstacleAt(o, DIAGONAL, 0)).toEqual({ x: 500, y: 300 })
+    const peak = obstacleAt(o, DIAGONAL, 250) // sin = 1
+    expect(peak.x).toBeCloseTo(500, 6)
+    expect(peak.y).toBeCloseTo(400, 6) // 90° = down the screen
+    const side = obstacleAt({ ...o, swingDeg: 0 }, DIAGONAL, 250)
+    expect(side.x).toBeCloseTo(600, 6)
+    expect(side.y).toBeCloseTo(300, 6)
+  })
+})
+
+describe('hazardGapFraction — T41 off-centre swing', () => {
+  /** The clear fraction measured by brute force over one cycle. */
+  function sampled(o: Obstacle, corridorWidth: number): number {
+    const clearance = corridorWidth / 2 + o.radius + OBSTACLE_INK_ALLOWANCE
+    const n = 20000
+    let clear = 0
+    for (let i = 0; i < n; i++) {
+      const offset = (o.shift ?? 0) + (o.travel / 2) * Math.sin((2 * Math.PI * i) / n)
+      if (Math.abs(offset) > clearance) clear++
+    }
+    return clear / n
+  }
+
+  it('matches a brute-force count with and without a shift', () => {
+    for (const shift of [-40, -11, 0, 11, 25, 60]) {
+      const o = obstacle({ travel: 214, radius: 22, shift })
+      expect(hazardGapFraction(o, 80), `shift ${shift}`).toBeCloseTo(sampled(o, 80), 3)
+    }
+  })
+
+  it('a swing that never leaves the corridor has no gap, shifted or not', () => {
+    expect(hazardGapFraction(obstacle({ travel: 40, shift: 5 }), 100)).toBe(0)
+    expect(hazardGapFraction(obstacle({ travel: 0, shift: 200 }), 100)).toBe(1)
+  })
 })
 
 describe('the retired f1-pelotas hazards (LEGACY_PHASE_1, detective-mode Phase 11)', () => {

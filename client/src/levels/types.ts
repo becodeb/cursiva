@@ -56,7 +56,7 @@ export interface LevelRules {
  * asks them to hold still on purpose, which is the harder and more useful skill.
  */
 export interface Obstacle {
-  /** Where it sits on the route, 0..1 by arc length. */
+  /** Where it sits on the route, 0..1 by arc length. Ignored with `centre`. */
   at: number
   /** Peak-to-peak travel, perpendicular to the route, in viewBox units. */
   travel: number
@@ -66,6 +66,26 @@ export interface Obstacle {
   phase: number
   /** Contact radius. */
   radius: number
+  /**
+   * T41: where the swing is centred, along the same normal the swing runs
+   * on, in viewBox units. Absent = 0, the swing is centred on the route.
+   *
+   * A dense shape (a turtle ring, a monkey loop) has open sheet on ONE side
+   * of the route and a collect item or a neighbouring arm on the other, so
+   * a symmetric swing big enough to open a real gap would reach into that
+   * other side. Shifting the swing outward keeps the same stop-and-go gap
+   * (`hazardGapFraction` reads it) while the hazard only visits the open side.
+   */
+  shift?: number
+  /**
+   * T41: a routeless (`kind: 'free'`) level has no route to sit on, so its
+   * hazard is pinned to this sheet point instead and `at` is ignored. The
+   * swing runs along `swingDeg`.
+   */
+  centre?: { x: number; y: number }
+  /** With `centre` only: the swing direction in degrees, 0 = left-right,
+   *  90 = up-down (screen y grows downward). Absent = 90. */
+  swingDeg?: number
 }
 
 /** Corridor width multiplier along the route — "el sendero se estrecha". */
@@ -102,7 +122,11 @@ export interface LevelConfig {
   /** Timed hazards crossing the route. Empty/absent = none. */
   obstacles?: Obstacle[]
   /**
-   * Touching a wall or a hazard sends the child back to the start of the route.
+   * Touching a WALL sends the child back to the start of the route.
+   *
+   * T41: touching a HAZARD (`obstacles`) always does, whatever this says —
+   * a hazard without a consequence is an animation, not a reason to stop.
+   * So a level can keep its forgiving walls and still ask the child to wait.
    *
    * This is a RULE, not a punishment: no score penalty, no red mark, no sound
    * of failure — the run simply begins again. It is what makes precision matter

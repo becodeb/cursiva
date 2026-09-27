@@ -24,6 +24,7 @@ import type { Point } from '../letters/types'
 import { buildLevelTarget } from '../levels/buildLevel'
 import { getLevel } from '../levels/catalog'
 import { EMPTY_SPINES, spineAnchors, type SpineState } from '../levels/spines'
+import { EMPTY_WAYPOINTS, waypointTick, type WaypointState } from '../levels/waypoints'
 import { releaseOutcome } from './levelCompletion'
 import { emptySnakeColourState, snakeColourTick, type SnakeColourState } from './snakeColour'
 
@@ -159,4 +160,38 @@ describe('snakes: colouring all three completes the level (T39)', () => {
       expect(approvals[approvals.length - 1]).toBe(true)
     })
   }
+})
+
+describe('bee: a hazard restart keeps the opened flowers, and they still finish the level (T41)', () => {
+  const level = getLevel('bee3')
+  const cfg = level.waypoints!
+  const target = buildLevelTarget(level)
+  /** A straight drag between two sheet points, sampled like a pointer. */
+  const leg = (a: Point, b: Point): Point[] =>
+    Array.from({ length: 21 }, (_, i) => ({ x: a.x + ((b.x - a.x) * i) / 20, y: a.y + ((b.y - a.y) * i) / 20 }))
+  const [f1, f2, f3] = cfg.stops
+
+  it('the release that reaches the hive approves, though the restart emptied the buffer', () => {
+    // First run: start → flower 1 → flower 2, then the leaf restarts the run
+    // (the canvas buffer is emptied, the latch keeps both flowers).
+    const first = [...leg(cfg.start, f1), ...leg(f1, f2)]
+    let latch: WaypointState = waypointTick(EMPTY_WAYPOINTS, first, true, cfg)
+    expect(latch.lit.size).toBe(2)
+    latch = { ...latch, seen: 0 } // `restartRun`
+    // Second run, from the start again: only flower 3 and the hive.
+    const second = [...leg(cfg.start, f3), ...leg(f3, cfg.goal)]
+    latch = waypointTick(latch, second, true, cfg)
+    const evaluated = evaluateLevel([second], target, 'touch')
+    const outcome = releaseOutcome({ evaluated, snapshot: [second], waypoints: { state: latch, cfg } })
+    expect(outcome.attempt.approved).toBe(true)
+    expect(outcome.attempt.accuracy).toBe(100)
+  })
+
+  it('does not approve while a flower is still closed', () => {
+    const stroke = [...leg(cfg.start, f1), ...leg(f1, cfg.goal)]
+    const latch = waypointTick(EMPTY_WAYPOINTS, stroke, true, cfg)
+    const evaluated = evaluateLevel([stroke], target, 'touch')
+    const outcome = releaseOutcome({ evaluated, snapshot: [stroke], waypoints: { state: latch, cfg } })
+    expect(outcome.attempt.approved).toBe(false)
+  })
 })

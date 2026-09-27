@@ -5,6 +5,7 @@
 // test can replay a whole attempt through it (`levelCompletion.test.ts`).
 import type { LevelAttempt } from '../game/types'
 import { settleSpineRelease, spinesComplete, type SpineConfig, type SpineState } from '../levels/spines'
+import { waypointLatchScore, waypointsComplete, type WaypointConfig, type WaypointState } from '../levels/waypoints'
 import type { SnakeColourState } from './snakeColour'
 
 export interface ReleaseInput {
@@ -18,6 +19,9 @@ export interface ReleaseInput {
   readonly spines?: { readonly prev: SpineState; readonly cfg: SpineConfig }
   /** A snake level: the colour latch as of this release. */
   readonly snakes?: SnakeColourState
+  /** A waypoint (bee) level: the flower/hive latch as of this release,
+   *  already folded with the stroke just released. */
+  readonly waypoints?: { readonly state: WaypointState; readonly cfg: WaypointConfig }
 }
 
 export interface ReleaseOutcome {
@@ -73,6 +77,13 @@ export function releaseOutcome(input: ReleaseInput): ReleaseOutcome {
     return { attempt: withPartsApproval({ ...evaluated, accuracy }, done), spineState: state, spineAccepted: accepted }
   }
   if (input.snakes) return { attempt: withPartsApproval(evaluated, snakesComplete(input.snakes)) }
+  if (input.waypoints) {
+    // T41: a hazard restart empties the buffer while the opened flowers stay
+    // open, so the errand is read from the latch, like the spines above.
+    const { state, cfg } = input.waypoints
+    const accuracy = Math.max(evaluated.accuracy, waypointLatchScore(state, cfg))
+    return { attempt: withPartsApproval({ ...evaluated, accuracy }, waypointsComplete(state, cfg)) }
+  }
   if (input.collectComplete !== undefined) {
     return { attempt: { ...evaluated, approved: input.collectComplete, failedPillar: null } }
   }

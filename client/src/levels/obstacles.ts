@@ -95,17 +95,34 @@ export function obstacleAt(
   target: LevelTarget,
   timeMs: number,
 ): { x: number; y: number } {
-  const at = Math.max(0, Math.min(1, obstacle.at))
-  const anchor = anchorAt(target, at * target.length)
-  // Unit normal of the route: rotate the tangent a quarter turn.
-  const nx = -anchor.ty
-  const ny = anchor.tx
-  const offset =
+  // The swing axis: the route's own normal (rotate the tangent a quarter
+  // turn), or, on a routeless level (T41), the authored `swingDeg` through
+  // the authored `centre`.
+  let x: number
+  let y: number
+  let nx: number
+  let ny: number
+  if (obstacle.centre) {
+    const rad = ((obstacle.swingDeg ?? 90) * Math.PI) / 180
+    x = obstacle.centre.x
+    y = obstacle.centre.y
+    nx = Math.cos(rad)
+    ny = Math.sin(rad)
+  } else {
+    const at = Math.max(0, Math.min(1, obstacle.at))
+    const anchor = anchorAt(target, at * target.length)
+    x = anchor.x
+    y = anchor.y
+    nx = -anchor.ty
+    ny = anchor.tx
+  }
+  const swing =
     obstacle.periodMs > 0
       ? (obstacle.travel / 2) *
         Math.sin(2 * Math.PI * (timeMs / obstacle.periodMs + obstacle.phase))
       : 0
-  return { x: anchor.x + nx * offset, y: anchor.y + ny * offset }
+  const offset = (obstacle.shift ?? 0) + swing
+  return { x: x + nx * offset, y: y + ny * offset }
 }
 
 /**
@@ -121,11 +138,13 @@ export function hitObstacle(
   target: LevelTarget,
   timeMs: number,
 ): number {
-  // A `free` level derives an EMPTY target (buildLevel.ts). `obstacleAt` then
-  // degenerates to the origin, and testing against it would invent a hazard in
-  // the top-left corner of a sheet that has no route at all.
-  if (target.polyline.length === 0) return -1
+  // A `free` level derives an EMPTY target (buildLevel.ts). A route-anchored
+  // `obstacleAt` then degenerates to the origin, and testing against it would
+  // invent a hazard in the top-left corner of a sheet that has no route at
+  // all. A hazard pinned to its own `centre` (T41) needs no route.
+  const routeless = target.polyline.length === 0
   for (let i = 0; i < obstacles.length; i++) {
+    if (routeless && !obstacles[i].centre) continue
     const centre = obstacleAt(obstacles[i], target, timeMs)
     const reach = obstacles[i].radius + OBSTACLE_INK_ALLOWANCE
     if (Math.hypot(point.x - centre.x, point.y - centre.y) <= reach) return i
@@ -136,6 +155,12 @@ export function hitObstacle(
 /**
  * Fraction of each cycle during which the hazard is FULLY clear of the
  * corridor — `|offset| > corridorWidth/2 + radius + OBSTACLE_INK_ALLOWANCE`.
+ *
+ * T41: with a `shift` the swing is off-centre and the two clear windows are
+ * no longer the same size, so the general form measures each side on its
+ * own: over one cycle `sin θ > u` holds for `π − 2·asin(u)` and `sin θ < v`
+ * for `π + 2·asin(v)` (u, v clamped to [−1, 1]). With `shift` 0 both sides
+ * reduce to the symmetric closed form below.
  *
  * The closed form of the reasoning `catalog.ts` records in prose for
  * `f1-pelotas`, made assertable: `obstacleAt`'s perpendicular offset is
@@ -148,5 +173,13 @@ export function hitObstacle(
 export function hazardGapFraction(o: Obstacle, corridorWidth: number): number {
   const amplitude = o.travel / 2
   const clearance = corridorWidth / 2 + o.radius + OBSTACLE_INK_ALLOWANCE
-  return amplitude <= clearance ? 0 : 1 - (2 / Math.PI) * Math.asin(clearance / amplitude)
+  const shift = o.shift ?? 0
+  if (shift === 0) {
+    return amplitude <= clearance ? 0 : 1 - (2 / Math.PI) * Math.asin(clearance / amplitude)
+  }
+  if (amplitude <= 0) return Math.abs(shift) > clearance ? 1 : 0
+  const clamp = (n: number): number => Math.max(-1, Math.min(1, n))
+  const above = Math.PI - 2 * Math.asin(clamp((clearance - shift) / amplitude))
+  const below = Math.PI + 2 * Math.asin(clamp((-clearance - shift) / amplitude))
+  return (above + below) / (2 * Math.PI)
 }
