@@ -4,6 +4,7 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { marginBands, marginGridTiles, RevealLayer, veilDarknessAt } from './RevealLayer'
 import type { TraceReveal } from './TraceCanvas'
+import { luma } from '../detective/palette'
 
 const sheetBounds = { x: 0, y: 0, width: 1000, height: 600 }
 
@@ -572,6 +573,62 @@ describe('RevealLayer', () => {
     expect(pebbles(partial).length).toBeGreaterThan(0)
     expect(pebbles(partial).length).toBeLessThan(pebbles(full).length)
     expect((partial.match(/<rect/g) ?? []).length).toBe(partialTiles.length)
+  })
+
+  // T34 (`odd/tasks/prewriting-stage-completion.md`): the puddle used to read
+  // as flat grey, not water. `#8fa0aa` at 0.4 opacity composited over
+  // `MUD_BASE #5a4632` to hue 37 / saturation 6% -- almost neutral, because a
+  // PALE fill loses most of its own hue once alpha-blended into a darker,
+  // warmer ground. This asserts the actual on-mud APPEARANCE (the composite,
+  // not the raw `fill` attribute a screenshot can't see past), and that the
+  // highlight ellipse is a genuinely lighter rim, not a same-tone restate.
+  it('composites the mud puddle to a visibly blue-tinted tone over the mud, with a lighter highlight rim', () => {
+    const html = renderToString(
+      <RevealLayer reveal={{ fill: '#75634c', visual: 'mud', tiles: leafTiles }} sheetBounds={sheetBounds} />,
+    )
+    const body = html.match(/<ellipse data-mud-puddle="true"[^>]*>/)?.[0] ?? ''
+    const highlight = html.match(/<ellipse data-mud-puddle-highlight="true"[^>]*>/)?.[0] ?? ''
+    expect(body).not.toBe('')
+    expect(highlight).not.toBe('')
+
+    const attr = (el: string, name: string) => el.match(new RegExp(`${name}="([^"]+)"`))?.[1] ?? ''
+    const bodyFill = attr(body, 'fill')
+    const bodyOpacity = Number(attr(body, 'opacity'))
+    const highlightStroke = attr(highlight, 'stroke')
+
+    const channels = (hex: string) => {
+      const r = parseInt(hex.slice(1, 3), 16)
+      const g = parseInt(hex.slice(3, 5), 16)
+      const b = parseInt(hex.slice(5, 7), 16)
+      return { r, g, b }
+    }
+    const saturationOf = (hex: string) => {
+      const { r, g, b } = channels(hex)
+      const [rf, gf, bf] = [r / 255, g / 255, b / 255]
+      const max = Math.max(rf, gf, bf)
+      const min = Math.min(rf, gf, bf)
+      const l = (max + min) / 2
+      const d = max - min
+      return d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
+    }
+    const compositeOver = (fillHex: string, alpha: number, groundHex: string) => {
+      const f = channels(fillHex)
+      const g = channels(groundHex)
+      const mix = (fc: number, gc: number) => Math.round(fc * alpha + gc * (1 - alpha))
+      const r = mix(f.r, g.r)
+      const gg = mix(f.g, g.g)
+      const b = mix(f.b, g.b)
+      return `#${[r, gg, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`
+    }
+
+    const MUD_BASE = '#5a4632' // this file's own mud silhouette base, restated here since it is not exported
+    const composited = compositeOver(bodyFill, bodyOpacity, MUD_BASE)
+    // The old puddle's own composite (`#8fa0aa` @0.4 over `MUD_BASE`) measures
+    // 6% saturation -- effectively grey. The fix must clear that by a wide
+    // margin so it reads as water, not as the same drift with new math.
+    expect(saturationOf(composited)).toBeGreaterThan(0.2)
+
+    expect(luma(highlightStroke)).toBeGreaterThan(luma(bodyFill) + 40)
   })
 
   it('drops leaf cues that no longer sit over a covered tile, without moving the survivors', () => {
