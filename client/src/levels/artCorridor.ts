@@ -7,6 +7,7 @@
 // "coincidence") — none of the three recomputes placement independently,
 // because a test that did would prove nothing about what is actually drawn
 // and scored (art-corridor spec, "One Shared Placement Function...").
+import type { Point } from '../letters/types'
 import type { ArtImage } from '../detective/assets'
 import type { ArtBox } from '../canvas/placeArt'
 import { spinePolyline, transformPath } from './paths'
@@ -185,6 +186,29 @@ export interface ArtCorridorPlacement {
 }
 
 /**
+ * The unrotated, un-translated box and centreline points shared by
+ * `placeArtCorridor` (below) and `revealFractionAt` (T30, `odd/tasks/
+ * prewriting-stage-completion.md`): ONE derivation, so a piece's drawn box
+ * and its own reveal geometry can never independently drift apart the way
+ * `placeArtCorridor`'s own header warns against for `d`/`box`/`thickness`.
+ * `points` is over the MEASURED domain `[traceFrom, traceTo]` of the box —
+ * `spine.points` already starts and ends exactly there (no separate x0/width
+ * chain to drift out of sync with it, the anchor bug `placeArtCorridor`'s own
+ * header records).
+ */
+function localSpineGeometry(piece: ArtCorridorPiece): { readonly box0: ArtBox; readonly points: readonly Point[] } {
+  const spine = DRAWN_SPINE[piece.spine]
+  const { art, span } = piece
+  const height = (span * art.h) / art.w
+  const box0: ArtBox = { x: piece.at.x - span / 2, y: piece.at.y - spine.mid * height, width: span, height }
+  const points = spine.points.map(([xFrac, yFrac]) => ({
+    x: box0.x + xFrac * span,
+    y: box0.y + yFrac * height,
+  }))
+  return { box0, points }
+}
+
+/**
  * The `<image>` box and the path that runs down the middle of it, from ONE
  * derivation. The renderer takes `box`/`rotate`/`pivot`; the level takes
  * `d`; `catalog.test.ts` takes `thickness`/`residual`. A test that
@@ -202,19 +226,8 @@ export function placeArtCorridor(piece: ArtCorridorPiece, tx: number): ArtCorrid
   const height = (span * art.h) / art.w
   const rotate = piece.rotate ?? 0
 
-  // The unrotated, pre-`tx` box and pivot (rotation is about the piece's OWN
-  // centre).
-  const box0: ArtBox = { x: piece.at.x - span / 2, y: piece.at.y - spine.mid * height, width: span, height }
+  const { box0, points } = localSpineGeometry(piece)
   const pivot0 = { x: box0.x + box0.width / 2, y: box0.y + box0.height / 2 }
-
-  // The unrotated, un-translated centreline, over the MEASURED domain
-  // [traceFrom, traceTo] of the box — `spine.points` already starts and ends
-  // exactly there (no separate x0/width chain to drift out of sync with it,
-  // the anchor bug this replaces).
-  const points = spine.points.map(([xFrac, yFrac]) => ({
-    x: box0.x + xFrac * span,
-    y: box0.y + yFrac * height,
-  }))
   const localD = spinePolyline(points)
 
   // ONE transform carries both the rotation (about the piece's own centre)
@@ -233,4 +246,83 @@ export function placeArtCorridor(piece: ArtCorridorPiece, tx: number): ArtCorrid
     thickness: spine.thickness * height,
     residual: (spine.residual * span) / art.w,
   }
+}
+
+/**
+ * T30 (`odd/tasks/prewriting-stage-completion.md`, tablet play-test: "the
+ * colour doesn't follow my finger that well; it lags behind"): the fraction
+ * of `box.width` the colour reveal should cover for a given `progress` (the
+ * fingertip's own arc-length fraction along the route, `screen/
+ * snakeColour.ts`'s `SnakePieceColourState.progress`) — NOT `progress`
+ * itself, which `canvas/ArtCorridorLayer.tsx` used to multiply directly by
+ * `box.width` before this fix.
+ *
+ * Measured live (Playwright, dragging along `snake1`'s small piece, finger
+ * screen-x vs the reveal window's own right edge): the gap started at
+ * +111px (reveal WAY behind), shrank through the middle of the body, then
+ * went negative (reveal ahead of the finger) near the end — the signature
+ * of two compounding errors `progress * box.width` cannot see:
+ *
+ *  1. The drawn body is not a straight horizontal line — `docs/13` §8 row
+ *     E's whole reason for existing, and `catalog.ts`'s own snake family
+ *     comment: "the channel must stay under the body EVERYWHERE ALONG THE
+ *     WAVE". Equal steps of ARC LENGTH (what `progress` measures) do not
+ *     cover equal steps of horizontal `x` wherever the wave curves —
+ *     exactly why `screen/corridorTrack.ts` tracks arc length in the first
+ *     place, but that same arc length is not a valid stand-in for a
+ *     horizontal clip width on a curved shape.
+ *  2. `DRAWN_SPINE`'s own measured centreline covers only `[traceFrom,
+ *     traceTo]` of the box, not `[0, 1]` — the snake's curled head/tail art
+ *     extends past where the corridor is actually walkable. `progress * box.
+ *     width` silently assumed the corridor spans the WHOLE box, so revealing
+ *     even the very first sliver of real progress had to visually "cross"
+ *     the entire untraceable head first — measured directly as this piece's
+ *     own `traceFrom` (≈22% of the box) worth of dead space before the
+ *     reveal could even start catching up.
+ *
+ * This walks the SAME local geometry `placeArtCorridor` draws the body from
+ * (`localSpineGeometry`, shared rather than re-derived, this file's own
+ * "one derivation" rule) and finds the point at arc-length `progress ×
+ * (this polyline's own total length)` — a rigid rotate+translate preserves
+ * arc length exactly, so this equals the SAME arc-length position
+ * `corridorTick` measured against the FINAL, on-screen route, with no
+ * coordinate-transform inversion needed. Returns that point's own `x`
+ * fraction of `box.width` (naturally landing in `[traceFrom, traceTo]`, not
+ * `[0, 1]`, for `progress` in `(0, 1)`) — the caller decides separately
+ * whether a `done` piece should instead show the FULL box (this function
+ * only ever answers "where is progress along the measured centreline",
+ * never "is this piece finished").
+ *
+ * `progress <= 0` (the piece has never been touched this run — `screen/
+ * snakeColour.ts`'s own `IDLE_PIECE`) returns exactly `0`, never `traceFrom`:
+ * that dead-zone offset is what the finger reveals the INSTANT it touches
+ * the corridor's own head, not something an UNTOUCHED piece shows on its
+ * own. The jump from `0` to `≈traceFrom` on the very first positive sample
+ * is real and intended — the head art before `traceFrom` was never
+ * incrementally traceable in the first place, so there is nothing smoother
+ * to reveal it with.
+ */
+export function revealFractionAt(piece: ArtCorridorPiece, progress: number): number {
+  if (progress <= 0) return 0
+  const { box0, points } = localSpineGeometry(piece)
+  const clamped = Math.max(0, Math.min(1, progress))
+  if (points.length < 2 || box0.width <= 0) return clamped
+
+  let total = 0
+  const cumulative = [0]
+  for (let i = 1; i < points.length; i++) {
+    total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
+    cumulative.push(total)
+  }
+  if (total <= 0) return clamped
+
+  const target = clamped * total
+  let i = 1
+  while (i < cumulative.length && cumulative[i] < target) i++
+  i = Math.min(i, points.length - 1)
+  const segStart = cumulative[i - 1]
+  const segLen = cumulative[i] - segStart
+  const t = segLen > 0 ? (target - segStart) / segLen : 0
+  const x = points[i - 1].x + (points[i].x - points[i - 1].x) * t
+  return Math.max(0, Math.min(1, (x - box0.x) / box0.width))
 }

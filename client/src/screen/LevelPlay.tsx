@@ -87,6 +87,7 @@ import { buildLevelTarget } from '../levels/buildLevel'
 import { hitObstacle, obstacleAt } from '../levels/obstacles'
 import { routeApexes } from '../levels/vertexArt'
 import { routeExtrema, vertexArtPoints } from '../levels/dolphinExtrema'
+import { revealFractionAt } from '../levels/artCorridor'
 import { evaluateLevel } from '../game/evaluateLevel'
 import { coachMessage } from '../game/adaptiveTolerance'
 import { playApprovalTone } from '../modes/tone'
@@ -2001,11 +2002,23 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       }
       if (!piece.greyArt) return base
       const pieceState = snakeColourState.pieces[i]
+      // T30 (`odd/tasks/prewriting-stage-completion.md`, "the colour doesn't
+      // follow my finger that well; it lags behind"): `ArtCorridorLayer`'s
+      // `progress` prop is a FRACTION OF `box.width`, not an arc-length
+      // fraction — `revealFractionAt` (`levels/artCorridor.ts`) converts
+      // between the two, correcting for the drawn body's own wave and its
+      // untraceable head/tail (see that function's own header for the
+      // measured gap this closes). A `done` piece is the one exception: it
+      // shows the FULL box (`progress: 1`), never `revealFractionAt`'s own
+      // `traceTo`-bounded fraction — `docs/19` §3.1 point 3, "the ones
+      // already awake are untouched", stays a state `revealFractionAt` is
+      // never asked about.
+      const progress = pieceState?.done ? 1 : revealFractionAt(piece, pieceState?.progress ?? 0)
       return {
         ...base,
         href: piece.greyArt.href,
         colourHref: piece.art.href,
-        progress: pieceState?.progress ?? 0,
+        progress,
         next: i === nextIdx,
       }
     })
