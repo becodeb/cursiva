@@ -3,7 +3,8 @@
 // Shape"). Pure data assertions, no DOM — iterating `DETECTIVE_CASES` rather
 // than hand-picking one case, so a future third case is checked for free.
 import { describe, expect, it } from 'vitest'
-import { ANIMAL_SILHOUETTE_ART, SIGN_ART } from './assets'
+import { ANIMAL_SILHOUETTE_ART, CLUE_ART, SIGN_ART } from './assets'
+import { deductionHint, initialDeductionState, pickAnimal, solvesCase } from '../screen/Deduction'
 import { getLevel } from '../levels/catalog'
 import {
   DETECTIVE_CASES,
@@ -290,5 +291,71 @@ describe('resolveMonkeysCase / resolveCase (the live framing Deduction.tsx actua
     expect(resolveCase(duck, rescuedOnly([]))).toBe(duck)
     const resolved = resolveCase(monkeysCase, rescuedOnly([]))
     expect(resolved).toEqual(resolveMonkeysCase(monkeysCase, rescuedOnly([])))
+  })
+})
+
+// [T45, `docs/21` N5/N6] The two new cases.
+const sheepCase = DETECTIVE_CASES.find((k) => k.id === 'sheep')!
+const turtlesCase = DETECTIVE_CASES.find((k) => k.id === 'turtles')!
+
+describe('the sheep case (T45): "¿Quién deja lana?"', () => {
+  it('asks its own question, with the duck ruling itself out and the wool ruling out the cat', () => {
+    expect(sheepCase.question).toBe('¿Quién deja lana?')
+    expect(sheepCase.form).toBe('rescued-silhouettes')
+    expect(sheepCase.options).toEqual(['oveja', 'gato', 'pato'])
+    expect(sheepCase.ruledOutBy).toEqual({ gato: 'wool' })
+    expect(sheepCase.rescuedDistractors).toEqual(['pato'])
+    expect(clueKindsOf(sheepCase)).toEqual(['wool'])
+    for (const id of sheepCase.options) expect(ANIMAL_SILHOUETTE_ART[id], id).toBeDefined()
+  })
+
+  it('says the duck is in its pond only once it really is', () => {
+    expect(resolveCase(sheepCase, rescuedOnly(['pato'])).hint.pato).toMatch(/laguna/)
+    expect(resolveCase(sheepCase, rescuedOnly([])).hint.pato).toMatch(/plumas, no lana/)
+    expect(resolveCase(sheepCase, rescuedOnly([])).hint.gato).toBe(sheepCase.hint.gato)
+  })
+})
+
+describe('the turtles case (T45): "¿De quién es esta huella?" — three prints to compare', () => {
+  it('shows three prints, not silhouettes, and the culprit is the print the trail carries', () => {
+    expect(turtlesCase.question).toBe('¿De quién es esta huella?')
+    expect(turtlesCase.form).toBe('prints')
+    expect(turtlesCase.options).toEqual(['tortuga', 'pato', 'gallina'])
+    expect(clueKindsOf(turtlesCase)).toEqual(['turtlePrint'])
+    expect(turtlesCase.optionArt?.tortuga).toBe(CLUE_ART.turtlePrint.art.earned)
+    expect(turtlesCase.optionArt?.pato).toBe(CLUE_ART.webfoot.art.earned)
+    expect(turtlesCase.optionArt?.gallina).toBe(CLUE_ART.footprint.art.earned)
+  })
+
+  it('never shows the same picture twice in the lineup', () => {
+    const hrefs = turtlesCase.options.map((id) => turtlesCase.optionArt?.[id]?.href)
+    expect(new Set(hrefs).size).toBe(3)
+  })
+
+  it('every wrong print has its own reason', () => {
+    expect(turtlesCase.hint.pato).toMatch(/pato/)
+    expect(turtlesCase.hint.gallina).toMatch(/gallina/)
+  })
+})
+
+describe('every case on the journey can be solved', () => {
+  it('picking the culprit closes it; any other pick only rules that option out, with a line', () => {
+    for (const kase of DETECTIVE_CASES) {
+      const live = resolveCase(kase, rescuedOnly(['pato', 'oveja', 'llama', 'erizo', 'abeja']))
+      let state = initialDeductionState()
+      for (const id of live.options) {
+        if (id === live.culprit) continue
+        state = pickAnimal(state, id, live.culprit)
+        expect(state.closed, `${kase.id}: ${id}`).toBe(false)
+        expect(deductionHint(live, state), `${kase.id}: ${id}`).toBe(live.hint[id])
+      }
+      expect(solvesCase(state, live.culprit, live.culprit), kase.id).toBe(true)
+      expect(pickAnimal(state, live.culprit, live.culprit).closed, kase.id).toBe(true)
+    }
+  })
+
+  it('opens with the case\'s own question, or the generic one', () => {
+    expect(deductionHint(sheepCase, initialDeductionState())).toBe('¿Quién deja lana?')
+    expect(deductionHint(DETECTIVE_CASES[0], initialDeductionState())).toBe('¿Quién dejó todo esto?')
   })
 })

@@ -48,7 +48,8 @@ export const JOURNEY: readonly string[] = [
   'glass3',
   'sand3',
   'duck-trail1',
-  'sheep-hill1',
+  // [T45] The sheep's first level is its pistas level since `docs/21` N5.
+  'sheep-lana',
   'llama-peak1',
   'night1',
   'hedgehog1',
@@ -65,7 +66,8 @@ export const JOURNEY: readonly string[] = [
   // bridge to the letters proper (`docs/01` §8's Ola/Rulo families) — the
   // final stretch before the pre-cursive curriculum, not one more animal
   // among the earlier ones.
-  'turtle1',
+  // [T45] The turtles' first level is its pistas level since `docs/21` N6.
+  'turtle-huellas',
   'monkey1',
 ]
 

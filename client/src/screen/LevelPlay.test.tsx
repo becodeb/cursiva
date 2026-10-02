@@ -3424,3 +3424,42 @@ describe('LevelPlay idle nudge / night hint wiring (T33)', () => {
     expect(traceCanvasProbe.current?.idleCue ?? null).toBeNull()
   })
 })
+
+// [T45, `docs/21` N5/N6] A segment level hands the canvas one start dot and
+// one stop mark per segment, no single goal, and approves on the release that
+// completes its LAST segment — each earlier release reports unapproved, and
+// the latch survives whatever the canvas buffer holds.
+describe('T45: segment levels (sheep-lana, turtle-huellas)', () => {
+  for (const id of ['sheep-lana', 'turtle-huellas']) {
+    it(`${id}: a start and a stop per segment, and approval on the last segment`, () => {
+      const onAttempt = vi.fn<(a: LevelAttempt) => void>()
+      const level = getLevel(id)
+      renderToString(
+        <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={onAttempt} onNext={noop} onBack={noop} />,
+      )
+      const props = traceCanvasProbe.current
+      const target = buildLevelTarget(level)
+      const markers = props?.routeMarkers as readonly { start?: { x: number; y: number }; end: { x: number; y: number } }[]
+      expect(markers).toHaveLength(target.routes.length)
+      expect(markers[0].start).toBeUndefined() // the octopus stands there
+      markers.slice(1).forEach((m, i) => expect(m.start).toEqual(target.routes[i + 1].polyline[0]))
+      markers.forEach((m, i) => expect(m.end).toEqual(target.routes[i].polyline.at(-1)))
+      expect(props?.endMarker).toBeUndefined()
+      expect(props?.endArt).toBeUndefined()
+
+      const onRelease = props?.onRelease as (p: TracePoint[], t: string, all: TracePoint[][]) => void
+      target.routes.forEach((route) => {
+        const a = route.polyline[0]
+        const b = route.polyline[route.polyline.length - 1]
+        const stroke: TracePoint[] = Array.from({ length: 21 }, (_, i) => ({
+          x: a.x + ((b.x - a.x) * i) / 20,
+          y: a.y + ((b.y - a.y) * i) / 20,
+          t: i * 16,
+        })) as TracePoint[]
+        // Only this stroke in the buffer: clear-on-failed-retry emptied it.
+        onRelease(stroke, 'touch', [stroke])
+      })
+      expect(onAttempt.mock.calls.map(([a]) => a.approved)).toEqual(target.routes.map((_, i) => i === target.routes.length - 1))
+    })
+  }
+})

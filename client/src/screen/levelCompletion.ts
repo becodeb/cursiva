@@ -7,6 +7,7 @@ import type { LevelAttempt } from '../game/types'
 import { settleSpineRelease, spinesComplete, type SpineConfig, type SpineState } from '../levels/spines'
 import { waypointLatchScore, waypointsComplete, type WaypointConfig, type WaypointState } from '../levels/waypoints'
 import type { SnakeColourState } from './snakeColour'
+import { segmentsComplete, type SegmentState } from '../levels/segments'
 
 export interface ReleaseInput {
   /** `evaluateLevel` on this release's own snapshot. */
@@ -22,6 +23,9 @@ export interface ReleaseInput {
   /** A waypoint (bee) level: the flower/hive latch as of this release,
    *  already folded with the stroke just released. */
   readonly waypoints?: { readonly state: WaypointState; readonly cfg: WaypointConfig }
+  /** A segment level (T45): the latch, already folded with the stroke just
+   *  released (`levels/segments.ts`'s `settleSegmentRelease`). */
+  readonly segments?: SegmentState
 }
 
 export interface ReleaseOutcome {
@@ -77,6 +81,9 @@ export function releaseOutcome(input: ReleaseInput): ReleaseOutcome {
     return { attempt: withPartsApproval({ ...evaluated, accuracy }, done), spineState: state, spineAccepted: accepted }
   }
   if (input.snakes) return { attempt: withPartsApproval(evaluated, snakesComplete(input.snakes)) }
+  // T45: one released stroke per segment, and every one but the last
+  // releases unapproved — the snakes' situation exactly, read the same way.
+  if (input.segments) return { attempt: withPartsApproval(evaluated, segmentsComplete(input.segments)) }
   if (input.waypoints) {
     // T41: a hazard restart empties the buffer while the opened flowers stay
     // open, so the errand is read from the latch, like the spines above.

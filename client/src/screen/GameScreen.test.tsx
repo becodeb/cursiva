@@ -519,11 +519,12 @@ describe('resolveEnterAction (main-screen spec "resolveEnterAction Chooses Betwe
   // adventure — `resolveEnterAction` needed no code change (it already
   // calls `introLevel`, which is adventure-generic); this closes the
   // coverage gap the stale spec prose left.
-  it('always resolves sheep-hill1 and llama-peak1 to the narrative entry, unconditional on records', () => {
+  // [T45] The sheep's first level is its pistas level, `sheep-lana`.
+  it('always resolves sheep-lana and llama-peak1 to the narrative entry, unconditional on records', () => {
     for (const records of [{}, recordsWith(DUCK_TRAIL_IDS, 1)]) {
-      expect(resolveEnterAction('sheep-hill1', records)).toEqual({
+      expect(resolveEnterAction('sheep-lana', records)).toEqual({
         view: 'intro',
-        levelId: 'sheep-hill1',
+        levelId: 'sheep-lana',
       })
       expect(resolveEnterAction('llama-peak1', records)).toEqual({
         view: 'intro',
@@ -539,7 +540,7 @@ describe('resolveEnterAction (main-screen spec "resolveEnterAction Chooses Betwe
   })
 
   it('resolves every other sheep/llama level straight to play', () => {
-    for (const id of ['sheep-hill2', 'sheep-hill3', 'sheep-hill4', 'llama-peak2', 'llama-peak3', 'llama-peak4']) {
+    for (const id of ['sheep-hill1', 'sheep-hill2', 'sheep-hill3', 'sheep-hill4', 'llama-peak2', 'llama-peak3', 'llama-peak4']) {
       expect(resolveEnterAction(id, {})).toEqual({ view: 'play', levelId: id })
     }
   })

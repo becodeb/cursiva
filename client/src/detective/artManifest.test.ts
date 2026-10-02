@@ -39,6 +39,7 @@ import {
   HOME_OCTOPUS_ART,
   LAMP_ART,
   OCTOPUS_ART,
+  PLACEHOLDER_CLUE_ART,
   PROMISED_ANIMAL_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
@@ -117,7 +118,13 @@ const buildScript = Object.values(
 /** Every `ArtImage` the registry exports, labelled by where it comes from so a
  * failure names the export rather than a bare path. */
 const REGISTERED: readonly (readonly [string, ArtImage])[] = [
-  ...Object.entries(CLUE_ART).flatMap(([kind, art]) => [
+  // T45: a placeholder clue kind borrows another kind's files on purpose
+  // (`PLACEHOLDER_CLUE_ART`), so it is left out here the way the shared
+  // silhouettes are left out below; its borrowed pair is still checked
+  // under the kind that owns it.
+  ...Object.entries(CLUE_ART)
+    .filter(([kind]) => !(kind in PLACEHOLDER_CLUE_ART))
+    .flatMap(([kind, art]) => [
     [`CLUE_ART.${kind}.art.earned`, art.art.earned] as const,
     [`CLUE_ART.${kind}.art.drained`, art.art.drained] as const,
   ]),
@@ -513,5 +520,34 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // drawn-world contours. If the pipeline's `INK` and this token drift
     // apart again, this is the assertion that goes red first.
     expect(ART_OUTLINE).toBe('#1a1a1a')
+  })
+})
+
+/** Every source in `art-source/`, by bare name — keys only, nothing is read. */
+const ART_SOURCES = new Set(
+  Object.keys(import.meta.glob('../../../art-source/*.png')).map((path) => path.split('/').pop()!),
+)
+
+describe('placeholder clue art (T45, docs/22 §5)', () => {
+  it('borrows an already-shipped clue pair, so the mark still lights when earned', () => {
+    const owned = new Set(
+      Object.entries(CLUE_ART)
+        .filter(([kind]) => !(kind in PLACEHOLDER_CLUE_ART))
+        .map(([, art]) => art.art.earned.href),
+    )
+    for (const kind of Object.keys(PLACEHOLDER_CLUE_ART) as (keyof typeof CLUE_ART)[]) {
+      expect(owned.has(CLUE_ART[kind].art.earned.href), kind).toBe(true)
+    }
+  })
+
+  it('is swapped as soon as the real drawing lands in art-source/', () => {
+    // When this fails: the source named here exists now. Do the swap in
+    // `docs/22` §5 (two build_art.py rows, one constant in assets.ts) and
+    // remove the kind from `PLACEHOLDER_CLUE_ART`.
+    expect(ART_SOURCES.size).toBeGreaterThan(50)
+    for (const [kind, source] of Object.entries(PLACEHOLDER_CLUE_ART)) {
+      expect(ART_SOURCES.has(source!), `${kind}: ${source} exists — swap the placeholder`).toBe(false)
+      expect(buildScript.includes(`'${source}'`), `${kind}: build_art.py already reads ${source}`).toBe(false)
+    }
   })
 })

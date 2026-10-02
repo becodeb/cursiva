@@ -500,6 +500,7 @@ export const SECTORS: readonly ZooSector[] = [
       { id: 'llama', dx: 55, dy: -6, size: 96, appearsWhen: ['llama-peak4'] },
     ],
     adventureIds: [
+      'sheep-lana',
       'sheep-hill1',
       'sheep-hill2',
       'sheep-hill3',
@@ -531,7 +532,18 @@ export const SECTORS: readonly ZooSector[] = [
     // own convention already established for `montañas`/`nocturna` —
     // `unlockedWhen` stays UNCHANGED, adding an adventure never moves when
     // the sector itself opens.
-    adventureIds: ['snake1', 'snake2', 'snake3', 'snake4', 'turtle1', 'turtle2', 'turtle3', 'turtle4'],
+    adventureIds: [
+      'snake1',
+      'snake2',
+      'snake3',
+      'snake4',
+      // [T45] The turtles' pistas level plays first (`docs/21` N6).
+      'turtle-huellas',
+      'turtle1',
+      'turtle2',
+      'turtle3',
+      'turtle4',
+    ],
     // The ladder's new last rung: entrada → estanque ← sand4 → montañas ←
     // duck-trail4 → nocturna ← llama-peak4 → arena ← night4. Only ever
     // WIDENS access (design.md §0 A1).

@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import { ADVENTURES, adventureFor } from './adventures'
+import { DETECTIVE_CASES } from '../detective/cases'
 import { JOURNEY, nextJourneyStep } from './journey'
 import { SECTORS, type Records } from './sectors'
 
@@ -68,7 +69,7 @@ describe('JOURNEY (guard: every ADVENTURES row start and every no-row block star
       'glass3',
       'sand3',
       'duck-trail1',
-      'sheep-hill1',
+      'sheep-lana',
       'llama-peak1',
       'night1',
       'hedgehog1',
@@ -76,8 +77,53 @@ describe('JOURNEY (guard: every ADVENTURES row start and every no-row block star
       'bee1',
       'f2-guirnalda',
       'dolphin1',
-      'turtle1',
+      'turtle-huellas',
       'monkey1',
+    ])
+  })
+})
+
+// [T45] `docs/19` §2.3 as the author changed it on 2026-10-02 (`docs/21` §6
+// decision 1): "nunca la misma forma de deducir dos veces seguidas en el
+// recorrido". "Seguidas" is the old rule's own word ("nunca dos deducciones
+// seguidas", "ninguno pegado a otro"): two NEIGHBOURING stops of the
+// journey. Before, two neighbouring stops could not both deduce; now they
+// may, as long as they deduce differently.
+describe('the journey never asks the same kind of deduction at two neighbouring stops (docs/19 §2.3)', () => {
+  const formAt = (entryLevel: string) => {
+    const deduction = adventureFor(entryLevel)?.deduction
+    return deduction ? DETECTIVE_CASES.find((k) => k.id === deduction.caseId)!.form : undefined
+  }
+
+  it('holds for every pair of neighbouring stops', () => {
+    for (let i = 1; i < JOURNEY.length; i++) {
+      const a = formAt(JOURNEY[i - 1])
+      const b = formAt(JOURNEY[i])
+      if (a && b) expect(b, `${JOURNEY[i - 1]} → ${JOURNEY[i]}`).not.toBe(a)
+    }
+  })
+
+  it('asks the four kinds in the documented order (docs/21 §6 decision 1)', () => {
+    expect(JOURNEY.map(formAt).filter(Boolean)).toEqual([
+      'new-silhouettes', // duck
+      'rescued-silhouettes', // sheep: the duck rules itself out
+      'rescued-silhouettes', // night: two stops after the sheep, not next to it
+      'signs', // fish
+      'prints', // turtles
+      'rescued-silhouettes', // monkeys
+    ])
+  })
+
+  it('is a real check: two neighbouring stops of the same kind would fail it', () => {
+    // The two pairs of neighbours that both deduce today, each of a
+    // different kind — the only places this rule can bite.
+    const neighbours: [string, string][] = []
+    for (let i = 1; i < JOURNEY.length; i++) {
+      if (formAt(JOURNEY[i - 1]) && formAt(JOURNEY[i])) neighbours.push([JOURNEY[i - 1], JOURNEY[i]])
+    }
+    expect(neighbours).toEqual([
+      ['duck-trail1', 'sheep-lana'],
+      ['turtle-huellas', 'monkey1'],
     ])
   })
 })
@@ -115,6 +161,7 @@ describe('nextJourneyStep', () => {
       'duck-trail6',
       'duck-trail3',
       'duck-trail4',
+      'sheep-lana',
       'sheep-hill1',
       'sheep-hill2',
       'sheep-hill3',
@@ -157,7 +204,7 @@ describe('nextJourneyStep', () => {
   // an already-visited sector (see `JOURNEY`'s own comment for why they
   // sit last — the bridge to the letters, not one more animal among the
   // earlier ones).
-  it('the journey steps after the fish/dolphin block are turtle1 in the arena, then monkey1 in the forest', () => {
+  it('the journey steps after the fish/dolphin block are turtle-huellas in the arena, then monkey1 in the forest', () => {
     const entrada = SECTORS.find((s) => s.id === 'entrada')!
     const estanque = SECTORS.find((s) => s.id === 'estanque')!
     const montanas = SECTORS.find((s) => s.id === 'montanas')!
@@ -172,7 +219,8 @@ describe('nextJourneyStep', () => {
       ...snake.levelIds,
       ...bee.levelIds,
     )
-    expect(nextJourneyStep(baseline)?.entryLevel).toBe('turtle1')
+    // [T45] The turtles open on their pistas level now (`docs/21` N6).
+    expect(nextJourneyStep(baseline)?.entryLevel).toBe('turtle-huellas')
     expect(nextJourneyStep(baseline)?.sector.id).toBe('arena')
 
     const turtles = ADVENTURES.find((a) => a.id === 'turtles')!

@@ -66,6 +66,10 @@ export type ClueKind =
   // Registered for `docs/21` N2/N4, levels not built yet.
   | 'hedgehogPrint'
   | 'bananaPeel'
+  // T45 (`docs/21` N5/N6): the sheep's wool (`docs/22` C9) and the turtle's
+  // print (C10). Their art is not drawn yet; see `PLACEHOLDER_CLUE_ART`.
+  | 'wool'
+  | 'turtlePrint'
 
 /** One art per deduction-screen animal choice (design unit 7). */
 export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
@@ -135,6 +139,25 @@ export interface ClueArt {
    * silhouette, `earned` the same silhouette in the trail's own colour —
    * derived from one source so the pair can never drift. */
   art: { earned: ArtImage; drained: ArtImage }
+}
+
+/** T45 placeholder for `docs/22` C9 (see `PLACEHOLDER_CLUE_ART`). */
+const WOOL_CLUE_ART: ClueArt = {
+  earned: BREADCRUMB,
+  art: {
+    earned: { href: '/art/clue-breadcrumb-earned.png', w: 256, h: 237 },
+    drained: { href: '/art/clue-breadcrumb-drained.png', w: 256, h: 237 },
+  },
+}
+
+/** T45 placeholder for `docs/22` C10 (see `PLACEHOLDER_CLUE_ART`). A print
+ *  has no colour of its own (`PRINT`), like every other print. */
+const TURTLE_PRINT_CLUE_ART: ClueArt = {
+  earned: PRINT,
+  art: {
+    earned: { href: '/art/clue-hedgehog-print-earned.png', w: 256, h: 216 },
+    drained: { href: '/art/clue-hedgehog-print-drained.png', w: 256, h: 216 },
+  },
 }
 
 export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
@@ -247,6 +270,37 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       drained: { href: '/art/clue-banana-peel-drained.png', w: 256, h: 242 },
     },
   },
+  // T45: stand-ins until `docs/22` C9/C10 are drawn — see
+  // `PLACEHOLDER_CLUE_ART` below for which picture each borrows and
+  // `docs/22` §5 for the swap.
+  wool: WOOL_CLUE_ART,
+  turtlePrint: TURTLE_PRINT_CLUE_ART,
+}
+
+/**
+ * T45. The two clue kinds whose own drawing does not exist yet, each mapped
+ * to the `art-source/` file that will replace it. Until then each BORROWS an
+ * already-shipped clue pair (earned AND drained, so the mark still lights
+ * when it is earned, and the colour token stays the measured one
+ * `artManifest.test.ts` checks):
+ *
+ *  - `wool` borrows the bread crumb (`miga de pan.png`, on no journey
+ *    level): a lumpy, warm, rounded blob, the nearest shipped shape to a
+ *    tuft. It is not wool, and nothing in the copy calls it a crumb.
+ *  - `turtlePrint` borrows the hedgehog's print (C7): a black print with
+ *    round toes, as different from the duck's webbed print (C3) and the
+ *    hen's three toes (`huella negra.png`) as the real C10 has to be,
+ *    which is what the turtle deduction compares.
+ *
+ * Swapping one (`docs/22` §5): two `SINGLES` rows in `build_art.py` plus
+ * one `AUTHORED_SOURCE_SIZES` entry, run it, then replace the matching
+ * `*_CLUE_ART` constant below with the new files and drop the kind from
+ * this record. `artManifest.test.ts` fails while a kind is listed here and
+ * its source file already exists, so the swap cannot be forgotten.
+ */
+export const PLACEHOLDER_CLUE_ART: Readonly<Partial<Record<ClueKind, string>>> = {
+  wool: 'pista lana.png',
+  turtlePrint: 'pista huella de tortuga.png',
 }
 
 /**

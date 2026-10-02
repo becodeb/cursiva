@@ -237,10 +237,14 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'sheep',
-    levelIds: ['sheep-hill1', 'sheep-hill2', 'sheep-hill3', 'sheep-hill4'],
+    // [T45, `docs/21` N5] Recipe A since the author's decision 1 (`docs/21`
+    // §6, 2026-10-02): the fence posts' wool first (`sheep-lana`), then
+    // "¿Quién deja lana?", then the sheep gathered on the hills.
+    levelIds: ['sheep-lana', 'sheep-hill1', 'sheep-hill2', 'sheep-hill3', 'sheep-hill4'],
+    deduction: { after: 'sheep-lana', caseId: 'sheep' },
     sector: 'montanas',
     animal: 'oveja',
-    intro: 'Las ovejas se escaparon por la ladera. ¿Las juntamos?',
+    intro: 'Alguien dejó lana enganchada en el alambrado de la ladera. ¿Vamos a ver?',
     closing: '¡Juntamos las ovejas! Ya están en su ladera.',
     // Rescue closing (T8) — the duck row's own reasoning, restated: one
     // beat, `closing` verbatim, the animal's own art, default figure.
@@ -417,7 +421,10 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'turtles',
-    levelIds: ['turtle1', 'turtle2', 'turtle3', 'turtle4'],
+    // [T45, `docs/21` N6] Recipe A: the tail furrow and its prints first
+    // (`turtle-huellas`), then "¿De quién es esta huella?", then the rings.
+    levelIds: ['turtle-huellas', 'turtle1', 'turtle2', 'turtle3', 'turtle4'],
+    deduction: { after: 'turtle-huellas', caseId: 'turtles' },
     sector: 'arena',
     animal: 'tortuga',
     // T28 (`docs/19` §3, recipe B): the canonical story line for this row —
@@ -425,7 +432,9 @@ export const ADVENTURES: readonly Adventure[] = [
     // the loop mechanic directly (no deduction in recipe B, the place
     // already says who it is), matching `collect: { items: 'loops' }` on
     // every `turtle1..4` level.
-    intro: 'Se escondieron en su caparazón. Demos la vuelta a cada una.',
+    // [T45] The entry now opens on the prints, the case's first step; the
+    // rings ("demos la vuelta a cada una") come after the deduction.
+    intro: 'Alguien dejó huellas y un surco en la arena. ¿Las seguimos?',
     closing: '¡Asomaron la cabeza! Ya volvieron a su recinto.',
     // Rescue closing (T8) — the snake row's own reasoning, restated: one
     // beat, `closing` verbatim, the animal's own art, default figure.

@@ -1,0 +1,186 @@
+// Stop segments (`docs/21_HABILIDADES_PREESCRITURA.md` §4.3, N5 and N6;
+// `odd/tasks/prewriting-stage-completion.md` T45). A routed level whose
+// paths are SEPARATE short strokes, each one drawn on its own: land on its
+// start dot, follow it to its stop point, and lift the finger THERE. The
+// skill is the one the cursive letter keeps asking for and no other level
+// trains: a straight stroke with a deliberate start and a deliberate stop
+// (§3.1.4, §3.2.6) — the sheep's fence posts (top to bottom) and the
+// turtle's tail furrow (left to right, three stops).
+//
+// Judged ONCE PER RELEASE, on the stroke just released, never by re-scoring
+// the canvas buffer: `onStart`'s clear-on-failed-retry empties that buffer
+// before every stroke but the first (T39's root cause), and every segment
+// but the last releases unapproved. Approval reads the latch
+// (`screen/levelCompletion.ts`), the same move the spines made
+// (`settleSpineRelease`).
+//
+// Pure, no DOM. The two path generators live here rather than in
+// `levels/paths.ts` because they only make sense for this mechanic.
+import type { Point } from '../letters/types'
+import type { RouteSegment } from './types'
+
+/** How strict a segment level is about where a stroke starts and stops. */
+export interface SegmentConfig {
+  /** How far from a segment's start dot the finger may land, in viewBox
+   *  units. A stroke that lands further away belongs to no segment. */
+  readonly startReach: number
+  /** How far from a segment's stop point the finger may LIFT. Running on
+   *  past the stop and lifting beyond this is the one mistake the level is
+   *  about, so the segment stays open and the child tries it again. */
+  readonly stopReach: number
+}
+
+/** Which segments are done. Latched: a done segment stays done for the rest
+ *  of the attempt, whatever happens to the canvas's own stroke buffer. */
+export interface SegmentState {
+  readonly done: readonly boolean[]
+}
+
+/** The share of a stroke's samples that must lie inside the corridor. The
+ *  rest is the touch-down settle and the lift flick a real finger makes. */
+export const SEGMENT_MIN_INSIDE = 0.85
+
+export function emptySegmentState(count: number): SegmentState {
+  return { done: Array.from({ length: Math.max(0, count) }, () => false) }
+}
+
+export function segmentsComplete(state: SegmentState): boolean {
+  return state.done.length > 0 && state.done.every(Boolean)
+}
+
+/** The nearest point of `polyline` to `p`: its distance, and how far along
+ *  the route (arc length from the start) it sits. */
+export function projectOnRoute(
+  polyline: readonly Point[],
+  p: Point,
+): { distance: number; arc: number } {
+  let best = { distance: Number.POSITIVE_INFINITY, arc: 0 }
+  let acc = 0
+  if (polyline.length === 1) return { distance: Math.hypot(p.x - polyline[0].x, p.y - polyline[0].y), arc: 0 }
+  for (let i = 1; i < polyline.length; i++) {
+    const a = polyline[i - 1]
+    const b = polyline[i]
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const len2 = dx * dx + dy * dy
+    const len = Math.sqrt(len2)
+    const t = len2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)) : 0
+    const distance = Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+    if (distance < best.distance) best = { distance, arc: acc + t * len }
+    acc += len
+  }
+  return best
+}
+
+/**
+ * Which segment the released stroke completed, or `-1` for none.
+ *
+ * The stroke belongs to the not-yet-done segment whose START dot it landed
+ * nearest (within `startReach`). It completes that segment when all three
+ * hold:
+ *
+ *  - it stayed in the corridor (`SEGMENT_MIN_INSIDE` of its samples within
+ *    half the corridor width of the segment's own line);
+ *  - it got to the end (its furthest projection reaches within half a
+ *    corridor of the stop — `detective/clues.ts`'s `trailEndArc` tolerance);
+ *  - it STOPPED there: the lift point is within `stopReach` of the stop.
+ *
+ * `corridorWidth` is the live (adaptive) width, so a child the engine has
+ * already widened the corridor for gets the same extra room here.
+ */
+export function judgeSegmentStroke(
+  stroke: readonly Point[],
+  routes: readonly RouteSegment[],
+  corridorWidth: number,
+  cfg: SegmentConfig,
+  done: readonly boolean[] = [],
+): number {
+  if (stroke.length < 2) return -1
+  const first = stroke[0]
+  let index = -1
+  let nearest = Number.POSITIVE_INFINITY
+  routes.forEach((route, i) => {
+    if (done[i] || route.polyline.length === 0) return
+    const start = route.polyline[0]
+    const d = Math.hypot(first.x - start.x, first.y - start.y)
+    if (d <= cfg.startReach && d < nearest) {
+      nearest = d
+      index = i
+    }
+  })
+  if (index < 0) return -1
+  const route = routes[index]
+  const half = corridorWidth / 2
+  let inside = 0
+  let maxArc = 0
+  for (const p of stroke) {
+    const { distance, arc } = projectOnRoute(route.polyline, p)
+    if (distance <= half) {
+      inside++
+      maxArc = Math.max(maxArc, arc)
+    }
+  }
+  if (inside / stroke.length < SEGMENT_MIN_INSIDE) return -1
+  if (maxArc < route.length - half) return -1
+  const end = route.polyline[route.polyline.length - 1]
+  const last = stroke[stroke.length - 1]
+  if (Math.hypot(last.x - end.x, last.y - end.y) > cfg.stopReach) return -1
+  return index
+}
+
+/** Fold one released stroke into the latch. `accepted` is the segment it
+ *  completed, or `-1`. Returns the SAME state when nothing changed. */
+export function settleSegmentRelease(
+  state: SegmentState,
+  stroke: readonly Point[],
+  routes: readonly RouteSegment[],
+  corridorWidth: number,
+  cfg: SegmentConfig,
+): { state: SegmentState; accepted: number } {
+  const accepted = judgeSegmentStroke(stroke, routes, corridorWidth, cfg, state.done)
+  if (accepted < 0) return { state, accepted }
+  return { state: { done: state.done.map((d, i) => d || i === accepted) }, accepted }
+}
+
+/** Steps per straight stroke: `flattenPathD` treats a path of fewer than
+ *  three points as empty, and the demo and the checkpoints want a few
+ *  points along the way anyway (`levels/paths.ts`'s `straight` does the
+ *  same). */
+const STRAIGHT_STEPS = 12
+
+function r1(n: number): number {
+  return Math.round(n * 10) / 10
+}
+
+/** A straight `M … L … L …` path from `a` to `b`. */
+function straightStroke(a: Point, b: Point): string {
+  let d = `M ${r1(a.x)} ${r1(a.y)}`
+  for (let i = 1; i <= STRAIGHT_STEPS; i++) {
+    const t = i / STRAIGHT_STEPS
+    d += ` L ${r1(a.x + (b.x - a.x) * t)} ${r1(a.y + (b.y - a.y) * t)}`
+  }
+  return d
+}
+
+/** `count` vertical posts, evenly spaced from `x0` to `x1`, each drawn TOP
+ *  to BOTTOM — the order a downstroke of a letter goes. */
+export function fencePosts(opts: { x0: number; x1: number; top: number; bottom: number; count: number }): string[] {
+  const { x0, x1, top, bottom, count } = opts
+  const step = count > 1 ? (x1 - x0) / (count - 1) : 0
+  return Array.from({ length: count }, (_, i) => {
+    const x = x0 + i * step
+    return straightStroke({ x, y: top }, { x, y: bottom })
+  })
+}
+
+/** One horizontal line from `x0` to `x1`, LEFT to right, cut into `count`
+ *  equal stretches with a `gap` between them: each stretch ends at a stop,
+ *  and the next one starts just after it. */
+export function furrowSegments(opts: { x0: number; x1: number; y: number; count: number; gap: number }): string[] {
+  const { x0, x1, y, count, gap } = opts
+  const len = (x1 - x0 - gap * (count - 1)) / count
+  return Array.from({ length: count }, (_, i) => {
+    const a = x0 + i * (len + gap)
+    return straightStroke({ x: a, y }, { x: a + len, y })
+  })
+}
