@@ -227,8 +227,10 @@ describe('Registry↔Catalog Structural Consistency', () => {
     ])
   })
 
-  it("montañas' eight adventures are sheep-hill1..4 then llama-peak1..4, in order", () => {
+  // [T45] `sheep-lana` (`docs/21` N5) opens the sheep's run.
+  it("montañas' nine levels are sheep-lana, sheep-hill1..4 then llama-peak1..4, in order", () => {
     expect(montanas.adventureIds).toEqual([
+      'sheep-lana',
       'sheep-hill1',
       'sheep-hill2',
       'sheep-hill3',
@@ -322,13 +324,13 @@ describe('Registry↔Catalog Structural Consistency', () => {
     expect(after[0].art).toBe(ZOO_ANIMAL_ART.abeja)
   })
 
-  it('arena stays fogged until night4 is filed, then opens with snake1..4 then turtle1..4 (promised-animals P3)', () => {
+  it('arena stays fogged until night4 is filed, then opens with snake1..4 then turtle-huellas and turtle1..4 (promised-animals P3, T45)', () => {
     const arena = SECTORS.find((s) => s.id === 'arena')!
     // `turtle1..4` (P3) is a SECOND adventure on this already-open sector,
     // appended after the snake's own four — `unlockedWhen` is unaffected.
     expect(arena.adventureIds).toEqual([
       'snake1', 'snake2', 'snake3', 'snake4',
-      'turtle1', 'turtle2', 'turtle3', 'turtle4',
+      'turtle-huellas', 'turtle1', 'turtle2', 'turtle3', 'turtle4',
     ])
     expect(arena.unlockedWhen({})).toBe(false)
     expect(arena.unlockedWhen(filed('llama-peak4'))).toBe(false)

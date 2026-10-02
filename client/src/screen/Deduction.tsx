@@ -268,7 +268,8 @@ export function deductionHint(kase: DetectiveCase, state: DeductionState): strin
     const text = kase.hint[last]
     if (text) return text
   }
-  return DEDUCTION_OPENING_LINE
+  // [T45] A case may ask its own question ("¿De quién es esta lana?").
+  return kase.question ?? DEDUCTION_OPENING_LINE
 }
 
 /**

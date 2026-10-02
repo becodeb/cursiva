@@ -5,11 +5,42 @@
 // reads through, so the case and the levels it points at can never disagree.
 import { getLevel } from '../levels/catalog'
 import { DETECTIVE_TRAIL_IDS } from '../game/types'
-import { SECTOR_ADVENTURE_ART, SIGN_ART, type ArtImage, type ClueKind, type ZooAnimalId } from './assets'
+import {
+  CAT_FUR_SAMPLE_ART,
+  CLUE_ART,
+  SECTOR_ADVENTURE_ART,
+  SIGN_ART,
+  type ArtImage,
+  type ClueKind,
+  type ZooAnimalId,
+} from './assets'
+
+/**
+ * How a case is deduced (`docs/19` §2.3; `docs/21` §6 decision 1, decided
+ * 2026-10-02): two deductions in a row on the journey never share a form.
+ *
+ *  - `new-silhouettes`: animals the child has not met, each ruled out by a
+ *    clue (the duck);
+ *  - `rescued-silhouettes`: the lineup includes animals already rescued,
+ *    which rule themselves out (the night, the monkeys);
+ *  - `signs`: the entrance's empty-enclosure signs (the fish);
+ *  - `comparison`: three SAMPLES side by side (`optionArt`) and the child
+ *    picks the one that matches the clue just collected — the sheep's wool
+ *    against a feather and cat fur, the turtles' print against two other
+ *    prints. Samples and prints are one form (the author's decision,
+ *    2026-10-02): both are "which of these is the same as mine?".
+ */
+export type DeductionForm = 'new-silhouettes' | 'rescued-silhouettes' | 'signs' | 'comparison'
 
 export interface DetectiveCase {
   id: string
   culprit: ZooAnimalId
+  /** [T45] Which of the four ways of deducing this case asks (see
+   *  {@link DeductionForm}). */
+  form: DeductionForm
+  /** [T45] Pulpito's opening question, when it is not the generic "¿Quién
+   *  dejó todo esto?" (`Deduction.tsx`'s `DEDUCTION_OPENING_LINE`). */
+  question?: string
   /** Lineup order, explicit so it never depends on key iteration order. May
    *  be the STATIC authored default (every case but `night`) or a live,
    *  progress-resolved array (`resolveCase`, below) — either way this is
@@ -159,6 +190,7 @@ const MONKEY_CLUE_VERDICT: Readonly<Partial<Record<ZooAnimalId, ClueKind>>> = {
 export const DETECTIVE_CASES: readonly DetectiveCase[] = [
   {
     id: 'duck',
+    form: 'new-silhouettes',
     culprit: 'pato',
     options: ['pato', 'vaca', 'gato'],
     // [T21] `feather`/`droplet`, not the pre-T21 `feather`/`bubble`: `bubble`
@@ -188,6 +220,7 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
   },
   {
     id: 'hen',
+    form: 'new-silhouettes',
     culprit: 'gallina',
     options: ['gallina', 'pato', 'vaca', 'gato'],
     ruledOutBy: { pato: 'footprint', vaca: 'feather', gato: 'corn' },
@@ -216,6 +249,7 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
   // genuinely met, never a placeholder it has never seen.
   {
     id: 'night',
+    form: 'rescued-silhouettes',
     culprit: 'erizo',
     options: ['erizo', 'pato', 'oveja'],
     // No clue rules either of these out — see `rescuedDistractors`'s own
@@ -245,6 +279,7 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
   // own header).
   {
     id: 'fish',
+    form: 'signs',
     culprit: 'pez',
     options: ['pez', 'tortuga', 'mono'],
     // No `ClueKind` rules `tortuga`/`mono` out — the bubble/scale clues this
@@ -287,6 +322,7 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
   // `snake4` alone, `zoo/sectors.ts`) before `hedgehog4` is filed.
   {
     id: 'monkeys',
+    form: 'rescued-silhouettes',
     culprit: 'mono',
     options: ['mono', 'erizo', 'abeja'],
     ruledOutBy: {},
@@ -301,6 +337,57 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     // rule nobody out" invariant (`cases.test.ts`) bans either from ever
     // being a `ruledOutBy` verdict, in this case or any other.
     trailIds: ['monkey1', 'monkey2'],
+  },
+  // [T45, `docs/21` N5; the author's decision of 2026-10-02] The sheep's own
+  // case, closed by `sheep-lana` (`zoo/adventures.ts`'s
+  // `sheep.deduction.after`), routing into `sheep-hill1`, where the sheep are
+  // gathered on the hills. A COMPARISON: the child collected tufts of wool
+  // and picks, from three samples, the one that is the same — the wool, a
+  // duck's feather (`docs/22` C2) or cat fur (no art yet, see
+  // `CAT_FUR_SAMPLE_ART`). No second clue kind backs either dismissal, so
+  // `ruledOutBy` stays empty; a `comparison` case's distractors are ruled
+  // out by the picture itself (`cases.test.ts`), and `hint` says why.
+  {
+    id: 'sheep',
+    form: 'comparison',
+    question: '¿De quién es esta lana?',
+    culprit: 'oveja',
+    options: ['oveja', 'pato', 'gato'],
+    ruledOutBy: {},
+    optionArt: {
+      oveja: CLUE_ART.wool.art.earned,
+      pato: CLUE_ART.duckFeather.art.earned,
+      gato: CAT_FUR_SAMPLE_ART,
+    },
+    hint: {
+      pato: 'Eso es una pluma de pato: no es lana.',
+      gato: 'Eso es pelo de gato: no es lana.',
+    },
+    trailIds: ['sheep-lana'],
+  },
+  // [T45, `docs/21` N6] The turtles' own case, closed by `turtle-huellas`,
+  // routing into `turtle1`. A comparison too: three PRINTS side by side
+  // (`optionArt`), and the child picks the one that matches the print just
+  // collected. The duck's webbed print (`docs/22` C3) and the hen's three
+  // toes (`huella negra.png`) are ruled out by the picture, like the sheep's
+  // samples, and `hint` says why each print is not the one.
+  {
+    id: 'turtles',
+    form: 'comparison',
+    question: '¿De quién es esta huella?',
+    culprit: 'tortuga',
+    options: ['tortuga', 'pato', 'gallina'],
+    ruledOutBy: {},
+    optionArt: {
+      tortuga: CLUE_ART.turtlePrint.art.earned,
+      pato: CLUE_ART.webfoot.art.earned,
+      gallina: CLUE_ART.footprint.art.earned,
+    },
+    hint: {
+      pato: 'Esa es la huella del pato: tiene los dedos unidos. No es esta.',
+      gallina: 'Esa es la huella de la gallina: tres dedos finitos. No es esta.',
+    },
+    trailIds: ['turtle-huellas'],
   },
 ]
 

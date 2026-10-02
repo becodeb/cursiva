@@ -62,6 +62,8 @@ vi.mock('../zoo/backdrops', async (importOriginal) => {
 })
 
 import LevelPlay, {
+  segmentOctopusFeet,
+  worldInk,
   LAYOUT_CSS,
   SIGN_CROP_HEIGHT,
   SIGN_SIZE,
@@ -3422,5 +3424,67 @@ describe('LevelPlay idle nudge / night hint wiring (T33)', () => {
     )
     // Still in its own route demo on the very first frame — no idle cue yet.
     expect(traceCanvasProbe.current?.idleCue ?? null).toBeNull()
+  })
+})
+
+// [T45, `docs/21` N5/N6] A segment level hands the canvas one start dot and
+// one stop mark per segment, no single goal, and approves on the release that
+// completes its LAST segment — each earlier release reports unapproved, and
+// the latch survives whatever the canvas buffer holds.
+describe('T45: segment levels (sheep-lana, turtle-huellas)', () => {
+  for (const id of ['sheep-lana', 'turtle-huellas']) {
+    it(`${id}: a start and a stop per segment, and approval on the last segment`, () => {
+      const onAttempt = vi.fn<(a: LevelAttempt) => void>()
+      const level = getLevel(id)
+      renderToString(
+        <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={onAttempt} onNext={noop} onBack={noop} />,
+      )
+      const props = traceCanvasProbe.current
+      const target = buildLevelTarget(level)
+      const markers = props?.routeMarkers as readonly { start?: { x: number; y: number }; end: { x: number; y: number } }[]
+      expect(markers).toHaveLength(target.routes.length)
+      markers.forEach((m, i) => expect(m.start).toEqual(target.routes[i].polyline[0]))
+      // [T45 follow-up] The octopus stands beside the segments, not on a start.
+      const startArt = props?.startArt as { at?: { x: number; y: number } } | undefined
+      expect(startArt?.at).toEqual(segmentOctopusFeet(target))
+      markers.forEach((m, i) => expect(m.end).toEqual(target.routes[i].polyline.at(-1)))
+      expect(props?.endMarker).toBeUndefined()
+      expect(props?.endArt).toBeUndefined()
+
+      const onRelease = props?.onRelease as (p: TracePoint[], t: string, all: TracePoint[][]) => void
+      target.routes.forEach((route) => {
+        const a = route.polyline[0]
+        const b = route.polyline[route.polyline.length - 1]
+        const stroke: TracePoint[] = Array.from({ length: 21 }, (_, i) => ({
+          x: a.x + ((b.x - a.x) * i) / 20,
+          y: a.y + ((b.y - a.y) * i) / 20,
+          t: i * 16,
+        })) as TracePoint[]
+        // Only this stroke in the buffer: clear-on-failed-retry emptied it.
+        onRelease(stroke, 'touch', [stroke])
+      })
+      expect(onAttempt.mock.calls.map(([a]) => a.approved)).toEqual(target.routes.map((_, i) => i === target.routes.length - 1))
+    })
+  }
+})
+
+describe('T45 follow-up: the line stays visible on a world level drawn over a brown channel', () => {
+  it('turtle-huellas (turtles channel) takes the arena ink; earth-corridor world levels keep the mud', () => {
+    const turtles = { channel: '#8a6f52', ink: '#f2efe6', inkDim: '#989896' }
+    expect(worldInk(true, turtles)).toEqual({ ink: '#f2efe6', inkDim: '#989896' })
+    expect(worldInk(true, undefined).ink).toBe('#8a6a4a')
+    expect(worldInk(true, { channel: '#8a6f52' }).ink).toBe('#8a6a4a') // no ink of its own declared
+    expect(worldInk(false, turtles)).toEqual({ ink: '#f2efe6', inkDim: '#989896' }) // turtle1..4
+  })
+
+  it('every ink actually drawn on a channel clears the 55-luma law on turtle-huellas and turtle1..4', () => {
+    for (const id of ['turtle-huellas', 'turtle1', 'turtle2', 'turtle3', 'turtle4']) {
+      const level = getLevel(id)
+      renderToString(<LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />)
+      const ink = traceCanvasProbe.current?.inkColor as string
+      const backdrop = traceCanvasProbe.current?.backdrop as { channel?: string } | undefined
+      expect(backdrop?.channel, id).toBeDefined()
+      expect(Math.abs(luma(ink) - luma(backdrop!.channel!)), id).toBeGreaterThanOrEqual(55)
+    }
   })
 })

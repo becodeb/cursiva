@@ -95,11 +95,15 @@ tercera. La propuesta usa **cuatro recetas** que comparten piezas:
 Y cuatro palancas más:
 
 - **Pistas distintas en cada caso.** Nunca el mismo objeto en dos casos.
-- **Tres formas de deducir**: siluetas de animales nuevos (pato); siluetas que
-  incluyen animales **ya rescatados**, que se descartan solos ("¿El pato? No:
-  el pato ya está en su laguna", en la noche); y los **carteles de los
-  recintos vacíos del prólogo** (peces: "¿De qué recinto se escaparon?").
-- **Nunca la misma forma de deducir dos veces seguidas** en el recorrido (ver la columna de abajo). Antes la regla era "nunca dos deducciones seguidas"; la autora la cambió el 2026-10-02 (decisión 1 de `docs/21` §6) para sumar los casos de ovejas (N5) y tortugas (N6).
+- **Cuatro formas de deducir**: siluetas de animales nuevos (pato); siluetas
+  que incluyen animales **ya rescatados**, que se descartan solos ("¿El pato?
+  No: el pato ya está en su laguna", en la noche y los monos); los
+  **carteles de los recintos vacíos del prólogo** (peces: "¿De qué recinto se
+  escaparon?"); y, desde T45, **comparar muestras**: tres al lado de la pista
+  juntada, y se elige la igual (ovejas: lana, pluma de pato y pelo de gato,
+  "¿De quién es esta lana?"; tortugas: tres huellas, "¿De quién es esta
+  huella?"). Comparar lana y comparar huellas es la misma forma.
+- **Nunca la misma forma de deducir dos veces seguidas** en el recorrido (ver la columna de abajo). Antes la regla era "nunca dos deducciones seguidas"; la autora la cambió el 2026-10-02 (decisión 1 de `docs/21` §6) para sumar los casos de ovejas (N5) y tortugas (N6). "Seguidas" son dos deducciones consecutivas del recorrido, sin contar las paradas que no deducen (la autora, 2026-10-02): pato (siluetas nuevas), ovejas (comparar), noche (descarte), peces (carteles), tortugas (comparar), monos (descarte). `zoo/journey.test.ts` lo exige.
 - **Lo que se junta cambia de forma**: objetos, animales, color, espinas, polen.
 
 El recorrido completo, en el orden de `zoo/journey.ts`:
@@ -107,7 +111,7 @@ El recorrido completo, en el orden de `zoo/journey.ts`:
 | # | Aventura | Receta | Deducción | Qué se junta o se restaura |
 |---|---|---|---|---|
 | 1 | Pato | A | Siluetas: pato, gallina, gato | Pistas; después la familia de patos |
-| 2 | Ovejas | B | — | Una oveja por pico |
+| 2 | Ovejas | A (T45) | Comparar: lana, pluma de pato, pelo de gato. "¿De quién es esta lana?" | La lana del alambrado (`sheep-lana`); después una oveja por pico |
 | 3 | Llamas | B | — | Las llamas en los picos altos, con el gorro de pastor |
 | 4 | Noche | A (pistas) | Siluetas: erizo, pato, oveja (dos ya rescatados) | Las cosas del erizo; al final, el erizo |
 | 5 | Erizo | C | — | Sus espinas |
@@ -115,10 +119,11 @@ El recorrido completo, en el orden de `zoo/journey.ts`:
 | 7 | Abeja | D | — | El polen de cada flor, y al panal |
 | 8 | Peces | A | Carteles: PECES, TORTUGAS, MONOS | Pistas; después los peces |
 | 9 | Delfines | B | — | Cada delfín que pasás se suma a la fila |
-| 10 | Tortugas | B | — | Cada vuelta hace asomar una tortuga |
+| 10 | Tortugas | A (T45) | Comparar huellas: tortuga, pato, gallina. "¿De quién es esta huella?" | Las huellas del surco (`turtle-huellas`); después cada vuelta hace asomar una tortuga |
 | 11 | Monos | A | Siluetas: mono, erizo, abeja | Pistas; después los monos |
 
-Cuatro casos completos en once aventuras, ninguno pegado a otro. La noche y
+Seis casos completos en once aventuras desde T45 (antes cuatro, ninguno
+pegado a otro), y dos deducciones seguidas nunca usan la misma forma. La noche y
 el erizo son **un solo caso repartido en dos aventuras**: la noche junta las
 pistas y encuentra al erizo; el erizo es el rescate.
 

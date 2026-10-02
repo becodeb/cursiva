@@ -19,6 +19,8 @@ import type { SpineConfig } from './spines'
 // compile time, so `types.ts` never depends on `levels/collect.ts` at
 // runtime.
 import type { CollectConfig } from './collect'
+// [T45] `import type` only, the same reason as the three above.
+import type { SegmentConfig } from './segments'
 
 export type Phase = 1 | 2 | 3 | 4 | 5
 
@@ -308,6 +310,13 @@ export interface LevelConfig {
    *  every level that predates it, the same convention `vertexArt`/
    *  `goalArt` established. */
   collect?: CollectConfig
+  /** T45 (`docs/21` N5/N6): every entry of `paths` is its OWN short stroke —
+   *  land on its start dot, follow it, and lift the finger at its stop
+   *  point. Each segment is judged on the stroke that completes it and
+   *  latched (`levels/segments.ts`); the level is done when every segment
+   *  is. Only on a routed level with several `paths`; absent on every level
+   *  that predates it. */
+  segments?: SegmentConfig
 }
 
 /** The camera's own authored parameters (`scrolling-camera` capability).

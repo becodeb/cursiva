@@ -1070,6 +1070,13 @@ export interface TraceCanvasProps {
    * so there is nothing left for it to protect against. Has no effect without
    * `endMarker`. */
   endArt?: TraceStandingArt
+  /** T45 (`docs/21` N5/N6): a segment level's own start dots and stop marks,
+   * one entry per segment — every segment is its own stroke, so each one
+   * says where it starts (the green dot) and where it STOPS (the same
+   * hollow diamonds `endMarker` draws). `start` is absent where something
+   * else already stands on it (the octopus on the first segment). Absent =
+   * nothing drawn, every level that predates it. */
+  routeMarkers?: ReadonlyArray<{ start?: TraceMarker; end: TraceMarker }>
   /** Small arrow head showing the direction of travel. */
   directionArrow?: TraceDirectionArrow
   /** True dims the LIVE ink instead of tinting it red: the light goes down,
@@ -1263,6 +1270,7 @@ export default function TraceCanvas({
   startArtEmptyHanded,
   endMarker,
   endArt,
+  routeMarkers,
   directionArrow,
   offPath = false,
   inkColor = INK_COLOR,
@@ -2115,6 +2123,46 @@ export default function TraceCanvas({
             strokeWidth={4}
             strokeLinejoin="round"
           />
+        </g>
+      )}
+      {routeMarkers && (
+        // T45: every segment's own stop (the goal's diamonds) and start (the
+        // green dot), drawn like the single-route pair below.
+        <g pointerEvents="none">
+          {routeMarkers.map(({ start, end }, idx) => (
+            <g key={`route-marker-${idx}`}>
+              <g transform={`translate(${end.x} ${end.y})`} opacity={0.85}>
+                <polygon
+                  points={`0,-${GOAL_OUTER_R} ${GOAL_OUTER_R},0 0,${GOAL_OUTER_R} -${GOAL_OUTER_R},0`}
+                  fill="none"
+                  stroke={inkOnly ? INK_COLOR : GOAL_COLOR}
+                  strokeWidth={5}
+                  strokeLinejoin="round"
+                />
+                <polygon
+                  points={`0,-${GOAL_INNER_R} ${GOAL_INNER_R},0 0,${GOAL_INNER_R} -${GOAL_INNER_R},0`}
+                  fill="none"
+                  stroke={inkOnly ? INK_COLOR : GOAL_COLOR}
+                  strokeWidth={4}
+                  strokeLinejoin="round"
+                />
+              </g>
+              {start && (
+                <g>
+                  <circle
+                    cx={start.x}
+                    cy={start.y}
+                    r={22}
+                    fill={inkOnly ? 'none' : '#22c55e'}
+                    stroke={inkOnly ? INK_COLOR : 'none'}
+                    strokeWidth={inkOnly ? 3 : 0}
+                    opacity={0.9}
+                  />
+                  <circle cx={start.x} cy={start.y} r={5} fill="#ffffff" />
+                </g>
+              )}
+            </g>
+          ))}
         </g>
       )}
       {startMarker &&
