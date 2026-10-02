@@ -93,19 +93,19 @@ imagen esté guardada y pase su checklist.
 
 | ID | Archivo en `art-source/` | Qué | Dónde se usa | Prioridad | Estado | Reemplaza a |
 |---|---|---|---|---|---|---|
-| C4 | `pista burbujas.png` | Tres burbujas que suben | peces: `f2-guirnalda` | **alta** | pendiente | `burbuja.png` |
-| C2 | `pista pluma de pato.png` | Pluma amarilla de pato | pato | **alta** | pendiente | `pluma verde.png`, `pluma gris.png` |
-| C1 | `pista charco.png` | Charco de agua | pato: la pista de las gotas y `duck-charcos` | **alta** | pendiente | `gota de agua.png` (en el pato) |
-| C8 | `pista mano de mono.png` | Manito de mono | monos: `monkey1` | **alta** | pendiente | `huella negra.png` (en los monos) |
-| C12 | `pista banana.png` | Banana entera | monos: `monkey2` | **alta** | pendiente | `grano de maiz.png` (en los monos); B13 |
-| C3 | `pista huella de pato.png` | Huella palmeada | pato; deducción por huellas | media | pendiente | `huella palmeada.png` |
-| C5 | `pista semillas.png` | Tres semillas | pato | media | pendiente | `grano de maiz.png` (en el pato); B11 |
-| C6 | `pista escama.png` | Escamitas de pez | peces: `f2-agua2`, `f2-buceo` | media | pendiente | `gota de agua.png` (en los peces) |
-| C11 | `pista cascara de banana.png` | Cáscara de banana vacía | monos: `monkey-lianas` | media | pendiente | B13 |
-| C7 | `pista huellita de erizo.png` | Huellita de erizo | noche: `night-rastro` | media | pendiente | — |
-| B12 | ver `docs/20` §6 | Manzana y hongo | noche: `night2`, `night3` | media | pendiente | `piedra.png` (en la noche) |
-| C9 | `pista lana.png` | Mechón de lana | ovejas: `sheep-lana` | baja (espera la decisión 1 de `docs/21`) | pendiente | — |
-| C10 | `pista huella de tortuga.png` | Huella de tortuga | tortugas: `turtle-huellas` | baja (espera la decisión 1 de `docs/21`) | pendiente | — |
+| C4 | `pista burbujas.png` | Tres burbujas que suben | peces: `f2-guirnalda` | **alta** | hecho (T43: en el juego) | `burbuja.png` |
+| C2 | `pista pluma de pato.png` | Pluma amarilla de pato | pato | **alta** | hecho (T43: en el juego) | `pluma verde.png`, `pluma gris.png` |
+| C1 | `pista charco.png` | Charco de agua | pato: la pista de las gotas y `duck-charcos` | **alta** | hecho (T43: en el juego) | `gota de agua.png` (en el pato) |
+| C8 | `pista mano de mono.png` | Manito de mono | monos: `monkey1` | **alta** | hecho (T43: en el juego) | `huella negra.png` (en los monos) |
+| C12 | `pista banana.png` | Banana entera | monos: `monkey2` | **alta** | hecho (T43: en el juego) | `grano de maiz.png` (en los monos); B13 |
+| C3 | `pista huella de pato.png` | Huella palmeada | pato; deducción por huellas | media | hecho (T43: en el juego) | `huella palmeada.png` |
+| C5 | `pista semillas.png` | Tres semillas | pato | media | hecho (T43: en el juego) | `grano de maiz.png` (en el pato); B11 |
+| C6 | `pista escama.png` | Escamitas de pez | peces: `f2-agua2`, `f2-buceo` | media | hecho (T43: en el juego) | `gota de agua.png` (en los peces) |
+| C11 | `pista cascara de banana.png` | Cáscara de banana vacía | monos: `monkey-lianas` | media | hecho (T43: registrada; `monkey-lianas` no existe todavía) | B13 |
+| C7 | `pista huellita de erizo.png` | Huellita de erizo | noche: `night-rastro` | media | hecho (T43: registrada; `night-rastro` no existe todavía) | — |
+| B12 | ver `docs/20` §6 | Manzana y hongo | noche: `night2`, `night3` | media | hecho (T43: en el juego) | `piedra.png` (en la noche) |
+| C9 | `pista lana.png` | Mechón de lana | ovejas: `sheep-lana` | media (decisión 1 aprobada 2026-10-02) | pendiente | — |
+| C10 | `pista huella de tortuga.png` | Huella de tortuga | tortugas: `turtle-huellas` | media (decisión 1 aprobada 2026-10-02) | pendiente | — |
 
 ---
 
@@ -684,7 +684,7 @@ marker line.
   separados y no se funden en una mancha? 2. Al lado de C8, ¿nadie las
   confunde?
 
-### C9 — El mechón de lana (baja; espera la decisión 1 de `docs/21`)
+### C9 — El mechón de lana (media)
 
 - **Archivo**: `art-source/pista lana.png`. PNG 1024 × 1024, fondo
   transparente.
@@ -732,7 +732,7 @@ tight curls drawn as short #1a1a1a spirals. Fill warm cream #f3ecd9.
 - **Checklist**: el común (§3.4), y además: 1. Al lado de `oveja.png`, ¿se
   entiende que es un pedacito de su lana y no una nube?
 
-### C10 — La huella de la tortuga (baja; espera la decisión 1 de `docs/21`)
+### C10 — La huella de la tortuga (media)
 
 - **Archivo**: `art-source/pista huella de tortuga.png`. PNG 1024 × 1024,
   fondo transparente.
@@ -808,7 +808,16 @@ Para la sesión que meta las imágenes en el juego.
 5. **Textos que no coinciden con lo que se ve** (T40 toca varios):
    `duck-trail2` "El sendero de migas", `duck-trail3` "Las burbujas suben y
    bajan", `monkey2` "la banana" con un grano de maíz.
-6. **No borrar** `gota de agua.png`, `grano de maiz.png` ni `pluma
+6. **Hecho en T43 (2026-10-02).** Las pistas de color no se recolorean:
+   van por el modo `contour` (conservan el relleno dibujado, el contorno
+   pasa a `ART_OUTLINE`), porque los dibujos nuevos ya son de dos tonos y
+   el recoloreo plano era la causa de la §3.2. El token de cada pista es el
+   relleno medido (`build_art.py` lo escribe como `fill` en el manifiesto y
+   `artManifest.test.ts` lo exige igual). Tipos nuevos: `puddle`, `seeds`,
+   `duckFeather`, `scale`, `handprint`, `banana` (en el juego) y
+   `hedgehogPrint`, `bananaPeel` (registrados, sin nivel). `webfoot` y
+   `bubble` cambiaron de dibujo sin cambiar de tipo.
+7. **No borrar** `gota de agua.png`, `grano de maiz.png` ni `pluma
    verde.png`: `trail1`, `trail2` y `trail4` (fuera del recorrido) todavía
    usan la gota, el grano y la pluma. Si esos niveles viejos no se tocan,
    conviene darle a cada pista nueva su propio tipo en vez de cambiarle el
