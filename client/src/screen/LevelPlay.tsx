@@ -122,6 +122,7 @@ import type { TraceArtCorridor } from '../canvas/TraceCanvas'
 import { directionArrowOf } from './directionArrow'
 import { goalMarkerOf } from './goalMarker'
 import type { LevelConfig, LevelTarget, RevealConfig } from '../levels/types'
+import { luma } from '../detective/palette'
 import { isCaseTrail, inDetectiveWorld } from '../levels/world'
 import type { LevelAttempt, LevelRecord } from '../game/types'
 // Detective mode (design unit 6, spec: detective-mode "Clue Collection State
@@ -138,7 +139,12 @@ import {
   type ClueState,
 } from '../detective/clues'
 // T45 (`docs/21` N5/N6): segment levels, each path its own stroke.
-import { emptySegmentState, settleSegmentRelease, type SegmentState } from '../levels/segments'
+import {
+  emptySegmentState,
+  segmentStandPoint,
+  settleSegmentRelease,
+  type SegmentState,
+} from '../levels/segments'
 // Collect-along-the-path (docs/19 §2.2/§3.4; T17). `level.collect` is the
 // sole discriminator, the same convention `level.clue` above uses — its
 // absence means an ordinary level and none of this wiring engages.
@@ -540,6 +546,45 @@ const MUD_INK = '#8a6a4a'
  * substance rather than as the same line fading; this is the same brown
  * desaturated and lifted toward the ground it is drawn on. */
 const MUD_INK_DIM = '#b3a08c'
+
+/**
+ * T45 follow-up (coordinator review: "the child's ink on the brown turtle
+ * channel is faint"). The mud is a brown a little darker than the EARTH
+ * corridor it was chosen for; on a backdrop whose own channel is itself a
+ * mid brown (the turtles' `WET_SAND_HOLLOW`, luma 116 against the mud's 112)
+ * the line vanishes into the channel. Where the mud fails the 55-luma law
+ * against the channel AND the backdrop declares its own ink, the backdrop's
+ * ink wins — the line `turtle1..4` already draw on the same channel. Every
+ * other world level keeps its mud, every non-world level its backdrop ink.
+ */
+export function worldInk(
+  inWorld: boolean,
+  backdrop: { channel?: string; ink?: string; inkDim?: string } | undefined,
+): { ink: string | undefined; inkDim: string | undefined } {
+  if (!inWorld) return { ink: backdrop?.ink, inkDim: backdrop?.inkDim }
+  const channel = backdrop?.channel
+  if (channel && backdrop?.ink && Math.abs(luma(MUD_INK) - luma(channel)) < 55) {
+    return { ink: backdrop.ink, inkDim: backdrop.inkDim }
+  }
+  return { ink: MUD_INK, inkDim: MUD_INK_DIM }
+}
+
+/** The octopus's standing height and widest drawing (holding the glass, or
+ *  the empty-handed one), for keeping him clear of a segment level's marks. */
+const OCTOPUS_ASPECT = Math.max(OCTOPUS_ART.w / OCTOPUS_ART.h, HOME_OCTOPUS_ART.w / HOME_OCTOPUS_ART.h)
+
+/** [T45 follow-up] Where the octopus's feet go on a segment level: the
+ *  nearest spot to the first start whose box stays on the sheet (which every
+ *  viewport shows whole) and clear of every segment (`segmentStandPoint`).
+ *  The live corridor first, the authored one if a widened corridor leaves no
+ *  room. */
+export function segmentOctopusFeet(target: LevelTarget): { x: number; y: number } | undefined {
+  const bounds = { x: 0, y: 0, width: target.viewBoxWidth, height: 600 }
+  return (
+    segmentStandPoint(target.routes, target.corridorWidth, OCTOPUS_SIZE, OCTOPUS_ASPECT, bounds) ??
+    segmentStandPoint(target.routes, target.config.corridorWidth, OCTOPUS_SIZE, OCTOPUS_ASPECT, bounds)
+  )
+}
 
 /**
  * The restart cue (`LevelConfig.resetOnContact`, docs/01 principle 2).
@@ -3343,9 +3388,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // proof) — verified on `snake3`'s rotated column too
     // (`fix-snakes-true-alignment`'s own browser QA), so a rotated piece no
     // longer needs to fall back to the unmoved default.
-    if (!piece0 || !startMarker) return undefined
-    return standBesideArtCorridor(startMarker, piece0, OCTOPUS_STAND_MARGIN, true)
-  }, [target.artCorridor, startMarker])
+    if (piece0 && startMarker) return standBesideArtCorridor(startMarker, piece0, OCTOPUS_STAND_MARGIN, true)
+    // [T45 follow-up] On a segment level the octopus stands beside the
+    // segments, never on a start dot, stop mark, clue or corridor.
+    if (segmentDef) return segmentOctopusFeet(target)
+    return undefined
+  }, [target, startMarker, segmentDef])
   const directionArrow = useMemo(() => directionArrowOf(target), [target])
 
   // T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
@@ -3451,12 +3499,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     [level.kind, target, collectDef, hasSnakeColour, segmentDef],
   )
   // T45: a segment level marks every segment's own start and stop instead
-  // (`TraceCanvas`'s `routeMarkers`); the octopus stands on the first start.
+  // (`TraceCanvas`'s `routeMarkers`); the octopus stands beside them
+  // (`segmentOctopusFeet`), so the first start keeps its own dot too.
   const routeMarkers = useMemo(
     () =>
       segmentDef
-        ? target.routes.map((route, i) => ({
-            start: i > 0 ? route.polyline[0] : undefined,
+        ? target.routes.map((route) => ({
+            start: route.polyline[0],
             end: route.polyline[route.polyline.length - 1],
           }))
         : undefined,
@@ -4316,8 +4365,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // `ink`/`inkDim`. Byte-identical today — no shipped backdrop
         // declares `ink` yet (`backdrops.ts`'s `PENDING_ENTRANCE_BACKDROP`
         // is not wired into `ADVENTURE_BACKDROP` in this apply run).
-        inkColor={inWorld ? MUD_INK : backdropEntry?.ink}
-        inkDimColor={inWorld ? MUD_INK_DIM : backdropEntry?.inkDim}
+        inkColor={worldInk(inWorld, backdropEntry).ink}
+        inkDimColor={worldInk(inWorld, backdropEntry).inkDim}
         inkHidden={arrangeOpen}
         inkPolicy={inkPolicy}
         artCorridor={traceArtCorridor}

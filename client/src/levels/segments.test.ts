@@ -7,10 +7,13 @@ import {
   furrowSegments,
   judgeSegmentStroke,
   projectOnRoute,
+  segmentStandPoint,
   segmentsComplete,
   settleSegmentRelease,
+  standingBox,
   type SegmentConfig,
 } from './segments'
+import { placeArt, STANDING_GRIP } from '../canvas/placeArt'
 import { buildLevelTarget } from './buildLevel'
 import { getLevel } from './catalog'
 import { segmentClueMarks, segmentClueState } from '../detective/clues'
@@ -261,5 +264,67 @@ describe('the two levels, as docs/21 §4.3 describes them', () => {
     const marks = segmentClueMarks(target.routes, level.clue!.spacing, 'turtlePrint')
     expect(marks.some((m) => m.y < ys[0])).toBe(true)
     expect(marks.some((m) => m.y > ys[0])).toBe(true)
+  })
+})
+
+// [T45 follow-up] The octopus never covers a segment's start dot, stop mark,
+// clue or corridor; and the furrow's stretches read as separate.
+describe('the octopus stands clear of every segment (both shipped levels)', () => {
+  // `TraceCanvas`'s own marker radii: start dot 22, stop diamonds 34 (+ a
+  // 5-unit stroke), clue marks 28 tall.
+  const START_R = 22
+  const STOP_R = 34 + 2.5
+  const MARK_HALF = 14
+  const OCTOPUS_H = 96
+  const ASPECT = Math.max(384 / 353, 448 / 399)
+  const hits = (box: { x: number; y: number; width: number; height: number }, p: Point, r: number) => {
+    const cx = Math.max(box.x, Math.min(p.x, box.x + box.width))
+    const cy = Math.max(box.y, Math.min(p.y, box.y + box.height))
+    return Math.hypot(p.x - cx, p.y - cy) < r
+  }
+
+  for (const id of ['sheep-lana', 'turtle-huellas']) {
+    // The sheet is the same 1000×600 world at 1024x768 and at 768x1024 — the
+    // viewport only grows the backdrop AROUND it — so one sheet-space check
+    // covers both; the browser captures measure it on screen too.
+    for (const viewport of ['1024x768', '768x1024']) {
+      it(`${id} @ ${viewport}: his box misses every start, stop, clue and corridor`, () => {
+        const level = getLevel(id)
+        const target = buildLevelTarget(level)
+        const bounds = { x: 0, y: 0, width: target.viewBoxWidth, height: 600 }
+        const feet = segmentStandPoint(target.routes, target.corridorWidth, OCTOPUS_H, ASPECT, bounds)
+        expect(feet, id).toBeDefined()
+        const box = standingBox(feet!, OCTOPUS_H, ASPECT)
+        expect(box).toEqual(placeArt({ w: ASPECT, h: 1, grip: STANDING_GRIP }, OCTOPUS_H, feet!))
+        expect(box.x).toBeGreaterThanOrEqual(0)
+        expect(box.y).toBeGreaterThanOrEqual(0)
+        expect(box.x + box.width).toBeLessThanOrEqual(bounds.width)
+        expect(box.y + box.height).toBeLessThanOrEqual(600)
+        for (const r of target.routes) {
+          expect(hits(box, r.polyline[0], START_R), 'start').toBe(false)
+          expect(hits(box, r.polyline.at(-1)!, STOP_R), 'stop').toBe(false)
+          for (const p of r.polyline) expect(hits(box, p, target.corridorWidth / 2), 'corridor').toBe(false)
+        }
+        for (const m of segmentClueMarks(target.routes, level.clue!.spacing, level.clue!.kind)) {
+          expect(hits(box, m, MARK_HALF), 'clue').toBe(false)
+        }
+      })
+    }
+  }
+
+  it('turtle-huellas: 30+ units of sand between stretches, each stop mark wholly before the next start', () => {
+    const level = getLevel('turtle-huellas')
+    const target = buildLevelTarget(level)
+    for (let i = 1; i < target.routes.length; i++) {
+      const stop = target.routes[i - 1].polyline.at(-1)!
+      const start = target.routes[i].polyline[0]
+      expect(start.x - stop.x - level.corridorWidth, `gap ${i}`).toBeGreaterThanOrEqual(30)
+      expect(start.x - START_R - (stop.x + STOP_R), `marks ${i}`).toBeGreaterThan(0)
+    }
+  })
+
+  it('gives up (undefined) rather than overlapping when nothing fits', () => {
+    const r = route({ x: 0, y: 300 }, { x: 1000, y: 300 })
+    expect(segmentStandPoint([r], 590, OCTOPUS_H, ASPECT, { x: 0, y: 0, width: 1000, height: 600 })).toBeUndefined()
   })
 })

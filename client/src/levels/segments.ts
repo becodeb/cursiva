@@ -184,3 +184,86 @@ export function furrowSegments(opts: { x0: number; x1: number; y: number; count:
     return straightStroke({ x: a, y }, { x: a + len, y })
   })
 }
+
+/** An axis-aligned box in sheet units. */
+export interface SegmentBox {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+/** How much clear sheet the standing octopus keeps from a segment's own
+ *  corridor (and so from its start dot, stop mark and clue marks, which all
+ *  sit inside it). */
+export const SEGMENT_STAND_CLEARANCE = 12
+
+/**
+ * Every segment's keep-out box: its line's bounding box grown by half the
+ * corridor (the corridor itself, with its round caps) plus
+ * {@link SEGMENT_STAND_CLEARANCE}. Everything a segment draws — the start
+ * dot (r 22), the stop diamonds (r 34) and the clue marks (on or 10 units
+ * off the line) — fits inside half a corridor of 80 or more, so staying
+ * out of these boxes keeps clear of all of them.
+ */
+export function segmentKeepOut(routes: readonly RouteSegment[], corridorWidth: number): SegmentBox[] {
+  const pad = corridorWidth / 2 + SEGMENT_STAND_CLEARANCE
+  return routes.map((r) => {
+    const xs = r.polyline.map((p) => p.x)
+    const ys = r.polyline.map((p) => p.y)
+    const x0 = Math.min(...xs) - pad
+    const y0 = Math.min(...ys) - pad
+    return { x: x0, y: y0, width: Math.max(...xs) + pad - x0, height: Math.max(...ys) + pad - y0 }
+  })
+}
+
+function overlaps(a: SegmentBox, b: SegmentBox): boolean {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+}
+
+/** The box a standing figure `height` tall and `aspect` wide-per-tall
+ *  occupies with its FEET at `feet` — `canvas/placeArt.ts`'s `placeArt`
+ *  with `STANDING_GRIP`, restated so `levels/` keeps importing nothing from
+ *  `canvas/` (`segments.test.ts` holds the two equal). */
+export function standingBox(feet: Point, height: number, aspect: number): SegmentBox {
+  const width = height * aspect
+  return { x: feet.x - width / 2, y: feet.y - height, width, height }
+}
+
+/**
+ * T45 follow-up (coordinator review of the captures): where the octopus
+ * stands on a segment level, so he never covers a start dot, a stop mark,
+ * a clue or a corridor. Standing ON the first start (every other level's
+ * rule) put him on top of the first post's dot. The search walks feet
+ * positions outward from the first segment's start, nearest first, and
+ * returns the first whose box lies inside `bounds` (the sheet, which every
+ * viewport shows whole) and clear of every {@link segmentKeepOut} box.
+ * `undefined` when nothing fits (a corridor widened so far there is no
+ * room left): the caller keeps the default placement.
+ */
+export function segmentStandPoint(
+  routes: readonly RouteSegment[],
+  corridorWidth: number,
+  height: number,
+  aspect: number,
+  bounds: SegmentBox,
+): Point | undefined {
+  const start = routes[0]?.polyline[0]
+  if (!start) return undefined
+  const keepOut = segmentKeepOut(routes, corridorWidth)
+  const inside = (b: SegmentBox) =>
+    b.x >= bounds.x && b.y >= bounds.y && b.x + b.width <= bounds.x + bounds.width && b.y + b.height <= bounds.y + bounds.height
+  const STEP = 5
+  const candidates: { feet: Point; d: number }[] = []
+  for (let x = bounds.x; x <= bounds.x + bounds.width; x += STEP) {
+    for (let y = bounds.y; y <= bounds.y + bounds.height; y += STEP) {
+      candidates.push({ feet: { x, y }, d: Math.hypot(x - start.x, y - start.y) })
+    }
+  }
+  candidates.sort((a, b) => a.d - b.d)
+  for (const { feet } of candidates) {
+    const box = standingBox(feet, height, aspect)
+    if (inside(box) && keepOut.every((k) => !overlaps(box, k))) return feet
+  }
+  return undefined
+}

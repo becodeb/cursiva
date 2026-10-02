@@ -1028,9 +1028,11 @@ const PHASE_1: LevelConfig[] = [
     resetOnContact: false,
     carrier: true,
     feedback: feedback(false),
-    // Span 130-470 clears the phase-1 "whole sheet" guard; 175 units between
-    // posts leaves 85 of open sheet between two 90-wide corridors.
-    paths: fencePosts({ x0: 150, x1: 850, top: 130, bottom: 470, count: 5 }),
+    // Span 130-470 clears the phase-1 "whole sheet" guard; 160 units between
+    // posts leaves 70 of open sheet between two 90-wide corridors, and the
+    // run (centred to 180-820) leaves room left of the first post for the
+    // octopus to stand clear of every post (`segmentStandPoint`).
+    paths: fencePosts({ x0: 210, x1: 850, top: 130, bottom: 470, count: 5 }),
     corridorWidth: 90,
     rules: rules(1, false, true, 0),
     showGuide: true,
@@ -2338,8 +2340,12 @@ const PHASE_2: LevelConfig[] = [
     resetOnContact: false,
     carrier: true,
     feedback: feedback(false),
-    paths: furrowSegments({ x0: 100, x1: 900, y: 300, count: 3, gap: 60 }),
-    corridorWidth: 90,
+    // [T45 follow-up] 120 units between stretches: with an 80-wide corridor
+    // that is 40 units of sand between two stretches, so each stop mark sits
+    // wholly before the next start and the three read as one line with
+    // stops, not one bar with markers piled up.
+    paths: furrowSegments({ x0: 80, x1: 920, y: 300, count: 3, gap: 120 }),
+    corridorWidth: 80,
     rules: rules(2, false, true, 0),
     showGuide: true,
     letters: [],

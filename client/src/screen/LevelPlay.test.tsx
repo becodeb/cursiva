@@ -62,6 +62,8 @@ vi.mock('../zoo/backdrops', async (importOriginal) => {
 })
 
 import LevelPlay, {
+  segmentOctopusFeet,
+  worldInk,
   LAYOUT_CSS,
   SIGN_CROP_HEIGHT,
   SIGN_SIZE,
@@ -3441,8 +3443,10 @@ describe('T45: segment levels (sheep-lana, turtle-huellas)', () => {
       const target = buildLevelTarget(level)
       const markers = props?.routeMarkers as readonly { start?: { x: number; y: number }; end: { x: number; y: number } }[]
       expect(markers).toHaveLength(target.routes.length)
-      expect(markers[0].start).toBeUndefined() // the octopus stands there
-      markers.slice(1).forEach((m, i) => expect(m.start).toEqual(target.routes[i + 1].polyline[0]))
+      markers.forEach((m, i) => expect(m.start).toEqual(target.routes[i].polyline[0]))
+      // [T45 follow-up] The octopus stands beside the segments, not on a start.
+      const startArt = props?.startArt as { at?: { x: number; y: number } } | undefined
+      expect(startArt?.at).toEqual(segmentOctopusFeet(target))
       markers.forEach((m, i) => expect(m.end).toEqual(target.routes[i].polyline.at(-1)))
       expect(props?.endMarker).toBeUndefined()
       expect(props?.endArt).toBeUndefined()
@@ -3462,4 +3466,25 @@ describe('T45: segment levels (sheep-lana, turtle-huellas)', () => {
       expect(onAttempt.mock.calls.map(([a]) => a.approved)).toEqual(target.routes.map((_, i) => i === target.routes.length - 1))
     })
   }
+})
+
+describe('T45 follow-up: the line stays visible on a world level drawn over a brown channel', () => {
+  it('turtle-huellas (turtles channel) takes the arena ink; earth-corridor world levels keep the mud', () => {
+    const turtles = { channel: '#8a6f52', ink: '#f2efe6', inkDim: '#989896' }
+    expect(worldInk(true, turtles)).toEqual({ ink: '#f2efe6', inkDim: '#989896' })
+    expect(worldInk(true, undefined).ink).toBe('#8a6a4a')
+    expect(worldInk(true, { channel: '#8a6f52' }).ink).toBe('#8a6a4a') // no ink of its own declared
+    expect(worldInk(false, turtles)).toEqual({ ink: '#f2efe6', inkDim: '#989896' }) // turtle1..4
+  })
+
+  it('every ink actually drawn on a channel clears the 55-luma law on turtle-huellas and turtle1..4', () => {
+    for (const id of ['turtle-huellas', 'turtle1', 'turtle2', 'turtle3', 'turtle4']) {
+      const level = getLevel(id)
+      renderToString(<LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />)
+      const ink = traceCanvasProbe.current?.inkColor as string
+      const backdrop = traceCanvasProbe.current?.backdrop as { channel?: string } | undefined
+      expect(backdrop?.channel, id).toBeDefined()
+      expect(Math.abs(luma(ink) - luma(backdrop!.channel!)), id).toBeGreaterThanOrEqual(55)
+    }
+  })
 })

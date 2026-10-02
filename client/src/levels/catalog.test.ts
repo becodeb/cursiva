@@ -231,7 +231,7 @@ describe('LEVELS — authored values match the doc tables', () => {
     'llama-peak2': 80,
     'llama-peak3': 70,
     'llama-peak4': 60,
-    'turtle-huellas': 90,
+    'turtle-huellas': 80,
     'turtle1': 100,
     'turtle2': 90,
     'turtle3': 80,
