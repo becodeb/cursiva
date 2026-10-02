@@ -21,7 +21,7 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { CARRIER_LENS_ART, CLUE_ART, type AnimalId } from '../detective/assets'
 import { auditCaptions } from '../detective/captionAudit'
-import { clueKindsOf, DETECTIVE_CASES, type DeductionForm } from '../detective/cases'
+import { clueKindsOf, DETECTIVE_CASES, lineupOrder, type DeductionForm } from '../detective/cases'
 import Deduction, {
   DEDUCTION_CSS,
   DEDUCTION_INSTRUCTION,
@@ -378,9 +378,12 @@ describe('DeductionView — evidence first, then an obvious choice (T46)', () =>
     expect(nudge).toContain('cv-deduction--nudge')
     expect(nudge).toContain('class="cv-deduction-hand"')
     const { cards } = deductionScreenLayout(DUCK, { w: 1024, h: 768 })
-    // vaca (card 1) is ruled out: the sweep runs from pato's card to gato's.
-    const dx = Number(/--cv-hand-dx:([\d.]+)px/.exec(nudge)?.[1])
-    expect(dx).toBeCloseTo(cards[2].x - cards[0].x)
+    // vaca is ruled out: the sweep runs from the first OPEN card to the last.
+    const open = lineupOrder(DUCK)
+      .map((id, i) => (id === 'vaca' ? -1 : i))
+      .filter((i) => i >= 0)
+    const dx = Number(/--cv-hand-dx:(-?[\d.]+)px/.exec(nudge)?.[1])
+    expect(dx).toBeCloseTo(cards[open[open.length - 1]].x - cards[open[0]].x)
     expect(DEDUCTION_CSS).toMatch(/\.cv-deduction-hand\s*\{[^}]*cv-hand-sweep/)
     expect(DEDUCTION_CSS).toMatch(/\.cv-deduction--nudge \.cv-lineup-slot:not\(\.cv-lineup-slot--out\) \.animal-btn\s*\{[^}]*cv-card-pulse/)
     const closed = renderToString(
@@ -391,6 +394,29 @@ describe('DeductionView — evidence first, then an obvious choice (T46)', () =>
       renderToString(<DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} nudging revealing />),
     )
     expect(revealing).not.toContain('cv-deduction--nudge')
+  })
+})
+
+describe('card order and the solved hold (T46 follow-up)', () => {
+  it('renders the options in the seeded lineup order, not the registry order (culprit first)', () => {
+    for (const kase of DETECTIVE_CASES) {
+      const text = textOf(
+        renderToString(<DeductionView kase={kase} state={initialDeductionState()} onPick={noop} onExit={noop} />),
+      )
+      const positions = lineupOrder(kase).map((id) => text.indexOf(id[0].toUpperCase() + id.slice(1)))
+      expect(positions.every((p) => p >= 0), kase.id).toBe(true)
+      expect([...positions].sort((a, b) => a - b), kase.id).toEqual(positions)
+    }
+  })
+
+  it('while holding the solved state, a full-screen tap target continues; not otherwise', () => {
+    const closed = { dismissed: [], closed: true }
+    const holding = renderToString(
+      <DeductionView kase={DUCK} state={closed} onPick={noop} onExit={noop} holding onSkipHold={noop} />,
+    )
+    expect(holding).toContain('class="cv-celebrate-skip" aria-label="Continuar"')
+    const settled = renderToString(<DeductionView kase={DUCK} state={closed} onPick={noop} onExit={noop} />)
+    expect(settled).not.toContain('class="cv-celebrate-skip"')
   })
 })
 

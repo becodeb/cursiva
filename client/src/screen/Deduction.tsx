@@ -52,7 +52,7 @@ import {
   type ZooAnimalId,
 } from '../detective/assets'
 import { playSfx } from '../audio/sfx'
-import { clueKindsOf, type DeductionForm, type DetectiveCase } from '../detective/cases'
+import { clueKindsOf, lineupOrder, type DeductionForm, type DetectiveCase } from '../detective/cases'
 import CaptionedArt from '../detective/CaptionedArt'
 import {
   BackIcon,
@@ -61,7 +61,7 @@ import {
   POINTING_HAND_TIP,
   POINTING_HAND_VIEWBOX,
 } from '../detective/icons'
-import { LAYOUT_CSS } from './LevelPlay'
+import { CELEBRATE_SKIP_GRACE_MS, LAYOUT_CSS, REVEAL_HOLD_MS } from './LevelPlay'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import { BUBBLE_POP_CSS } from './BubblePop'
@@ -661,6 +661,10 @@ export interface DeductionViewProps {
   nudging?: boolean
   /** Any touch on the screen (resets the idle clock). */
   onTouch?: () => void
+  /** [T46] The case was just solved: the reveal and the solved line hold
+   *  on screen, and a full-screen tap target continues early. */
+  holding?: boolean
+  onSkipHold?: () => void
 }
 
 const DEFAULT_VIEWPORT: Viewport = { w: 1024, h: 768 }
@@ -686,6 +690,8 @@ export function DeductionView({
   onSkipReveal,
   nudging = false,
   onTouch,
+  holding = false,
+  onSkipHold,
 }: DeductionViewProps) {
   // [docs/19 §4.1 "siempre sobre la escena del nivel"] The scene the child
   // just walked, keyed off the case's first pistas trail.
@@ -697,13 +703,15 @@ export function DeductionView({
   const frame = deductionFrameRect(viewport)
   const { placement, content } = deductionBubble(hintText)
   const m = layout.metrics
-  // [T46] The idle hand sweeps across the OPEN cards of the first row and
-  // back — never parks on one card: the culprit is always the first option
-  // in the registry, so pointing at "the first open card" would give the
-  // answer away.
+  // [T46] The cards in their fixed, seeded display order (`lineupOrder`):
+  // the registry lists every culprit first, so its own order is a tell.
+  const order = lineupOrder(kase)
+  // The idle hand sweeps across the OPEN cards of the first row and back —
+  // position-agnostic, never parked on one card (that would point at an
+  // answer).
   const openCards = state.closed
     ? []
-    : layout.cards.filter((c, i) => !state.dismissed.includes(kase.options[i]) && c.y === layout.cards[0].y)
+    : layout.cards.filter((c, i) => !state.dismissed.includes(order[i]) && c.y === layout.cards[0].y)
   const handSize = m.compact ? 64 : 82
   const handFrom = openCards[0]
   const handTo = openCards[openCards.length - 1]
@@ -777,7 +785,7 @@ export function DeductionView({
         <PointingHandIcon height={Math.round(layout.promptFont * 1.5)} picture />
         {instruction.label}
       </p>
-      {kase.options.map((id, i) => (
+      {order.map((id, i) => (
         <Animal
           key={id}
           id={id}
@@ -803,6 +811,10 @@ export function DeductionView({
           <PointingHandIcon height={handSize} />
         </span>
       )}
+      {/* [T46] The solved hold: LevelPlay's own "tap anywhere to continue"
+          target (.cv-celebrate-skip, LAYOUT_CSS), the same pattern its
+          reveal levels use. */}
+      {holding && <button type="button" className="cv-celebrate-skip" aria-label="Continuar" onClick={onSkipHold} />}
       <div className="cv-deduction-frame" style={rectStyle(frame)}>
         <span className="cv-deduction-octopus" style={{ left: `${OCTOPUS_BOX.x}%` }}>
           <img src={ZOO_CARETAKER_ART.href} alt="" />
@@ -871,10 +883,14 @@ export interface DeductionProps {
    * can persist `caseSolvedId(kase.id)` through the level-progress store —
    * this component never touches storage itself. */
   onSolved: () => void
+  /** [T46] Fired once the solved hold is over (`REVEAL_HOLD_MS`, the reveal
+   *  levels' own ~4 s) or the child taps to continue — the caller moves the
+   *  adventure on. Absent: the solved screen simply stays. */
+  onContinue?: () => void
   onExit: () => void
 }
 
-export default function Deduction({ kase, solved, onSolved, onExit }: DeductionProps) {
+export default function Deduction({ kase, solved, onSolved, onContinue, onExit }: DeductionProps) {
   const [state, setState] = useState<DeductionState>(() => initialDeductionState(solved))
   const viewport = useViewport()
   const [revealing, setRevealing] = useState(() => !solved && !prefersReducedMotion())
@@ -883,6 +899,36 @@ export default function Deduction({ kase, solved, onSolved, onExit }: DeductionP
   const lastSpokenRef = useRef(0)
   const lastCueRef = useRef(-1)
   const clueCount = deductionClueArt(kase).length
+  // [T46] Set by the pick that solves the case (never by mounting an
+  // already-solved one): the child sees the colour reveal and hears
+  // "¡Era el …!" before the adventure moves on.
+  const [holding, setHolding] = useState(false)
+  const [holdSkipReady, setHoldSkipReady] = useState(false)
+  const continuedRef = useRef(false)
+  const onContinueRef = useRef(onContinue)
+  onContinueRef.current = onContinue
+  const continueOnce = (): void => {
+    if (continuedRef.current) return
+    continuedRef.current = true
+    onContinueRef.current?.()
+  }
+
+  // LevelPlay's reveal-level hold, restated with its own constants: ~4 s,
+  // then on; a tap continues early, but not within the grace window (the
+  // winning tap's own ghost click must not skip the reveal).
+  useEffect(() => {
+    if (!holding) return undefined
+    const grace = window.setTimeout(() => setHoldSkipReady(true), CELEBRATE_SKIP_GRACE_MS)
+    const advance = window.setTimeout(() => {
+      if (continuedRef.current) return
+      continuedRef.current = true
+      onContinueRef.current?.()
+    }, REVEAL_HOLD_MS)
+    return () => {
+      window.clearTimeout(grace)
+      window.clearTimeout(advance)
+    }
+  }, [holding])
 
   // [T46] The narrator reads the question and what to do, then each wrong
   // pick's reason, then the solved line.
@@ -931,6 +977,10 @@ export default function Deduction({ kase, solved, onSolved, onExit }: DeductionP
       revealing={revealing}
       onSkipReveal={() => setRevealing(false)}
       nudging={nudging}
+      holding={holding}
+      onSkipHold={() => {
+        if (holdSkipReady) continueOnce()
+      }}
       onTouch={() => {
         lastTouchRef.current = performance.now()
         lastCueRef.current = -1
@@ -943,6 +993,7 @@ export default function Deduction({ kase, solved, onSolved, onExit }: DeductionP
         if (solvesCase(state, animal, kase.culprit)) {
           onSolved()
           playSfx('right')
+          setHolding(true)
         } else {
           playSfx('wrong')
         }

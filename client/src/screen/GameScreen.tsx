@@ -778,13 +778,21 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
     // EXACT same two effects a real correct pick does — persisting the
     // solved pseudo-record and continuing the adventure — rather than
     // faking either one on its own.
-    const handleSolved = (): void => {
+    const persistSolved = (): void => {
       store.save(solvedId, { ...EMPTY_RECORD, approvals: 1 })
       setVersion((n) => n + 1)
-      // Absent only for the dev deep link (`GameView`'s own header): there
-      // is no adventure position to resume, so solving it in place is all
-      // there is to do.
+    }
+    // Absent only for the dev deep link (`GameView`'s own header): there is
+    // no adventure position to resume, so solving it in place is all there
+    // is to do.
+    const continueAdventure = (): void => {
       if (afterLevelId) dispatch({ type: 'next', levelId: afterLevelId })
+    }
+    // [T46] A real pick persists at once and continues after the solved
+    // hold (`Deduction`'s `onContinue`); the dev skip does both at once.
+    const handleSolved = (): void => {
+      persistSolved()
+      continueAdventure()
     }
     return (
       <>
@@ -793,7 +801,8 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
         <Deduction
           kase={kase}
           solved={store.get(solvedId).approvals >= 1}
-          onSolved={handleSolved}
+          onSolved={persistSolved}
+          onContinue={continueAdventure}
           onExit={onExit}
         />
         {/* Dev-only "skip deduction" (`odd/tasks/prewriting-stage-
