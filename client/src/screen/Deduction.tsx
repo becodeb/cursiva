@@ -1,34 +1,47 @@
 // Deduction screen (`detective-mode` design unit 7, spec: detective-mode
 // "Deduction Screen", level-engine "Deduction View Reachable from
 // nextView"). Reached once every trail's clue is filed; reuses the SAME
-// `.cv-play`/`.cv-head` shell shape `LevelPlay.tsx` renders.
+// `.cv-play`/`.cv-head` shell `LevelPlay.tsx` renders (its `LAYOUT_CSS` is
+// imported here for the shell).
 //
-// `LevelPlay.tsx` is out of this slice's edit scope (do-not-touch list), so
-// its `LAYOUT_CSS` is imported here for the shell.
+// [T46, `odd/tasks/prewriting-stage-completion.md`: "que sea bien intuitivo
+// lo que hay que hacer a la hora de adivinar ... que se presenten
+// correctamente las pistas obtenidas, en grande, y se entienda que hay que
+// elegir la correcta"] The screen now has two clearly separate parts:
 //
-// [T21 follow-up, orchestrator screenshot review 2026-09-26] This screen no
-// longer follows the pre-docs/19 "no card, no border, no border-radius, no
-// shadow" rule (design.md "Layout") — see `DEDUCTION_CSS`'s own header for
-// the full reasoning. It also no longer mounts `PistasRail` (the "PISTAS"
-// word plus a lightbulb mean nothing to a non-reader, `docs/18` D19) —
-// collected clues show as marker-style chips instead (`ClueChip`, below).
+//  - the EVIDENCE BOARD: every clue the child collected, as a big pinned
+//    photo on a kraft-paper board with Pulpito's lens on its top edge (it
+//    replaced the T21 row of 40px chips). The photos arrive one by one; a
+//    tap anywhere skips the arrival.
+//  - the CHOICE GROUP: a prompt pill with a pointing hand ("Tocá quién
+//    fue") over big marker-style cards with a pressable lip. After a few
+//    idle seconds the open cards pulse and a hand points at the first one
+//    (`screen/idleNudge.ts`'s clock, the same one `LevelPlay` uses), and the
+//    narrator repeats the question and the instruction.
 //
-// [D6 amended by `case-registry-and-captions`] Each animal's name is still
-// VISIBLE, drawn beneath its picture by `CaptionedArt`
-// (`detective/captionAudit.ts`'s licensed `cv-captioned` container) — never
-// a bare word, always beside the image that gives it meaning. The back
-// control stays icon-only, because an icon is still not a caption.
+// A `comparison` case (sheep wool, turtle prints) shows its one sample at
+// the SAME size as the candidates, beside them when there is room, with an
+// "=" badge between: "this one = which of these?".
+//
+// Every rectangle is decided by `screen/deductionLayout.ts` (pure, tested
+// for every case at every required viewport); this component only paints
+// them. Pulpito's corner stage stays the SAME `octopusBoxAtCorner`/
+// `placeAndFitBubble` engine every narrative screen uses, and the layout
+// keeps the evidence and the cards out of the union of every bubble the case
+// can show, so nothing moves when his line changes.
+//
+// [D6 amended by `case-registry-and-captions`] Each option's name is still
+// VISIBLE beneath its picture (`CaptionedArt`); the prompt pill's words sit
+// beside a drawn hand (`detective/captionAudit.ts`'s `cv-deduction-prompt`).
 // No `url(#...)` reference, no `<mask>`/`<filter>`/`<clipPath>`/gradient
 // referenced by id (`TraceCanvas.tsx:70-84`).
 //
-// [case-registry-and-captions, Phase 5] `CULPRIT` and `ANIMAL_ART.ruledOutBy`
-// are gone (spec: detective-mode "Case Registry Data Shape") — this screen
-// now reads a `DetectiveCase` (`kase`) for its options, its culprit and its
-// ruled-out map, so the SAME component renders the duck's three-option
-// lineup and the hen's four-option one without a special case anywhere in
-// this file.
-import { useState, type CSSProperties } from 'react'
+// [case-registry-and-captions, Phase 5] This screen reads a `DetectiveCase`
+// (`kase`) for its options, its culprit and its hints, so the SAME component
+// renders every case without a special case anywhere in this file.
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
+  CARRIER_LENS_ART,
   CLUE_ART,
   PLACEHOLDER_ZOO_ANIMALS,
   silhouetteArtFor,
@@ -39,14 +52,20 @@ import {
   type ZooAnimalId,
 } from '../detective/assets'
 import { playSfx } from '../audio/sfx'
-import { clueKindsOf, type DetectiveCase } from '../detective/cases'
+import { clueKindsOf, lineupOrder, type DeductionForm, type DetectiveCase } from '../detective/cases'
 import CaptionedArt from '../detective/CaptionedArt'
-import { BackIcon, PawPrintIcon } from '../detective/icons'
-import { LAYOUT_CSS } from './LevelPlay'
+import {
+  BackIcon,
+  PawPrintIcon,
+  PointingHandIcon,
+  POINTING_HAND_TIP,
+  POINTING_HAND_VIEWBOX,
+} from '../detective/icons'
+import { CELEBRATE_SKIP_GRACE_MS, LAYOUT_CSS, REVEAL_HOLD_MS } from './LevelPlay'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import { BUBBLE_POP_CSS } from './BubblePop'
-import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
+import { ZOO_SPEECH_BUBBLE_TAIL, type BubblePlacement } from './bubblePlacement'
 import {
   CONTENT_LEFT_FRAC,
   CONTENT_TOP_FRAC,
@@ -54,90 +73,35 @@ import {
   GAP_FRAC,
   LINE_HEIGHT,
   placeAndFitBubble,
+  type PlacedBubbleContent,
 } from './bubbleFit'
-import { octopusBoxAtCorner, OCTOPUS_CORNER_INSET, STAGE_MARGIN_PCT, stanceBubbleSide } from './pulpitoStance'
+import { octopusBoxAtCorner, OCTOPUS_CORNER_INSET, stanceBubbleSide } from './pulpitoStance'
 import { bubbleContentCssVars } from './bubbleCssVars'
+import {
+  DEDUCTION_OCTOPUS_SIZE_PCT,
+  deductionFrameRect,
+  deductionLayout,
+  pulpitoZonePx,
+  type DeductionLayout,
+  type Rect,
+  type Viewport,
+} from './deductionLayout'
+import { idleNudgeCueIndex, idleNudgePhase, shouldSpeakIdleHint } from './idleNudge'
+import { useNarration } from '../voice/useNarration'
+import { canAutoSpeak, speak } from '../voice/narrator'
+import SpeakButton from '../voice/SpeakButton'
 
-/**
- * INTRINSIC height of an animal choice, in CSS px: the `width`/`height`
- * attributes `CaptionedArt` puts on its `<svg>`, and therefore the aspect
- * ratio the browser scales by. The RENDERED height is `.cv-captioned > svg`
- * below, which grows and shrinks with the viewport — this number is what it
- * falls back to if that rule never applies, and the ratio it grows along.
- *
- * The animal IS the answer on this screen — with the case registry capping
- * the lineup at three or four options (never more), the picture is the single
- * thing the child is asked to choose between, not decoration beside something
- * else.
- *
- * [orchestrator ruling, 2026-09-12] `docs/09_GUIA_DE_ESTILO_VISUAL.md` §3
- * sizes animals at ~140 units on a trail; this screen has strictly MORE room
- * per animal than a trail does (three or four choices, laid out once, no
- * canvas competing for space), so 36 — the size that shipped in this
- * change's own Phase 4, a regression from the 64px the pre-existing `Art`
- * helper used on `main` — is too small for a five-year-old to tell the
- * animals apart and tap one with confidence. Sized up past the docs'
- * trail-scale baseline rather than merely restored to it.
- */
-const ANIMAL_SIZE = 180
-
-/**
- * Pulpito's own corner stage tuning for THIS screen (T21 follow-up round 3,
- * orchestrator: "Pulpito smaller on this screen — he's the narrator here,
- * not the star: about 22-26% of the viewport height"). Exported so
- * `bubbleFit.test.ts`'s own dedicated deduction sweep can build the EXACT
- * same `octopusBoxAtCorner` box this screen renders with — a second,
- * independently-guessed copy is exactly the kind of thing that quietly
- * drifts from what actually ships (this task's own review history: the
- * generic T18-sized sweep it used before this round validated a DIFFERENT
- * geometry than the one this screen actually renders).
- *
- * The frame itself is a SQUARE `DEDUCTION_STAGE_DVH` of the viewport's own
- * height (never the T18 stage's `STAGE_MAX_PX`/`STAGE_MAX_VH_FRAC`, which
- * assumes nothing else shares the screen with Pulpito) — big enough, as a
- * FRACTION of that square, to leave real room for the bubble beside a
- * `sizeBy: 'height'` octopus at `DEDUCTION_OCTOPUS_SIZE_PCT`, so
- * `DEDUCTION_OCTOPUS_SIZE_PCT% * DEDUCTION_STAGE_DVH%` of the viewport
- * height is the octopus's own real rendered height: 50% of 48dvh = 24dvh,
- * dead centre of the requested 22-26% band.
- */
-export const DEDUCTION_STAGE_DVH = 48
-export const DEDUCTION_OCTOPUS_SIZE_PCT = 50
-/** A floor under the frame's own size, in real px — without it, a SHORT
- *  landscape phone (844×390, this app's own tightest required tier) scales
- *  `DEDUCTION_STAGE_DVH` down to a frame too small for its own font floor
- *  (measured: a 187px frame put the opening line at ~7.6px, well under the
- *  11px readability floor `bubbleFit.test.ts`'s own sweep already enforces
- *  for every other screen). Proven against exactly that viewport by this
- *  screen's own dedicated sweep in `bubbleFit.test.ts`. */
-export const DEDUCTION_STAGE_MIN_PX = 280
-
-/**
- * The lineup's own width class, e.g. `cv-lineup-figures-3`.
- *
- * A three-animal lineup may be drawn MUCH bigger than a four-animal one
- * before the row runs out of sheet, and CSS cannot count children without
- * `:has()` — a selector this repo has no reason to bet a classroom tablet on
- * (`docs/09` §3's `url(#…)` scar is what betting on a feature looks like
- * here). React already knows the count, so it says so in the markup, and the
- * node harness can read it back off the rendered string.
- *
- * The UNSUFFIXED `.cv-lineup-figures` rule carries the four-up cap, so an
- * option count nobody has written a rule for is laid out too small rather
- * than overflowing the sheet.
- */
-export function lineupWidthClass(optionCount: number): string {
-  return `cv-lineup-figures cv-lineup-figures-${optionCount}`
-}
+export {
+  DEDUCTION_OCTOPUS_SIZE_PCT,
+  DEDUCTION_STAGE_DVH,
+  DEDUCTION_STAGE_MAX_VW,
+  DEDUCTION_STAGE_MIN_PX,
+} from './deductionLayout'
 
 /** One registry raster, centred on the origin of an origin-centred viewBox.
- *
- * Both callers below draw into a box centred on 0,0, so the art has to be
- * placed by its own negative offset rather than by a transform. `size` is the
- * HEIGHT; width follows from the source file's aspect ratio, which is what
- * keeps a 448x405 cow and a 370x448 hen from being stretched to a shared
- * square. An `<image>` is the only way raster art gets onto this screen
- * without a `url(#)` reference (module comment above; `assets.ts` header). */
+ * `size` is the HEIGHT; width follows from the source file's aspect ratio.
+ * An `<image>` is the only way raster art gets onto this screen without a
+ * `url(#)` reference (module comment above; `assets.ts` header). */
 function Art({ art, size }: { art: ArtImage; size: number }) {
   const width = (size * art.w) / art.h
   return (
@@ -152,31 +116,84 @@ function Art({ art, size }: { art: ArtImage; size: number }) {
   )
 }
 
-/**
- * One collected clue, shown as a marker-style CHIP (`odd/tasks/prewriting-
- * stage-completion.md` T21 follow-up: "no PISTAS word, no lightbulb" —
- * `docs/18` D19 already established that a word and a lightbulb mean
- * nothing to a non-reader). A paper-fill, thick-outline circle in the same
- * visual language `voice/SpeakButton.tsx`/`voice/VoiceToggle.tsx`/
- * `screen/ZooMap.tsx`'s HUD pills already use (`docs/09` §1: no shading, no
- * gradient, no shadow) — never `PistasRail`'s own labelled rail, which this
- * screen no longer mounts. Every picture this row shows is already EARNED by
- * the time this screen shows (the case's own pistas levels are done), so
- * there is no drained state to represent here.
- *
- * Takes the picture directly rather than a `ClueKind` (T25,
- * `odd/tasks/prewriting-stage-completion.md`): the night case's own chips
- * (`DetectiveCase.clueArt`) are naturalistic props with no honest
- * `ClueKind`/`CLUE_ART` colour token, and the render call below already
- * resolves either source to one `ArtImage` list before this component ever
- * sees it. */
-function ClueChip({ art }: { art: ArtImage }) {
+/** The height a picture of `art`'s aspect gets inside a `box`x`box` square
+ *  (`CaptionedArt`/`Art` take a HEIGHT): a wide sign or cow shrinks, a tall
+ *  feather keeps the full height. */
+function fittedHeight(art: ArtImage, box: number): number {
+  return art.w > art.h ? (box * art.h) / art.w : box
+}
+
+/** The case's collected clues, in play order: the night case supplies its
+ *  own pictures (`DetectiveCase.clueArt`, T25); every other case shows one
+ *  earned `ClueKind` per pistas level. */
+export function deductionClueArt(kase: DetectiveCase): readonly ArtImage[] {
+  return kase.clueArt ?? clueKindsOf(kase).map((kind) => CLUE_ART[kind].art.earned)
+}
+
+/** The board border, px — the tiles are positioned inside its padding box. */
+const BOARD_BORDER = 3
+/** A clue's art is this fraction of its photo tile; the rest is paper. */
+const TILE_ART_FRAC = 0.8
+/** Seconds: the board drops in, then each clue every `CLUE_STAGGER`, then
+ *  the prompt and the cards. */
+const BOARD_IN = 0.3
+const CLUE_STAGGER = 0.35
+const CLUE_IN = 0.45
+const CHOICE_STAGGER = 0.1
+const CHOICE_IN = 0.35
+
+/** When the `i`th clue starts arriving, seconds. */
+function clueDelay(i: number): number {
+  return BOARD_IN + i * CLUE_STAGGER
+}
+
+/** When the prompt (`i = 0`) and then each card (`i = 1..`) start arriving. */
+function choiceDelay(clueCount: number, i: number): number {
+  return clueDelay(clueCount) + 0.1 + i * CHOICE_STAGGER
+}
+
+/** The whole arrival, ms: past this the screen is fully settled and taps on
+ *  the cards count. Exported for the stateful wrapper and its test. */
+export function revealDurationMs(clueCount: number, optionCount: number): number {
+  return Math.ceil((choiceDelay(clueCount, optionCount) + CHOICE_IN) * 1000)
+}
+
+/** A pinned photo's tilt, degrees — alternating so the board reads as
+ *  hand-pinned evidence, small enough to stay inside the board's padding. */
+function clueTilt(i: number): number {
+  return [-2.5, 2, -1.5, 2.5][i % 4]
+}
+
+/** One collected clue, BIG, as a pinned photo on the evidence board. */
+function EvidenceTile({ art, rect, origin, index }: { art: ArtImage; rect: Rect; origin: Rect; index: number }) {
+  const inner = rect.w * TILE_ART_FRAC
+  const half = rect.w / 2
+  const style = {
+    left: rect.x - origin.x - BOARD_BORDER,
+    top: rect.y - origin.y - BOARD_BORDER,
+    width: rect.w,
+    height: rect.h,
+    '--cv-tilt': `${clueTilt(index)}deg`,
+    '--cv-delay': `${clueDelay(index)}s`,
+  } as CSSProperties
   return (
-    <span className="cv-deduction-chip">
-      <svg viewBox="-18 -18 36 36" width={32} height={32} aria-hidden="true" focusable="false">
-        <Art art={art} size={32} />
+    <span className="cv-evidence-tile" style={style}>
+      <svg viewBox={`${-half} ${-half} ${rect.w} ${rect.h}`} width={rect.w} height={rect.h} aria-hidden="true" focusable="false">
+        <Art art={art} size={fittedHeight(art, inner)} />
       </svg>
+      <span className="cv-evidence-tape" />
     </span>
+  )
+}
+
+/** The comparison's "=" — two plain bars, drawn (never a text glyph: a word
+ *  or symbol on this screen must ride a picture, `captionAudit.ts`). */
+function EqualsGlyph() {
+  return (
+    <svg viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+      <rect x="8" y="11" width="24" height="6" rx="3" fill="#1e293b" />
+      <rect x="8" y="23" width="24" height="6" rx="3" fill="#1e293b" />
+    </svg>
   )
 }
 
@@ -330,59 +347,156 @@ export function solvesCase(state: DeductionState, animal: ZooAnimalId, culprit: 
   return !state.closed && animal === culprit
 }
 
-/** One animal in the lineup. A dismissed distractor drains (opacity) and
- * drops (a plain transform, never a filter/mask — `TraceCanvas.tsx:70-84`)
- * rather than disappearing outright, so the case file keeps showing every
- * deduction made so far. The discriminating clue is emphasised in
- * Pulpito's OWN bubble instead of a second icon here (T21 follow-up,
- * orchestrator screenshot review 2026-09-26: a small clue mark floating
- * under the caption, disconnected from any sentence, read as a stray
- * fragment — `deductionHint` already shows the SAME clue art beside the
- * SAME reason, in one place a child's eye is already drawn to). */
+
+/**
+ * [T46] What to DO, per way of deducing (`DeductionForm`): `label` is the
+ * prompt pill over the cards (a few words beside a pointing hand), `spoken`
+ * is what the narrator adds after the question. Every option of a
+ * silhouette case IS an animal ("quién fue"); the fish case's options are
+ * enclosure signs ("su cartel"); a comparison's are samples or prints ("la
+ * que es igual").
+ */
+export const DEDUCTION_INSTRUCTION: Readonly<Record<DeductionForm, { label: string; spoken: string }>> = {
+  'new-silhouettes': { label: 'Tocá quién fue', spoken: 'Mirá las pistas y tocá quién fue.' },
+  'rescued-silhouettes': {
+    label: 'Tocá quién fue',
+    spoken: 'Mirá las pistas y tocá quién fue. ¡Ojo! A algunos ya los rescatamos.',
+  },
+  signs: { label: 'Tocá su cartel', spoken: 'Mirá las pistas y tocá el cartel de su recinto.' },
+  comparison: { label: 'Tocá la que es igual', spoken: 'Mirá la pista y tocá la que es igual.' },
+}
+
+/** Pulpito's opening question for this case (its bubble's first line). */
+export function deductionQuestion(kase: DetectiveCase): string {
+  return kase.question ?? DEDUCTION_OPENING_LINE
+}
+
+/** The narrator's opening: the question, then what to do. Also what the
+ *  idle nudge and the speak button repeat. */
+export function deductionSpokenOpening(kase: DetectiveCase): string {
+  return `${deductionQuestion(kase)} ${DEDUCTION_INSTRUCTION[kase.form].spoken}`
+}
+
+/** What the narrator says for the CURRENT state: the opening while nothing
+ *  has been picked, otherwise exactly Pulpito's bubble (a wrong pick's
+ *  reason, or the solved line). */
+export function deductionSpokenLine(kase: DetectiveCase, state: DeductionState): string {
+  if (!state.closed && state.dismissed.length === 0) return deductionSpokenOpening(kase)
+  return deductionHint(kase, state)
+}
+
+/** Every line Pulpito's bubble can show for this case — the layout keeps
+ *  the evidence and the cards clear of ALL of them, so nothing moves when
+ *  the line changes. */
+export function deductionBubbleLines(kase: DetectiveCase): string[] {
+  const lines = [deductionQuestion(kase)]
+  for (const id of kase.options) {
+    const hint = kase.hint[id]
+    if (hint) lines.push(hint)
+  }
+  lines.push(DEDUCTION_SOLVED_LINE[kase.culprit])
+  return lines
+}
+
+/** Pulpito's octopus box, percent of his square frame. */
+const OCTOPUS_BOX = octopusBoxAtCorner(ZOO_CARETAKER_ART, {
+  corner: 'left',
+  sizeBy: 'height',
+  size: DEDUCTION_OCTOPUS_SIZE_PCT,
+  bottom: 2,
+  inset: OCTOPUS_CORNER_INSET,
+})
+
+/** Pulpito's bubble for one line — the SAME engine `AdventureIntro.tsx`
+ *  uses, text only. Exported so `bubbleFit.test.ts` sweeps the exact call. */
+export function deductionBubble(text: string): PlacedBubbleContent {
+  return placeAndFitBubble({
+    frame: { w: 100, h: 100 },
+    headBox: OCTOPUS_BOX,
+    tail: ZOO_SPEECH_BUBBLE_TAIL,
+    side: stanceBubbleSide('left'),
+    text,
+  })
+}
+
+/** Everything Pulpito's corner stage can paint for `kase` at `viewport`
+ *  (octopus + every bubble line), px. */
+export function deductionPulpitoZone(kase: DetectiveCase, viewport: Viewport): Rect {
+  const bubbles: BubblePlacement[] = deductionBubbleLines(kase).map((line) => deductionBubble(line).placement)
+  return pulpitoZonePx(viewport, OCTOPUS_BOX, bubbles)
+}
+
+/** The whole screen's geometry for `kase` at `viewport`. */
+export function deductionScreenLayout(kase: DetectiveCase, viewport: Viewport): DeductionLayout {
+  return deductionLayout({
+    viewport,
+    clueCount: deductionClueArt(kase).length,
+    optionCount: kase.options.length,
+    form: kase.form,
+    pulpito: deductionPulpitoZone(kase, viewport),
+    promptChars: DEDUCTION_INSTRUCTION[kase.form].label.length,
+  })
+}
+
+/** One option card. A dismissed distractor drains (opacity) and steps back
+ * (a plain scale, never a filter/mask — `TraceCanvas.tsx:70-84`; `docs/19`
+ * §5.4 "la silueta da un pasito atrás") rather than disappearing, so the
+ * case file keeps showing every deduction made so far; it stays inside its
+ * own card rectangle, so it can never cover a neighbour. The reason is
+ * Pulpito's line, not a second icon here. */
 function Animal({
   id,
+  index,
   kase,
   state,
+  layout,
+  clueCount,
   onPick,
 }: {
   id: ZooAnimalId
+  index: number
   kase: DetectiveCase
   state: DeductionState
+  layout: DeductionLayout
+  clueCount: number
   onPick: (animal: ZooAnimalId) => void
 }) {
   const dismissed = state.dismissed.includes(id)
-  // [T21; widened T25] `docs/19` §7 slice 3: every option stands as a
-  // SILHOUETTE (`ANIMAL_SILHOUETTE_ART`/`silhouetteArtFor`, a real derived
-  // PNG — `assets.ts`'s own header — never a runtime CSS/SVG filter) until
-  // the culprit is actually picked; only then does IT ALONE swap to its
-  // full-colour picture ("the silhouette fills with colour and the duck
-  // peeks out"). A dismissed distractor never reveals — it was RULED OUT,
-  // not identified. `ZOO_ANIMAL_ART`, not `ANIMAL_ART`: it resolves every
-  // `ZooAnimalId` (erizo/oveja/llama included, T25) and — for the original
-  // four — is the exact SAME object `ANIMAL_ART` was (`assets.ts`'s own
-  // "preserves referential identity" guarantee), so this is a behaviour-
-  // preserving generalisation, not a different picture.
+  // [T21; widened T25] Every option stands as a SILHOUETTE until the culprit
+  // is picked; only then does IT ALONE swap to its full-colour picture. A
+  // dismissed distractor never reveals — it was RULED OUT, not identified.
   const revealed = state.closed && id === kase.culprit
-  // [T26] `kase.optionArt` overrides the default silhouette (the fish case's
-  // enclosure SIGNS). [T27] Otherwise a placeholder animal (`mono`) draws
-  // `PawPrintIcon` before the reveal instead of its featureless block.
+  // [T26] `kase.optionArt` overrides the default silhouette (enclosure
+  // signs, samples, prints). [T27] Otherwise a placeholder animal (`mono`)
+  // draws `PawPrintIcon` before the reveal instead of its featureless block.
   const placeholder = !revealed && !kase.optionArt?.[id] && PLACEHOLDER_ZOO_ANIMALS.has(id)
   const art = revealed
     ? ZOO_ANIMAL_ART[id]
     : (kase.optionArt?.[id] ?? (placeholder ? undefined : silhouetteArtFor(id)))
   // A wrong pick is gentle (`docs/01` principle 2: no red, no failure
-  // sound): the ONLY animation is this one soft shake, on the animal just
-  // picked — never a permanent state, so it plays exactly once per wrong
-  // pick and never replays for an OLDER dismissal sitting further back in
-  // the list.
+  // sound): one soft shake on the card just picked, never replayed for an
+  // older dismissal.
   const isLastDismissed = !state.closed && state.dismissed[state.dismissed.length - 1] === id
-  const style: CSSProperties = dismissed ? { opacity: 0.25, transform: 'translateY(24px)' } : {}
+  const rect = layout.cards[index]
+  const slotStyle = {
+    left: rect.x,
+    top: rect.y,
+    width: rect.w,
+    height: rect.h,
+    '--cv-delay': `${choiceDelay(clueCount, index + 1)}s`,
+    '--cv-i': index,
+    '--cv-caption-font': `${layout.captionFont}px`,
+  } as CSSProperties
+  const buttonStyle: CSSProperties | undefined = dismissed ? { opacity: 0.3, transform: 'scale(0.9)' } : undefined
+  const classes = ['cv-lineup-slot']
+  if (isLastDismissed) classes.push('cv-lineup-slot-shake')
+  if (dismissed) classes.push('cv-lineup-slot--out')
   return (
-    <div className={`cv-lineup-slot${isLastDismissed ? ' cv-lineup-slot-shake' : ''}`}>
+    <div className={classes.join(' ')} style={slotStyle}>
       <button
         type="button"
         className="animal-btn"
-        style={style}
+        style={buttonStyle}
         disabled={state.closed}
         onClick={() => onPick(id)}
       >
@@ -390,16 +504,12 @@ function Animal({
           <CaptionedArt
             art={art}
             label={ANIMAL_LABEL[id]}
-            size={ANIMAL_SIZE}
+            size={fittedHeight(art, layout.picture)}
             className={revealed ? 'cv-reveal-pop' : undefined}
           />
         ) : (
           <span className="cv-captioned">
-            {/* `.cv-captioned > svg` (this file's own CSS, below) sizes
-                ANY svg here via `--cv-animal`, the same responsive rule
-                `CaptionedArt`'s own svg already rides — no extra class
-                needed for this one to match its siblings' size. */}
-            <PawPrintIcon />
+            <PawPrintIcon className="cv-option-paw" />
             <span className="cv-caption">{ANIMAL_LABEL[id]}</span>
           </span>
         )}
@@ -409,159 +519,130 @@ function Animal({
 }
 
 /**
- * Only the rules this screen adds. The full-viewport shell (`.cv-play`,
- * `.cv-head`) is imported from `LevelPlay`'s `LAYOUT_CSS` rather than
- * copied.
+ * Only the rules this screen adds; the shell (`.cv-play`, `.cv-head`) is
+ * `LevelPlay`'s `LAYOUT_CSS`. Every part is absolutely positioned at the
+ * px rectangle `deductionLayout` computed (inline styles), so nothing here
+ * sizes anything by viewport units any more: the layout function owns that,
+ * and its tests prove it.
  *
- * [T21 follow-up, orchestrator screenshot review 2026-09-26] The FIRST
- * shipped version of this screen ("no card, no border, no border-radius, no
- * shadow" — the pre-docs/19 design.md "Layout" rule, deliberately dropped
- * here) read as a leftover from the old app: a flat cream background, a
- * bare grey back button, a rail labelled PISTAS with a lightbulb (`docs/18`
- * D19 already established that word and that icon mean nothing to a
- * non-reader), and Pulpito reduced to a small icon beside a plain text line.
- * This rebuild matches T7's full-screen marker chrome and T18's Pulpito-
- * over-the-scene treatment instead: a real backdrop, marker-style cards and
- * chips (paper fill, thick dark outline, no shadow — `docs/09` §1, the same
- * identity `voice/SpeakButton.tsx`/`voice/VoiceToggle.tsx`/
- * `screen/ZooMap.tsx`'s HUD pills already carry), and Pulpito standing in a
- * corner with his own speech bubble — the SAME `screen/pulpitoStance.ts`/
- * `screen/bubbleFit.ts`/`screen/bubblePlacement.ts` engine
- * `AdventureIntro.tsx`/`AdventureClosing.tsx` already use — the SAME stage
- * SIZE too (`STAGE_MAX_PX`/`STAGE_MAX_VH_FRAC`/`OCTOPUS_CORNER_SIZE_PCT`,
- * never shrunk: a first pass tuned the frame smaller to "make room", which
- * only produced a bubble too small for its own real lines — the fix is the
- * LAYOUT, not a smaller bubble.
+ * Marker style throughout (`docs/09` §1): paper fill, thick dark outline, no
+ * gradient, no shadow. The board is KRAFT paper so the evidence reads as a
+ * different thing from the white choice cards. NO BACKTICKS in this block —
+ * one inside a comment ends this template literal early.
  */
 export const DEDUCTION_CSS = `
 .cv-deduction-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 ${BUBBLE_POP_CSS}
-/* [T21 follow-up round 3, orchestrator screenshot review] Pulpito is the
- * NARRATOR on this screen, not the star the way he is on AdventureIntro.tsx/
- * AdventureClosing.tsx (nothing else shares THEIR screen with him) — his own
- * stage is now a small, FIXED-size square (.cv-deduction-frame, below:
- * ~22-26% of the viewport's own height), never the full T18 stage size. That
- * frees the whole TOP of the sheet for the chip row and the card row, with
- * Pulpito's small stage confined to the bottom-left corner underneath them —
- * confirmed by real measured DOM rects, not merely by eye (this task's own
- * QA script). The card row needs no rightward push any more either: nothing
- * of Pulpito's now reaches high enough to compete with it. */
-.cv-deduction-content { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 14px; padding: 64px 24px 0; }
-.cv-deduction-cards { align-self: stretch; display: flex; justify-content: center; }
-@keyframes cv-chips-down { 0% { opacity: 0; transform: translateY(-28px); } 100% { opacity: 1; transform: translateY(0); } }
-/* The clues "come down" into view on entry (docs/19 §2.1) — a one-shot pop
- * on mount, not a replayable transition (this screen mounts once per visit,
- * the same convention BubblePop.ts's own pop-in already follows). */
-.cv-deduction-chips { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; animation: cv-chips-down 0.5s ease; }
-.cv-deduction-chip { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 16px; background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; }
-.cv-lineup-figures { display: flex; flex-direction: row; align-items: flex-end; justify-content: center; gap: 20px; flex-wrap: wrap; }
-.cv-lineup-slot { display: flex; flex-direction: column; align-items: center; }
-/* Marker-style CARD (docs/09 §1): paper fill, thick dark outline, no
- * shadow — the silhouette still carries the meaning, the card is only the
- * BIG touch target around it (the shipped 64px tap floor, LevelPlay.tsx's
- * own .cv-btn/.cv-btn-back share the same floor). */
+.cv-deduction-speak { position: absolute; top: 6px; right: 12px; z-index: 2; }
+/* The evidence board: kraft paper, the lens badge straddling its top edge,
+ * one pinned photo per clue. */
+.cv-evidence-board { position: absolute; border: ${BOARD_BORDER}px solid #1a1a1a; border-radius: 22px; background: #e2c48f; }
+.cv-evidence-badge { position: absolute; border-radius: 50%; border: 3px solid #1a1a1a; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; }
+.cv-evidence-badge img { display: block; height: 72%; width: auto; }
+.cv-evidence-tile { position: absolute; border: 3px solid #1a1a1a; border-radius: 10px; background: ${SHEET_PAPER}; transform: rotate(var(--cv-tilt)); }
+.cv-evidence-tile > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* A strip of tape holding the photo up: flat, translucent paper. */
+.cv-evidence-tape { position: absolute; left: 32%; top: -7px; width: 36%; height: 14px; border-radius: 3px; background: rgba(255, 252, 240, 0.75); border: 2px solid rgba(26, 26, 26, 0.35); }
+/* The "=" between a comparison's sample and its candidates. */
+.cv-deduction-relation { position: absolute; border-radius: 50%; border: 3px solid #1a1a1a; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; }
+.cv-deduction-relation > svg { width: 80%; height: 80%; }
+/* The prompt pill: a pointing hand + a few words, centred over the cards. */
+.cv-deduction-prompt { position: absolute; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.35em; border-radius: 999px; border: 3px solid #1a1a1a; background: #ffe58a; color: #1e293b; font-weight: 800; white-space: nowrap; line-height: 1; }
+.cv-deduction-prompt > svg { flex: none; }
+/* Once the case is closed there is nothing left to tap: the pill goes (its
+ * place is kept, so nothing moves). */
+.cv-deduction-prompt--done { visibility: hidden; }
+.cv-lineup-slot { position: absolute; display: flex; }
+/* Marker-style CARD with a thick bottom LIP, so it reads as a button to
+ * press; pressing squashes the lip. The card fills its layout rectangle
+ * exactly; the picture is fitted into a square well above the caption. */
 .animal-btn {
+  flex: 1 1 auto;
+  display: flex;
   min-height: 64px;
   min-width: 64px;
-  padding: 16px 14px 10px;
+  padding: ${'var(--cv-card-pad-top) var(--cv-card-pad-x) 4px'};
   border: 3px solid #1a1a1a;
-  border-radius: 24px;
+  border-bottom-width: 9px;
+  border-radius: 22px;
   background: ${SHEET_PAPER};
   cursor: pointer;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  font: inherit;
+  transition: opacity 0.3s ease, transform 0.3s ease, background-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
+.animal-btn:not([disabled]):active { transform: translateY(5px); border-bottom-width: 4px; background-color: #fff3c4; }
 .animal-btn[disabled] { cursor: default; }
-/* The word sits UNDER the picture (D6 amendment), never beside it — the
- * cv-captioned span itself declares no layout (CaptionedArt.tsx is a bare
- * span, reused by every future caller), so each screen that mounts it owns
- * the stacking. No font-family here: .cv-caption inherits Nunito from the
- * document root. */
-.cv-captioned { display: inline-flex; flex-direction: column; align-items: center; }
-/* [orchestrator ruling, 2026-09-12] The directive's own vocabulary is
- * UPPERCASE throughout. The DOM text above (ANIMAL_LABEL) stays normal
- * Spanish case ("Pato") on purpose: an accessible name is computed from an
- * element's TEXT CONTENT, and several screen readers spell a genuinely
- * all-caps short word letter by letter instead of speaking it. text-
- * transform: uppercase gets the same visible glyphs with none of that. */
-.cv-caption { font-size: max(16px, calc(var(--cv-animal) * 0.12)); font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.02em; }
-/* Sized the way this app already sizes its chrome: viewport-HEIGHT
- * breakpoints, ONE custom property carrying the picture/word/gap sizes
- * together so a caption can never outgrow its own picture. Pulpito's own
- * stage is small and confined to the bottom-left now, so the width term
- * only needs to account for the sheet's own side padding and the figures'
- * gaps again — a single centred row, not pushed clear of anything. */
-.cv-lineup-figures { --cv-animal: min(160px, calc((100vw - 200px) / 3.9)); }
-.cv-lineup-figures-3 { --cv-animal: min(160px, calc((100vw - 160px) / 3.05)); }
-.cv-captioned > svg { width: auto; height: var(--cv-animal); }
-.cv-captioned { gap: calc(var(--cv-animal) * 0.03); }
-.cv-lineup-slot { gap: calc(var(--cv-animal) * 0.03); }
-@media (max-height: 820px) {
-  .cv-lineup-figures { --cv-animal: min(130px, calc((100vw - 200px) / 3.9)); gap: 14px; }
-  .cv-lineup-figures-3 { --cv-animal: min(130px, calc((100vw - 160px) / 3.05)); }
-}
-@media (max-height: 520px) {
-  .cv-deduction-content { padding: 48px 16px 0; gap: 8px; }
-  .cv-lineup-figures { --cv-animal: min(84px, calc((100vw - 160px) / 3.9)); gap: 8px; }
-  .cv-lineup-figures-3 { --cv-animal: min(90px, calc((100vw - 140px) / 3.05)); }
-  .animal-btn { padding: 10px 8px 6px; border-radius: 18px; }
-  .cv-deduction-chip { width: 40px; height: 40px; border-radius: 12px; }
-}
-/* [T21] The correct pick's own reveal: the silhouette swaps to its
- * full-colour picture (the swap itself, above, in the markup) and this pop
- * draws the eye to it — never a CSS/SVG filter, a plain keyframe on the
- * SAME captioned span every other animal choice already renders. */
+.animal-btn > .cv-captioned { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 0; }
+.animal-btn > .cv-captioned > svg { flex: none; margin: auto 0; }
+.animal-btn .cv-option-paw { width: 72%; height: auto; flex: none; margin: auto 0; }
+/* The word sits UNDER the picture (D6 amendment). Normal Spanish case in
+ * the DOM ("Pato"), uppercase by paint: several screen readers spell a
+ * genuinely all-caps short word letter by letter. One line, never broken
+ * (the layout sizes the font from the picture). */
+.cv-caption { font-size: var(--cv-caption-font); line-height: 1.2; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
+/* [T21] The correct pick's own reveal pop. */
 @keyframes cv-reveal-pop {
   0% { transform: scale(0.85); }
   60% { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
 .cv-reveal-pop { animation: cv-reveal-pop 0.5s ease; transform-origin: 50% 50%; }
-/* A wrong pick's own gentle feedback (docs/01 principle 2: no red, no
- * failure sound) — a soft one-shot shake on the slot just dismissed, never a
- * permanent state (Animal's own isLastDismissed, scoped to the LAST
- * dismissal only). Shakes the SLOT wrapper, not the button: the button
- * already carries its own permanent translateY/opacity inline style
- * (the drain-and-drop), and a CSS animation on the SAME element would
- * override that transform for the animation's own duration, producing a
- * visible jump back to y:0 mid-shake. NO BACKTICKS in this block -- one
- * inside a comment ends this template literal early (this file's own
- * DEDUCTION_CSS header). */
+/* A wrong pick's gentle feedback (docs/01 principle 2: no red, no failure
+ * sound): a soft one-shot shake on the SLOT (the button carries its own
+ * inline drain-and-step-back transform). */
 @keyframes cv-lineup-shake {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-6px); }
   75% { transform: translateX(6px); }
 }
-.cv-lineup-slot-shake { animation: cv-lineup-shake 0.4s ease; }
-@media (prefers-reduced-motion: reduce) {
-  .cv-reveal-pop, .cv-lineup-slot-shake, .cv-deduction-chips { animation: none; }
+.cv-deduction--revealed .cv-lineup-slot-shake { animation: cv-lineup-shake 0.4s ease; }
+/* [T46] The arrival: the board, then each clue, then the prompt and the
+ * cards. Only while the screen is revealing; a tap anywhere ends it, and
+ * the cards ignore taps until then (a tap on a card that has not appeared
+ * yet must not pick it). */
+@keyframes cv-board-in { 0% { opacity: 0; transform: translateY(-16px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes cv-clue-in {
+  0% { opacity: 0; transform: translateY(-36px) scale(1.3) rotate(var(--cv-tilt)); }
+  70% { opacity: 1; transform: translateY(3px) scale(0.97) rotate(var(--cv-tilt)); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(var(--cv-tilt)); }
 }
-/* [T21 follow-up round 3] Pulpito's own corner stage — a small FIXED square
- * (~24dvh, comfortably inside the 22-26% of the viewport's own HEIGHT the
- * orchestrator asked for), never the full T18 stage size: he narrates here,
- * he is not the star. octopusBoxAtCorner/placeAndFitBubble
- * (screen/pulpitoStance.ts, screen/bubbleFit.ts) are still the SAME
- * functions AdventureIntro.tsx calls, not a reimplementation — only the
- * frame's own size and the octopus's sizeBy ('height', matching a portrait
- * figure the same way PrologueOpening.tsx's own caretaker already is) are
- * tuned for sharing the sheet with a card row above. pointer-events: none
- * on the frame: it must never block a tap on a card behind it. */
-.cv-deduction-frame { position: absolute; left: 0; bottom: ${STAGE_MARGIN_PCT}%; width: min(100%, max(${DEDUCTION_STAGE_MIN_PX}px, ${DEDUCTION_STAGE_DVH}dvh)); aspect-ratio: 1 / 1; container-type: inline-size; pointer-events: none; }
+@keyframes cv-choice-in { 0% { opacity: 0; transform: translateY(18px); } 100% { opacity: 1; transform: translateY(0); } }
+.cv-deduction--revealing .cv-evidence-board { animation: cv-board-in ${BOARD_IN}s ease both; }
+.cv-deduction--revealing .cv-evidence-tile { animation: cv-clue-in ${CLUE_IN}s ease both; animation-delay: var(--cv-delay); }
+.cv-deduction--revealing .cv-deduction-prompt,
+.cv-deduction--revealing .cv-deduction-relation,
+.cv-deduction--revealing .cv-lineup-slot { animation: cv-choice-in ${CHOICE_IN}s ease both; animation-delay: var(--cv-delay); }
+.cv-deduction--revealing .cv-lineup-slot { pointer-events: none; }
+/* [T46] The idle nudge: the open cards pulse one after another, and a hand
+ * sweeps across them and back. */
+@keyframes cv-card-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.cv-deduction--nudge .cv-lineup-slot:not(.cv-lineup-slot--out) .animal-btn { animation: cv-card-pulse 0.9s ease-in-out 2; animation-delay: calc(var(--cv-i) * 0.15s); }
+@keyframes cv-hand-sweep { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(var(--cv-hand-dx)); } }
+@keyframes cv-hand-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+.cv-deduction-hand { position: absolute; pointer-events: none; z-index: 3; animation: cv-hand-sweep 2.2s ease-in-out 1 both; }
+.cv-deduction-hand > svg { display: block; animation: cv-hand-bob 0.55s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .cv-reveal-pop, .cv-lineup-slot-shake, .cv-deduction-hand, .cv-deduction-hand > svg,
+  .cv-deduction--revealing .cv-evidence-board, .cv-deduction--revealing .cv-evidence-tile,
+  .cv-deduction--revealing .cv-deduction-prompt, .cv-deduction--revealing .cv-deduction-relation,
+  .cv-deduction--revealing .cv-lineup-slot,
+  .cv-deduction--nudge .cv-lineup-slot .animal-btn { animation: none; }
+}
+/* Pulpito's corner stage: the SAME octopusBoxAtCorner/placeAndFitBubble
+ * pair AdventureIntro.tsx calls, in a square frame whose px size and place
+ * come from deductionLayout.ts (deductionFrameRect). pointer-events: none:
+ * it must never block a tap. */
+.cv-deduction-frame { position: absolute; container-type: inline-size; pointer-events: none; }
 .cv-deduction-octopus { position: absolute; bottom: 2%; height: ${DEDUCTION_OCTOPUS_SIZE_PCT}%; width: auto; }
 .cv-deduction-octopus img { display: block; width: auto; height: 100%; }
 .cv-deduction-bubble { position: absolute; container-type: inline-size; }
 .cv-deduction-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
 .cv-deduction-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
-/* [T21 follow-up round 3, orchestrator screenshot review: "the hint renders
- * BELOW the bubble's oval... most likely because the large feather image
- * inside the bubble pushes the text down"] TEXT ONLY now — no image
- * anywhere in the content box, so there is no float/wrap interaction left
- * for a real browser to render differently than bubbleFit.ts's own model
- * predicts (deductionHint's own header has the full reasoning). The
- * content box is the SAME measured-safe rectangle CONTENT_LEFT_FRAC/
- * CONTENT_TOP_FRAC/CONTENT_WIDTH_FRAC/CONTENT_HEIGHT_FRAC describe — this
- * screen's own QA script measures the caption's real getBoundingClientRect
- * against exactly that box, in the browser, not by eye. */
-.cv-deduction-bubble-text { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; }
+/* TEXT ONLY inside the bubble (deductionHint's own header): the content box
+ * is the measured-safe rectangle CONTENT_LEFT_FRAC/CONTENT_TOP_FRAC/
+ * CONTENT_WIDTH_FRAC describe. */
+.cv-deduction-bubble-text { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); margin: 0; font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; }
 `
 
 export interface DeductionViewProps {
@@ -569,55 +650,88 @@ export interface DeductionViewProps {
   state: DeductionState
   onPick: (animal: ZooAnimalId) => void
   onExit: () => void
+  /** The viewport, CSS px. Defaults to 1024x768 (a node render has none). */
+  viewport?: Viewport
+  /** [T46] The arrival is still playing: animated parts, cards not yet
+   *  tappable. Defaults to `false` (a settled screen). */
+  revealing?: boolean
+  /** A tap anywhere while `revealing` ends the arrival at once. */
+  onSkipReveal?: () => void
+  /** [T46] The idle nudge's cue is playing (`idleNudgePhase === 'nudge'`). */
+  nudging?: boolean
+  /** Any touch on the screen (resets the idle clock). */
+  onTouch?: () => void
+  /** [T46] The case was just solved: the reveal and the solved line hold
+   *  on screen, and a full-screen tap target continues early. */
+  holding?: boolean
+  onSkipHold?: () => void
+}
+
+const DEFAULT_VIEWPORT: Viewport = { w: 1024, h: 768 }
+
+function rectStyle(r: Rect): CSSProperties {
+  return { left: r.x, top: r.y, width: r.w, height: r.h }
 }
 
 /**
  * Pure presentational render of a given {@link DeductionState}. Split out
- * from the stateful default export for the same reason `shouldFileClue` is
- * exported separately in `LevelPlay.tsx`: this repo's node-only harness
- * cannot observe a re-render after `renderToString` (a state dispatch past
- * that point is a no-op — no live fiber tree survives), so every dismissal
- * and the closed state are asserted by rendering THIS component directly at
- * a hand-built state, never by simulating a click.
+ * from the stateful default export because this repo's node-only harness
+ * cannot observe a re-render after `renderToString`: every dismissal, the
+ * closed state, the arrival and the nudge are asserted by rendering THIS
+ * component directly with hand-built props, never by simulating a click.
  */
-export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProps) {
-  // [T21 follow-up, docs/19 §4.1 "siempre sobre la escena del nivel"] The
-  // scene the child just walked, never a flat colour — the SAME backdrop
-  // registry AdventureIntro.tsx/AdventureClosing.tsx already read, keyed off
-  // the case's own first pistas trail (every trail of one case shares one
-  // adventure, and therefore one backdrop).
+export function DeductionView({
+  kase,
+  state,
+  onPick,
+  onExit,
+  viewport = DEFAULT_VIEWPORT,
+  revealing = false,
+  onSkipReveal,
+  nudging = false,
+  onTouch,
+  holding = false,
+  onSkipHold,
+}: DeductionViewProps) {
+  // [docs/19 §4.1 "siempre sobre la escena del nivel"] The scene the child
+  // just walked, keyed off the case's first pistas trail.
   const backdrop = backdropFor(kase.trailIds[0])
-  // [T21] Pulpito's own line for the current state (`deductionHint`, above):
-  // the opening question, a wrong pick's own gentle reason, or the
-  // culprit's name once solved. Text only (see DEDUCTION_CSS's own header
-  // on why) — `placeAndFitBubble` is called with no `art` at all.
   const hintText = deductionHint(kase, state)
-  // [T21 follow-up round 3] `sizeBy: 'height'` — the SAME convention
-  // `PrologueOpening.tsx`'s own portrait caretaker figure already uses
-  // (`bubblePlacement.ts`'s own `OctopusBoxOptions` doc), since
-  // `ZOO_CARETAKER_ART` (235×320) is taller than it is wide.
-  // `DEDUCTION_OCTOPUS_SIZE_PCT` of `DEDUCTION_STAGE_DVH` (both exported,
-  // above) is what actually lands the octopus at 22-26% of the VIEWPORT's
-  // own height — an earlier attempt sized the octopus to 95% of a frame
-  // that was ITSELF already shrunk to the octopus's own target size, which
-  // left next to no frame width for the bubble at all (measured: a 37px-
-  // wide bubble on a 1024px screen).
-  const octopusBox = octopusBoxAtCorner(ZOO_CARETAKER_ART, {
-    corner: 'left',
-    sizeBy: 'height',
-    size: DEDUCTION_OCTOPUS_SIZE_PCT,
-    bottom: 2,
-    inset: OCTOPUS_CORNER_INSET,
-  })
-  const { placement, content } = placeAndFitBubble({
-    frame: { w: 100, h: 100 },
-    headBox: octopusBox,
-    tail: ZOO_SPEECH_BUBBLE_TAIL,
-    side: stanceBubbleSide('left'),
-    text: hintText,
-  })
+  const layout = deductionScreenLayout(kase, viewport)
+  const clueArt = deductionClueArt(kase)
+  const instruction = DEDUCTION_INSTRUCTION[kase.form]
+  const frame = deductionFrameRect(viewport)
+  const { placement, content } = deductionBubble(hintText)
+  const m = layout.metrics
+  // [T46] The cards in their fixed, seeded display order (`lineupOrder`):
+  // the registry lists every culprit first, so its own order is a tell.
+  const order = lineupOrder(kase)
+  // The idle hand sweeps across the OPEN cards of the first row and back —
+  // position-agnostic, never parked on one card (that would point at an
+  // answer).
+  const openCards = state.closed
+    ? []
+    : layout.cards.filter((c, i) => !state.dismissed.includes(order[i]) && c.y === layout.cards[0].y)
+  const handSize = m.compact ? 64 : 82
+  const handFrom = openCards[0]
+  const handTo = openCards[openCards.length - 1]
+  const classes = ['cv-play', 'cv-deduction', revealing ? 'cv-deduction--revealing' : 'cv-deduction--revealed']
+  if (nudging && !revealing) classes.push('cv-deduction--nudge')
   return (
-    <main className="cv-play">
+    <main
+      className={classes.join(' ')}
+      style={
+        {
+          // Minus the 3px border: the layout's pads are border-inclusive.
+          '--cv-card-pad-top': `${m.cardPadTop - 3}px`,
+          '--cv-card-pad-x': `${m.cardPadX - 3}px`,
+        } as CSSProperties
+      }
+      onPointerDown={() => {
+        onTouch?.()
+        if (revealing) onSkipReveal?.()
+      }}
+    >
       <style>{LAYOUT_CSS + DEDUCTION_CSS}</style>
       {backdrop && <img className="cv-deduction-backdrop" src={backdrop.art.href} alt="" />}
       <header className="cv-head">
@@ -633,28 +747,76 @@ export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProp
           <BackIcon />
         </button>
       </header>
-      <div className="cv-deduction-content">
-        <div className="cv-deduction-chips">
-          {/* [T25] The night case supplies its own chip pictures directly
-              (`clueArt`, naturalistic props with no honest `ClueKind`
-              colour token) — every other case still derives one `ClueKind`
-              per pistas level (`clueKindsOf`'s default path), unchanged. */}
-          {(kase.clueArt ?? clueKindsOf(kase).map((kind) => CLUE_ART[kind].art.earned)).map(
-            (art, i) => (
-              <ClueChip key={i} art={art} />
-            ),
-          )}
-        </div>
-        <div className="cv-deduction-cards">
-          <div className={lineupWidthClass(kase.options.length)}>
-            {kase.options.map((id) => (
-              <Animal key={id} id={id} kase={kase} state={state} onPick={onPick} />
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="cv-deduction-frame">
-        <span className="cv-deduction-octopus" style={{ left: `${octopusBox.x}%` }}>
+      <SpeakButton line={deductionSpokenLine(kase, state)} className="cv-deduction-speak" />
+      <section className="cv-evidence-board" style={rectStyle(layout.board)} aria-label="Pistas">
+        <span
+          className="cv-evidence-badge"
+          style={{
+            left: layout.badge.x - layout.board.x - BOARD_BORDER,
+            top: layout.badge.y - layout.board.y - BOARD_BORDER,
+            width: layout.badge.w,
+            height: layout.badge.h,
+          }}
+        >
+          <img src={CARRIER_LENS_ART.href} alt="" />
+        </span>
+        {clueArt.map((art, i) => (
+          <EvidenceTile key={i} art={art} rect={layout.clues[i]} origin={layout.board} index={i} />
+        ))}
+      </section>
+      {layout.relation && (
+        <span
+          className="cv-deduction-relation"
+          style={{ ...rectStyle(layout.relation), '--cv-delay': `${choiceDelay(clueArt.length, 0)}s` } as CSSProperties}
+        >
+          <EqualsGlyph />
+        </span>
+      )}
+      <p
+        className={`cv-deduction-prompt${state.closed ? ' cv-deduction-prompt--done' : ''}`}
+        style={
+          {
+            ...rectStyle(layout.prompt),
+            fontSize: layout.promptFont,
+            '--cv-delay': `${choiceDelay(clueArt.length, 0)}s`,
+          } as CSSProperties
+        }
+      >
+        <PointingHandIcon height={Math.round(layout.promptFont * 1.5)} picture />
+        {instruction.label}
+      </p>
+      {order.map((id, i) => (
+        <Animal
+          key={id}
+          id={id}
+          index={i}
+          kase={kase}
+          state={state}
+          layout={layout}
+          clueCount={clueArt.length}
+          onPick={onPick}
+        />
+      ))}
+      {nudging && !revealing && handFrom && handTo && (
+        <span
+          className="cv-deduction-hand"
+          style={
+            {
+              left: handFrom.x + handFrom.w / 2 - (POINTING_HAND_TIP.x * handSize) / POINTING_HAND_VIEWBOX.h,
+              top: handFrom.y + handFrom.h * 0.5 - (POINTING_HAND_TIP.y * handSize) / POINTING_HAND_VIEWBOX.h,
+              '--cv-hand-dx': `${handTo.x - handFrom.x}px`,
+            } as CSSProperties
+          }
+        >
+          <PointingHandIcon height={handSize} />
+        </span>
+      )}
+      {/* [T46] The solved hold: LevelPlay's own "tap anywhere to continue"
+          target (.cv-celebrate-skip, LAYOUT_CSS), the same pattern its
+          reveal levels use. */}
+      {holding && <button type="button" className="cv-celebrate-skip" aria-label="Continuar" onClick={onSkipHold} />}
+      <div className="cv-deduction-frame" style={rectStyle(frame)}>
+        <span className="cv-deduction-octopus" style={{ left: `${OCTOPUS_BOX.x}%` }}>
           <img src={ZOO_CARETAKER_ART.href} alt="" />
         </span>
         <span
@@ -671,21 +833,16 @@ export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProp
             }),
           }}
         >
-          {/* Keyed on the line (T8 item 2's own convention, AdventureIntro.
-              tsx): a new hint pops in fresh every time it actually changes. */}
+          {/* Keyed on the line: a new hint pops in fresh every time it
+              actually changes. Text only (licensed by captionAudit.ts's
+              cv-deduction-frame: the octopus's own <img> is the picture this
+              spoken line stands beside). */}
           <span
             key={hintText}
             className="cv-bubble-pop"
             style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
           >
             <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-            {/* [T21 follow-up round 3] Text only — no CaptionedArt, no
-                image. Licensed by detective/captionAudit.ts's
-                CAPTION_CONTAINERS carrying 'cv-deduction-frame' now: the
-                octopus's OWN <img>, a sibling within that same frame, is
-                the picture this spoken line stands beside — never a second,
-                redundant clue/animal picture crammed into the bubble
-                itself (the orchestrator's own instruction: "prefer none"). */}
             <p className="cv-deduction-bubble-text">{hintText}</p>
           </span>
         </span>
@@ -693,6 +850,29 @@ export function DeductionView({ kase, state, onPick, onExit }: DeductionViewProp
     </main>
   )
 }
+
+/** The real viewport, CSS px, kept current on resize/rotation; 1024x768
+ *  under `renderToString` (no `window`). */
+function useViewport(): Viewport {
+  const read = (): Viewport =>
+    typeof window === 'undefined' ? DEFAULT_VIEWPORT : { w: window.innerWidth, h: window.innerHeight }
+  const [viewport, setViewport] = useState<Viewport>(read)
+  useEffect(() => {
+    const onResize = () => setViewport(read())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return viewport
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** How often the idle clock is read, ms (`idleNudge.ts`'s selectors are
+ *  pure functions of elapsed time, so the poll rate only sets latency). */
+const IDLE_POLL_MS = 250
 
 export interface DeductionProps {
   kase: DetectiveCase
@@ -703,25 +883,117 @@ export interface DeductionProps {
    * can persist `caseSolvedId(kase.id)` through the level-progress store —
    * this component never touches storage itself. */
   onSolved: () => void
+  /** [T46] Fired once the solved hold is over (`REVEAL_HOLD_MS`, the reveal
+   *  levels' own ~4 s) or the child taps to continue — the caller moves the
+   *  adventure on. Absent: the solved screen simply stays. */
+  onContinue?: () => void
   onExit: () => void
 }
 
-export default function Deduction({ kase, solved, onSolved, onExit }: DeductionProps) {
+export default function Deduction({ kase, solved, onSolved, onContinue, onExit }: DeductionProps) {
   const [state, setState] = useState<DeductionState>(() => initialDeductionState(solved))
+  const viewport = useViewport()
+  const [revealing, setRevealing] = useState(() => !solved && !prefersReducedMotion())
+  const [nudging, setNudging] = useState(false)
+  const lastTouchRef = useRef(0)
+  const lastSpokenRef = useRef(0)
+  const lastCueRef = useRef(-1)
+  const clueCount = deductionClueArt(kase).length
+  // [T46] Set by the pick that solves the case (never by mounting an
+  // already-solved one): the child sees the colour reveal and hears
+  // "¡Era el …!" before the adventure moves on.
+  const [holding, setHolding] = useState(false)
+  const [holdSkipReady, setHoldSkipReady] = useState(false)
+  const continuedRef = useRef(false)
+  const onContinueRef = useRef(onContinue)
+  onContinueRef.current = onContinue
+  const continueOnce = (): void => {
+    if (continuedRef.current) return
+    continuedRef.current = true
+    onContinueRef.current?.()
+  }
+
+  // LevelPlay's reveal-level hold, restated with its own constants: ~4 s,
+  // then on; a tap continues early, but not within the grace window (the
+  // winning tap's own ghost click must not skip the reveal).
+  useEffect(() => {
+    if (!holding) return undefined
+    const grace = window.setTimeout(() => setHoldSkipReady(true), CELEBRATE_SKIP_GRACE_MS)
+    const advance = window.setTimeout(() => {
+      if (continuedRef.current) return
+      continuedRef.current = true
+      onContinueRef.current?.()
+    }, REVEAL_HOLD_MS)
+    return () => {
+      window.clearTimeout(grace)
+      window.clearTimeout(advance)
+    }
+  }, [holding])
+
+  // [T46] The narrator reads the question and what to do, then each wrong
+  // pick's reason, then the solved line.
+  useNarration(deductionSpokenLine(kase, state))
+
+  useEffect(() => {
+    if (!revealing) return
+    const timer = setTimeout(() => setRevealing(false), revealDurationMs(clueCount, kase.options.length))
+    return () => clearTimeout(timer)
+  }, [revealing, clueCount, kase.options.length])
+
+  // [T46] The idle nudge (`screen/idleNudge.ts`): no touch for ~6 s after
+  // the arrival -> the cards pulse and a hand points; the question and the
+  // instruction are spoken again at most every ~20 s.
+  const idleArmed = !revealing && !state.closed
+  useEffect(() => {
+    if (!idleArmed) {
+      setNudging(false)
+      return
+    }
+    const armedAt = performance.now()
+    lastTouchRef.current = armedAt
+    lastSpokenRef.current = armedAt
+    lastCueRef.current = -1
+    const timer = setInterval(() => {
+      const now = performance.now()
+      const elapsed = now - lastTouchRef.current
+      setNudging(idleNudgePhase(elapsed) === 'nudge')
+      const cue = idleNudgeCueIndex(elapsed)
+      if (cue > lastCueRef.current) {
+        lastCueRef.current = cue
+        if (cue >= 0 && shouldSpeakIdleHint(now - lastSpokenRef.current) && canAutoSpeak()) {
+          lastSpokenRef.current = now
+          speak(deductionSpokenOpening(kase))
+        }
+      }
+    }, IDLE_POLL_MS)
+    return () => clearInterval(timer)
+  }, [idleArmed, kase])
+
   return (
     <DeductionView
       kase={kase}
       state={state}
+      viewport={viewport}
+      revealing={revealing}
+      onSkipReveal={() => setRevealing(false)}
+      nudging={nudging}
+      holding={holding}
+      onSkipHold={() => {
+        if (holdSkipReady) continueOnce()
+      }}
+      onTouch={() => {
+        lastTouchRef.current = performance.now()
+        lastCueRef.current = -1
+        setNudging(false)
+      }}
       onPick={(animal) => {
-        // T35: decided BEFORE the state update (`pickAnimal` is pure and
-        // does not know about sound) — the SAME `solvesCase` call `onSolved`
-        // already gates on, so right/wrong never drifts from what the
-        // screen actually does with this pick. `wrong` is deliberately NOT
-        // a failure sound (`docs/01` principle 2, `audio/sfx.ts`'s own
-        // header) — see `pickAnimal`'s own "a wrong pick costs nothing".
+        // T35: decided BEFORE the state update — the SAME `solvesCase` call
+        // `onSolved` already gates on. `wrong` is deliberately NOT a failure
+        // sound (`docs/01` principle 2, `audio/sfx.ts`'s own header).
         if (solvesCase(state, animal, kase.culprit)) {
           onSolved()
           playSfx('right')
+          setHolding(true)
         } else {
           playSfx('wrong')
         }

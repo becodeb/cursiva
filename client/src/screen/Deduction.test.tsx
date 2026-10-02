@@ -19,15 +19,23 @@
 // only breaks one lineup size cannot hide behind the other.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { CLUE_ART, type AnimalId } from '../detective/assets'
+import { CARRIER_LENS_ART, CLUE_ART, type AnimalId } from '../detective/assets'
 import { auditCaptions } from '../detective/captionAudit'
-import { clueKindsOf, DETECTIVE_CASES } from '../detective/cases'
+import { clueKindsOf, DETECTIVE_CASES, lineupOrder, type DeductionForm } from '../detective/cases'
 import Deduction, {
   DEDUCTION_CSS,
+  DEDUCTION_INSTRUCTION,
+  DEDUCTION_OPENING_LINE,
+  DEDUCTION_SOLVED_LINE,
+  deductionClueArt,
+  deductionQuestion,
+  deductionScreenLayout,
+  deductionSpokenLine,
+  deductionSpokenOpening,
   DeductionView,
   initialDeductionState,
-  lineupWidthClass,
   pickAnimal,
+  revealDurationMs,
   solvesCase,
   type DeductionState,
 } from './Deduction'
@@ -138,12 +146,14 @@ describe.each(CASES)('DeductionView rendering — %s case', (_label, kase) => {
     expect(audit.imagelessContainers).toEqual([])
   })
 
-  it("shows the case's OWN clue kinds as marker-style chips (T21 follow-up: no PISTAS word, no lightbulb — docs/18 D19)", () => {
+  it("shows the case's OWN clue kinds as big pinned photos on the evidence board (T46; still no PISTAS word, no lightbulb — docs/18 D19)", () => {
     const html = renderToString(
       <DeductionView kase={kase} state={initialDeductionState()} onPick={noop} onExit={noop} />,
     )
-    const chips = html.match(/class(Name)?="cv-deduction-chip"/g) ?? []
-    expect(chips.length).toBe(clueKindsOf(kase).length)
+    const tiles = html.match(/class(Name)?="cv-evidence-tile"/g) ?? []
+    expect(tiles.length).toBe(clueKindsOf(kase).length)
+    expect(html).toContain('class="cv-evidence-board"')
+    expect(html).toContain(CARRIER_LENS_ART.href)
     for (const kind of clueKindsOf(kase)) {
       expect(html).toContain(CLUE_ART[kind].art.earned.href)
       expect(html).not.toContain(CLUE_ART[kind].art.drained.href)
@@ -152,13 +162,16 @@ describe.each(CASES)('DeductionView rendering — %s case', (_label, kase) => {
     expect(html).not.toContain('<aside')
   })
 
-  it("a dismissed distractor drains and drops; its discriminating clue shows in Pulpito's OWN bubble instead of a second icon", () => {
+  it("a dismissed distractor drains and steps back inside its own card; no second clue icon beside it", () => {
     const distractor = Object.keys(kase.ruledOutBy)[0] as AnimalId
     const clueKind = kase.ruledOutBy[distractor]!
     const state: DeductionState = { dismissed: [distractor], closed: false }
     const html = renderToString(<DeductionView kase={kase} state={state} onPick={noop} onExit={noop} />)
-    expect(html).toContain('opacity:0.25')
-    expect(html).toContain('translateY(24px)')
+    expect(html).toContain('opacity:0.3')
+    // [T46] A step BACK (scale), never a drop: a translate pushed the card
+    // out of its own layout rectangle, onto whatever sat below it.
+    expect(html).toContain('transform:scale(0.9)')
+    expect(html).not.toContain('translateY(24px)')
     expect(html).not.toContain('url(#')
     // `<filter`, not the bare word "filter" (matching `<mask` below): this
     // screen reuses `LevelPlay.tsx`'s own `LAYOUT_CSS` verbatim for its
@@ -173,6 +186,7 @@ describe.each(CASES)('DeductionView rendering — %s case', (_label, kase) => {
     // gone: the SAME clue art now shows inside Pulpito's own bubble,
     // beside the reason that rules the animal out (deductionHint).
     expect(html).not.toContain('cv-clue-hint')
+    // The ruling clue is still on screen: on the evidence board, earned.
     expect(html).toContain(CLUE_ART[clueKind].art.earned.href)
   })
 
@@ -238,113 +252,202 @@ describe('DeductionView — the mono option (a PLACEHOLDER_ZOO_ANIMALS entry, do
   })
 })
 
-describe('the lineup grows into the sheet (defect fix: three small animals in a large empty page)', () => {
-  /** The declaration body of a rule, e.g. the text between the braces of
-   * `.cv-captioned > svg { … }`. Returns every match, because the responsive
-   * rules are deliberately restated inside media queries.
-   *
-   * [T21] Anchored to the START OF A SELECTOR (only whitespace, or nothing,
-   * since the previous rule's `{`/`}`/`;` or a `,` in a selector list, or
-   * the very start of the string), not merely to the selector text itself:
-   * `.cv-deduction-bubble .cv-caption { … }` (the deduction screen's OWN
-   * Pulpito bubble, T21) legitimately contains the bare `.cv-caption { … }`
-   * text as a SUBSTRING once its own leading `.cv-deduction-bubble ` scope
-   * is stripped by an un-anchored search — anchoring here is what tells "a
-   * second, differently-scoped rule" apart from "the bare selector matched
-   * twice", while still matching an INDENTED restatement inside a
-   * `@media` block (the anchor allows the whitespace between the block's
-   * own `{` and the indented selector), and one preceded by its own doc
-   * comment closing (most declarations in this file carry one). */
-  const bodies = (selector: string): string[] => {
-    const escaped = selector.replace(/[.*+?^$()|[\]\\]/g, '\\$&')
-    return [
-      ...DEDUCTION_CSS.matchAll(
-        new RegExp(`(?<=(?:^|[{};,]|\\*/)\\s*)${escaped}\\s*\\{([^}]*)\\}`, 'g'),
-      ),
-    ].map((m) => m[1])
-  }
+// [T46] The layout is decided in px by `screen/deductionLayout.ts` (tested
+// there for every case at every viewport); these tests prove the markup
+// actually paints those rectangles, and that the screen tells the child
+// what to do.
+describe('DeductionView — evidence first, then an obvious choice (T46)', () => {
+  const px = (n: number): string => `${n}px`
+  /** The markup without its `<style>` block (whose selectors name every
+   *  class this screen can ever carry). */
+  const markup = (html: string): string => html.replace(/<style>[\s\S]*?<\/style>/g, '')
 
-  it('names the option count in the markup, because CSS cannot count children', () => {
-    expect(lineupWidthClass(3)).toBe('cv-lineup-figures cv-lineup-figures-3')
-    expect(lineupWidthClass(4)).toBe('cv-lineup-figures cv-lineup-figures-4')
-    // The shared class is always present, so the unsuffixed rule keeps
-    // carrying the conservative cap for a count nobody wrote a rule for.
-    expect(lineupWidthClass(7)).toContain('cv-lineup-figures ')
+  it('positions every card, the board and the prompt at the layout rectangles', () => {
+    for (const viewport of [
+      { w: 1024, h: 768 },
+      { w: 768, h: 1024 },
+      { w: 844, h: 390 },
+    ]) {
+      for (const kase of DETECTIVE_CASES) {
+        const layout = deductionScreenLayout(kase, viewport)
+        const html = renderToString(
+          <DeductionView kase={kase} state={initialDeductionState()} onPick={noop} onExit={noop} viewport={viewport} />,
+        )
+        const label = `${kase.id} at ${viewport.w}x${viewport.h}`
+        for (const card of layout.cards) {
+          expect(html, label).toContain(`left:${px(card.x)};top:${px(card.y)};width:${px(card.w)};height:${px(card.h)}`)
+        }
+        const b = layout.board
+        expect(html, label).toContain(`left:${px(b.x)};top:${px(b.y)};width:${px(b.w)};height:${px(b.h)}`)
+        expect(html, label).toContain(`--cv-caption-font:${layout.captionFont}px`)
+      }
+    }
   })
 
-  for (const [name, kase] of CASES) {
-    it(`the ${name} lineup renders its own width class, so the cap matches the count`, () => {
+  it('every case passes the captioned-art audit, prompt pill included', () => {
+    for (const kase of DETECTIVE_CASES) {
+      const audit = auditCaptions(
+        renderToString(<DeductionView kase={kase} state={initialDeductionState()} onPick={noop} onExit={noop} />),
+      )
+      expect(audit.uncaptioned, kase.id).toEqual([])
+      expect(audit.imagelessContainers, kase.id).toEqual([])
+      expect(audit.captioned, kase.id).toContain(DEDUCTION_INSTRUCTION[kase.form].label)
+    }
+  })
+
+  it('shows every collected clue of every case on the board, the night case its own pictures', () => {
+    for (const kase of DETECTIVE_CASES) {
       const html = renderToString(
         <DeductionView kase={kase} state={initialDeductionState()} onPick={noop} onExit={noop} />,
       )
-      expect(html).toContain(lineupWidthClass(kase.options.length))
-    })
-  }
+      const art = deductionClueArt(kase)
+      expect((html.match(/class="cv-evidence-tile"/g) ?? []).length, kase.id).toBe(art.length)
+      for (const a of art) expect(html, kase.id).toContain(a.href)
+    }
+  })
 
-  it('sizes the picture from the viewport, never from one hardcoded px value', () => {
-    // The defect: a fixed 180px animal in a 1280x900 page left ~350px of
-    // empty paper above the lineup and ~300px below it.
-    const svg = bodies('.cv-captioned > svg')
-    expect(svg.length).toBe(1)
-    expect(svg[0]).toContain('var(--cv-animal)')
-    expect(svg[0], 'the aspect ratio must follow the height, not be pinned').toContain(
-      'width: auto',
+  it('a comparison draws its "=" badge; no other kind does', () => {
+    for (const kase of DETECTIVE_CASES) {
+      const html = renderToString(
+        <DeductionView kase={kase} state={initialDeductionState()} onPick={noop} onExit={noop} />,
+      )
+      expect(markup(html).includes('cv-deduction-relation'), kase.id).toBe(kase.form === 'comparison')
+    }
+  })
+
+  it('the prompt pill names the action per kind, beside a drawn pointing hand', () => {
+    const labels: Record<DeductionForm, string> = {
+      'new-silhouettes': 'Tocá quién fue',
+      'rescued-silhouettes': 'Tocá quién fue',
+      signs: 'Tocá su cartel',
+      comparison: 'Tocá la que es igual',
+    }
+    for (const kase of DETECTIVE_CASES) {
+      expect(DEDUCTION_INSTRUCTION[kase.form].label).toBe(labels[kase.form])
+      const html = renderToString(
+        <DeductionView kase={kase} state={initialDeductionState()} onPick={noop} onExit={noop} />,
+      )
+      expect(html).toMatch(/<p class="cv-deduction-prompt"[^>]*><svg[^>]*data-cv-picture="true"/)
+      expect(textOf(html)).toContain(labels[kase.form])
+    }
+  })
+
+  it('once the case is closed the prompt pill goes, keeping its place', () => {
+    const closed = markup(
+      renderToString(<DeductionView kase={DUCK} state={{ dismissed: [], closed: true }} onPick={noop} onExit={noop} />),
     )
-    expect(svg[0]).not.toMatch(/height:\s*\d+px/)
+    expect(closed).toContain('class="cv-deduction-prompt cv-deduction-prompt--done"')
+    expect(DEDUCTION_CSS).toMatch(/\.cv-deduction-prompt--done\s*\{\s*visibility:\s*hidden/)
   })
 
-  it('drives that size through the SAME viewport-height breakpoints LevelPlay already uses', () => {
-    // `.pistas-word` in LevelPlay's LAYOUT_CSS steps at exactly these two.
-    expect(DEDUCTION_CSS).toContain('@media (max-height: 820px)')
-    expect(DEDUCTION_CSS).toContain('@media (max-height: 520px)')
-    // Every declaration of the property answers BOTH axes: a px vertical
-    // budget, and a 100vw term so a row of animals cannot outgrow its sheet.
-    const declarations = [...DEDUCTION_CSS.matchAll(/--cv-animal:\s*([^;]+);/g)].map((m) => m[1])
-    // [T21 follow-up] Three tiers now (default, 820px, 520px), not four: the
-    // 420px landscape-phone tier merged into 520px's own smaller numbers once
-    // .cv-deduction-content's bottom padding (reserved for Pulpito's own
-    // corner stage) already shrank the DEFAULT tier well below what the old
-    // four-tier ladder needed.
-    expect(declarations.length).toBeGreaterThanOrEqual(3)
-    for (const value of declarations) {
-      expect(value, `"${value}" must cap on height`).toMatch(/min\(\s*\d+px/)
-      expect(value, `"${value}" must cap on width`).toContain('100vw')
+  it('cards are pressable buttons with a lip that squashes, captions one line', () => {
+    expect(DEDUCTION_CSS).toMatch(/\.animal-btn\s*\{[^}]*border-bottom-width:\s*9px/)
+    expect(DEDUCTION_CSS).toMatch(/\.animal-btn:not\(\[disabled\]\):active\s*\{[^}]*border-bottom-width:\s*4px/)
+    expect(DEDUCTION_CSS).toMatch(/\.cv-caption\s*\{[^}]*white-space:\s*nowrap/)
+    expect(DEDUCTION_CSS).toMatch(/\.cv-caption\s*\{[^}]*font-size:\s*var\(--cv-caption-font\)/)
+  })
+
+  it('while revealing: the arrival animates and the cards ignore taps; settled by default', () => {
+    const open = markup(renderToString(<DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />))
+    expect(open).toContain('cv-deduction--revealed')
+    expect(open).not.toContain('cv-deduction--revealing')
+    const revealing = renderToString(
+      <DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} revealing />,
+    )
+    expect(revealing).toContain('cv-deduction--revealing')
+    expect(DEDUCTION_CSS).toMatch(/\.cv-deduction--revealing \.cv-lineup-slot\s*\{\s*pointer-events:\s*none/)
+    expect(DEDUCTION_CSS).toMatch(/\.cv-deduction--revealing \.cv-evidence-tile\s*\{[^}]*animation-delay:\s*var\(--cv-delay\)/)
+    // The clues arrive one by one, in order.
+    const delays = [...revealing.matchAll(/--cv-delay:([\d.]+)s/g)].map((m) => Number(m[1]))
+    const clueDelays = delays.slice(0, deductionClueArt(DUCK).length)
+    expect([...clueDelays].sort((a, b) => a - b)).toEqual(clueDelays)
+    expect(new Set(clueDelays).size).toBe(clueDelays.length)
+  })
+
+  it('the arrival lasts longer with more clues, and stays short', () => {
+    expect(revealDurationMs(4, 3)).toBeGreaterThan(revealDurationMs(1, 3))
+    expect(revealDurationMs(4, 3)).toBeLessThanOrEqual(3000)
+  })
+
+  it('nudging: the open cards pulse and a hand sweeps across the open ones (never parks on the culprit); never on a closed case', () => {
+    const nudge = markup(
+      renderToString(
+        <DeductionView kase={DUCK} state={{ dismissed: ['vaca'], closed: false }} onPick={noop} onExit={noop} nudging />,
+      ),
+    )
+    expect(nudge).toContain('cv-deduction--nudge')
+    expect(nudge).toContain('class="cv-deduction-hand"')
+    const { cards } = deductionScreenLayout(DUCK, { w: 1024, h: 768 })
+    // vaca is ruled out: the sweep runs from the first OPEN card to the last.
+    const open = lineupOrder(DUCK)
+      .map((id, i) => (id === 'vaca' ? -1 : i))
+      .filter((i) => i >= 0)
+    const dx = Number(/--cv-hand-dx:(-?[\d.]+)px/.exec(nudge)?.[1])
+    expect(dx).toBeCloseTo(cards[open[open.length - 1]].x - cards[open[0]].x)
+    expect(DEDUCTION_CSS).toMatch(/\.cv-deduction-hand\s*\{[^}]*cv-hand-sweep/)
+    expect(DEDUCTION_CSS).toMatch(/\.cv-deduction--nudge \.cv-lineup-slot:not\(\.cv-lineup-slot--out\) \.animal-btn\s*\{[^}]*cv-card-pulse/)
+    const closed = renderToString(
+      <DeductionView kase={DUCK} state={{ dismissed: [], closed: true }} onPick={noop} onExit={noop} nudging />,
+    )
+    expect(closed).not.toContain('class="cv-deduction-hand"')
+    const revealing = markup(
+      renderToString(<DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} nudging revealing />),
+    )
+    expect(revealing).not.toContain('cv-deduction--nudge')
+  })
+})
+
+describe('card order and the solved hold (T46 follow-up)', () => {
+  it('renders the options in the seeded lineup order, not the registry order (culprit first)', () => {
+    for (const kase of DETECTIVE_CASES) {
+      const text = textOf(
+        renderToString(<DeductionView kase={kase} state={initialDeductionState()} onPick={noop} onExit={noop} />),
+      )
+      const positions = lineupOrder(kase).map((id) => text.indexOf(id[0].toUpperCase() + id.slice(1)))
+      expect(positions.every((p) => p >= 0), kase.id).toBe(true)
+      expect([...positions].sort((a, b) => a - b), kase.id).toEqual(positions)
     }
   })
 
-  it('gives a three-option lineup a wider cap than the conservative default', () => {
-    // Four animals in a row run out of sheet much sooner than three, and the
-    // divisor is the sum of their aspect ratios — so the two caps cannot be
-    // the same expression. Compared declaration by declaration, in source
-    // order, which is breakpoint order.
-    const declared = (selector: string): string[] =>
-      bodies(selector)
-        .map((body) => /--cv-animal:\s*([^;]+);/.exec(body)?.[1])
-        .filter((v): v is string => v !== undefined)
-    const three = declared('.cv-lineup-figures-3')
-    const fallback = declared('.cv-lineup-figures')
-    expect(three.length).toBe(fallback.length)
-    expect(three.length).toBeGreaterThanOrEqual(3)
-    for (const [i, value] of three.entries()) {
-      expect(value, `breakpoint ${i} must not reuse the four-up cap`).not.toBe(fallback[i])
-      // The three-up row subtracts less chrome and divides by a smaller sum
-      // of aspect ratios, which is the whole reason the class exists.
-      const divisor = (expr: string): number => Number(/\/\s*([\d.]+)\)/.exec(expr)?.[1])
-      expect(divisor(value)).toBeLessThan(divisor(fallback[i]!))
+  it('while holding the solved state, a full-screen tap target continues; not otherwise', () => {
+    const closed = { dismissed: [], closed: true }
+    const holding = renderToString(
+      <DeductionView kase={DUCK} state={closed} onPick={noop} onExit={noop} holding onSkipHold={noop} />,
+    )
+    expect(holding).toContain('class="cv-celebrate-skip" aria-label="Continuar"')
+    const settled = renderToString(<DeductionView kase={DUCK} state={closed} onPick={noop} onExit={noop} />)
+    expect(settled).not.toContain('class="cv-celebrate-skip"')
+  })
+})
+
+describe('the narrator reads the question and what to do (T46)', () => {
+  it('opens with the question, then the per-kind instruction', () => {
+    for (const kase of DETECTIVE_CASES) {
+      const line = deductionSpokenOpening(kase)
+      expect(line.startsWith(deductionQuestion(kase)), kase.id).toBe(true)
+      expect(line.endsWith(DEDUCTION_INSTRUCTION[kase.form].spoken), kase.id).toBe(true)
+    }
+    expect(deductionQuestion(DUCK)).toBe(DEDUCTION_OPENING_LINE)
+    expect(deductionSpokenOpening(DUCK)).toBe('¿Quién dejó todo esto? Mirá las pistas y tocá quién fue.')
+  })
+
+  it('every instruction says to look at the clues and to tap', () => {
+    for (const { spoken } of Object.values(DEDUCTION_INSTRUCTION)) {
+      expect(spoken).toMatch(/^Mirá la/)
+      expect(spoken).toContain('tocá')
     }
   })
 
-  it('derives the caption from the same property, so a word can never outgrow its picture', () => {
-    // Sized independently, the caption became the widest thing in the slot on
-    // a narrow sheet ("GALLINA" under a 110px hen) and wrapped a row that the
-    // pictures still fitted in.
-    const caption = bodies('.cv-caption')
-    expect(caption.length).toBe(1)
-    expect(caption[0]).toContain('var(--cv-animal)')
-    // ...and it is still the uppercase-by-paint rule, not literal capitals.
-    expect(caption[0]).toContain('text-transform: uppercase')
+  it('after a wrong pick it says the reason; once solved, the solved line', () => {
+    expect(deductionSpokenLine(DUCK, { dismissed: ['vaca'], closed: false })).toBe(DUCK.hint.vaca)
+    expect(deductionSpokenLine(DUCK, { dismissed: ['vaca'], closed: true })).toBe(DEDUCTION_SOLVED_LINE.pato)
   })
 
+  it('the speak button repeats the current spoken line', () => {
+    const html = renderToString(<DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />)
+    expect(html).toContain('aria-label="Escuchar"')
+    expect(html).toContain('cv-deduction-speak')
+  })
 })
 
 describe('DeductionView rendering — case-independent layout', () => {
@@ -393,8 +496,9 @@ describe('DeductionView rendering — case-independent layout', () => {
     const html = renderToString(
       <DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />,
     )
-    const lineup = html.slice(html.indexOf('cv-lineup-figures'))
-    expect(lineup).not.toContain('boxShadow')
+    const lineup = html.slice(html.indexOf('cv-lineup-slot'))
+    expect(html.indexOf('cv-lineup-slot')).toBeGreaterThan(0)
+    expect(lineup).not.toContain('box-shadow')
   })
 
   it('reuses the shipped 64px tap floor for every animal button', () => {

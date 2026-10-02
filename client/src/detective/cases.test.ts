@@ -8,6 +8,7 @@ import { deductionHint, initialDeductionState, pickAnimal, solvesCase } from '..
 import { getLevel } from '../levels/catalog'
 import {
   DETECTIVE_CASES,
+  lineupOrder,
   clueKindsOf,
   nightCaseOptions,
   resolveCase,
@@ -368,5 +369,35 @@ describe('every case on the journey can be solved', () => {
   it('opens with the case\'s own question, or the generic one', () => {
     expect(deductionHint(sheepCase, initialDeductionState())).toBe('¿De quién es esta lana?')
     expect(deductionHint(DETECTIVE_CASES[0], initialDeductionState())).toBe('¿Quién dejó todo esto?')
+  })
+})
+
+// [T46] The card order must not give the answer away: every case lists its
+// culprit first in `options`, so the screen shows a fixed, seeded
+// permutation instead.
+describe('lineupOrder (T46: the culprit is not always the first card)', () => {
+  const JOURNEY_CASES = ['duck', 'sheep', 'night', 'fish', 'turtles', 'monkeys']
+  const byId = (id: string) => DETECTIVE_CASES.find((k) => k.id === id)!
+
+  it('is a permutation of the options, the same on every call', () => {
+    for (const kase of DETECTIVE_CASES) {
+      expect([...lineupOrder(kase)].sort()).toEqual([...kase.options].sort())
+      expect(lineupOrder(kase)).toEqual(lineupOrder(kase))
+    }
+  })
+
+  it('pins the culprit position per journey case: varied, first at most once, never the same twice in a row', () => {
+    const positions = JOURNEY_CASES.map((id) => lineupOrder(byId(id)).indexOf(byId(id).culprit))
+    expect(positions).toEqual([0, 1, 2, 1, 2, 1])
+    expect(positions.filter((p) => p === 0).length).toBeLessThanOrEqual(1)
+    expect(new Set(positions).size).toBe(3)
+    for (let i = 1; i < positions.length; i++) expect(positions[i]).not.toBe(positions[i - 1])
+  })
+
+  it('keeps the night case\'s shape for any progress-resolved lineup', () => {
+    const night = byId('night')
+    for (const options of [nightCaseOptions(() => false), nightCaseOptions(() => true)]) {
+      expect(lineupOrder({ ...night, options }).indexOf('erizo')).toBe(lineupOrder(night).indexOf('erizo'))
+    }
   })
 })

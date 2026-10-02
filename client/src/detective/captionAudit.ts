@@ -40,12 +40,18 @@
 //                   SECOND time, inside the bubble, was the defect this
 //                   fixes), and the big standing caretaker's own <img> is a
 //                   sibling within this frame.
+// - `cv-deduction-prompt` (T46, `screen/Deduction.tsx`): the "Tocá quién
+//                   fue" pill over the option cards — its few words stand
+//                   beside a drawn pointing hand (`icons.tsx`'s
+//                   `PointingHandIcon`, `data-cv-picture`), the picture of
+//                   the very action they name; the narrator also says them.
 export const CAPTION_CONTAINERS = [
   'cv-captioned',
   'pistas-bar',
   'cv-deduction-frame',
   'cv-closing-frame',
   'cv-prologue-frame',
+  'cv-deduction-prompt',
 ] as const
 
 export interface CaptionAudit {

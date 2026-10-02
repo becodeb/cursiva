@@ -502,3 +502,51 @@ export function caseSolvedId(caseId: string): string {
 export function caseOf(levelId: string): DetectiveCase | undefined {
   return DETECTIVE_CASES.find((k) => k.trailIds.includes(levelId))
 }
+
+/** FNV-1a, 32-bit: a stable number from a case id. */
+function hashId(id: string): number {
+  let h = 0x811c9dc5
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return h >>> 0
+}
+
+/** mulberry32: a tiny seeded PRNG, so a shuffle is the same on every render
+ *  and every reload. */
+function seededRandom(seed: number): () => number {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/** Salt for {@link lineupOrder}'s seed — chosen so the six journey cases'
+ *  culprits land in varied positions: journey order duck 0, sheep 1, night
+ *  2, fish 1, turtles 2, monkeys 1 (`cases.test.ts` pins it). */
+const LINEUP_SALT = 'lineup-10'
+
+/**
+ * [T46] The order `Deduction.tsx` shows a case's options in. Every case
+ * lists its culprit FIRST in `options` (a registry convention several
+ * resolvers rely on), and showing that order as-is made the card position
+ * itself a tell. This is a fixed permutation per case — a Fisher-Yates
+ * shuffle seeded by the case id, so it never changes between renders,
+ * reloads, tests and captures — applied by position, so a progress-resolved
+ * lineup (the night's discards) keeps the same shape. `options` itself, and
+ * every contract built on it, are unchanged.
+ */
+export function lineupOrder(kase: Pick<DetectiveCase, 'id' | 'options'>): readonly ZooAnimalId[] {
+  const order = [...kase.options]
+  const random = seededRandom(hashId(`${LINEUP_SALT}:${kase.id}`))
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1))
+    ;[order[i], order[j]] = [order[j], order[i]]
+  }
+  return order
+}

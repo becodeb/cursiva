@@ -257,7 +257,7 @@ const CELEBRATE_MS = 1800
  * snapping away after the same ~1.8s on a reveal cuts off the one moment
  * the level exists to deliver.
  */
-const REVEAL_HOLD_MS = 4000
+export const REVEAL_HOLD_MS = 4000
 /**
  * A tap anywhere skips the wait (decision, same task) — but not for this
  * long after the celebration starts. The pointerup that just finished the
@@ -267,7 +267,7 @@ const REVEAL_HOLD_MS = 4000
  * window is that one release's own ghost click, nothing more — it is well
  * under the 1.4s a real second tap would take to arrive on purpose.
  */
-const CELEBRATE_SKIP_GRACE_MS = 400
+export const CELEBRATE_SKIP_GRACE_MS = 400
 
 /**
  * T15's own classification, pure and exported so its rule ("what kind of
