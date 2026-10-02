@@ -2958,13 +2958,13 @@ describe('LEVELS — docs/21 N1-N4 clue levels (T44)', () => {
 
   describe('N3 f2-buceo and N4 monkey-lianas: round, tidy loops (T40 rules)', () => {
     const LOOPY = [
-      { id: 'f2-buceo', loops: 3, extreme: 'bottom' as const, cusps: [] as number[], garlands: [] as number[] },
-      // Per pair: four loop cubics, then the garland's two (indices 4-5 and
-      // 10-11); the garland tops are the `u`'s own pointed tops (joins 5, 11).
-      { id: 'monkey-lianas', loops: 2, extreme: 'top' as const, cusps: [5, 11], garlands: [4, 5, 10, 11] },
+      { id: 'f2-buceo', loops: 3, extreme: 'bottom' as const },
+      // Follow-up (coordinator: the author rejects pointed tops): the `u`
+      // after each loop is a round bowl, so this level has no corner at all.
+      { id: 'monkey-lianas', loops: 2, extreme: 'top' as const },
     ]
 
-    for (const { id, loops: count, extreme, cusps, garlands } of LOOPY) {
+    for (const { id, loops: count, extreme } of LOOPY) {
       const level = getLevel(id)
       const target = buildLevelTarget(level)
       const segs = cubics(level.paths[0])
@@ -2978,19 +2978,45 @@ describe('LEVELS — docs/21 N1-N4 clue levels (T44)', () => {
         expect(level.corridorWidth).toBeGreaterThanOrEqual(70)
       })
 
-      it(`${id}: no loop bends tighter than radius 70, no garland bowl tighter than the corridor's half-width + 20`, () => {
+      it(`${id}: no cubic, loop or bowl, bends tighter than radius 70`, () => {
         for (const [i, c] of segs.entries()) {
-          const floor = garlands.includes(i) ? level.corridorWidth / 2 + 20 : 70
-          expect(minRadius(c), `cubic ${i}`).toBeGreaterThan(floor)
+          expect(minRadius(c), `cubic ${i}`).toBeGreaterThan(70)
           expect(minRadius(c), `cubic ${i}`).toBeGreaterThan(level.corridorWidth / 2)
         }
       })
 
-      it(`${id}: every join is tangent-continuous except a garland's own top`, () => {
-        for (let i = 1; i < segs.length; i++) {
-          if (cusps.includes(i)) continue
-          expect(joinTurn(segs[i - 1], segs[i]), `join ${i}`).toBeLessThan(1)
+      it(`${id}: every join is tangent-continuous, with no exception`, () => {
+        for (let i = 1; i < segs.length; i++) expect(joinTurn(segs[i - 1], segs[i]), `join ${i}`).toBeLessThan(1)
+      })
+
+      it(`${id}: the whole built stroke turns gently, point by point (no hidden corner, radius >= 64 everywhere)`, () => {
+        // On the route the child actually follows (`target.polyline`), not
+        // the authored cubics: the turn between consecutive pieces stays
+        // small, and the turn spread over the pieces around it never bends
+        // tighter than radius 64 (arc / angle over a 12-unit window).
+        const pts = target.polyline
+        const heading: number[] = []
+        const arcAt: number[] = [0]
+        for (let i = 1; i < pts.length; i++) {
+          heading.push(Math.atan2(pts[i].y - pts[i - 1].y, pts[i].x - pts[i - 1].x))
+          arcAt.push(arcAt[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y))
         }
+        const turn = (a: number, b: number): number => {
+          let t = Math.abs(b - a)
+          if (t > Math.PI) t = 2 * Math.PI - t
+          return t
+        }
+        let maxTurn = 0
+        for (let i = 1; i < heading.length; i++) maxTurn = Math.max(maxTurn, turn(heading[i - 1], heading[i]))
+        expect((maxTurn * 180) / Math.PI).toBeLessThan(15)
+        let minRadiusSeen = Infinity
+        for (let i = 0, j = 0; i < heading.length; i++) {
+          while (j < heading.length && arcAt[j] - arcAt[i] < 12) j++
+          if (j >= heading.length) break
+          const angle = turn(heading[i], heading[j])
+          if (angle > 0) minRadiusSeen = Math.min(minRadiusSeen, (arcAt[j] - arcAt[i]) / angle)
+        }
+        expect(minRadiusSeen).toBeGreaterThanOrEqual(64)
       })
 
       it(`${id}: one clue at the ${extreme} of every loop, on the route and clear of the crossing`, () => {

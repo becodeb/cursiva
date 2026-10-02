@@ -231,7 +231,7 @@ describe('clueIndicesAt / levelClueMarks (T44)', () => {
     bridges({ x0: 60, x1: 940, yTop: 150, yBase: 460, cycles: 4, footRise: 190, footLean: 6, topHandle: 100 }),
   ).points
   const DIVES = flattenPathD(loops({ x0: 60, x1: 940, yBase: 150, yTop: 450, cycles: 3 })).points
-  const LIANAS = flattenPathD(lianas({ x0: 60, x1: 940, yMid: 340, pairs: 2, loopHeight: 0.28, swingHandle: 0.8, cuspHandle: 45 })).points
+  const LIANAS = flattenPathD(lianas({ x0: 60, x1: 940, pairs: 2 })).points
 
   it("'valleys' finds every shared foot between two bridges, and never the route's own ends", () => {
     const feet = clueIndicesAt(BRIDGES, 'valleys').map((i) => BRIDGES[i])

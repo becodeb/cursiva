@@ -833,15 +833,23 @@ export function bridges(
 /**
  * `docs/21` N4 (T44) — loop, garland, loop, garland in ONE stroke (`l u l
  * u`), the change of shape without lifting the finger that the cursive link
- * asks for (`docs/21` §3.2.5). Each loop is exactly one {@link loops} cycle
- * (same round top, same handles, same crossing), so the T40 rules for a
- * visible hole and a round, smooth loop hold unchanged. Each garland is the
- * cursive `u` that follows it: from the loop's landing on the baseline it
- * swings up to the x-height `yMid`, meets the way down in a garland cusp
- * (the same pointed top {@link garland} gives every `u`), and lands flat on
- * the baseline again, where the next loop's upstroke leaves flat. Every join
- * between a loop and a garland is tangent-continuous; the garland tops are
- * the only corners. Emits only `M`/`C`.
+ * asks for (`docs/21` §3.2.5).
+ *
+ * Each loop is exactly one {@link loops} cycle (same round top, same
+ * handles, same crossing), so the T40 rules for a visible hole and a round,
+ * smooth loop hold unchanged. Each garland is a round `u` bowl, like the
+ * U's of {@link garland} but with no pointed rims: after the loop crosses
+ * itself, the stroke dips into the bowl, turns round its flat bottom on the
+ * baseline and rises — into the next loop's upstroke after the first loop,
+ * and up to the x-height `yExit` after the last one, where the stroke ends
+ * going up, the way a cursive `u` leaves its last bowl. The loops are drawn
+ * narrower than their cycle (`loopWidth`) so the bowl between two loops is
+ * wide enough to read as a `u` of its own rather than as the gap between two
+ * monkey loops.
+ *
+ * No corner anywhere: every join is tangent-continuous, and the bowls are
+ * as round as the loops (`catalog.test.ts` measures every cubic). Emits only
+ * `M`/`C`.
  */
 export function lianas(
   o: {
@@ -849,53 +857,46 @@ export function lianas(
     x1?: number
     yBase?: number
     yTop?: number
-    yMid?: number
+    yExit?: number
     pairs?: number
-    loopShare?: number
+    exitShare?: number
     loopWidth?: number
     loopHeight?: number
-    swingHandle?: number
-    cuspHandle?: number
-    cuspLean?: number
+    bowlHandle?: number
+    exitHandle?: number
   } = {},
 ): string {
   const x0 = o.x0 ?? 60
   const x1 = o.x1 ?? 940
   const yBase = o.yBase ?? 450
   const yTop = o.yTop ?? 150
-  const yMid = o.yMid ?? 330
+  const yExit = o.yExit ?? 330
   const pairs = Math.max(1, o.pairs ?? 2)
-  const pair = (x1 - x0) / pairs
-  const w = (o.loopShare ?? 0.6) * pair
-  const g = pair - w
+  const exit = (o.exitShare ?? 0.18) * (x1 - x0)
+  const w = (x1 - x0 - exit) / pairs
   const H = yBase - yTop
-  const rx = (o.loopWidth ?? 0.3) * w
-  const ry = (o.loopHeight ?? 0.3) * H
+  const rx = (o.loopWidth ?? 0.23) * w
+  const ry = (o.loopHeight ?? 0.28) * H
   const k = 0.5523
-  const flat = 0.35 * w
+  // `loops()`'s own stroke handles: the flat one is what rounds the bowl's
+  // bottom, the vertical one what keeps the loop the tightest curve.
+  const flat = (o.bowlHandle ?? 0.35) * w
   const rise = 1.6 * ry
-  const swing = (o.swingHandle ?? 0.6) * (g / 2)
-  const cusp = o.cuspHandle ?? 0.5 * (yBase - yMid)
-  // How far the two arms lean apart as they meet at the garland's top, so
-  // the top is a pointed `∧` like every garland cusp, not a finger where
-  // the two arms retrace each other.
-  const lean = o.cuspLean ?? 0
   let d = move(x0, yBase)
   for (let i = 0; i < pairs; i++) {
-    const sx = x0 + i * pair
+    const sx = x0 + i * w
     const cx = sx + w / 2
     const cy = yTop + ry
-    // The loop: one `loops()` cycle, verbatim.
     d += cubic(sx + flat, yBase, cx + rx, cy + rise, cx + rx, cy)
     d += cubic(cx + rx, cy - k * ry, cx + k * rx, cy - ry, cx, cy - ry)
     d += cubic(cx - k * rx, cy - ry, cx - rx, cy - k * ry, cx - rx, cy)
     d += cubic(cx - rx, cy + rise, sx + w - flat, yBase, sx + w, yBase)
-    // The garland: up from the landing to the cusp, down to the baseline.
-    const gx = sx + w
-    const mx = gx + g / 2
-    d += cubic(gx + swing, yBase, mx - lean, yMid + cusp, mx, yMid)
-    d += cubic(mx + lean, yMid + cusp, gx + g - swing, yBase, gx + g, yBase)
   }
+  // The last bowl's rising side: flat off the baseline, up to the x-height,
+  // arriving steep (a quarter of the way to vertical from the bowl's width).
+  const ex = x0 + pairs * w
+  const up = (o.exitHandle ?? 0.45) * (yBase - yExit)
+  d += cubic(ex + 0.55 * exit, yBase, x1 - 0.12 * exit, yExit + up, x1, yExit)
   return d
 }
 

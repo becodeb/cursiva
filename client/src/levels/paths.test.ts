@@ -1068,28 +1068,37 @@ describe('loops mirrored (T44, docs/21 N3: loops that go DOWN)', () => {
 })
 
 describe('lianas (T44, docs/21 N4: loop, garland, loop, garland)', () => {
-  const d = lianas({ x0: 60, x1: 940, yBase: 450, yTop: 150, yMid: 340, pairs: 2, loopShare: 0.55, loopWidth: 0.33, loopHeight: 0.28, swingHandle: 0.8, cuspHandle: 45, cuspLean: 20 })
+  const d = lianas({ x0: 60, x1: 940, yBase: 450, yTop: 150, yExit: 330, pairs: 2, exitShare: 0.18, loopWidth: 0.23, loopHeight: 0.28, bowlHandle: 0.35, exitHandle: 0.45 })
 
-  it('emits only M and C: four cubics per loop, two per garland', () => {
+  it('emits only M and C: four cubics per loop, one for the last bowl\'s rise', () => {
     expect(d).toMatch(/^M [^MLQA]*$/)
-    expect((d.match(/C/g) ?? []).length).toBe(12)
+    expect((d.match(/C/g) ?? []).length).toBe(9)
   })
 
-  it('closes exactly one loop per pair, and the garlands never cross anything', () => {
+  it('closes exactly one loop per pair, and the bowls never cross anything', () => {
     const spans = selfCrossingSpans(poly(d))
     expect(spans).toHaveLength(2)
-    // Each loop's crossing sits inside its own loop cycle (0.55 of a 440 pair).
+    // Each loop's crossing sits inside its own cycle (0.82 of the sheet / 2).
+    const w = (880 * 0.82) / 2
     expect(spans[0].crossing.x).toBeGreaterThan(60)
-    expect(spans[0].crossing.x).toBeLessThan(60 + 242)
-    expect(spans[1].crossing.x).toBeGreaterThan(500)
-    expect(spans[1].crossing.x).toBeLessThan(500 + 242)
+    expect(spans[0].crossing.x).toBeLessThan(60 + w)
+    expect(spans[1].crossing.x).toBeGreaterThan(60 + w)
+    expect(spans[1].crossing.x).toBeLessThan(60 + 2 * w)
   })
 
-  it('reaches the x-height at each garland top and lands on the baseline at the end', () => {
+  it('has no pointed top: the only local highs are the two loop tops', () => {
     const pts = poly(d)
-    const garlandTops = pts.filter((p) => Math.abs(p.y - 340) < 0.5).map((p) => Math.round(p.x))
-    expect(garlandTops).toEqual(expect.arrayContaining([401, 841]))
+    // Every interior point higher on screen than both its neighbours.
+    const highs = pts.filter((p, i) => i > 0 && i < pts.length - 1 && p.y < pts[i - 1].y && p.y < pts[i + 1].y)
+    expect(highs.map((p) => Math.round(p.y))).toEqual([150, 150])
+  })
+
+  it('sits each bowl on the baseline and ends rising at the x-height', () => {
+    const pts = poly(d)
+    const bowls = pts.filter((p, i) => i > 0 && i < pts.length - 1 && p.y >= pts[i - 1].y && p.y >= pts[i + 1].y && p.y > 449)
+    expect(bowls.length).toBeGreaterThanOrEqual(2)
     const last = pts[pts.length - 1]
-    expect(last).toEqual({ x: 940, y: 450 })
+    expect(last).toEqual({ x: 940, y: 330 })
+    expect(pts[pts.length - 2].y).toBeGreaterThan(330)
   })
 })

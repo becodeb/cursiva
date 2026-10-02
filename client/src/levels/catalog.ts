@@ -2576,14 +2576,14 @@ const PHASE_2: LevelConfig[] = [
   // deduction: loop, garland, loop, garland in ONE stroke (`l u l u`), "Subió
   // a la liana, se hamacó, y subió a la otra" — changing shape without
   // lifting the finger, the core of the cursive link (`docs/21` §3.2.5).
-  // `lianas()`: each loop is one `loops()` cycle (round, hole clearance ≈80,
-  // visible ≈85 at this corridor), each garland the cursive `u` after it
-  // (up to the x-height at 340, a garland's pointed top, its arms leaning
-  // apart so it reads as a `∧` and not a finger, down to the baseline).
-  // Every loop/garland join is tangent-continuous; no loop bends tighter
-  // than radius 70 and no garland tighter than ≈64 (`catalog.test.ts`'s T44
-  // block): the garland's bowls share the sheet with two round loops, and a
-  // radius-70 bowl leaves the loops too small to keep their holes.
+  // `lianas()`: each loop is one `loops()` cycle (round, hole clearance ≈82,
+  // visible ≈89 at this corridor), each garland a round `u` bowl after it:
+  // the stroke dips onto the baseline, turns round the bowl's flat bottom and
+  // rises into the next loop, or, after the last loop, up to the x-height
+  // (330) where it ends. No pointed top anywhere (the author rejects them):
+  // every join is tangent-continuous and no cubic bends tighter than ≈82
+  // (`catalog.test.ts`'s T44 block). The loops are narrower than their cycle
+  // so the bowl between them is wide enough to read as a `u` of its own.
   {
     id: 'monkey-lianas',
     phase: 2,
@@ -2601,14 +2601,13 @@ const PHASE_2: LevelConfig[] = [
         x1: 940,
         yBase: 450,
         yTop: 150,
-        yMid: 340,
+        yExit: 330,
         pairs: 2,
-        loopShare: 0.55,
-        loopWidth: 0.33,
+        exitShare: 0.18,
+        loopWidth: 0.23,
         loopHeight: 0.28,
-        swingHandle: 0.8,
-        cuspHandle: 45,
-        cuspLean: 20,
+        bowlHandle: 0.35,
+        exitHandle: 0.45,
       }),
     ],
     corridorWidth: 75,
