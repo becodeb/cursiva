@@ -84,46 +84,30 @@ describe('JOURNEY (guard: every ADVENTURES row start and every no-row block star
 })
 
 // [T45] `docs/19` §2.3 as the author changed it on 2026-10-02 (`docs/21` §6
-// decision 1): "nunca la misma forma de deducir dos veces seguidas en el
-// recorrido". "Seguidas" is the old rule's own word ("nunca dos deducciones
-// seguidas", "ninguno pegado a otro"): two NEIGHBOURING stops of the
-// journey. Before, two neighbouring stops could not both deduce; now they
-// may, as long as they deduce differently.
-describe('the journey never asks the same kind of deduction at two neighbouring stops (docs/19 §2.3)', () => {
+// decision 1, and her follow-up of the same day): "nunca la misma forma de
+// deducir dos veces seguidas" — two CONSECUTIVE DEDUCTIONS of the journey,
+// ignoring the stops in between that ask none, never share a form.
+describe('two consecutive deductions of the journey never share a form (docs/19 §2.3)', () => {
   const formAt = (entryLevel: string) => {
     const deduction = adventureFor(entryLevel)?.deduction
     return deduction ? DETECTIVE_CASES.find((k) => k.id === deduction.caseId)!.form : undefined
   }
+  const forms = JOURNEY.map(formAt).filter((f): f is NonNullable<typeof f> => f !== undefined)
 
-  it('holds for every pair of neighbouring stops', () => {
-    for (let i = 1; i < JOURNEY.length; i++) {
-      const a = formAt(JOURNEY[i - 1])
-      const b = formAt(JOURNEY[i])
-      if (a && b) expect(b, `${JOURNEY[i - 1]} → ${JOURNEY[i]}`).not.toBe(a)
+  it('holds along the whole journey', () => {
+    for (let i = 1; i < forms.length; i++) {
+      expect(forms[i], `deduction ${i} after deduction ${i - 1}`).not.toBe(forms[i - 1])
     }
   })
 
-  it('asks the four kinds in the documented order (docs/21 §6 decision 1)', () => {
-    expect(JOURNEY.map(formAt).filter(Boolean)).toEqual([
+  it('asks the forms in the documented order', () => {
+    expect(forms).toEqual([
       'new-silhouettes', // duck
-      'rescued-silhouettes', // sheep: the duck rules itself out
-      'rescued-silhouettes', // night: two stops after the sheep, not next to it
+      'comparison', // sheep: wool against a feather and cat fur
+      'rescued-silhouettes', // night
       'signs', // fish
-      'prints', // turtles
+      'comparison', // turtles: three prints
       'rescued-silhouettes', // monkeys
-    ])
-  })
-
-  it('is a real check: two neighbouring stops of the same kind would fail it', () => {
-    // The two pairs of neighbours that both deduce today, each of a
-    // different kind — the only places this rule can bite.
-    const neighbours: [string, string][] = []
-    for (let i = 1; i < JOURNEY.length; i++) {
-      if (formAt(JOURNEY[i - 1]) && formAt(JOURNEY[i])) neighbours.push([JOURNEY[i - 1], JOURNEY[i]])
-    }
-    expect(neighbours).toEqual([
-      ['duck-trail1', 'sheep-lana'],
-      ['turtle-huellas', 'monkey1'],
     ])
   })
 })

@@ -6,6 +6,7 @@
 import { getLevel } from '../levels/catalog'
 import { DETECTIVE_TRAIL_IDS } from '../game/types'
 import {
+  CAT_FUR_SAMPLE_ART,
   CLUE_ART,
   SECTOR_ADVENTURE_ART,
   SIGN_ART,
@@ -16,17 +17,20 @@ import {
 
 /**
  * How a case is deduced (`docs/19` §2.3; `docs/21` §6 decision 1, decided
- * 2026-10-02): the journey never asks the same kind twice in a row.
+ * 2026-10-02): two deductions in a row on the journey never share a form.
  *
  *  - `new-silhouettes`: animals the child has not met, each ruled out by a
  *    clue (the duck);
  *  - `rescued-silhouettes`: the lineup includes animals already rescued,
- *    which rule themselves out (the night, the sheep, the monkeys);
+ *    which rule themselves out (the night, the monkeys);
  *  - `signs`: the entrance's empty-enclosure signs (the fish);
- *  - `prints`: three prints side by side, pick the one that matches (the
- *    turtles).
+ *  - `comparison`: three SAMPLES side by side (`optionArt`) and the child
+ *    picks the one that matches the clue just collected — the sheep's wool
+ *    against a feather and cat fur, the turtles' print against two other
+ *    prints. Samples and prints are one form (the author's decision,
+ *    2026-10-02): both are "which of these is the same as mine?".
  */
-export type DeductionForm = 'new-silhouettes' | 'rescued-silhouettes' | 'signs' | 'prints'
+export type DeductionForm = 'new-silhouettes' | 'rescued-silhouettes' | 'signs' | 'comparison'
 
 export interface DetectiveCase {
   id: string
@@ -182,20 +186,6 @@ const MONKEY_CLUE_VERDICT: Readonly<Partial<Record<ZooAnimalId, ClueKind>>> = {
   abeja: 'handprint',
 }
 
-/** [T45] The `sheep` case's distractor that rules itself out: the duck,
- *  rescued two stops earlier (`zoo/journey.ts`). Declared before
- *  `DETECTIVE_CASES` for the same module-init reason as
- *  `MONKEY_DISTRACTORS`. */
-const SHEEP_RESCUED_DISTRACTORS: readonly ZooAnimalId[] = ['pato']
-
-const SHEEP_RESCUED_HINT: Readonly<Partial<Record<ZooAnimalId, string>>> = {
-  gato: 'El gato no tiene lana: no fue él.',
-  pato: '¿El pato? No: el pato ya está en su laguna.',
-}
-
-/** Still true when the duck has not been rescued yet. */
-const SHEEP_CLUE_HINT_PATO = 'El pato tiene plumas, no lana: no fue él.'
-
 /** Ordered cases, duck first (design.md §1; the user's binding decision 3). */
 export const DETECTIVE_CASES: readonly DetectiveCase[] = [
   {
@@ -348,41 +338,46 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     // being a `ruledOutBy` verdict, in this case or any other.
     trailIds: ['monkey1', 'monkey2'],
   },
-  // [T45, `docs/21` N5; `docs/21` §6 decision 1, 2026-10-02] The sheep's own
+  // [T45, `docs/21` N5; the author's decision of 2026-10-02] The sheep's own
   // case, closed by `sheep-lana` (`zoo/adventures.ts`'s
   // `sheep.deduction.after`), routing into `sheep-hill1`, where the sheep are
-  // gathered on the hills. "¿Quién deja lana?": the cat is ruled out by the
-  // wool itself (a cat has none); the duck, already back in its pond, rules
-  // itself out — the "siluetas con descarte" form, which the journey asks
-  // right after the duck's own new-silhouettes case, never twice in a row
-  // (`zoo/journey.test.ts`).
+  // gathered on the hills. A COMPARISON: the child collected tufts of wool
+  // and picks, from three samples, the one that is the same — the wool, a
+  // duck's feather (`docs/22` C2) or cat fur (no art yet, see
+  // `CAT_FUR_SAMPLE_ART`). No second clue kind backs either dismissal, so
+  // `ruledOutBy` stays empty; a `comparison` case's distractors are ruled
+  // out by the picture itself (`cases.test.ts`), and `hint` says why.
   {
     id: 'sheep',
-    form: 'rescued-silhouettes',
-    question: '¿Quién deja lana?',
+    form: 'comparison',
+    question: '¿De quién es esta lana?',
     culprit: 'oveja',
-    options: ['oveja', 'gato', 'pato'],
-    ruledOutBy: { gato: 'wool' },
-    rescuedDistractors: SHEEP_RESCUED_DISTRACTORS,
-    hint: SHEEP_RESCUED_HINT,
+    options: ['oveja', 'pato', 'gato'],
+    ruledOutBy: {},
+    optionArt: {
+      oveja: CLUE_ART.wool.art.earned,
+      pato: CLUE_ART.duckFeather.art.earned,
+      gato: CAT_FUR_SAMPLE_ART,
+    },
+    hint: {
+      pato: 'Eso es una pluma de pato: no es lana.',
+      gato: 'Eso es pelo de gato: no es lana.',
+    },
     trailIds: ['sheep-lana'],
   },
   // [T45, `docs/21` N6] The turtles' own case, closed by `turtle-huellas`,
-  // routing into `turtle1`. The fourth way of deducing: three PRINTS side by
-  // side (`optionArt`), and the child picks the one that matches the print
-  // just collected. The duck's webbed print (`docs/22` C3) and the hen's
-  // three toes (`huella negra.png`) are ruled out by comparing pictures, not
-  // by a second clue kind (the case has one), so — like the fish case's
-  // signs — they take `rescuedDistractors`' "no clue kind behind this
-  // dismissal" exemption, and `hint` says why each print is not the one.
+  // routing into `turtle1`. A comparison too: three PRINTS side by side
+  // (`optionArt`), and the child picks the one that matches the print just
+  // collected. The duck's webbed print (`docs/22` C3) and the hen's three
+  // toes (`huella negra.png`) are ruled out by the picture, like the sheep's
+  // samples, and `hint` says why each print is not the one.
   {
     id: 'turtles',
-    form: 'prints',
+    form: 'comparison',
     question: '¿De quién es esta huella?',
     culprit: 'tortuga',
     options: ['tortuga', 'pato', 'gallina'],
     ruledOutBy: {},
-    rescuedDistractors: ['pato', 'gallina'],
     optionArt: {
       tortuga: CLUE_ART.turtlePrint.art.earned,
       pato: CLUE_ART.webfoot.art.earned,
@@ -395,21 +390,6 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     trailIds: ['turtle-huellas'],
   },
 ]
-
-/**
- * [T45] The `sheep` case's live framing. The duck is the one distractor
- * that rules itself out, and only once it is really back in its pond; a
- * `?debug`-seeded session that reaches the hills first hears the clue-based
- * line instead (a duck has feathers, not wool) — the same split
- * `resolveMonkeysCase` makes for the erizo and the bee.
- */
-export function resolveSheepCase(
-  kase: DetectiveCase,
-  isRescued: (animal: ZooAnimalId) => boolean,
-): DetectiveCase {
-  if (isRescued('pato')) return kase
-  return { ...kase, hint: { ...kase.hint, pato: SHEEP_CLUE_HINT_PATO } }
-}
 
 /**
  * The `monkeys` case's live lineup framing, resolved from progress
@@ -485,7 +465,6 @@ export function resolveCase(
   // above) — unlike `night`, `options` never changes; only `rescuedDistractors`/
   // `ruledOutBy`/`hint` do.
   if (kase.id === 'monkeys') return resolveMonkeysCase(kase, isRescued)
-  if (kase.id === 'sheep') return resolveSheepCase(kase, isRescued)
   return kase
 }
 

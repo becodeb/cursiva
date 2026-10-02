@@ -304,6 +304,28 @@ export const PLACEHOLDER_CLUE_ART: Readonly<Partial<Record<ClueKind, string>>> =
 }
 
 /**
+ * T45 (the author's decision of 2026-10-02): the sheep deduction compares
+ * three samples, and one of them is cat fur, which has no drawing yet. It is
+ * not a clue on any level (nobody collects it), so it is one picture, not a
+ * `ClueKind` pair. Until `art-source/pista pelo de gato.png` exists it
+ * borrows the cat's own lineup silhouette — clearly not fur, and the card
+ * says GATO under it either way.
+ *
+ * Swap (`docs/22` §5.8): one `SINGLES` row in `build_art.py`
+ * (`('pista pelo de gato.png', 'sample-cat-fur.png', 256, 'contour', True)`)
+ * plus its `AUTHORED_SOURCE_SIZES` entry, run it, point this constant at the
+ * new file and drop the entry from `PLACEHOLDER_SAMPLE_SOURCES`.
+ */
+export const CAT_FUR_SAMPLE_ART: ArtImage = { href: '/art/animal-gato-silhouette.png', w: 448, h: 414 }
+
+/** T45: placeholder pictures that are not clue kinds, each mapped to the
+ *  `art-source/` file that will replace it. Guarded the same way as
+ *  {@link PLACEHOLDER_CLUE_ART} (`artManifest.test.ts`). */
+export const PLACEHOLDER_SAMPLE_SOURCES: Readonly<Record<string, string>> = {
+  catFur: 'pista pelo de gato.png',
+}
+
+/**
  * The lineup art. Each animal's own picture only — WHO is ruled out by WHAT
  * is no longer a fact about the animal, it is a fact about the CASE
  * (`case-registry-and-captions` design.md §1, spec: detective-mode "Case

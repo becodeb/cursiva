@@ -40,6 +40,7 @@ import {
   LAMP_ART,
   OCTOPUS_ART,
   PLACEHOLDER_CLUE_ART,
+  PLACEHOLDER_SAMPLE_SOURCES,
   PROMISED_ANIMAL_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
@@ -545,7 +546,7 @@ describe('placeholder clue art (T45, docs/22 §5)', () => {
     // `docs/22` §5 (two build_art.py rows, one constant in assets.ts) and
     // remove the kind from `PLACEHOLDER_CLUE_ART`.
     expect(ART_SOURCES.size).toBeGreaterThan(50)
-    for (const [kind, source] of Object.entries(PLACEHOLDER_CLUE_ART)) {
+    for (const [kind, source] of [...Object.entries(PLACEHOLDER_CLUE_ART), ...Object.entries(PLACEHOLDER_SAMPLE_SOURCES)]) {
       expect(ART_SOURCES.has(source!), `${kind}: ${source} exists — swap the placeholder`).toBe(false)
       expect(buildScript.includes(`'${source}'`), `${kind}: build_art.py already reads ${source}`).toBe(false)
     }

@@ -3,7 +3,7 @@
 // Shape"). Pure data assertions, no DOM — iterating `DETECTIVE_CASES` rather
 // than hand-picking one case, so a future third case is checked for free.
 import { describe, expect, it } from 'vitest'
-import { ANIMAL_SILHOUETTE_ART, CLUE_ART, SIGN_ART } from './assets'
+import { ANIMAL_SILHOUETTE_ART, CAT_FUR_SAMPLE_ART, CLUE_ART, SIGN_ART } from './assets'
 import { deductionHint, initialDeductionState, pickAnimal, solvesCase } from '../screen/Deduction'
 import { getLevel } from '../levels/catalog'
 import {
@@ -22,7 +22,9 @@ describe("every case's culprit is among its own options and is ruled out by noth
       // [T25] `rescuedDistractors` exempts a distractor ruled out by
       // already being rescued (no clue behind that dismissal) from needing
       // a `ruledOutBy` verdict too — see that field's own header.
-      const rescued = new Set(kase.rescuedDistractors ?? [])
+      // [T45] A `comparison` case rules its distractors out by the sample
+      // picture itself, never by a second clue kind.
+      const rescued = new Set([...(kase.rescuedDistractors ?? []), ...(kase.form === 'comparison' ? kase.options.filter((a) => a !== kase.culprit) : [])])
       const unruled = kase.options.filter(
         (animal) => !(animal in kase.ruledOutBy) && !rescued.has(animal),
       )
@@ -34,7 +36,7 @@ describe("every case's culprit is among its own options and is ruled out by noth
 describe('every case rules out every non-culprit, non-rescued option, by pairwise DISTINCT clue kinds', () => {
   for (const kase of DETECTIVE_CASES) {
     it(`${kase.id}: distractors are ruled out by distinct kinds`, () => {
-      const rescued = new Set(kase.rescuedDistractors ?? [])
+      const rescued = new Set([...(kase.rescuedDistractors ?? []), ...(kase.form === 'comparison' ? kase.options : [])])
       const distractors = kase.options.filter(
         (animal) => animal !== kase.culprit && !rescued.has(animal),
       )
@@ -298,28 +300,35 @@ describe('resolveMonkeysCase / resolveCase (the live framing Deduction.tsx actua
 const sheepCase = DETECTIVE_CASES.find((k) => k.id === 'sheep')!
 const turtlesCase = DETECTIVE_CASES.find((k) => k.id === 'turtles')!
 
-describe('the sheep case (T45): "¿Quién deja lana?"', () => {
-  it('asks its own question, with the duck ruling itself out and the wool ruling out the cat', () => {
-    expect(sheepCase.question).toBe('¿Quién deja lana?')
-    expect(sheepCase.form).toBe('rescued-silhouettes')
-    expect(sheepCase.options).toEqual(['oveja', 'gato', 'pato'])
-    expect(sheepCase.ruledOutBy).toEqual({ gato: 'wool' })
-    expect(sheepCase.rescuedDistractors).toEqual(['pato'])
+describe('the sheep case (T45): "¿De quién es esta lana?" — three samples to compare', () => {
+  it('compares the wool it collected with a duck feather and cat fur', () => {
+    expect(sheepCase.question).toBe('¿De quién es esta lana?')
+    expect(sheepCase.form).toBe('comparison')
+    expect(sheepCase.options).toEqual(['oveja', 'pato', 'gato'])
+    expect(sheepCase.ruledOutBy).toEqual({})
     expect(clueKindsOf(sheepCase)).toEqual(['wool'])
-    for (const id of sheepCase.options) expect(ANIMAL_SILHOUETTE_ART[id], id).toBeDefined()
+    expect(sheepCase.optionArt?.oveja).toBe(CLUE_ART.wool.art.earned)
+    expect(sheepCase.optionArt?.pato).toBe(CLUE_ART.duckFeather.art.earned)
+    expect(sheepCase.optionArt?.gato).toBe(CAT_FUR_SAMPLE_ART)
+    // The cat-fur placeholder is the cat's own lineup silhouette.
+    expect(CAT_FUR_SAMPLE_ART).toEqual(ANIMAL_SILHOUETTE_ART.gato)
+    expect(new Set(sheepCase.options.map((id) => sheepCase.optionArt?.[id]?.href)).size).toBe(3)
   })
 
-  it('says the duck is in its pond only once it really is', () => {
-    expect(resolveCase(sheepCase, rescuedOnly(['pato'])).hint.pato).toMatch(/laguna/)
-    expect(resolveCase(sheepCase, rescuedOnly([])).hint.pato).toMatch(/plumas, no lana/)
-    expect(resolveCase(sheepCase, rescuedOnly([])).hint.gato).toBe(sheepCase.hint.gato)
+  it('says what each wrong sample is, in the existing style', () => {
+    expect(sheepCase.hint).toEqual({
+      pato: 'Eso es una pluma de pato: no es lana.',
+      gato: 'Eso es pelo de gato: no es lana.',
+    })
+    // Not progress-dependent: the same lines with or without a rescued duck.
+    expect(resolveCase(sheepCase, rescuedOnly([]))).toBe(sheepCase)
   })
 })
 
 describe('the turtles case (T45): "¿De quién es esta huella?" — three prints to compare', () => {
   it('shows three prints, not silhouettes, and the culprit is the print the trail carries', () => {
     expect(turtlesCase.question).toBe('¿De quién es esta huella?')
-    expect(turtlesCase.form).toBe('prints')
+    expect(turtlesCase.form).toBe('comparison')
     expect(turtlesCase.options).toEqual(['tortuga', 'pato', 'gallina'])
     expect(clueKindsOf(turtlesCase)).toEqual(['turtlePrint'])
     expect(turtlesCase.optionArt?.tortuga).toBe(CLUE_ART.turtlePrint.art.earned)
@@ -355,7 +364,7 @@ describe('every case on the journey can be solved', () => {
   })
 
   it('opens with the case\'s own question, or the generic one', () => {
-    expect(deductionHint(sheepCase, initialDeductionState())).toBe('¿Quién deja lana?')
+    expect(deductionHint(sheepCase, initialDeductionState())).toBe('¿De quién es esta lana?')
     expect(deductionHint(DETECTIVE_CASES[0], initialDeductionState())).toBe('¿Quién dejó todo esto?')
   })
 })

@@ -1010,7 +1010,7 @@ const PHASE_1: LevelConfig[] = [
   // ───────────────────────────────────────────────────────────────────────
   // [T45, `docs/21` N5] The sheep's own case (recipe A since the author's
   // decision 1 of `docs/21` §6, 2026-10-02): a pistas level first, then
-  // "¿Quién deja lana?", then the sheep gathered on the hills below. Five
+  // "¿De quién es esta lana?", then the sheep gathered on the hills below. Five
   // fence posts, each its OWN stroke top to bottom (`segments`): land on the
   // top, pull down, stop at the bottom and lift. The straight downstroke
   // with a real start and stop no other level trains (§3.1.4, §3.2.6). One
