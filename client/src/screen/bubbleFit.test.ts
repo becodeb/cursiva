@@ -30,10 +30,9 @@ import { DETECTIVE_CASES } from '../detective/cases'
 import {
   DEDUCTION_OCTOPUS_SIZE_PCT,
   DEDUCTION_OPENING_LINE,
-  DEDUCTION_SOLVED_LINE,
-  DEDUCTION_STAGE_DVH,
-  DEDUCTION_STAGE_MIN_PX,
+  deductionBubbleLines,
 } from './Deduction'
+import { deductionFramePx } from './deductionLayout'
 
 const SQUARE_ART: ArtImage = { w: 442, h: 448, href: '/art/fixture-square.png' }
 const WIDE_ART: ArtImage = { w: 900, h: 260, href: '/art/fixture-wide.png' }
@@ -387,10 +386,13 @@ describe("placeAndFitBubble — screen/Deduction.tsx's own bubble lines, at its 
     { id: 'opening', text: DEDUCTION_OPENING_LINE },
   ]
   for (const kase of DETECTIVE_CASES) {
+    // [T46] The case's own question and solved line too (deductionBubbleLines,
+    // the same list the screen's layout keeps clear), plus every hint the
+    // registry carries, including the night case's off-lineup candidates.
+    deductionBubbleLines(kase).forEach((text, i) => lines.push({ id: `${kase.id} line ${i}`, text }))
     for (const [animal, hintText] of Object.entries(kase.hint)) {
       if (hintText) lines.push({ id: `${kase.id} hint (${animal})`, text: hintText })
     }
-    lines.push({ id: `${kase.id} solved`, text: DEDUCTION_SOLVED_LINE[kase.culprit] })
   }
 
   it('the sweep actually covers every shipped case (sanity: not accidentally empty)', () => {
@@ -409,10 +411,9 @@ describe("placeAndFitBubble — screen/Deduction.tsx's own bubble lines, at its 
   for (const [vw, vh] of REQUIRED_VIEWPORTS) {
     it(`viewport=${vw}x${vh}: every line fits inside the drawn oval, at a readable font size, no word ever breaks`, () => {
       const frame = { w: 100, h: 100 }
-      // Mirrors the real CSS exactly: `width: min(100%, max(
-      // ${DEDUCTION_STAGE_MIN_PX}px, ${DEDUCTION_STAGE_DVH}dvh));
-      // aspect-ratio: 1/1;`.
-      const framePx = Math.min(vw, Math.max(DEDUCTION_STAGE_MIN_PX, vh * (DEDUCTION_STAGE_DVH / 100)))
+      // [T46] The frame's px side comes from the SAME function the screen
+      // positions it with (deductionLayout.ts), never a restated formula.
+      const framePx = deductionFramePx({ w: vw, h: vh })
 
       for (const { id, text } of lines) {
         const { content } = placeAndFitBubble({ frame, headBox: octopusBox, tail: ZOO_SPEECH_BUBBLE_TAIL, side, text })

@@ -236,3 +236,41 @@ export function PlaceholderAnimalBadge({
     </svg>
   )
 }
+
+/** [T46] The fingertip of {@link PointingHandIcon}, in its own viewBox
+ *  units — where a caller lands it to make the hand point AT something. */
+export const POINTING_HAND_TIP = { x: 16, y: 80 } as const
+/** {@link PointingHandIcon}'s own viewBox size. */
+export const POINTING_HAND_VIEWBOX = { w: 64, h: 84 } as const
+
+/**
+ * [T46] A hand pointing DOWN — a cuff, a fist with three curled fingers and
+ * the index finger straight down — in the same marker style as every other
+ * glyph here (paper fill, thick ink outline, plain rounded rects). The
+ * deduction screen draws it in its "Tocá quién fue" pill (`picture`: there
+ * it is the picture those words stand beside, `captionAudit.ts`'s
+ * `data-cv-picture` opt-in) and, bigger, over the first open card as the
+ * idle nudge.
+ */
+export function PointingHandIcon({ height, picture = false }: { height: number; picture?: boolean }) {
+  const { w, h } = POINTING_HAND_VIEWBOX
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      width={(height * w) / h}
+      height={height}
+      aria-hidden="true"
+      focusable="false"
+      {...(picture ? { 'data-cv-picture': 'true' } : {})}
+    >
+      <g fill={SHEET_PAPER} stroke={ICON_INK} strokeWidth="4" strokeLinejoin="round">
+        <rect x="14" y="2" width="38" height="12" rx="4" />
+        <rect x="8" y="10" width="48" height="38" rx="15" />
+        <rect x="44" y="26" width="13" height="22" rx="6.5" />
+        <rect x="33" y="30" width="13" height="22" rx="6.5" />
+        <rect x="22" y="32" width="13" height="20" rx="6.5" />
+        <rect x="8" y="34" width="16" height="46" rx="8" />
+      </g>
+    </svg>
+  )
+}
