@@ -170,7 +170,7 @@ describe('ADVENTURES', () => {
     expect(sendero.animal).toBeUndefined()
     expect(sendero.icon).toBe(CART_ART)
 
-    expect(night.levelIds).toEqual(['night1', 'night2', 'night3', 'night4'])
+    expect(night.levelIds).toEqual(['night1', 'night2', 'night3', 'night-rastro', 'night4'])
     expect(night.sector).toBe('nocturna')
     expect(night.animal).toBeUndefined()
     expect(night.icon).toBe(SECTOR_ADVENTURE_ART.flashlight)
@@ -191,7 +191,8 @@ describe('ADVENTURES', () => {
   // updated comments for what that change means for the rest of the app).
   it("the fish row claims the medusa's own four garland levels, recovers `pez`, and carries the approved intro/closing copy verbatim", () => {
     const fish = ADVENTURES.find((a) => a.id === 'fish')!
-    expect(fish.levelIds).toEqual(['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4'])
+    // [T44] + `f2-buceo`, the case's last clue.
+    expect(fish.levelIds).toEqual(['f2-guirnalda', 'f2-agua2', 'f2-buceo', 'f2-agua3', 'f2-agua4'])
     expect(fish.sector).toBe('estanque')
     expect(fish.animal).toBe('pez')
     expect(fish.intro).toBe(
@@ -201,9 +202,9 @@ describe('ADVENTURES', () => {
     expect(fish.closingBeat).toEqual([{ line: fish.closing, art: ZOO_ANIMAL_ART.pez }])
   })
 
-  it("carries its own deduction gate, closed by f2-agua2 (T26, docs/19 §2.3)", () => {
+  it("carries its own deduction gate, closed by f2-buceo (T26, docs/19 §2.3; T44 moved it from f2-agua2)", () => {
     const fish = ADVENTURES.find((a) => a.id === 'fish')!
-    expect(fish.deduction).toEqual({ after: 'f2-agua2', caseId: 'fish' })
+    expect(fish.deduction).toEqual({ after: 'f2-buceo', caseId: 'fish' })
   })
 
   // The Ola letter family's own rescue (P3, `odd/tasks/promised-animals.md`).
@@ -227,7 +228,8 @@ describe('ADVENTURES', () => {
   // The Rulo letter family's own rescue (P4, `odd/tasks/promised-animals.md`).
   it("the monkeys row claims monkey1..4, recovers `mono`, and carries the approved intro/closing copy verbatim", () => {
     const monkeys = ADVENTURES.find((a) => a.id === 'monkeys')!
-    expect(monkeys.levelIds).toEqual(['monkey1', 'monkey2', 'monkey3', 'monkey4'])
+    // [T44] + `monkey-lianas`, the case's last clue.
+    expect(monkeys.levelIds).toEqual(['monkey1', 'monkey2', 'monkey-lianas', 'monkey3', 'monkey4'])
     expect(monkeys.sector).toBe('bosque')
     expect(monkeys.animal).toBe('mono')
     expect(monkeys.intro).toBe(
@@ -493,8 +495,8 @@ describe("night's own animal-less closing (T8; T25 re-points its art at the eriz
     expect(beat.art).not.toBe(SECTOR_ADVENTURE_ART.flashlight)
   })
 
-  it("carries its own deduction gate, closed by night3 (T25, docs/19 §2.3)", () => {
-    expect(night.deduction).toEqual({ after: 'night3', caseId: 'night' })
+  it("carries its own deduction gate, closed by night-rastro (T25, docs/19 §2.3; T44 moved it from night3)", () => {
+    expect(night.deduction).toEqual({ after: 'night-rastro', caseId: 'night' })
   })
 })
 

@@ -778,6 +778,128 @@ export function loops(
   return d
 }
 
+/**
+ * `docs/21` N1 (T44) — the bridges `∩∩∩∩`: arches that rise, turn over the
+ * top clockwise and come back down to the ground, the Colina family of
+ * `docs/01` §8 (`m n v w`). Neighbouring arches share their foot: the stroke
+ * comes down one leg and goes back up the next from the same point, the way a
+ * cursive `m` retraces its stems, so the legs between two arches read as one
+ * pillar of the bridge and the puddles (`clue.at: 'valleys'`) sit at its foot.
+ *
+ * Why not {@link hills}: its 15%/85% controls bend the crest at
+ * `uTurnRadius(w, depth)`, and at four arches on one sheet with a 100-wide
+ * corridor that radius falls under the corridor's half-width (the band folds
+ * through itself, `buildLevel.ts`'s `pushBand`). Here each half arch is one
+ * cubic from the foot, leaving almost straight up (`footRise` up the leg,
+ * leaning `footLean` toward the arch), to the crest, arriving flat with a
+ * `topHandle`-long handle; the crest's radius of curvature is then
+ * `1.5·topHandle² / (height − footRise)`, which the catalog test measures
+ * on the real cubics. The two halves mirror each other, so every crest is
+ * round and tangent-continuous; the only corners are the shared feet.
+ * Emits only `M`/`C`.
+ */
+export function bridges(
+  o: {
+    x0?: number
+    x1?: number
+    yTop?: number
+    yBase?: number
+    cycles?: number
+    footRise?: number
+    footLean?: number
+    topHandle?: number
+  } = {},
+): string {
+  const x0 = o.x0 ?? 90
+  const x1 = o.x1 ?? 910
+  const yTop = o.yTop ?? 150
+  const yBase = o.yBase ?? 450
+  const cycles = Math.max(1, o.cycles ?? 4)
+  const w = (x1 - x0) / cycles
+  const H = yBase - yTop
+  const rise = o.footRise ?? 0.6 * H
+  const lean = o.footLean ?? 0.05 * w
+  const top = o.topHandle ?? 0.3 * w
+  let d = move(x0, yBase)
+  for (let i = 0; i < cycles; i++) {
+    const sx = x0 + i * w
+    const cx = sx + w / 2
+    d += cubic(sx + lean, yBase - rise, cx - top, yTop, cx, yTop)
+    d += cubic(cx + top, yTop, sx + w - lean, yBase - rise, sx + w, yBase)
+  }
+  return d
+}
+
+/**
+ * `docs/21` N4 (T44) — loop, garland, loop, garland in ONE stroke (`l u l
+ * u`), the change of shape without lifting the finger that the cursive link
+ * asks for (`docs/21` §3.2.5).
+ *
+ * Each loop is exactly one {@link loops} cycle (same round top, same
+ * handles, same crossing), so the T40 rules for a visible hole and a round,
+ * smooth loop hold unchanged. Each garland is a round `u` bowl, like the
+ * U's of {@link garland} but with no pointed rims: after the loop crosses
+ * itself, the stroke dips into the bowl, turns round its flat bottom on the
+ * baseline and rises — into the next loop's upstroke after the first loop,
+ * and up to the x-height `yExit` after the last one, where the stroke ends
+ * going up, the way a cursive `u` leaves its last bowl. The loops are drawn
+ * narrower than their cycle (`loopWidth`) so the bowl between two loops is
+ * wide enough to read as a `u` of its own rather than as the gap between two
+ * monkey loops.
+ *
+ * No corner anywhere: every join is tangent-continuous, and the bowls are
+ * as round as the loops (`catalog.test.ts` measures every cubic). Emits only
+ * `M`/`C`.
+ */
+export function lianas(
+  o: {
+    x0?: number
+    x1?: number
+    yBase?: number
+    yTop?: number
+    yExit?: number
+    pairs?: number
+    exitShare?: number
+    loopWidth?: number
+    loopHeight?: number
+    bowlHandle?: number
+    exitHandle?: number
+  } = {},
+): string {
+  const x0 = o.x0 ?? 60
+  const x1 = o.x1 ?? 940
+  const yBase = o.yBase ?? 450
+  const yTop = o.yTop ?? 150
+  const yExit = o.yExit ?? 330
+  const pairs = Math.max(1, o.pairs ?? 2)
+  const exit = (o.exitShare ?? 0.18) * (x1 - x0)
+  const w = (x1 - x0 - exit) / pairs
+  const H = yBase - yTop
+  const rx = (o.loopWidth ?? 0.23) * w
+  const ry = (o.loopHeight ?? 0.28) * H
+  const k = 0.5523
+  // `loops()`'s own stroke handles: the flat one is what rounds the bowl's
+  // bottom, the vertical one what keeps the loop the tightest curve.
+  const flat = (o.bowlHandle ?? 0.35) * w
+  const rise = 1.6 * ry
+  let d = move(x0, yBase)
+  for (let i = 0; i < pairs; i++) {
+    const sx = x0 + i * w
+    const cx = sx + w / 2
+    const cy = yTop + ry
+    d += cubic(sx + flat, yBase, cx + rx, cy + rise, cx + rx, cy)
+    d += cubic(cx + rx, cy - k * ry, cx + k * rx, cy - ry, cx, cy - ry)
+    d += cubic(cx - k * rx, cy - ry, cx - rx, cy - k * ry, cx - rx, cy)
+    d += cubic(cx - rx, cy + rise, sx + w - flat, yBase, sx + w, yBase)
+  }
+  // The last bowl's rising side: flat off the baseline, up to the x-height,
+  // arriving steep (a quarter of the way to vertical from the bowl's width).
+  const ex = x0 + pairs * w
+  const up = (o.exitHandle ?? 0.45) * (yBase - yExit)
+  d += cubic(ex + 0.55 * exit, yBase, x1 - 0.12 * exit, yExit + up, x1, yExit)
+  return d
+}
+
 /** One self-crossing of a route and the hole it closes. */
 export interface LoopHole {
   /** Where the route crosses itself. */
@@ -837,11 +959,23 @@ function insidePolygon(p: { x: number; y: number }, poly: readonly { x: number; 
  * per loop.
  */
 export function selfCrossingPoints(points: readonly { x: number; y: number }[]): { x: number; y: number }[] {
-  const out: { x: number; y: number }[] = []
+  return selfCrossingSpans(points).map((s) => s.crossing)
+}
+
+/**
+ * [T44] {@link selfCrossingPoints} with the two segments that cross: the
+ * closed loop is `points[from + 1 .. to]`, the stretch of route between the
+ * two visits to `crossing`. `detective/clues.ts` reads it to put a clue at
+ * the bottom or the top of every loop.
+ */
+export function selfCrossingSpans(
+  points: readonly { x: number; y: number }[],
+): { crossing: { x: number; y: number }; from: number; to: number }[] {
+  const out: { crossing: { x: number; y: number }; from: number; to: number }[] = []
   for (let i = 0; i < points.length - 1; i++) {
     for (let j = i + 2; j < points.length - 1; j++) {
       const hit = segmentIntersection(points[i], points[i + 1], points[j], points[j + 1])
-      if (hit) out.push(hit)
+      if (hit) out.push({ crossing: hit, from: i, to: j })
     }
   }
   return out

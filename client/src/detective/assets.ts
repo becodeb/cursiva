@@ -38,6 +38,7 @@ import {
   PRINT,
   PUDDLE,
   SCALE,
+  SEAWEED,
   SEEDS,
 } from './palette'
 
@@ -63,9 +64,11 @@ export type ClueKind =
   | 'scale'
   | 'handprint'
   | 'banana'
-  // Registered for `docs/21` N2/N4, levels not built yet.
+  // `docs/21` N2/N4 (T44): `night-rastro` and `monkey-lianas`.
   | 'hedgehogPrint'
   | 'bananaPeel'
+  // T44: `f2-buceo`'s seaweed (`alga.png`), the fish case's third clue.
+  | 'seaweed'
   // T45 (`docs/21` N5/N6): the sheep's wool (`docs/22` C9) and the turtle's
   // print (C10). Their art is not drawn yet; see `PLACEHOLDER_CLUE_ART`.
   | 'wool'
@@ -268,6 +271,13 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
     art: {
       earned: { href: '/art/clue-banana-peel-earned.png', w: 256, h: 242 },
       drained: { href: '/art/clue-banana-peel-drained.png', w: 256, h: 242 },
+    },
+  },
+  seaweed: {
+    earned: SEAWEED,
+    art: {
+      earned: { href: '/art/clue-seaweed-earned.png', w: 160, h: 256 },
+      drained: { href: '/art/clue-seaweed-drained.png', w: 160, h: 256 },
     },
   },
   // T45: stand-ins until `docs/22` C9/C10 are drawn — see

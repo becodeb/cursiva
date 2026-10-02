@@ -4,6 +4,7 @@
 // width and a set of rules.
 import type { LetterCheckpoint, Point } from '../letters/types'
 import type { ArtImage, ClueKind } from '../detective/assets'
+import type { ClueAt } from '../detective/clues'
 import type { ArtCorridorPiece, ArtCorridorPlacement } from './artCorridor'
 // [free-trail-waypoints, Phase 4] `import type` only — `verbatimModuleSyntax`
 // erases this at compile time, so `types.ts` (touched first, Phase 2) never
@@ -187,7 +188,21 @@ export interface LevelConfig {
    * alternated a second kind along the same marks, is gone: a case that
    * wants more clues gets more pistas levels.
    */
-  clue?: { kind: ClueKind; spacing: number }
+  clue?: {
+    kind: ClueKind
+    spacing: number
+    /**
+     * [T44, `docs/21` N1/N3/N4] Put the marks at named places of the route's
+     * shape instead of every `spacing` units: `'valleys'` at every interior
+     * lowest point (the shared feet of the bridges, where the puddles lie),
+     * `'loopBottoms'`/`'loopTops'` at the lowest/highest point of every loop
+     * that closes on itself (the scale at the bottom of each dive, the peel
+     * hanging at the top of each liana). Absent = evenly spaced, every level
+     * authored before this field. `spacing` is ignored when this is set.
+     * `detective/clues.ts`'s `levelClueMarks` is the one reader.
+     */
+    at?: ClueAt
+  }
   /**
    * Marks this level as DRAWN IN the detective world (grass, mud ink, the
    * standing octopus, the wordless shell) without making it a case trail
@@ -240,6 +255,17 @@ export interface LevelConfig {
    *  and `CaptionedArt`'s required `label` already use. Additive and absent
    *  everywhere else — the convention `goalArt`/`vertexArt` established. */
   reveal?: RevealConfig
+  /**
+   * [T44, `docs/21` N2] A ROUTED level played in the dark: the corridor is
+   * not drawn, a night veil covers the sheet, and only a round torch light
+   * where the finger is (plus a small glow at the start and at the end)
+   * shows what lies on the ground, so the clue marks are the only guide.
+   * `radius` is the finger torch's reach in sheet units. The walls still
+   * exist for scoring and clue collection; pair it with forgiving walls
+   * (`resetOnContact: false`): a wall the child cannot see must never
+   * restart the run. Absent = an ordinary lit level.
+   */
+  torch?: { radius: number }
   /** Before the tracing opens, the child DRAGS this level's art-corridor
    *  pieces into their hollows, smallest to largest (`docs/13` §2). The
    *  SLOTS are the pieces' own homes — `artCorridor`'s own placements — so

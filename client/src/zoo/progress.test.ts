@@ -33,6 +33,8 @@ describe('adventureProgress', () => {
       slots: [
         { levelId: 'f2-guirnalda', clue: 'bubble', filed: true, current: false },
         { levelId: 'f2-agua2', clue: 'scale', filed: false, current: true },
+        // [T44] the case's third clue.
+        { levelId: 'f2-buceo', clue: 'seaweed', filed: false, current: false },
         { levelId: 'f2-agua3', clue: undefined, filed: false, current: false },
         { levelId: 'f2-agua4', clue: undefined, filed: false, current: false },
       ],
@@ -40,7 +42,7 @@ describe('adventureProgress', () => {
   })
 
   it('reports the fish adventure rescued once f2-agua4 is filed', () => {
-    const allFour = recordsFor(['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4'])
+    const allFour = recordsFor(['f2-guirnalda', 'f2-agua2', 'f2-buceo', 'f2-agua3', 'f2-agua4'])
     const progress = adventureProgress('f2-agua4', allFour)
     expect(progress?.rescued).toBe(true)
     expect(progress?.slots.every((s) => s.filed)).toBe(true)
@@ -105,7 +107,8 @@ describe('adventureProgress', () => {
     const progress = adventureProgress('night2', {})
     expect(progress?.adventureId).toBe('night')
     expect(progress?.animal).toBeUndefined()
-    expect(progress?.slots).toHaveLength(4)
+    // [T44] four searches/finds plus `night-rastro`.
+    expect(progress?.slots).toHaveLength(5)
   })
 
   it('flags exactly the one level actually being played as current', () => {
@@ -144,7 +147,7 @@ describe('adventureProgress', () => {
   // for this adventure past the gate regardless — `monkey3`/`monkey4` are
   // `collect` levels, and `CollectBar` takes that slot instead.
   it('reports the monkeys adventure rescued once monkey4 is filed, animal undefined (deduction-gated)', () => {
-    const allFour = recordsFor(['monkey1', 'monkey2', 'monkey3', 'monkey4'])
+    const allFour = recordsFor(['monkey1', 'monkey2', 'monkey-lianas', 'monkey3', 'monkey4'])
     const progress = adventureProgress('monkey4', allFour)
     expect(progress?.adventureId).toBe('monkeys')
     expect(progress?.animal).toBeUndefined()
@@ -160,6 +163,8 @@ describe('adventureProgress', () => {
       slots: [
         { levelId: 'monkey1', clue: 'handprint', filed: true, current: false },
         { levelId: 'monkey2', clue: 'banana', filed: false, current: true },
+        // [T44] the case's third clue.
+        { levelId: 'monkey-lianas', clue: 'bananaPeel', filed: false, current: false },
         { levelId: 'monkey3', clue: undefined, filed: false, current: false },
         { levelId: 'monkey4', clue: undefined, filed: false, current: false },
       ],

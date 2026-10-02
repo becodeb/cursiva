@@ -64,6 +64,7 @@ const CLUE_ACCESSIBLE_NAME: Record<ClueKind, string> = {
   banana: 'banana',
   hedgehogPrint: 'huellita de erizo',
   bananaPeel: 'cáscara de banana',
+  seaweed: 'alga',
   wool: 'lana',
   turtlePrint: 'huella de tortuga',
 }

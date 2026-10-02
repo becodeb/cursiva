@@ -45,6 +45,7 @@ import { isDevMode } from './devMode'
 import { cameraOrigin } from './camera'
 import { clampArtBox, placeArt, STANDING_GRIP, type ArtBox } from './placeArt'
 import { RevealLayer } from './RevealLayer'
+import { TorchPool, TorchVeil, type TraceTorch } from './TorchLayer'
 import { ArtCorridorLayer } from './ArtCorridorLayer'
 import { SpineLayer } from './SpineLayer'
 import { WaypointLayer } from './WaypointLayer'
@@ -1193,6 +1194,11 @@ export interface TraceCanvasProps {
    * at all, byte-identical to before this prop existed. See
    * {@link TraceReveal}. */
   reveal?: TraceReveal
+  /** [T44] A routed level played by torchlight (`LevelConfig.torch`,
+   * `canvas/TorchLayer.tsx`): the pool of light goes UNDER the clue marks,
+   * the darkness OVER them and under the live ink, the carrier and the
+   * hazards. Absent on every other level. */
+  torch?: TraceTorch
   /** T33 (`odd/tasks/prewriting-stage-completion.md`): the night's own
    *  second-level hint sparkle (`levels/revealGrid.ts`'s `nightHintFor`),
    *  forwarded straight to `RevealLayer` — this component owns no geometry
@@ -1293,6 +1299,7 @@ export default function TraceCanvas({
   vertexArt,
   vertexArtDeparting,
   reveal,
+  torch,
   nightHint,
   waypoints,
   spines,
@@ -2329,6 +2336,7 @@ export default function TraceCanvas({
           )}
         </g>
       )}
+      {torch && <TorchPool torch={torch} />}
       {clues && clues.marks.length > 0 && (
         // Clue layer (design.md "Decision: clue layer is a new `clues`
         // prop, not `children`"): its own `<g>` immediately BEFORE the ink
@@ -2363,6 +2371,7 @@ export default function TraceCanvas({
           })}
         </g>
       )}
+      {torch && <TorchVeil torch={torch} displayBounds={displayBounds} />}
       <path
         ref={inkRef}
         data-ink-policy={inkPolicy}

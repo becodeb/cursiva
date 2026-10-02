@@ -21,7 +21,8 @@ import { BAND_INSET, MIN_CORRIDOR, MIN_VIEWBOX_WIDTH, buildLevelTarget } from '.
 import { routeExtrema } from './dolphinExtrema'
 import { resolveCollectItems } from './collect'
 import { EMPTY_REVEAL, revealTick } from './revealGrid'
-import { CROSSING_CLEAR_RADIUS, clueCountFor, clueMarks } from '../detective/clues'
+import { CROSSING_CLEAR_RADIUS, PLACED_MARK_DROP, clueCountFor, clueMarks, levelClueMarks } from '../detective/clues'
+import { DETECTIVE_CASES, clueKindsOf } from '../detective/cases'
 import {
   DEGRADED_LEVEL_IDS,
   LEGACY_PHASE_1,
@@ -93,6 +94,7 @@ const EXPECTED_IDS = [
   'night1',
   'night2',
   'night3',
+  'night-rastro',
   'night4',
   'snake1',
   'snake2',
@@ -117,10 +119,12 @@ const EXPECTED_IDS = [
   'turtle4',
   'monkey1',
   'monkey2',
+  'monkey-lianas',
   'monkey3',
   'monkey4',
   'f2-guirnalda',
   'f2-agua2',
+  'f2-buceo',
   'f2-agua3',
   'f2-agua4',
   'f2-colinas',
@@ -189,6 +193,7 @@ describe('LEVELS — authored values match the doc tables', () => {
     'night1': 0,
     'night2': 0,
     'night3': 0,
+    'night-rastro': 110,
     'night4': 0,
     'snake1': 38,
     'snake2': 34,
@@ -238,11 +243,13 @@ describe('LEVELS — authored values match the doc tables', () => {
     'turtle4': 70,
     'monkey1': 90,
     'monkey2': 80,
+    'monkey-lianas': 75,
     'monkey3': 75,
     // Four rings at 70 (see this level's own comment in `catalog.ts`).
     'monkey4': 70,
     'f2-guirnalda': 100,
     'f2-agua2': 80,
+    'f2-buceo': 80,
     'f2-agua3': 68,
     'f2-agua4': 90,
     'f2-colinas': 85,
@@ -271,6 +278,7 @@ describe('LEVELS — authored values match the doc tables', () => {
     'night1': 0,
     'night2': 0,
     'night3': 0,
+    'night-rastro': 0,
     'night4': 0,
     'snake1': 0,
     'snake2': 0,
@@ -318,11 +326,13 @@ describe('LEVELS — authored values match the doc tables', () => {
     'turtle4': 0,
     'monkey1': 0,
     'monkey2': 0,
+    'monkey-lianas': 0,
     'monkey3': 0,
     'monkey4': 0,
     // T40: the fish adventure lost its beat, and the fluency floor with it.
     'f2-guirnalda': 0,
     'f2-agua2': 0,
+    'f2-buceo': 0,
     'f2-agua3': 0,
     'f2-agua4': 0,
     'f2-colinas': 0,
@@ -551,6 +561,9 @@ describe('LEVELS — the spoken hint names only what is on screen (T40)', () => 
     { kinds: ['handprint'], word: /\bman(o|ito)s?\b/i },
     { kinds: ['banana', 'bananaPeel'], word: /\bbanana/i },
     { kinds: ['bananaPeel'], word: /cáscara/i },
+    // [T44] `f2-buceo`'s seaweed and `night-rastro`'s hedgehog prints.
+    { kinds: ['seaweed'], word: /\balga/i },
+    { kinds: ['hedgehogPrint', 'footprint', 'webfoot', 'handprint'], word: /\bhuellit/i },
   ]
 
   it('never names a trail picture the level does not draw', () => {
@@ -1588,6 +1601,7 @@ describe('levelsByPhase', () => {
       'night1',
       'night2',
       'night3',
+      'night-rastro',
       'night4',
       'snake1',
       'snake2',
@@ -1666,6 +1680,7 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
       'night1',
       'night2',
       'night3',
+      'night-rastro',
       'night4',
       'snake1',
       'snake2',
@@ -2173,9 +2188,10 @@ describe('LEVELS — the reveal grid, twelve authored levels (design.md §5, ame
   })
 
   it('night1..4 sit between llama-peak4 and snake1 (snake-drag-and-art-corridor design.md §7.1), in order', () => {
+    // [T44] with the night's routed clue trail, `night-rastro`, before night4.
     const idx = LEVELS.findIndex((l) => l.id === 'llama-peak4')
-    expect(LEVELS.slice(idx + 1, idx + 5).map((l) => l.id)).toEqual(NIGHT_IDS)
-    expect(LEVELS[idx + 5]?.id).toBe('snake1')
+    expect(LEVELS.slice(idx + 1, idx + 6).map((l) => l.id)).toEqual([...NIGHT_IDS.slice(0, 3), 'night-rastro', 'night4'])
+    expect(LEVELS[idx + 6]?.id).toBe('snake1')
   })
 
   it('configures no path on any of the twelve', () => {
@@ -2774,5 +2790,270 @@ describe('the dolphin family — one rung per docs/13 §2 step, amplitude guard 
       expect(items[items.length - 1].x, id).toBeCloseTo(last.x, 6)
       expect(items[items.length - 1].y, id).toBeCloseTo(last.y, 6)
     }
+  })
+})
+
+// [T44, `docs/21` §4.2 N1-N4] The new clue levels inside the four existing
+// cases: the duck's bridges, the night trail by torchlight, the fish's
+// descending loops and the monkeys' loop-and-garland.
+describe('LEVELS — docs/21 N1-N4 clue levels (T44)', () => {
+  /** Half of `LevelPlay.tsx`'s `CLUE_MARK_SIZE` (28). */
+  const CLUE_MARK_HALF = 14
+  type Cubic = { p0: number[]; c1: number[]; c2: number[]; p3: number[] }
+  function cubics(d: string): Cubic[] {
+    const tokens = d.match(/[MCL]|-?\d+(?:\.\d+)?/g) ?? []
+    const out: Cubic[] = []
+    let pen = [0, 0]
+    for (let i = 0; i < tokens.length; ) {
+      const cmd = tokens[i++]
+      const n = (): number => Number(tokens[i++])
+      if (cmd === 'M' || cmd === 'L') pen = [n(), n()]
+      else if (cmd === 'C') {
+        const c1 = [n(), n()]
+        const c2 = [n(), n()]
+        const p3 = [n(), n()]
+        out.push({ p0: pen, c1, c2, p3 })
+        pen = p3
+      }
+    }
+    return out
+  }
+  /** Exact smallest radius of curvature of one cubic, on its derivatives. */
+  function minRadius({ p0, c1, c2, p3 }: Cubic): number {
+    let min = Infinity
+    for (let i = 0; i <= 400; i++) {
+      const t = i / 400
+      const mt = 1 - t
+      const xp = 3 * mt * mt * (c1[0] - p0[0]) + 6 * mt * t * (c2[0] - c1[0]) + 3 * t * t * (p3[0] - c2[0])
+      const yp = 3 * mt * mt * (c1[1] - p0[1]) + 6 * mt * t * (c2[1] - c1[1]) + 3 * t * t * (p3[1] - c2[1])
+      const xpp = 6 * mt * (c2[0] - 2 * c1[0] + p0[0]) + 6 * t * (p3[0] - 2 * c2[0] + c1[0])
+      const ypp = 6 * mt * (c2[1] - 2 * c1[1] + p0[1]) + 6 * t * (p3[1] - 2 * c2[1] + c1[1])
+      const k = Math.abs(xp * ypp - yp * xpp) / (xp * xp + yp * yp) ** 1.5
+      if (k > 0) min = Math.min(min, 1 / k)
+    }
+    return min
+  }
+  /** Turn between one cubic's arrival and the next one's departure, degrees. */
+  function joinTurn(out: Cubic, next: Cubic): number {
+    const a = Math.atan2(out.p3[1] - out.c2[1], out.p3[0] - out.c2[0])
+    const b = Math.atan2(next.c1[1] - next.p0[1], next.c1[0] - next.p0[0])
+    let turn = Math.abs(a - b)
+    if (turn > Math.PI) turn = 2 * Math.PI - turn
+    return (turn * 180) / Math.PI
+  }
+  function distanceToRoute(p: { x: number; y: number }, route: readonly { x: number; y: number }[]): number {
+    let best = Infinity
+    for (let k = 0; k < route.length - 1; k++) {
+      const a = route[k]
+      const b = route[k + 1]
+      const vx = b.x - a.x
+      const vy = b.y - a.y
+      const len2 = vx * vx + vy * vy
+      const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2))
+      best = Math.min(best, Math.hypot(p.x - a.x - t * vx, p.y - a.y - t * vy))
+    }
+    return best
+  }
+  const NEW_LEVELS = [
+    { id: 'night-rastro', caseId: 'night', adventureId: 'night', before: 'night4' },
+    { id: 'f2-buceo', caseId: 'fish', adventureId: 'fish', before: 'f2-agua3' },
+    { id: 'monkey-lianas', caseId: 'monkeys', adventureId: 'monkeys', before: 'monkey3' },
+  ] as const
+
+  describe('journey and cases', () => {
+    for (const { id, caseId, adventureId, before } of NEW_LEVELS) {
+      it(`${id} is its case's last pistas level, played right before the deduction`, () => {
+        const adventure = ADVENTURES.find((a) => a.id === adventureId)!
+        const kase = DETECTIVE_CASES.find((k) => k.id === caseId)!
+        expect(kase.trailIds[kase.trailIds.length - 1]).toBe(id)
+        expect(adventure.deduction).toEqual({ after: id, caseId })
+        const at = adventure.levelIds.indexOf(id)
+        expect(adventure.levelIds[at + 1]).toBe(before)
+        // Every earlier pistas level of the case plays before it.
+        for (const trail of kase.trailIds.slice(0, -1)) expect(adventure.levelIds.indexOf(trail)).toBeLessThan(at)
+        // And its sector lists it in the same place.
+        const sector = SECTORS.find((sec) => sec.adventureIds.includes(id))!
+        expect(sector.adventureIds[sector.adventureIds.indexOf(id) + 1]).toBe(before)
+      })
+
+      it(`${id} carries one clue kind, unlike every other clue of its case, and no hazard`, () => {
+        const level = getLevel(id)
+        expect(level.clue).toBeDefined()
+        expect(level.obstacles).toBeUndefined()
+        expect(level.hazardArt).toBeUndefined()
+        const kase = DETECTIVE_CASES.find((k) => k.id === caseId)!
+        const others = kase.trailIds.filter((t) => t !== id).map((t) => getLevel(t).clue?.kind)
+        expect(others).not.toContain(level.clue!.kind)
+      })
+    }
+
+    it('the night chips show the hedgehog print last; fish and monkeys derive a third distinct chip', () => {
+      const night = DETECTIVE_CASES.find((k) => k.id === 'night')!
+      expect(night.clueArt?.[night.clueArt.length - 1]?.href).toMatch(/clue-hedgehog-print-earned/)
+      expect(night.clueArt).toHaveLength(night.trailIds.length)
+      expect(clueKindsOf(DETECTIVE_CASES.find((k) => k.id === 'fish')!)).toEqual(['bubble', 'scale', 'seaweed'])
+      expect(clueKindsOf(DETECTIVE_CASES.find((k) => k.id === 'monkeys')!)).toEqual(['handprint', 'banana', 'bananaPeel'])
+    })
+
+    it('keeps duck-trail1 first in the duck adventure, under its saved id', () => {
+      expect(DUCK_ADVENTURE_IDS[0]).toBe('duck-trail1')
+      expect(getLevel('duck-trail1').clue).toEqual({ kind: 'puddle', spacing: 60, at: 'valleys' })
+    })
+  })
+
+  describe('N1 duck-trail1: four bridges with a puddle at every foot', () => {
+    const level = getLevel('duck-trail1')
+    const target = buildLevelTarget(level)
+    const segs = cubics(level.paths[0])
+
+    it('draws four round arches whose crest bends wider than the corridor needs', () => {
+      expect(segs).toHaveLength(8)
+      for (const c of segs) {
+        expect(minRadius(c)).toBeGreaterThan(level.corridorWidth / 2 + 20)
+      }
+    })
+
+    it('turns every crest smoothly (the two halves of an arch meet tangent)', () => {
+      for (let i = 0; i < segs.length; i += 2) expect(joinTurn(segs[i], segs[i + 1])).toBeLessThan(1)
+    })
+
+    it('leaves the inside of every arch open by more than a corridor at mid-height', () => {
+      const mid = (150 + 460) / 2
+      const xs: number[] = []
+      const pts = flattenPathD(level.paths[0]).points
+      for (let i = 1; i < pts.length; i++) if ((pts[i - 1].y - mid) * (pts[i].y - mid) <= 0) xs.push(pts[i].x)
+      expect(xs).toHaveLength(8)
+      for (let a = 0; a < 4; a++) expect(xs[2 * a + 1] - xs[2 * a] - level.corridorWidth).toBeGreaterThan(level.corridorWidth)
+    })
+
+    it('puts one puddle at each of the three shared feet, on the route, before the finish', () => {
+      const marks = levelClueMarks(target.polyline, target.length, level.clue!)
+      expect(marks).toHaveLength(3)
+      const maxY = Math.max(...target.polyline.map((p) => p.y))
+      for (const m of marks) {
+        // Drawn just below the foot (`PLACED_MARK_DROP`), whole inside the corridor.
+        expect(m.y - PLACED_MARK_DROP).toBeCloseTo(maxY, 0)
+        expect(distanceToRoute(m, target.polyline) + CLUE_MARK_HALF).toBeLessThan(level.corridorWidth / 2)
+        expect(m.arc).toBeLessThan(target.length - level.corridorWidth / 2)
+      }
+      // Evenly between the bridges: a quarter, half and three quarters along.
+      for (const [i, m] of marks.entries()) expect(m.arc / target.length).toBeCloseTo((i + 1) / 4, 2)
+    })
+  })
+
+  describe('N2 night-rastro: the hedgehog trail by torchlight', () => {
+    const level = getLevel('night-rastro')
+    const target = buildLevelTarget(level)
+
+    it('is a routed clue trail with a torch, forgiving walls and the apple at the end', () => {
+      expect(level.kind).toBe('path')
+      expect(level.torch?.radius).toBeGreaterThan(level.corridorWidth)
+      expect(level.resetOnContact).toBe(false)
+      expect(level.goalArt).toBe(SECTOR_ADVENTURE_ART.apple)
+      expect(level.clue?.kind).toBe('hedgehogPrint')
+      expect(level.demo).toBe(true)
+      // Wider than every lit trail of the journey: the walls cannot be seen.
+      expect(level.corridorWidth).toBeGreaterThan(100)
+    })
+
+    it('runs left to right as one long gentle wave and drops prints all along it', () => {
+      expect(target.polyline[0].x).toBeLessThan(target.polyline[target.polyline.length - 1].x)
+      const marks = levelClueMarks(target.polyline, target.length, level.clue!)
+      expect(marks.length).toBeGreaterThanOrEqual(12)
+      // Never more than a torch radius between two prints: wherever the
+      // light is on the trail, a print is in it.
+      for (let i = 1; i < marks.length; i++) {
+        expect(marks[i].arc - marks[i - 1].arc).toBeLessThan(level.torch!.radius)
+      }
+    })
+
+    it('is the only level with a torch', () => {
+      expect(LEVELS.filter((l) => l.torch).map((l) => l.id)).toEqual(['night-rastro'])
+    })
+  })
+
+  describe('N3 f2-buceo and N4 monkey-lianas: round, tidy loops (T40 rules)', () => {
+    const LOOPY = [
+      { id: 'f2-buceo', loops: 3, extreme: 'bottom' as const },
+      // Follow-up (coordinator: the author rejects pointed tops): the `u`
+      // after each loop is a round bowl, so this level has no corner at all.
+      { id: 'monkey-lianas', loops: 2, extreme: 'top' as const },
+    ]
+
+    for (const { id, loops: count, extreme } of LOOPY) {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      const segs = cubics(level.paths[0])
+
+      it(`${id}: every loop keeps a visible hole at least one corridor wide, all the same size`, () => {
+        const holes = loopHoleClearances(target.polyline)
+        expect(holes).toHaveLength(count)
+        for (const hole of holes) expect(2 * hole.clearance - level.corridorWidth).toBeGreaterThanOrEqual(level.corridorWidth)
+        const sizes = holes.map((h) => h.clearance)
+        expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThan(1)
+        expect(level.corridorWidth).toBeGreaterThanOrEqual(70)
+      })
+
+      it(`${id}: no cubic, loop or bowl, bends tighter than radius 70`, () => {
+        for (const [i, c] of segs.entries()) {
+          expect(minRadius(c), `cubic ${i}`).toBeGreaterThan(70)
+          expect(minRadius(c), `cubic ${i}`).toBeGreaterThan(level.corridorWidth / 2)
+        }
+      })
+
+      it(`${id}: every join is tangent-continuous, with no exception`, () => {
+        for (let i = 1; i < segs.length; i++) expect(joinTurn(segs[i - 1], segs[i]), `join ${i}`).toBeLessThan(1)
+      })
+
+      it(`${id}: the whole built stroke turns gently, point by point (no hidden corner, radius >= 64 everywhere)`, () => {
+        // On the route the child actually follows (`target.polyline`), not
+        // the authored cubics: the turn between consecutive pieces stays
+        // small, and the turn spread over the pieces around it never bends
+        // tighter than radius 64 (arc / angle over a 12-unit window).
+        const pts = target.polyline
+        const heading: number[] = []
+        const arcAt: number[] = [0]
+        for (let i = 1; i < pts.length; i++) {
+          heading.push(Math.atan2(pts[i].y - pts[i - 1].y, pts[i].x - pts[i - 1].x))
+          arcAt.push(arcAt[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y))
+        }
+        const turn = (a: number, b: number): number => {
+          let t = Math.abs(b - a)
+          if (t > Math.PI) t = 2 * Math.PI - t
+          return t
+        }
+        let maxTurn = 0
+        for (let i = 1; i < heading.length; i++) maxTurn = Math.max(maxTurn, turn(heading[i - 1], heading[i]))
+        expect((maxTurn * 180) / Math.PI).toBeLessThan(15)
+        let minRadiusSeen = Infinity
+        for (let i = 0, j = 0; i < heading.length; i++) {
+          while (j < heading.length && arcAt[j] - arcAt[i] < 12) j++
+          if (j >= heading.length) break
+          const angle = turn(heading[i], heading[j])
+          if (angle > 0) minRadiusSeen = Math.min(minRadiusSeen, (arcAt[j] - arcAt[i]) / angle)
+        }
+        expect(minRadiusSeen).toBeGreaterThanOrEqual(64)
+      })
+
+      it(`${id}: one clue at the ${extreme} of every loop, on the route and clear of the crossing`, () => {
+        const marks = levelClueMarks(target.polyline, target.length, level.clue!)
+        expect(marks).toHaveLength(count)
+        const ys = target.polyline.map((p) => p.y)
+        const want = extreme === 'bottom' ? Math.max(...ys) : Math.min(...ys)
+        const crossings = selfCrossingPoints(target.polyline)
+        for (const m of marks) {
+          expect(m.y - PLACED_MARK_DROP).toBeCloseTo(want, 0)
+          expect(distanceToRoute(m, target.polyline) + CLUE_MARK_HALF).toBeLessThan(level.corridorWidth / 2)
+          for (const c of crossings) expect(Math.hypot(m.x - c.x, m.y - c.y)).toBeGreaterThan(level.corridorWidth)
+        }
+      })
+    }
+
+    it('f2-buceo loops go DOWN: they hang from a high line and cross near it', () => {
+      const target = buildLevelTarget(getLevel('f2-buceo'))
+      const crossings = selfCrossingPoints(target.polyline)
+      expect(target.polyline[0].y).toBeLessThan(200)
+      for (const c of crossings) expect(c.y).toBeLessThan(300)
+    })
   })
 })

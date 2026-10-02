@@ -267,8 +267,15 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     // T25 (`docs/19` §3.2): the leaf (`night1`), the bitten apple (`night2`)
     // and the mushroom (`night3`). [T43] `docs/20` B12 delivered the apple
     // and the mushroom; until then the leaf and the stone stood in for them.
-    clueArt: [SECTOR_ADVENTURE_ART.leaf, SECTOR_ADVENTURE_ART.apple, SECTOR_ADVENTURE_ART.mushroom],
-    trailIds: ['night1', 'night2', 'night3'],
+    // [T44, `docs/21` N2] + the hedgehog's prints, followed by torchlight
+    // on `night-rastro` (`docs/22` C7). The chip shows the print itself.
+    clueArt: [
+      SECTOR_ADVENTURE_ART.leaf,
+      SECTOR_ADVENTURE_ART.apple,
+      SECTOR_ADVENTURE_ART.mushroom,
+      CLUE_ART.hedgehogPrint.art.earned,
+    ],
+    trailIds: ['night1', 'night2', 'night3', 'night-rastro'],
   },
   // [T26, `docs/19` §2.3/§3] Recipe A's third case, closed by `f2-agua2`
   // (`zoo/adventures.ts`'s `fish.deduction.after`), routing into `f2-agua3`
@@ -299,7 +306,8 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
       tortuga: '¿El cartel de las tortugas? No: ahí no hay burbujas.',
       mono: '¿El cartel de los monos? No: los monos no nadan.',
     },
-    trailIds: ['f2-guirnalda', 'f2-agua2'],
+    // [T44, `docs/21` N3] + `f2-buceo`'s seaweed, a third distinct trace.
+    trailIds: ['f2-guirnalda', 'f2-agua2', 'f2-buceo'],
   },
   // [T27, `odd/tasks/prewriting-stage-completion.md`, `docs/19` §2.3/§3 monos
   // row] The last of the four complete cases (duck, night, fish, monkeys —
@@ -336,7 +344,10 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     // `webfoot`/`breadcrumb` either — this file's own "webfoot and breadcrumb
     // rule nobody out" invariant (`cases.test.ts`) bans either from ever
     // being a `ruledOutBy` verdict, in this case or any other.
-    trailIds: ['monkey1', 'monkey2'],
+    // [T44, `docs/21` N4] + `monkey-lianas`' banana peels (`docs/22` C11).
+    // The verdicts below still name only `monkey1`/`monkey2`'s kinds: a
+    // peel says a monkey ate a banana, which the banana already says.
+    trailIds: ['monkey1', 'monkey2', 'monkey-lianas'],
   },
   // [T45, `docs/21` N5; the author's decision of 2026-10-02] The sheep's own
   // case, closed by `sheep-lana` (`zoo/adventures.ts`'s

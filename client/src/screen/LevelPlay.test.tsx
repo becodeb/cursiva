@@ -79,6 +79,8 @@ import LevelPlay, {
   seedCameraFor,
   shouldFileClue,
   shouldTickClue,
+  torchView,
+  TORCH_MARKER_GLOW,
 } from './LevelPlay'
 import {
   CARRIER_LENS_ART,
@@ -3424,6 +3426,54 @@ describe('LevelPlay idle nudge / night hint wiring (T33)', () => {
     )
     // Still in its own route demo on the very first frame — no idle cue yet.
     expect(traceCanvasProbe.current?.idleCue ?? null).toBeNull()
+  })
+})
+
+// [T44, `docs/21` N2] The torch over a routed level (`level.torch`).
+describe('torchView (T44, night-rastro)', () => {
+  const route = [
+    { x: 90, y: 300 },
+    { x: 500, y: 200 },
+    { x: 910, y: 400 },
+  ]
+  const torch = { radius: 130 }
+
+  it('is absent on a level without a torch', () => {
+    expect(torchView(undefined, route, { x: 1, y: 2 }, false, '#000')).toBeUndefined()
+  })
+
+  it('keeps a small glow on the start and the goal while the finger is up', () => {
+    expect(torchView(torch, route, null, false, '#12161f')).toEqual({
+      fill: '#12161f',
+      sources: [
+        { cx: 90, cy: 300, radius: TORCH_MARKER_GLOW },
+        { cx: 910, cy: 400, radius: TORCH_MARKER_GLOW },
+      ],
+    })
+  })
+
+  it('adds the torch where the finger is', () => {
+    const view = torchView(torch, route, { x: 400, y: 250 }, false, '#12161f')
+    expect(view?.sources).toHaveLength(3)
+    expect(view?.sources[2]).toEqual({ cx: 400, cy: 250, radius: 130 })
+  })
+
+  it('turns the lights on for the demo and once the level is approved', () => {
+    expect(torchView(torch, route, { x: 400, y: 250 }, true, '#12161f')).toBeUndefined()
+  })
+
+  it('hands night-rastro no corridor and the night chalk ink; the lights stay on through the demo', () => {
+    const level = getLevel('night-rastro')
+    renderToString(<LevelPlay level={level} record={EMPTY_RECORD} onAttempt={() => {}} onNext={() => {}} onBack={() => {}} />)
+    const props = traceCanvasProbe.current!
+    expect(props.corridor).toBeUndefined()
+    expect(props.inkColor).toBe(TORCH_CHALK)
+    // The first render is the demo: the whole trail is shown in the light.
+    expect(props.torch).toBeUndefined()
+    // The same level without its torch draws the channel and the mud ink.
+    renderToString(<LevelPlay level={{ ...level, torch: undefined }} record={EMPTY_RECORD} onAttempt={() => {}} onNext={() => {}} onBack={() => {}} />)
+    expect(traceCanvasProbe.current!.corridor).toBeDefined()
+    expect(traceCanvasProbe.current!.inkColor).not.toBe(TORCH_CHALK)
   })
 })
 

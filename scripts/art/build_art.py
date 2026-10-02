@@ -477,14 +477,19 @@ SINGLES = [
     ('pista mano de mono.png', 'clue-handprint-drained.png',   256, CLUE_DRAINED, False),
     ('pista banana.png',      'clue-banana-earned.png',        256, 'contour',    True),
     ('pista banana.png',      'clue-banana-drained.png',       256, CLUE_DRAINED, True),
-    # Registered but not on any level yet: `docs/21` N2 (`night-rastro`) and
-    # N4 (`monkey-lianas`) are proposed levels that do not exist. Shipped now
-    # so the level that needs them only has to name the kind, the same way
-    # `breadcrumb` waits above.
+    # `docs/21` N2 (`night-rastro`) and N4 (`monkey-lianas`), registered by
+    # T43 and on their levels since T44.
     ('pista huellita de erizo.png', 'clue-hedgehog-print-earned.png', 256, PRINT, False),
     ('pista huellita de erizo.png', 'clue-hedgehog-print-drained.png', 256, CLUE_DRAINED, False),
     ('pista cascara de banana.png', 'clue-banana-peel-earned.png', 256, 'contour', True),
     ('pista cascara de banana.png', 'clue-banana-peel-drained.png', 256, CLUE_DRAINED, True),
+    # T44 (`docs/21` N3, `f2-buceo`): the fish case already shows bubbles
+    # (`f2-guirnalda`) and scales (`f2-agua2`), and every clue of a case is a
+    # different thing (T40). What the fish nibbles at the bottom of each dive
+    # is a bit of seaweed: `alga.png` is existing art (blue contour, green
+    # fill), kept with its authored fills like the T43 marks above.
+    ('alga.png',              'clue-seaweed-earned.png',       256, 'contour',    True),
+    ('alga.png',              'clue-seaweed-drained.png',      256, CLUE_DRAINED, True),
     ('lamparita prendida.png', 'lamp-on.png',              192, LAMP,         True),
     # BOTH lamp states come from the LIT drawing, and that is deliberate.
     # `lamparita apagada.png` is a bare dark silhouette with no contour of its

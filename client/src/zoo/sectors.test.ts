@@ -208,7 +208,7 @@ describe('Fog Containment Invariant', () => {
 describe('Registry↔Catalog Structural Consistency', () => {
   const catalogIds = new Set(LEVELS.map((l) => l.id))
 
-  it("estanque's fourteen adventures are in the exact documented order (patos → medusa → delfines)", () => {
+  it("estanque's fifteen adventures are in the exact documented order (patos → medusa → delfines)", () => {
     expect(estanque.adventureIds).toEqual([
       'duck-trail1',
       'duck-trail5',
@@ -218,6 +218,7 @@ describe('Registry↔Catalog Structural Consistency', () => {
       'duck-trail4',
       'f2-guirnalda',
       'f2-agua2',
+      'f2-buceo',
       'f2-agua3',
       'f2-agua4',
       'dolphin1',
@@ -290,6 +291,7 @@ describe('Registry↔Catalog Structural Consistency', () => {
       'night1',
       'night2',
       'night3',
+      'night-rastro',
       'night4',
       'hedgehog1',
       'hedgehog2',
@@ -308,7 +310,7 @@ describe('Registry↔Catalog Structural Consistency', () => {
     // appended after the bee's own four — `unlockedWhen` is unaffected.
     expect(bosque.adventureIds).toEqual([
       'bee1', 'bee2', 'bee3', 'bee4',
-      'monkey1', 'monkey2', 'monkey3', 'monkey4',
+      'monkey1', 'monkey2', 'monkey-lianas', 'monkey3', 'monkey4',
     ])
     for (const records of [{}, filed('sand4', 'night4', 'llama-peak4')]) {
       expect(bosque.unlockedWhen(records)).toBe(false)

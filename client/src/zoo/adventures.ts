@@ -366,14 +366,16 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'night',
-    levelIds: ['night1', 'night2', 'night3', 'night4'],
+    // [T44, `docs/21` N2] `night-rastro`, the hedgehog's trail by torchlight,
+    // is the case's last clue: the deduction follows it.
+    levelIds: ['night1', 'night2', 'night3', 'night-rastro', 'night4'],
     // [T25, `docs/19` §2.3/§3.2] "La noche y el erizo son un solo caso
     // repartido en dos aventuras": after `night3` — the case's own last
     // pistas level (`detective/cases.ts`'s `night.trailIds`) — the flow
     // detours into the `night` case's deduction (erizo/pato/oveja, the two
     // distractors resolved from progress) before continuing to `night4`,
     // where the curled erizo is the reveal-grid's own find.
-    deduction: { after: 'night3', caseId: 'night' },
+    deduction: { after: 'night-rastro', caseId: 'night' },
     sector: 'nocturna',
     icon: SECTOR_ADVENTURE_ART.flashlight,
     intro: 'De noche hay cosas escondidas. ¿Las buscamos con la luz?',
@@ -461,14 +463,15 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'monkeys',
-    levelIds: ['monkey1', 'monkey2', 'monkey3', 'monkey4'],
+    // [T44, `docs/21` N4] `monkey-lianas` is the case's last clue.
+    levelIds: ['monkey1', 'monkey2', 'monkey-lianas', 'monkey3', 'monkey4'],
     // [T27, `docs/19` §2.3/§3 monos row] Recipe A's fourth and last complete
     // case (duck, night, fish, monkeys — `docs/19` §2.3's own binding
     // decision): after `monkey2` — the case's own last pistas level
     // (`detective/cases.ts`'s `monkeys.trailIds`) — the flow detours into
     // the `monkeys` case's deduction before continuing to `monkey3`, where
     // the recovered monkey family is gathered (`LevelConfig.collect`).
-    deduction: { after: 'monkey2', caseId: 'monkeys' },
+    deduction: { after: 'monkey-lianas', caseId: 'monkeys' },
     sector: 'bosque',
     animal: 'mono',
     intro: 'Los monos se escaparon de sus sogas y se fueron colgados de las lianas del bosque. ¿Seguimos sus vueltas?',
@@ -482,7 +485,8 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'fish',
-    levelIds: ['f2-guirnalda', 'f2-agua2', 'f2-agua3', 'f2-agua4'],
+    // [T44, `docs/21` N3] `f2-buceo` is the case's last clue.
+    levelIds: ['f2-guirnalda', 'f2-agua2', 'f2-buceo', 'f2-agua3', 'f2-agua4'],
     // [T26, `docs/19` §2.3] Recipe A's third case: after `f2-agua2` — the
     // fish case's own last pistas level (`detective/cases.ts`'s
     // `fish.trailIds`) — the flow detours into the `fish` case's deduction
@@ -492,7 +496,7 @@ export const ADVENTURES: readonly Adventure[] = [
     // (`docs/19` §2.3's third form of deducing, "los carteles de los
     // recintos vacíos del prólogo") — `detective/cases.ts`'s `fish.optionArt`
     // carries that override.
-    deduction: { after: 'f2-agua2', caseId: 'fish' },
+    deduction: { after: 'f2-buceo', caseId: 'fish' },
     sector: 'estanque',
     animal: 'pez',
     intro: 'Los peces se escaparon de la pecera y se escondieron en la laguna. ¡Dejaron burbujas! ¿Las seguimos?',

@@ -7,6 +7,10 @@ import { describe, expect, it } from 'vitest'
 import {
   clueCountFor,
   clueMarks,
+  levelClueMarks,
+  clueIndicesAt,
+  PLACED_MARK_DROP,
+  CROSSING_CLEAR_RADIUS,
   clueTick,
   emptyClueState,
   reachedTrailEnd,
@@ -18,6 +22,8 @@ import {
 import { LEVELS } from '../levels/catalog'
 import { buildLevelTarget } from '../levels/buildLevel'
 import { MAX_WIDTH_FACTOR } from '../game/adaptiveTolerance'
+import { flattenPathD, polylineLength } from '../letters/svgLetter'
+import { bridges, lianas, loops, selfCrossingPoints } from '../levels/paths'
 
 /** A 100-unit horizontal polyline, so arc length equals x and the tangent
  * angle is trivially 0 everywhere. */
@@ -219,6 +225,62 @@ describe('clueTick (lights by ARC PROGRESS, not by proximity)', () => {
   })
 })
 
+// [T44] Marks placed at named spots of the shape (`LevelConfig.clue.at`).
+describe('clueIndicesAt / levelClueMarks (T44)', () => {
+  const BRIDGES = flattenPathD(
+    bridges({ x0: 60, x1: 940, yTop: 150, yBase: 460, cycles: 4, footRise: 190, footLean: 6, topHandle: 100 }),
+  ).points
+  const DIVES = flattenPathD(loops({ x0: 60, x1: 940, yBase: 150, yTop: 450, cycles: 3 })).points
+  const LIANAS = flattenPathD(lianas({ x0: 60, x1: 940, pairs: 2 })).points
+
+  it("'valleys' finds every shared foot between two bridges, and never the route's own ends", () => {
+    const feet = clueIndicesAt(BRIDGES, 'valleys').map((i) => BRIDGES[i])
+    expect(feet.map((p) => Math.round(p.x))).toEqual([280, 500, 720])
+    for (const p of feet) expect(p.y).toBeCloseTo(460, 0)
+  })
+
+  it("'loopBottoms' finds the lowest point of every loop, far from its crossing", () => {
+    const bottoms = clueIndicesAt(DIVES, 'loopBottoms').map((i) => DIVES[i])
+    expect(bottoms).toHaveLength(3)
+    const crossings = selfCrossingPoints(DIVES)
+    for (const [k, p] of bottoms.entries()) {
+      expect(p.y).toBeCloseTo(450, 0)
+      expect(Math.hypot(p.x - crossings[k].x, p.y - crossings[k].y)).toBeGreaterThan(CROSSING_CLEAR_RADIUS)
+    }
+  })
+
+  it("'loopTops' finds the top of every loop and never a garland's top", () => {
+    const tops = clueIndicesAt(LIANAS, 'loopTops').map((i) => LIANAS[i])
+    expect(tops).toHaveLength(2)
+    for (const p of tops) expect(p.y).toBeCloseTo(150, 0)
+  })
+
+  it('places an upright mark just below its spot, earned at the spot\'s own arc', () => {
+    const length = polylineLength(BRIDGES)
+    const marks = levelClueMarks(BRIDGES, length, { kind: 'puddle', spacing: 60, at: 'valleys' })
+    expect(marks).toHaveLength(3)
+    for (const m of marks) {
+      expect(m.y).toBeCloseTo(460 + PLACED_MARK_DROP, 0)
+      expect(m.angle).toBe(0)
+      expect(m.kind).toBe('puddle')
+      expect(m.arc).toBeGreaterThan(0)
+      expect(m.arc).toBeLessThan(length)
+    }
+    expect(clueTick(emptyClueState(3), marks[1].arc, marks).lit).toEqual([true, true, false])
+  })
+
+  it('keeps the evenly spaced marks for a level without `at`', () => {
+    const marks = levelClueMarks(LINE, LENGTH, { kind: 'droplet', spacing: 60 })
+    expect(marks).toEqual(clueMarks(LINE, LENGTH, clueCountFor(LENGTH, 60), 'droplet'))
+  })
+
+  it("walks the hedgehog's prints left and right of the trail, like footprints", () => {
+    const prints = clueMarks(LINE, LENGTH, 4, 'hedgehogPrint')
+    expect(Math.sign(prints[0].y)).toBe(-Math.sign(prints[1].y))
+    expect(Math.abs(prints[0].y)).toBeGreaterThan(0)
+  })
+})
+
 describe('reachedTrailEnd (Task B: "reached the end without leaving")', () => {
   it('is reached at exactly one corridor half-width short of the full length', () => {
     expect(trailEndArc(1000, 90)).toBe(955)
@@ -282,8 +344,12 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
       // monkeys case's own two pistas levels (`handprint`/`banana` since
       // T43) — `monkey3`/`monkey4` carry no clue
       // at all (repurposed to `collect`, the same duck-trail3/4 pattern).
+      // [T44, `docs/21` N2] the night's routed clue trail, by torchlight.
+      'night-rastro',
       'monkey1',
       'monkey2',
+      // [T44, `docs/21` N4] loop and garland in one stroke.
+      'monkey-lianas',
       // [T26] `f2-agua3`/`f2-agua4` no longer carry a `clue` either — past
       // the fish case's own deduction (`f2-agua2`), they were repurposed to
       // `LevelConfig.collect` (the fish family, `docs/19` §3), the SAME move
@@ -295,6 +361,8 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
       // membership list.
       'f2-guirnalda',
       'f2-agua2',
+      // [T44, `docs/21` N3] the descending loops.
+      'f2-buceo',
     ])
   })
 
@@ -303,12 +371,7 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
       const target = buildLevelTarget(level)
       const clue = level.clue
       if (!clue) throw new Error('filtered above')
-      const marks = clueMarks(
-        target.polyline,
-        target.length,
-        clueCountFor(target.length, clue.spacing),
-        clue.kind,
-      )
+      const marks = levelClueMarks(target.polyline, target.length, clue)
       const threshold = trailEndArc(target.length, target.corridorWidth)
       expect(marks.length).toBeGreaterThan(0)
       for (const [i, mark] of marks.entries()) {
@@ -337,16 +400,14 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
     // asserts the BROKEN behaviour is really broken, so the correct call site
     // is not a matter of taste.
     let inverted = 0
-    for (const level of trails) {
+    // [T44] Only the evenly spaced trails: a mark placed at a named spot of
+    // the shape (`clue.at`) sits mid-route, nowhere near the finish line.
+    const spaced = trails.filter((level) => !level.clue?.at)
+    for (const level of spaced) {
       const target = buildLevelTarget(level, MAX_WIDTH_FACTOR)
       const clue = level.clue
       if (!clue) continue
-      const marks = clueMarks(
-        target.polyline,
-        target.length,
-        clueCountFor(target.length, clue.spacing),
-        clue.kind,
-      )
+      const marks = levelClueMarks(target.polyline, target.length, clue)
       const last = marks[marks.length - 1].arc
       // The authored width keeps the finish line where the route puts it.
       expect(last).toBeLessThan(trailEndArc(target.length, level.corridorWidth))
@@ -354,7 +415,7 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
       if (last >= trailEndArc(target.length, target.corridorWidth)) inverted++
     }
     expect(inverted, 'widening no longer moves the finish line — re-check this guard').toBe(
-      trails.length,
+      spaced.length,
     )
   })
 
@@ -365,12 +426,7 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
       const target = buildLevelTarget(level)
       const clue = level.clue
       if (!clue) continue
-      const marks = clueMarks(
-        target.polyline,
-        target.length,
-        clueCountFor(target.length, clue.spacing),
-        clue.kind,
-      )
+      const marks = levelClueMarks(target.polyline, target.length, clue)
       const margin = trailEndArc(target.length, target.corridorWidth) - marks[marks.length - 1].arc
       expect(margin, `${level.id} last-mark margin`).toBeGreaterThan(0)
     }
