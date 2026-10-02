@@ -159,6 +159,8 @@ The T37 full-journey audit was cut off before its report (183 screenshots in `ca
 |---|---|---|---|---|
 | T44 | docs/21 N1–N4 inside existing cases: duck bridges ∩ with puddles, night trail without walls lit by the flashlight (hedgehog prints C7), fish loops going down (scales), monkey loop+garland in one stroke (banana peel C11) | `feat/new-clue-levels` | in progress | |
 | T45 | docs/21 N5–N6 new cases: sheep fence posts (vertical strokes, wool C9) + "¿Quién deja lana?"; turtle straight line with stops (turtle prints C10) + "¿De quién es esta huella?" comparing prints. Placeholder art until C9/C10 arrive | `feat/new-cases` | in progress | |
+| T46 | Deduction screen: the collected clues are shown big and clearly as the evidence, and it is obvious the child must pick the right option (layout, affordance, voice); for every deduction kind | `feat/deduction-ux` | planned (after T44/T45, shares the deduction screen) | |
+| T47 | Art audit round 2: review every asset in the game, write ChatGPT prompts (docs/23) for every ugly or unclear one plus variations (e.g. several puddle shapes) so repeated clues don't look copy-pasted; each prompt says exactly what it must look like and how to check it | `docs/art-round-2` | in progress | |
 
 ## Later batches (planned, not started)
 
