@@ -23,7 +23,7 @@ describe('adventureProgress', () => {
   // T21 established for the duck — `animal` is `undefined` until the case is
   // solved, and `f2-agua3`/`f2-agua4` (repurposed to `collect`, past the
   // deduction) carry no `clue` any more; only `f2-guirnalda`/`f2-agua2` still
-  // do (`bubble`/`droplet`, the case's own two distinct pistas clues).
+  // do (`bubble`/`scale`, the case's own two distinct pistas clues).
   it('reports a mid-adventure fish trail: filed levels, the current one flagged, clues in play order', () => {
     const progress = adventureProgress('f2-agua2', recordsFor(['f2-guirnalda']))
     expect(progress).toEqual({
@@ -32,7 +32,7 @@ describe('adventureProgress', () => {
       rescued: false,
       slots: [
         { levelId: 'f2-guirnalda', clue: 'bubble', filed: true, current: false },
-        { levelId: 'f2-agua2', clue: 'droplet', filed: false, current: true },
+        { levelId: 'f2-agua2', clue: 'scale', filed: false, current: true },
         { levelId: 'f2-agua3', clue: undefined, filed: false, current: false },
         { levelId: 'f2-agua4', clue: undefined, filed: false, current: false },
       ],
@@ -68,9 +68,9 @@ describe('adventureProgress', () => {
         // [T40] Four pistas levels, one clue each, in play order;
         // `duck-trail3`/`duck-trail4` were repurposed to `collect` (the duck
         // family, T21) and carry no clue.
-        { levelId: 'duck-trail1', clue: 'droplet', filed: true, current: false },
-        { levelId: 'duck-trail5', clue: 'corn', filed: false, current: true },
-        { levelId: 'duck-trail2', clue: 'feather', filed: false, current: false },
+        { levelId: 'duck-trail1', clue: 'puddle', filed: true, current: false },
+        { levelId: 'duck-trail5', clue: 'seeds', filed: false, current: true },
+        { levelId: 'duck-trail2', clue: 'duckFeather', filed: false, current: false },
         { levelId: 'duck-trail6', clue: 'webfoot', filed: false, current: false },
         { levelId: 'duck-trail3', clue: undefined, filed: false, current: false },
         { levelId: 'duck-trail4', clue: undefined, filed: false, current: false },
@@ -152,8 +152,8 @@ describe('adventureProgress', () => {
       animal: undefined,
       rescued: false,
       slots: [
-        { levelId: 'monkey1', clue: 'footprint', filed: true, current: false },
-        { levelId: 'monkey2', clue: 'corn', filed: false, current: true },
+        { levelId: 'monkey1', clue: 'handprint', filed: true, current: false },
+        { levelId: 'monkey2', clue: 'banana', filed: false, current: true },
         { levelId: 'monkey3', clue: undefined, filed: false, current: false },
         { levelId: 'monkey4', clue: undefined, filed: false, current: false },
       ],

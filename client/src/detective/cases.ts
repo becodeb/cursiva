@@ -136,25 +136,23 @@ const MONKEY_RESCUED_HINT: Readonly<Partial<Record<ZooAnimalId, string>>> = {
  *  non-linear session that reaches `bosque` (unlocked by `snake4` alone,
  *  `zoo/sectors.ts`) before actually rescuing one of these two. Both lines
  *  stay TRUE regardless of progress — a real deduction, not a placeholder
- *  excuse: neither animal eats a banana (`erizo`, `monkey2`'s own `corn`
- *  stand-in), and neither leaves a footprint the way something climbing
- *  down to the ground would (`abeja`, `monkey1`'s own `footprint` stand-in
- *  — `docs/20` B13 still pending; `footprint`, unlike the `feather` this
- *  shipped with first, never asserts the wrong ANIMAL left the trace,
- *  `levels/catalog.ts`'s own header has the full reasoning). */
+ *  excuse: the hedgehog does not eat bananas (`monkey2`'s `banana`), and a
+ *  bee has no hands to leave a handprint (`monkey1`'s `handprint`). [T43]
+ *  The bee's line said "no deja huellas" while the clue was a bird
+ *  footprint stand-in; with the real handprint it names the hand. */
 const MONKEY_CLUE_HINT: Readonly<Partial<Record<ZooAnimalId, string>>> = {
   erizo: 'El erizo no come bananas: no fue él.',
-  abeja: 'La abeja no deja huellas: no fue ella.',
+  abeja: 'La abeja no tiene manos: no fue ella.',
 }
 
-/** Which of `monkey1`/`monkey2`'s own two stand-in clue kinds rules out
- *  which fallback distractor — pairwise distinct, `cases.test.ts`'s own
- *  generic invariant restated for this progress-resolved branch. Matches
- *  `levels/catalog.ts`'s `monkey1` (`footprint`) / `monkey2` (`corn`)
+/** Which of `monkey1`/`monkey2`'s own two clue kinds rules out which
+ *  fallback distractor — pairwise distinct, `cases.test.ts`'s own generic
+ *  invariant restated for this progress-resolved branch. Matches
+ *  `levels/catalog.ts`'s `monkey1` (`handprint`) / `monkey2` (`banana`)
  *  exactly. */
 const MONKEY_CLUE_VERDICT: Readonly<Partial<Record<ZooAnimalId, ClueKind>>> = {
-  erizo: 'corn',
-  abeja: 'footprint',
+  erizo: 'banana',
+  abeja: 'handprint',
 }
 
 /** Ordered cases, duck first (design.md §1; the user's binding decision 3). */
@@ -174,10 +172,14 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     // rule. `webfoot` and `breadcrumb` never appear in `ruledOutBy` — this
     // repo's own invariant (`cases.test.ts`, "webfoot and breadcrumb rule
     // nobody out") bans either from ever discriminating. [T40] One clue per
-    // pistas level: the duck's four traces (droplet, corn, feather, webfoot)
-    // take four levels, and `corn`/`webfoot` sit on the chip row without
-    // ruling anybody out.
-    ruledOutBy: { vaca: 'feather', gato: 'droplet' },
+    // pistas level: the duck's four traces take four levels, and the two
+    // non-ruling ones sit on the chip row without ruling anybody out.
+    // [T43] Redrawn per `docs/22`: puddle (C1) for the droplet, seeds (C5)
+    // for the corn, the yellow duck feather (C2) for the hen's green one,
+    // and a new webbed print (C3) under the same `webfoot` kind. The
+    // verdicts keep their meaning: a cow has no feathers, a cat does not
+    // come out of the water.
+    ruledOutBy: { vaca: 'duckFeather', gato: 'puddle' },
     hint: {
       vaca: 'La vaca no tiene plumas: no fue ella.',
       gato: 'El gato no vino mojado: no fue él.',
@@ -228,15 +230,10 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
       vaca: 'Esa vaca no vive en este zoológico: no fue ella.',
       gato: 'Ese gato no vive en este zoológico: no fue él.',
     },
-    // T25 (`docs/19` §3.2): `night1`'s leaf is the REAL thing (✓ art); until
-    // `docs/20` B12 lands, the apple and the mushroom are both stood in for
-    // by art that already exists — the leaf again for the apple (`night2`),
-    // the stone for the mushroom (`night3`) — per §3.2's own "mientras no
-    // llegue B12, la manzana y el hongo se reemplazan por la hoja y la
-    // piedra que ya hay; la historia se entiende igual con una hoja."
-    // FLAGGED for the author: two of these three chips render the identical
-    // leaf picture until B12 ships real apple/mushroom art.
-    clueArt: [SECTOR_ADVENTURE_ART.leaf, SECTOR_ADVENTURE_ART.leaf, SECTOR_ADVENTURE_ART.stone],
+    // T25 (`docs/19` §3.2): the leaf (`night1`), the bitten apple (`night2`)
+    // and the mushroom (`night3`). [T43] `docs/20` B12 delivered the apple
+    // and the mushroom; until then the leaf and the stone stood in for them.
+    clueArt: [SECTOR_ADVENTURE_ART.leaf, SECTOR_ADVENTURE_ART.apple, SECTOR_ADVENTURE_ART.mushroom],
     trailIds: ['night1', 'night2', 'night3'],
   },
   // [T26, `docs/19` §2.3/§3] Recipe A's third case, closed by `f2-agua2`
@@ -250,7 +247,7 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     id: 'fish',
     culprit: 'pez',
     options: ['pez', 'tortuga', 'mono'],
-    // No `ClueKind` rules `tortuga`/`mono` out — the bubble/gota clues this
+    // No `ClueKind` rules `tortuga`/`mono` out — the bubble/scale clues this
     // case's own pistas levels carry (`trailIds`, below) say "a pond animal
     // came this way", not "not a turtle, not a monkey". The dismissal is
     // read off the SIGN itself (a turtle's sign is not the fish's sign), the
@@ -295,14 +292,11 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
     ruledOutBy: {},
     rescuedDistractors: MONKEY_DISTRACTORS,
     hint: MONKEY_RESCUED_HINT,
-    // [T27, follow-up 2026-09-27] Two STAND-IN `ClueKind`s, not new art:
-    // `docs/20` B13 (banana peel, banana) is still pending, so `monkey1`'s
-    // clue reuses `footprint` (a huella) and `monkey2`'s reuses `corn`
-    // (a food/seed) — the same technique T25 used for the night case's
-    // leaf/stone stand-ins, flagged there too (`levels/catalog.ts`'s own
-    // comment on this family). NEVER `feather` — a case whose answer is
+    // [T43] `monkey1` carries the monkey's handprint (`docs/22` C8) and
+    // `monkey2` a banana (C12); they were the `footprint`/`corn` stand-ins
+    // until the art landed. NEVER `feather` — a case whose answer is
     // "mono" showing a feather teaches the wrong animal, not merely the
-    // wrong OBJECT (that family's own header has the full reasoning). Never
+    // wrong OBJECT (`levels/catalog.ts`'s monkey family header). Never
     // `webfoot`/`breadcrumb` either — this file's own "webfoot and breadcrumb
     // rule nobody out" invariant (`cases.test.ts`) bans either from ever
     // being a `ruledOutBy` verdict, in this case or any other.

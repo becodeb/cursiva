@@ -747,7 +747,7 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
 
   it('a mid-adventure duck trail shows earned clue art for a filed level and drained for the current one, in play order', () => {
     // [T21] `duck-trail1`/`duck-trail2` are now the case's own two RULING
-    // clues (`droplet`/`feather`); `duck-trail3`/`duck-trail4` were
+    // clues (`puddle`/`duckFeather` since T43); `duck-trail3`/`duck-trail4` were
     // repurposed to `collect` (the duck family) and carry no clue any more,
     // so their sockets show nothing (empty, unfiled, no clue — the same
     // contract the turtle/star test below covers generically).
@@ -763,10 +763,10 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
       />,
     )
     expect(html).toContain('class="pistas-bar"')
-    expect(html).toContain(CLUE_ART.droplet.art.earned.href) // duck-trail1, filed
-    expect(html).not.toContain(CLUE_ART.droplet.art.drained.href)
-    expect(html).toContain(CLUE_ART.feather.art.drained.href) // duck-trail2, current, unfiled
-    expect(html).not.toContain(CLUE_ART.feather.art.earned.href)
+    expect(html).toContain(CLUE_ART.puddle.art.earned.href) // duck-trail1, filed
+    expect(html).not.toContain(CLUE_ART.puddle.art.drained.href)
+    expect(html).toContain(CLUE_ART.duckFeather.art.drained.href) // duck-trail2, current, unfiled
+    expect(html).not.toContain(CLUE_ART.duckFeather.art.earned.href)
   })
 
   it('marks the level actually being played as current, and gives the bar one accessible name counting filed slots', () => {
@@ -1283,9 +1283,9 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
   // [pista] por nivel"). Every duck pistas level draws ONE clue picture along
   // its whole trail — T29's alternating second kind is gone.
   it.each([
-    ['duck-trail1', 'droplet'],
-    ['duck-trail5', 'corn'],
-    ['duck-trail2', 'feather'],
+    ['duck-trail1', 'puddle'],
+    ['duck-trail5', 'seeds'],
+    ['duck-trail2', 'duckFeather'],
     ['duck-trail6', 'webfoot'],
   ] as const)('%s draws only %s marks, drained before any attempt', (id, kind) => {
     renderToString(
@@ -1953,17 +1953,17 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
   // `endArt` is `undefined` by design, the SAME contract `duck-trail3`/
   // `duck-trail4`/`sheep-hill`/`llama-peak` already prove elsewhere (the last
   // collect item, not a second static picture, stands at the route's end).
-  it('shows the drained clue (bubble, then droplet) on f2-guirnalda/f2-agua2, and no endArt at all on f2-agua3/f2-agua4 (collect levels)', () => {
+  it('shows the drained clue (bubble, then scale) on f2-guirnalda/f2-agua2, and no endArt at all on f2-agua3/f2-agua4 (collect levels)', () => {
     render(getLevel('f2-guirnalda'))
     let art = traceCanvasProbe.current?.endArt as Art
     expect(art?.href).toBe(CLUE_ART.bubble.art.drained.href)
     expect(art?.href).not.toBe(ZOO_ANIMAL_ART.pez.href)
-    // [T26] f2-agua2 is `droplet` (gota), not `bubble` — see that level's
-    // own comment in `levels/catalog.ts` for why (the case-wide "pairwise
-    // distinct earned colours" invariant, `detective/palette.test.ts`).
+    // [T26] f2-agua2 is not `bubble` — see that level's own comment in
+    // `levels/catalog.ts` for why (the case-wide "pairwise distinct earned
+    // colours" invariant, `detective/palette.test.ts`). [T43] `scale`.
     render(getLevel('f2-agua2'))
     art = traceCanvasProbe.current?.endArt as Art
-    expect(art?.href).toBe(CLUE_ART.droplet.art.drained.href)
+    expect(art?.href).toBe(CLUE_ART.scale.art.drained.href)
     expect(art?.href).not.toBe(ZOO_ANIMAL_ART.pez.href)
     for (const id of ['f2-agua3', 'f2-agua4'] as const) {
       render(getLevel(id))

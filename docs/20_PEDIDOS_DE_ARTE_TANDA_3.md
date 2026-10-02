@@ -36,7 +36,7 @@ poses; pedido en dos veces, sale distinto (`docs/17` §3).
 | B9 | Globo con la cola abajo a la izquierda | Globos | baja | el Pulpito sobre la escena, pantallas bajas | — |
 | B10 | El mono | Mono | **alta** | monos (hoy es un bloque gris con la palabra MONO) | A6 |
 | B11 | Pistas del pato: semillas y gotas | Pistas | media | caso del pato | A4 (parte) |
-| B12 | Las cosas del erizo: manzana, hongo | Pistas | media | caso de la noche | A5 |
+| B12 | Las cosas del erizo: manzana, hongo — **hecho**, en `night2`/`night3` (T43) | Pistas | media | caso de la noche | A5 |
 | B13 | Pistas del mono: cáscara de banana, banana | Pistas | baja | caso de los monos | A4 (parte) |
 | B14 | El erizo con espinas | Erizo | media | el mapa y el rescate del erizo | — |
 | B15 | El Pulpito detective: señalar, pensar, festejar | Pulpito | baja | el Pulpito sobre la escena | — |

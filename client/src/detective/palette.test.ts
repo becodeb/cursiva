@@ -4,15 +4,21 @@
 import { describe, expect, it } from 'vitest'
 import {
   ART_OUTLINE,
+  BANANA,
+  BANANA_PEEL,
   BREADCRUMB,
   BUBBLE,
   CLUE_DRAINED,
+  DUCK_FEATHER,
   KERNEL,
   LAMP,
   luma,
   PLUME,
   POND,
   PRINT,
+  PUDDLE,
+  SCALE,
+  SEEDS,
 } from './palette'
 import { CLUE_ART } from './assets'
 import { DETECTIVE_CASES, clueKindsOf } from './cases'
@@ -42,8 +48,8 @@ const SHEET_PAPER = '#fdfcf7'
  * defined, tested, correct state of an unfound clue. See the block comment on
  * "earning a clue is a change of CHROMA" below for the rule that replaced it.
  *
- * 40 stays as the floor for earned marks -- the tightest shipped value is
- * `BUBBLE` at 46 -- and `MIN_DRAINED_GROUND_CONTRAST` is the separate, higher
+ * 40 stays as the floor for earned marks -- the tightest flat value is
+ * `KERNEL` at 54 -- and `MIN_DRAINED_GROUND_CONTRAST` is the separate, higher
  * floor the drained grey now has to clear. */
 const MIN_GROUND_CONTRAST = 40
 
@@ -99,10 +105,26 @@ function hexToHsl(hex: string): Hsl {
   return { h, s, l }
 }
 
-const EARNED = { POND, KERNEL, PRINT, PLUME, BREADCRUMB, BUBBLE } as const
+/** The earned values a clue mark is REPAINTED to: `build_art.py` flattens
+ * the whole drawing to contour plus this one colour, so the token is the
+ * only thing that separates the mark from the ground. */
+const FLAT_EARNED = { POND, KERNEL, PRINT, PLUME, BREADCRUMB } as const
+
+/** T43 (`docs/22` §3.2/§5): the redrawn clues keep their AUTHORED fills, and
+ * each token is the fill MEASURED off the shipped file (`artManifest.test.ts`
+ * holds the two equal). The luma rules below that exist because a flat mark
+ * has nothing but its token -- separation from the ground, the drained-grey
+ * search -- do not describe these marks: what separates a yellow feather
+ * from pale earth is the thick achromatic contour every one of them carries,
+ * and `artHierarchy.test.ts` asserts that contour on the emitted PNGs. The
+ * rules that DO describe them still apply: earned means chroma, every value
+ * is distinct, none is a reserved accent. */
+const AUTHORED_EARNED = { BUBBLE, PUDDLE, SEEDS, DUCK_FEATHER, SCALE, BANANA, BANANA_PEEL } as const
+
+const EARNED = { ...FLAT_EARNED, ...AUTHORED_EARNED } as const
 
 describe('detective palette (design.md "Art Direction (revised plan)")', () => {
-  it('keeps the six earned values pairwise distinct', () => {
+  it('keeps every earned value pairwise distinct', () => {
     const values = Object.values(EARNED)
     expect(new Set(values).size).toBe(values.length)
   })
@@ -128,7 +150,7 @@ describe('detective palette (design.md "Art Direction (revised plan)")', () => {
     // §3.1): the clue marks that already ship on those trails now sit on this
     // ground too, and this is the law for the new ground rather than the one
     // it replaced.
-    for (const [name, hex] of Object.entries(EARNED)) {
+    for (const [name, hex] of Object.entries(FLAT_EARNED)) {
       for (const [groundName, groundHex] of Object.entries({ CORRIDOR_EARTH, GROUND_FIELD, SHEET_PAPER })) {
         const gap = Math.abs(luma(hex) - luma(groundHex))
         expect(
@@ -227,7 +249,9 @@ describe('detective palette (design.md "Art Direction (revised plan)")', () => {
     //     two trails earn INTO. Without this the search would happily return
     //     luma 43, which separates beautifully and reads as an already-black
     //     footprint sitting on pale earth.
-    const earnedLumas = Object.values(EARNED).map(luma)
+    // Flat values only: an authored mark's earned state is its whole drawing
+    // in colour, not one luma (see `AUTHORED_EARNED`).
+    const earnedLumas = Object.values(FLAT_EARNED).map(luma)
     const nearestEarned = (l: number) => Math.min(...earnedLumas.map((e) => Math.abs(l - e)))
     const legal = (l: number) =>
       [CORRIDOR_EARTH, GROUND_FIELD].every(

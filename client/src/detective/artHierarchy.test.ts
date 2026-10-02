@@ -269,6 +269,21 @@ const PROP_FILES = import.meta.glob('../../public/art/{goal,hazard}-*.png', {
   import: 'default',
 }) as Inlined
 
+/** T43: the clue marks that keep their AUTHORED colours (`build_art.py`'s
+ * `'contour'` clue rows). Listed by name, like `WORLD_GUARDED_ART`, so a new
+ * one is an explicit contract change. */
+const AUTHORED_CLUE_FILES = import.meta.glob(
+  '../../public/art/clue-{puddle,seeds,duck-feather,bubble,scale,banana,banana-peel}-earned.png',
+  { eager: true, query: '?inline', import: 'default' },
+) as Inlined
+
+/** The share of an authored clue's opaque pixels that must be contour. A
+ * flat mark separates from the ground by its token's luma (`palette.test.ts`);
+ * an authored one may be as pale as the ground (a yellow feather on pale
+ * earth), so its thick dark outline is what the eye finds. Measured on the
+ * shipped seven: 0.20 (the duck feather, the thinnest) to 0.42. */
+const MIN_AUTHORED_CLUE_CONTOUR_SHARE = 0.15
+
 /** Zoo-journey outputs plus the two octopuses whose legacy navy contours were
  * corrected in the same pipeline change. Exact names make adding or removing
  * a shipped asset an explicit contract update rather than a wildcard surprise.
@@ -619,6 +634,31 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
         `${(share * 100).toFixed(0)}% of ${name}'s contour carries colour -- the drawn world's ` +
           'outline is achromatic, and a coloured one is the most repeated wrong colour on the sheet',
       ).toBeLessThanOrEqual(MAX_COLOURED_CONTOUR_SHARE)
+    }
+  })
+
+  it('outlines every authored-colour clue in a thick achromatic contour (T43)', async () => {
+    const files = named(AUTHORED_CLUE_FILES)
+    expect(files.length, 'the authored clue glob has gone stale').toBe(7)
+    for (const [name, url] of files) {
+      const art = await decodePng(base64ToBytes(url.split(',')[1]))
+      let opaque = 0
+      let contour = 0
+      let coloured = 0
+      for (let i = 0; i < art.px.length; i += 4) {
+        if (art.px[i + 3] < 250) continue
+        opaque += 1
+        const [r, g, b] = [art.px[i], art.px[i + 1], art.px[i + 2]]
+        if (luma(r, g, b) >= INK_LUMA) continue
+        contour += 1
+        if (Math.max(r, g, b) - Math.min(r, g, b) > CONTOUR_CHROMA_TOLERANCE) coloured += 1
+      }
+      expect(contour / opaque, `${name}: too little contour to find it on a pale ground`).toBeGreaterThanOrEqual(
+        MIN_AUTHORED_CLUE_CONTOUR_SHARE,
+      )
+      expect(coloured / contour, `${name}: its contour carries colour`).toBeLessThanOrEqual(
+        MAX_COLOURED_CONTOUR_SHARE,
+      )
     }
   })
 

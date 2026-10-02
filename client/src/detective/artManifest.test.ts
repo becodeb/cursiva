@@ -71,6 +71,8 @@ interface ManifestEntry {
   w: number
   h: number
   bytes: number
+  /** T43: the measured authored fill of a clue that keeps its colours. */
+  fill?: string
   quiet?: string
   brightest?: string
   corridorRows?: { top: number; bottom: number }
@@ -249,7 +251,10 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // ART.abeja` (needed for the `monkeys` deduction's second distractor)
     // is the SAME file `ZOO_ANIMAL_SILHOUETTE_ART.abeja` already registered
     // — no new file, so the total is unchanged, still 107.
-    expect(REGISTERED.length).toBe(107)
+    // + 16 clue (T43, `docs/22`: puddle, seeds, duckFeather, scale,
+    // handprint, banana, hedgehogPrint, bananaPeel, two states each) + 2
+    // sector adventure cutouts (`docs/20` B12: apple, mushroom).
+    expect(REGISTERED.length).toBe(125)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -330,6 +335,23 @@ describe('art registry matches the shipped pipeline manifest', () => {
         const b = hex.slice(5, 7)
         expect([g, b], `${base}-grey.${field} must be achromatic`).toEqual([r, r])
       }
+    }
+  })
+
+  it("gives every authored-colour clue the fill the pipeline measured off its own pixels (T43)", () => {
+    // `build_art.py` keeps the redrawn clues' authored fills and writes the
+    // measured fill into the manifest; the palette token must BE that colour,
+    // or the rail socket and the palette rules reason about a colour the
+    // mark does not have. A flat clue has no `fill` entry: its pixels are
+    // painted TO its token instead.
+    const authored = Object.entries(CLUE_ART).filter(([, art]) => manifest[keyOf(art.art.earned.href)].fill)
+    expect(authored.map(([kind]) => kind).sort()).toEqual(
+      ['banana', 'bananaPeel', 'bubble', 'duckFeather', 'puddle', 'scale', 'seeds'],
+    )
+    for (const [kind, art] of authored) {
+      expect(art.earned, `CLUE_ART.${kind}.earned: copy the manifest's fill`).toBe(
+        manifest[keyOf(art.art.earned.href)].fill,
+      )
     }
   })
 

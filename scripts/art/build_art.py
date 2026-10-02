@@ -254,6 +254,32 @@ def recontour(img: png.Image):
         px[i:i + 3] = got
 
 
+def dominant_fill(img: png.Image) -> str:
+    """The authored fill of a two-tone clue mark, as `#rrggbb`.
+
+    T43: a clue that keeps its authored colours still needs a palette token
+    (the rail socket and `palette.test.ts` reason about it), and that token
+    must be what the pixels ARE. This is the measurement the token copies.
+    The modal colour bucket (4 bits per channel) among the opaque non-contour
+    pixels, then the per-channel median inside that bucket -- so an
+    antialiased edge or a stray contour blend cannot move it, and the same
+    file always gives the same answer.
+    """
+    px = img.px
+    buckets: dict[tuple[int, int, int], list[tuple[int, int, int]]] = {}
+    for i in range(0, len(px), 4):
+        if px[i + 3] < 250:
+            continue
+        r, g, b = px[i], px[i + 1], px[i + 2]
+        if luma(r, g, b) < INK_LUMA:
+            continue
+        buckets.setdefault((r >> 4, g >> 4, b >> 4), []).append((r, g, b))
+    members = max(buckets.values(), key=len)
+    mid = len(members) // 2
+    r, g, b = (sorted(c[k] for c in members)[mid] for k in range(3))
+    return f'#{r:02x}{g:02x}{b:02x}'
+
+
 def emit(name: str, img: png.Image) -> dict:
     x0, y0, x1, y1 = png.alpha_bbox(img)
     tight = png.crop(img, x0, y0, x1, y1)
@@ -407,19 +433,58 @@ SINGLES = [
     ('huella gris.png',       'clue-footprint-drained.png', 256, CLUE_DRAINED, True),
     ('pluma verde.png',       'clue-feather-earned.png',   256, PLUME,        True),
     ('pluma gris.png',        'clue-feather-drained.png',  256, CLUE_DRAINED, True),
-    # The duck case's three new clues (design.md §4). `huella palmeada.png` is
-    # entirely dark -- black web, navy outline, both under INK_LUMA -- so
-    # `keep_ink=True` would send every opaque pixel to INK for BOTH states,
-    # the same trap `keep_ink=False` avoids for `huella negra.png` above.
-    # `miga de pan.png` and `burbuja.png` both carry a bright body over a
-    # navy contour, so they take the two-tone `True` path like every other
-    # clue.
-    ('huella palmeada.png',   'clue-webfoot-earned.png',     256, PRINT,        False),
-    ('huella palmeada.png',   'clue-webfoot-drained.png',    256, CLUE_DRAINED, False),
+    # `miga de pan.png` carries a bright body over a navy contour, so it takes
+    # the two-tone `True` path like every other flat clue. (`huella
+    # palmeada.png` and `burbuja.png` used to sit here; T43 replaced both
+    # drawings, below.)
     ('miga de pan.png',       'clue-breadcrumb-earned.png',  256, BREADCRUMB,   True),
     ('miga de pan.png',       'clue-breadcrumb-drained.png', 256, CLUE_DRAINED, True),
-    ('burbuja.png',           'clue-bubble-earned.png',      256, BUBBLE,       True),
-    ('burbuja.png',           'clue-bubble-drained.png',     256, CLUE_DRAINED, True),
+    # T43 (`docs/22` C1-C8, C11, C12): the redrawn clue marks. The coloured
+    # ones keep their AUTHORED fills (`fill='contour'`, the mode every drawn
+    # prop uses) instead of the flat one-token repaint above. `docs/22` §3.2
+    # is the reason: that repaint is what turned `burbuja.png`'s white shine
+    # into a plain cyan disc and the hen's green into the duck's feather.
+    # These were drawn as two-tone art on purpose (contour plus one fill, all
+    # detail in dark line), so keeping the drawing costs nothing and keeps
+    # what the author approved. The palette token of each kind is then the
+    # MEASURED fill, not a fill imposed on the pixels: `main` samples it into
+    # the manifest (`fill`) and `artManifest.test.ts` holds `CLUE_ART` to it.
+    # The drained twin stays the flat `CLUE_DRAINED` recolour of the same
+    # drawing, so the pair still cannot drift apart.
+    #
+    # The prints (`huella de pato`, `huellita de erizo`, `mano de mono`) are
+    # bare black silhouettes with no contour of their own, so they take the
+    # `keep_ink=False` path `huella palmeada.png` took: a print in the earth
+    # has no colour (`PRINT`).
+    #
+    # None of the twelve sources needs `GHOST_ALPHA_SOURCES` or
+    # `SPECKLED_ALPHA_SOURCES`: measured, the 1-8 alpha band is a smooth
+    # antialiasing tail (0.21-0.66% of the canvas, falling off from alpha 1,
+    # no spike at 8) and `alpha_bbox` returns the same box at 8 and 13.
+    ('pista charco.png',      'clue-puddle-earned.png',        256, 'contour',    True),
+    ('pista charco.png',      'clue-puddle-drained.png',       256, CLUE_DRAINED, True),
+    ('pista semillas.png',    'clue-seeds-earned.png',         256, 'contour',    True),
+    ('pista semillas.png',    'clue-seeds-drained.png',        256, CLUE_DRAINED, True),
+    ('pista pluma de pato.png', 'clue-duck-feather-earned.png', 256, 'contour',   True),
+    ('pista pluma de pato.png', 'clue-duck-feather-drained.png', 256, CLUE_DRAINED, True),
+    ('pista huella de pato.png', 'clue-webfoot-earned.png',    256, PRINT,        False),
+    ('pista huella de pato.png', 'clue-webfoot-drained.png',   256, CLUE_DRAINED, False),
+    ('pista burbujas.png',    'clue-bubble-earned.png',        256, 'contour',    True),
+    ('pista burbujas.png',    'clue-bubble-drained.png',       256, CLUE_DRAINED, True),
+    ('pista escama.png',      'clue-scale-earned.png',         256, 'contour',    True),
+    ('pista escama.png',      'clue-scale-drained.png',        256, CLUE_DRAINED, True),
+    ('pista mano de mono.png', 'clue-handprint-earned.png',    256, PRINT,        False),
+    ('pista mano de mono.png', 'clue-handprint-drained.png',   256, CLUE_DRAINED, False),
+    ('pista banana.png',      'clue-banana-earned.png',        256, 'contour',    True),
+    ('pista banana.png',      'clue-banana-drained.png',       256, CLUE_DRAINED, True),
+    # Registered but not on any level yet: `docs/21` N2 (`night-rastro`) and
+    # N4 (`monkey-lianas`) are proposed levels that do not exist. Shipped now
+    # so the level that needs them only has to name the kind, the same way
+    # `breadcrumb` waits above.
+    ('pista huellita de erizo.png', 'clue-hedgehog-print-earned.png', 256, PRINT, False),
+    ('pista huellita de erizo.png', 'clue-hedgehog-print-drained.png', 256, CLUE_DRAINED, False),
+    ('pista cascara de banana.png', 'clue-banana-peel-earned.png', 256, 'contour', True),
+    ('pista cascara de banana.png', 'clue-banana-peel-drained.png', 256, CLUE_DRAINED, True),
     ('lamparita prendida.png', 'lamp-on.png',              192, LAMP,         True),
     # BOTH lamp states come from the LIT drawing, and that is deliberate.
     # `lamparita apagada.png` is a bare dark silhouette with no contour of its
@@ -557,6 +622,12 @@ SINGLES = [
     ('cofre.png',              'sector-chest.png',          256, 'contour',    True),
     ('piedra.png',             'sector-stone.png',          256, 'contour',    True),
     ('hoja.png',               'sector-leaf.png',           256, 'contour',    True),
+    # `docs/20` B12 (T43): the hedgehog's apple and mushroom, found by torch
+    # on `night2`/`night3`. Same drawn-world props as the leaf beside them,
+    # so the same `'contour'` row: the red apple and its green leaf keep
+    # their colours (`docs/22` §6).
+    ('manzana.png',            'sector-apple.png',          256, 'contour',    True),
+    ('hongo.png',              'sector-mushroom.png',       256, 'contour',    True),
     # The arena's cart, `docs/13` §8 row E's own backpack reward
     # (design.md §7.1). PIPELINE ROW ONLY here -- no `CART_ART` registry entry
     # and no consumer yet, deliberately: `artManifest.test.ts` requires a
@@ -974,6 +1045,20 @@ AUTHORED_SOURCE_SIZES = {
     # caretaker/carteles rows just above — fail loudly on a mismatched
     # regeneration rather than silently mis-cropping it.
     'mono.png': (1024, 1024),
+    # T43: the redrawn clue marks and `docs/20` B12, all exported at the
+    # square canvas `docs/22` §0 asks for.
+    'pista charco.png': (1024, 1024),
+    'pista pluma de pato.png': (1024, 1024),
+    'pista huella de pato.png': (1024, 1024),
+    'pista burbujas.png': (1024, 1024),
+    'pista semillas.png': (1024, 1024),
+    'pista escama.png': (1024, 1024),
+    'pista huellita de erizo.png': (1024, 1024),
+    'pista mano de mono.png': (1024, 1024),
+    'pista cascara de banana.png': (1024, 1024),
+    'pista banana.png': (1024, 1024),
+    'manzana.png': (1024, 1024),
+    'hongo.png': (1024, 1024),
 }
 
 
@@ -1133,7 +1218,7 @@ def main() -> None:
         # alpha antialiasing at the outer silhouette, but snap any resulting
         # dark chromatic blend back to the neutral world contour.
         if fill == 'contour' and (
-            name.startswith(('zoo-', 'sector-', 'hedgehog-'))
+            name.startswith(('zoo-', 'sector-', 'hedgehog-', 'clue-'))
             or name in (
                 'andean-hat.png', 'carrier-octopus.png', 'home-octopus.png',
                 # `animal-pez.png`/`animal-tortuga.png` (P1, promised-animals):
@@ -1158,6 +1243,8 @@ def main() -> None:
             spine = sample_spine(png.crop(final, x0, y0, x1, y1))
         key = name[:-4]
         manifest[key] = emit(name, final)
+        if fill == 'contour' and name.startswith('clue-'):
+            manifest[key]['fill'] = dominant_fill(final)
         if spine is not None:
             manifest[key].update(spine)
         print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '

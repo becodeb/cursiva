@@ -167,7 +167,9 @@ export function clueMarks(
     // tangent angle already computed for the mark's facing direction,
     // rotated 90° for the normal, so no extra geometry lookup is needed.
     // Every other clue kind stays exactly on the centreline, unchanged.
-    if (kind === 'footprint') {
+    // [T43] The monkey's handprint walks the same way: left hand, right
+    // hand, up the vine.
+    if (kind === 'footprint' || kind === 'handprint') {
       const rad = (angle * Math.PI) / 180
       // SVG convention (y grows down, `rotate(deg)` turns clockwise — same
       // as `directionArrow.ts`'s `tangentAngleAt`): rotating the tangent
