@@ -64,6 +64,7 @@ const CLUE_ACCESSIBLE_NAME: Record<ClueKind, string> = {
   banana: 'banana',
   hedgehogPrint: 'huellita de erizo',
   bananaPeel: 'cáscara de banana',
+  seaweed: 'alga',
 }
 
 /** One trail's filing state, as far as the caller can see it. */
