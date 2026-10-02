@@ -12,15 +12,16 @@
 // live here instead.
 //
 // `migrateDuckCase` (design.md §6), `migrateNivel3` (design.md §7),
-// `migrateEntrance` (design.md §8) and `migrateDuckOneCluePerLevel` (T40)
-// run the same way, alongside `migratePhase1`. No two migrations write the
-// same id.
+// `migrateEntrance` (design.md §8), `migrateDuckOneCluePerLevel` (T40) and
+// `migrateNewClueLevels` (T44) run the same way, alongside `migratePhase1`.
+// No two migrations write the same id.
 import { LevelProgressStore } from './LevelProgressStore'
 import { migratePhase1 } from './migratePhase1'
 import { migrateDuckCase } from './migrateDuckCase'
 import { migrateNivel3 } from './migrateNivel3'
 import { migrateEntrance } from './migrateEntrance'
 import { migrateDuckOneCluePerLevel } from './migrateDuckOneCluePerLevel'
+import { migrateNewClueLevels } from './migrateNewClueLevels'
 
 /**
  * A freshly-loaded store, migrated.
@@ -41,6 +42,8 @@ export function openProgressStore(): LevelProgressStore {
     migrateNivel3,
     migrateEntrance,
     migrateDuckOneCluePerLevel,
+    // T44: the new clue levels of the night, fish and monkey cases.
+    migrateNewClueLevels,
   ]) {
     for (const [levelId, record] of Object.entries(migrate(store.all()))) {
       store.save(levelId, record)

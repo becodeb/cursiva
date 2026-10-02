@@ -217,7 +217,7 @@ const VEIL_BAND_OPACITIES = [1, 5 / 6, 4 / 6, 3 / 6, 2 / 6, 1 / 6] as const
  * (there it was 1 base + 3 rings; here 1 base + 5 rings for a softer
  * falloff), never `cols x rows`.
  */
-function nightVeilLayers(
+export function nightVeilLayers(
   sources: readonly { cx: number; cy: number; radius: number }[],
   displayBounds: ArtBox,
 ): readonly { opacity: number; d: string }[] {

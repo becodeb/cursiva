@@ -138,13 +138,13 @@ describe('the fish case (T26): the lineup is enclosure SIGNS, not animal silhoue
     expect(fishCase.optionArt?.mono).toBe(SIGN_ART.monkeys)
   })
 
-  it('trailIds names only the case\'s own two pistas levels, not the collect levels past the deduction', () => {
-    expect(fishCase.trailIds).toEqual(['f2-guirnalda', 'f2-agua2'])
+  it('trailIds names only the case\'s own pistas levels (three since T44), not the collect levels past the deduction', () => {
+    expect(fishCase.trailIds).toEqual(['f2-guirnalda', 'f2-agua2', 'f2-buceo'])
   })
 
-  it('clueKindsOf still derives two distinct clue kinds (bubble, scale) from both pistas trails (optionArt does not touch clueArt)', () => {
+  it('clueKindsOf derives three distinct clue kinds (bubble, scale, seaweed) from the pistas trails (optionArt does not touch clueArt)', () => {
     expect(fishCase.clueArt).toBeUndefined()
-    expect(clueKindsOf(fishCase)).toEqual(['bubble', 'scale'])
+    expect(clueKindsOf(fishCase)).toEqual(['bubble', 'scale', 'seaweed'])
   })
 })
 
@@ -166,7 +166,9 @@ describe('duck case: four clues, one per pistas level (T40)', () => {
 
   it('each pistas level authors exactly one clue kind (no second kind hides on the trail)', () => {
     for (const id of duckCase.trailIds) {
-      expect(Object.keys(getLevel(id).clue ?? {}).sort(), id).toEqual(['kind', 'spacing'])
+      // [T44] `at` says WHERE the marks go (duck-trail1's puddles at the
+      // bridges' feet), never a second kind.
+      expect(Object.keys(getLevel(id).clue ?? {}).filter((k) => k !== 'at').sort(), id).toEqual(['kind', 'spacing'])
     }
   })
 
@@ -230,8 +232,8 @@ describe('the monkeys case (docs/19 §2.3/§3 monos row)', () => {
     expect(monkeysCase.hint.abeja).toMatch(/ya volvió a su panal/)
   })
 
-  it('carries exactly the two clue kinds monkey1/monkey2 author, pairwise distinct', () => {
-    expect(clueKindsOf(monkeysCase)).toEqual(['handprint', 'banana'])
+  it('carries exactly the clue kinds its pistas levels author, pairwise distinct (T44: + the peel)', () => {
+    expect(clueKindsOf(monkeysCase)).toEqual(['handprint', 'banana', 'bananaPeel'])
   })
 })
 

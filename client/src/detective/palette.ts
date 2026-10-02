@@ -172,9 +172,13 @@ export const SCALE = '#fb7e08'
 /** Monkey case — the banana (`docs/22` C12). */
 export const BANANA = '#fbd63a'
 
-/** The empty banana peel (`docs/22` C11). Registered for `docs/21` N4's
- * `monkey-lianas`, which is not built yet. */
+/** The empty banana peel (`docs/22` C11), on `monkey-lianas` (`docs/21`
+ * N4, T44). */
 export const BANANA_PEEL = '#fbd73e'
+
+/** Fish case — the seaweed the fish nibbled at the bottom of each dive
+ * (`f2-buceo`, T44; `alga.png`). Green, far from `BUBBLE` and `SCALE`. */
+export const SEAWEED = '#7ad135'
 
 /** The flower before the bee has been to it (`docs/13` §8 row F,
  * `free-trail-waypoints` design.md §3.2).

@@ -778,6 +778,127 @@ export function loops(
   return d
 }
 
+/**
+ * `docs/21` N1 (T44) — the bridges `∩∩∩∩`: arches that rise, turn over the
+ * top clockwise and come back down to the ground, the Colina family of
+ * `docs/01` §8 (`m n v w`). Neighbouring arches share their foot: the stroke
+ * comes down one leg and goes back up the next from the same point, the way a
+ * cursive `m` retraces its stems, so the legs between two arches read as one
+ * pillar of the bridge and the puddles (`clue.at: 'valleys'`) sit at its foot.
+ *
+ * Why not {@link hills}: its 15%/85% controls bend the crest at
+ * `uTurnRadius(w, depth)`, and at four arches on one sheet with a 100-wide
+ * corridor that radius falls under the corridor's half-width (the band folds
+ * through itself, `buildLevel.ts`'s `pushBand`). Here each half arch is one
+ * cubic from the foot, leaving almost straight up (`footRise` up the leg,
+ * leaning `footLean` toward the arch), to the crest, arriving flat with a
+ * `topHandle`-long handle; the crest's radius of curvature is then
+ * `1.5·topHandle² / (height − footRise)`, which the catalog test measures
+ * on the real cubics. The two halves mirror each other, so every crest is
+ * round and tangent-continuous; the only corners are the shared feet.
+ * Emits only `M`/`C`.
+ */
+export function bridges(
+  o: {
+    x0?: number
+    x1?: number
+    yTop?: number
+    yBase?: number
+    cycles?: number
+    footRise?: number
+    footLean?: number
+    topHandle?: number
+  } = {},
+): string {
+  const x0 = o.x0 ?? 90
+  const x1 = o.x1 ?? 910
+  const yTop = o.yTop ?? 150
+  const yBase = o.yBase ?? 450
+  const cycles = Math.max(1, o.cycles ?? 4)
+  const w = (x1 - x0) / cycles
+  const H = yBase - yTop
+  const rise = o.footRise ?? 0.6 * H
+  const lean = o.footLean ?? 0.05 * w
+  const top = o.topHandle ?? 0.3 * w
+  let d = move(x0, yBase)
+  for (let i = 0; i < cycles; i++) {
+    const sx = x0 + i * w
+    const cx = sx + w / 2
+    d += cubic(sx + lean, yBase - rise, cx - top, yTop, cx, yTop)
+    d += cubic(cx + top, yTop, sx + w - lean, yBase - rise, sx + w, yBase)
+  }
+  return d
+}
+
+/**
+ * `docs/21` N4 (T44) — loop, garland, loop, garland in ONE stroke (`l u l
+ * u`), the change of shape without lifting the finger that the cursive link
+ * asks for (`docs/21` §3.2.5). Each loop is exactly one {@link loops} cycle
+ * (same round top, same handles, same crossing), so the T40 rules for a
+ * visible hole and a round, smooth loop hold unchanged. Each garland is the
+ * cursive `u` that follows it: from the loop's landing on the baseline it
+ * swings up to the x-height `yMid`, meets the way down in a garland cusp
+ * (the same pointed top {@link garland} gives every `u`), and lands flat on
+ * the baseline again, where the next loop's upstroke leaves flat. Every join
+ * between a loop and a garland is tangent-continuous; the garland tops are
+ * the only corners. Emits only `M`/`C`.
+ */
+export function lianas(
+  o: {
+    x0?: number
+    x1?: number
+    yBase?: number
+    yTop?: number
+    yMid?: number
+    pairs?: number
+    loopShare?: number
+    loopWidth?: number
+    loopHeight?: number
+    swingHandle?: number
+    cuspHandle?: number
+    cuspLean?: number
+  } = {},
+): string {
+  const x0 = o.x0 ?? 60
+  const x1 = o.x1 ?? 940
+  const yBase = o.yBase ?? 450
+  const yTop = o.yTop ?? 150
+  const yMid = o.yMid ?? 330
+  const pairs = Math.max(1, o.pairs ?? 2)
+  const pair = (x1 - x0) / pairs
+  const w = (o.loopShare ?? 0.6) * pair
+  const g = pair - w
+  const H = yBase - yTop
+  const rx = (o.loopWidth ?? 0.3) * w
+  const ry = (o.loopHeight ?? 0.3) * H
+  const k = 0.5523
+  const flat = 0.35 * w
+  const rise = 1.6 * ry
+  const swing = (o.swingHandle ?? 0.6) * (g / 2)
+  const cusp = o.cuspHandle ?? 0.5 * (yBase - yMid)
+  // How far the two arms lean apart as they meet at the garland's top, so
+  // the top is a pointed `∧` like every garland cusp, not a finger where
+  // the two arms retrace each other.
+  const lean = o.cuspLean ?? 0
+  let d = move(x0, yBase)
+  for (let i = 0; i < pairs; i++) {
+    const sx = x0 + i * pair
+    const cx = sx + w / 2
+    const cy = yTop + ry
+    // The loop: one `loops()` cycle, verbatim.
+    d += cubic(sx + flat, yBase, cx + rx, cy + rise, cx + rx, cy)
+    d += cubic(cx + rx, cy - k * ry, cx + k * rx, cy - ry, cx, cy - ry)
+    d += cubic(cx - k * rx, cy - ry, cx - rx, cy - k * ry, cx - rx, cy)
+    d += cubic(cx - rx, cy + rise, sx + w - flat, yBase, sx + w, yBase)
+    // The garland: up from the landing to the cusp, down to the baseline.
+    const gx = sx + w
+    const mx = gx + g / 2
+    d += cubic(gx + swing, yBase, mx - lean, yMid + cusp, mx, yMid)
+    d += cubic(mx + lean, yMid + cusp, gx + g - swing, yBase, gx + g, yBase)
+  }
+  return d
+}
+
 /** One self-crossing of a route and the hole it closes. */
 export interface LoopHole {
   /** Where the route crosses itself. */
@@ -837,11 +958,23 @@ function insidePolygon(p: { x: number; y: number }, poly: readonly { x: number; 
  * per loop.
  */
 export function selfCrossingPoints(points: readonly { x: number; y: number }[]): { x: number; y: number }[] {
-  const out: { x: number; y: number }[] = []
+  return selfCrossingSpans(points).map((s) => s.crossing)
+}
+
+/**
+ * [T44] {@link selfCrossingPoints} with the two segments that cross: the
+ * closed loop is `points[from + 1 .. to]`, the stretch of route between the
+ * two visits to `crossing`. `detective/clues.ts` reads it to put a clue at
+ * the bottom or the top of every loop.
+ */
+export function selfCrossingSpans(
+  points: readonly { x: number; y: number }[],
+): { crossing: { x: number; y: number }; from: number; to: number }[] {
+  const out: { crossing: { x: number; y: number }; from: number; to: number }[] = []
   for (let i = 0; i < points.length - 1; i++) {
     for (let j = i + 2; j < points.length - 1; j++) {
       const hit = segmentIntersection(points[i], points[i + 1], points[j], points[j + 1])
-      if (hit) out.push(hit)
+      if (hit) out.push({ crossing: hit, from: i, to: j })
     }
   }
   return out

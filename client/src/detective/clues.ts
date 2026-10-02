@@ -6,7 +6,7 @@
 // pointer sample, this module owns the decision.
 import { indexAtDistance, tangentAngleAt } from '../screen/directionArrow'
 import { pointAtArcLength } from '../letters/svgLetter'
-import { selfCrossingPoints } from '../levels/paths'
+import { selfCrossingPoints, selfCrossingSpans } from '../levels/paths'
 import type { Point } from '../letters/types'
 import type { ClueKind } from './assets'
 
@@ -169,7 +169,8 @@ export function clueMarks(
     // Every other clue kind stays exactly on the centreline, unchanged.
     // [T43] The monkey's handprint walks the same way: left hand, right
     // hand, up the vine.
-    if (kind === 'footprint' || kind === 'handprint') {
+    // [T44] So does the hedgehog's, through the dark on `night-rastro`.
+    if (kind === 'footprint' || kind === 'handprint' || kind === 'hedgehogPrint') {
       const rad = (angle * Math.PI) / 180
       // SVG convention (y grows down, `rotate(deg)` turns clockwise — same
       // as `directionArrow.ts`'s `tangentAngleAt`): rotating the tangent
@@ -189,6 +190,112 @@ export function clueMarks(
     marks.push({ x, y, angle, kind, arc })
   }
   return marks
+}
+
+/** [T44] How far below its spot a placed mark is drawn (see
+ *  `levelClueMarks`). Half a mark (`CLUE_MARK_SIZE` 28) plus this stays
+ *  inside the narrowest corridor that places marks (`monkey-lianas`, 75:
+ *  14 + 22 = 36 < 37.5). */
+export const PLACED_MARK_DROP = 22
+
+/** [T44] Where a level's clue marks sit when it names a place instead of a
+ *  spacing (`LevelConfig.clue.at`). */
+export type ClueAt = 'valleys' | 'loopTops' | 'loopBottoms'
+
+/** How far along the route, in arc units, a lowest point must beat every
+ *  other point to count as a valley: wider than the flat stretch around a
+ *  rounded bottom, narrower than half of the shortest bridge (≈ 250 units of
+ *  arc on `duck-trail1`). The same window idea as `levels/collect.ts`'s
+ *  `waveCrestArcs`, mirrored. */
+const VALLEY_WINDOW_ARC = 80
+
+function cumulativeArcs(polyline: ReadonlyArray<{ x: number; y: number }>): number[] {
+  const arcAt: number[] = [0]
+  for (let i = 1; i < polyline.length; i++) {
+    arcAt.push(arcAt[i - 1] + Math.hypot(polyline[i].x - polyline[i - 1].x, polyline[i].y - polyline[i - 1].y))
+  }
+  return arcAt
+}
+
+/**
+ * [T44] The polyline indices a `clue.at` place names, in route order.
+ *
+ * - `'valleys'`: every INTERIOR point that is the lowest on screen (largest
+ *   `y`) of all points within {@link VALLEY_WINDOW_ARC} of it along the
+ *   route — the shared feet between two bridges. The route's own two ends
+ *   are never valleys: the start and the goal markers stand there.
+ * - `'loopBottoms'` / `'loopTops'`: for every loop the route closes on
+ *   itself (`levels/paths.ts`'s `selfCrossingSpans`), its lowest / highest
+ *   point. That point is half a loop away from the crossing, so the mark
+ *   never covers the one place the child has to read (`CROSSING_CLEAR_RADIUS`).
+ */
+export function clueIndicesAt(polyline: ReadonlyArray<{ x: number; y: number }>, at: ClueAt): number[] {
+  if (polyline.length < 3) return []
+  if (at === 'valleys') {
+    const arcAt = cumulativeArcs(polyline)
+    const out: number[] = []
+    for (let i = 1; i < polyline.length - 1; i++) {
+      let lo = i
+      while (lo > 0 && arcAt[i] - arcAt[lo - 1] <= VALLEY_WINDOW_ARC) lo--
+      let hi = i
+      while (hi < polyline.length - 1 && arcAt[hi + 1] - arcAt[i] <= VALLEY_WINDOW_ARC) hi++
+      // A window that reaches either end of the route belongs to the start
+      // or the goal, not to a valley between two bridges.
+      if (lo === 0 || hi === polyline.length - 1) continue
+      let lowest = true
+      let sawHigher = false
+      for (let j = lo; j <= hi && lowest; j++) {
+        if (j === i) continue
+        if (polyline[j].y > polyline[i].y) lowest = false
+        else if (polyline[j].y < polyline[i].y) sawHigher = true
+      }
+      // Two samples tied at the very same foot are one valley.
+      const prev = out[out.length - 1]
+      if (lowest && sawHigher && (prev === undefined || arcAt[i] - arcAt[prev] > VALLEY_WINDOW_ARC)) out.push(i)
+    }
+    return out
+  }
+  const pick = at === 'loopBottoms' ? 1 : -1
+  return selfCrossingSpans(polyline as { x: number; y: number }[]).map(({ from, to }) => {
+    let best = from + 1
+    for (let k = from + 1; k <= to; k++) {
+      if (pick * (polyline[k].y - polyline[best].y) > 0) best = k
+    }
+    return best
+  })
+}
+
+/**
+ * Every clue mark of a level, wherever its `clue` says they go: evenly by
+ * `spacing` ({@link clueMarks}, every level before T44) or at the places
+ * `clue.at` names ({@link clueIndicesAt}). The one function `LevelPlay`
+ * and the tests read, so the marks the child sees are the marks the tests
+ * measure.
+ *
+ * A placed mark stands upright (`angle: 0`): it marks a spot, not a
+ * direction, and a puddle at a bridge's foot, where the route turns back
+ * on itself, would otherwise be drawn on its side. It is drawn
+ * {@link PLACED_MARK_DROP} units BELOW its spot (its `arc` stays the spot's,
+ * the footprint rule): at every place `clue.at` names the finger turns
+ * right on the spot, and a mark centred there disappears under the ink the
+ * moment it is earned. Below is outward at a foot or a loop's bottom (the
+ * puddle beside the pillar, the seaweed under the dive) and inward at a
+ * loop's top (the peel hanging inside the liana).
+ */
+export function levelClueMarks(
+  polyline: ReadonlyArray<{ x: number; y: number }>,
+  length: number,
+  clue: { kind: ClueKind; spacing: number; at?: ClueAt },
+): readonly ClueMark[] {
+  if (!clue.at) return clueMarks(polyline, length, clueCountFor(length, clue.spacing), clue.kind)
+  const arcAt = cumulativeArcs(polyline)
+  return clueIndicesAt(polyline, clue.at).map((i) => ({
+    x: polyline[i].x,
+    y: polyline[i].y + PLACED_MARK_DROP,
+    angle: 0,
+    kind: clue.kind,
+    arc: arcAt[i],
+  }))
 }
 
 /**

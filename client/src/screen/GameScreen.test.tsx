@@ -414,8 +414,11 @@ describe("resolveNextAction: the duck's deduction gate sits between duck-trail6 
 // after: 'monkey2', caseId: 'monkeys' }`) — the SAME generic mechanism the
 // duck's own gate above exercises, restated for a fourth case.
 describe("resolveNextAction: the monkeys' deduction gate sits between monkey2 and monkey3", () => {
-  it('unsolved: finishing monkey2 detours to deduce, carrying monkey3 as afterLevelId', () => {
-    expect(resolveNextAction('monkey2', {})).toEqual({
+  // [T44] `monkey-lianas` is now the case's last pistas level: the gate
+  // moved from monkey2 to it.
+  it('unsolved: finishing monkey-lianas detours to deduce, carrying monkey3 as afterLevelId', () => {
+    expect(resolveNextAction('monkey2', {})).toEqual({ type: 'next', levelId: 'monkey-lianas' })
+    expect(resolveNextAction('monkey-lianas', {})).toEqual({
       type: 'deduce',
       caseId: 'monkeys',
       afterLevelId: 'monkey3',
@@ -424,7 +427,7 @@ describe("resolveNextAction: the monkeys' deduction gate sits between monkey2 an
 
   it("solved (monkeys-deduce filed): a replay of monkey2 continues straight to monkey3, never re-asking a solved case", () => {
     const records = recordsWith(['monkeys-deduce'], 1)
-    expect(resolveNextAction('monkey2', records)).toEqual({ type: 'next', levelId: 'monkey3' })
+    expect(resolveNextAction('monkey-lianas', records)).toEqual({ type: 'next', levelId: 'monkey3' })
   })
 
   it('monkey1 (not the gate) is unaffected, solved or not', () => {

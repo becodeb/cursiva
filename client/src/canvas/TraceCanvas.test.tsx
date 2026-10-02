@@ -2323,3 +2323,33 @@ describe('TraceCanvas startArtEmptyHanded — the carrier rests in the start cha
     expect(html).not.toContain('visibility=')
   })
 })
+
+// [T44] The torch over a routed level (`canvas/TorchLayer.tsx`).
+describe('TraceCanvas torch (T44, night-rastro)', () => {
+  const mark = { x: 200, y: 300, angle: 0, href: '/art/clue-hedgehog-print-earned.png', w: 256, h: 216, size: 28 }
+  const torch = { fill: '#12161f', sources: [{ cx: 200, cy: 300, radius: 130 }] }
+
+  it('renders nothing of the torch without the prop', () => {
+    const html = renderToString(<TraceCanvas clues={{ marks: [mark] }} />)
+    expect(html).not.toContain('data-torch')
+  })
+
+  it('lights the ground UNDER the clue marks and darkens OVER them, below the live ink', () => {
+    const html = renderToString(<TraceCanvas clues={{ marks: [mark] }} torch={torch} />)
+    const pool = html.indexOf('data-torch-pool')
+    const print = html.indexOf('clue-hedgehog-print-earned')
+    const veil = html.indexOf('data-torch-veil')
+    const ink = html.indexOf('data-ink-policy')
+    expect(pool).toBeGreaterThan(-1)
+    expect(pool).toBeLessThan(print)
+    expect(print).toBeLessThan(veil)
+    expect(veil).toBeLessThan(ink)
+  })
+
+  it('paints the darkness in the backdrop veil colour with plain paths, no mask or fragment reference', () => {
+    const html = renderToString(<TraceCanvas torch={torch} />)
+    const veil = html.slice(html.indexOf('data-torch-veil'))
+    expect(veil).toContain('fill="#12161f"')
+    expect(html).not.toMatch(/<mask|<clipPath|<defs|url\(#/)
+  })
+})

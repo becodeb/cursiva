@@ -8,6 +8,9 @@ import type { Point } from '../letters/types'
 import { BAND_INSET } from './buildLevel'
 import {
   armClearance,
+  bridges,
+  lianas,
+  selfCrossingSpans,
   cornerClearance,
   crests,
   garland,
@@ -1012,5 +1015,81 @@ describe('ovalSpacingClearance', () => {
 
   it('goes false for a deliberately merging pair (sensitivity proof: rx 150 ovals spaced only 280 apart already overlap before any corridor padding)', () => {
     expect(ovalSpacingClearance(280, 150, 100, 2)).toBe(false)
+  })
+})
+
+// [T44] `docs/21` N1/N3/N4's new shapes.
+describe('bridges (T44, docs/21 N1)', () => {
+  const d = bridges({ x0: 60, x1: 940, yTop: 150, yBase: 460, cycles: 4, footRise: 190, footLean: 6, topHandle: 100 })
+
+  it('emits only M and C, one cubic per half arch', () => {
+    expect(d).toMatch(/^M [^MLQA]*$/)
+    expect((d.match(/C/g) ?? []).length).toBe(8)
+  })
+
+  it('stands every arch on the baseline and turns it over at the top line', () => {
+    const pts = poly(d)
+    expect(Math.min(...pts.map((p) => p.y))).toBeCloseTo(150, 0)
+    expect(Math.max(...pts.map((p) => p.y))).toBeCloseTo(460, 0)
+    // The shared feet: the route touches the baseline at both ends and at
+    // the three points between neighbouring arches.
+    const feet = pts.filter((p) => p.y > 459.9).map((p) => Math.round(p.x))
+    expect([...new Set(feet)]).toEqual([60, 280, 500, 720, 940])
+  })
+
+  it('never crosses itself: a bridge is an arch, not a loop', () => {
+    expect(selfCrossingSpans(poly(d))).toEqual([])
+  })
+})
+
+describe('loops mirrored (T44, docs/21 N3: loops that go DOWN)', () => {
+  const up = loops({ x0: 60, x1: 940, yBase: 450, yTop: 150, cycles: 3, loopWidth: 0.307, loopHeight: 0.3 })
+  const down = loops({ x0: 60, x1: 940, yBase: 150, yTop: 450, cycles: 3, loopWidth: 0.307, loopHeight: 0.3 })
+
+  it('is the exact mirror of the rising loops about the middle line', () => {
+    const a = poly(up)
+    const b = poly(down)
+    expect(b.length).toBe(a.length)
+    for (let i = 0; i < a.length; i++) {
+      expect(b[i].x).toBeCloseTo(a[i].x, 1)
+      expect(b[i].y).toBeCloseTo(600 - a[i].y, 1)
+    }
+  })
+
+  it('keeps the same holes as the rising loops, crossing near the high line', () => {
+    const upHoles = loopHoleClearances(poly(up))
+    const downHoles = loopHoleClearances(poly(down))
+    expect(downHoles).toHaveLength(3)
+    for (let i = 0; i < 3; i++) {
+      expect(downHoles[i].clearance).toBeCloseTo(upHoles[i].clearance, 0)
+      expect(downHoles[i].crossing.y).toBeLessThan(300)
+    }
+  })
+})
+
+describe('lianas (T44, docs/21 N4: loop, garland, loop, garland)', () => {
+  const d = lianas({ x0: 60, x1: 940, yBase: 450, yTop: 150, yMid: 340, pairs: 2, loopShare: 0.55, loopWidth: 0.33, loopHeight: 0.28, swingHandle: 0.8, cuspHandle: 45, cuspLean: 20 })
+
+  it('emits only M and C: four cubics per loop, two per garland', () => {
+    expect(d).toMatch(/^M [^MLQA]*$/)
+    expect((d.match(/C/g) ?? []).length).toBe(12)
+  })
+
+  it('closes exactly one loop per pair, and the garlands never cross anything', () => {
+    const spans = selfCrossingSpans(poly(d))
+    expect(spans).toHaveLength(2)
+    // Each loop's crossing sits inside its own loop cycle (0.55 of a 440 pair).
+    expect(spans[0].crossing.x).toBeGreaterThan(60)
+    expect(spans[0].crossing.x).toBeLessThan(60 + 242)
+    expect(spans[1].crossing.x).toBeGreaterThan(500)
+    expect(spans[1].crossing.x).toBeLessThan(500 + 242)
+  })
+
+  it('reaches the x-height at each garland top and lands on the baseline at the end', () => {
+    const pts = poly(d)
+    const garlandTops = pts.filter((p) => Math.abs(p.y - 340) < 0.5).map((p) => Math.round(p.x))
+    expect(garlandTops).toEqual(expect.arrayContaining([401, 841]))
+    const last = pts[pts.length - 1]
+    expect(last).toEqual({ x: 940, y: 450 })
   })
 })

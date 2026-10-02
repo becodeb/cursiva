@@ -422,7 +422,7 @@ export const SECTORS: readonly ZooSector[] = [
     // `arena`'s own `turtle1..4` just made: the monkeys' own five-loop
     // family (`promised-animals` P4), played right after the bee.
     // `unlockedWhen` stays UNCHANGED.
-    adventureIds: ['bee1', 'bee2', 'bee3', 'bee4', 'monkey1', 'monkey2', 'monkey3', 'monkey4'],
+    adventureIds: ['bee1', 'bee2', 'bee3', 'bee4', 'monkey1', 'monkey2', 'monkey-lianas', 'monkey3', 'monkey4'],
     // The ladder's new last rung: entrada → estanque ← sand4 → montañas ←
     // duck-trail4 → nocturna ← llama-peak4 → arena ← night4 → bosque ←
     // snake4 (`free-trail-waypoints` design.md §9). Only ever WIDENS access.
@@ -466,6 +466,7 @@ export const SECTORS: readonly ZooSector[] = [
       'duck-trail4',
       'f2-guirnalda',
       'f2-agua2',
+      'f2-buceo',
       'f2-agua3',
       'f2-agua4',
       'dolphin1',
@@ -565,7 +566,17 @@ export const SECTORS: readonly ZooSector[] = [
     // sheep then llama). `unlockedWhen` below is UNCHANGED: adding an
     // adventure to an open sector does not change when the sector itself
     // opens.
-    adventureIds: ['night1', 'night2', 'night3', 'night4', 'hedgehog1', 'hedgehog2', 'hedgehog3', 'hedgehog4'],
+    adventureIds: [
+      'night1',
+      'night2',
+      'night3',
+      'night-rastro',
+      'night4',
+      'hedgehog1',
+      'hedgehog2',
+      'hedgehog3',
+      'hedgehog4',
+    ],
     // Opens once the mountains are done (design.md §7.1) — the night
     // sector is the row's own last stop, after glass/sand/duck/sheep/llama.
     unlockedWhen: (records) => isFiled(records, 'llama-peak4'),

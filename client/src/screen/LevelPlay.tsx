@@ -29,7 +29,7 @@ import TraceCanvas, {
   type TraceVertexArt,
   type TraceWaypoints,
 } from '../canvas/TraceCanvas'
-import { backdropFor, TORCH_CHALK, TORCH_CHALK_DIM } from '../zoo/backdrops'
+import { backdropFor, NIGHT_VEIL, TORCH_CHALK, TORCH_CHALK_DIM } from '../zoo/backdrops'
 import { adventureFor } from '../zoo/adventures'
 import type { AdventureProgress } from '../zoo/progress'
 import {
@@ -119,6 +119,7 @@ import {
   type ArrangeState,
 } from '../levels/arrange'
 import type { TraceArtCorridor } from '../canvas/TraceCanvas'
+import type { TraceTorch } from '../canvas/TorchLayer'
 import { directionArrowOf } from './directionArrow'
 import { goalMarkerOf } from './goalMarker'
 import type { LevelConfig, LevelTarget, RevealConfig } from '../levels/types'
@@ -128,9 +129,8 @@ import type { LevelAttempt, LevelRecord } from '../game/types'
 // Machine" / "Trail Completion Lamp and Rail Filing"). A level with no
 // `clue` field is an ordinary level and none of this wiring engages.
 import {
-  clueCountFor,
-  clueMarks,
   clueTick,
+  levelClueMarks,
   emptyClueState,
   reachedTrailEnd,
   type ClueState,
@@ -362,6 +362,9 @@ export const SIGN_CROP_HEIGHT = Math.round(SIGN_SIZE * 0.82)
  * and merge into a smear instead of reading as individual
  * footprints/droplets/kernels/feathers. */
 export const CLUE_MARK_SIZE = 28
+/** [T44] The clue marks by torchlight: a little bigger, since they are the
+ *  only guide and are only ever seen inside the light. */
+export const TORCH_CLUE_MARK_SIZE = 38
 
 /** Rendered HEIGHT of the octopus standing at the start of a trail, in sheet
  * units (`docs/09_GUIA_DE_ESTILO_VISUAL.md` §3). It stands on its FEET — the
@@ -530,6 +533,42 @@ const GLASS_REST_DY = -90
  * than the ground, obviously lighter and warmer than the marks lying on it.
  */
 const MUD_INK = '#8a6a4a'
+
+/** [T44] How often the torch follows the fingertip, in ms — the off-path
+ *  sample's own rate, so the light moves as smoothly as the night levels'. */
+export const TORCH_TICK_MS = 33
+
+/** [T44] The small glow that keeps the start and the goal findable on a
+ *  torch level while the finger is up: about one corridor across, enough
+ *  for the octopus and the apple, not enough to show the way between. */
+export const TORCH_MARKER_GLOW = 90
+
+/**
+ * [T44] The torch layers' projection (`canvas/TorchLayer.tsx`) for a
+ * `level.torch` level, or `undefined` when there is nothing to darken:
+ * no torch on this level, or the lights are on — during the demo, which
+ * shows the whole trail in the light before the dark falls ("mostrar antes
+ * de pedir"), and once the level is approved, when the trail the child
+ * followed blind is finally shown whole. Pure, so the decision is testable
+ * without a pointer.
+ */
+export function torchView(
+  torch: LevelConfig['torch'],
+  polyline: readonly { x: number; y: number }[],
+  finger: { x: number; y: number } | null,
+  lightsOn: boolean,
+  fill: string,
+): TraceTorch | undefined {
+  if (!torch || lightsOn || polyline.length === 0) return undefined
+  const start = polyline[0]
+  const end = polyline[polyline.length - 1]
+  const sources = [
+    { cx: start.x, cy: start.y, radius: TORCH_MARKER_GLOW },
+    { cx: end.x, cy: end.y, radius: TORCH_MARKER_GLOW },
+  ]
+  if (finger) sources.push({ cx: finger.x, cy: finger.y, radius: torch.radius })
+  return { sources, fill }
+}
 
 /** The mud with the light down — the off-corridor dim. The shipped `#94a3b8`
  * is a cold grey, and against a warm earth corridor it reads as a DIFFERENT
@@ -1944,14 +1983,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const clueDef = level.clue
   const trailClueMarks = useMemo(
     () =>
-      clueDef
-        ? clueMarks(
-            target.polyline,
-            target.length,
-            clueCountFor(target.length, clueDef.spacing),
-            clueDef.kind,
-          )
-        : [],
+      // [T44] `levelClueMarks`: evenly spaced, or at the places `clue.at`
+      // names (the bridges' feet, the bottom or top of every loop).
+      clueDef ? levelClueMarks(target.polyline, target.length, clueDef) : [],
     [clueDef, target.polyline, target.length],
   )
 
@@ -2026,6 +2060,11 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
 
   const [phase, setPhase] = useState<LevelPhase>(playDemo ? 'demo' : 'ready')
   const [attempt, setAttempt] = useState<LevelAttempt | null>(null)
+  // [T44] Where the torch is on a `level.torch` level: the fingertip while
+  // it is down, `null` once it lifts (`onFrame`'s own torch block).
+  const [torchPoint, setTorchPoint] = useState<{ x: number; y: number } | null>(null)
+  const torchPointRef = useRef<{ x: number; y: number } | null>(null)
+  const lastTorchTickRef = useRef(0)
   const [strokes, setStrokes] = useState<ReadonlyArray<ReadonlyArray<TracePoint>>>([])
   const [offPath, setOffPath] = useState(false)
   const [clearSignal, setClearSignal] = useState(0)
@@ -2406,6 +2445,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const resetSurface = useCallback((): void => {
     setAttempt(null)
     setStrokes([])
+    // [T44] A new attempt starts with the torch off.
+    torchPointRef.current = null
+    setTorchPoint(null)
     setOffPath(false)
     offPathRef.current = false
     contactRef.current = NO_CONTACT
@@ -2874,6 +2916,26 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
           setSnakeColourState(next)
         }
       }
+      // [T44] The torch over a routed level (`level.torch`): the light
+      // follows the fingertip while it is down and goes out when it lifts.
+      // Throttled to `TORCH_TICK_MS` (the off-path sample's own ~30 Hz):
+      // every move re-unions the veil's circles, which the night levels
+      // already pay at this rate.
+      if (level.torch) {
+        const head = drawing ? points[points.length - 1] : undefined
+        const prev = torchPointRef.current
+        if (!head) {
+          if (prev) {
+            torchPointRef.current = null
+            setTorchPoint(null)
+          }
+        } else if (!prev || timeMs - lastTorchTickRef.current >= TORCH_TICK_MS) {
+          lastTorchTickRef.current = timeMs
+          const next = { x: head.x, y: head.y }
+          torchPointRef.current = next
+          setTorchPoint(next)
+        }
+      }
       // The arrange phase (object-arrange spec) redirects the SAME per-frame
       // sample instead of adding a second pointer-capture mechanism: no
       // wall/clue/reveal fold runs while a level's pieces are not yet home.
@@ -3129,6 +3191,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       arrangeOpen,
       arrangeConfig,
       hasSnakeColour,
+      level.torch,
       onAttempt,
     ],
   )
@@ -3470,10 +3533,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // geometry once per level instead of once per render.
   const corridor = useMemo<TraceCorridor | undefined>(
     () =>
-      showCorridor
+      // [T44] A torch level draws no corridor at all: the clue marks under
+      // the light are the only guide (`docs/21` §3.2.7, "seguir un trazo sin
+      // corredor"). The walls still score and collect (`target.routes`).
+      showCorridor && !level.torch
         ? { paths: target.paths, width: target.corridorWidth, taper: level.taper }
         : undefined,
-    [showCorridor, target.paths, target.corridorWidth, level.taper],
+    [showCorridor, level.torch, target.paths, target.corridorWidth, level.taper],
   )
 
   // Settled ink of previous strokes, pulled the SAME way the live ink was, so
@@ -3515,7 +3581,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     if (!clueDef) return []
     return trailClueMarks.map((mark, idx) => {
       const art = CLUE_ART[mark.kind]
-      const img = clueState.lit[idx] ? art.art.earned : art.art.drained
+      // [T44] By torchlight a print is drawn as it is (black) from the start:
+      // the drained grey all but vanishes in the pool of light, and there the
+      // prints are the only guide. Finding them is the light falling on them.
+      const img = clueState.lit[idx] || level.torch ? art.art.earned : art.art.drained
       return {
         x: mark.x,
         y: mark.y,
@@ -3523,10 +3592,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         href: img.href,
         w: img.w,
         h: img.h,
-        size: CLUE_MARK_SIZE,
+        size: level.torch ? TORCH_CLUE_MARK_SIZE : CLUE_MARK_SIZE,
       }
     })
-  }, [clueDef, trailClueMarks, clueState])
+  }, [clueDef, trailClueMarks, clueState, level.torch])
 
   // The ground (docs/09 §7). Keyed off `inDetectiveWorld`, the WORLD half of the
   // split — NOT off `level.clue`, which is the CASE half and which this comment
@@ -3779,6 +3848,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // The reveal grid's covering layer (`reveal-grid` capability, design.md
   // §4.1-4.2): a pure projection from `revealState` + `level.reveal`, plus
   // the backdrop's own veil paint and the hidden objects' art, if any.
+  // [T44] The torch over a routed level — see `torchView`.
+  const torch = useMemo(
+    () =>
+      torchView(
+        level.torch,
+        target.polyline,
+        torchPoint,
+        phase === 'demo' || !!attempt?.approved,
+        backdropEntry?.tile ?? NIGHT_VEIL,
+      ),
+    [level.torch, target.polyline, torchPoint, phase, attempt, backdropEntry],
+  )
+
   const reveal = useMemo<TraceReveal | undefined>(() => {
     if (!level.reveal) return undefined
     const reducedMotion = reducedMotionRef.current
@@ -4253,8 +4335,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // `ink`/`inkDim`. Byte-identical today — no shipped backdrop
         // declares `ink` yet (`backdrops.ts`'s `PENDING_ENTRANCE_BACKDROP`
         // is not wired into `ADVENTURE_BACKDROP` in this apply run).
-        inkColor={inWorld ? MUD_INK : backdropEntry?.ink}
-        inkDimColor={inWorld ? MUD_INK_DIM : backdropEntry?.inkDim}
+        // [T44] ...except by torchlight: mud ink vanishes in the dark, so a
+        // torch level keeps its backdrop's own chalk.
+        inkColor={inWorld && !level.torch ? MUD_INK : backdropEntry?.ink}
+        inkDimColor={inWorld && !level.torch ? MUD_INK_DIM : backdropEntry?.inkDim}
         inkHidden={arrangeOpen}
         inkPolicy={inkPolicy}
         artCorridor={traceArtCorridor}
@@ -4282,6 +4366,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // The reveal grid's covering layer (`reveal-grid` capability).
         // Absent on every level without a `reveal` config.
         reveal={reveal}
+        // [T44] The torch over a routed level. Absent on every other level.
+        torch={torch}
         nightHint={nightHint}
         // The waypoint fold's render projection (`free-trail-waypoints`
         // capability). Absent on every level without a `waypoints` config.

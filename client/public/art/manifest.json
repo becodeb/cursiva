@@ -263,6 +263,19 @@
     "h": 164,
     "w": 256
   },
+  "clue-seaweed-drained": {
+    "bytes": 11994,
+    "file": "art/clue-seaweed-drained.png",
+    "h": 256,
+    "w": 160
+  },
+  "clue-seaweed-earned": {
+    "bytes": 24336,
+    "file": "art/clue-seaweed-earned.png",
+    "fill": "#7ad135",
+    "h": 256,
+    "w": 160
+  },
   "clue-seeds-drained": {
     "bytes": 12362,
     "file": "art/clue-seeds-drained.png",

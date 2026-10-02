@@ -31,10 +31,12 @@ import { buildWord } from '../letters/combinations'
 import { LETTER_REGISTRY } from '../letters/registry'
 import type { LetterConfig } from '../letters/types'
 import {
+  bridges,
   crests,
   garland,
   garlandVaried,
   hills,
+  lianas,
   loops,
   ovals,
   peakRidge,
@@ -669,11 +671,11 @@ const PHASE_1: LevelConfig[] = [
   {
     id: 'duck-trail1',
     phase: 1,
-    title: 'El charco del pato',
-    // [T40] The trail carries one clue kind; the hint names it. [T43] The
-    // drops became the puddles the author asked for (`docs/22` C1), which
-    // is what the title already promised.
-    hint: 'Seguí los charquitos del pato de punta a punta.',
+    // [T44, `docs/21` N1] The duck's first level became the bridges: "El
+    // pato salió del agua a los saltitos, de charco en charco." Same id
+    // (saved progress), same clue kind; the shape and the copy changed.
+    title: 'De charco en charco',
+    hint: 'Hacé los puentes del pato y pasá por todos los charquitos.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -682,15 +684,17 @@ const PHASE_1: LevelConfig[] = [
     // FIRST CONTACT with a routed trail in the duck case: the rail is on
     // here and nowhere else, the same convention `trail1` carries.
     feedback: feedback(true),
-    // [deviation from design.md §3's literal `amplitude: 140`] 140 draws a
-    // vertical span of exactly 280 units, failing the pre-existing "phase 1
-    // uses the whole blank sheet" guard (`catalog.test.ts`: every phase-1
-    // routed level's vertical span MUST exceed the 300-420 writing band, i.e.
-    // amplitude > 150) by 20 units. Widened to 170, the amplitude every
-    // plain-wave duck level shares, which clears the guard with margin (span
-    // 340, minY 130, maxY 470); cycle count and corridor width carry the
-    // progression instead.
-    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 170, cycles: 1 })],
+    // [T44, `docs/21` §3.1.1] Four bridges `∩` left to right, the arcade the
+    // Colina family (`m n v w`) is made of; the duck's waves never turn the
+    // other way round over a crest with a shared foot. `bridges()` rather
+    // than `hills()`: at four arches a sheet with this 100 corridor, the
+    // hills' crest would bend tighter than the corridor's half-width (see
+    // the generator's header). Measured on the cubics (`catalog.test.ts`'s
+    // T44 block): crest radius ≈71, inside of every arch ≈105 open at
+    // mid-height. Span 310 (150-460), so it still trains the arm like every
+    // phase-1 trail. Neighbouring bridges share their foot, the pillar of the
+    // bridge, where the stroke comes down and goes back up the same way.
+    paths: [bridges({ x0: 60, x1: 940, yTop: 150, yBase: 460, cycles: 4, footRise: 190, footLean: 6, topHandle: 100 })],
     corridorWidth: 100,
     rules: rules(1, false, true, 0),
     showGuide: true,
@@ -699,8 +703,11 @@ const PHASE_1: LevelConfig[] = [
     // [T21] The duck case's own first RULING clue (`cases.ts`'s
     // `ruledOutBy.gato`), "the duck came out of the water dripping"
     // (`docs/19` §3's own pato flavour line). [T43] `puddle` (`docs/22` C1)
-    // replaces the plain `droplet`, which stays for `trail1` only.
-    clue: { kind: 'puddle', spacing: 60 },
+    // replaces the plain `droplet`, which stays for `trail1` only. [T44] One
+    // puddle at the foot of every pillar between two bridges (`at:
+    // 'valleys'`), not one every 60 units: the duck hopped from puddle to
+    // puddle.
+    clue: { kind: 'puddle', spacing: 60, at: 'valleys' },
   },
   {
     id: 'duck-trail5',
@@ -1319,6 +1326,44 @@ const PHASE_1: LevelConfig[] = [
         { art: SECTOR_ADVENTURE_ART.apple, size: 64, x: 820, y: 200 },
       ],
     },
+  },
+  // [T44, `docs/21` N2] The night case's last clue, after the three
+  // searches and before the deduction: the hedgehog's own trail, followed
+  // in the dark. A routed level with NO visible corridor (`torch`): the
+  // octopus's torch shows a pool of light around the fingertip and the
+  // hedgehog's prints are the only guide (`docs/21` §3.2.7, "seguir un trazo
+  // sin corredor"), left to right along one long, gentle wave that ends at
+  // an apple, the hedgehog's own (`docs/19` §3.2). Forgiving walls
+  // (`resetOnContact: false`): a wall the child cannot see must never send
+  // them back; the tone sounds while the finger is on the trail and the ink
+  // dims off it, so the trail can still be felt. Wider than any lit trail
+  // (110) for the same reason. Clue marks are only lit from inside the
+  // corridor (`LevelPlay`'s `shouldTickClue`), so wandering off the prints
+  // earns nothing.
+  {
+    id: 'night-rastro',
+    phase: 1,
+    title: 'Las huellitas en la oscuridad',
+    hint: 'Alumbrá el piso y seguí las huellitas del erizo hasta la manzana.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: false,
+    carrier: true,
+    feedback: feedback(false),
+    // One and a half gentle cycles: a long, low swing across the whole sheet,
+    // amplitude 155 so it still spans the arm's 300 units (phase 1).
+    paths: [wave({ x0: 90, x1: 910, y: 300, amplitude: 155, cycles: 1.5 })],
+    corridorWidth: 110,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    // `docs/22` C7, registered by T43 for this level. Spaced wider than the
+    // lit trails (70): a few prints at a time under the light, "cada tanto".
+    clue: { kind: 'hedgehogPrint', spacing: 70 },
+    goalArt: SECTOR_ADVENTURE_ART.apple,
+    torch: { radius: 130 },
   },
   {
     id: 'night4',
@@ -2527,6 +2572,54 @@ const PHASE_2: LevelConfig[] = [
     // [T43] `banana` (`docs/22` C12), replacing the `corn` stand-in.
     clue: { kind: 'banana', spacing: 60 },
   },
+  // [T44, `docs/21` N4] The monkey case's third clue, before the
+  // deduction: loop, garland, loop, garland in ONE stroke (`l u l u`), "Subió
+  // a la liana, se hamacó, y subió a la otra" — changing shape without
+  // lifting the finger, the core of the cursive link (`docs/21` §3.2.5).
+  // `lianas()`: each loop is one `loops()` cycle (round, hole clearance ≈80,
+  // visible ≈85 at this corridor), each garland the cursive `u` after it
+  // (up to the x-height at 340, a garland's pointed top, its arms leaning
+  // apart so it reads as a `∧` and not a finger, down to the baseline).
+  // Every loop/garland join is tangent-continuous; no loop bends tighter
+  // than radius 70 and no garland tighter than ≈64 (`catalog.test.ts`'s T44
+  // block): the garland's bowls share the sheet with two round loops, and a
+  // radius-70 bowl leaves the loops too small to keep their holes.
+  {
+    id: 'monkey-lianas',
+    phase: 2,
+    title: 'De liana en liana',
+    hint: 'Subí a la liana, hamacate y subí a la otra. Juntá las cáscaras.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: false,
+    carrier: true,
+    feedback: feedback(false),
+    paths: [
+      lianas({
+        x0: 60,
+        x1: 940,
+        yBase: 450,
+        yTop: 150,
+        yMid: 340,
+        pairs: 2,
+        loopShare: 0.55,
+        loopWidth: 0.33,
+        loopHeight: 0.28,
+        swingHandle: 0.8,
+        cuspHandle: 45,
+        cuspLean: 20,
+      }),
+    ],
+    corridorWidth: 75,
+    rules: rules(2, true, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    // `docs/22` C11, registered by T43 for this level: one peel hanging at
+    // the top of each liana (`at: 'loopTops'`).
+    clue: { kind: 'bananaPeel', spacing: 60, at: 'loopTops' },
+  },
   {
     id: 'monkey3',
     phase: 2,
@@ -2695,6 +2788,37 @@ const PHASE_2: LevelConfig[] = [
     // above. Not `bubble` — see this level's own title/hint comment above
     // for why. [T43] `scale` (`docs/22` C6), replacing `droplet`.
     clue: { kind: 'scale', spacing: 60 },
+  },
+  // [T44, `docs/21` N3] The fish case's third clue, before the deduction:
+  // three loops going DOWN from a high line, "El pez bajó al fondo y volvió
+  // a subir" — the descending loops of `g j p q y` (`docs/01` §7), which no
+  // other level draws. `loops()` mirrored (`yBase` above `yTop`): the very
+  // same round loops as `monkey2` (r≈90, hole clearance ≈88, visible ≈96 at
+  // this corridor), turned upside down, so every T40 rule holds unchanged.
+  {
+    id: 'f2-buceo',
+    phase: 2,
+    title: 'El pez bajó al fondo',
+    hint: 'Bajá como el pez hasta el fondo, girá y volvé a subir. Juntá las algas.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: false,
+    carrier: true,
+    feedback: feedback(false),
+    paths: [loops({ x0: 60, x1: 940, yBase: 150, yTop: 450, cycles: 3, loopWidth: 0.307, loopHeight: 0.3 })],
+    corridorWidth: 80,
+    rules: rules(2, true, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    // [deviation from `docs/21` N3 / `docs/22` C6, which give this level the
+    // scale] `f2-agua2` already carries `scale`, and every clue of a case is
+    // a different thing (T40; `palette.test.ts` keeps a case's earned
+    // colours distinct). What the fish nibbled at the bottom of each dive
+    // is a bit of seaweed (`alga.png`, existing art), one at the bottom of
+    // every loop (`at: 'loopBottoms'`).
+    clue: { kind: 'seaweed', spacing: 60, at: 'loopBottoms' },
   },
   {
     id: 'f2-agua3',
