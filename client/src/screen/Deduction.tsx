@@ -549,6 +549,9 @@ ${BUBBLE_POP_CSS}
 /* The prompt pill: a pointing hand + a few words, centred over the cards. */
 .cv-deduction-prompt { position: absolute; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.35em; border-radius: 999px; border: 3px solid #1a1a1a; background: #ffe58a; color: #1e293b; font-weight: 800; white-space: nowrap; line-height: 1; }
 .cv-deduction-prompt > svg { flex: none; }
+/* Once the case is closed there is nothing left to tap: the pill goes (its
+ * place is kept, so nothing moves). */
+.cv-deduction-prompt--done { visibility: hidden; }
 .cv-lineup-slot { position: absolute; display: flex; }
 /* Marker-style CARD with a thick bottom LIP, so it reads as a button to
  * press; pressing squashes the lip. The card fills its layout rectangle
@@ -762,7 +765,7 @@ export function DeductionView({
         </span>
       )}
       <p
-        className="cv-deduction-prompt"
+        className={`cv-deduction-prompt${state.closed ? ' cv-deduction-prompt--done' : ''}`}
         style={
           {
             ...rectStyle(layout.prompt),

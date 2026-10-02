@@ -332,6 +332,14 @@ describe('DeductionView — evidence first, then an obvious choice (T46)', () =>
     }
   })
 
+  it('once the case is closed the prompt pill goes, keeping its place', () => {
+    const closed = markup(
+      renderToString(<DeductionView kase={DUCK} state={{ dismissed: [], closed: true }} onPick={noop} onExit={noop} />),
+    )
+    expect(closed).toContain('class="cv-deduction-prompt cv-deduction-prompt--done"')
+    expect(DEDUCTION_CSS).toMatch(/\.cv-deduction-prompt--done\s*\{\s*visibility:\s*hidden/)
+  })
+
   it('cards are pressable buttons with a lip that squashes, captions one line', () => {
     expect(DEDUCTION_CSS).toMatch(/\.animal-btn\s*\{[^}]*border-bottom-width:\s*9px/)
     expect(DEDUCTION_CSS).toMatch(/\.animal-btn:not\(\[disabled\]\):active\s*\{[^}]*border-bottom-width:\s*4px/)
