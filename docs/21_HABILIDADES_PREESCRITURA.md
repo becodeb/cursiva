@@ -272,6 +272,12 @@ puede tener más).
 | N5 | `sheep-lana` | Ovejas, antes de `sheep-hill1` | **Recta vertical de arriba abajo, arranque y parada** (§3.1.4, §3.2.6) | Cinco postes del alambrado, cada uno un trazo de arriba abajo; se arranca en un punto y se frena en otro; entre poste y poste se levanta el dedo | Un **mechón de lana** enganchado en cada poste | "¿Quién deja lana?" Siluetas: oveja, gato y pato (el pato ya rescatado se descarta solo) | C9 lana | Varios caminos por nivel (existe, víboras) con pista por camino. Tamaño M |
 | N6 | `turtle-huellas` | Tortugas, antes de `turtle1` | **Recta horizontal y frenar** (§3.1.4, §3.2.6) y **discriminar formas** (§3.2.9) | Una recta de izquierda a derecha (el surco de la cola), con tres paradas en el camino | Una **huella de tortuga** a cada lado del surco | Forma nueva: "¿De quién es esta huella?" Tres huellas para comparar: tortuga, pato (palmeada) y gallina (tres dedos) | C10 huella de tortuga, C3 huella de pato, `huella negra.png` (existe) | Paradas (T41). Deducción con huellas en vez de siluetas: `optionArt` ya existe en `detective/cases.ts` (los peces lo usan con carteles). Tamaño M |
 
+> **Hecho en T45 (2026-10-02):** `sheep-lana` y `turtle-huellas` existen, con
+> su deducción cada uno. Los dos son niveles de tramos (`levels/segments.ts`):
+> cada poste o tramo es un trazo propio que se acepta al levantar el dedo en
+> su parada. La lana y la huella de tortuga usan un dibujo prestado hasta que
+> lleguen C9 y C10 (`docs/22` §5.8).
+
 N5 le da a las ovejas un trabajo propio y quita parte de la redundancia con
 las llamas. N6 estrena una **cuarta forma de deducir** (comparar huellas), que
 además entrena la discriminación visual de formas parecidas.

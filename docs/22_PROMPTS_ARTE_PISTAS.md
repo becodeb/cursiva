@@ -104,8 +104,8 @@ imagen esté guardada y pase su checklist.
 | C11 | `pista cascara de banana.png` | Cáscara de banana vacía | monos: `monkey-lianas` | media | hecho (T43: registrada; `monkey-lianas` no existe todavía) | B13 |
 | C7 | `pista huellita de erizo.png` | Huellita de erizo | noche: `night-rastro` | media | hecho (T43: registrada; `night-rastro` no existe todavía) | — |
 | B12 | ver `docs/20` §6 | Manzana y hongo | noche: `night2`, `night3` | media | hecho (T43: en el juego) | `piedra.png` (en la noche) |
-| C9 | `pista lana.png` | Mechón de lana | ovejas: `sheep-lana` | media (decisión 1 aprobada 2026-10-02) | pendiente | — |
-| C10 | `pista huella de tortuga.png` | Huella de tortuga | tortugas: `turtle-huellas` | media (decisión 1 aprobada 2026-10-02) | pendiente | — |
+| C9 | `pista lana.png` | Mechón de lana | ovejas: `sheep-lana` | media (decisión 1 aprobada 2026-10-02) | pendiente (T45: el nivel existe y usa un reemplazo provisorio, §5.8) | — |
+| C10 | `pista huella de tortuga.png` | Huella de tortuga | tortugas: `turtle-huellas` y su deducción | media (decisión 1 aprobada 2026-10-02) | pendiente (T45: el nivel existe y usa un reemplazo provisorio, §5.8) | — |
 
 ---
 
@@ -822,6 +822,29 @@ Para la sesión que meta las imágenes en el juego.
    usan la gota, el grano y la pluma. Si esos niveles viejos no se tocan,
    conviene darle a cada pista nueva su propio tipo en vez de cambiarle el
    dibujo a uno existente.
+8. **C9 y C10 todavía no existen (T45).** `sheep-lana` y `turtle-huellas`
+   ya se juegan con un dibujo prestado: la lana usa la miga de pan
+   (`clue-breadcrumb-*`, en ningún nivel del recorrido) y la huella de
+   tortuga usa la huellita de erizo (`clue-hedgehog-print-*`, distinta de
+   la del pato y la de la gallina, que es lo que compara la deducción). Lo
+   dice `PLACEHOLDER_CLUE_ART` en `detective/assets.ts`. Cuando llegue cada
+   dibujo:
+   1. En `build_art.py`, dos filas en `SINGLES` junto a las de T43:
+      `('pista lana.png', 'clue-wool-earned.png', 256, 'contour', True)` y
+      la misma con `'clue-wool-drained.png'` y `CLUE_DRAINED`. La huella va
+      como las otras: `('pista huella de tortuga.png',
+      'clue-turtle-print-earned.png', 256, PRINT, False)` y su `drained`.
+      Más su entrada `(1024, 1024)` en `AUTHORED_SOURCE_SIZES`.
+   2. Correr `python3 scripts/art/build_art.py`.
+   3. En `detective/assets.ts`, cambiar la constante `WOOL_CLUE_ART` (o
+      `TURTLE_PRINT_CLUE_ART`) por los archivos nuevos con su `w`/`h` del
+      manifiesto; la lana con su `fill` medido como token nuevo en
+      `palette.ts` (crema), la huella con `PRINT`. Sacar el tipo de
+      `PLACEHOLDER_CLUE_ART`.
+   `artManifest.test.ts` falla mientras el archivo exista en `art-source/`
+   y el tipo siga en `PLACEHOLDER_CLUE_ART`, así que el cambio no se olvida.
+   La lana va con `'contour'`: sumarla a la lista de pistas de color medido
+   de `artManifest.test.ts`.
 
 ---
 
