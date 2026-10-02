@@ -55,7 +55,15 @@ const CLUE_ACCESSIBLE_NAME: Record<ClueKind, string> = {
   feather: 'pluma',
   webfoot: 'huella de pato',
   breadcrumb: 'miga',
-  bubble: 'burbuja',
+  bubble: 'burbujas',
+  puddle: 'charco',
+  seeds: 'semillas',
+  duckFeather: 'pluma de pato',
+  scale: 'escamas',
+  handprint: 'manito de mono',
+  banana: 'banana',
+  hedgehogPrint: 'huellita de erizo',
+  bananaPeel: 'cáscara de banana',
 }
 
 /** One trail's filing state, as far as the caller can see it. */

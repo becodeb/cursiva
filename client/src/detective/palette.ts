@@ -138,9 +138,43 @@ export const LAMP = '#f2d377'
  * what the test asserts now. */
 export const BREADCRUMB = '#a9682c'
 
-/** Duck case only — the bubble trail. Sampled from `art-source/burbuja.png`'s
- * cyan body, lifted out of `POND`'s slate (design.md §4). */
-export const BUBBLE = '#4fb3d9'
+/*
+ * T43 (`docs/22` §3.2/§5): the redrawn clue marks keep their AUTHORED fills
+ * instead of being repainted to one token, so each value below is the fill
+ * MEASURED off the shipped earned PNG (`build_art.py`'s `dominant_fill`,
+ * written into `manifest.json` as `fill`). `artManifest.test.ts` holds every
+ * one equal to its manifest value: retune the art, re-run the pipeline, and
+ * the test names the token to copy. They are bright on purpose (a yellow
+ * duck feather is yellow); what separates them from the pale ground is the
+ * thick `ART_OUTLINE` contour each drawing carries, which
+ * `artHierarchy.test.ts` asserts on the emitted files, not their luma (see
+ * `palette.test.ts`'s `AUTHORED_EARNED`).
+ */
+
+/** Fish case — the three bubbles (`docs/22` C4). Was a flat repaint of
+ * `burbuja.png` to `#4fb3d9`, which erased its shine into a plain disc. */
+export const BUBBLE = '#51b9e1'
+
+/** Duck case — the puddle (`docs/22` C1), replacing the droplet. */
+export const PUDDLE = '#50a0da'
+
+/** Duck case — the seeds (`docs/22` C5), replacing the corn kernel. Ochre,
+ * clearly darker than `DUCK_FEATHER` in the same case. */
+export const SEEDS = '#dba43c'
+
+/** Duck case — the yellow duck feather (`docs/22` C2), replacing the hen's
+ * green `PLUME` (which stays for the hen case's `trail4`). */
+export const DUCK_FEATHER = '#f6ca3c'
+
+/** Fish case — the orange scales (`docs/22` C6), the colour of the fish. */
+export const SCALE = '#fb7e08'
+
+/** Monkey case — the banana (`docs/22` C12). */
+export const BANANA = '#fbd63a'
+
+/** The empty banana peel (`docs/22` C11). Registered for `docs/21` N4's
+ * `monkey-lianas`, which is not built yet. */
+export const BANANA_PEEL = '#fbd73e'
 
 /** The flower before the bee has been to it (`docs/13` §8 row F,
  * `free-trail-waypoints` design.md §3.2).

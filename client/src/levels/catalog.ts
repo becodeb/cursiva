@@ -670,9 +670,10 @@ const PHASE_1: LevelConfig[] = [
     id: 'duck-trail1',
     phase: 1,
     title: 'El charco del pato',
-    // [T40] The trail carries droplets and nothing else now; the hint names
-    // them rather than a puddle the screen does not draw.
-    hint: 'Seguí las gotitas del pato de punta a punta.',
+    // [T40] The trail carries one clue kind; the hint names it. [T43] The
+    // drops became the puddles the author asked for (`docs/22` C1), which
+    // is what the title already promised.
+    hint: 'Seguí los charquitos del pato de punta a punta.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -695,16 +696,19 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    // [T21] `droplet`, not the pre-T21 `webfoot` — the duck case's own first
-    // RULING clue (`cases.ts`'s `ruledOutBy.gato`), "the duck came out of the
-    // water dripping" (`docs/19` §3's own pato flavour line).
-    clue: { kind: 'droplet', spacing: 60 },
+    // [T21] The duck case's own first RULING clue (`cases.ts`'s
+    // `ruledOutBy.gato`), "the duck came out of the water dripping"
+    // (`docs/19` §3's own pato flavour line). [T43] `puddle` (`docs/22` C1)
+    // replaces the plain `droplet`, which stays for `trail1` only.
+    clue: { kind: 'puddle', spacing: 60 },
   },
   {
     id: 'duck-trail5',
     phase: 1,
-    title: 'El maíz del pato',
-    hint: 'Seguí los granitos de maíz sin salirte.',
+    // [T43] Renamed from "El maíz del pato": the kernel became the seeds of
+    // `docs/22` C5.
+    title: 'Las semillas del pato',
+    hint: 'Seguí las semillas sin salirte.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -720,9 +724,10 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    // [T40] The corn kernels the duck pecked at the puddle's edge — T29's
-    // non-ruling second kind on `duck-trail1`, now a level of its own.
-    clue: { kind: 'corn', spacing: 60 },
+    // [T40] What the duck pecked at the puddle's edge — T29's non-ruling
+    // second kind on `duck-trail1`, now a level of its own. [T43] `seeds`
+    // (`docs/22` C5) replaces `corn`, which stays for `trail2` only.
+    clue: { kind: 'seeds', spacing: 60 },
   },
   {
     id: 'duck-trail2',
@@ -743,10 +748,11 @@ const PHASE_1: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    // [T21] `feather`, not the pre-T21 `breadcrumb` — the duck case's own
-    // second RULING clue (`cases.ts`'s `ruledOutBy.vaca`, "a cow has no
-    // feathers").
-    clue: { kind: 'feather', spacing: 60 },
+    // [T21] The duck case's own second RULING clue (`cases.ts`'s
+    // `ruledOutBy.vaca`, "a cow has no feathers"). [T43] `duckFeather`
+    // (`docs/22` C2, a yellow duck feather) replaces the hen's green
+    // `feather`, which stays for `trail4` and the hen case only.
+    clue: { kind: 'duckFeather', spacing: 60 },
   },
   {
     id: 'duck-trail6',
@@ -1200,9 +1206,8 @@ const PHASE_1: LevelConfig[] = [
   // the curled erizo itself, `docs/19`'s own reveal at the end of the
   // sector), not a difficulty curve. `detective/cases.ts`'s `night` case
   // reads these same three concepts (leaf/apple/mushroom) as its own chip
-  // row (`DetectiveCase.clueArt`) — see that case's own header for the
-  // apple/mushroom art stand-ins (`docs/20` B12 is still pending; `leaf`/
-  // `stone` fill in until then, flagged there for the author). `chest` is
+  // row (`DetectiveCase.clueArt`); [T43] all three are real art since
+  // `docs/20` B12 landed. `chest` is
   // dropped from this family entirely: a treasure chest has nothing to do
   // with a hedgehog (`docs/19`'s own diagnosis of the pre-T25 design:
   // "cofres y piedras que no tienen que ver con nadie").
@@ -1269,18 +1274,16 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
-    // T25 (`docs/19` §3.2): a bitten apple and another leaf. No apple art
-    // yet (`docs/20` B12) — stood in with the leaf art again (`detective/
-    // cases.ts`'s `night` case entry has the same flag): the story still
-    // reads as "another one of the erizo's things" either way. Positions/
-    // radius unchanged from the pre-T25 config.
+    // T25 (`docs/19` §3.2): a bitten apple and another leaf. [T43] The
+    // apple is real art now (`docs/20` B12), no longer the leaf standing in.
+    // Positions/radius unchanged from the pre-T25 config.
     reveal: {
       mode: 'light',
       cols: 15,
       rows: 9,
       radius: 170,
       objects: [
-        { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 260, y: 180 },
+        { art: SECTOR_ADVENTURE_ART.apple, size: 64, x: 260, y: 180 },
         { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 740, y: 420 },
       ],
     },
@@ -1288,9 +1291,9 @@ const PHASE_1: LevelConfig[] = [
   {
     id: 'night3',
     phase: 1,
-    // T25 (`docs/19` §3.2 table): this level finds a mushroom (stood in
-    // with `stone`, `docs/20` B12 pending) and another apple (`leaf`
-    // stand-in, same reason as `night2`) — two things, not three; the
+    // T25 (`docs/19` §3.2 table): this level finds a mushroom and another
+    // apple ([T43] real `docs/20` B12 art; they were the stone and the leaf
+    // standing in) — two things, not three; the
     // title/hint below were "tres"/"las tres" before this task dropped the
     // unrelated `chest` object (this family's own header comment).
     title: 'Dos cosas más en la oscuridad',
@@ -1312,8 +1315,8 @@ const PHASE_1: LevelConfig[] = [
       rows: 12,
       radius: 140,
       objects: [
-        { art: SECTOR_ADVENTURE_ART.stone, size: 72, x: 200, y: 140 },
-        { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 820, y: 200 },
+        { art: SECTOR_ADVENTURE_ART.mushroom, size: 72, x: 200, y: 140 },
+        { art: SECTOR_ADVENTURE_ART.apple, size: 64, x: 820, y: 200 },
       ],
     },
   },
@@ -2429,21 +2432,12 @@ const PHASE_2: LevelConfig[] = [
   // this catalog carries, `catalog.test.ts`'s "every detective trail gets
   // the fingertip carrier" invariant) — `detective/cases.ts`'s `monkeys`
   // case reads their `clue.kind` through `clueKindsOf`, so the case and
-  // the levels can never disagree about which two kinds it carries. Two
-  // STAND-IN `ClueKind`s, not new art: `docs/20` B13 (banana peel, banana)
-  // is still pending, so `monkey1` reuses `footprint` (PRINT, a huella) and
-  // `monkey2` reuses `corn` (KERNEL, a food/seed) — the same technique T25
-  // used for the night case's leaf/stone stand-ins, flagged here and in
-  // `detective/cases.ts`'s own `monkeys` entry. [Orchestrator screenshot
-  // review 2026-09-27, T27 follow-up] `monkey1` shipped with `feather`
-  // first — WRONG in a way a visual mismatch alone is not: a case whose
-  // answer is "mono" showing a feather teaches the child that BIRDS leave
-  // this trace, the opposite inference from every other stand-in this task
-  // ships (leaf-for-apple/stone-for-mushroom never point at a different
-  // ANIMAL). `footprint`/`corn` share the earlier stand-ins' honest
-  // limitation (not literally a banana peel/banana) without that one's
-  // dishonesty (neither a footprint nor a corn cob asserts anything false
-  // about who left it). Never `webfoot`/`breadcrumb` — `cases.test.ts`'s
+  // the levels can never disagree about which two kinds it carries. [T43]
+  // `monkey1` carries the monkey's own `handprint` (`docs/22` C8) and
+  // `monkey2` a `banana` (C12); until then they reused `footprint` and
+  // `corn` as stand-ins. (T27 had shipped `feather` on `monkey1` first,
+  // which was worse than a mismatch: a case whose answer is "mono" showing
+  // a feather says a BIRD left the trace.) Never `webfoot`/`breadcrumb` — `cases.test.ts`'s
   // "webfoot and breadcrumb rule nobody out" invariant bans either from
   // ever being a `ruledOutBy` verdict. `monkey3`/`monkey4` gather the
   // recovered monkey FAMILY
@@ -2484,12 +2478,10 @@ const PHASE_2: LevelConfig[] = [
     id: 'monkey1',
     phase: 2,
     title: 'El primer rulo',
-    // [T27 follow-up, orchestrator screenshot review 2026-09-27] Renamed
-    // from "juntá la cáscara de banana": the level's own hint now names
-    // what its clue ACTUALLY shows (a footprint), not the banana-peel story
-    // the earlier `feather` stand-in pointed away from — see this family's
-    // own header comment for the full reasoning.
-    hint: 'Subí como el mono y juntá las huellas en la liana.',
+    // [T27 follow-up] The hint names what the clue ACTUALLY shows. [T43]
+    // The bird footprint stand-in became the monkey's own handprint
+    // (`docs/22` C8).
+    hint: 'Subí como el mono y juntá las manitos que dejó en la liana.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -2505,12 +2497,10 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    // [T27 follow-up, orchestrator screenshot review 2026-09-27] `feather`
-    // pointed at a BIRD in a case whose answer is "mono" — a real wrong
-    // inference, not merely a visual mismatch (`docs/20` B13's still-pending
-    // banana peel/banana art). `footprint` (a huella) never contradicts a
-    // monkey the way a feather does — see this family's own header comment.
-    clue: { kind: 'footprint', spacing: 60 },
+    // [T43] `handprint` (`docs/22` C8): the monkey's own hand, replacing the
+    // `footprint` stand-in (a three-toed BIRD print, which said the opposite
+    // of the answer). `footprint` stays for `trail3` only.
+    clue: { kind: 'handprint', spacing: 60 },
   },
   {
     id: 'monkey2',
@@ -2518,11 +2508,9 @@ const PHASE_2: LevelConfig[] = [
     title: 'Tres rulos colgado',
     // [T27] The case's LAST pistas level — finishing it routes into the
     // `monkeys` deduction (`zoo/adventures.ts`'s `monkeys.deduction.after`).
-    // [T40] The spoken hint names only what is on screen: the marks are the
-    // `corn` stand-in until `docs/20` B13's banana art lands, so "la banana"
-    // promised a picture the child could not find. "La comida" stays true
-    // for both the stand-in and the real banana.
-    hint: 'Otra vez colgado: juntá la comida que se les cayó.',
+    // [T40] The spoken hint names only what is on screen. [T43] The marks
+    // are real bananas now (`docs/22` C12), so the hint can say so.
+    hint: 'Otra vez colgado: juntá las bananas que se les cayeron.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -2536,9 +2524,8 @@ const PHASE_2: LevelConfig[] = [
     showGuide: true,
     letters: [],
     demo: true,
-    // [T27] `corn` stands in for "banana" (`docs/20` B13 pending) — see
-    // this family's own header comment.
-    clue: { kind: 'corn', spacing: 60 },
+    // [T43] `banana` (`docs/22` C12), replacing the `corn` stand-in.
+    clue: { kind: 'banana', spacing: 60 },
   },
   {
     id: 'monkey3',
@@ -2688,8 +2675,10 @@ const PHASE_2: LevelConfig[] = [
     // "salió del agua chorreando" clue uses — reuse across cases is fine
     // (only WITHIN one case's rail must stay distinct), so the title/hint
     // move from bubbles to drops to match what the chip actually shows.
-    title: 'Las gotitas rápidas',
-    hint: 'Seguí las gotitas: hacé las curvas redonditas, como una U.',
+    // [T43] The drops became the fish's own orange scales (`docs/22` C6:
+    // fish leave no drops out of the water), so the title and hint follow.
+    title: 'Las escamas brillantes',
+    hint: 'Seguí las escamitas: hacé las curvas redonditas, como una U.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -2703,9 +2692,9 @@ const PHASE_2: LevelConfig[] = [
     letters: [],
     demo: true,
     // no `goalArt`/no `detectiveWorld` — see `f2-guirnalda`'s own comment
-    // above. `droplet`, not `bubble` — see this level's own title/hint
-    // comment above for why.
-    clue: { kind: 'droplet', spacing: 60 },
+    // above. Not `bubble` — see this level's own title/hint comment above
+    // for why. [T43] `scale` (`docs/22` C6), replacing `droplet`.
+    clue: { kind: 'scale', spacing: 60 },
   },
   {
     id: 'f2-agua3',

@@ -526,12 +526,17 @@ describe('LEVELS — the spoken hint names only what is on screen (T40)', () => 
   const WORDS_BY_KIND: ReadonlyArray<{ kinds: readonly string[]; word: RegExp }> = [
     { kinds: ['bubble'], word: /burbuj/i },
     { kinds: ['droplet'], word: /\bgot(a|ita)s?\b/i },
-    { kinds: ['feather'], word: /\bpluma/i },
+    { kinds: ['feather', 'duckFeather'], word: /\bpluma/i },
     { kinds: ['breadcrumb'], word: /\bmiga/i },
     { kinds: ['corn'], word: /maíz|\bgranit?os?\b/i },
-    { kinds: ['footprint', 'webfoot'], word: /\bhuella/i },
-    // No clue draws a banana yet (`docs/20` B13): never promise one.
-    { kinds: [], word: /\bbanana/i },
+    { kinds: ['footprint', 'webfoot', 'hedgehogPrint'], word: /\bhuella/i },
+    // [T43] The redrawn clues of `docs/22`.
+    { kinds: ['puddle'], word: /\bcharc/i },
+    { kinds: ['seeds'], word: /\bsemilla/i },
+    { kinds: ['scale'], word: /\bescam/i },
+    { kinds: ['handprint'], word: /\bman(o|ito)s?\b/i },
+    { kinds: ['banana', 'bananaPeel'], word: /\bbanana/i },
+    { kinds: ['bananaPeel'], word: /cáscara/i },
   ]
 
   it('never names a trail picture the level does not draw', () => {
@@ -1239,9 +1244,9 @@ describe('LEVELS — the duck adventure is one undulation family', () => {
       }
     })
     expect(DUCK_ADVENTURE_IDS.slice(0, cut + 1).map((id) => getLevel(id).clue!.kind)).toEqual([
-      'droplet',
-      'corn',
-      'feather',
+      'puddle',
+      'seeds',
+      'duckFeather',
       'webfoot',
     ])
   })
@@ -2178,18 +2183,30 @@ describe('LEVELS — the reveal grid, twelve authored levels (design.md §5, ame
 
   // [T25] `chest` dropped (this family's own header: unrelated to a
   // hedgehog); `HEDGEHOG_ART.curled` added (`night4`'s own reveal, the
-  // erizo itself).
-  it("night's hidden objects reference the registered stone/leaf/curled-erizo art, not re-typed literals", () => {
+  // erizo itself). [T43] `docs/20` B12's apple and mushroom replace the
+  // stone that stood in for the mushroom.
+  it("night's hidden objects reference the registered leaf/apple/mushroom/curled-erizo art, not re-typed literals", () => {
     for (const id of NIGHT_IDS) {
       const r = revealOf(id)
       if (r.mode !== 'light') throw new Error(`${id}: expected mode 'light'`)
       for (const obj of r.objects) {
         expect(
-          [SECTOR_ADVENTURE_ART.stone, SECTOR_ADVENTURE_ART.leaf, HEDGEHOG_ART.curled],
-          `${id}: object art must be one of the registered stone/leaf/curled-erizo art`,
+          [SECTOR_ADVENTURE_ART.leaf, SECTOR_ADVENTURE_ART.apple, SECTOR_ADVENTURE_ART.mushroom, HEDGEHOG_ART.curled],
+          `${id}: object art must be one of the registered leaf/apple/mushroom/curled-erizo art`,
         ).toContain(obj.art)
       }
     }
+  })
+
+  it('finds the story\'s own objects on each night level (docs/19 §3.2: leaf; apple + leaf; mushroom + apple)', () => {
+    const artOf = (id: string) => {
+      const r = revealOf(id)
+      if (r.mode !== 'light') throw new Error(`${id}: expected mode 'light'`)
+      return r.objects.map((o) => o.art)
+    }
+    expect(artOf('night1')).toEqual([SECTOR_ADVENTURE_ART.leaf])
+    expect(artOf('night2')).toEqual([SECTOR_ADVENTURE_ART.apple, SECTOR_ADVENTURE_ART.leaf])
+    expect(artOf('night3')).toEqual([SECTOR_ADVENTURE_ART.mushroom, SECTOR_ADVENTURE_ART.apple])
   })
 })
 

@@ -142,9 +142,9 @@ describe('the fish case (T26): the lineup is enclosure SIGNS, not animal silhoue
     expect(fishCase.trailIds).toEqual(['f2-guirnalda', 'f2-agua2'])
   })
 
-  it('clueKindsOf still derives two distinct clue kinds (bubble, droplet) from both pistas trails (optionArt does not touch clueArt)', () => {
+  it('clueKindsOf still derives two distinct clue kinds (bubble, scale) from both pistas trails (optionArt does not touch clueArt)', () => {
     expect(fishCase.clueArt).toBeUndefined()
-    expect(clueKindsOf(fishCase)).toEqual(['bubble', 'droplet'])
+    expect(clueKindsOf(fishCase)).toEqual(['bubble', 'scale'])
   })
 })
 
@@ -160,8 +160,8 @@ describe('duck case: four clues, one per pistas level (T40)', () => {
     expect(duckCase.trailIds).toEqual(['duck-trail1', 'duck-trail5', 'duck-trail2', 'duck-trail6'])
   })
 
-  it('clueKindsOf derives one kind per level: droplet, corn, feather, webfoot', () => {
-    expect(clueKindsOf(duckCase)).toEqual(['droplet', 'corn', 'feather', 'webfoot'])
+  it('clueKindsOf derives one kind per level: puddle, seeds, duckFeather, webfoot', () => {
+    expect(clueKindsOf(duckCase)).toEqual(['puddle', 'seeds', 'duckFeather', 'webfoot'])
   })
 
   it('each pistas level authors exactly one clue kind (no second kind hides on the trail)', () => {
@@ -170,9 +170,9 @@ describe('duck case: four clues, one per pistas level (T40)', () => {
     }
   })
 
-  it('ruledOutBy is untouched: still exactly the two RULING kinds, never corn or webfoot', () => {
-    expect(duckCase.ruledOutBy).toEqual({ vaca: 'feather', gato: 'droplet' })
-    expect(Object.values(duckCase.ruledOutBy)).not.toContain('corn')
+  it('ruledOutBy is untouched: still exactly the two RULING kinds, never seeds or webfoot', () => {
+    expect(duckCase.ruledOutBy).toEqual({ vaca: 'duckFeather', gato: 'puddle' })
+    expect(Object.values(duckCase.ruledOutBy)).not.toContain('seeds')
     expect(Object.values(duckCase.ruledOutBy)).not.toContain('webfoot')
   })
 })
@@ -230,8 +230,8 @@ describe('the monkeys case (docs/19 §2.3/§3 monos row)', () => {
     expect(monkeysCase.hint.abeja).toMatch(/ya volvió a su panal/)
   })
 
-  it('carries exactly the two stand-in clue kinds monkey1/monkey2 author, pairwise distinct', () => {
-    expect(clueKindsOf(monkeysCase)).toEqual(['footprint', 'corn'])
+  it('carries exactly the two clue kinds monkey1/monkey2 author, pairwise distinct', () => {
+    expect(clueKindsOf(monkeysCase)).toEqual(['handprint', 'banana'])
   })
 })
 
@@ -254,21 +254,21 @@ describe('resolveMonkeysCase / resolveCase (the live framing Deduction.tsx actua
   it('a non-linear session that has rescued neither: both fall back to a real clue-based verdict', () => {
     const resolved = resolveMonkeysCase(monkeysCase, rescuedOnly([]))
     expect(resolved.rescuedDistractors).toEqual([])
-    expect(resolved.ruledOutBy).toEqual({ erizo: 'corn', abeja: 'footprint' })
+    expect(resolved.ruledOutBy).toEqual({ erizo: 'banana', abeja: 'handprint' })
     expect(resolved.hint.erizo).toMatch(/no come bananas/)
-    expect(resolved.hint.abeja).toMatch(/no deja huellas/)
+    expect(resolved.hint.abeja).toMatch(/no tiene manos/)
   })
 
   it('mixed progress: only the unrescued one falls back, the other still reads "ya rescatado"', () => {
     const onlyErizo = resolveMonkeysCase(monkeysCase, rescuedOnly(['erizo']))
     expect(onlyErizo.rescuedDistractors).toEqual(['erizo'])
-    expect(onlyErizo.ruledOutBy).toEqual({ abeja: 'footprint' })
+    expect(onlyErizo.ruledOutBy).toEqual({ abeja: 'handprint' })
     expect(onlyErizo.hint.erizo).toBe(monkeysCase.hint.erizo)
-    expect(onlyErizo.hint.abeja).toMatch(/no deja huellas/)
+    expect(onlyErizo.hint.abeja).toMatch(/no tiene manos/)
 
     const onlyAbeja = resolveMonkeysCase(monkeysCase, rescuedOnly(['abeja']))
     expect(onlyAbeja.rescuedDistractors).toEqual(['abeja'])
-    expect(onlyAbeja.ruledOutBy).toEqual({ erizo: 'corn' })
+    expect(onlyAbeja.ruledOutBy).toEqual({ erizo: 'banana' })
     expect(onlyAbeja.hint.abeja).toBe(monkeysCase.hint.abeja)
     expect(onlyAbeja.hint.erizo).toMatch(/no come bananas/)
   })

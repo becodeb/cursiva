@@ -107,8 +107,8 @@ describe('clueMarks', () => {
     expect(marks[0].x).toBeCloseTo(LENGTH / 2, 6)
   })
 
-  it('alternates footprint marks left/right off the centreline (defect fix: "the footprint kind should alternate left/right down the trail... that is what makes a track read as walking")', () => {
-    const marks = clueMarks(LINE, LENGTH, 6, 'footprint')
+  it.each(['footprint', 'handprint'] as const)('alternates %s marks left/right off the centreline (defect fix: "the footprint kind should alternate left/right down the trail... that is what makes a track read as walking"; T43: the monkey\'s hands climb the same way)', (kind) => {
+    const marks = clueMarks(LINE, LENGTH, 6, kind)
     expect(marks).toHaveLength(6)
     // On this horizontal line the tangent is along +x, so the normal is
     // purely vertical: alternating marks sit off-centre in y, never x.
@@ -124,8 +124,8 @@ describe('clueMarks', () => {
     }
   })
 
-  it('does NOT alternate any other clue kind — only footprint gets a two-foot track', () => {
-    for (const kind of ['droplet', 'corn', 'feather'] as const) {
+  it('does NOT alternate any other clue kind — only footprint and handprint get a two-sided track', () => {
+    for (const kind of ['droplet', 'corn', 'feather', 'puddle', 'seeds', 'duckFeather', 'webfoot', 'scale', 'banana'] as const) {
       const marks = clueMarks(LINE, LENGTH, 4, kind)
       for (const m of marks) expect(m.y).toBeCloseTo(0, 6)
     }
@@ -276,8 +276,8 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
       'trail3',
       'trail4',
       // [T27, `docs/19` §2.3/§3 monos row] `monkey1`/`monkey2` are the
-      // monkeys case's own two pistas levels (stand-in `footprint`/`corn`
-      // clues, `docs/20` B13 pending) — `monkey3`/`monkey4` carry no clue
+      // monkeys case's own two pistas levels (`handprint`/`banana` since
+      // T43) — `monkey3`/`monkey4` carry no clue
       // at all (repurposed to `collect`, the same duck-trail3/4 pattern).
       'monkey1',
       'monkey2',

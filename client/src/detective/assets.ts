@@ -26,7 +26,20 @@
 // browser alike, and neither should have to fetch JSON to know how big a
 // footprint is. `artManifest.test.ts` is the guard that the copy has not
 // drifted from the pipeline.
-import { POND, KERNEL, PRINT, PLUME, BREADCRUMB, BUBBLE } from './palette'
+import {
+  BANANA,
+  BANANA_PEEL,
+  BREADCRUMB,
+  BUBBLE,
+  DUCK_FEATHER,
+  KERNEL,
+  PLUME,
+  POND,
+  PRINT,
+  PUDDLE,
+  SCALE,
+  SEEDS,
+} from './palette'
 
 /** One art per trail theme. Each theme owns exactly one kind; distinctness of
  * its earned colour is now scoped PER CASE (`palette.test.ts`,
@@ -41,6 +54,18 @@ export type ClueKind =
   | 'webfoot'
   | 'breadcrumb'
   | 'bubble'
+  // T43 (`docs/22`): the redrawn clues. New kinds rather than new pictures
+  // under old names, so `trail1`-`trail4` (the hen case, off the journey)
+  // keep the droplet/corn/footprint/feather they were built with (§5.6).
+  | 'puddle'
+  | 'seeds'
+  | 'duckFeather'
+  | 'scale'
+  | 'handprint'
+  | 'banana'
+  // Registered for `docs/21` N2/N4, levels not built yet.
+  | 'hedgehogPrint'
+  | 'bananaPeel'
 
 /** One art per deduction-screen animal choice (design unit 7). */
 export type AnimalId = 'gallina' | 'pato' | 'vaca' | 'gato'
@@ -147,8 +172,8 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
   webfoot: {
     earned: PRINT,
     art: {
-      earned: { href: '/art/clue-webfoot-earned.png', w: 256, h: 230 },
-      drained: { href: '/art/clue-webfoot-drained.png', w: 256, h: 230 },
+      earned: { href: '/art/clue-webfoot-earned.png', w: 256, h: 250 },
+      drained: { href: '/art/clue-webfoot-drained.png', w: 256, h: 250 },
     },
   },
   breadcrumb: {
@@ -161,8 +186,65 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
   bubble: {
     earned: BUBBLE,
     art: {
-      earned: { href: '/art/clue-bubble-earned.png', w: 256, h: 255 },
-      drained: { href: '/art/clue-bubble-drained.png', w: 256, h: 255 },
+      earned: { href: '/art/clue-bubble-earned.png', w: 142, h: 256 },
+      drained: { href: '/art/clue-bubble-drained.png', w: 142, h: 256 },
+    },
+  },
+  puddle: {
+    earned: PUDDLE,
+    art: {
+      earned: { href: '/art/clue-puddle-earned.png', w: 214, h: 256 },
+      drained: { href: '/art/clue-puddle-drained.png', w: 214, h: 256 },
+    },
+  },
+  seeds: {
+    earned: SEEDS,
+    art: {
+      earned: { href: '/art/clue-seeds-earned.png', w: 256, h: 210 },
+      drained: { href: '/art/clue-seeds-drained.png', w: 256, h: 210 },
+    },
+  },
+  duckFeather: {
+    earned: DUCK_FEATHER,
+    art: {
+      earned: { href: '/art/clue-duck-feather-earned.png', w: 159, h: 256 },
+      drained: { href: '/art/clue-duck-feather-drained.png', w: 159, h: 256 },
+    },
+  },
+  scale: {
+    earned: SCALE,
+    art: {
+      earned: { href: '/art/clue-scale-earned.png', w: 256, h: 164 },
+      drained: { href: '/art/clue-scale-drained.png', w: 256, h: 164 },
+    },
+  },
+  // A print in the earth has no colour of its own, like `footprint`.
+  handprint: {
+    earned: PRINT,
+    art: {
+      earned: { href: '/art/clue-handprint-earned.png', w: 238, h: 256 },
+      drained: { href: '/art/clue-handprint-drained.png', w: 238, h: 256 },
+    },
+  },
+  banana: {
+    earned: BANANA,
+    art: {
+      earned: { href: '/art/clue-banana-earned.png', w: 134, h: 256 },
+      drained: { href: '/art/clue-banana-drained.png', w: 134, h: 256 },
+    },
+  },
+  hedgehogPrint: {
+    earned: PRINT,
+    art: {
+      earned: { href: '/art/clue-hedgehog-print-earned.png', w: 256, h: 216 },
+      drained: { href: '/art/clue-hedgehog-print-drained.png', w: 256, h: 216 },
+    },
+  },
+  bananaPeel: {
+    earned: BANANA_PEEL,
+    art: {
+      earned: { href: '/art/clue-banana-peel-earned.png', w: 256, h: 242 },
+      drained: { href: '/art/clue-banana-peel-drained.png', w: 256, h: 242 },
     },
   },
 }
@@ -455,6 +537,8 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   | 'flashlight'
   | 'chest'
   | 'stone'
+  | 'apple'
+  | 'mushroom'
   | 'leaf',
   ArtImage
 >> = {
@@ -493,6 +577,10 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   chest: { href: '/art/sector-chest.png', w: 256, h: 200 },
   stone: { href: '/art/sector-stone.png', w: 256, h: 170 },
   leaf: { href: '/art/sector-leaf.png', w: 242, h: 256 },
+  // `docs/20` B12 (T43): the hedgehog's apple and mushroom, found on
+  // `night2`/`night3` and shown as the night case's chips.
+  apple: { href: '/art/sector-apple.png', w: 227, h: 256 },
+  mushroom: { href: '/art/sector-mushroom.png', w: 256, h: 245 },
 }
 
 /** The flower's two states. Both derive from `flor.png`, so the swap is an

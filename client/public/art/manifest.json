@@ -101,6 +101,32 @@
     "h": 353,
     "w": 384
   },
+  "clue-banana-drained": {
+    "bytes": 7158,
+    "file": "art/clue-banana-drained.png",
+    "h": 256,
+    "w": 134
+  },
+  "clue-banana-earned": {
+    "bytes": 19450,
+    "file": "art/clue-banana-earned.png",
+    "fill": "#fbd63a",
+    "h": 256,
+    "w": 134
+  },
+  "clue-banana-peel-drained": {
+    "bytes": 12169,
+    "file": "art/clue-banana-peel-drained.png",
+    "h": 242,
+    "w": 256
+  },
+  "clue-banana-peel-earned": {
+    "bytes": 29152,
+    "file": "art/clue-banana-peel-earned.png",
+    "fill": "#fbd73e",
+    "h": 242,
+    "w": 256
+  },
   "clue-breadcrumb-drained": {
     "bytes": 8244,
     "file": "art/clue-breadcrumb-drained.png",
@@ -114,16 +140,17 @@
     "w": 256
   },
   "clue-bubble-drained": {
-    "bytes": 7692,
+    "bytes": 8543,
     "file": "art/clue-bubble-drained.png",
-    "h": 255,
-    "w": 256
+    "h": 256,
+    "w": 142
   },
   "clue-bubble-earned": {
-    "bytes": 7807,
+    "bytes": 20167,
     "file": "art/clue-bubble-earned.png",
-    "h": 255,
-    "w": 256
+    "fill": "#51b9e1",
+    "h": 256,
+    "w": 142
   },
   "clue-corn-drained": {
     "bytes": 8485,
@@ -149,6 +176,19 @@
     "h": 256,
     "w": 195
   },
+  "clue-duck-feather-drained": {
+    "bytes": 9149,
+    "file": "art/clue-duck-feather-drained.png",
+    "h": 256,
+    "w": 159
+  },
+  "clue-duck-feather-earned": {
+    "bytes": 26866,
+    "file": "art/clue-duck-feather-earned.png",
+    "fill": "#f6ca3c",
+    "h": 256,
+    "w": 159
+  },
   "clue-feather-drained": {
     "bytes": 6944,
     "file": "art/clue-feather-drained.png",
@@ -173,16 +213,79 @@
     "h": 256,
     "w": 220
   },
+  "clue-handprint-drained": {
+    "bytes": 10227,
+    "file": "art/clue-handprint-drained.png",
+    "h": 256,
+    "w": 238
+  },
+  "clue-handprint-earned": {
+    "bytes": 9342,
+    "file": "art/clue-handprint-earned.png",
+    "h": 256,
+    "w": 238
+  },
+  "clue-hedgehog-print-drained": {
+    "bytes": 9386,
+    "file": "art/clue-hedgehog-print-drained.png",
+    "h": 216,
+    "w": 256
+  },
+  "clue-hedgehog-print-earned": {
+    "bytes": 8057,
+    "file": "art/clue-hedgehog-print-earned.png",
+    "h": 216,
+    "w": 256
+  },
+  "clue-puddle-drained": {
+    "bytes": 11093,
+    "file": "art/clue-puddle-drained.png",
+    "h": 256,
+    "w": 214
+  },
+  "clue-puddle-earned": {
+    "bytes": 29457,
+    "file": "art/clue-puddle-earned.png",
+    "fill": "#50a0da",
+    "h": 256,
+    "w": 214
+  },
+  "clue-scale-drained": {
+    "bytes": 9511,
+    "file": "art/clue-scale-drained.png",
+    "h": 164,
+    "w": 256
+  },
+  "clue-scale-earned": {
+    "bytes": 25747,
+    "file": "art/clue-scale-earned.png",
+    "fill": "#fb7e08",
+    "h": 164,
+    "w": 256
+  },
+  "clue-seeds-drained": {
+    "bytes": 12362,
+    "file": "art/clue-seeds-drained.png",
+    "h": 210,
+    "w": 256
+  },
+  "clue-seeds-earned": {
+    "bytes": 34654,
+    "file": "art/clue-seeds-earned.png",
+    "fill": "#dba43c",
+    "h": 210,
+    "w": 256
+  },
   "clue-webfoot-drained": {
-    "bytes": 6943,
+    "bytes": 7614,
     "file": "art/clue-webfoot-drained.png",
-    "h": 230,
+    "h": 250,
     "w": 256
   },
   "clue-webfoot-earned": {
-    "bytes": 6292,
+    "bytes": 6626,
     "file": "art/clue-webfoot-earned.png",
-    "h": 230,
+    "h": 250,
     "w": 256
   },
   "goal-medusa": {
@@ -359,6 +462,12 @@
     "h": 192,
     "w": 181
   },
+  "sector-apple": {
+    "bytes": 34550,
+    "file": "art/sector-apple.png",
+    "h": 256,
+    "w": 227
+  },
   "sector-aquarium-background": {
     "brightest": "#ffffff",
     "bytes": 2099948,
@@ -478,6 +587,12 @@
     "h": 1024,
     "quiet": "#f8be64",
     "w": 1536
+  },
+  "sector-mushroom": {
+    "bytes": 41105,
+    "file": "art/sector-mushroom.png",
+    "h": 245,
+    "w": 256
   },
   "sector-night-background": {
     "brightest": "#526083",
