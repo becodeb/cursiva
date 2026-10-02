@@ -99,7 +99,7 @@ Y cuatro palancas más:
   incluyen animales **ya rescatados**, que se descartan solos ("¿El pato? No:
   el pato ya está en su laguna", en la noche); y los **carteles de los
   recintos vacíos del prólogo** (peces: "¿De qué recinto se escaparon?").
-- **Nunca dos deducciones seguidas** en el recorrido (ver la columna de abajo).
+- **Nunca la misma forma de deducir dos veces seguidas** en el recorrido (ver la columna de abajo). Antes la regla era "nunca dos deducciones seguidas"; la autora la cambió el 2026-10-02 (decisión 1 de `docs/21` §6) para sumar los casos de ovejas (N5) y tortugas (N6).
 - **Lo que se junta cambia de forma**: objetos, animales, color, espinas, polen.
 
 El recorrido completo, en el orden de `zoo/journey.ts`:

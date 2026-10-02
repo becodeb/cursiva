@@ -324,6 +324,8 @@ dato después de una semana en el aula.
 
 ## 6. Decisiones para la autora
 
+> **Decidido el 2026-10-02:** decisión 1 → **(a)**. Se hacen N5 y N6 y la regla de `docs/19` §2.3 pasa a "nunca la misma forma de deducir dos veces seguidas". C9 y C10 (`docs/22`) dejan de estar bloqueadas.
+
 1. **Los casos nuevos de ovejas y tortugas (N5, N6).**
    - (a) Hacerlos, y cambiar la regla de `docs/19` §2.3 de "nunca dos
      deducciones seguidas" a "nunca **la misma forma** de deducir dos veces
