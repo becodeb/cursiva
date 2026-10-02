@@ -201,6 +201,8 @@ uno por mensaje. Así comparten paleta y trazo.
 
 #### B1 — La laguna (alta)
 
+> **2026-10-02: reemplazado por `docs/23` D25.** No pedir desde acá; ver `docs/23`.
+
 Sale en `art-source/fondo laguna.png`. Franja: filas 135–889 → **13 % a 87 %**.
 Tono máximo en la franja: `#b4c5d0` (luma 193; el papel exige ≤ 197).
 
@@ -222,6 +224,8 @@ la orilla de arriba y la de abajo se ven siempre. Si los delfines caen sobre
 la orilla, es la cuestión abierta de esa decisión, no de este pedido.
 
 #### B2 — La ladera de las ovejas (alta)
+
+> **2026-10-02: reemplazado por `docs/23` D26.** No pedir desde acá; ver `docs/23`.
 
 Sale en `art-source/fondo ladera.png`. Franja: filas 220–866 → **21 % a 85 %**.
 Este fondo usa canal de piedra (`CHANNEL_STONE`, luma 100), así que la regla
@@ -247,6 +251,8 @@ quedar lejos de él es lo oscuro.
 
 #### B3 — La cordillera de las llamas (alta)
 
+> **2026-10-02: reemplazado por `docs/23` D27.** No pedir desde acá; ver `docs/23`.
+
 Sale en `art-source/fondo cordillera.png`. Franja: filas 166–858 → **16 % a
 84 %**. Canal de piedra, igual que B2: **nada más oscuro que `#c8d3d8`**.
 
@@ -264,6 +270,8 @@ and "nothing darker than" instead of "nothing lighter than">
 ```
 
 #### B4 — El bosque (alta)
+
+> **2026-10-02: reemplazado por `docs/23` D28.** No pedir desde acá; ver `docs/23`.
 
 Sale en `art-source/fondo bosque.png`. Franja: filas 191–926 → **19 % a 90 %**.
 Tono máximo: `#86a678`. Lo usan la abeja (flores y panal encima) y los monos
@@ -284,6 +292,8 @@ GROUND="the grassy clearing", HEX=#86a678>
 ```
 
 #### B6 — La pecera (media)
+
+> **2026-10-02: reemplazado por `docs/23` D31.** No pedir desde acá; ver `docs/23`.
 
 Sale en `art-source/fondo entrada vidrio.png` (**ese** nombre: es el que usa el
 pipeline, no `fondo pecera.png`). Es un fondo de revelado: queda detrás del
@@ -309,6 +319,8 @@ Si no se pide, la otra salida (`docs/18` §6, A2) es cambiar la frase del cierre
 de los peces para que no nombre ni cofre ni algas.
 
 #### B7 — El sendero, con huellas (alta)
+
+> **2026-10-02: reemplazado por `docs/23` D30.** No pedir desde acá; ver `docs/23`.
 
 Sale en `art-source/fondo sendero.png`. Fondo de revelado: es lo que aparece
 al limpiar el barro, **y ahí tienen que aparecer las huellas** de los animales
@@ -341,6 +353,8 @@ right edge.
 ### Hoja "Fondos de noche": B5
 
 #### B5 — La noche del erizo (alta)
+
+> **2026-10-02: reemplazado por `docs/23` D29.** No pedir desde acá; ver `docs/23`.
 
 Sale en `art-source/fondo nocturno.png`. **Adjuntar `art-source/fondo noche
 zoo.png` como referencia**: es el mismo lugar, un rato después. En `docs/19`
@@ -417,6 +431,8 @@ código: una fila nueva en `build_art.py`, igual a la de `bocadillo.png`
 
 ### Hoja "Mono": B10 (alta)
 
+> **2026-10-02: reemplazado por `docs/23` D4.** No pedir desde acá; ver `docs/23`.
+
 Es A6 de `docs/18` §6, sin cambios de fondo. Hoy `art-source/mono.png` es un
 bloque gris con la palabra MONO, y se ve así en la barra de camino, en el
 rescate y en el mapa. **Adjuntar `art-source/pez.png` y
@@ -463,6 +479,8 @@ cada uno. La pose 2 sirve para el paso de bola a perfil de `docs/19` §3.3; si
 no sale bien, alcanza con la 1.
 
 ### Hoja "Pulpito": B15 (baja), B18 (media)
+
+> **2026-10-02: B15 y B18 reemplazados por `docs/23` D7 y D6.** No pedir desde acá; ver `docs/23`.
 
 Para el Pulpito sobre la escena (`docs/19` §4). Hoy hay tres figuras (con
 mochila, con lupa, cuidador) y ninguna señala ni piensa. **Adjuntar
@@ -530,6 +548,8 @@ correrlo, agregar la constante con el `w`/`h` del manifest en
 `screen/LevelPlay.tsx` a ella (hoy es `HOME_OCTOPUS_ART`). Nada más cambia.
 
 ### Hoja "Patitos": B16 (baja)
+
+> **2026-10-02: reemplazado por `docs/23` D5.** No pedir desde acá; ver `docs/23`.
 
 Para juntar la familia del pato (`docs/19` §3). Mientras no estén, se usa el
 pato que ya existe, más chico. **Adjuntar `art-source/pato.png`.**

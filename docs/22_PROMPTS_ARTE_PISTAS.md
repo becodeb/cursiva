@@ -542,6 +542,8 @@ yellow-brown #d9a441.
 
 ### C6 — Las escamitas del pez (media)
 
+> **2026-10-02: reemplazado por `docs/23` D3** (la C6 hecha se lee como gajos de mandarina). No pedir desde acá; ver `docs/23`.
+
 - **Archivo**: `art-source/pista escama.png`. PNG 1024 × 1024, fondo
   transparente.
 - **Adjuntar**: `art-source/pez.png` (el color: las escamas son de ese pez).
