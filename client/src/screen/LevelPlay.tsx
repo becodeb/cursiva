@@ -123,6 +123,7 @@ import type { TraceTorch } from '../canvas/TorchLayer'
 import { directionArrowOf } from './directionArrow'
 import { goalMarkerOf } from './goalMarker'
 import type { LevelConfig, LevelTarget, RevealConfig } from '../levels/types'
+import { luma } from '../detective/palette'
 import { isCaseTrail, inDetectiveWorld } from '../levels/world'
 import type { LevelAttempt, LevelRecord } from '../game/types'
 // Detective mode (design unit 6, spec: detective-mode "Clue Collection State
@@ -133,8 +134,17 @@ import {
   levelClueMarks,
   emptyClueState,
   reachedTrailEnd,
+  segmentClueMarks,
+  segmentClueState,
   type ClueState,
 } from '../detective/clues'
+// T45 (`docs/21` N5/N6): segment levels, each path its own stroke.
+import {
+  emptySegmentState,
+  segmentStandPoint,
+  settleSegmentRelease,
+  type SegmentState,
+} from '../levels/segments'
 // Collect-along-the-path (docs/19 §2.2/§3.4; T17). `level.collect` is the
 // sole discriminator, the same convention `level.clue` above uses — its
 // absence means an ordinary level and none of this wiring engages.
@@ -575,6 +585,45 @@ export function torchView(
  * substance rather than as the same line fading; this is the same brown
  * desaturated and lifted toward the ground it is drawn on. */
 const MUD_INK_DIM = '#b3a08c'
+
+/**
+ * T45 follow-up (coordinator review: "the child's ink on the brown turtle
+ * channel is faint"). The mud is a brown a little darker than the EARTH
+ * corridor it was chosen for; on a backdrop whose own channel is itself a
+ * mid brown (the turtles' `WET_SAND_HOLLOW`, luma 116 against the mud's 112)
+ * the line vanishes into the channel. Where the mud fails the 55-luma law
+ * against the channel AND the backdrop declares its own ink, the backdrop's
+ * ink wins — the line `turtle1..4` already draw on the same channel. Every
+ * other world level keeps its mud, every non-world level its backdrop ink.
+ */
+export function worldInk(
+  inWorld: boolean,
+  backdrop: { channel?: string; ink?: string; inkDim?: string } | undefined,
+): { ink: string | undefined; inkDim: string | undefined } {
+  if (!inWorld) return { ink: backdrop?.ink, inkDim: backdrop?.inkDim }
+  const channel = backdrop?.channel
+  if (channel && backdrop?.ink && Math.abs(luma(MUD_INK) - luma(channel)) < 55) {
+    return { ink: backdrop.ink, inkDim: backdrop.inkDim }
+  }
+  return { ink: MUD_INK, inkDim: MUD_INK_DIM }
+}
+
+/** The octopus's standing height and widest drawing (holding the glass, or
+ *  the empty-handed one), for keeping him clear of a segment level's marks. */
+const OCTOPUS_ASPECT = Math.max(OCTOPUS_ART.w / OCTOPUS_ART.h, HOME_OCTOPUS_ART.w / HOME_OCTOPUS_ART.h)
+
+/** [T45 follow-up] Where the octopus's feet go on a segment level: the
+ *  nearest spot to the first start whose box stays on the sheet (which every
+ *  viewport shows whole) and clear of every segment (`segmentStandPoint`).
+ *  The live corridor first, the authored one if a widened corridor leaves no
+ *  room. */
+export function segmentOctopusFeet(target: LevelTarget): { x: number; y: number } | undefined {
+  const bounds = { x: 0, y: 0, width: target.viewBoxWidth, height: 600 }
+  return (
+    segmentStandPoint(target.routes, target.corridorWidth, OCTOPUS_SIZE, OCTOPUS_ASPECT, bounds) ??
+    segmentStandPoint(target.routes, target.config.corridorWidth, OCTOPUS_SIZE, OCTOPUS_ASPECT, bounds)
+  )
+}
 
 /**
  * The restart cue (`LevelConfig.resetOnContact`, docs/01 principle 2).
@@ -1981,12 +2030,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const isCase = isCaseTrail(level)
   const inWorld = inDetectiveWorld(level)
   const clueDef = level.clue
+  // T45: a segment level (`level.segments`) is several short strokes, and
+  // its marks sit on every one of them, each lit by its own segment.
+  const segmentDef = level.segments
   const trailClueMarks = useMemo(
     () =>
       // [T44] `levelClueMarks`: evenly spaced, or at the places `clue.at`
       // names (the bridges' feet, the bottom or top of every loop).
-      clueDef ? levelClueMarks(target.polyline, target.length, clueDef) : [],
-    [clueDef, target.polyline, target.length],
+      clueDef
+        ? segmentDef
+          ? segmentClueMarks(target.routes, clueDef.spacing, clueDef.kind)
+          : levelClueMarks(target.polyline, target.length, clueDef)
+        : [],
+    [clueDef, segmentDef, target.routes, target.polyline, target.length],
   )
 
   // Collect-along-the-path (T17). `collectItems` is the SAME derived-position
@@ -2121,6 +2177,14 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // progress, not approval") even though nothing in this component calls it
   // as a production decision any more.
   const [clueState, setClueState] = useState<ClueState>(() => emptyClueState(trailClueMarks.length))
+  // T45: a segment level's latch (`levels/segments.ts`) and the strokes that
+  // completed a segment — the only ink such a level keeps on the sheet. A
+  // stroke that completed nothing leaves when the finger lifts, and the
+  // segment simply waits to be drawn again. Both belong to a genuinely new
+  // attempt at the level (their own `level.id` effect below), never to
+  // `resetSurface`, which also runs between two strokes of the same attempt.
+  const segmentRef = useRef<SegmentState>(emptySegmentState(segmentDef ? target.routes.length : 0))
+  const [segmentInk, setSegmentInk] = useState<ReadonlyArray<ReadonlyArray<{ x: number; y: number }>>>([])
   // T17: a level's own collected items (`levels/collect.ts`'s `CollectState`)
   // — DELIBERATELY not reset by `restartRun` (a wall-contact reset), unlike
   // `clueState` just above: `docs/19` §2.2 point 3 requires an item to stay
@@ -2620,6 +2684,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   useEffect(() => {
     spineRef.current = initialSpineState(level.spines, debugSearch)
     setSpineState(spineRef.current)
+    // T45: the segment latch and its ink, for the same reason.
+    segmentRef.current = emptySegmentState(level.segments ? target.routes.length : 0)
+    setSegmentInk([])
     // `level.spines` is not listed: like `target.routes.length` above, it is
     // a fixed config derived 1:1 from `level.id`'s own authored catalog
     // entry, never from the adaptive `record.widthFactor` `target` also
@@ -3049,7 +3116,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // meaningful while the child is actually walking the route.
       // `clueTick` is monotone and returns the exact same state reference
       // when nothing flips, so an idle re-pass costs a no-op setState.
-      if (shouldTickClue(!!clueDef && trailClueMarks.length > 0, out)) {
+      // T45: a segment level lights its marks from the segment latch at
+      // release instead (`onRelease`), never from arc progress here.
+      if (shouldTickClue(!!clueDef && !segmentDef && trailClueMarks.length > 0, out)) {
         const maxArc = corridorSample.track.tracks[corridorSample.active].maxArc
         setClueState((prev) => clueTick(prev, maxArc, trailClueMarks))
       }
@@ -3129,6 +3198,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // `trailEndArc`.
       if (
         isCase &&
+        !segmentDef &&
         !reachedEndRef.current &&
         reachedTrailEnd(
           corridorSample.track.tracks[corridorSample.active].maxArc,
@@ -3245,9 +3315,31 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
           setWaypointState(releasedWaypoints)
         }
       }
+      // T45: a segment level judges the stroke just released against its
+      // segments; one that completes a segment keeps its ink and lights
+      // that segment's marks.
+      let releasedSegments: SegmentState | undefined
+      if (segmentDef) {
+        const lastReleased = snapshot[snapshot.length - 1] ?? []
+        const settled = settleSegmentRelease(
+          segmentRef.current,
+          lastReleased,
+          target.routes,
+          target.corridorWidth,
+          segmentDef,
+        )
+        releasedSegments = settled.state
+        if (settled.accepted >= 0) {
+          segmentRef.current = settled.state
+          setSegmentInk((ink) => [...ink, lastReleased])
+          setClueState(segmentClueState(trailClueMarks, settled.state.done))
+          if (feedback.haptics) pulseOnLeaving(false, true)
+        }
+      }
       const outcome = releaseOutcome({
         evaluated,
         snapshot,
+        segments: releasedSegments,
         waypoints:
           level.waypoints && releasedWaypoints ? { state: releasedWaypoints, cfg: level.waypoints } : undefined,
         collectComplete: collectDef ? isCollectComplete(collectStateRef.current) : undefined,
@@ -3328,6 +3420,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       waypointPin,
       feedback.haptics,
       hasSnakeColour,
+      segmentDef,
+      trailClueMarks,
     ],
   )
 
@@ -3359,9 +3453,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // proof) — verified on `snake3`'s rotated column too
     // (`fix-snakes-true-alignment`'s own browser QA), so a rotated piece no
     // longer needs to fall back to the unmoved default.
-    if (!piece0 || !startMarker) return undefined
-    return standBesideArtCorridor(startMarker, piece0, OCTOPUS_STAND_MARGIN, true)
-  }, [target.artCorridor, startMarker])
+    if (piece0 && startMarker) return standBesideArtCorridor(startMarker, piece0, OCTOPUS_STAND_MARGIN, true)
+    // [T45 follow-up] On a segment level the octopus stands beside the
+    // segments, never on a start dot, stop mark, clue or corridor.
+    if (segmentDef) return segmentOctopusFeet(target)
+    return undefined
+  }, [target, startMarker, segmentDef])
   const directionArrow = useMemo(() => directionArrowOf(target), [target])
 
   // T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
@@ -3462,8 +3559,22 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // already is, for every level this task's own colour mechanic applies to
   // (`hasSnakeColour`, never a hardcoded snake id).
   const endMarker = useMemo(
-    () => (level.kind === 'path' && !collectDef && !hasSnakeColour ? goalMarkerOf(target) : undefined),
-    [level.kind, target, collectDef, hasSnakeColour],
+    () =>
+      level.kind === 'path' && !collectDef && !hasSnakeColour && !segmentDef ? goalMarkerOf(target) : undefined,
+    [level.kind, target, collectDef, hasSnakeColour, segmentDef],
+  )
+  // T45: a segment level marks every segment's own start and stop instead
+  // (`TraceCanvas`'s `routeMarkers`); the octopus stands beside them
+  // (`segmentOctopusFeet`), so the first start keeps its own dot too.
+  const routeMarkers = useMemo(
+    () =>
+      segmentDef
+        ? target.routes.map((route) => ({
+            start: route.polyline[0],
+            end: route.polyline[route.polyline.length - 1],
+          }))
+        : undefined,
+    [segmentDef, target.routes],
   )
   // Registry art standing where the route ends, in place of the two hollow
   // diamonds AND (T6, adventure-flow-and-map-guidance) the case lamp itself
@@ -3514,7 +3625,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // whichever levels this task's own mechanic applies to — never a
   // hardcoded `snake4` id, so a future snake level inherits the rule for
   // free — the same way `collectDef` already suppresses it above.
-  const endArt = collectDef || hasSnakeColour
+  const endArt = collectDef || hasSnakeColour || segmentDef
     ? undefined
     : level.goalArt
       ? { ...level.goalArt, size: GOAL_ART_SIZE }
@@ -3558,8 +3669,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // stroke ever drawn this attempt, exactly what `evaluateLevel` scores —
     // this filtering is render-only.
     if (level.spines) return []
-    return inkWarp ? strokes.map((stroke) => stroke.map((p) => inkWarp(p))) : strokes
-  }, [strokes, inkWarp, level.spines])
+    // T45: only the strokes that completed a segment stay (`segmentInk`).
+    const kept = level.segments ? segmentInk : strokes
+    return inkWarp ? kept.map((stroke) => stroke.map((p) => inkWarp(p))) : kept
+  }, [strokes, inkWarp, level.spines, level.segments, segmentInk])
   const fluencyEvaluated = level.rules.minFluency > 0
   // Same cost as the ideal grid and the same inputs, so it rides along.
   const band = useMemo(
@@ -4241,6 +4354,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // (store-derived, approval-gated): the two usually coincide on a
         // finished trail but are not the same statement.
         endArt={endArt}
+        routeMarkers={showMarkers ? routeMarkers : undefined}
         // No arrow in the detective world. The octopus standing at one end and
         // the lamp/goal art at the other already say "from here to there", and
         // the arrow is drawn AT the route's first point, so it lands on the
@@ -4337,8 +4451,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // is not wired into `ADVENTURE_BACKDROP` in this apply run).
         // [T44] ...except by torchlight: mud ink vanishes in the dark, so a
         // torch level keeps its backdrop's own chalk.
-        inkColor={inWorld && !level.torch ? MUD_INK : backdropEntry?.ink}
-        inkDimColor={inWorld && !level.torch ? MUD_INK_DIM : backdropEntry?.inkDim}
+        inkColor={worldInk(inWorld && !level.torch, backdropEntry).ink}
+        inkDimColor={worldInk(inWorld && !level.torch, backdropEntry).inkDim}
         inkHidden={arrangeOpen}
         inkPolicy={inkPolicy}
         artCorridor={traceArtCorridor}

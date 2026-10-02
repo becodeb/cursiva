@@ -94,7 +94,9 @@ describe('ADVENTURES', () => {
     expect(duck.animal).toBe('pato')
 
     const sheep = ADVENTURES[1]
-    expect(sheep.levelIds).toEqual(['sheep-hill1', 'sheep-hill2', 'sheep-hill3', 'sheep-hill4'])
+    // [T45] `sheep-lana` (the wool, `docs/21` N5) plays first.
+    expect(sheep.levelIds).toEqual(['sheep-lana', 'sheep-hill1', 'sheep-hill2', 'sheep-hill3', 'sheep-hill4'])
+    expect(sheep.deduction).toEqual({ after: 'sheep-lana', caseId: 'sheep' })
     expect(sheep.sector).toBe('montanas')
     expect(sheep.animal).toBe('oveja')
 
@@ -210,12 +212,15 @@ describe('ADVENTURES', () => {
   // the approved story line ("se escondieron en su caparazón…") that primes
   // the loop-collect mechanic (`levels/catalog.ts`'s `turtle1..4`, `collect:
   // { items: 'loops' }`).
-  it("the turtles row claims turtle1..4, recovers `tortuga`, and carries the T28-approved intro/closing copy verbatim", () => {
+  // [T45, `docs/21` N6] The prints come first now (`turtle-huellas`), then
+  // the deduction, then the four rings; the entry speaks of the prints.
+  it("the turtles row claims turtle-huellas then turtle1..4, recovers `tortuga`, and opens on the prints", () => {
     const turtles = ADVENTURES.find((a) => a.id === 'turtles')!
-    expect(turtles.levelIds).toEqual(['turtle1', 'turtle2', 'turtle3', 'turtle4'])
+    expect(turtles.levelIds).toEqual(['turtle-huellas', 'turtle1', 'turtle2', 'turtle3', 'turtle4'])
+    expect(turtles.deduction).toEqual({ after: 'turtle-huellas', caseId: 'turtles' })
     expect(turtles.sector).toBe('arena')
     expect(turtles.animal).toBe('tortuga')
-    expect(turtles.intro).toBe('Se escondieron en su caparazón. Demos la vuelta a cada una.')
+    expect(turtles.intro).toBe('Alguien dejó huellas y un surco en la arena. ¿Las seguimos?')
     expect(turtles.closing).toBe('¡Asomaron la cabeza! Ya volvieron a su recinto.')
     expect(turtles.closingBeat).toEqual([{ line: turtles.closing, art: ZOO_ANIMAL_ART.tortuga }])
   })
@@ -299,7 +304,7 @@ describe('adventureFor', () => {
 describe('introLevel', () => {
   it('resolves the adventure only for its first level', () => {
     expect(introLevel('duck-trail1')).toBe(ADVENTURES[0])
-    expect(introLevel('sheep-hill1')?.id).toBe('sheep')
+    expect(introLevel('sheep-lana')?.id).toBe('sheep')
     expect(introLevel('llama-peak1')?.id).toBe('llama')
   })
 
@@ -310,7 +315,7 @@ describe('introLevel', () => {
   })
 
   it('resolves undefined for every sheep/llama level after each adventure\'s first', () => {
-    for (const id of ['sheep-hill2', 'sheep-hill3', 'sheep-hill4']) {
+    for (const id of ['sheep-hill1', 'sheep-hill2', 'sheep-hill3', 'sheep-hill4']) {
       expect(introLevel(id)).toBeUndefined()
     }
     for (const id of ['llama-peak2', 'llama-peak3', 'llama-peak4']) {

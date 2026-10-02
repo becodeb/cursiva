@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import { ADVENTURES, adventureFor } from './adventures'
+import { DETECTIVE_CASES } from '../detective/cases'
 import { JOURNEY, nextJourneyStep } from './journey'
 import { SECTORS, type Records } from './sectors'
 
@@ -68,7 +69,7 @@ describe('JOURNEY (guard: every ADVENTURES row start and every no-row block star
       'glass3',
       'sand3',
       'duck-trail1',
-      'sheep-hill1',
+      'sheep-lana',
       'llama-peak1',
       'night1',
       'hedgehog1',
@@ -76,8 +77,37 @@ describe('JOURNEY (guard: every ADVENTURES row start and every no-row block star
       'bee1',
       'f2-guirnalda',
       'dolphin1',
-      'turtle1',
+      'turtle-huellas',
       'monkey1',
+    ])
+  })
+})
+
+// [T45] `docs/19` §2.3 as the author changed it on 2026-10-02 (`docs/21` §6
+// decision 1, and her follow-up of the same day): "nunca la misma forma de
+// deducir dos veces seguidas" — two CONSECUTIVE DEDUCTIONS of the journey,
+// ignoring the stops in between that ask none, never share a form.
+describe('two consecutive deductions of the journey never share a form (docs/19 §2.3)', () => {
+  const formAt = (entryLevel: string) => {
+    const deduction = adventureFor(entryLevel)?.deduction
+    return deduction ? DETECTIVE_CASES.find((k) => k.id === deduction.caseId)!.form : undefined
+  }
+  const forms = JOURNEY.map(formAt).filter((f): f is NonNullable<typeof f> => f !== undefined)
+
+  it('holds along the whole journey', () => {
+    for (let i = 1; i < forms.length; i++) {
+      expect(forms[i], `deduction ${i} after deduction ${i - 1}`).not.toBe(forms[i - 1])
+    }
+  })
+
+  it('asks the forms in the documented order', () => {
+    expect(forms).toEqual([
+      'new-silhouettes', // duck
+      'comparison', // sheep: wool against a feather and cat fur
+      'rescued-silhouettes', // night
+      'signs', // fish
+      'comparison', // turtles: three prints
+      'rescued-silhouettes', // monkeys
     ])
   })
 })
@@ -115,6 +145,7 @@ describe('nextJourneyStep', () => {
       'duck-trail6',
       'duck-trail3',
       'duck-trail4',
+      'sheep-lana',
       'sheep-hill1',
       'sheep-hill2',
       'sheep-hill3',
@@ -157,7 +188,7 @@ describe('nextJourneyStep', () => {
   // an already-visited sector (see `JOURNEY`'s own comment for why they
   // sit last — the bridge to the letters, not one more animal among the
   // earlier ones).
-  it('the journey steps after the fish/dolphin block are turtle1 in the arena, then monkey1 in the forest', () => {
+  it('the journey steps after the fish/dolphin block are turtle-huellas in the arena, then monkey1 in the forest', () => {
     const entrada = SECTORS.find((s) => s.id === 'entrada')!
     const estanque = SECTORS.find((s) => s.id === 'estanque')!
     const montanas = SECTORS.find((s) => s.id === 'montanas')!
@@ -172,7 +203,8 @@ describe('nextJourneyStep', () => {
       ...snake.levelIds,
       ...bee.levelIds,
     )
-    expect(nextJourneyStep(baseline)?.entryLevel).toBe('turtle1')
+    // [T45] The turtles open on their pistas level now (`docs/21` N6).
+    expect(nextJourneyStep(baseline)?.entryLevel).toBe('turtle-huellas')
     expect(nextJourneyStep(baseline)?.sector.id).toBe('arena')
 
     const turtles = ADVENTURES.find((a) => a.id === 'turtles')!

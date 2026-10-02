@@ -26,6 +26,7 @@ import { getLevel } from '../levels/catalog'
 import { EMPTY_SPINES, spineAnchors, type SpineState } from '../levels/spines'
 import { EMPTY_WAYPOINTS, waypointTick, type WaypointState } from '../levels/waypoints'
 import { releaseOutcome } from './levelCompletion'
+import { emptySegmentState, settleSegmentRelease } from '../levels/segments'
 import { emptySnakeColourState, snakeColourTick, type SnakeColourState } from './snakeColour'
 
 /** A plain outward drag from an anchor, sampled like a pointer stream. */
@@ -194,4 +195,28 @@ describe('bee: a hazard restart keeps the opened flowers, and they still finish 
     const outcome = releaseOutcome({ evaluated, snapshot: [stroke], waypoints: { state: latch, cfg } })
     expect(outcome.attempt.approved).toBe(false)
   })
+})
+
+// [T45] A segment level (`sheep-lana`, `turtle-huellas`): one release per
+// segment, and `onStart`'s clear-on-failed-retry empties the buffer before
+// every one but the first — the exact snake situation above. Replayed the
+// way `LevelPlay.onRelease` runs it: each release sees only its own stroke.
+describe('a segment level completes on its last segment, whatever the buffer holds', () => {
+  for (const id of ['sheep-lana', 'turtle-huellas']) {
+    it(id, () => {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      let state = emptySegmentState(target.routes.length)
+      const approvals: boolean[] = []
+      target.routes.forEach((route) => {
+        const a = route.polyline[0]
+        const b = route.polyline[route.polyline.length - 1]
+        const stroke = Array.from({ length: 31 }, (_, i) => ({ x: a.x + ((b.x - a.x) * i) / 30, y: a.y + ((b.y - a.y) * i) / 30 }))
+        state = settleSegmentRelease(state, stroke, target.routes, target.corridorWidth, level.segments!).state
+        const evaluated = evaluateLevel([stroke], target, 'touch')
+        approvals.push(releaseOutcome({ evaluated, snapshot: [stroke], segments: state }).attempt.approved)
+      })
+      expect(approvals).toEqual(target.routes.map((_, i) => i === target.routes.length - 1))
+    })
+  }
 })

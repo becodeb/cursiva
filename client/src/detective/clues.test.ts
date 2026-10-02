@@ -320,7 +320,10 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
   // a looser threshold. Loosening it would restore exactly the defect this
   // slice removed: a child who walked the whole route arriving with a mark
   // still dark.
-  const trails = LEVELS.filter((level) => level.clue)
+  // [T45] A segment level (`level.segments`) lights each mark when ITS
+  // segment is done, not by arc progress, so this invariant does not apply
+  // to it; its own block below holds it to the segment rule instead.
+  const trails = LEVELS.filter((level) => level.clue && !level.segments)
 
   it('covers every detective trail in the shipped catalog', () => {
     expect(trails.length).toBeGreaterThan(0)
@@ -363,7 +366,7 @@ describe('THE INVARIANT: reaching the end of a SHIPPED trail means every clue is
     ])
   })
 
-  for (const level of LEVELS.filter((l) => l.clue)) {
+  for (const level of trails) {
     it(`${level.id}: every clue mark's arc is strictly below the completion threshold`, () => {
       const target = buildLevelTarget(level)
       const clue = level.clue

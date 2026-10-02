@@ -9,6 +9,7 @@ import { pointAtArcLength } from '../letters/svgLetter'
 import { selfCrossingPoints, selfCrossingSpans } from '../levels/paths'
 import type { Point } from '../letters/types'
 import type { ClueKind } from './assets'
+import type { RouteSegment } from '../levels/types'
 
 /**
  * Arc-length span (in sheet units) used for the finite-difference tangent at
@@ -65,6 +66,10 @@ export interface ClueMark {
    * footprint belongs to. The offset is decoration; the arc is the mechanic.
    */
   arc: number
+  /** T45: which of the level's routes this mark sits on, on a segment level
+   *  (`LevelConfig.segments`), where every path is its own stroke. Absent =
+   *  the main route, every trail that predates it. */
+  route?: number
 }
 
 /**
@@ -170,7 +175,9 @@ export function clueMarks(
     // [T43] The monkey's handprint walks the same way: left hand, right
     // hand, up the vine.
     // [T44] So does the hedgehog's, through the dark on `night-rastro`.
-    if (kind === 'footprint' || kind === 'handprint' || kind === 'hedgehogPrint') {
+    // [T45] The turtle's prints sit on both sides of its tail furrow
+    // (`docs/21` N6).
+    if (kind === 'footprint' || kind === 'handprint' || kind === 'hedgehogPrint' || kind === 'turtlePrint') {
       const rad = (angle * Math.PI) / 180
       // SVG convention (y grows down, `rotate(deg)` turns clockwise — same
       // as `directionArrow.ts`'s `tangentAngleAt`): rotating the tangent
@@ -392,4 +399,30 @@ export function trailEndArc(length: number, corridorWidth: number): number {
 export function reachedTrailEnd(maxArc: number, length: number, corridorWidth: number): boolean {
   if (length <= 0) return false
   return maxArc >= trailEndArc(length, corridorWidth)
+}
+
+/**
+ * T45: a segment level's marks (`LevelConfig.segments`, `docs/21` N5/N6) —
+ * {@link clueMarks} run on EVERY route, each mark tagged with its route.
+ * The same arc-length spacing a trail uses, so a short fence post gets the
+ * one tuft its length allows and a long stretch of furrow gets several
+ * prints.
+ */
+export function segmentClueMarks(
+  routes: readonly RouteSegment[],
+  spacing: number,
+  kind: ClueKind,
+): readonly ClueMark[] {
+  return routes.flatMap((r, route) =>
+    clueMarks(r.polyline, r.length, clueCountFor(r.length, spacing), kind).map((m) => ({ ...m, route })),
+  )
+}
+
+/**
+ * T45: a segment level's marks light when THEIR segment is done — the
+ * stroke that completes a post finds the wool caught on it. Read straight
+ * off the segment latch, so it can never disagree with it.
+ */
+export function segmentClueState(marks: readonly ClueMark[], done: readonly boolean[]): ClueState {
+  return { lit: marks.map((m) => !!done[m.route ?? 0]) }
 }

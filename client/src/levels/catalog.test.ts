@@ -82,6 +82,7 @@ const EXPECTED_IDS = [
   'trail2',
   'trail3',
   'trail4',
+  'sheep-lana',
   'sheep-hill1',
   'sheep-hill2',
   'sheep-hill3',
@@ -111,6 +112,7 @@ const EXPECTED_IDS = [
   'hedgehog2',
   'hedgehog3',
   'hedgehog4',
+  'turtle-huellas',
   'turtle1',
   'turtle2',
   'turtle3',
@@ -225,6 +227,7 @@ describe('LEVELS — authored values match the doc tables', () => {
     trail2: 70,
     trail3: 90,
     trail4: 70,
+    'sheep-lana': 90,
     'sheep-hill1': 100,
     'sheep-hill2': 90,
     'sheep-hill3': 80,
@@ -233,6 +236,7 @@ describe('LEVELS — authored values match the doc tables', () => {
     'llama-peak2': 80,
     'llama-peak3': 70,
     'llama-peak4': 60,
+    'turtle-huellas': 80,
     'turtle1': 100,
     'turtle2': 90,
     'turtle3': 80,
@@ -306,6 +310,7 @@ describe('LEVELS — authored values match the doc tables', () => {
     trail2: 0,
     trail3: 0,
     trail4: 0,
+    'sheep-lana': 0,
     'sheep-hill1': 0,
     'sheep-hill2': 0,
     'sheep-hill3': 0,
@@ -314,6 +319,7 @@ describe('LEVELS — authored values match the doc tables', () => {
     'llama-peak2': 0,
     'llama-peak3': 0,
     'llama-peak4': 0,
+    'turtle-huellas': 0,
     'turtle1': 0,
     'turtle2': 0,
     'turtle3': 0,
@@ -377,6 +383,12 @@ describe('LEVELS — authored values match the doc tables', () => {
 
   it('makes phase 2 onward continuous, and phase 1 free except the coil trail', () => {
     for (const level of LEVELS) {
+      // [T45] A segment level (`levels/segments.ts`) is several strokes by
+      // definition: lifting at each stop IS the skill (`docs/21` N6).
+      if (level.segments) {
+        expect(level.rules.mustBeContinuous, level.id).toBe(false)
+        continue
+      }
       if (level.phase >= 2) expect(level.rules.mustBeContinuous).toBe(true)
     }
     expect(getLevel('f1-libre').rules.mustBeContinuous).toBe(false)
@@ -539,7 +551,9 @@ describe('LEVELS — the spoken hint names only what is on screen (T40)', () => 
     { kinds: ['feather', 'duckFeather'], word: /\bpluma/i },
     { kinds: ['breadcrumb'], word: /\bmiga/i },
     { kinds: ['corn'], word: /maíz|\bgranit?os?\b/i },
-    { kinds: ['footprint', 'webfoot', 'hedgehogPrint'], word: /\bhuella/i },
+    { kinds: ['footprint', 'webfoot', 'hedgehogPrint', 'turtlePrint'], word: /\bhuella/i },
+    // [T45] `docs/22` C9.
+    { kinds: ['wool'], word: /\blana\b/i },
     // [T43] The redrawn clues of `docs/22`.
     { kinds: ['puddle'], word: /\bcharc/i },
     { kinds: ['seeds'], word: /\bsemilla/i },
@@ -1575,6 +1589,7 @@ describe('levelsByPhase', () => {
       'trail2',
       'trail3',
       'trail4',
+      'sheep-lana',
       'sheep-hill1',
       'sheep-hill2',
       'sheep-hill3',
@@ -1653,6 +1668,7 @@ describe('detective-mode — four trails replace the six corridor levels', () =>
       'f1-libre',
       ...DUCK_ADVENTURE_IDS,
       ...DETECTIVE_TRAIL_IDS,
+      'sheep-lana',
       'sheep-hill1',
       'sheep-hill2',
       'sheep-hill3',

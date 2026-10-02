@@ -80,9 +80,11 @@ describe('adventureProgress', () => {
     })
   })
 
-  it('leaves clue undefined for an adventure with no clue art yet (sheep): the caller draws a star instead', () => {
-    const progress = adventureProgress('sheep-hill1', {})
-    expect(progress?.animal).toBe('oveja')
+  // [T45] The sheep gained a case (`sheep-lana`, `docs/21` N5); the llama is
+  // the montañas adventure that still has no clue.
+  it('leaves clue undefined for an adventure with no clue art yet (llama): the caller draws a star instead', () => {
+    const progress = adventureProgress('llama-peak1', {})
+    expect(progress?.animal).toBe('llama')
     for (const slot of progress!.slots) {
       expect(slot.clue, slot.levelId).toBeUndefined()
     }
@@ -111,20 +113,24 @@ describe('adventureProgress', () => {
 
   it('flags exactly the one level actually being played as current', () => {
     const progress = adventureProgress('sheep-hill3', {})
-    expect(progress?.slots.map((s) => s.current)).toEqual([false, false, true, false])
+    expect(progress?.slots.map((s) => s.current)).toEqual([false, false, false, true, false])
   })
 
   // The turtles' and monkeys' own rows (`promised-animals` P3/P4) — neither
   // carries a `clue` (the finish chain shows a star on 1-3, the animal on
   // 4), the same "no clue art yet" shape sheep's own row above already
   // covers.
-  it('reports a mid-adventure turtle trail with no clue art (star fallback), animal tortuga', () => {
-    const progress = adventureProgress('turtle2', recordsFor(['turtle1']))
+  // [T45] The turtles gained a case (`turtle-huellas`, `docs/21` N6): its
+  // pistas level carries the print, the rings keep the star fallback, and
+  // the animal is withheld like every deduction-gated adventure's.
+  it('reports a mid-adventure turtle trail: the print first, the rings with no clue art (star fallback)', () => {
+    const progress = adventureProgress('turtle2', recordsFor(['turtle-huellas', 'turtle1']))
     expect(progress).toEqual({
       adventureId: 'turtles',
-      animal: 'tortuga',
+      animal: undefined,
       rescued: false,
       slots: [
+        { levelId: 'turtle-huellas', clue: 'turtlePrint', filed: true, current: false },
         { levelId: 'turtle1', clue: undefined, filed: true, current: false },
         { levelId: 'turtle2', clue: undefined, filed: false, current: true },
         { levelId: 'turtle3', clue: undefined, filed: false, current: false },

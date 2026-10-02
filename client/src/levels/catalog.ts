@@ -52,6 +52,7 @@ import {
   waveVaried,
 } from './paths'
 import { DRAWN_SPINE, type ArtCorridorPiece } from './artCorridor'
+import { fencePosts, furrowSegments } from './segments'
 import type { LevelConfig, LevelFeedback, LevelRules, Phase } from './types'
 
 /** Phase headings, as named in docs/08 section 5. */
@@ -1014,6 +1015,40 @@ const PHASE_1: LevelConfig[] = [
   // it is empty) — `carrier: false`, no `clue`, no `detectiveWorld`. Not a
   // case (`docs/13` §4 decision 1: row C is caretaker content).
   // ───────────────────────────────────────────────────────────────────────
+  // [T45, `docs/21` N5] The sheep's own case (recipe A since the author's
+  // decision 1 of `docs/21` §6, 2026-10-02): a pistas level first, then
+  // "¿De quién es esta lana?", then the sheep gathered on the hills below. Five
+  // fence posts, each its OWN stroke top to bottom (`segments`): land on the
+  // top, pull down, stop at the bottom and lift. The straight downstroke
+  // with a real start and stop no other level trains (§3.1.4, §3.2.6). One
+  // tuft of wool on each post lights when its post is done. Walls forgive
+  // (`resetOnContact: false`): a post that goes wrong is simply drawn again,
+  // and the posts already done stay done.
+  {
+    id: 'sheep-lana',
+    phase: 1,
+    title: 'La lana del alambrado',
+    hint: 'Bajá por cada poste, de arriba abajo, y frená al final. Buscá la lana.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: false,
+    carrier: true,
+    feedback: feedback(false),
+    // Span 130-470 clears the phase-1 "whole sheet" guard; 160 units between
+    // posts leaves 70 of open sheet between two 90-wide corridors, and the
+    // run (centred to 180-820) leaves room left of the first post for the
+    // octopus to stand clear of every post (`segmentStandPoint`).
+    paths: fencePosts({ x0: 210, x1: 850, top: 130, bottom: 470, count: 5 }),
+    corridorWidth: 90,
+    rules: rules(1, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    segments: { startReach: 70, stopReach: 55 },
+    // One tuft per 340-unit post (`clueCountFor(340, 170)` = 1).
+    clue: { kind: 'wool', spacing: 170 },
+  },
   {
     id: 'sheep-hill1',
     phase: 1,
@@ -2332,6 +2367,37 @@ const PHASE_2: LevelConfig[] = [
   // gets, the same kind of margin `f2-agua3`'s own worst cycle already
   // ships at (4.5 units on ITS own guard).
   // ───────────────────────────────────────────────────────────────────────
+  // [T45, `docs/21` N6] The turtles' own case: a pistas level first, then
+  // "¿De quién es esta huella?" (the fourth way of deducing: compare
+  // prints), then the four rings below. One straight line left to right,
+  // the furrow the tail drags, cut into three stretches (`segments`): each
+  // ends at a stop, and the child lifts there before the next — "recta y
+  // frenar" (§3.1.4, §3.2.6). Turtle prints on both sides of the furrow
+  // light when their stretch is done.
+  {
+    id: 'turtle-huellas',
+    phase: 2,
+    title: 'El surco de la cola',
+    hint: 'Seguí el surco de la tortuga y frená en cada marca. Mirá las huellas.',
+    kind: 'path',
+    surface: 'blank',
+    maze: true,
+    resetOnContact: false,
+    carrier: true,
+    feedback: feedback(false),
+    // [T45 follow-up] 120 units between stretches: with an 80-wide corridor
+    // that is 40 units of sand between two stretches, so each stop mark sits
+    // wholly before the next start and the three read as one line with
+    // stops, not one bar with markers piled up.
+    paths: furrowSegments({ x0: 80, x1: 920, y: 300, count: 3, gap: 120 }),
+    corridorWidth: 80,
+    rules: rules(2, false, true, 0),
+    showGuide: true,
+    letters: [],
+    demo: true,
+    segments: { startReach: 70, stopReach: 55 },
+    clue: { kind: 'turtlePrint', spacing: 60 },
+  },
   {
     id: 'turtle1',
     phase: 2,
