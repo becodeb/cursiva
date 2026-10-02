@@ -105,6 +105,7 @@ imagen esté guardada y pase su checklist.
 | C7 | `pista huellita de erizo.png` | Huellita de erizo | noche: `night-rastro` | media | hecho (T43: registrada; `night-rastro` no existe todavía) | — |
 | B12 | ver `docs/20` §6 | Manzana y hongo | noche: `night2`, `night3` | media | hecho (T43: en el juego) | `piedra.png` (en la noche) |
 | C9 | `pista lana.png` | Mechón de lana | ovejas: `sheep-lana` | media (decisión 1 aprobada 2026-10-02) | pendiente (T45: el nivel existe y usa un reemplazo provisorio, §5.8) | — |
+| C13 | `pista pelo de gato.png` | Mechón de pelo de gato | ovejas: la deducción "¿De quién es esta lana?" (una de las tres muestras) | media (decisión de la autora, 2026-10-02) | pendiente (T45: la deducción usa la silueta del gato, §5.8). Falta escribir el pedido | — |
 | C10 | `pista huella de tortuga.png` | Huella de tortuga | tortugas: `turtle-huellas` y su deducción | media (decisión 1 aprobada 2026-10-02) | pendiente (T45: el nivel existe y usa un reemplazo provisorio, §5.8) | — |
 
 ---
@@ -845,6 +846,16 @@ Para la sesión que meta las imágenes en el juego.
    y el tipo siga en `PLACEHOLDER_CLUE_ART`, así que el cambio no se olvida.
    La lana va con `'contour'`: sumarla a la lista de pistas de color medido
    de `artManifest.test.ts`.
+
+   El **pelo de gato** (C13) no es una pista de camino: es una de las tres
+   muestras de la deducción de las ovejas (lana, pluma de pato C2, pelo de
+   gato). Hoy usa la silueta del gato (`CAT_FUR_SAMPLE_ART`,
+   `PLACEHOLDER_SAMPLE_SOURCES`). Cuando exista `art-source/pista pelo de
+   gato.png`: una fila `('pista pelo de gato.png', 'sample-cat-fur.png',
+   256, 'contour', True)` en `SINGLES` más su `AUTHORED_SOURCE_SIZES`,
+   correr el pipeline, apuntar `CAT_FUR_SAMPLE_ART` al archivo nuevo (con su
+   `w`/`h`) y sacarlo de `PLACEHOLDER_SAMPLE_SOURCES`. La misma guarda de
+   `artManifest.test.ts` avisa.
 
 ---
 

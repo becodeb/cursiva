@@ -276,7 +276,9 @@ puede tener más).
 > su deducción cada uno. Los dos son niveles de tramos (`levels/segments.ts`):
 > cada poste o tramo es un trazo propio que se acepta al levantar el dedo en
 > su parada. La lana y la huella de tortuga usan un dibujo prestado hasta que
-> lleguen C9 y C10 (`docs/22` §5.8).
+> lleguen C9 y C10 (`docs/22` §5.8). La deducción de las ovejas cambió por
+> decisión de la autora: compara tres muestras ("¿De quién es esta lana?":
+> lana, pluma de pato, pelo de gato) en vez de siluetas con descarte.
 
 N5 le da a las ovejas un trabajo propio y quita parte de la redundancia con
 las llamas. N6 estrena una **cuarta forma de deducir** (comparar huellas), que
