@@ -273,7 +273,13 @@ const PROP_FILES = import.meta.glob('../../public/art/{goal,hazard}-*.png', {
  * `'contour'` clue rows). Listed by name, like `WORLD_GUARDED_ART`, so a new
  * one is an explicit contract change. */
 const AUTHORED_CLUE_FILES = import.meta.glob(
-  '../../public/art/clue-{puddle,seeds,duck-feather,bubble,scale,banana,banana-peel}-earned.png',
+  [
+    '../../public/art/clue-{puddle,seeds,duck-feather,bubble,scale,banana,banana-peel}-earned.png',
+    // T48: the wool (`docs/22` C9), the redrawn seaweed (`docs/23` D2), and
+    // the " 2"/" 3" variations of every coloured clue (`docs/23` §7.1).
+    '../../public/art/clue-{wool,seaweed}-earned.png',
+    '../../public/art/clue-{puddle,seeds,duck-feather,bubble,scale,banana,banana-peel,wool,seaweed}-{2,3}-earned.png',
+  ],
   { eager: true, query: '?inline', import: 'default' },
 ) as Inlined
 
@@ -339,7 +345,8 @@ const WORLD_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
   ),
   ...Object.fromEntries(
     Object.entries(SECTOR_ADVENTURE_ART).map(([id, art]) => [
-      `sector-${id.replace(/([A-Z])/g, '-$1').toLowerCase()}.png`,
+      // T48: a trailing digit is a variation (`leaf2` -> `sector-leaf-2.png`).
+      `sector-${id.replace(/([A-Z])/g, '-$1').replace(/(\d+)$/, '-$1').toLowerCase()}.png`,
       art,
     ]),
   ),
@@ -639,7 +646,8 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
 
   it('outlines every authored-colour clue in a thick achromatic contour (T43)', async () => {
     const files = named(AUTHORED_CLUE_FILES)
-    expect(files.length, 'the authored clue glob has gone stale').toBe(7)
+    // 9 kinds x 3 drawings, minus the scale's unused third (T48).
+    expect(files.length, 'the authored clue glob has gone stale').toBe(26)
     for (const [name, url] of files) {
       const art = await decodePng(base64ToBytes(url.split(',')[1]))
       let opaque = 0

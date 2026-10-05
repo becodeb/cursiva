@@ -345,6 +345,16 @@ def emit_opaque_canvas(name: str, img: png.Image, expected_w: int, expected_h: i
 # entry here.
 SPECKLED_ALPHA_SOURCES = {'oveja.png', 'piedra.png'}
 
+# T48 (`docs/23` D11): `piedra v2.png` is a clean cutout (smooth 1-8 alpha
+# tail, 0.48%; the same bbox at 8 and 13), but it is drawn ROLLING: four
+# loose speed lines trail off its left side, four separate blobs of 2-5k
+# pixels beside the 363k-pixel stone (`png.components`). The stone is a
+# hazard that swings BOTH ways and is drawn at the hit circle's size, so
+# lines fixed on one side would point backwards half the time and shrink the
+# stone inside its own circle. The same largest-blob pass the speckled
+# sources take keeps the stone and drops the lines.
+MOTION_LINE_SOURCES = {'piedra v2.png'}
+
 # Sources whose "transparent" field came back at a low but NON-ZERO alpha.
 # See `clear_ghost_alpha` for the measurement and why this is opt-in like
 # `SPECKLED_ALPHA_SOURCES` rather than a blanket pass.
@@ -402,7 +412,7 @@ def clear_ghost_alpha(img: png.Image, thresh: int = 8) -> png.Image:
 def prepare(src_name: str, target_h: int) -> png.Image:
     """Crop to content and downscale so the taller side lands on `2*target_h`."""
     img = png.read_png(os.path.join(SRC, src_name))
-    if src_name in SPECKLED_ALPHA_SOURCES:
+    if src_name in SPECKLED_ALPHA_SOURCES or src_name in MOTION_LINE_SOURCES:
         img = keep_largest_blob(img)
     if src_name in GHOST_ALPHA_SOURCES:
         img = clear_ghost_alpha(img)
@@ -471,8 +481,14 @@ SINGLES = [
     ('pista huella de pato.png', 'clue-webfoot-drained.png',   256, CLUE_DRAINED, False),
     ('pista burbujas.png',    'clue-bubble-earned.png',        256, 'contour',    True),
     ('pista burbujas.png',    'clue-bubble-drained.png',       256, CLUE_DRAINED, True),
-    ('pista escama.png',      'clue-scale-earned.png',         256, 'contour',    True),
-    ('pista escama.png',      'clue-scale-drained.png',        256, CLUE_DRAINED, True),
+    # T48 (`docs/23` D3): the round-2 scales replace C6's `pista escama.png`
+    # (it read as tangerine segments). Only D3's " 2" and " 3" are used:
+    # its variation 1, `pista escamas de pez.png`, came back as a blue-grey
+    # patch of fish skin instead of loose orange scales, so the " 2" is this
+    # kind's first drawing and the " 3" its only variation (below). The
+    # unused sources stay in `art-source/` (`docs/23` §3.1).
+    ('pista escamas de pez 2.png', 'clue-scale-earned.png',    256, 'contour',    True),
+    ('pista escamas de pez 2.png', 'clue-scale-drained.png',   256, CLUE_DRAINED, True),
     ('pista mano de mono.png', 'clue-handprint-earned.png',    256, PRINT,        False),
     ('pista mano de mono.png', 'clue-handprint-drained.png',   256, CLUE_DRAINED, False),
     ('pista banana.png',      'clue-banana-earned.png',        256, 'contour',    True),
@@ -486,10 +502,87 @@ SINGLES = [
     # T44 (`docs/21` N3, `f2-buceo`): the fish case already shows bubbles
     # (`f2-guirnalda`) and scales (`f2-agua2`), and every clue of a case is a
     # different thing (T40). What the fish nibbles at the bottom of each dive
-    # is a bit of seaweed: `alga.png` is existing art (blue contour, green
-    # fill), kept with its authored fills like the T43 marks above.
-    ('alga.png',              'clue-seaweed-earned.png',       256, 'contour',    True),
-    ('alga.png',              'clue-seaweed-drained.png',      256, CLUE_DRAINED, True),
+    # is a bit of seaweed, kept with its authored fills like the T43 marks
+    # above. T48 (`docs/23` D2): `pista alga.png` replaces the older flat
+    # `alga.png` (navy vector contour, off the authored canvas); the old
+    # source stays in `art-source/` and nothing reads it any more.
+    ('pista alga.png',        'clue-seaweed-earned.png',       256, 'contour',    True),
+    ('pista alga.png',        'clue-seaweed-drained.png',      256, CLUE_DRAINED, True),
+    # T48 (`docs/22` C9, C10; `docs/23` D1): the sheep's wool and the
+    # turtle's print replace the T45 placeholders (the bread crumb and the
+    # hedgehog print); the wool keeps its authored cream like every coloured
+    # clue, the turtle print is a bare black silhouette like the other
+    # prints. (`pista pelo de gato.png`, `docs/23` D1, is NOT shipped: it
+    # reads as a flame; its redo is `docs/23` D38.)
+    ('pista lana.png',        'clue-wool-earned.png',          256, 'contour',    True),
+    ('pista lana.png',        'clue-wool-drained.png',         256, CLUE_DRAINED, True),
+    ('pista huella de tortuga.png', 'clue-turtle-print-earned.png', 256, PRINT,   False),
+    ('pista huella de tortuga.png', 'clue-turtle-print-drained.png', 256, CLUE_DRAINED, False),
+    # T48 (`docs/23` D2-D3, D12-D20, D23-D24): the variations " 2"/" 3" of
+    # every trail clue. A trail draws mark `i` with variation `i mod 3`
+    # (`detective/assets.ts`'s `clueArtAt`), so no two neighbours are the
+    # same stamp. Each variation takes the SAME two rows as its variation 1:
+    # the coloured ones keep their authored fills (`'contour'`, and `main`
+    # measures each one's `fill` so `artManifest.test.ts` can hold it near
+    # the kind's token); the prints are flattened to `PRINT` with
+    # `keep_ink=False`, which also turns the coloured, outlined print
+    # variations the author delivered (blue duck feet, brown hands and paws)
+    # into the bare black silhouette their variation 1 is. Measured before
+    # adding them: every source is a 1024x1024 canvas whose 1-8 alpha band is
+    # a smooth antialiasing tail (0.22-0.77%, no spike at 8) with the same
+    # `alpha_bbox` at 8 and 13 (within a pixel), so none needs
+    # `GHOST_ALPHA_SOURCES` or `SPECKLED_ALPHA_SOURCES`.
+    ('pista charco 2.png',              'clue-puddle-2-earned.png', 256, 'contour', True),
+    ('pista charco 2.png',              'clue-puddle-2-drained.png', 256, CLUE_DRAINED, True),
+    ('pista charco 3.png',              'clue-puddle-3-earned.png', 256, 'contour', True),
+    ('pista charco 3.png',              'clue-puddle-3-drained.png', 256, CLUE_DRAINED, True),
+    ('pista semillas 2.png',            'clue-seeds-2-earned.png', 256, 'contour', True),
+    ('pista semillas 2.png',            'clue-seeds-2-drained.png', 256, CLUE_DRAINED, True),
+    ('pista semillas 3.png',            'clue-seeds-3-earned.png', 256, 'contour', True),
+    ('pista semillas 3.png',            'clue-seeds-3-drained.png', 256, CLUE_DRAINED, True),
+    ('pista pluma de pato 2.png',       'clue-duck-feather-2-earned.png', 256, 'contour', True),
+    ('pista pluma de pato 2.png',       'clue-duck-feather-2-drained.png', 256, CLUE_DRAINED, True),
+    ('pista pluma de pato 3.png',       'clue-duck-feather-3-earned.png', 256, 'contour', True),
+    ('pista pluma de pato 3.png',       'clue-duck-feather-3-drained.png', 256, CLUE_DRAINED, True),
+    ('pista huella de pato 2.png',      'clue-webfoot-2-earned.png', 256, PRINT, False),
+    ('pista huella de pato 2.png',      'clue-webfoot-2-drained.png', 256, CLUE_DRAINED, False),
+    ('pista huella de pato 3.png',      'clue-webfoot-3-earned.png', 256, PRINT, False),
+    ('pista huella de pato 3.png',      'clue-webfoot-3-drained.png', 256, CLUE_DRAINED, False),
+    ('pista burbujas 2.png',            'clue-bubble-2-earned.png', 256, 'contour', True),
+    ('pista burbujas 2.png',            'clue-bubble-2-drained.png', 256, CLUE_DRAINED, True),
+    ('pista burbujas 3.png',            'clue-bubble-3-earned.png', 256, 'contour', True),
+    ('pista burbujas 3.png',            'clue-bubble-3-drained.png', 256, CLUE_DRAINED, True),
+    ('pista mano de mono 2.png',        'clue-handprint-2-earned.png', 256, PRINT, False),
+    ('pista mano de mono 2.png',        'clue-handprint-2-drained.png', 256, CLUE_DRAINED, False),
+    ('pista mano de mono 3.png',        'clue-handprint-3-earned.png', 256, PRINT, False),
+    ('pista mano de mono 3.png',        'clue-handprint-3-drained.png', 256, CLUE_DRAINED, False),
+    ('pista banana 2.png',              'clue-banana-2-earned.png', 256, 'contour', True),
+    ('pista banana 2.png',              'clue-banana-2-drained.png', 256, CLUE_DRAINED, True),
+    ('pista banana 3.png',              'clue-banana-3-earned.png', 256, 'contour', True),
+    ('pista banana 3.png',              'clue-banana-3-drained.png', 256, CLUE_DRAINED, True),
+    ('pista cascara de banana 2.png',   'clue-banana-peel-2-earned.png', 256, 'contour', True),
+    ('pista cascara de banana 2.png',   'clue-banana-peel-2-drained.png', 256, CLUE_DRAINED, True),
+    ('pista cascara de banana 3.png',   'clue-banana-peel-3-earned.png', 256, 'contour', True),
+    ('pista cascara de banana 3.png',   'clue-banana-peel-3-drained.png', 256, CLUE_DRAINED, True),
+    ('pista huellita de erizo 2.png',   'clue-hedgehog-print-2-earned.png', 256, PRINT, False),
+    ('pista huellita de erizo 2.png',   'clue-hedgehog-print-2-drained.png', 256, CLUE_DRAINED, False),
+    ('pista huellita de erizo 3.png',   'clue-hedgehog-print-3-earned.png', 256, PRINT, False),
+    ('pista huellita de erizo 3.png',   'clue-hedgehog-print-3-drained.png', 256, CLUE_DRAINED, False),
+    ('pista lana 2.png',                'clue-wool-2-earned.png', 256, 'contour', True),
+    ('pista lana 2.png',                'clue-wool-2-drained.png', 256, CLUE_DRAINED, True),
+    ('pista lana 3.png',                'clue-wool-3-earned.png', 256, 'contour', True),
+    ('pista lana 3.png',                'clue-wool-3-drained.png', 256, CLUE_DRAINED, True),
+    ('pista huella de tortuga 2.png',   'clue-turtle-print-2-earned.png', 256, PRINT, False),
+    ('pista huella de tortuga 2.png',   'clue-turtle-print-2-drained.png', 256, CLUE_DRAINED, False),
+    ('pista huella de tortuga 3.png',   'clue-turtle-print-3-earned.png', 256, PRINT, False),
+    ('pista huella de tortuga 3.png',   'clue-turtle-print-3-drained.png', 256, CLUE_DRAINED, False),
+    ('pista alga 2.png',                'clue-seaweed-2-earned.png', 256, 'contour', True),
+    ('pista alga 2.png',                'clue-seaweed-2-drained.png', 256, CLUE_DRAINED, True),
+    ('pista alga 3.png',                'clue-seaweed-3-earned.png', 256, 'contour', True),
+    ('pista alga 3.png',                'clue-seaweed-3-drained.png', 256, CLUE_DRAINED, True),
+    # The scales: D3's " 3" is this kind's second drawing (see `clue-scale`).
+    ('pista escamas de pez 3.png',      'clue-scale-2-earned.png', 256, 'contour', True),
+    ('pista escamas de pez 3.png',      'clue-scale-2-drained.png', 256, CLUE_DRAINED, True),
     ('lamparita prendida.png', 'lamp-on.png',              192, LAMP,         True),
     # BOTH lamp states come from the LIT drawing, and that is deliberate.
     # `lamparita apagada.png` is a bare dark silhouette with no contour of its
@@ -625,13 +718,26 @@ SINGLES = [
     # with `png.py` -- an entry that does not match fails
     # `validate_authored_source_sizes` for every asset in the build.
     ('cofre.png',              'sector-chest.png',          256, 'contour',    True),
-    ('piedra.png',             'sector-stone.png',          256, 'contour',    True),
+    # T48 (`docs/23` D11): `piedra v2.png` replaces the plain grey oval; the
+    # old source stays in `art-source/`. See `MOTION_LINE_SOURCES` for the
+    # speed lines it is drawn with.
+    ('piedra v2.png',          'sector-stone.png',          256, 'contour',    True),
     ('hoja.png',               'sector-leaf.png',           256, 'contour',    True),
+    # T48 (`docs/23` D21): two more leaves from the same tree, so the two
+    # leaves blowing across `monkey3` and the night's leaves are not one
+    # stamp. Same `'contour'` row as the leaf; both are 1024x1024 with a
+    # clean alpha tail (measured like the clue variations, T48 block above).
+    ('hoja 2.png',             'sector-leaf-2.png',         256, 'contour',    True),
+    ('hoja 3.png',             'sector-leaf-3.png',         256, 'contour',    True),
     # `docs/20` B12 (T43): the hedgehog's apple and mushroom, found by torch
     # on `night2`/`night3`. Same drawn-world props as the leaf beside them,
     # so the same `'contour'` row: the red apple and its green leaf keep
     # their colours (`docs/22` §6).
     ('manzana.png',            'sector-apple.png',          256, 'contour',    True),
+    # T48 (`docs/23` D22): the second and third apple (`night3`, the end of
+    # `night-rastro`), so the child never finds the same stamp twice.
+    ('manzana 2.png',          'sector-apple-2.png',        256, 'contour',    True),
+    ('manzana 3.png',          'sector-apple-3.png',        256, 'contour',    True),
     ('hongo.png',              'sector-mushroom.png',       256, 'contour',    True),
     # The arena's cart, `docs/13` §8 row E's own backpack reward
     # (design.md §7.1). PIPELINE ROW ONLY here -- no `CART_ART` registry entry
@@ -1064,6 +1170,42 @@ AUTHORED_SOURCE_SIZES = {
     'pista banana.png': (1024, 1024),
     'manzana.png': (1024, 1024),
     'hongo.png': (1024, 1024),
+    # T48: the round-2 clue art, variations and redraws (`docs/23`), all on
+    # the square canvas `docs/23` §0 asks for.
+    'pista lana.png': (1024, 1024),
+    'pista huella de tortuga.png': (1024, 1024),
+    'pista alga.png': (1024, 1024),
+    'pista charco 2.png': (1024, 1024),
+    'pista charco 3.png': (1024, 1024),
+    'pista semillas 2.png': (1024, 1024),
+    'pista semillas 3.png': (1024, 1024),
+    'pista pluma de pato 2.png': (1024, 1024),
+    'pista pluma de pato 3.png': (1024, 1024),
+    'pista huella de pato 2.png': (1024, 1024),
+    'pista huella de pato 3.png': (1024, 1024),
+    'pista burbujas 2.png': (1024, 1024),
+    'pista burbujas 3.png': (1024, 1024),
+    'pista mano de mono 2.png': (1024, 1024),
+    'pista mano de mono 3.png': (1024, 1024),
+    'pista banana 2.png': (1024, 1024),
+    'pista banana 3.png': (1024, 1024),
+    'pista cascara de banana 2.png': (1024, 1024),
+    'pista cascara de banana 3.png': (1024, 1024),
+    'pista huellita de erizo 2.png': (1024, 1024),
+    'pista huellita de erizo 3.png': (1024, 1024),
+    'pista lana 2.png': (1024, 1024),
+    'pista lana 3.png': (1024, 1024),
+    'pista huella de tortuga 2.png': (1024, 1024),
+    'pista huella de tortuga 3.png': (1024, 1024),
+    'pista alga 2.png': (1024, 1024),
+    'pista alga 3.png': (1024, 1024),
+    'pista escamas de pez 2.png': (1024, 1024),
+    'pista escamas de pez 3.png': (1024, 1024),
+    'hoja 2.png': (1024, 1024),
+    'hoja 3.png': (1024, 1024),
+    'manzana 2.png': (1024, 1024),
+    'manzana 3.png': (1024, 1024),
+    'piedra v2.png': (1024, 1024),
 }
 
 
@@ -1223,7 +1365,9 @@ def main() -> None:
         # alpha antialiasing at the outer silhouette, but snap any resulting
         # dark chromatic blend back to the neutral world contour.
         if fill == 'contour' and (
-            name.startswith(('zoo-', 'sector-', 'hedgehog-', 'clue-'))
+            # `sample-` (T48): the deduction's cat-fur sample, a clue-like
+            # two-tone drawing with the same contour blend at the halving.
+            name.startswith(('zoo-', 'sector-', 'hedgehog-', 'clue-', 'sample-'))
             or name in (
                 'andean-hat.png', 'carrier-octopus.png', 'home-octopus.png',
                 # `animal-pez.png`/`animal-tortuga.png` (P1, promised-animals):

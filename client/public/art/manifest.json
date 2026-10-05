@@ -101,6 +101,32 @@
     "h": 353,
     "w": 384
   },
+  "clue-banana-2-drained": {
+    "bytes": 7518,
+    "file": "art/clue-banana-2-drained.png",
+    "h": 256,
+    "w": 129
+  },
+  "clue-banana-2-earned": {
+    "bytes": 19609,
+    "file": "art/clue-banana-2-earned.png",
+    "fill": "#fbda21",
+    "h": 256,
+    "w": 129
+  },
+  "clue-banana-3-drained": {
+    "bytes": 7538,
+    "file": "art/clue-banana-3-drained.png",
+    "h": 256,
+    "w": 135
+  },
+  "clue-banana-3-earned": {
+    "bytes": 19470,
+    "file": "art/clue-banana-3-earned.png",
+    "fill": "#fbd529",
+    "h": 256,
+    "w": 135
+  },
   "clue-banana-drained": {
     "bytes": 7158,
     "file": "art/clue-banana-drained.png",
@@ -113,6 +139,32 @@
     "fill": "#fbd63a",
     "h": 256,
     "w": 134
+  },
+  "clue-banana-peel-2-drained": {
+    "bytes": 11440,
+    "file": "art/clue-banana-peel-2-drained.png",
+    "h": 202,
+    "w": 256
+  },
+  "clue-banana-peel-2-earned": {
+    "bytes": 26618,
+    "file": "art/clue-banana-peel-2-earned.png",
+    "fill": "#fbdc34",
+    "h": 202,
+    "w": 256
+  },
+  "clue-banana-peel-3-drained": {
+    "bytes": 13088,
+    "file": "art/clue-banana-peel-3-drained.png",
+    "h": 213,
+    "w": 256
+  },
+  "clue-banana-peel-3-earned": {
+    "bytes": 29737,
+    "file": "art/clue-banana-peel-3-earned.png",
+    "fill": "#fbdc35",
+    "h": 213,
+    "w": 256
   },
   "clue-banana-peel-drained": {
     "bytes": 12169,
@@ -138,6 +190,32 @@
     "file": "art/clue-breadcrumb-earned.png",
     "h": 237,
     "w": 256
+  },
+  "clue-bubble-2-drained": {
+    "bytes": 7785,
+    "file": "art/clue-bubble-2-drained.png",
+    "h": 256,
+    "w": 141
+  },
+  "clue-bubble-2-earned": {
+    "bytes": 18945,
+    "file": "art/clue-bubble-2-earned.png",
+    "fill": "#4ec4f4",
+    "h": 256,
+    "w": 141
+  },
+  "clue-bubble-3-drained": {
+    "bytes": 8157,
+    "file": "art/clue-bubble-3-drained.png",
+    "h": 256,
+    "w": 142
+  },
+  "clue-bubble-3-earned": {
+    "bytes": 22118,
+    "file": "art/clue-bubble-3-earned.png",
+    "fill": "#53caf7",
+    "h": 256,
+    "w": 142
   },
   "clue-bubble-drained": {
     "bytes": 8543,
@@ -176,6 +254,32 @@
     "h": 256,
     "w": 195
   },
+  "clue-duck-feather-2-drained": {
+    "bytes": 8897,
+    "file": "art/clue-duck-feather-2-drained.png",
+    "h": 256,
+    "w": 147
+  },
+  "clue-duck-feather-2-earned": {
+    "bytes": 24269,
+    "file": "art/clue-duck-feather-2-earned.png",
+    "fill": "#f2c638",
+    "h": 256,
+    "w": 147
+  },
+  "clue-duck-feather-3-drained": {
+    "bytes": 9550,
+    "file": "art/clue-duck-feather-3-drained.png",
+    "h": 256,
+    "w": 148
+  },
+  "clue-duck-feather-3-earned": {
+    "bytes": 25887,
+    "file": "art/clue-duck-feather-3-earned.png",
+    "fill": "#fbd124",
+    "h": 256,
+    "w": 148
+  },
   "clue-duck-feather-drained": {
     "bytes": 9149,
     "file": "art/clue-duck-feather-drained.png",
@@ -213,6 +317,30 @@
     "h": 256,
     "w": 220
   },
+  "clue-handprint-2-drained": {
+    "bytes": 11130,
+    "file": "art/clue-handprint-2-drained.png",
+    "h": 256,
+    "w": 245
+  },
+  "clue-handprint-2-earned": {
+    "bytes": 10407,
+    "file": "art/clue-handprint-2-earned.png",
+    "h": 256,
+    "w": 245
+  },
+  "clue-handprint-3-drained": {
+    "bytes": 11156,
+    "file": "art/clue-handprint-3-drained.png",
+    "h": 256,
+    "w": 234
+  },
+  "clue-handprint-3-earned": {
+    "bytes": 10432,
+    "file": "art/clue-handprint-3-earned.png",
+    "h": 256,
+    "w": 234
+  },
   "clue-handprint-drained": {
     "bytes": 10227,
     "file": "art/clue-handprint-drained.png",
@@ -225,6 +353,30 @@
     "h": 256,
     "w": 238
   },
+  "clue-hedgehog-print-2-drained": {
+    "bytes": 11488,
+    "file": "art/clue-hedgehog-print-2-drained.png",
+    "h": 209,
+    "w": 256
+  },
+  "clue-hedgehog-print-2-earned": {
+    "bytes": 10573,
+    "file": "art/clue-hedgehog-print-2-earned.png",
+    "h": 209,
+    "w": 256
+  },
+  "clue-hedgehog-print-3-drained": {
+    "bytes": 10835,
+    "file": "art/clue-hedgehog-print-3-drained.png",
+    "h": 219,
+    "w": 256
+  },
+  "clue-hedgehog-print-3-earned": {
+    "bytes": 9746,
+    "file": "art/clue-hedgehog-print-3-earned.png",
+    "h": 219,
+    "w": 256
+  },
   "clue-hedgehog-print-drained": {
     "bytes": 9386,
     "file": "art/clue-hedgehog-print-drained.png",
@@ -236,6 +388,32 @@
     "file": "art/clue-hedgehog-print-earned.png",
     "h": 216,
     "w": 256
+  },
+  "clue-puddle-2-drained": {
+    "bytes": 8656,
+    "file": "art/clue-puddle-2-drained.png",
+    "h": 256,
+    "w": 132
+  },
+  "clue-puddle-2-earned": {
+    "bytes": 20299,
+    "file": "art/clue-puddle-2-earned.png",
+    "fill": "#509fdc",
+    "h": 256,
+    "w": 132
+  },
+  "clue-puddle-3-drained": {
+    "bytes": 10639,
+    "file": "art/clue-puddle-3-drained.png",
+    "h": 256,
+    "w": 235
+  },
+  "clue-puddle-3-earned": {
+    "bytes": 30790,
+    "file": "art/clue-puddle-3-earned.png",
+    "fill": "#4ea2df",
+    "h": 256,
+    "w": 235
   },
   "clue-puddle-drained": {
     "bytes": 11093,
@@ -250,31 +428,96 @@
     "h": 256,
     "w": 214
   },
+  "clue-scale-2-drained": {
+    "bytes": 12005,
+    "file": "art/clue-scale-2-drained.png",
+    "h": 239,
+    "w": 256
+  },
+  "clue-scale-2-earned": {
+    "bytes": 28116,
+    "file": "art/clue-scale-2-earned.png",
+    "fill": "#fb7500",
+    "h": 239,
+    "w": 256
+  },
   "clue-scale-drained": {
-    "bytes": 9511,
+    "bytes": 11202,
     "file": "art/clue-scale-drained.png",
-    "h": 164,
+    "h": 215,
     "w": 256
   },
   "clue-scale-earned": {
-    "bytes": 25747,
+    "bytes": 27630,
     "file": "art/clue-scale-earned.png",
-    "fill": "#fb7e08",
-    "h": 164,
+    "fill": "#fb7800",
+    "h": 215,
     "w": 256
   },
-  "clue-seaweed-drained": {
-    "bytes": 11994,
-    "file": "art/clue-seaweed-drained.png",
+  "clue-seaweed-2-drained": {
+    "bytes": 9800,
+    "file": "art/clue-seaweed-2-drained.png",
     "h": 256,
-    "w": 160
+    "w": 150
+  },
+  "clue-seaweed-2-earned": {
+    "bytes": 20500,
+    "file": "art/clue-seaweed-2-earned.png",
+    "fill": "#53b56f",
+    "h": 256,
+    "w": 150
+  },
+  "clue-seaweed-3-drained": {
+    "bytes": 14398,
+    "file": "art/clue-seaweed-3-drained.png",
+    "h": 256,
+    "w": 220
+  },
+  "clue-seaweed-3-earned": {
+    "bytes": 30360,
+    "file": "art/clue-seaweed-3-earned.png",
+    "fill": "#4fb471",
+    "h": 256,
+    "w": 220
+  },
+  "clue-seaweed-drained": {
+    "bytes": 14652,
+    "file": "art/clue-seaweed-drained.png",
+    "h": 255,
+    "w": 256
   },
   "clue-seaweed-earned": {
-    "bytes": 24336,
+    "bytes": 30168,
     "file": "art/clue-seaweed-earned.png",
-    "fill": "#7ad135",
-    "h": 256,
-    "w": 160
+    "fill": "#5caa47",
+    "h": 255,
+    "w": 256
+  },
+  "clue-seeds-2-drained": {
+    "bytes": 12229,
+    "file": "art/clue-seeds-2-drained.png",
+    "h": 199,
+    "w": 256
+  },
+  "clue-seeds-2-earned": {
+    "bytes": 32759,
+    "file": "art/clue-seeds-2-earned.png",
+    "fill": "#e9a831",
+    "h": 199,
+    "w": 256
+  },
+  "clue-seeds-3-drained": {
+    "bytes": 12774,
+    "file": "art/clue-seeds-3-drained.png",
+    "h": 210,
+    "w": 256
+  },
+  "clue-seeds-3-earned": {
+    "bytes": 34201,
+    "file": "art/clue-seeds-3-earned.png",
+    "fill": "#e2a838",
+    "h": 210,
+    "w": 256
   },
   "clue-seeds-drained": {
     "bytes": 12362,
@@ -289,6 +532,66 @@
     "h": 210,
     "w": 256
   },
+  "clue-turtle-print-2-drained": {
+    "bytes": 10271,
+    "file": "art/clue-turtle-print-2-drained.png",
+    "h": 256,
+    "w": 231
+  },
+  "clue-turtle-print-2-earned": {
+    "bytes": 9291,
+    "file": "art/clue-turtle-print-2-earned.png",
+    "h": 256,
+    "w": 231
+  },
+  "clue-turtle-print-3-drained": {
+    "bytes": 10567,
+    "file": "art/clue-turtle-print-3-drained.png",
+    "h": 256,
+    "w": 233
+  },
+  "clue-turtle-print-3-earned": {
+    "bytes": 9393,
+    "file": "art/clue-turtle-print-3-earned.png",
+    "h": 256,
+    "w": 233
+  },
+  "clue-turtle-print-drained": {
+    "bytes": 10371,
+    "file": "art/clue-turtle-print-drained.png",
+    "h": 256,
+    "w": 226
+  },
+  "clue-turtle-print-earned": {
+    "bytes": 9495,
+    "file": "art/clue-turtle-print-earned.png",
+    "h": 256,
+    "w": 226
+  },
+  "clue-webfoot-2-drained": {
+    "bytes": 7700,
+    "file": "art/clue-webfoot-2-drained.png",
+    "h": 246,
+    "w": 256
+  },
+  "clue-webfoot-2-earned": {
+    "bytes": 6940,
+    "file": "art/clue-webfoot-2-earned.png",
+    "h": 246,
+    "w": 256
+  },
+  "clue-webfoot-3-drained": {
+    "bytes": 7735,
+    "file": "art/clue-webfoot-3-drained.png",
+    "h": 247,
+    "w": 256
+  },
+  "clue-webfoot-3-earned": {
+    "bytes": 6989,
+    "file": "art/clue-webfoot-3-earned.png",
+    "h": 247,
+    "w": 256
+  },
   "clue-webfoot-drained": {
     "bytes": 7614,
     "file": "art/clue-webfoot-drained.png",
@@ -300,6 +603,45 @@
     "file": "art/clue-webfoot-earned.png",
     "h": 250,
     "w": 256
+  },
+  "clue-wool-2-drained": {
+    "bytes": 9482,
+    "file": "art/clue-wool-2-drained.png",
+    "h": 256,
+    "w": 173
+  },
+  "clue-wool-2-earned": {
+    "bytes": 29511,
+    "file": "art/clue-wool-2-earned.png",
+    "fill": "#f4ead6",
+    "h": 256,
+    "w": 173
+  },
+  "clue-wool-3-drained": {
+    "bytes": 11418,
+    "file": "art/clue-wool-3-drained.png",
+    "h": 245,
+    "w": 256
+  },
+  "clue-wool-3-earned": {
+    "bytes": 38101,
+    "file": "art/clue-wool-3-earned.png",
+    "fill": "#f1e8d4",
+    "h": 245,
+    "w": 256
+  },
+  "clue-wool-drained": {
+    "bytes": 11028,
+    "file": "art/clue-wool-drained.png",
+    "h": 256,
+    "w": 196
+  },
+  "clue-wool-earned": {
+    "bytes": 33879,
+    "file": "art/clue-wool-earned.png",
+    "fill": "#f3ead6",
+    "h": 256,
+    "w": 196
   },
   "goal-medusa": {
     "bytes": 86905,
@@ -481,6 +823,18 @@
     "h": 256,
     "w": 227
   },
+  "sector-apple-2": {
+    "bytes": 34475,
+    "file": "art/sector-apple-2.png",
+    "h": 256,
+    "w": 224
+  },
+  "sector-apple-3": {
+    "bytes": 35901,
+    "file": "art/sector-apple-3.png",
+    "h": 256,
+    "w": 226
+  },
   "sector-aquarium-background": {
     "brightest": "#ffffff",
     "bytes": 2099948,
@@ -576,6 +930,18 @@
     "file": "art/sector-leaf.png",
     "h": 256,
     "w": 242
+  },
+  "sector-leaf-2": {
+    "bytes": 28850,
+    "file": "art/sector-leaf-2.png",
+    "h": 256,
+    "w": 194
+  },
+  "sector-leaf-3": {
+    "bytes": 19403,
+    "file": "art/sector-leaf-3.png",
+    "h": 256,
+    "w": 123
   },
   "sector-llama": {
     "bytes": 32311,
@@ -1904,9 +2270,9 @@
     "w": 480
   },
   "sector-stone": {
-    "bytes": 26111,
+    "bytes": 32795,
     "file": "art/sector-stone.png",
-    "h": 170,
+    "h": 238,
     "w": 256
   },
   "sign-fish": {
