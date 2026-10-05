@@ -838,8 +838,10 @@ const PHASE_1: LevelConfig[] = [
     // header) derives one duckling per wave crest plus one more at the
     // route's end. [T49, `docs/23` D5] The ducklings are their own drawing
     // now (three poses, `DUCKLING_ART`), replacing the scaled-down adult
-    // duck that stood in for them.
-    collect: { items: 'crests', art: DUCKLING_ART[0], variants: DUCKLING_ART, size: 40 },
+    // duck that stood in for them. `size` is the shared frame's height
+    // (54, up from the adult duck's 40: the frame is taller than a
+    // duckling, and at 40 they read as specks on a 1024x768 capture).
+    collect: { items: 'crests', art: DUCKLING_ART[0], variants: DUCKLING_ART, size: 54 },
     // [T41, author: "que aprendan cuándo frenar y no hacer todo apurado"]
     // One fish jumping across the pond, on the first descending flank, well
     // clear of the first crest's duckling (`catalog.test.ts`'s T41 block
@@ -880,7 +882,7 @@ const PHASE_1: LevelConfig[] = [
     demo: true,
     // [T21] Same reasoning as `duck-trail3` above — the last of the duck
     // family, gathered along the route's three crests plus the end.
-    collect: { items: 'crests', art: DUCKLING_ART[0], variants: DUCKLING_ART, size: 40 },
+    collect: { items: 'crests', art: DUCKLING_ART[0], variants: DUCKLING_ART, size: 54 },
   },
   {
     id: 'trail1',
@@ -2721,8 +2723,10 @@ const PHASE_2: LevelConfig[] = [
     // `'peaks'` — see this family's own header comment (measured, not
     // guessed: `routeApexes` finds zero apexes on this shipped route).
     // [T49, `docs/23` D4] The real monkey family, three poses
-    // (`MONKEY_FAMILY_ART`), replacing the placeholder sign block.
-    collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, variants: MONKEY_FAMILY_ART, size: 50 },
+    // (`MONKEY_FAMILY_ART`), replacing the placeholder sign block. `size`
+    // is the shared frame's height: 72, up from the square block's 50,
+    // because the frame is a tall standing monkey with its arm raised.
+    collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, variants: MONKEY_FAMILY_ART, size: 72 },
   },
   {
     id: 'monkey4',
@@ -2746,7 +2750,7 @@ const PHASE_2: LevelConfig[] = [
     demo: true,
     // [T27] Same reasoning as `monkey3` above — the last of the monkey
     // family, gathered along the route's own loop apexes.
-    collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, variants: MONKEY_FAMILY_ART, size: 50 },
+    collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, variants: MONKEY_FAMILY_ART, size: 72 },
   },
   {
     id: 'f2-guirnalda',
