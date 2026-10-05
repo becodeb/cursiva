@@ -166,8 +166,11 @@ export const SEEDS = '#dba43c'
  * green `PLUME` (which stays for the hen case's `trail4`). */
 export const DUCK_FEATHER = '#f6ca3c'
 
-/** Fish case — the orange scales (`docs/22` C6), the colour of the fish. */
-export const SCALE = '#fb7e08'
+/** Fish case — the orange scales, the colour of the fish. T48: measured
+ * off `docs/23` D3's " 2" (`pista escamas de pez 2.png`, now this kind's
+ * first drawing; D3's variation 1 is unused, see `build_art.py`). Was
+ * `#fb7e08`, C6's orange. */
+export const SCALE = '#fb7800'
 
 /** Monkey case — the banana (`docs/22` C12). */
 export const BANANA = '#fbd63a'
@@ -177,8 +180,13 @@ export const BANANA = '#fbd63a'
 export const BANANA_PEEL = '#fbd73e'
 
 /** Fish case — the seaweed the fish nibbled at the bottom of each dive
- * (`f2-buceo`, T44; `alga.png`). Green, far from `BUBBLE` and `SCALE`. */
-export const SEAWEED = '#7ad135'
+ * (`f2-buceo`, T44). Green, far from `BUBBLE` and `SCALE`. T48: measured off
+ * `pista alga.png` (`docs/23` D2); was `#7ad135`, the old `alga.png`'s. */
+export const SEAWEED = '#5caa47'
+
+/** Sheep case — the tuft of wool caught on the fence (`docs/22` C9, T48),
+ * the cream measured off `pista lana.png`. */
+export const WOOL = '#f3ead6'
 
 /** The flower before the bee has been to it (`docs/13` §8 row F,
  * `free-trail-waypoints` design.md §3.2).

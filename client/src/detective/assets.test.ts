@@ -6,7 +6,7 @@
 // that is not carried through) goes red instead of drifting unnoticed
 // (design.md §11.2's `HEDGEHOG_SILHOUETTE` checklist item).
 import { describe, expect, it } from 'vitest'
-import { HEDGEHOG_SILHOUETTE } from './assets'
+import { CLUE_ART, clueArtAt, HEDGEHOG_SILHOUETTE, SECTOR_ADVENTURE_ART, variationOf, type ClueKind } from './assets'
 
 // design.md §10 — `hedgehog-profile.png`, 448×306, centroid (0.5416, 0.5107).
 const MEASURED_PROFILE_RADII = [
@@ -46,5 +46,66 @@ describe('HEDGEHOG_SILHOUETTE (radial-spines capability, design.md §10)', () =>
     HEDGEHOG_SILHOUETTE.curled.radii.forEach((r, i) => {
       expect(r, `ray ${i * 15}°`).toBeCloseTo(MEASURED_CURLED_RADII[i], 5)
     })
+  })
+})
+
+// T48 (`docs/23` §7.1): a trail draws mark `i` with variation `i mod 3`.
+describe('clue variations (T48, docs/23 §7.1)', () => {
+  /** Every kind the round-2 art gave a " 2" and a " 3" to. */
+  const VARIED: readonly ClueKind[] = [
+    'puddle',
+    'seeds',
+    'duckFeather',
+    'webfoot',
+    'bubble',
+    'handprint',
+    'banana',
+    'bananaPeel',
+    'hedgehogPrint',
+    'wool',
+    'turtlePrint',
+    'seaweed',
+    'scale',
+  ]
+
+  it('draws the scales with two drawings only, alternating (docs/23 D3 variation 1 is unused)', () => {
+    const hrefs = [0, 1, 2, 3].map((i) => clueArtAt('scale', i).earned.href)
+    expect(hrefs).toEqual([hrefs[0], hrefs[1], hrefs[0], hrefs[1]])
+    expect(hrefs[0]).not.toBe(hrefs[1])
+    expect(clueArtAt('scale', 0)).toBe(CLUE_ART.scale.art)
+  })
+
+  it('draws the scales and the wool bigger than the shared mark, and nothing smaller', () => {
+    expect(CLUE_ART.scale.markScale).toBeGreaterThanOrEqual(1.5)
+    expect(CLUE_ART.wool.markScale).toBeGreaterThanOrEqual(1.5)
+    for (const art of Object.values(CLUE_ART)) expect(art.markScale ?? 1).toBeGreaterThanOrEqual(1)
+  })
+
+  it.each(VARIED.filter((k) => k !== 'scale'))('%s has three different drawings, in both states', (kind) => {
+    const seq = [0, 1, 2].map((i) => clueArtAt(kind, i))
+    expect(new Set(seq.map((p) => p.earned.href)).size).toBe(3)
+    expect(new Set(seq.map((p) => p.drained.href)).size).toBe(3)
+    // Variation 1 IS the kind's own art: the rail, the deduction and the
+    // route's end keep showing it.
+    expect(seq[0]).toBe(CLUE_ART[kind].art)
+  })
+
+  it.each(VARIED.filter((k) => k !== 'scale'))('%s cycles 1, 2, 3, 1, 2, 3 along a trail, so no two neighbours match', (kind) => {
+    const hrefs = Array.from({ length: 9 }, (_, i) => clueArtAt(kind, i).earned.href)
+    for (let i = 0; i < hrefs.length; i++) {
+      expect(hrefs[i]).toBe(hrefs[i % 3])
+      if (i > 0) expect(hrefs[i]).not.toBe(hrefs[i - 1])
+    }
+  })
+
+  it('keeps a kind without variations on its one drawing', () => {
+    for (const i of [0, 1, 2, 5]) expect(clueArtAt('droplet', i)).toBe(CLUE_ART.droplet.art)
+  })
+
+  it('cycles the leaf and the apple through their three drawings, and leaves other props alone', () => {
+    const { leaf, leaf2, leaf3, apple, apple2, apple3, stone } = SECTOR_ADVENTURE_ART
+    expect([0, 1, 2, 3].map((i) => variationOf(leaf, i))).toEqual([leaf, leaf2, leaf3, leaf])
+    expect([0, 1, 2, 3].map((i) => variationOf(apple, i))).toEqual([apple, apple2, apple3, apple])
+    expect(variationOf(stone, 1)).toBe(stone)
   })
 })

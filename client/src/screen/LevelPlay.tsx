@@ -160,12 +160,14 @@ import {
 import {
   CARRIER_LENS_ART,
   CLUE_ART,
+  clueArtAt,
   GROUND_GRASS,
   GROUND_MUD,
   isPlaceholderArt,
   OCTOPUS_ART,
   OCTOPUS_EMPTY_HANDED_ART,
   SIGN_ART,
+  variationOf,
   ZOO_ANIMAL_ART,
   ZOO_STAR_ART,
 } from '../detective/assets'
@@ -2795,6 +2797,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
             radii: obstacles.map((o) => o.radius),
             at: (index: number, timeMs: number) => obstacleAt(obstacles[index], target, timeMs),
             art: level.hazardArt,
+            // [T48] Two leaves on one level are two different leaves
+            // (`docs/23` D21): hazard `i` draws variation `i mod 3`.
+            arts: level.hazardArt ? obstacles.map((_, i) => variationOf(level.hazardArt!, i)) : undefined,
           }
         : undefined,
     [obstacles, target, level.hazardArt],
@@ -3691,11 +3696,15 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const traceClueMarks = useMemo<TraceClueMark[]>(() => {
     if (!clueDef) return []
     return trailClueMarks.map((mark, idx) => {
-      const art = CLUE_ART[mark.kind]
+      // [T48] Mark `idx` draws variation `idx mod 3` of its kind (`docs/23`
+      // §7.1), in both states, so no two neighbours are the same stamp and a
+      // mark does not change drawing when it lights. Counted over the whole
+      // level, segments included, so every fence post's tuft differs too.
+      const art = clueArtAt(mark.kind, idx)
       // [T44] By torchlight a print is drawn as it is (black) from the start:
       // the drained grey all but vanishes in the pool of light, and there the
       // prints are the only guide. Finding them is the light falling on them.
-      const img = clueState.lit[idx] || level.torch ? art.art.earned : art.art.drained
+      const img = clueState.lit[idx] || level.torch ? art.earned : art.drained
       return {
         x: mark.x,
         y: mark.y,
@@ -3703,7 +3712,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         href: img.href,
         w: img.w,
         h: img.h,
-        size: level.torch ? TORCH_CLUE_MARK_SIZE : CLUE_MARK_SIZE,
+        // [T48] A kind whose drawing reads small at the shared size is drawn
+        // bigger (`ClueArt.markScale`: the scales, the wool).
+        size: (level.torch ? TORCH_CLUE_MARK_SIZE : CLUE_MARK_SIZE) * (CLUE_ART[mark.kind].markScale ?? 1),
       }
     })
   }, [clueDef, trailClueMarks, clueState, level.torch])

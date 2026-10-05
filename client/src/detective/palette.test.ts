@@ -18,6 +18,8 @@ import {
   PRINT,
   PUDDLE,
   SCALE,
+  SEAWEED,
+  WOOL,
   SEEDS,
 } from './palette'
 import { CLUE_ART } from './assets'
@@ -119,7 +121,7 @@ const FLAT_EARNED = { POND, KERNEL, PRINT, PLUME, BREADCRUMB } as const
  * and `artHierarchy.test.ts` asserts that contour on the emitted PNGs. The
  * rules that DO describe them still apply: earned means chroma, every value
  * is distinct, none is a reserved accent. */
-const AUTHORED_EARNED = { BUBBLE, PUDDLE, SEEDS, DUCK_FEATHER, SCALE, BANANA, BANANA_PEEL } as const
+const AUTHORED_EARNED = { BUBBLE, PUDDLE, SEEDS, DUCK_FEATHER, SCALE, BANANA, BANANA_PEEL, SEAWEED, WOOL } as const
 
 const EARNED = { ...FLAT_EARNED, ...AUTHORED_EARNED } as const
 
