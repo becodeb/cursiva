@@ -105,9 +105,10 @@ export const ZOO_SPEECH_BUBBLE_LEFT_TEXT_AREA: BubbleRect = {
 
 /** [T51] Inner margin between the text area and the text, as a fraction of
  *  the bubble's WIDTH on both axes (so it is the same distance in px on
- *  every side). 0.045 keeps it at or above 8 px on the smallest bubble any
- *  stage screen draws (844x390, proven by `bubbleFit.test.ts`). */
-export const TEXT_AREA_MARGIN_FRAC = 0.035
+ *  every side). 0.04 keeps it at or above 8 px on the smallest bubble any
+ *  stage screen draws (the deduction's opening line at 844x390, ~206 px
+ *  wide), proven for every registry line by `bubbleFit.test.ts`. */
+export const TEXT_AREA_MARGIN_FRAC = 0.04
 
 /** The CONTENT box text and image are laid out in: `area` inset by
  *  `TEXT_AREA_MARGIN_FRAC` on every side. `aspect` is the bubble's own

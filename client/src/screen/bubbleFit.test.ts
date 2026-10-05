@@ -5,35 +5,36 @@ import { describe, expect, it } from 'vitest'
 import {
   assignFloatingWordColumns,
   assignWordColumns,
+  bubbleContentBox,
   CONTENT_HEIGHT_FRAC,
   CONTENT_WIDTH_FRAC,
   fitBubbleContent,
   IMAGE_MAX_WIDTH_FRAC,
   MAX_FONT_FRAC,
   placeAndFitBubble,
+  TEXT_AREA_MARGIN_FRAC,
   wrapLineCount,
+  ZOO_SPEECH_BUBBLE_LEFT_CONTENT,
+  ZOO_SPEECH_BUBBLE_LEFT_TEXT_AREA,
+  ZOO_SPEECH_BUBBLE_TEXT_AREA,
 } from './bubbleFit'
 import { ZOO_SPEECH_BUBBLE_LEFT_TAIL, ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 import {
-  INTRO_OCTOPUS_ART,
   OCTOPUS_CORNER_INSET,
   PROLOGUE_OCTOPUS_SIZE_PCT,
   octopusBoxAtCorner,
-  RESCUE_OCTOPUS_ART,
-  stageOctopusSizing,
+  stageBubbleFrame,
   stageSizePx,
   stanceBubbleSide,
 } from './pulpitoStance'
-import { ADVENTURES, introBubbleArt } from '../zoo/adventures'
+import { placeStageBubble } from './stageBubble'
+import { STAGE_VIEWPORTS, stageBubbleCases } from '../testing/stageBubbleCases'
+import { ADVENTURES } from '../zoo/adventures'
 import { PROLOGUE_PLATES } from '../zoo/prologue'
-import { ZOO_CARETAKER_ART, ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
+import { ZOO_CARETAKER_ART } from '../detective/assets'
 import type { ArtImage } from '../detective/assets'
 import { DETECTIVE_CASES } from '../detective/cases'
-import {
-  DEDUCTION_OCTOPUS_SIZE_PCT,
-  DEDUCTION_OPENING_LINE,
-  deductionBubbleLines,
-} from './Deduction'
+import { DEDUCTION_BUBBLE_MARGIN_FRAC, DEDUCTION_OPENING_LINE, deductionBubble, deductionBubbleLines } from './Deduction'
 import { deductionFramePx } from './deductionLayout'
 
 const SQUARE_ART: ArtImage = { w: 442, h: 448, href: '/art/fixture-square.png' }
@@ -58,6 +59,36 @@ describe('wrapLineCount', () => {
 
   it('empty text is one line, not zero or NaN', () => {
     expect(wrapLineCount('', 10, 100)).toBe(1)
+  })
+})
+
+// [T51] The content box is the MEASURED text area (`bubbleArt.test.ts`
+// proves every pixel of it is the bubble's white inside) inset by the same
+// width-relative margin on every side.
+describe('bubbleContentBox — the measured text area minus the inner margin', () => {
+  for (const [name, area, tail] of [
+    ['zoo-speech-bubble.png', ZOO_SPEECH_BUBBLE_TEXT_AREA, ZOO_SPEECH_BUBBLE_TAIL],
+    ['zoo-speech-bubble-left.png', ZOO_SPEECH_BUBBLE_LEFT_TEXT_AREA, ZOO_SPEECH_BUBBLE_LEFT_TAIL],
+  ] as const) {
+    it(`${name}: the box sits TEXT_AREA_MARGIN_FRAC of the bubble width inside the area on every side`, () => {
+      const box = bubbleContentBox(area, tail.aspect)
+      const bubbleW = 100
+      const bubbleH = bubbleW * tail.aspect
+      const margin = TEXT_AREA_MARGIN_FRAC * bubbleW
+      expect((box.left - area.left) * bubbleW).toBeCloseTo(margin, 9)
+      expect((area.left + area.width - box.left - box.width) * bubbleW).toBeCloseTo(margin, 9)
+      expect((box.top - area.top) * bubbleH).toBeCloseTo(margin, 9)
+      expect((area.top + area.height - box.top - box.height) * bubbleH).toBeCloseTo(margin, 9)
+    })
+  }
+
+  it('the left bubble uses its own box: a long line fits it at the font that box allows, not the old one', () => {
+    const line = 'Alguien dejó lana enganchada en el alambrado de la ladera. ¿Vamos a ver?'
+    const w = 80
+    const fit = fitBubbleContent(line, undefined, w, w * ZOO_SPEECH_BUBBLE_LEFT_TAIL.aspect, ZOO_SPEECH_BUBBLE_LEFT_CONTENT)
+    expect(fit.fits).toBe(true)
+    expect(fit.captionWidth).toBeCloseTo(w * ZOO_SPEECH_BUBBLE_LEFT_CONTENT.width, 9)
+    expect(fit.blockHeight).toBeLessThanOrEqual(w * ZOO_SPEECH_BUBBLE_LEFT_TAIL.aspect * ZOO_SPEECH_BUBBLE_LEFT_CONTENT.height + 1e-9)
   })
 })
 
@@ -165,7 +196,7 @@ describe('fitBubbleContent — blockHeight (T34, centering the content block)', 
 
   it('STACK: blockHeight is the image plus the gap plus the wrapped text (they genuinely add up)', () => {
     const longLine =
-      'Encontramos todas las pistas del pato en el sendero y ahora sabemos exactamente a quién rescatamos hoy'
+      'Encontramos todas las pistas del pato en el sendero y ahora sabemos exactamente a quién rescatamos hoy, así que volvamos al zoológico'
     const fit = fitBubbleContent(longLine, SQUARE_ART, bubbleWidth, bubbleHeight)
     expect(fit.layout).toBe('stack')
     const textHeight = fit.lineCount * fit.fontSize * fit.lineHeight
@@ -184,134 +215,72 @@ describe('fitBubbleContent — blockHeight (T34, centering the content block)', 
   })
 })
 
-describe('placeAndFitBubble — every real intro/closing line in the registry, at every required viewport', () => {
-  const REQUIRED_VIEWPORTS: ReadonlyArray<readonly [number, number]> = [
-    [1024, 768],
-    [1180, 820],
-    [768, 1024],
-    [844, 390],
-  ]
-
-  interface Case {
-    readonly id: string
-    readonly text: string
-    readonly art?: ArtImage
-    /** [T49] The octopus picture the screen really stands there: the
-     *  pointing pose on an entry, the cheering pose on a rescue closing, a
-     *  beat's own `figure` or the backpack octopus otherwise — exactly
-     *  `AdventureIntro.tsx`/`AdventureClosing.tsx`'s own choices. */
-    readonly octopus: ArtImage
-  }
-
-  const cases: Case[] = []
-  for (const adventure of ADVENTURES) {
-    cases.push({ id: `${adventure.id}: intro`, text: adventure.intro, art: introBubbleArt(adventure), octopus: INTRO_OCTOPUS_ART })
-    const isRescue = adventure.animal !== undefined
-    for (const [i, beat] of (adventure.closingBeat ?? []).entries()) {
-      cases.push({
-        id: `${adventure.id}: closingBeat[${i}]`,
-        text: beat.line,
-        // A rescue closing is text-only (`AdventureClosing.tsx`, T24).
-        art: isRescue ? undefined : beat.art,
-        octopus: beat.figure ?? (isRescue ? RESCUE_OCTOPUS_ART : ZOO_OCTOPUS_BACKPACK_ART),
-      })
-    }
-  }
-  // The prologue's own three lines are deliberately NOT swept here any more
-  // (T36, `odd/tasks/prewriting-stage-completion.md`): `PrologueOpening.tsx`
-  // now DOES call this engine (it used to sit outside T18's scope entirely,
-  // `docs/19` §4.2), but with its OWN geometry — `ZOO_CARETAKER_ART` sized
-  // by HEIGHT (`PROLOGUE_OCTOPUS_SIZE_PCT`), never the
-  // `ZOO_OCTOPUS_BACKPACK_ART`-by-width pair this block validates for every
-  // adventure. Reusing this block's own headBox for the prologue's lines
-  // would validate a geometry the app never actually ships — exactly the
-  // `screen/Deduction.tsx` mismatch the orchestrator's own T21 follow-up
-  // round 3 review caught (comment below). See the dedicated
-  // "screen/PrologueOpening.tsx's own bubble lines" describe block instead,
-  // which builds the EXACT octopusBoxAtCorner/frame-size pair that screen
-  // actually renders with.
-  //
-  // screen/Deduction.tsx's own lines are deliberately NOT swept here any
-  // more (T21 follow-up round 3): that screen's own Pulpito stage is a
-  // DIFFERENT size from every other screen this sweep validates
-  // (ZOO_OCTOPUS_BACKPACK_ART at OCTOPUS_CORNER_SIZE_PCT of the full T18
-  // stage) — reusing this sweep's own headBox for the deduction lines would
-  // validate a geometry the app never actually ships, exactly the mismatch
-  // the orchestrator's own review caught. See the dedicated
-  // "screen/Deduction.tsx's own bubble lines" describe block below, which
-  // builds the octopusBoxAtCorner/frame size from Deduction.tsx's OWN
-  // exported constants instead.
-
-  /** The stage screens' own octopus box for `octopus` in `corner`. */
-  const stageHeadBox = (octopus: ArtImage, corner: 'left' | 'right') =>
-    octopusBoxAtCorner(octopus, {
-      corner,
-      ...stageOctopusSizing(octopus),
-      bottom: 2,
-      inset: OCTOPUS_CORNER_INSET,
-    })
+// [T51] Every entry/closing line through `placeStageBubble`, the one call
+// both screens render (the old sweep restated their geometry by hand, and so
+// missed the left bubble's own text area): at every required size, in both
+// stances, the text fits the left bubble's MEASURED text area with at least
+// 8 px of margin, at a readable font, and no word ever breaks.
+describe('placeStageBubble — every real intro/closing line in the registry, at every required viewport', () => {
+  const cases = stageBubbleCases()
 
   it('the registry sweep actually covers every shipped adventure (sanity: not accidentally empty)', () => {
     expect(cases.length).toBeGreaterThanOrEqual(ADVENTURES.length)
   })
 
   for (const corner of ['left', 'right'] as const) {
-    for (const [vw, vh] of REQUIRED_VIEWPORTS) {
-      it(`corner=${corner} viewport=${vw}x${vh}: every line fits, at a readable font size`, () => {
-        const frame = { w: 100, h: 100 }
-        const side = stanceBubbleSide(corner)
-        const framePx = stageSizePx(vw, vh)
-
-        for (const { id, text, art, octopus } of cases) {
-          const headBox = stageHeadBox(octopus, corner)
-          const { content } = placeAndFitBubble({ frame, headBox, tail: ZOO_SPEECH_BUBBLE_LEFT_TAIL, side, text, art })
+    for (const viewport of STAGE_VIEWPORTS) {
+      const size = `${viewport.width}x${viewport.height}`
+      it(`corner=${corner} viewport=${size}: every line fits inside the text area with an 8 px margin, at a readable font size`, () => {
+        const framePx = stageSizePx(viewport.width, viewport.height)
+        for (const { id, text, art, figure } of cases) {
+          const { placement, content } = placeStageBubble({ figure, corner, viewport, text, art })
           const fontPx = (content.fontSize / 100) * framePx
           expect(content.fits, `${id} (fontPx=${fontPx.toFixed(1)})`).toBe(true)
-          // A minimum readable size at the SMALLEST required viewport is a
-          // much looser floor than at the others — 844x390 is this app's
-          // own tightest tier (`prewriting-stage-completion.md`'s open
-          // batch-2 note already flags it as visually tight elsewhere).
-          // 11px is the measured worst case (the longest intro sentence,
-          // `monkeys`, already in the STACK layout): CONTENT_HEIGHT_FRAC's
-          // own follow-up header explains why this box got SMALLER (a
-          // measured-safe fit against the real bubble art) rather than
-          // larger — never overflowing the drawn bubble, and never breaking
-          // a word, both won priority over squeezing out a bigger font at
-          // this one extreme combination.
-          expect(fontPx, `${id} (${vw}x${vh})`).toBeGreaterThanOrEqual(11)
+          expect(content.blockHeight, id).toBeLessThanOrEqual(placement.height * ZOO_SPEECH_BUBBLE_LEFT_CONTENT.height + 1e-6)
+          // 11px is the floor at 844x390 (this app's tightest tier).
+          expect(fontPx, `${id} (${size})`).toBeGreaterThanOrEqual(11)
+          const marginPx = TEXT_AREA_MARGIN_FRAC * (placement.width / 100) * framePx
+          expect(marginPx, `${id} (${size}) margin`).toBeGreaterThanOrEqual(8)
         }
       })
 
-      // Orchestrator follow-up: a word must NEVER break inside a line — this
-      // is an app for children learning to read. Checked PER WORD, against
-      // the exact column the SAME wrap the fit chose actually placed it on
-      // (`assignFloatingWordColumns`/`assignWordColumns`), not merely by
-      // trusting `fitBubbleContent`'s own internal longest-word check —
-      // this is the independent proof that check is doing its job for
-      // every real line, at every required viewport, in both stances.
-      it(`corner=${corner} viewport=${vw}x${vh}: no word ever breaks inside a line`, () => {
-        const frame = { w: 100, h: 100 }
-        const side = stanceBubbleSide(corner)
-
-        for (const { id, text, art, octopus } of cases) {
-          const headBox = stageHeadBox(octopus, corner)
-          const { placement, content } = placeAndFitBubble({ frame, headBox, tail: ZOO_SPEECH_BUBBLE_LEFT_TAIL, side, text, art })
-          const wideWidth = placement.width * CONTENT_WIDTH_FRAC
+      // Orchestrator follow-up (T18): a word must NEVER break inside a line —
+      // this is an app for children learning to read. Checked PER WORD,
+      // against the exact column the wrap the fit chose placed it on.
+      it(`corner=${corner} viewport=${size}: no word ever breaks inside a line`, () => {
+        for (const { id, text, art, figure } of cases) {
+          const { placement, content } = placeStageBubble({ figure, corner, viewport, text, art })
+          const wideWidth = placement.width * ZOO_SPEECH_BUBBLE_LEFT_CONTENT.width
           const assignments =
             content.layout === 'float'
               ? assignFloatingWordColumns(text, content.fontSize, content.captionWidth, wideWidth, content.imageHeight, content.lineHeight)
               : assignWordColumns(text, content.fontSize, content.captionWidth)
-          // Every word this game's own registry contains actually got
-          // assigned somewhere — a shorter list would mean the wrap silently
-          // dropped a word, a bug this assertion would otherwise miss.
           expect(assignments.length, id).toBe(text.split(' ').filter((w) => w.length > 0).length)
           for (const { word, width, columnWidth } of assignments) {
-            expect(width, `${id} (${corner}, ${vw}x${vh}): "${word}" vs its own column`).toBeLessThanOrEqual(columnWidth + 1e-6)
+            expect(width, `${id} (${corner}, ${size}): "${word}" vs its own column`).toBeLessThanOrEqual(columnWidth + 1e-6)
           }
         }
       })
     }
   }
+
+  it('never leaves the screen: the bubble stays inside the stage top and the screen right edge', () => {
+    for (const viewport of STAGE_VIEWPORTS) {
+      const frame = stageBubbleFrame(viewport)
+      for (const { id, text, art, figure } of cases) {
+        const { placement } = placeStageBubble({ figure, corner: 'left', viewport, text, art })
+        expect(placement.top, id).toBeGreaterThanOrEqual(3 - 1e-6)
+        expect(placement.left + placement.width, id).toBeLessThanOrEqual(frame.w - 3 + 1e-6)
+      }
+    }
+  })
+
+  it('without a viewport (SSR) the bubble stays inside the plain square stage', () => {
+    for (const { id, text, art, figure } of cases) {
+      const { placement } = placeStageBubble({ figure, corner: 'left', viewport: undefined, text, art })
+      expect(placement.left + placement.width, id).toBeLessThanOrEqual(97 + 1e-6)
+    }
+  })
 })
 
 // T36 (`odd/tasks/prewriting-stage-completion.md`, docs/18 D3):
@@ -327,6 +296,7 @@ describe("placeAndFitBubble — screen/PrologueOpening.tsx's own bubble lines, a
     [1024, 768],
     [1180, 820],
     [768, 1024],
+    [1920, 911],
     [844, 390],
   ]
 
@@ -360,6 +330,8 @@ describe("placeAndFitBubble — screen/PrologueOpening.tsx's own bubble lines, a
         const fontPx = (content.fontSize / 100) * framePx
         expect(content.fits, `${plate.line} (fontPx=${fontPx.toFixed(1)})`).toBe(true)
         expect(fontPx, `${plate.line} (${vw}x${vh})`).toBeGreaterThanOrEqual(11)
+        // [T51] the measured text area's margin, in real px.
+        expect(TEXT_AREA_MARGIN_FRAC * (placement.width / 100) * framePx, `${plate.line} margin`).toBeGreaterThanOrEqual(8)
 
         const wideWidth = placement.width * CONTENT_WIDTH_FRAC
         const assignments =
@@ -390,6 +362,7 @@ describe("placeAndFitBubble — screen/Deduction.tsx's own bubble lines, at its 
     [1024, 768],
     [1180, 820],
     [768, 1024],
+    [1920, 911],
     [844, 390],
   ]
 
@@ -410,27 +383,22 @@ describe("placeAndFitBubble — screen/Deduction.tsx's own bubble lines, at its 
     expect(lines.length).toBeGreaterThanOrEqual(DETECTIVE_CASES.length * 2)
   })
 
-  const octopusBox = octopusBoxAtCorner(ZOO_CARETAKER_ART, {
-    corner: 'left',
-    sizeBy: 'height',
-    size: DEDUCTION_OCTOPUS_SIZE_PCT,
-    bottom: 2,
-    inset: OCTOPUS_CORNER_INSET,
-  })
-  const side = stanceBubbleSide('left')
-
+  // [T51] Through `deductionBubble` itself, the exact call the screen makes.
   for (const [vw, vh] of REQUIRED_VIEWPORTS) {
     it(`viewport=${vw}x${vh}: every line fits inside the drawn oval, at a readable font size, no word ever breaks`, () => {
-      const frame = { w: 100, h: 100 }
       // [T46] The frame's px side comes from the SAME function the screen
       // positions it with (deductionLayout.ts), never a restated formula.
       const framePx = deductionFramePx({ w: vw, h: vh })
 
       for (const { id, text } of lines) {
-        const { content } = placeAndFitBubble({ frame, headBox: octopusBox, tail: ZOO_SPEECH_BUBBLE_TAIL, side, text })
+        const { placement, content } = deductionBubble(text)
         const fontPx = (content.fontSize / 100) * framePx
         expect(content.fits, `${id} (fontPx=${fontPx.toFixed(1)})`).toBe(true)
         expect(fontPx, `${id} (${vw}x${vh})`).toBeGreaterThanOrEqual(11)
+        // [T51] Inside the measured text area by this screen's own smaller
+        // margin (`DEDUCTION_BUBBLE_MARGIN_FRAC`, T51's 8 px brief covers the
+        // entry, closing and prologue screens): never touching it.
+        expect(DEDUCTION_BUBBLE_MARGIN_FRAC * (placement.width / 100) * framePx, `${id} margin`).toBeGreaterThanOrEqual(3)
 
         const assignments = assignWordColumns(text, content.fontSize, content.captionWidth)
         expect(assignments.length, id).toBe(text.split(' ').filter((w) => w.length > 0).length)

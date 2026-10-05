@@ -47,10 +47,21 @@ const baseFracs: BubbleContentFracs = {
 
 const readTop = (vars: Record<string, unknown>) => Number(String(vars['--cv-content-top']).replace('cqw', ''))
 
+/** [T51] `contentTopFrac` is a fraction of the bubble's HEIGHT; in `cqw`
+ *  (percent of its WIDTH) that is `frac * height / width * 100`. */
+const topCqw = (frac: number) => (frac * placement.height * 100) / placement.width
+
 describe('bubbleContentCssVars — T34 vertical centring', () => {
-  it('without contentHeightFrac, --cv-content-top is the raw frac, unchanged (AdventureIntro.tsx/Deduction.tsx keep the pre-T34 top-pinned behaviour)', () => {
+  it('without contentHeightFrac, --cv-content-top is the frac of the HEIGHT in cqw, unshifted (AdventureIntro.tsx/Deduction.tsx keep the pre-T34 top-pinned behaviour)', () => {
     const vars = bubbleContentCssVars(placement, baseContent, baseFracs) as Record<string, unknown>
-    expect(readTop(vars)).toBeCloseTo(baseFracs.contentTopFrac * 100, 6)
+    expect(readTop(vars)).toBeCloseTo(topCqw(baseFracs.contentTopFrac), 6)
+  })
+
+  it('[T51] the top converts through the bubble aspect: in px it is contentTopFrac of the bubble HEIGHT', () => {
+    const vars = bubbleContentCssVars(placement, baseContent, baseFracs) as Record<string, unknown>
+    const bubbleWidthPx = 400
+    const topPx = (readTop(vars) / 100) * bubbleWidthPx
+    expect(topPx).toBeCloseTo(baseFracs.contentTopFrac * bubbleWidthPx * (placement.height / placement.width), 6)
   })
 
   it('a short block (well under the budget) is nudged DOWN by half the leftover room', () => {
@@ -61,9 +72,9 @@ describe('bubbleContentCssVars — T34 vertical centring', () => {
     >
     const budgetHeight = contentHeightFrac * placement.height
     const leftover = budgetHeight - baseContent.blockHeight
-    const expectedTop = baseFracs.contentTopFrac * 100 + ((leftover / placement.width) * 100) / 2
+    const expectedTop = topCqw(baseFracs.contentTopFrac) + ((leftover / placement.width) * 100) / 2
     expect(readTop(vars)).toBeCloseTo(expectedTop, 6)
-    expect(readTop(vars)).toBeGreaterThan(baseFracs.contentTopFrac * 100)
+    expect(readTop(vars)).toBeGreaterThan(topCqw(baseFracs.contentTopFrac))
   })
 
   it('a block that exactly fills the budget is not shifted at all', () => {
@@ -73,7 +84,7 @@ describe('bubbleContentCssVars — T34 vertical centring', () => {
       string,
       unknown
     >
-    expect(readTop(vars)).toBeCloseTo(baseFracs.contentTopFrac * 100, 6)
+    expect(readTop(vars)).toBeCloseTo(topCqw(baseFracs.contentTopFrac), 6)
   })
 
   it('a block reported LARGER than the budget (fits: false, at the font floor) is clamped to no shift at all — never pushed further down', () => {
@@ -87,7 +98,7 @@ describe('bubbleContentCssVars — T34 vertical centring', () => {
       string,
       unknown
     >
-    expect(readTop(vars)).toBeCloseTo(baseFracs.contentTopFrac * 100, 6)
+    expect(readTop(vars)).toBeCloseTo(topCqw(baseFracs.contentTopFrac), 6)
   })
 
   it("the shifted block's own bottom edge never passes the box's own bottom bound (top shift + blockHeight <= budget, in the same unit space)", () => {
@@ -101,7 +112,7 @@ describe('bubbleContentCssVars — T34 vertical centring', () => {
       const topCqw = readTop(vars)
       const topFrameUnits = (topCqw / 100) * placement.width
       const bottomFrameUnits = topFrameUnits + content.blockHeight
-      const boxBottomFrameUnits = baseFracs.contentTopFrac * placement.width + contentHeightFrac * placement.height
+      const boxBottomFrameUnits = baseFracs.contentTopFrac * placement.height + contentHeightFrac * placement.height
       expect(bottomFrameUnits).toBeLessThanOrEqual(boxBottomFrameUnits + 1e-6)
     }
   })

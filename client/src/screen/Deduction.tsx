@@ -67,16 +67,15 @@ import { backdropFor } from '../zoo/backdrops'
 import { BUBBLE_POP_CSS } from './BubblePop'
 import { ZOO_SPEECH_BUBBLE_TAIL, type BubblePlacement } from './bubblePlacement'
 import {
-  CONTENT_LEFT_FRAC,
-  CONTENT_TOP_FRAC,
-  CONTENT_WIDTH_FRAC,
+  bubbleContentBox,
   GAP_FRAC,
   LINE_HEIGHT,
   placeAndFitBubble,
+  ZOO_SPEECH_BUBBLE_TEXT_AREA,
   type PlacedBubbleContent,
 } from './bubbleFit'
-import { octopusBoxAtCorner, OCTOPUS_CORNER_INSET, stageSpeechTarget, stanceBubbleSide } from './pulpitoStance'
-import { bubbleContentCssVars } from './bubbleCssVars'
+import { octopusBoxAtCorner, OCTOPUS_CORNER_INSET, stanceBubbleSide } from './pulpitoStance'
+import { bubbleContentCssVars, bubbleContentFracs } from './bubbleCssVars'
 import {
   DEDUCTION_OCTOPUS_SIZE_PCT,
   deductionFrameRect,
@@ -411,6 +410,22 @@ const OCTOPUS_BOX = octopusBoxAtCorner(DEDUCTION_OCTOPUS_ART, {
   inset: OCTOPUS_CORNER_INSET,
 })
 
+/** [T51] The bubble's inner margin on this screen, fraction of the bubble's
+ *  width: smaller than the stage screens' `TEXT_AREA_MARGIN_FRAC`, because
+ *  this screen's stage is smaller (`deductionLayout.ts`) and its longest
+ *  lines would drop under the 11 px floor at 844x390 with the full margin.
+ *  The text still sits inside the bubble's MEASURED text area, which the
+ *  hand-set pre-T51 box did not. */
+export const DEDUCTION_BUBBLE_MARGIN_FRAC = 0.02
+
+/** The deduction bubble's content box (the old bubble's measured text area
+ *  minus `DEDUCTION_BUBBLE_MARGIN_FRAC`). */
+export const DEDUCTION_BUBBLE_CONTENT = bubbleContentBox(
+  ZOO_SPEECH_BUBBLE_TEXT_AREA,
+  ZOO_SPEECH_BUBBLE_TAIL.aspect,
+  DEDUCTION_BUBBLE_MARGIN_FRAC,
+)
+
 /** Pulpito's bubble for one line — the SAME engine `AdventureIntro.tsx`
  *  uses, text only. Exported so `bubbleFit.test.ts` sweeps the exact call. */
 export function deductionBubble(text: string): PlacedBubbleContent {
@@ -418,7 +433,7 @@ export function deductionBubble(text: string): PlacedBubbleContent {
     frame: { w: 100, h: 100 },
     headBox: OCTOPUS_BOX,
     tail: ZOO_SPEECH_BUBBLE_TAIL,
-    target: stageSpeechTarget(DEDUCTION_OCTOPUS_ART, OCTOPUS_BOX, 'left'),
+    box: DEDUCTION_BUBBLE_CONTENT,
     side: stanceBubbleSide('left'),
     text,
   })
@@ -645,8 +660,7 @@ ${BUBBLE_POP_CSS}
 .cv-deduction-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
 .cv-deduction-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
 /* TEXT ONLY inside the bubble (deductionHint's own header): the content box
- * is the measured-safe rectangle CONTENT_LEFT_FRAC/CONTENT_TOP_FRAC/
- * CONTENT_WIDTH_FRAC describe. */
+ * is the measured-safe rectangle DEDUCTION_BUBBLE_CONTENT describes. */
 .cv-deduction-bubble-text { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); margin: 0; font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; }
 `
 
@@ -830,12 +844,7 @@ export function DeductionView({
             left: `${placement.left}%`,
             top: `${placement.top}%`,
             width: `${placement.width}%`,
-            ...bubbleContentCssVars(placement, content, {
-              contentLeftFrac: CONTENT_LEFT_FRAC,
-              contentTopFrac: CONTENT_TOP_FRAC,
-              contentWidthFrac: CONTENT_WIDTH_FRAC,
-              gapFrac: GAP_FRAC,
-            }),
+            ...bubbleContentCssVars(placement, content, bubbleContentFracs(DEDUCTION_BUBBLE_CONTENT, GAP_FRAC, false)),
           }}
         >
           {/* Keyed on the line: a new hint pops in fresh every time it
