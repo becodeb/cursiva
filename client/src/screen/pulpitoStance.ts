@@ -25,6 +25,7 @@
 // opens rightward from his left-corner body — already further right than a
 // centred box's tail-side bias ever put it.
 import type { PulpitoCorner, PulpitoStance } from '../zoo/adventures'
+import { PULPITO_POSE_ART } from '../detective/assets'
 import type { Box } from './bubblePlacement'
 
 /** No per-line author bothered to declare a stance (every adventure row
@@ -89,6 +90,29 @@ export const OCTOPUS_CORNER_SIZE_PCT = 40
  *  `PrologueOpening.tsx` sweep block — the same "found empirically, then
  *  checked" convention `OCTOPUS_CORNER_SIZE_PCT`'s own header describes. */
 export const PROLOGUE_OCTOPUS_SIZE_PCT = 40
+
+/** [T49, `docs/23` D7] The Pulpito's pose drawings (`PULPITO_POSE_ART`) are
+ *  portrait and wear a hat, so they are sized BY HEIGHT on a stage, at a
+ *  height a little above the backpack octopus's own (40% wide = 40.5% tall)
+ *  so his body reads about as big under the hat. Proven by
+ *  `bubbleFit.test.ts`'s registry sweep, like `OCTOPUS_CORNER_SIZE_PCT`. */
+export const STAGE_POSE_HEIGHT_PCT = 44
+
+/** How a stage screen sizes the octopus picture it shows: a pose by height
+ *  (`STAGE_POSE_HEIGHT_PCT`), any other figure (the backpack octopus, a
+ *  beat's own `figure`) by width (`OCTOPUS_CORNER_SIZE_PCT`), as before. */
+export function stageOctopusSizing(art: { readonly href: string }): Pick<OctopusCornerOptions, 'sizeBy' | 'size'> {
+  const isPose = Object.values(PULPITO_POSE_ART).some((pose) => pose.href === art.href)
+  return isPose ? { sizeBy: 'height', size: STAGE_POSE_HEIGHT_PCT } : { sizeBy: 'width', size: OCTOPUS_CORNER_SIZE_PCT }
+}
+
+/** [T49] The entry screen points at the scene (`docs/19` §4.1: he stands
+ *  away from what he names and points at it). The drawing points to the
+ *  RIGHT; in the right corner it is mirrored so he points at the centre. */
+export const INTRO_OCTOPUS_ART = PULPITO_POSE_ART.points
+
+/** [T49] A rescue closing: "el Pulpito festeja" (`docs/19` §1 step 5). */
+export const RESCUE_OCTOPUS_ART = PULPITO_POSE_ART.cheers
 
 /** The stage's own bounded width/height, in real CSS pixels, for a given
  *  viewport — the pure arithmetic behind `min(100%, ${STAGE_MAX_PX}px,

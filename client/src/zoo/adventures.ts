@@ -165,6 +165,10 @@ interface AdventureBase {
    *  header. Absent on every row but the one whose tool this task moves
    *  earlier. */
   introTool?: AdventureTool
+  /** [T49, `docs/20` B17] The picture inside the entry screen's bubble when
+   *  it is not the adventure's own animal or icon (`introBubbleArt`). Absent
+   *  on every row but the snakes', whose entry shows the skin they shed. */
+  introArt?: ArtImage
   /** His line on the map once this adventure's animal is standing in the
    *  zoo (`zoo-map` spec, "Octopus Phrase Reads as a Closing"). */
   closing: string
@@ -203,6 +207,12 @@ export type Adventure = AdventureBase & AdventureSubject
  *  reachable only when `icon` is present (design.md §6.1). */
 export function adventureIcon(a: Adventure): ArtImage {
   return a.animal ? ZOO_ANIMAL_ART[a.animal] : a.icon
+}
+
+/** The picture in an adventure's entry bubble (`screen/AdventureIntro.tsx`):
+ *  its own `introArt`, else its icon. */
+export function introBubbleArt(a: Adventure): ArtImage {
+  return a.introArt ?? adventureIcon(a)
 }
 
 export const ADVENTURES: readonly Adventure[] = [
@@ -410,6 +420,10 @@ export const ADVENTURES: readonly Adventure[] = [
     // llevamos a su lugar" framing, which described the drag/arrange step
     // this task removes.
     intro: 'Las víboras están grises del frío. Acariciálas y les vuelve el color.',
+    // [T49, `docs/20` B17] The skin a snake left behind, so the entry
+    // shows a trace of the snakes rather than a snake already in colour
+    // (the story's snakes are grey until the child warms them).
+    introArt: SECTOR_ADVENTURE_ART.shedSkin,
     closing: '¡Las víboras recuperaron su color!',
     // Rescue closing (T8) — the duck row's own reasoning, restated: one
     // beat, `closing` verbatim, the animal's own art, default figure. Before

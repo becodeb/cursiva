@@ -3,8 +3,7 @@
 // `ScreenTransition.test.tsx`.
 import { describe, expect, it } from 'vitest'
 import {
-  LUPA_HANDLE_ANCHOR,
-  LUPA_HANDLE_ANGLE_DEG,
+  LUPA_LENS_PLACEMENT,
   LUPA_RIM_FINAL_DIAMETER_VMAX,
   LUPA_VT_BASE_DIAMETER_PX,
   LUPA_VT_CSS,
@@ -12,50 +11,29 @@ import {
   LUPA_VT_ACTIVE_SELECTOR,
   LUPA_WIPE_CSS,
   LUPA_WIPE_DURATION_MS,
-  lupaEdgeAnchorPercent,
+  lupaLensPlacement,
   lupaRimOriginStyle,
 } from './lupaWipe'
+import { TRANSITION_LENS_ART } from '../detective/assets'
 
-describe('lupaEdgeAnchorPercent — the point on a growing box\'s own edge at a given angle', () => {
-  it('0deg (straight right of centre) is the box\'s own right-centre edge', () => {
-    const p = lupaEdgeAnchorPercent(0)
-    expect(p.leftPct).toBeCloseTo(100, 6)
-    expect(p.topPct).toBeCloseTo(50, 6)
+describe('lupaLensPlacement — the drawn magnifier\'s measured glass lands on the growing box (T49)', () => {
+  it('puts the hole centre on the box centre and the hole edge on the box edge', () => {
+    const art = { w: 200, h: 300, hole: { cx: 0.5, cy: 0.3, r: 0.4 } }
+    const p = lupaLensPlacement(art)
+    // Box side D = 2r = 160 image px; the image is 200/160 boxes wide.
+    expect(p.widthPct).toBeCloseTo(125, 9)
+    // Hole centre (100, 90) image px lands at (left + 100/160, top + 90/160)
+    // boxes = the box centre (50%, 50%).
+    expect(p.leftPct + (100 / 160) * 100).toBeCloseTo(50, 9)
+    expect(p.topPct + (90 / 160) * 100).toBeCloseTo(50, 9)
   })
 
-  it('90deg (straight down) is the box\'s own bottom-centre edge', () => {
-    const p = lupaEdgeAnchorPercent(90)
-    expect(p.leftPct).toBeCloseTo(50, 6)
-    expect(p.topPct).toBeCloseTo(100, 6)
-  })
-
-  it('180deg (straight left) is the box\'s own left-centre edge', () => {
-    const p = lupaEdgeAnchorPercent(180)
-    expect(p.leftPct).toBeCloseTo(0, 6)
-    expect(p.topPct).toBeCloseTo(50, 6)
-  })
-
-  it('is independent of box size by construction (a plain fraction of the box, this file\'s own header derivation)', () => {
-    // The whole point of expressing the anchor as a PERCENT is that it never
-    // needs to be recomputed as the box's own width/height animate — this
-    // assertion just re-derives the formula independently (cos/sin), rather
-    // than trusting the implementation unchecked.
-    for (const angle of [0, 30, 45, 60, 90, 135, 200, 315]) {
-      const p = lupaEdgeAnchorPercent(angle)
-      const rad = (angle * Math.PI) / 180
-      expect(p.leftPct).toBeCloseTo(50 + 50 * Math.cos(rad), 9)
-      expect(p.topPct).toBeCloseTo(50 + 50 * Math.sin(rad), 9)
-    }
-  })
-})
-
-describe('LUPA_HANDLE_ANCHOR — the handle sticks out at ~45deg, down-right of the growing lens', () => {
-  it('is exactly lupaEdgeAnchorPercent(45deg): ~85.355% on both axes', () => {
-    expect(LUPA_HANDLE_ANGLE_DEG).toBe(45)
-    expect(LUPA_HANDLE_ANCHOR.leftPct).toBeCloseTo(50 + 50 * Math.SQRT1_2, 9)
-    expect(LUPA_HANDLE_ANCHOR.topPct).toBeCloseTo(50 + 50 * Math.SQRT1_2, 9)
-    expect(LUPA_HANDLE_ANCHOR.leftPct).toBeGreaterThan(84)
-    expect(LUPA_HANDLE_ANCHOR.leftPct).toBeLessThan(87)
+  it('is what LUPA_WIPE_CSS positions the shipped TRANSITION_LENS_ART with', () => {
+    expect(LUPA_LENS_PLACEMENT).toEqual(lupaLensPlacement(TRANSITION_LENS_ART))
+    expect(LUPA_WIPE_CSS).toContain(`width: ${LUPA_LENS_PLACEMENT.widthPct.toFixed(3)}%`)
+    // The hole is a real fraction of the drawing, not a placeholder.
+    expect(TRANSITION_LENS_ART.hole.r).toBeGreaterThan(0.2)
+    expect(TRANSITION_LENS_ART.hole.r).toBeLessThan(0.5)
   })
 })
 

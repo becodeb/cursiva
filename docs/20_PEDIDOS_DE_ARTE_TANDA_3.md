@@ -33,16 +33,16 @@ poses; pedido en dos veces, sale distinto (`docs/17` §3).
 | B6 | Fondo de la pecera | Fondos de día | media | recinto de los peces (prólogo) | A2 |
 | B7 | Fondo del sendero, con huellas | Fondos de día | **alta** | sendero (prólogo) | A3 |
 | ~~B8~~ | ~~Globo con la cola abajo al centro~~ | — | — | **ya no hace falta** (T16 ubica el globo existente por la punta medida de su cola, ver §4) | — |
-| B9 | Globo con la cola abajo a la izquierda | Globos | baja | el Pulpito sobre la escena, pantallas bajas | — |
-| B10 | El mono | Mono | **alta** | monos (hoy es un bloque gris con la palabra MONO) | A6 |
+| B9 | Globo con la cola abajo a la izquierda — **hecho**, en la entrada y el cierre de cada aventura (T49) | Globos | baja | el Pulpito sobre la escena, pantallas bajas | — |
+| B10 | El mono — **hecho** como `docs/23` D4, integrado en T49 | Mono | **alta** | monos (hoy es un bloque gris con la palabra MONO) | A6 |
 | B11 | Pistas del pato: semillas y gotas | Pistas | media | caso del pato | A4 (parte) |
 | B12 | Las cosas del erizo: manzana, hongo — **hecho**, en `night2`/`night3` (T43) | Pistas | media | caso de la noche | A5 |
 | B13 | Pistas del mono: cáscara de banana, banana | Pistas | baja | caso de los monos | A4 (parte) |
-| B14 | El erizo con espinas | Erizo | media | el mapa y el rescate del erizo | — |
-| B15 | El Pulpito detective: señalar, pensar, festejar | Pulpito | baja | el Pulpito sobre la escena | — |
-| B16 | Los patitos | Patitos | baja | juntar la familia del pato | — |
-| B17 | Piel mudada de víbora | Pistas | baja | la entrada de las víboras | A4 (parte) |
-| B18 | El Pulpito sin la lupa, en la misma pose que con lupa | Pulpito | media | todos los niveles con lupa, mientras el dedo apoya (T38) | `home-octopus.png` como suplente |
+| B14 | El erizo con espinas — pose 2 (desenroscándose) **hecha**, en el rescate, el mapa, la libreta y la deducción (T49); la pose 1 (`erizo con espinas.png`) vino cortada por el borde derecho y no se usa: pedirla de nuevo | Erizo | media | el mapa y el rescate del erizo | — |
+| B15 | El Pulpito detective: señalar, pensar, festejar — **hecho** como `docs/23` D7 (T49) | Pulpito | baja | el Pulpito sobre la escena | — |
+| B16 | Los patitos — **hecho** como `docs/23` D5 (T49) | Patitos | baja | juntar la familia del pato | — |
+| B17 | Piel mudada de víbora — **hecho**, en el globo de la entrada de las víboras (T49) | Pistas | baja | la entrada de las víboras | A4 (parte) |
+| B18 | El Pulpito sin la lupa, en la misma pose que con lupa — **hecho** como `docs/23` D6 (T49) | Pulpito | media | todos los niveles con lupa, mientras el dedo apoya (T38) | `home-octopus.png` como suplente |
 
 **Por dónde empezar:** B1, B4 y B10. La laguna y el bosque son los fondos que
 más niveles cubren, y el mono es el único placeholder que el chico ve hoy

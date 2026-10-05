@@ -10,10 +10,11 @@ import { auditCaptions } from '../detective/captionAudit'
 import {
   CARRIER_LENS_ART,
   isPlaceholderArt,
+  PULPITO_POSE_ART,
   SECTOR_ADVENTURE_ART,
   ZOO_ANIMAL_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
-  ZOO_SPEECH_BUBBLE_ART,
+  ZOO_SPEECH_BUBBLE_LEFT_ART,
   ZOO_STAR_ART,
 } from '../detective/assets'
 import { ADVENTURES, type Adventure, type ClosingBeat } from '../zoo/adventures'
@@ -81,7 +82,14 @@ describe('AdventureClosing (main-screen spec "AdventureClosing Screen Renders th
     const html = renderToString(
       <AdventureClosing adventure={sendero} beat={sendero.closingBeat![0]} onContinue={() => {}} />,
     )
-    expect(html).toContain(`src="${ZOO_SPEECH_BUBBLE_ART.href}"`)
+    expect(html).toContain(`src="${ZOO_SPEECH_BUBBLE_LEFT_ART.href}"`)
+  })
+
+  it('[T49, docs/19 §4.1] a rescue closing shows the Pulpito cheering', () => {
+    const duck = ADVENTURES.find((a) => a.id === 'duck')!
+    const html = renderToString(<AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />)
+    expect(html).toContain(`src="${PULPITO_POSE_ART.cheers.href}"`)
+    expect(html).not.toContain(`src="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
   })
 
   it('renders the standing octopus (ZOO_OCTOPUS_BACKPACK_ART) when the beat carries no figure override', () => {

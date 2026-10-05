@@ -5,6 +5,24 @@
     "h": 256,
     "w": 216
   },
+  "animal-duckling-1": {
+    "bytes": 37824,
+    "file": "art/animal-duckling-1.png",
+    "h": 256,
+    "w": 186
+  },
+  "animal-duckling-2": {
+    "bytes": 36149,
+    "file": "art/animal-duckling-2.png",
+    "h": 256,
+    "w": 186
+  },
+  "animal-duckling-3": {
+    "bytes": 40240,
+    "file": "art/animal-duckling-3.png",
+    "h": 256,
+    "w": 186
+  },
   "animal-gallina": {
     "bytes": 120278,
     "file": "art/animal-gallina.png",
@@ -30,16 +48,28 @@
     "w": 448
   },
   "animal-mono": {
-    "bytes": 1550,
+    "bytes": 74599,
     "file": "art/animal-mono.png",
-    "h": 320,
-    "w": 320
+    "h": 448,
+    "w": 269
+  },
+  "animal-mono-family-2": {
+    "bytes": 69710,
+    "file": "art/animal-mono-family-2.png",
+    "h": 448,
+    "w": 269
+  },
+  "animal-mono-family-3": {
+    "bytes": 73001,
+    "file": "art/animal-mono-family-3.png",
+    "h": 448,
+    "w": 269
   },
   "animal-mono-silhouette": {
-    "bytes": 1342,
+    "bytes": 18557,
     "file": "art/animal-mono-silhouette.png",
-    "h": 320,
-    "w": 320
+    "h": 448,
+    "w": 269
   },
   "animal-pato": {
     "bytes": 96576,
@@ -90,16 +120,22 @@
     "w": 448
   },
   "carrier-lens": {
-    "bytes": 83514,
+    "bytes": 61646,
     "file": "art/carrier-lens.png",
     "h": 384,
-    "w": 361
+    "w": 234
   },
   "carrier-octopus": {
-    "bytes": 18993,
+    "bytes": 114888,
     "file": "art/carrier-octopus.png",
-    "h": 353,
-    "w": 384
+    "h": 384,
+    "w": 326
+  },
+  "carrier-octopus-empty": {
+    "bytes": 108657,
+    "file": "art/carrier-octopus-empty.png",
+    "h": 384,
+    "w": 326
   },
   "clue-banana-2-drained": {
     "bytes": 7518,
@@ -787,11 +823,17 @@
     "h": 306,
     "w": 448
   },
-  "hedgehog-profile-silhouette": {
-    "bytes": 15190,
-    "file": "art/hedgehog-profile-silhouette.png",
-    "h": 306,
-    "w": 448
+  "hedgehog-uncurling": {
+    "bytes": 91409,
+    "file": "art/hedgehog-uncurling.png",
+    "h": 355,
+    "w": 349
+  },
+  "hedgehog-uncurling-silhouette": {
+    "bytes": 18004,
+    "file": "art/hedgehog-uncurling-silhouette.png",
+    "h": 355,
+    "w": 349
   },
   "home-desk": {
     "bytes": 78499,
@@ -858,15 +900,15 @@
     }
   },
   "sector-bee": {
-    "bytes": 19806,
+    "bytes": 43179,
     "file": "art/sector-bee.png",
-    "h": 230,
+    "h": 235,
     "w": 256
   },
   "sector-bee-silhouette": {
-    "bytes": 10642,
+    "bytes": 10704,
     "file": "art/sector-bee-silhouette.png",
-    "h": 230,
+    "h": 235,
     "w": 256
   },
   "sector-chest": {
@@ -894,16 +936,16 @@
     "w": 256
   },
   "sector-flower": {
-    "bytes": 14866,
+    "bytes": 32401,
     "file": "art/sector-flower.png",
-    "h": 245,
-    "w": 256
+    "h": 256,
+    "w": 171
   },
   "sector-flower-dormant": {
-    "bytes": 11753,
+    "bytes": 12690,
     "file": "art/sector-flower-dormant.png",
-    "h": 245,
-    "w": 256
+    "h": 256,
+    "w": 171
   },
   "sector-forest-background": {
     "brightest": "#ffffff",
@@ -928,10 +970,10 @@
     }
   },
   "sector-honeycomb": {
-    "bytes": 16525,
+    "bytes": 35176,
     "file": "art/sector-honeycomb.png",
-    "h": 256,
-    "w": 181
+    "h": 228,
+    "w": 221
   },
   "sector-lagoon-background": {
     "brightest": "#ffffff",
@@ -1123,17 +1165,23 @@
       "shippedBrightest": "#ffffff"
     }
   },
+  "sector-shed-skin": {
+    "bytes": 48556,
+    "file": "art/sector-shed-skin.png",
+    "h": 145,
+    "w": 448
+  },
   "sector-sheep": {
-    "bytes": 83158,
+    "bytes": 115248,
     "file": "art/sector-sheep.png",
-    "h": 448,
-    "w": 420
+    "h": 380,
+    "w": 448
   },
   "sector-sheep-silhouette": {
-    "bytes": 7055,
+    "bytes": 20738,
     "file": "art/sector-sheep-silhouette.png",
-    "h": 448,
-    "w": 420
+    "h": 380,
+    "w": 448
   },
   "sector-slope-background": {
     "brightest": "#ffffff",
@@ -2489,11 +2537,29 @@
     "h": 320,
     "w": 235
   },
+  "zoo-octopus-cheers": {
+    "bytes": 93288,
+    "file": "art/zoo-octopus-cheers.png",
+    "h": 332,
+    "w": 258
+  },
+  "zoo-octopus-points": {
+    "bytes": 91820,
+    "file": "art/zoo-octopus-points.png",
+    "h": 337,
+    "w": 279
+  },
   "zoo-octopus-print": {
     "bytes": 9305,
     "file": "art/zoo-octopus-print.png",
     "h": 256,
     "w": 134
+  },
+  "zoo-octopus-thinks": {
+    "bytes": 79166,
+    "file": "art/zoo-octopus-thinks.png",
+    "h": 346,
+    "w": 228
   },
   "zoo-speech-bubble": {
     "bytes": 15199,
@@ -2501,10 +2567,27 @@
     "h": 372,
     "w": 488
   },
+  "zoo-speech-bubble-left": {
+    "bytes": 13774,
+    "file": "art/zoo-speech-bubble-left.png",
+    "h": 373,
+    "w": 496
+  },
   "zoo-star": {
     "bytes": 10146,
     "file": "art/zoo-star.png",
     "h": 244,
     "w": 255
+  },
+  "zoo-transition-lens": {
+    "bytes": 71703,
+    "file": "art/zoo-transition-lens.png",
+    "h": 471,
+    "hole": {
+      "cx": 0.5018,
+      "cy": 0.3029,
+      "r": 0.3636
+    },
+    "w": 288
   }
 }

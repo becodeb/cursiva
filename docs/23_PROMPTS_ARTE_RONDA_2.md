@@ -79,13 +79,13 @@ ChatGPT: cambiar solo la columna "Estado" (ver §0, punto 9).
 | D1 | `pista pelo de gato.png` | Mechón de pelo del gato naranja | deducción de las ovejas | **alta** | rechazado (T48: se lee como fuego, no se usa; lo rehace D38) | nuevo |
 | D2 | `pista alga.png`, `pista alga 2.png`, `pista alga 3.png` | Alga del fondo de la laguna, tres variaciones | peces: `f2-buceo` | **alta** | hecho (T48: en el juego, `f2-buceo`) | `alga.png` |
 | D3 | `pista escamas de pez.png`, `pista escamas de pez 2.png`, `pista escamas de pez 3.png` | Escamas de pez, tres variaciones | peces: `f2-agua2` | **alta** | hecho (T48: en el juego, `f2-agua2`, solo con la 2 y la 3; la 1 salió azul gris, como un pedazo de piel, y no se usa) | C6 (`pista escama.png`) |
-| D4 | `monos lamina.png` | El mono, tres poses | monos: juntar, rescate, mapa, libreta | **alta** | pendiente | B10 (`mono.png`, placeholder) |
-| D5 | `patitos lamina.png` | Tres patitos | pato: juntar la familia | **alta** | pendiente | B16 |
-| D6 | `pulpo lupa lamina.png` | El Pulpito con lupa y sin lupa, misma pose | todos los niveles | **alta** | pendiente | B18; `pulpo con lupa.png` |
-| D7 | `pulpo poses lamina.png` | El Pulpito: señala, piensa, festeja | el Pulpito sobre la escena | **alta** | pendiente | B15 |
-| D8 | `lupa v2.png` | La lupa que sigue al dedo | todos los niveles con lupa | **alta** | pendiente | `lupa.png` |
-| D9 | `abeja lamina.png` | Abeja, flor y panal, con colores vivos | abeja: `bee1`–`bee4` | **alta** | pendiente | `abeja.png`, `flor.png`, `panal.png` |
-| D10 | `oveja v2.png` | La oveja, de perfil y con borde limpio | ovejas: juntar, deducción | **alta** | pendiente | `oveja.png` |
+| D4 | `monos lamina.png` | El mono, tres poses | monos: juntar, rescate, mapa, libreta | **alta** | hecho; integrado en T49 (`mono v2.png` + `mono familia 2/3.png`) | B10 (`mono.png`, placeholder) |
+| D5 | `patitos lamina.png` | Tres patitos | pato: juntar la familia | **alta** | hecho; integrado en T49 (`patito 1/2/3.png`) | B16 |
+| D6 | `pulpo lupa lamina.png` | El Pulpito con lupa y sin lupa, misma pose | todos los niveles | **alta** | hecho; integrado en T49 (`pulpo con lupa v2.png`, `pulpo sin lupa.png`, mismo recuadro) | B18; `pulpo con lupa.png` |
+| D7 | `pulpo poses lamina.png` | El Pulpito: señala, piensa, festeja | el Pulpito sobre la escena | **alta** | hecho; integrado en T49 (señala en la entrada, piensa en la deducción, festeja en el rescate) | B15 |
+| D8 | `lupa v2.png` | La lupa que sigue al dedo | todos los niveles con lupa | **alta** | hecho; integrado en T49 | `lupa.png` |
+| D9 | `abeja lamina.png` | Abeja, flor y panal, con colores vivos | abeja: `bee1`–`bee4` | **alta** | hecho; integrado en T49 (flor blanca, no rosa; panal sin rama) | `abeja.png`, `flor.png`, `panal.png` |
+| D10 | `oveja v2.png` | La oveja, de perfil y con borde limpio | ovejas: juntar, deducción | **alta** | hecho; integrado en T49 | `oveja.png` |
 | D11 | `piedra v2.png` | La piedra que rueda | obstáculo de ovejas y llamas | **alta** | hecho (T48: en el juego; las rayas de movimiento se recortan, `MOTION_LINE_SOURCES`) | `piedra.png` |
 | D12 | `pista charco 2.png`, `pista charco 3.png` | Variaciones del charco | pato | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
 | D13 | `pista semillas 2.png`, `pista semillas 3.png` | Variaciones de las semillas | pato | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
@@ -110,7 +110,7 @@ ChatGPT: cambiar solo la columna "Estado" (ver §0, punto 9).
 | D32 | `fondo arena v2.png` | La arena, ampliada a 2:1 | tortugas, víboras, prólogo | media | **rechazado** (T50): costura vertical visible en x=256 y x=1792; sigue el 3:2 | — |
 | D33 | `fondo noche zoo v2.png` | La noche del zoológico, ampliada a 2:1 | noche (linterna) | media | **rechazado** (T50): costura vertical visible en x=256 y x=1792; sigue el 3:2 | — |
 | D34 | `fondo recinto monos v2.png` | El recinto de los monos, ampliado a 2:1 | prólogo: monos | media | **rechazado** (T50): costura vertical visible en x=256 y x=1792; sigue el 3:2 | — |
-| D35 | `lupa transicion.png` | La lupa grande de la transición | entre pantallas | baja | pendiente | — |
+| D35 | `lupa transicion.png` | La lupa grande de la transición | entre pantallas | baja | hecho; integrado en T49 (mango hacia abajo, no a 45°) | — |
 | D36 | `botones lamina.png` | Los ocho botones | todas las pantallas | baja | en el juego (T50): `ui-button-*` en volver, ver de nuevo, cerrar y sonido; siguiente, repetir y libreta quedan listos sin un botón que los use | — |
 | D37 | `escritorio v2.png` | El escritorio de la oficina | inicio | baja | en el juego (T50): `home-desk` (ninguna pantalla lo muestra hoy) | `escritorio.png` |
 | D38 | `pista pelo de gato v2.png` | Mechón de pelo de gato atigrado gris y blanco (rehace D1) | deducción de las ovejas | **alta** | pendiente | D1 (`pista pelo de gato.png`) |

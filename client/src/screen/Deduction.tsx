@@ -44,9 +44,9 @@ import {
   CARRIER_LENS_ART,
   CLUE_ART,
   PLACEHOLDER_ZOO_ANIMALS,
+  PULPITO_POSE_ART,
   silhouetteArtFor,
   ZOO_ANIMAL_ART,
-  ZOO_CARETAKER_ART,
   ZOO_SPEECH_BUBBLE_ART,
   type ArtImage,
   type ZooAnimalId,
@@ -398,8 +398,12 @@ export function deductionBubbleLines(kase: DetectiveCase): string[] {
   return lines
 }
 
+/** [T49, `docs/23` D7, `docs/19` §4.1] On the deduction he THINKS: the
+ *  thinking pose, sized by height like the caretaker it replaces. */
+const DEDUCTION_OCTOPUS_ART = PULPITO_POSE_ART.thinks
+
 /** Pulpito's octopus box, percent of his square frame. */
-const OCTOPUS_BOX = octopusBoxAtCorner(ZOO_CARETAKER_ART, {
+const OCTOPUS_BOX = octopusBoxAtCorner(DEDUCTION_OCTOPUS_ART, {
   corner: 'left',
   sizeBy: 'height',
   size: DEDUCTION_OCTOPUS_SIZE_PCT,
@@ -817,7 +821,7 @@ export function DeductionView({
       {holding && <button type="button" className="cv-celebrate-skip" aria-label="Continuar" onClick={onSkipHold} />}
       <div className="cv-deduction-frame" style={rectStyle(frame)}>
         <span className="cv-deduction-octopus" style={{ left: `${OCTOPUS_BOX.x}%` }}>
-          <img src={ZOO_CARETAKER_ART.href} alt="" />
+          <img src={DEDUCTION_OCTOPUS_ART.href} alt="" />
         </span>
         <span
           className={`cv-deduction-bubble${placement.mirrored ? ' cv-deduction-bubble--mirror-x' : ''}`}

@@ -4,6 +4,7 @@
 // invariant suite at the bottom walks the REAL sheep/llama catalog rows.
 import { describe, expect, it } from 'vitest'
 import {
+  collectArtAt,
   collectedCount,
   collectItemsFromLoops,
   collectItemsFromPeaks,
@@ -15,6 +16,7 @@ import {
   type CollectItem,
 } from './collect'
 import { LEVELS, getLevel } from './catalog'
+import { DUCKLING_ART, MONKEY_FAMILY_ART, ZOO_ANIMAL_ART } from '../detective/assets'
 import { buildLevelTarget } from './buildLevel'
 import { routeApexes } from './vertexArt'
 import { routeExtrema } from './dolphinExtrema'
@@ -820,6 +822,35 @@ describe('invariant: the shipped monkey3/monkey4 collect config (crests, three l
       const state = collectTick(emptyCollectState(items.length), target.length, items)
       expect(isCollectComplete(state), id).toBe(true)
       expect(collectedCount(state), id).toBe(items.length)
+    }
+  })
+})
+
+describe('collectArtAt — a family drawn in several poses (T49, docs/23 §7)', () => {
+  const a = { href: '/a.png', w: 1, h: 1 }
+  const b = { href: '/b.png', w: 1, h: 1 }
+  const c = { href: '/c.png', w: 1, h: 1 }
+
+  it('cycles the variants in route order, so neighbours never repeat', () => {
+    const config = { art: a, variants: [a, b, c] }
+    expect([0, 1, 2, 3, 4, 5].map((i) => collectArtAt(config, i))).toEqual([a, b, c, a, b, c])
+  })
+
+  it('falls back to `art` when there are no variants', () => {
+    expect(collectArtAt({ art: a }, 3)).toBe(a)
+    expect(collectArtAt({ art: a, variants: [] }, 3)).toBe(a)
+  })
+
+  it('the duck family collects the three ducklings, the monkey family the three monkeys', () => {
+    for (const id of ['duck-trail3', 'duck-trail4']) {
+      const collect = getLevel(id).collect!
+      expect(collect.variants, id).toBe(DUCKLING_ART)
+      expect(collect.art, id).not.toBe(ZOO_ANIMAL_ART.pato)
+    }
+    for (const id of ['monkey3', 'monkey4']) {
+      const collect = getLevel(id).collect!
+      expect(collect.variants, id).toBe(MONKEY_FAMILY_ART)
+      expect(collect.art, id).toBe(ZOO_ANIMAL_ART.mono)
     }
   })
 })
