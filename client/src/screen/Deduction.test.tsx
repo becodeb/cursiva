@@ -527,7 +527,10 @@ describe('DeductionView rendering — case-independent layout', () => {
     const html = renderToString(
       <DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />,
     )
-    expect(html).toMatch(/class(Name)?="cv-btn cv-btn-back"/)
+    // T50: plus `cv-btn-art`, which swaps the pill for the round button
+    // art (`docs/23` D36) while keeping the same two base classes.
+    expect(html).toMatch(/class(Name)?="cv-btn cv-btn-back cv-btn-art"/)
+    expect(html).toContain('/art/ui-button-back.png')
   })
 
   it('renders the adventure backdrop full-screen behind everything, never a flat colour (docs/19 §4.1)', () => {

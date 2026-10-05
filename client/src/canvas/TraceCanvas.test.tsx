@@ -9,6 +9,7 @@ import TraceCanvas, {
   BACKDROP_IMAGE_ASPECT,
   BACKDROP_SAFE_ZONE_ASPECT,
   backdropSafeZoneCoversAt,
+  CHANNEL_EDGE_WIDTH,
   backdropSafeZoneWidthFraction,
   coverAspectRatio,
   coverVisibleFraction,
@@ -1132,6 +1133,53 @@ describe('TraceCanvas backdrop (duck-undulations-and-sector-backdrop design.md Â
     const withoutChannel = renderToString(<TraceCanvas corridor={corridor} maze backdrop={backdrop} />)
     const withChannelHtml = renderToString(<TraceCanvas corridor={corridor} maze backdrop={withChannel} />)
     expect(withoutChannel).not.toEqual(withChannelHtml)
+  })
+
+  // T50: the channel's marker outline on the round-2 backgrounds.
+  it('strokes a marker edge under the channel, CHANNEL_EDGE_WIDTH wider each side, only when the backdrop declares one', () => {
+    const edged = { ...backdrop, edge: '#1a1a1a' }
+    const html = renderToString(<TraceCanvas corridor={corridor} maze backdrop={edged} />)
+    const edgeAt = html.indexOf('data-channel-edge="true"')
+    expect(edgeAt).toBeGreaterThan(-1)
+    expect(html).toContain(`stroke-width="${corridor.width + 2 * CHANNEL_EDGE_WIDTH}"`)
+    // Every outline comes before (under) the channel paint it frames.
+    expect(edgeAt).toBeLessThan(html.indexOf('stroke="#fdfcf7"'))
+    expect(html.match(/data-channel-edge="true"/g)).toHaveLength(corridor.paths.length)
+
+    const bare = renderToString(<TraceCanvas corridor={corridor} maze backdrop={backdrop} />)
+    expect(bare).not.toContain('data-channel-edge')
+    expect(bare).not.toContain(`stroke-width="${corridor.width + 2 * CHANNEL_EDGE_WIDTH}"`)
+  })
+
+  it('outlines every tapered piece BEFORE any channel piece, so no outline covers a neighbouring channel', () => {
+    const edged = { ...backdrop, edge: '#1a1a1a' }
+    const html = renderToString(
+      <TraceCanvas
+        corridor={{ paths: ['M 100 300 L 300 300 L 500 300 L 700 300 L 900 300'], width: 110, taper: { from: 1, to: 0.5 } }}
+        maze
+        backdrop={edged}
+      />,
+    )
+    const edges = [...html.matchAll(/<path[^>]*stroke="#1a1a1a" stroke-width="([\d.]+)"[^>]*data-channel-edge="true"/g)]
+    const channels = [...html.matchAll(/<path[^>]*stroke="#fdfcf7" stroke-width="([\d.]+)"/g)]
+    expect(edges.length).toBeGreaterThan(1)
+    expect(edges.length).toBe(channels.length)
+    expect(edges[edges.length - 1].index!).toBeLessThan(channels[0].index!)
+    edges.forEach((edge, i) => {
+      expect(Number(edge[1])).toBeCloseTo(Number(channels[i][1]) + 2 * CHANNEL_EDGE_WIDTH, 6)
+    })
+  })
+
+  it('lays the dim veil over the backdrop image and under the channel, only when the backdrop declares one', () => {
+    const dimmed = { ...backdrop, dim: { color: '#12161f', opacity: 0.3 } }
+    const html = renderToString(<TraceCanvas corridor={corridor} maze backdrop={dimmed} />)
+    const dimAt = html.indexOf('data-backdrop-dim="true"')
+    expect(dimAt).toBeGreaterThan(html.indexOf(`href="${backdrop.href}"`))
+    expect(dimAt).toBeLessThan(html.indexOf('stroke="#fdfcf7"'))
+    expect(html).toContain('fill="#12161f" opacity="0.3"')
+    expect(html).not.toContain('url(#')
+    const bare = renderToString(<TraceCanvas corridor={corridor} maze backdrop={backdrop} />)
+    expect(bare).not.toContain('data-backdrop-dim')
   })
 
   // trace-canvas spec: "Demo Stroke Contrasts With the Channel"
