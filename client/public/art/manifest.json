@@ -836,10 +836,10 @@
     "w": 349
   },
   "home-desk": {
-    "bytes": 74832,
+    "bytes": 78499,
     "file": "art/home-desk.png",
-    "h": 242,
-    "w": 512
+    "h": 238,
+    "w": 502
   },
   "home-octopus": {
     "bytes": 39452,
@@ -879,15 +879,25 @@
   },
   "sector-aquarium-background": {
     "brightest": "#ffffff",
-    "bytes": 2099948,
+    "bytes": 240884,
     "corridorRows": {
-      "bottom": 973,
-      "top": 51
+      "bottom": 1023,
+      "top": 0
     },
-    "file": "art/sector-aquarium-background.png",
+    "file": "art/sector-aquarium-background.webp",
     "h": 1024,
-    "quiet": "#b5e7f2",
-    "w": 1536
+    "quiet": "#0f96d8",
+    "w": 2048,
+    "webp": {
+      "lumaError": {
+        "max": 22,
+        "mean": 1.8,
+        "p99": 8
+      },
+      "pngBytes": 3597111,
+      "quality": 0.8,
+      "shippedBrightest": "#ffffff"
+    }
   },
   "sector-bee": {
     "bytes": 43179,
@@ -938,16 +948,26 @@
     "w": 171
   },
   "sector-forest-background": {
-    "brightest": "#86a678",
-    "bytes": 47084,
+    "brightest": "#ffffff",
+    "bytes": 293614,
     "corridorRows": {
-      "bottom": 926,
-      "top": 191
+      "bottom": 973,
+      "top": 155
     },
-    "file": "art/sector-forest-background.png",
+    "file": "art/sector-forest-background.webp",
     "h": 1024,
-    "quiet": "#86a678",
-    "w": 1536
+    "quiet": "#a3c03d",
+    "w": 2048,
+    "webp": {
+      "lumaError": {
+        "max": 20,
+        "mean": 2.09,
+        "p99": 8
+      },
+      "pngBytes": 3926448,
+      "quality": 0.8,
+      "shippedBrightest": "#fafffe"
+    }
   },
   "sector-honeycomb": {
     "bytes": 35176,
@@ -956,16 +976,26 @@
     "w": 221
   },
   "sector-lagoon-background": {
-    "brightest": "#b4c5d0",
-    "bytes": 103852,
+    "brightest": "#ffffff",
+    "bytes": 274988,
     "corridorRows": {
-      "bottom": 889,
-      "top": 135
+      "bottom": 931,
+      "top": 93
     },
-    "file": "art/sector-lagoon-background.png",
+    "file": "art/sector-lagoon-background.webp",
     "h": 1024,
-    "quiet": "#b4c5d0",
-    "w": 1536
+    "quiet": "#80a2b9",
+    "w": 2048,
+    "webp": {
+      "lumaError": {
+        "max": 22,
+        "mean": 1.94,
+        "p99": 9
+      },
+      "pngBytes": 3597063,
+      "quality": 0.8,
+      "shippedBrightest": "#fffff8"
+    }
   },
   "sector-leaf": {
     "bytes": 32586,
@@ -999,15 +1029,25 @@
   },
   "sector-monkeys-background": {
     "brightest": "#f7fdea",
-    "bytes": 3141847,
+    "bytes": 271740,
     "corridorRows": {
       "bottom": 973,
       "top": 51
     },
-    "file": "art/sector-monkeys-background.png",
+    "file": "art/sector-monkeys-background.webp",
     "h": 1024,
     "quiet": "#f8be64",
-    "w": 1536
+    "w": 1536,
+    "webp": {
+      "lumaError": {
+        "max": 21,
+        "mean": 2.45,
+        "p99": 9
+      },
+      "pngBytes": 3141847,
+      "quality": 0.8,
+      "shippedBrightest": "#ffffdc"
+    }
   },
   "sector-mushroom": {
     "bytes": 41105,
@@ -1016,64 +1056,114 @@
     "w": 256
   },
   "sector-night-background": {
-    "brightest": "#526083",
-    "bytes": 22289,
+    "brightest": "#fffbb5",
+    "bytes": 102608,
     "corridorRows": {
-      "bottom": 973,
-      "top": 51
+      "bottom": 1023,
+      "top": 0
     },
-    "file": "art/sector-night-background.png",
+    "file": "art/sector-night-background.webp",
     "h": 1024,
-    "quiet": "#2a3346",
-    "w": 1536
+    "quiet": "#1a325a",
+    "w": 2048,
+    "webp": {
+      "lumaError": {
+        "max": 21,
+        "mean": 1.2,
+        "p99": 6
+      },
+      "pngBytes": 2599486,
+      "quality": 0.8,
+      "shippedBrightest": "#fefac9"
+    }
   },
   "sector-night-zoo-background": {
     "brightest": "#fbf4b6",
-    "bytes": 2090531,
+    "bytes": 107462,
     "corridorRows": {
       "bottom": 973,
       "top": 51
     },
-    "file": "art/sector-night-zoo-background.png",
+    "file": "art/sector-night-zoo-background.webp",
     "h": 1024,
     "quiet": "#1e4175",
-    "w": 1536
+    "w": 1536,
+    "webp": {
+      "lumaError": {
+        "max": 27,
+        "mean": 1.37,
+        "p99": 8
+      },
+      "pngBytes": 2090531,
+      "quality": 0.8,
+      "shippedBrightest": "#fffdd3"
+    }
   },
   "sector-path-background": {
-    "brightest": "#d5c8b0",
-    "bytes": 684562,
+    "brightest": "#ffffff",
+    "bytes": 339040,
     "corridorRows": {
-      "bottom": 973,
-      "top": 51
+      "bottom": 1023,
+      "top": 0
     },
-    "file": "art/sector-path-background.png",
+    "file": "art/sector-path-background.webp",
     "h": 1024,
-    "quiet": "#d5c8b0",
-    "w": 1536
+    "quiet": "#e19f4f",
+    "w": 2048,
+    "webp": {
+      "lumaError": {
+        "max": 20,
+        "mean": 2.18,
+        "p99": 9
+      },
+      "pngBytes": 4066847,
+      "quality": 0.8,
+      "shippedBrightest": "#ffffff"
+    }
   },
   "sector-range-background": {
-    "brightest": "#f5f5f5",
-    "bytes": 46390,
+    "brightest": "#ffffff",
+    "bytes": 275994,
     "corridorRows": {
-      "bottom": 858,
-      "top": 166
+      "bottom": 897,
+      "top": 127
     },
-    "file": "art/sector-range-background.png",
+    "file": "art/sector-range-background.webp",
     "h": 1024,
-    "quiet": "#c8d3d8",
-    "w": 1536
+    "quiet": "#d9e0e2",
+    "w": 2048,
+    "webp": {
+      "lumaError": {
+        "max": 21,
+        "mean": 2.05,
+        "p99": 9
+      },
+      "pngBytes": 3802870,
+      "quality": 0.8,
+      "shippedBrightest": "#ffffff"
+    }
   },
   "sector-sand-background": {
     "brightest": "#ffffff",
-    "bytes": 2804280,
+    "bytes": 185990,
     "corridorRows": {
       "bottom": 973,
       "top": 51
     },
-    "file": "art/sector-sand-background.png",
+    "file": "art/sector-sand-background.webp",
     "h": 1024,
     "quiet": "#f9cf86",
-    "w": 1536
+    "w": 1536,
+    "webp": {
+      "lumaError": {
+        "max": 22,
+        "mean": 2.19,
+        "p99": 9
+      },
+      "pngBytes": 2804280,
+      "quality": 0.8,
+      "shippedBrightest": "#ffffff"
+    }
   },
   "sector-shed-skin": {
     "bytes": 48556,
@@ -1094,16 +1184,26 @@
     "w": 448
   },
   "sector-slope-background": {
-    "brightest": "#9da396",
-    "bytes": 38744,
+    "brightest": "#ffffff",
+    "bytes": 293748,
     "corridorRows": {
-      "bottom": 866,
-      "top": 220
+      "bottom": 906,
+      "top": 187
     },
-    "file": "art/sector-slope-background.png",
+    "file": "art/sector-slope-background.webp",
     "h": 1024,
-    "quiet": "#9da396",
-    "w": 1536
+    "quiet": "#abb84a",
+    "w": 2048,
+    "webp": {
+      "lumaError": {
+        "max": 23,
+        "mean": 2.12,
+        "p99": 9
+      },
+      "pngBytes": 3926803,
+      "quality": 0.8,
+      "shippedBrightest": "#fffff3"
+    }
   },
   "sector-snail": {
     "bytes": 27559,
@@ -2340,6 +2440,54 @@
     "file": "art/sign-turtles.png",
     "h": 256,
     "w": 199
+  },
+  "ui-button-back": {
+    "bytes": 27312,
+    "file": "art/ui-button-back.png",
+    "h": 158,
+    "w": 160
+  },
+  "ui-button-close": {
+    "bytes": 28647,
+    "file": "art/ui-button-close.png",
+    "h": 158,
+    "w": 160
+  },
+  "ui-button-next": {
+    "bytes": 26765,
+    "file": "art/ui-button-next.png",
+    "h": 160,
+    "w": 160
+  },
+  "ui-button-notebook": {
+    "bytes": 30096,
+    "file": "art/ui-button-notebook.png",
+    "h": 156,
+    "w": 160
+  },
+  "ui-button-replay": {
+    "bytes": 25387,
+    "file": "art/ui-button-replay.png",
+    "h": 158,
+    "w": 160
+  },
+  "ui-button-retry": {
+    "bytes": 26462,
+    "file": "art/ui-button-retry.png",
+    "h": 157,
+    "w": 160
+  },
+  "ui-button-sound": {
+    "bytes": 29151,
+    "file": "art/ui-button-sound.png",
+    "h": 159,
+    "w": 160
+  },
+  "ui-button-sound-off": {
+    "bytes": 28594,
+    "file": "art/ui-button-sound-off.png",
+    "h": 156,
+    "w": 160
   },
   "zoo-backpack": {
     "bytes": 7232,

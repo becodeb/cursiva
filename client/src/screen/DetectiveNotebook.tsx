@@ -64,7 +64,7 @@ const NOTEBOOK_CSS = `
    dialog's own aria-label already names the screen for assistive tech). */
 .cv-notebook-title { display: flex; align-items: center; gap: 10px; }
 .cv-notebook-title img, .cv-notebook-title svg { height: min(6dvh, 42px); width: auto; display: block; }
-.cv-notebook-close { flex: none; width: min(9dvh, 60px); height: min(9dvh, 60px); box-sizing: border-box; border-radius: 50%; border: 3px solid ${INK}; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
+.cv-notebook-close { flex: none; width: max(44px, min(9dvh, 60px)); height: max(44px, min(9dvh, 60px)); box-sizing: border-box; border-radius: 50%; border: none; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
 /* One shared card face for both the tools strip and the animal grid —
    marker style: warm paper, thick dark ink outline, no shadow
    (docs/09_GUIA_DE_ESTILO_VISUAL.md section 1), the same chrome

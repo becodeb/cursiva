@@ -48,6 +48,7 @@ import {
   PULPITO_POSE_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
+  UI_BUTTON_ART,
   SIGN_ART,
   TRANSITION_LENS_ART,
   ZOO_BACKPACK_ART,
@@ -63,14 +64,14 @@ import {
   type ArtImage,
 } from './assets'
 import { ART_OUTLINE, luma } from './palette'
-import { ADVENTURE_BACKDROP } from '../zoo/backdrops'
+import { ADVENTURE_BACKDROP, effectiveBrightest } from '../zoo/backdrops'
 
 /** Every PNG actually present in `public/art/`, keyed by bare name. The glob
  * is evaluated against the filesystem at transform time, so a file named in
  * the manifest but never emitted simply will not appear here. */
 const ON_DISK = new Set(
-  Object.keys(import.meta.glob('../../public/art/*.png')).map(
-    (path) => path.split('/').pop()!.replace(/\.png$/, ''),
+  Object.keys(import.meta.glob('../../public/art/*.{png,webp}')).map(
+    (path) => path.split('/').pop()!.replace(/\.(png|webp)$/, ''),
   ),
 )
 
@@ -95,6 +96,15 @@ interface ManifestEntry {
   bodyBrightest?: string
   bodyDarkest?: string
   headWhite?: string
+  /** T50 follow-up (`scripts/art/encode_webp.mjs`): set on the WebP
+   *  backdrops only — the encoder's own decode-and-compare against the PNG
+   *  master `quiet`/`brightest` were sampled from. */
+  webp?: {
+    quality: number
+    pngBytes: number
+    lumaError: { mean: number; p99: number; max: number }
+    shippedBrightest: string
+  }
 }
 
 /** Pipeline rows landed ahead of their registry entry, closed in a LATER
@@ -172,6 +182,7 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
   ...Object.entries(SECTOR_BACKGROUND_ART).map(([id, art]) =>
     [`SECTOR_BACKGROUND_ART.${id}`, art] as const,
   ),
+  ...Object.entries(UI_BUTTON_ART).map(([id, art]) => [`UI_BUTTON_ART.${id}`, art] as const),
   ...Object.entries(SECTOR_ADVENTURE_ART).map(([id, art]) =>
     [`SECTOR_ADVENTURE_ART.${id}`, art] as const,
   ),
@@ -210,23 +221,42 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
  * stores the root-absolute `/art/x.png` the browser and `<image href>` need.
  * The `/` is the only difference, and this is the one place that is asserted
  * rather than assumed. */
-const keyOf = (href: string) => href.replace(/^\/art\//, '').replace(/\.png$/, '')
+const keyOf = (href: string) => href.replace(/^\/art\//, '').replace(/\.(png|webp)$/, '')
 
 describe('art registry matches the shipped pipeline manifest', () => {
   it('builds the approved glass and night sources into the public background exports', () => {
+    // T50: the aquarium moved to the round-2 tank (`docs/23` D31, 2:1); the
+    // night zoo keeps its 3:2 original (its 2:1 extension, D33, has a seam).
     expect(buildScript).toContain(
-      "('fondo entrada vidrio.png', 'sector-aquarium-background.png', 1536, 1024, (51, 973))",
+      "('fondo pecera v2.png', 'sector-aquarium-background.png', 2048, 1024, (0, 1023))",
     )
     expect(buildScript).toContain(
       "('fondo noche zoo.png', 'sector-night-zoo-background.png', 1536, 1024, (51, 973))",
     )
   })
 
+  it('ships the seven round-2 redraws as 2:1 pass-throughs, and keeps the three seamed extensions on their 3:2 originals (T50)', () => {
+    for (const [src, out, rows] of [
+      ['fondo laguna v2.png', 'sector-lagoon-background.png', '(93, 931)'],
+      ['fondo ladera v2.png', 'sector-slope-background.png', '(187, 906)'],
+      ['fondo cordillera v2.png', 'sector-range-background.png', '(127, 897)'],
+      ['fondo bosque v2.png', 'sector-forest-background.png', '(155, 973)'],
+      ['fondo nocturno v2.png', 'sector-night-background.png', '(0, 1023)'],
+      ['fondo sendero v2.png', 'sector-path-background.png', '(0, 1023)'],
+    ] as const) {
+      expect(buildScript).toContain(`('${src}', '${out}', 2048, 1024, ${rows})`)
+      expect(manifest[out.replace(/\.png$/, '')]).toMatchObject({ w: 2048, h: 1024 })
+    }
+    for (const out of ['sector-sand-background', 'sector-night-zoo-background', 'sector-monkeys-background']) {
+      expect(manifest[out]).toMatchObject({ w: 1536, h: 1024 })
+    }
+  })
+
   it.each(REGISTERED.map(([label, art]) => [label, art] as const))(
     '%s has a manifest entry with matching intrinsic size, and the file exists',
     (label, art) => {
       expect(art.href, `${label}: href must be a root-absolute /art/ path`).toMatch(
-        /^\/art\/[a-z0-9-]+\.png$/,
+        /^\/art\/[a-z0-9-]+\.(png|webp)$/,
       )
 
       const entry = manifest[keyOf(art.href)]
@@ -299,7 +329,9 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // poses 2 and 3, three ducklings, the uncurling hedgehog and the shed
     // snake skin. `mono`'s silhouette moves from ZOO_ANIMAL_SILHOUETTE_ART to
     // ANIMAL_SILHOUETTE_ART (shared by reference, net zero).
-    expect(REGISTERED.length).toBe(198)
+    // + 8 UI_BUTTON_ART (T50, `docs/23` D36): the chrome buttons cut from
+    // `botones lamina.png`.
+    expect(REGISTERED.length).toBe(206)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -439,9 +471,9 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(entry.quiet).toBe(backdrop.quiet)
     expect(entry.brightest).toBe(backdrop.brightest)
     expect(entry.corridorRows).toEqual(backdrop.corridorRows)
-    expect(backdrop.quiet).toBe('#b4c5d0')
-    expect(backdrop.brightest).toBe('#b4c5d0')
-    expect(backdrop.corridorRows).toEqual({ top: 135, bottom: 889 })
+    expect(backdrop.quiet).toBe('#80a2b9')
+    expect(backdrop.brightest).toBe('#ffffff')
+    expect(backdrop.corridorRows).toEqual({ top: 93, bottom: 931 })
   })
 
   it("matches ADVENTURE_BACKDROP.sheep/.llama's quiet/brightest/corridorRows against the pipeline's own sampled values (row C)", () => {
@@ -499,7 +531,7 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(aquarium.quiet).toBe(glass.quiet)
     expect(aquarium.brightest).toBe(glass.brightest)
     expect(aquarium.corridorRows).toEqual(glass.corridorRows)
-    expect(glass.quiet).toBe('#b5e7f2')
+    expect(glass.quiet).toBe('#0f96d8')
     expect(glass.brightest).toBe('#ffffff')
 
     expect(sand.quiet).toBe(sandBackdrop.quiet)
@@ -546,11 +578,15 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // values in Phase 7 (task 3.6/7.1) — asserted here, ahead of that row's
     // own creation, as the guard against the pipeline's own numbers drifting.
     const forest = manifest['sector-forest-background']
-    expect(forest.corridorRows).toEqual({ top: 191, bottom: 926 })
-    // The band is flat over this range: quiet and brightest are the SAME
-    // colour (design.md §3.1's own prediction, confirmed by the rebuild).
-    expect(forest.quiet).toBe('#86a678')
-    expect(forest.brightest).toBe('#86a678')
+    expect(forest.corridorRows).toEqual({ top: 155, bottom: 973 })
+    // T50: the redrawn forest (`docs/23` D28) is an illustrated glade, not a
+    // flat band, so quiet (the grass's modal green) and brightest (a white
+    // highlight) no longer coincide.
+    expect(forest.quiet).toBe('#a3c03d')
+    expect(forest.brightest).toBe('#ffffff')
+    expect(forest.quiet).toBe(ADVENTURE_BACKDROP.bee!.quiet)
+    expect(forest.brightest).toBe(ADVENTURE_BACKDROP.bee!.brightest)
+    expect(forest.corridorRows).toEqual(ADVENTURE_BACKDROP.bee!.corridorRows)
   })
 
   it("T49: TRANSITION_LENS_ART.hole is the glass the pipeline measured on the shipped file", () => {
@@ -619,5 +655,83 @@ describe('placeholder clue art (T45, docs/22 §5)', () => {
       expect(ART_SOURCES.has(source!), `${kind}: ${source} exists — swap the placeholder`).toBe(false)
       expect(buildScript.includes(`'${source}'`), `${kind}: build_art.py already reads ${source}`).toBe(false)
     }
+  })
+})
+
+// T50 follow-up: the full-screen backdrops ship as lossy WebP
+// (`scripts/art/encode_webp.mjs`, run by `build_art.py`). The luma
+// measurements (`quiet`/`brightest`/`corridorRows`) stay on the PNG master
+// they were sampled from — vitest has no WebP decoder here, and the master
+// is the authored art. The encoder decodes every WebP it writes in the same
+// Chromium and records how far it drifted; these tests hold it to that.
+describe('WebP backdrops (T50 follow-up)', () => {
+  const backdrops = Object.entries(SECTOR_BACKGROUND_ART)
+
+  it('every sector backdrop ships as WebP, its PNG master is not shipped beside it, and the manifest names the WebP', () => {
+    for (const [id, art] of backdrops) {
+      expect(art.href, id).toMatch(/^\/art\/sector-[a-z-]+-background\.webp$/)
+      const entry = manifest[keyOf(art.href)]
+      expect(entry.file, id).toBe(art.href.slice(1))
+      expect(entry.webp, id).toBeDefined()
+      expect(entry.webp!.quality, id).toBe(0.8)
+    }
+    expect(
+      Object.keys(import.meta.glob('../../public/art/sector-*-background.png')),
+      'a backdrop PNG master was shipped alongside its WebP',
+    ).toEqual([])
+  })
+
+  it('no other shipped file is a full-screen PNG over 500 KB', () => {
+    for (const [key, entry] of Object.entries(manifest)) {
+      if (entry.file.endsWith('.png')) expect(entry.bytes, key).toBeLessThan(500 * 1024)
+    }
+  })
+
+  it('each WebP decodes within a small luma error of its measured PNG master', () => {
+    for (const [id, art] of backdrops) {
+      const { lumaError } = manifest[keyOf(art.href)].webp!
+      expect(lumaError.mean, id).toBeLessThanOrEqual(3)
+      expect(lumaError.p99, id).toBeLessThanOrEqual(12)
+      expect(lumaError.max, id).toBeLessThanOrEqual(40)
+    }
+  })
+
+  it("each WebP's own brightest over the corridor rows stays within the encoder's error of the master's", () => {
+    for (const [id, art] of backdrops) {
+      const entry = manifest[keyOf(art.href)]
+      const gap = Math.abs(luma(entry.webp!.shippedBrightest) - luma(entry.brightest!))
+      expect(gap, id).toBeLessThanOrEqual(entry.webp!.lumaError.max)
+    }
+  })
+
+  it("the backdrop luma laws hold against the SHIPPED WebP's own brightest, not only the master's", () => {
+    for (const [id, row] of Object.entries(ADVENTURE_BACKDROP)) {
+      const shipped = { ...row!, brightest: manifest[keyOf(row!.art.href)].webp!.shippedBrightest }
+      const light = luma(effectiveBrightest(shipped))
+      if (row!.tile) {
+        expect(Math.abs(luma(row!.tile) - light), `${id} veil`).toBeGreaterThanOrEqual(55)
+      } else if (row!.ink && !row!.channel) {
+        // A line drawn straight on the art (hedgehog): the ink against it.
+        expect(Math.abs(luma(row!.ink) - light), `${id} ink`).toBeGreaterThanOrEqual(55)
+      } else if (row!.channel && !row!.edge && !row!.corridorArt) {
+        expect(Math.abs(luma(row!.channel) - light), `${id} channel`).toBeGreaterThanOrEqual(55)
+      }
+      // An edged row's law is channel-vs-edge, independent of the art
+      // (`backdrops.test.ts`); the snake's is its own corridor art; the bee
+      // draws no channel. None of the three reads `brightest`.
+    }
+  })
+
+  it('the shipped backdrops weigh a fraction of their PNG masters, and all shipped art stays under ~18 MB', () => {
+    let shipped = 0
+    let masters = 0
+    for (const [, art] of backdrops) {
+      const entry = manifest[keyOf(art.href)]
+      shipped += entry.bytes
+      masters += entry.webp!.pngBytes
+    }
+    expect(shipped).toBeLessThan(masters / 5)
+    const total = Object.values(manifest).reduce((sum, e) => sum + e.bytes, 0)
+    expect(total).toBeLessThan(18 * 1024 * 1024)
   })
 })

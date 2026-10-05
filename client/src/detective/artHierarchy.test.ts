@@ -350,11 +350,11 @@ const WORLD_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
   // `sector-*`/… prefixed, so `WORLD_GUARD_FILES`'s own glob never picks
   // them up and no entry is needed here for them.
   'zoo-octopus-caretaker.png': ZOO_CARETAKER_ART,
-  ...Object.fromEntries(
-    Object.entries(SECTOR_BACKGROUND_ART).map(([id, art]) => [
-      `sector-${id.replace(/([A-Z])/g, '-$1').toLowerCase()}-background.png`, art,
-    ]),
-  ),
+  // T50 follow-up: the sector backdrops ship as lossy WebP
+  // (`scripts/art/encode_webp.mjs`), which this PNG-only glob (and the
+  // `decodePng` below) cannot read; they are guarded at their PNG source
+  // here (`SECTOR_SOURCE_CANVASES`) and at the shipped WebP by
+  // `artManifest.test.ts`'s "WebP backdrops" block.
   ...Object.fromEntries(
     Object.entries(SECTOR_ADVENTURE_ART).map(([id, art]) => [
       // T48: a trailing digit is a variation (`leaf2` -> `sector-leaf-2.png`).
@@ -384,23 +384,34 @@ const COLOUR_GRADED_FULL_CANVAS = new Set([
   'sector-night-background.png',
   'sector-night-zoo-background.png',
   'sector-sand-background.png',
+  // T50: the redrawn round-2 scenes (`docs/23` D25-D30) are illustrated
+  // like the sand and monkeys art — shaded foliage, water and stone — so
+  // their near-black pixels are scene fills, not a contour.
+  'sector-lagoon-background.png',
+  'sector-slope-background.png',
+  'sector-range-background.png',
+  'sector-forest-background.png',
+  'sector-path-background.png',
 ])
 
 /** Authoring canvases are a separate contract from compact shipped assets:
- * backgrounds retain their final 3:2 coordinate system, while cutouts retain
- * a square transparent workspace before `build_art.py` crops them. */
+ * backgrounds retain their final coordinate system (3:2, or 2:1 for the
+ * round-2 redraws, T50), while cutouts retain a square transparent
+ * workspace before `build_art.py` crops them. */
 const SECTOR_SOURCE_FILES = import.meta.glob(
-  '../../../art-source/{fondo laguna,fondo arena,fondo ladera,fondo cordillera,fondo bosque,fondo nocturno,vibora chica,vibora mediana,vibora grande,llama,abeja,flor,panal,delfin,caracol,linterna,erizo,erizo enroscado,gorro andino}.png',
+  '../../../art-source/{fondo laguna v2,fondo arena,fondo ladera v2,fondo cordillera v2,fondo bosque v2,fondo nocturno v2,fondo pecera v2,fondo sendero v2,vibora chica,vibora mediana,vibora grande,llama,abeja,flor,panal,delfin,caracol,linterna,erizo,erizo enroscado,gorro andino}.png',
   { eager: true, query: '?inline', import: 'default' },
 ) as Inlined
 
 const SECTOR_SOURCE_CANVASES: Readonly<Record<string, { w: number; h: number; opaque: boolean }>> = {
-  'fondo laguna.png': { w: 1536, h: 1024, opaque: true },
+  'fondo laguna v2.png': { w: 2048, h: 1024, opaque: true },
   'fondo arena.png': { w: 1536, h: 1024, opaque: true },
-  'fondo ladera.png': { w: 1536, h: 1024, opaque: true },
-  'fondo cordillera.png': { w: 1536, h: 1024, opaque: true },
-  'fondo bosque.png': { w: 1536, h: 1024, opaque: true },
-  'fondo nocturno.png': { w: 1536, h: 1024, opaque: true },
+  'fondo ladera v2.png': { w: 2048, h: 1024, opaque: true },
+  'fondo cordillera v2.png': { w: 2048, h: 1024, opaque: true },
+  'fondo bosque v2.png': { w: 2048, h: 1024, opaque: true },
+  'fondo nocturno v2.png': { w: 2048, h: 1024, opaque: true },
+  'fondo pecera v2.png': { w: 2048, h: 1024, opaque: true },
+  'fondo sendero v2.png': { w: 2048, h: 1024, opaque: true },
   'vibora chica.png': { w: 1024, h: 1024, opaque: false },
   'vibora mediana.png': { w: 1024, h: 1024, opaque: false },
   'vibora grande.png': { w: 1024, h: 1024, opaque: false },
@@ -416,29 +427,28 @@ const SECTOR_SOURCE_CANVASES: Readonly<Record<string, { w: number; h: number; op
   'gorro andino.png': { w: 1024, h: 1024, opaque: false },
 }
 
-/** Legacy flat-band sources reserve y=20–80% for one calm base colour. The
+/** Legacy flat-band sources reserved y=20–80% for one calm base colour. The
  * renewed illustrated backgrounds use organic calm zones instead and are
  * protected by manifest sampling, pixel-identical export tests, and browser
- * evidence rather than this obsolete flat-fill invariant. */
-const SECTOR_QUIET_BAND_BASE: Readonly<Record<string, readonly [number, number, number]>> = {
-  'fondo laguna.png': [180, 197, 208],
-  'fondo ladera.png': [157, 163, 150],
-  'fondo cordillera.png': [200, 211, 216],
-  'fondo bosque.png': [134, 166, 120],
-  'fondo nocturno.png': [42, 51, 70],
-}
+ * evidence rather than this obsolete flat-fill invariant. Since T50 no
+ * shipped background comes from a flat-band source (the five that did were
+ * redrawn as `docs/23` D25-D29), so the table is empty; the check stays for
+ * any future flat-band source. */
+const SECTOR_QUIET_BAND_BASE: Readonly<Record<string, readonly [number, number, number]>> = {}
 
 /** Full-canvas sector art is a true pass-through: the authored source IS the
  * shipped coordinate system. Keep this explicit rather than deriving names,
  * because `laguna` → `lagoon` and `cordillera` → `range` are intentional
  * product vocabulary translations. */
 const SECTOR_SOURCE_TO_EMITTED: Readonly<Record<string, string>> = {
-  'fondo laguna.png': 'sector-lagoon-background.png',
+  'fondo laguna v2.png': 'sector-lagoon-background.png',
   'fondo arena.png': 'sector-sand-background.png',
-  'fondo ladera.png': 'sector-slope-background.png',
-  'fondo cordillera.png': 'sector-range-background.png',
-  'fondo bosque.png': 'sector-forest-background.png',
-  'fondo nocturno.png': 'sector-night-background.png',
+  'fondo ladera v2.png': 'sector-slope-background.png',
+  'fondo cordillera v2.png': 'sector-range-background.png',
+  'fondo bosque v2.png': 'sector-forest-background.png',
+  'fondo nocturno v2.png': 'sector-night-background.png',
+  'fondo pecera v2.png': 'sector-aquarium-background.png',
+  'fondo sendero v2.png': 'sector-path-background.png',
 }
 
 function named(files: Inlined): readonly (readonly [string, string])[] {
@@ -492,7 +502,6 @@ function scatterSizes(): readonly number[] {
 describe('visual hierarchy: the clue outranks the ground it lies on', () => {
   it('locks the sector source canvas and alpha contracts before shipping', async () => {
     const files = named(SECTOR_SOURCE_FILES)
-    const emitted = new Map(named(WORLD_GUARD_FILES))
     expect(files.map(([name]) => name).sort()).toEqual(Object.keys(SECTOR_SOURCE_CANVASES).sort())
     for (const [name, url] of files) {
       const expected = SECTOR_SOURCE_CANVASES[name]
@@ -536,23 +545,24 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
           }
         }
         expect(decorated, `${name}: the y=20–80% tracing band must stay calm`).toBe(0)
+      }
 
-        // `PASSTHROUGHS` must not later introduce a resize, recolour, or
-        // crop. Check every RGBA byte, including the quiet corridor and the
-        // intentionally dark/chromatic scenery fills outside it.
-        const emittedName = SECTOR_SOURCE_TO_EMITTED[name]
-        const emittedUrl = emitted.get(emittedName)
-        expect(emittedUrl, `${name}: its pass-through output is missing`).toBeDefined()
-        const shipped = await decodePng(base64ToBytes(emittedUrl!.split(',')[1]))
-        expect({ w: shipped.w, h: shipped.h }, `${name}: pass-through dimensions drifted`).toEqual({
+      // `PASSTHROUGHS` must not later introduce a resize or crop. Before the
+      // T50 follow-up this compared every RGBA byte of the shipped PNG; the
+      // backdrops now ship as lossy WebP, so the shipped coordinate system
+      // (the registry's own `w`/`h`, which `artManifest.test.ts` ties to the
+      // manifest and the manifest to the decoded WebP) must equal the
+      // source's, and the colour drift is bounded there instead.
+      const emittedName = SECTOR_SOURCE_TO_EMITTED[name]
+      if (emittedName) {
+        const shipped = Object.values(SECTOR_BACKGROUND_ART).find(
+          (bg) => bg.href === `/art/${emittedName.replace(/\.png$/, '.webp')}`,
+        )
+        expect(shipped, `${name}: its shipped backdrop is not registered`).toBeDefined()
+        expect({ w: shipped!.w, h: shipped!.h }, `${name}: pass-through dimensions drifted`).toEqual({
           w: art.w,
           h: art.h,
         })
-        let mismatchedBytes = 0
-        for (let index = 0; index < art.px.length; index++) {
-          if (art.px[index] !== shipped.px[index]) mismatchedBytes += 1
-        }
-        expect(mismatchedBytes, `${name}: emitted art differs from its source`).toBe(0)
       }
     }
   }, 40_000)

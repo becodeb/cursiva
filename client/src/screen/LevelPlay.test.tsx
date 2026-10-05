@@ -554,8 +554,36 @@ describe('LevelPlay backdrop (duck-undulations-and-sector-backdrop design.md §3
     expect(traceCanvasProbe.current?.ground, 'duck-trail2 must retire its scattered ground').toBeUndefined()
     const backdrop = traceCanvasProbe.current?.backdrop as { href: string; quiet: string } | undefined
     expect(backdrop?.href).toBe(SECTOR_BACKGROUND_ART.lagoon.href)
-    expect(backdrop?.quiet).toBe('#b4c5d0')
-    expect(html).toContain('#b4c5d0')
+    expect(backdrop?.quiet).toBe('#80a2b9')
+    expect(html).toContain('#80a2b9')
+  })
+
+  // T50: the registry's corridor treatments reach the canvas — the marker
+  // edge on a channel level, the night dim on a hedgehog level — and a row
+  // that declares neither passes neither key at all.
+  it('passes the backdrop edge and dim through to the canvas, and omits both where the row has none', () => {
+    const shown = (id: string) => {
+      renderToString(
+        <LevelPlay level={getLevel(id)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+      )
+      return traceCanvasProbe.current?.backdrop as Record<string, unknown> | undefined
+    }
+    expect(shown('duck-trail2')?.edge).toBe('#1a1a1a')
+    expect(shown('duck-trail2')).not.toHaveProperty('dim')
+    expect(shown('hedgehog1')?.dim).toEqual({ color: '#12161f', opacity: 0.3 })
+    expect(shown('hedgehog1')).not.toHaveProperty('edge')
+    const turtle = shown('turtle1')
+    expect(turtle).not.toHaveProperty('edge')
+    expect(turtle).not.toHaveProperty('dim')
+  })
+
+  it('shows the round button art, not the pill, for the back button on a drawn place (T50, docs/23 D36)', () => {
+    const html = renderToString(
+      <LevelPlay level={getLevel('duck-trail2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(html).toMatch(/class="cv-btn cv-btn-back cv-btn-art"[^>]*aria-label="Volver"/)
+    expect(html).toContain('src="/art/ui-button-back.png"')
+    expect(LAYOUT_CSS).toMatch(/\.cv-btn\.cv-btn-art \{[^}]*border: none;[^}]*background: transparent;[^}]*\}/)
   })
 
   it("f2-agua2 now gets the lagoon backdrop and retires its scattered ground — the medusa levels joined the fish adventure (promised-animals P2)", () => {
@@ -571,7 +599,7 @@ describe('LevelPlay backdrop (duck-undulations-and-sector-backdrop design.md §3
     expect(traceCanvasProbe.current?.ground, 'f2-agua2 must retire its scattered ground').toBeUndefined()
     const backdrop = traceCanvasProbe.current?.backdrop as { href: string; quiet: string } | undefined
     expect(backdrop?.href).toBe(SECTOR_BACKGROUND_ART.lagoon.href)
-    expect(backdrop?.quiet).toBe('#b4c5d0')
+    expect(backdrop?.quiet).toBe('#80a2b9')
   })
 
   // Regression pair, named explicitly (design.md §3.2's `drawnPlace`):

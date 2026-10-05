@@ -1,16 +1,13 @@
-// Ink-drawn control icons for a detective trail (design unit 12,
-// Orchestrator Correction C1: "Controls become icon-only and keep the
-// shipped 64px tap floor: retry and continue as ink glyphs, drawn the same
-// way PISTAS is. Back stays as an affordance, as an icon."). Each icon is a
-// stroked or filled ink shape, no text, no `url(#...)`, no font, no
-// `@font-face` — consistent with `PistasRail.tsx`'s drawn word.
-//
-// Unlike `levels/paths.ts`'s generators, these are never fed through
-// `transformPath`, so the `M`/`L`-only restriction that applies to level
-// route data does not apply here — a curved arrow reads better than a
-// polygonal one, so `RetryIcon` uses one arc.
-import type { CSSProperties, ReactNode } from 'react'
+// Control icons for a detective trail (design unit 12, Orchestrator
+// Correction C1: "Controls become icon-only and keep the shipped 64px tap
+// floor"). The button faces (back, retry, replay, next, close) are the
+// author's hand-drawn button art since T50 (`ButtonArt` below); the other
+// marks here (the notebook pad, the paw, the pointing hand) are still ink
+// shapes drawn in code, no text, no `url(#...)`, no font, no `@font-face` —
+// consistent with `PistasRail.tsx`'s drawn word.
+import type { CSSProperties } from 'react'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
+import { UI_BUTTON_ART, type ArtImage } from './assets'
 
 /** The glyphs are aria-hidden on purpose: they carry no accessible name of
  * their own, because the BUTTON that wraps one carries it via aria-label. The
@@ -21,99 +18,70 @@ import { SHEET_PAPER } from '../canvas/TraceCanvas'
  * exported) — the same hand that draws the child's own trace and the
  * `PistasRail` word. */
 const ICON_INK = '#1e293b'
-const ICON_STROKE_WIDTH = 5
 
-function IconSvg({ children }: { children: ReactNode }) {
+/** T50 (`docs/23` D36, §7.7): the chrome buttons are the author's own
+ * hand-drawn round buttons (`UI_BUTTON_ART`, cut from `botones lamina.png`),
+ * not code-drawn glyphs any more. Each one is the WHOLE face of its button:
+ * the wrapping `<button>` drops its own pill chrome (`.cv-btn-art` in
+ * `LevelPlay.tsx`'s `LAYOUT_CSS`, or the button's own style) and keeps its
+ * `aria-label` and its tap size. Sized by its button (100% of the box),
+ * aria-hidden for the reason this file's header gives, and not draggable so
+ * a long press never starts an image drag on a tablet. */
+export function ButtonArt({ art }: { art: ArtImage }) {
   return (
-    <svg viewBox="0 0 40 40" width={26} height={26} aria-hidden="true" focusable="false">
-      {children}
-    </svg>
+    <img
+      className="cv-btn-art-img"
+      src={art.href}
+      width={art.w}
+      height={art.h}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      style={BUTTON_ART_STYLE}
+    />
   )
 }
 
-/** Replaces "‹ Volver": a plain chevron pointing left. The back affordance
- * itself is unchanged — only its label becomes a glyph (C1). */
+const BUTTON_ART_STYLE: CSSProperties = {
+  display: 'block',
+  width: '100%',
+  height: '100%',
+  objectFit: 'contain',
+  pointerEvents: 'none',
+}
+
+/** Back ("‹ Volver"): the round button with the arrow pointing left. */
 export function BackIcon() {
-  return (
-    <IconSvg>
-      <path
-        d="M25,8 L13,20 L25,32"
-        fill="none"
-        stroke={ICON_INK}
-        strokeWidth={ICON_STROKE_WIDTH}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </IconSvg>
-  )
+  return <ButtonArt art={UI_BUTTON_ART.back} />
 }
 
-/** Replaces "Borrar": a circular arrow — start the drawing over. The one
- * curved stroke in this file; see the module comment for why that is fine
- * here even though `levels/paths.ts` output must stay `M`/`L` only. */
+/** Retry ("Borrar"): the round button with the circular arrow. */
 export function RetryIcon() {
-  return (
-    <IconSvg>
-      <path
-        d="M30,20 A10,10 0 1 1 20,10"
-        fill="none"
-        stroke={ICON_INK}
-        strokeWidth={ICON_STROKE_WIDTH}
-        strokeLinecap="round"
-      />
-      <path d="M20,10 L28,10 L24,17 Z" fill={ICON_INK} stroke="none" />
-    </IconSvg>
-  )
+  return <ButtonArt art={UI_BUTTON_ART.retry} />
 }
 
-/** Replaces "Ver de nuevo": a plain play triangle — watch the route again. */
+/** Watch again ("Ver de nuevo"): the round button with the play triangle. */
 export function ReplayIcon() {
-  return (
-    <IconSvg>
-      <path d="M14,10 L14,30 L30,20 Z" fill={ICON_INK} stroke="none" />
-    </IconSvg>
-  )
+  return <ButtonArt art={UI_BUTTON_ART.replay} />
 }
 
-/** Replaces "Siguiente": a plain chevron pointing right. */
+/** Next ("Siguiente"): the yellow round button with the fat right arrow —
+ *  the one meant to draw the eye first (`docs/23` D36). */
 export function ContinueIcon() {
-  return (
-    <IconSvg>
-      <path
-        d="M15,8 L27,20 L15,32"
-        fill="none"
-        stroke={ICON_INK}
-        strokeWidth={ICON_STROKE_WIDTH}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </IconSvg>
-  )
+  return <ButtonArt art={UI_BUTTON_ART.next} />
 }
 
-/** Closes an overlay (`screen/DetectiveNotebook.tsx`, T23,
- *  `odd/tasks/prewriting-stage-completion.md`): a plain X, two crossed
- *  strokes — the same wordless-glyph convention every other icon in this
- *  file follows (aria-hidden, named by the button that wraps it). */
+/** Closes an overlay (`screen/DetectiveNotebook.tsx`, T23): the round
+ *  button with the fat X. */
 export function CloseIcon() {
-  return (
-    <IconSvg>
-      <path
-        d="M11,11 L29,29 M29,11 L11,29"
-        fill="none"
-        stroke={ICON_INK}
-        strokeWidth={ICON_STROKE_WIDTH}
-        strokeLinecap="round"
-      />
-    </IconSvg>
-  )
+  return <ButtonArt art={UI_BUTTON_ART.close} />
 }
 
 /** The notebook's own title mark (`screen/DetectiveNotebook.tsx` T23
  *  follow-up, orchestrator screenshot review: "a title drawn as the
  *  Pulpito's lupa + a notebook icon — no reading needed"): a spiral-bound
  *  pad, drawn the same ink-outline way every other icon here is. No fixed
- *  `width`/`height` (unlike `IconSvg`'s other glyphs) — this one is sized by
+ *  `width`/`height` (unlike the old fixed-size control glyphs) — this one is sized by
  *  its caller's own CSS, next to the lupa picture at the top of the page,
  *  never at this file's fixed 26px control-icon size. */
 export function NotebookPadIcon() {

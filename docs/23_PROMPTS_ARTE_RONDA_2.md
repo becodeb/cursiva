@@ -104,19 +104,19 @@ ChatGPT: cambiar solo la columna "Estado" (ver §0, punto 9).
 | D22 | `manzana 2.png`, `manzana 3.png` | Variaciones de la manzana | noche | **alta** | hecho (T48: en el juego; `night3` y el final de `night-rastro`) | — |
 | D23 | `pista lana 2.png`, `pista lana 3.png` | Variaciones del mechón de lana (después de C9) | ovejas: `sheep-lana` | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
 | D24 | `pista huella de tortuga 2.png`, `pista huella de tortuga 3.png` | Variaciones de la huella de tortuga (después de C10) | tortugas | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
-| D25 | `fondo laguna v2.png` | La laguna | pato, peces, delfines | media | pendiente | B1 |
-| D26 | `fondo ladera v2.png` | La ladera | ovejas | media | pendiente | B2 |
-| D27 | `fondo cordillera v2.png` | La cordillera | llamas | media | pendiente | B3 |
-| D28 | `fondo bosque v2.png` | El bosque | abeja, monos | media | pendiente | B4 |
-| D29 | `fondo nocturno v2.png` | La noche del erizo | erizo | media | pendiente | B5 |
-| D30 | `fondo sendero v2.png` | El sendero, con huellas | prólogo: sendero | media | pendiente | B7 |
-| D31 | `fondo pecera v2.png` | La pecera de verdad | prólogo: peces | media | pendiente | B6 |
-| D32 | `fondo arena v2.png` | La arena, ampliada a 2:1 | tortugas, víboras, prólogo | media | pendiente | — |
-| D33 | `fondo noche zoo v2.png` | La noche del zoológico, ampliada a 2:1 | noche (linterna) | media | pendiente | — |
-| D34 | `fondo recinto monos v2.png` | El recinto de los monos, ampliado a 2:1 | prólogo: monos | media | pendiente | — |
+| D25 | `fondo laguna v2.png` | La laguna | pato, peces, delfines | media | en el juego (T50): `sector-lagoon-background`; el camino de papel lleva un borde de marcador | B1 |
+| D26 | `fondo ladera v2.png` | La ladera | ovejas | media | en el juego (T50): `sector-slope-background`; canal de piedra con borde de marcador | B2 |
+| D27 | `fondo cordillera v2.png` | La cordillera | llamas | media | en el juego (T50): `sector-range-background`; canal de piedra con borde de marcador | B3 |
+| D28 | `fondo bosque v2.png` | El bosque | abeja, monos | media | en el juego (T50): `sector-forest-background` (abeja y monos); el camino de los monos lleva borde | B4 |
+| D29 | `fondo nocturno v2.png` | La noche del erizo | erizo | media | en el juego (T50): `sector-night-background`, con un velo nocturno del 30 % para la tiza | B5 |
+| D30 | `fondo sendero v2.png` | El sendero, con huellas | prólogo: sendero | media | en el juego (T50): `sector-path-background` | B7 |
+| D31 | `fondo pecera v2.png` | La pecera de verdad | prólogo: peces | media | en el juego (T50): `sector-aquarium-background` | B6 |
+| D32 | `fondo arena v2.png` | La arena, ampliada a 2:1 | tortugas, víboras, prólogo | media | **rechazado** (T50): costura vertical visible en x=256 y x=1792; sigue el 3:2 | — |
+| D33 | `fondo noche zoo v2.png` | La noche del zoológico, ampliada a 2:1 | noche (linterna) | media | **rechazado** (T50): costura vertical visible en x=256 y x=1792; sigue el 3:2 | — |
+| D34 | `fondo recinto monos v2.png` | El recinto de los monos, ampliado a 2:1 | prólogo: monos | media | **rechazado** (T50): costura vertical visible en x=256 y x=1792; sigue el 3:2 | — |
 | D35 | `lupa transicion.png` | La lupa grande de la transición | entre pantallas | baja | hecho; integrado en T49 (mango hacia abajo, no a 45°) | — |
-| D36 | `botones lamina.png` | Los ocho botones | todas las pantallas | baja | pendiente | — |
-| D37 | `escritorio v2.png` | El escritorio de la oficina | inicio | baja | pendiente | `escritorio.png` |
+| D36 | `botones lamina.png` | Los ocho botones | todas las pantallas | baja | en el juego (T50): `ui-button-*` en volver, ver de nuevo, cerrar y sonido; siguiente, repetir y libreta quedan listos sin un botón que los use | — |
+| D37 | `escritorio v2.png` | El escritorio de la oficina | inicio | baja | en el juego (T50): `home-desk` (ninguna pantalla lo muestra hoy) | `escritorio.png` |
 | D38 | `pista pelo de gato v2.png` | Mechón de pelo de gato atigrado gris y blanco (rehace D1) | deducción de las ovejas | **alta** | pendiente | D1 (`pista pelo de gato.png`) |
 
 Son **38 pedidos y 55 archivos** (D38, agregado en T48, rehace D1). Antes de D23 y D24 van C9 y C10 de `docs/22` (§0, punto 2).

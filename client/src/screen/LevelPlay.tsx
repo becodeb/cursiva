@@ -1317,6 +1317,14 @@ html, body, #root { margin: 0; padding: 0; }
 .cv-btn-back { min-height: 56px; padding: 0 18px; }
 .cv-btn-ok { background: #dcfce7; border-color: #16a34a; }
 .cv-btn-off { opacity: 0.45; cursor: default; }
+/* T50 (docs/23 D36): an icon-only button whose face is the author's own
+ * round button art (detective/icons.tsx ButtonArt) drops the pill chrome —
+ * the art already carries the marker outline and the paper fill — and
+ * becomes a square tap box of the same height the pill had. Two-class
+ * selectors so the media-query .cv-btn/.cv-btn-back overrides below never
+ * bring the pill's padding back. */
+.cv-btn.cv-btn-art { padding: 0; border: none; background: transparent; border-radius: 50%; width: 64px; height: 64px; min-height: 0; display: inline-flex; align-items: center; justify-content: center; }
+.cv-btn-art.cv-btn-back { width: 56px; height: 56px; }
 /* T7 auto-advance: the transparent full-screen tap target that skips the
  * celebration. Below the dev-only skip button's own z-index (9999,
  * GameScreen.tsx's DEV_SKIP_BUTTON) so that corner keeps working
@@ -1557,6 +1565,8 @@ html, body, #root { margin: 0; padding: 0; }
    * land here) — the decision's own "big touch targets >= 56px". */
   .cv-btn { min-height: 58px; padding: 0 22px; font-size: 18px; }
   .cv-btn-back { min-height: 56px; }
+  .cv-btn.cv-btn-art { width: 58px; height: 58px; }
+  .cv-btn-art.cv-btn-back { width: 56px; height: 56px; }
   .pistas-slots { gap: 5px; }
   /* Both target viewports at this breakpoint (1280x720, 1024x768) want the
    * whole bar around 40px tall — the animal end-cap is the tallest element,
@@ -1589,6 +1599,7 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-coach { margin: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cv-btn { min-height: 48px; padding: 0 16px; font-size: 16px; }
   .cv-btn-back { min-height: 48px; padding: 0 12px; font-size: 16px; }
+  .cv-btn.cv-btn-art, .cv-btn-art.cv-btn-back { width: 48px; height: 48px; }
   /* width: 30px -> ~32px tall, comfortably inside the 44px back button row
    * this breakpoint sets (844x390 lands here). */
   .cv-level-zoo-sign > svg { width: 30px; }
@@ -3746,7 +3757,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const backdropEntry = useMemo(() => backdropFor(level.id), [level.id])
   const backdrop = useMemo<TraceBackdrop | undefined>(() => {
     const b = backdropEntry
-    return b ? { href: b.art.href, quiet: b.quiet, channel: b.channel } : undefined
+    return b ? { href: b.art.href, quiet: b.quiet, channel: b.channel, ...(b.edge ? { edge: b.edge } : {}), ...(b.dim ? { dim: b.dim } : {}) } : undefined
   }, [backdropEntry])
 
   // The level is drawn in a PLACE — a sector's backdrop or the detective
@@ -4175,7 +4186,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
             playSfx('tap')
             onBack()
           }}
-          className="cv-btn cv-btn-back"
+          className={drawnPlace ? 'cv-btn cv-btn-back cv-btn-art' : 'cv-btn cv-btn-back'}
           aria-label={drawnPlace ? 'Volver' : undefined}
         >
           {drawnPlace ? <BackIcon /> : '‹ Volver'}
@@ -4703,7 +4714,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
               playSfx('tap')
               replayDemo()
             }}
-            className="cv-btn"
+            className={drawnPlace ? 'cv-btn cv-btn-art' : 'cv-btn'}
             aria-label={drawnPlace ? 'Ver de nuevo' : undefined}
           >
             {drawnPlace ? <ReplayIcon /> : 'Ver de nuevo'}

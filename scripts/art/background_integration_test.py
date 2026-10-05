@@ -28,7 +28,14 @@ class BackgroundIntegrationTest(unittest.TestCase):
                 self.assertEqual((entry["w"], entry["h"]), source.size)
                 self.assertEqual(exported.size, source.size)
                 self.assertEqual(entry["bytes"], exported_path.stat().st_size)
-                self.assertEqual(exported.tobytes(), source.tobytes())
+                # T50 follow-up: the backdrops ship as lossy WebP
+                # (`encode_webp.mjs`), so the export is close to its source,
+                # not byte-identical: the mean luma error stays small.
+                self.assertTrue(entry["file"].endswith(".webp"))
+                src_l = source.convert("L").tobytes()
+                out_l = exported.convert("L").tobytes()
+                mean = sum(abs(a - b) for a, b in zip(src_l, out_l)) / len(src_l)
+                self.assertLessEqual(mean, 3.0)
 
 
 if __name__ == "__main__":
