@@ -844,7 +844,7 @@ export function DeductionView({
             left: `${placement.left}%`,
             top: `${placement.top}%`,
             width: `${placement.width}%`,
-            ...bubbleContentCssVars(placement, content, bubbleContentFracs(DEDUCTION_BUBBLE_CONTENT, GAP_FRAC, false)),
+            ...bubbleContentCssVars(placement, content, bubbleContentFracs(DEDUCTION_BUBBLE_CONTENT, GAP_FRAC, true)),
           }}
         >
           {/* Keyed on the line: a new hint pops in fresh every time it
