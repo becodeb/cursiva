@@ -354,8 +354,8 @@ export const DETECTIVE_CASES: readonly DetectiveCase[] = [
   // `sheep.deduction.after`), routing into `sheep-hill1`, where the sheep are
   // gathered on the hills. A COMPARISON: the child collected tufts of wool
   // and picks, from three samples, the one that is the same — the wool, a
-  // duck's feather (`docs/22` C2) or cat fur (no art yet, see
-  // `CAT_FUR_SAMPLE_ART`). No second clue kind backs either dismissal, so
+  // duck's feather (`docs/22` C2) or cat fur (`CAT_FUR_SAMPLE_ART`, drawn
+  // since T48). No second clue kind backs either dismissal, so
   // `ruledOutBy` stays empty; a `comparison` case's distractors are ruled
   // out by the picture itself (`cases.test.ts`), and `hint` says why.
   {

@@ -1326,7 +1326,8 @@ const PHASE_1: LevelConfig[] = [
       radius: 170,
       objects: [
         { art: SECTOR_ADVENTURE_ART.apple, size: 64, x: 260, y: 180 },
-        { art: SECTOR_ADVENTURE_ART.leaf, size: 64, x: 740, y: 420 },
+        // [T48] Another leaf, not the same one again (`docs/23` D21).
+        { art: SECTOR_ADVENTURE_ART.leaf2, size: 64, x: 740, y: 420 },
       ],
     },
   },
@@ -1358,7 +1359,8 @@ const PHASE_1: LevelConfig[] = [
       radius: 140,
       objects: [
         { art: SECTOR_ADVENTURE_ART.mushroom, size: 72, x: 200, y: 140 },
-        { art: SECTOR_ADVENTURE_ART.apple, size: 64, x: 820, y: 200 },
+        // [T48] Another apple, not `night2`'s again (`docs/23` D22).
+        { art: SECTOR_ADVENTURE_ART.apple2, size: 64, x: 820, y: 200 },
       ],
     },
   },
@@ -1397,7 +1399,8 @@ const PHASE_1: LevelConfig[] = [
     // `docs/22` C7, registered by T43 for this level. Spaced wider than the
     // lit trails (70): a few prints at a time under the light, "cada tanto".
     clue: { kind: 'hedgehogPrint', spacing: 70 },
-    goalArt: SECTOR_ADVENTURE_ART.apple,
+    // [T48] The third apple drawing (`docs/23` D22).
+    goalArt: SECTOR_ADVENTURE_ART.apple3,
     torch: { radius: 130 },
   },
   {

@@ -85,6 +85,7 @@ import LevelPlay, {
 import {
   CARRIER_LENS_ART,
   CLUE_ART,
+  clueArtAt,
   OCTOPUS_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
@@ -1299,7 +1300,10 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
       | { marks: readonly { href: string }[] }
       | undefined
     expect(clues?.marks.length).toBeGreaterThan(1)
-    expect(new Set(clues!.marks.map((m) => m.href))).toEqual(new Set([CLUE_ART[kind].art.drained.href]))
+    // [T48] One kind, drawn in its three variations in sequence (`docs/23`
+    // §7.1): mark `i` is variation `i mod 3`, drained.
+    expect(clues!.marks.map((m) => m.href)).toEqual(clues!.marks.map((_, i) => clueArtAt(kind, i).drained.href))
+    expect(new Set(clues!.marks.map((m) => m.href)).size).toBe(Math.min(3, clues!.marks.length))
   })
 
   it('passes `ground` only on a detective trail, and memoises one field per route', () => {
@@ -1506,6 +1510,15 @@ describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', (
       expect(hazards?.art?.href, id).toBe(level.hazardArt?.href)
       expect(typeof traceCanvasProbe.current?.resetSignal, id).toBe('number')
     }
+    // [T48] `monkey3`'s two leaves are two different leaves (`docs/23` D21).
+    renderToString(
+      <LevelPlay level={getLevel('monkey3')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const monkeyHazards = traceCanvasProbe.current?.hazards as { arts?: readonly { href: string }[] } | undefined
+    expect(monkeyHazards?.arts?.map((a) => a.href)).toEqual([
+      SECTOR_ADVENTURE_ART.leaf.href,
+      SECTOR_ADVENTURE_ART.leaf2.href,
+    ])
     // A forgiving level with no hazard still never restarts.
     renderToString(
       <LevelPlay level={getLevel('turtle2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,

@@ -2223,7 +2223,14 @@ describe('LEVELS — the reveal grid, twelve authored levels (design.md §5, ame
       if (r.mode !== 'light') throw new Error(`${id}: expected mode 'light'`)
       for (const obj of r.objects) {
         expect(
-          [SECTOR_ADVENTURE_ART.leaf, SECTOR_ADVENTURE_ART.apple, SECTOR_ADVENTURE_ART.mushroom, HEDGEHOG_ART.curled],
+          [
+            SECTOR_ADVENTURE_ART.leaf,
+            SECTOR_ADVENTURE_ART.leaf2,
+            SECTOR_ADVENTURE_ART.apple,
+            SECTOR_ADVENTURE_ART.apple2,
+            SECTOR_ADVENTURE_ART.mushroom,
+            HEDGEHOG_ART.curled,
+          ],
           `${id}: object art must be one of the registered leaf/apple/mushroom/curled-erizo art`,
         ).toContain(obj.art)
       }
@@ -2237,8 +2244,10 @@ describe('LEVELS — the reveal grid, twelve authored levels (design.md §5, ame
       return r.objects.map((o) => o.art)
     }
     expect(artOf('night1')).toEqual([SECTOR_ADVENTURE_ART.leaf])
-    expect(artOf('night2')).toEqual([SECTOR_ADVENTURE_ART.apple, SECTOR_ADVENTURE_ART.leaf])
-    expect(artOf('night3')).toEqual([SECTOR_ADVENTURE_ART.mushroom, SECTOR_ADVENTURE_ART.apple])
+    // [T48] The second leaf and apple are the " 2" drawings (`docs/23`
+    // D21/D22): the same thing, never the same stamp.
+    expect(artOf('night2')).toEqual([SECTOR_ADVENTURE_ART.apple, SECTOR_ADVENTURE_ART.leaf2])
+    expect(artOf('night3')).toEqual([SECTOR_ADVENTURE_ART.mushroom, SECTOR_ADVENTURE_ART.apple2])
   })
 })
 
@@ -2949,7 +2958,7 @@ describe('LEVELS — docs/21 N1-N4 clue levels (T44)', () => {
       expect(level.kind).toBe('path')
       expect(level.torch?.radius).toBeGreaterThan(level.corridorWidth)
       expect(level.resetOnContact).toBe(false)
-      expect(level.goalArt).toBe(SECTOR_ADVENTURE_ART.apple)
+      expect(level.goalArt).toBe(SECTOR_ADVENTURE_ART.apple3)
       expect(level.clue?.kind).toBe('hedgehogPrint')
       expect(level.demo).toBe(true)
       // Wider than every lit trail of the journey: the walls cannot be seen.

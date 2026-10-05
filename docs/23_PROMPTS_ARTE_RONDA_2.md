@@ -76,9 +76,9 @@ ChatGPT: cambiar solo la columna "Estado" (ver §0, punto 9).
 
 | ID | Archivo(s) en `art-source/` | Qué | Dónde se usa | Prioridad | Estado | Reemplaza o rehace |
 |---|---|---|---|---|---|---|
-| D1 | `pista pelo de gato.png` | Mechón de pelo del gato naranja | deducción de las ovejas | **alta** | pendiente | nuevo |
-| D2 | `pista alga.png`, `pista alga 2.png`, `pista alga 3.png` | Alga del fondo de la laguna, tres variaciones | peces: `f2-buceo` | **alta** | pendiente | `alga.png` |
-| D3 | `pista escamas de pez.png`, `pista escamas de pez 2.png`, `pista escamas de pez 3.png` | Escamas de pez, tres variaciones | peces: `f2-agua2` | **alta** | pendiente | C6 (`pista escama.png`) |
+| D1 | `pista pelo de gato.png` | Mechón de pelo del gato naranja | deducción de las ovejas | **alta** | hecho (T48: en la deducción de las ovejas) | nuevo |
+| D2 | `pista alga.png`, `pista alga 2.png`, `pista alga 3.png` | Alga del fondo de la laguna, tres variaciones | peces: `f2-buceo` | **alta** | hecho (T48: en el juego, `f2-buceo`) | `alga.png` |
+| D3 | `pista escamas de pez.png`, `pista escamas de pez 2.png`, `pista escamas de pez 3.png` | Escamas de pez, tres variaciones | peces: `f2-agua2` | **alta** | hecho (T48: en el juego, `f2-agua2`; la variación 1 salió azul y como un pedazo de piel, no tres escamas naranjas: ver T48) | C6 (`pista escama.png`) |
 | D4 | `monos lamina.png` | El mono, tres poses | monos: juntar, rescate, mapa, libreta | **alta** | pendiente | B10 (`mono.png`, placeholder) |
 | D5 | `patitos lamina.png` | Tres patitos | pato: juntar la familia | **alta** | pendiente | B16 |
 | D6 | `pulpo lupa lamina.png` | El Pulpito con lupa y sin lupa, misma pose | todos los niveles | **alta** | pendiente | B18; `pulpo con lupa.png` |
@@ -86,20 +86,20 @@ ChatGPT: cambiar solo la columna "Estado" (ver §0, punto 9).
 | D8 | `lupa v2.png` | La lupa que sigue al dedo | todos los niveles con lupa | **alta** | pendiente | `lupa.png` |
 | D9 | `abeja lamina.png` | Abeja, flor y panal, con colores vivos | abeja: `bee1`–`bee4` | **alta** | pendiente | `abeja.png`, `flor.png`, `panal.png` |
 | D10 | `oveja v2.png` | La oveja, de perfil y con borde limpio | ovejas: juntar, deducción | **alta** | pendiente | `oveja.png` |
-| D11 | `piedra v2.png` | La piedra que rueda | obstáculo de ovejas y llamas | **alta** | pendiente | `piedra.png` |
-| D12 | `pista charco 2.png`, `pista charco 3.png` | Variaciones del charco | pato | **alta** | pendiente | — |
-| D13 | `pista semillas 2.png`, `pista semillas 3.png` | Variaciones de las semillas | pato | **alta** | pendiente | — |
-| D14 | `pista pluma de pato 2.png`, `pista pluma de pato 3.png` | Variaciones de la pluma | pato | **alta** | pendiente | — |
-| D15 | `pista huella de pato 2.png`, `pista huella de pato 3.png` | Variaciones de la huella palmeada | pato; deducción por huellas | **alta** | pendiente | — |
-| D16 | `pista burbujas 2.png`, `pista burbujas 3.png` | Variaciones de las burbujas | peces | **alta** | pendiente | — |
-| D17 | `pista mano de mono 2.png`, `pista mano de mono 3.png` | Variaciones de la manito | monos | **alta** | pendiente | — |
-| D18 | `pista banana 2.png`, `pista banana 3.png` | Variaciones de la banana | monos | **alta** | pendiente | — |
-| D19 | `pista cascara de banana 2.png`, `pista cascara de banana 3.png` | Variaciones de la cáscara | monos: `monkey-lianas` | **alta** | pendiente | — |
-| D20 | `pista huellita de erizo 2.png`, `pista huellita de erizo 3.png` | Variaciones de la huellita | noche: `night-rastro` | **alta** | pendiente | — |
-| D21 | `hoja 2.png`, `hoja 3.png` | Variaciones de la hoja | obstáculo; prólogo | **alta** | pendiente | — |
-| D22 | `manzana 2.png`, `manzana 3.png` | Variaciones de la manzana | noche | **alta** | pendiente | — |
-| D23 | `pista lana 2.png`, `pista lana 3.png` | Variaciones del mechón de lana (después de C9) | ovejas: `sheep-lana` | **alta** | pendiente | — |
-| D24 | `pista huella de tortuga 2.png`, `pista huella de tortuga 3.png` | Variaciones de la huella de tortuga (después de C10) | tortugas | **alta** | pendiente | — |
+| D11 | `piedra v2.png` | La piedra que rueda | obstáculo de ovejas y llamas | **alta** | hecho (T48: en el juego; las rayas de movimiento se recortan, `MOTION_LINE_SOURCES`) | `piedra.png` |
+| D12 | `pista charco 2.png`, `pista charco 3.png` | Variaciones del charco | pato | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
+| D13 | `pista semillas 2.png`, `pista semillas 3.png` | Variaciones de las semillas | pato | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
+| D14 | `pista pluma de pato 2.png`, `pista pluma de pato 3.png` | Variaciones de la pluma | pato | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
+| D15 | `pista huella de pato 2.png`, `pista huella de pato 3.png` | Variaciones de la huella palmeada | pato; deducción por huellas | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
+| D16 | `pista burbujas 2.png`, `pista burbujas 3.png` | Variaciones de las burbujas | peces | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
+| D17 | `pista mano de mono 2.png`, `pista mano de mono 3.png` | Variaciones de la manito | monos | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
+| D18 | `pista banana 2.png`, `pista banana 3.png` | Variaciones de la banana | monos | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
+| D19 | `pista cascara de banana 2.png`, `pista cascara de banana 3.png` | Variaciones de la cáscara | monos: `monkey-lianas` | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
+| D20 | `pista huellita de erizo 2.png`, `pista huellita de erizo 3.png` | Variaciones de la huellita | noche: `night-rastro` | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
+| D21 | `hoja 2.png`, `hoja 3.png` | Variaciones de la hoja | obstáculo; prólogo | **alta** | hecho (T48: en el juego; `night2` y las dos hojas de `monkey3`) | — |
+| D22 | `manzana 2.png`, `manzana 3.png` | Variaciones de la manzana | noche | **alta** | hecho (T48: en el juego; `night3` y el final de `night-rastro`) | — |
+| D23 | `pista lana 2.png`, `pista lana 3.png` | Variaciones del mechón de lana (después de C9) | ovejas: `sheep-lana` | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
+| D24 | `pista huella de tortuga 2.png`, `pista huella de tortuga 3.png` | Variaciones de la huella de tortuga (después de C10) | tortugas | **alta** | hecho (T48: en el juego, en secuencia 1, 2, 3) | — |
 | D25 | `fondo laguna v2.png` | La laguna | pato, peces, delfines | media | pendiente | B1 |
 | D26 | `fondo ladera v2.png` | La ladera | ovejas | media | pendiente | B2 |
 | D27 | `fondo cordillera v2.png` | La cordillera | llamas | media | pendiente | B3 |

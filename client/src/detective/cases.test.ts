@@ -313,8 +313,10 @@ describe('the sheep case (T45): "¿De quién es esta lana?" — three samples to
     expect(sheepCase.optionArt?.oveja).toBe(CLUE_ART.wool.art.earned)
     expect(sheepCase.optionArt?.pato).toBe(CLUE_ART.duckFeather.art.earned)
     expect(sheepCase.optionArt?.gato).toBe(CAT_FUR_SAMPLE_ART)
-    // The cat-fur placeholder is the cat's own lineup silhouette.
-    expect(CAT_FUR_SAMPLE_ART).toEqual(ANIMAL_SILHOUETTE_ART.gato)
+    // T48: the real cat-fur drawing (`docs/23` D1), no longer the cat's own
+    // lineup silhouette.
+    expect(CAT_FUR_SAMPLE_ART.href).toBe('/art/sample-cat-fur.png')
+    expect(CAT_FUR_SAMPLE_ART).not.toEqual(ANIMAL_SILHOUETTE_ART.gato)
     expect(new Set(sheepCase.options.map((id) => sheepCase.optionArt?.[id]?.href)).size).toBe(3)
   })
 

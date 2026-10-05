@@ -166,8 +166,13 @@ export const SEEDS = '#dba43c'
  * green `PLUME` (which stays for the hen case's `trail4`). */
 export const DUCK_FEATHER = '#f6ca3c'
 
-/** Fish case — the orange scales (`docs/22` C6), the colour of the fish. */
-export const SCALE = '#fb7e08'
+/** Fish case — the fish scales. T48: measured off `docs/23` D3's variation
+ * 1 (`pista escamas de pez.png`), which came back as a blue-grey patch of
+ * fish skin instead of the requested three loose orange (`#fb7e08`) scales;
+ * its " 2"/" 3" are the requested orange (`#fb7800`/`#fb7500`). Was
+ * `#fb7e08`, C6's orange. `artManifest.test.ts` names the mismatch
+ * (`OFF_TOKEN_VARIATIONS`) until the drawing is redone. */
+export const SCALE = '#8eb1ce'
 
 /** Monkey case — the banana (`docs/22` C12). */
 export const BANANA = '#fbd63a'
@@ -177,8 +182,13 @@ export const BANANA = '#fbd63a'
 export const BANANA_PEEL = '#fbd73e'
 
 /** Fish case — the seaweed the fish nibbled at the bottom of each dive
- * (`f2-buceo`, T44; `alga.png`). Green, far from `BUBBLE` and `SCALE`. */
-export const SEAWEED = '#7ad135'
+ * (`f2-buceo`, T44). Green, far from `BUBBLE` and `SCALE`. T48: measured off
+ * `pista alga.png` (`docs/23` D2); was `#7ad135`, the old `alga.png`'s. */
+export const SEAWEED = '#5caa47'
+
+/** Sheep case — the tuft of wool caught on the fence (`docs/22` C9, T48),
+ * the cream measured off `pista lana.png`. */
+export const WOOL = '#f3ead6'
 
 /** The flower before the bee has been to it (`docs/13` §8 row F,
  * `free-trail-waypoints` design.md §3.2).

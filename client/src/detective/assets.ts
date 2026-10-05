@@ -40,6 +40,7 @@ import {
   SCALE,
   SEAWEED,
   SEEDS,
+  WOOL,
 } from './palette'
 
 /** One art per trail theme. Each theme owns exactly one kind; distinctness of
@@ -67,10 +68,11 @@ export type ClueKind =
   // `docs/21` N2/N4 (T44): `night-rastro` and `monkey-lianas`.
   | 'hedgehogPrint'
   | 'bananaPeel'
-  // T44: `f2-buceo`'s seaweed (`alga.png`), the fish case's third clue.
+  // T44: `f2-buceo`'s seaweed, the fish case's third clue (`pista alga.png`
+  // since T48).
   | 'seaweed'
   // T45 (`docs/21` N5/N6): the sheep's wool (`docs/22` C9) and the turtle's
-  // print (C10). Their art is not drawn yet; see `PLACEHOLDER_CLUE_ART`.
+  // print (C10), drawn and wired in T48.
   | 'wool'
   | 'turtlePrint'
 
@@ -131,6 +133,12 @@ export interface ArtImage {
   grip?: readonly [number, number]
 }
 
+/** One drawing of a clue in its two states (see {@link ClueArt.art}). */
+export interface ClueArtPair {
+  earned: ArtImage
+  drained: ArtImage
+}
+
 export interface ClueArt {
   /** The trail's registered earned COLOUR. Still a token even though the mark
    * now renders as raster: the rail's socket and every palette rule reason
@@ -141,26 +149,13 @@ export interface ClueArt {
   /** The two states of the mark. `drained` is the shared `CLUE_DRAINED` grey
    * silhouette, `earned` the same silhouette in the trail's own colour —
    * derived from one source so the pair can never drift. */
-  art: { earned: ArtImage; drained: ArtImage }
-}
-
-/** T45 placeholder for `docs/22` C9 (see `PLACEHOLDER_CLUE_ART`). */
-const WOOL_CLUE_ART: ClueArt = {
-  earned: BREADCRUMB,
-  art: {
-    earned: { href: '/art/clue-breadcrumb-earned.png', w: 256, h: 237 },
-    drained: { href: '/art/clue-breadcrumb-drained.png', w: 256, h: 237 },
-  },
-}
-
-/** T45 placeholder for `docs/22` C10 (see `PLACEHOLDER_CLUE_ART`). A print
- *  has no colour of its own (`PRINT`), like every other print. */
-const TURTLE_PRINT_CLUE_ART: ClueArt = {
-  earned: PRINT,
-  art: {
-    earned: { href: '/art/clue-hedgehog-print-earned.png', w: 256, h: 216 },
-    drained: { href: '/art/clue-hedgehog-print-drained.png', w: 256, h: 216 },
-  },
+  art: ClueArtPair
+  /** T48 (`docs/23` §3.2, §7.1): the other drawings of the same clue, the
+   *  " 2" and " 3" files in order. `art` is variation 1 and stays what the
+   *  rail, the deduction and the route's end show; along a trail mark `i`
+   *  draws {@link clueArtAt}`(kind, i)`. Absent = one drawing. All share
+   *  the kind's one `earned` token (`docs/23` §7.2). */
+  variations?: readonly ClueArtPair[]
 }
 
 export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
@@ -201,6 +196,16 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       earned: { href: '/art/clue-webfoot-earned.png', w: 256, h: 250 },
       drained: { href: '/art/clue-webfoot-drained.png', w: 256, h: 250 },
     },
+    variations: [
+      {
+        earned: { href: '/art/clue-webfoot-2-earned.png', w: 256, h: 246 },
+        drained: { href: '/art/clue-webfoot-2-drained.png', w: 256, h: 246 },
+      },
+      {
+        earned: { href: '/art/clue-webfoot-3-earned.png', w: 256, h: 247 },
+        drained: { href: '/art/clue-webfoot-3-drained.png', w: 256, h: 247 },
+      },
+    ],
   },
   breadcrumb: {
     earned: BREADCRUMB,
@@ -215,6 +220,16 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       earned: { href: '/art/clue-bubble-earned.png', w: 142, h: 256 },
       drained: { href: '/art/clue-bubble-drained.png', w: 142, h: 256 },
     },
+    variations: [
+      {
+        earned: { href: '/art/clue-bubble-2-earned.png', w: 141, h: 256 },
+        drained: { href: '/art/clue-bubble-2-drained.png', w: 141, h: 256 },
+      },
+      {
+        earned: { href: '/art/clue-bubble-3-earned.png', w: 142, h: 256 },
+        drained: { href: '/art/clue-bubble-3-drained.png', w: 142, h: 256 },
+      },
+    ],
   },
   puddle: {
     earned: PUDDLE,
@@ -222,6 +237,16 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       earned: { href: '/art/clue-puddle-earned.png', w: 214, h: 256 },
       drained: { href: '/art/clue-puddle-drained.png', w: 214, h: 256 },
     },
+    variations: [
+      {
+        earned: { href: '/art/clue-puddle-2-earned.png', w: 132, h: 256 },
+        drained: { href: '/art/clue-puddle-2-drained.png', w: 132, h: 256 },
+      },
+      {
+        earned: { href: '/art/clue-puddle-3-earned.png', w: 235, h: 256 },
+        drained: { href: '/art/clue-puddle-3-drained.png', w: 235, h: 256 },
+      },
+    ],
   },
   seeds: {
     earned: SEEDS,
@@ -229,6 +254,16 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       earned: { href: '/art/clue-seeds-earned.png', w: 256, h: 210 },
       drained: { href: '/art/clue-seeds-drained.png', w: 256, h: 210 },
     },
+    variations: [
+      {
+        earned: { href: '/art/clue-seeds-2-earned.png', w: 256, h: 199 },
+        drained: { href: '/art/clue-seeds-2-drained.png', w: 256, h: 199 },
+      },
+      {
+        earned: { href: '/art/clue-seeds-3-earned.png', w: 256, h: 210 },
+        drained: { href: '/art/clue-seeds-3-drained.png', w: 256, h: 210 },
+      },
+    ],
   },
   duckFeather: {
     earned: DUCK_FEATHER,
@@ -236,13 +271,33 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       earned: { href: '/art/clue-duck-feather-earned.png', w: 159, h: 256 },
       drained: { href: '/art/clue-duck-feather-drained.png', w: 159, h: 256 },
     },
+    variations: [
+      {
+        earned: { href: '/art/clue-duck-feather-2-earned.png', w: 147, h: 256 },
+        drained: { href: '/art/clue-duck-feather-2-drained.png', w: 147, h: 256 },
+      },
+      {
+        earned: { href: '/art/clue-duck-feather-3-earned.png', w: 148, h: 256 },
+        drained: { href: '/art/clue-duck-feather-3-drained.png', w: 148, h: 256 },
+      },
+    ],
   },
   scale: {
     earned: SCALE,
     art: {
-      earned: { href: '/art/clue-scale-earned.png', w: 256, h: 164 },
-      drained: { href: '/art/clue-scale-drained.png', w: 256, h: 164 },
+      earned: { href: '/art/clue-scale-earned.png', w: 246, h: 256 },
+      drained: { href: '/art/clue-scale-drained.png', w: 246, h: 256 },
     },
+    variations: [
+      {
+        earned: { href: '/art/clue-scale-2-earned.png', w: 256, h: 215 },
+        drained: { href: '/art/clue-scale-2-drained.png', w: 256, h: 215 },
+      },
+      {
+        earned: { href: '/art/clue-scale-3-earned.png', w: 256, h: 239 },
+        drained: { href: '/art/clue-scale-3-drained.png', w: 256, h: 239 },
+      },
+    ],
   },
   // A print in the earth has no colour of its own, like `footprint`.
   handprint: {
@@ -251,6 +306,16 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       earned: { href: '/art/clue-handprint-earned.png', w: 238, h: 256 },
       drained: { href: '/art/clue-handprint-drained.png', w: 238, h: 256 },
     },
+    variations: [
+      {
+        earned: { href: '/art/clue-handprint-2-earned.png', w: 245, h: 256 },
+        drained: { href: '/art/clue-handprint-2-drained.png', w: 245, h: 256 },
+      },
+      {
+        earned: { href: '/art/clue-handprint-3-earned.png', w: 234, h: 256 },
+        drained: { href: '/art/clue-handprint-3-drained.png', w: 234, h: 256 },
+      },
+    ],
   },
   banana: {
     earned: BANANA,
@@ -258,6 +323,16 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       earned: { href: '/art/clue-banana-earned.png', w: 134, h: 256 },
       drained: { href: '/art/clue-banana-drained.png', w: 134, h: 256 },
     },
+    variations: [
+      {
+        earned: { href: '/art/clue-banana-2-earned.png', w: 129, h: 256 },
+        drained: { href: '/art/clue-banana-2-drained.png', w: 129, h: 256 },
+      },
+      {
+        earned: { href: '/art/clue-banana-3-earned.png', w: 135, h: 256 },
+        drained: { href: '/art/clue-banana-3-drained.png', w: 135, h: 256 },
+      },
+    ],
   },
   hedgehogPrint: {
     earned: PRINT,
@@ -265,6 +340,16 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       earned: { href: '/art/clue-hedgehog-print-earned.png', w: 256, h: 216 },
       drained: { href: '/art/clue-hedgehog-print-drained.png', w: 256, h: 216 },
     },
+    variations: [
+      {
+        earned: { href: '/art/clue-hedgehog-print-2-earned.png', w: 256, h: 209 },
+        drained: { href: '/art/clue-hedgehog-print-2-drained.png', w: 256, h: 209 },
+      },
+      {
+        earned: { href: '/art/clue-hedgehog-print-3-earned.png', w: 256, h: 219 },
+        drained: { href: '/art/clue-hedgehog-print-3-drained.png', w: 256, h: 219 },
+      },
+    ],
   },
   bananaPeel: {
     earned: BANANA_PEEL,
@@ -272,68 +357,109 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       earned: { href: '/art/clue-banana-peel-earned.png', w: 256, h: 242 },
       drained: { href: '/art/clue-banana-peel-drained.png', w: 256, h: 242 },
     },
+    variations: [
+      {
+        earned: { href: '/art/clue-banana-peel-2-earned.png', w: 256, h: 202 },
+        drained: { href: '/art/clue-banana-peel-2-drained.png', w: 256, h: 202 },
+      },
+      {
+        earned: { href: '/art/clue-banana-peel-3-earned.png', w: 256, h: 213 },
+        drained: { href: '/art/clue-banana-peel-3-drained.png', w: 256, h: 213 },
+      },
+    ],
   },
   seaweed: {
     earned: SEAWEED,
     art: {
-      earned: { href: '/art/clue-seaweed-earned.png', w: 160, h: 256 },
-      drained: { href: '/art/clue-seaweed-drained.png', w: 160, h: 256 },
+      earned: { href: '/art/clue-seaweed-earned.png', w: 256, h: 255 },
+      drained: { href: '/art/clue-seaweed-drained.png', w: 256, h: 255 },
     },
+    variations: [
+      {
+        earned: { href: '/art/clue-seaweed-2-earned.png', w: 150, h: 256 },
+        drained: { href: '/art/clue-seaweed-2-drained.png', w: 150, h: 256 },
+      },
+      {
+        earned: { href: '/art/clue-seaweed-3-earned.png', w: 220, h: 256 },
+        drained: { href: '/art/clue-seaweed-3-drained.png', w: 220, h: 256 },
+      },
+    ],
   },
-  // T45: stand-ins until `docs/22` C9/C10 are drawn — see
-  // `PLACEHOLDER_CLUE_ART` below for which picture each borrows and
-  // `docs/22` §5 for the swap.
-  wool: WOOL_CLUE_ART,
-  turtlePrint: TURTLE_PRINT_CLUE_ART,
+  // T48 (`docs/22` C9, C10): the sheep's wool keeps its authored cream;
+  // the turtle's print, like every print, has no colour of its own.
+  wool: {
+    earned: WOOL,
+    art: {
+      earned: { href: '/art/clue-wool-earned.png', w: 196, h: 256 },
+      drained: { href: '/art/clue-wool-drained.png', w: 196, h: 256 },
+    },
+    variations: [
+      {
+        earned: { href: '/art/clue-wool-2-earned.png', w: 173, h: 256 },
+        drained: { href: '/art/clue-wool-2-drained.png', w: 173, h: 256 },
+      },
+      {
+        earned: { href: '/art/clue-wool-3-earned.png', w: 256, h: 245 },
+        drained: { href: '/art/clue-wool-3-drained.png', w: 256, h: 245 },
+      },
+    ],
+  },
+  turtlePrint: {
+    earned: PRINT,
+    art: {
+      earned: { href: '/art/clue-turtle-print-earned.png', w: 226, h: 256 },
+      drained: { href: '/art/clue-turtle-print-drained.png', w: 226, h: 256 },
+    },
+    variations: [
+      {
+        earned: { href: '/art/clue-turtle-print-2-earned.png', w: 231, h: 256 },
+        drained: { href: '/art/clue-turtle-print-2-drained.png', w: 231, h: 256 },
+      },
+      {
+        earned: { href: '/art/clue-turtle-print-3-earned.png', w: 233, h: 256 },
+        drained: { href: '/art/clue-turtle-print-3-drained.png', w: 233, h: 256 },
+      },
+    ],
+  },
 }
 
 /**
- * T45. The two clue kinds whose own drawing does not exist yet, each mapped
- * to the `art-source/` file that will replace it. Until then each BORROWS an
- * already-shipped clue pair (earned AND drained, so the mark still lights
- * when it is earned, and the colour token stays the measured one
- * `artManifest.test.ts` checks):
- *
- *  - `wool` borrows the bread crumb (`miga de pan.png`, on no journey
- *    level): a lumpy, warm, rounded blob, the nearest shipped shape to a
- *    tuft. It is not wool, and nothing in the copy calls it a crumb.
- *  - `turtlePrint` borrows the hedgehog's print (C7): a black print with
- *    round toes, as different from the duck's webbed print (C3) and the
- *    hen's three toes (`huella negra.png`) as the real C10 has to be,
- *    which is what the turtle deduction compares.
- *
- * Swapping one (`docs/22` §5): two `SINGLES` rows in `build_art.py` plus
- * one `AUTHORED_SOURCE_SIZES` entry, run it, then replace the matching
- * `*_CLUE_ART` constant below with the new files and drop the kind from
- * this record. `artManifest.test.ts` fails while a kind is listed here and
- * its source file already exists, so the swap cannot be forgotten.
+ * T48 (`docs/23` §7.1): the drawing mark `i` of a `kind` trail shows —
+ * variation `i mod 3` (1, 2, 3, 1, 2, 3…), so no two neighbouring marks are
+ * the same stamp. Both states come from the same variation, so a mark keeps
+ * its drawing when it lights. A kind with no variations always answers its
+ * one drawing.
  */
-export const PLACEHOLDER_CLUE_ART: Readonly<Partial<Record<ClueKind, string>>> = {
-  wool: 'pista lana.png',
-  turtlePrint: 'pista huella de tortuga.png',
+export function clueArtAt(kind: ClueKind, i: number): ClueArtPair {
+  const art = CLUE_ART[kind]
+  const seq = [art.art, ...(art.variations ?? [])]
+  return seq[((i % seq.length) + seq.length) % seq.length]
 }
+
+/**
+ * T45. Clue kinds whose own drawing does not exist yet, each mapped to the
+ * `art-source/` file that will replace it; until then the kind borrows an
+ * already-shipped clue pair (earned AND drained, so the mark still lights).
+ * Empty since T48 (`wool` and `turtlePrint` borrowed the bread crumb and the
+ * hedgehog print until `docs/22` C9/C10 arrived). Kept as the guard for the
+ * next stand-in: `artManifest.test.ts` fails while a kind is listed here and
+ * its source file already exists, so a swap cannot be forgotten.
+ */
+export const PLACEHOLDER_CLUE_ART: Readonly<Partial<Record<ClueKind, string>>> = {}
 
 /**
  * T45 (the author's decision of 2026-10-02): the sheep deduction compares
- * three samples, and one of them is cat fur, which has no drawing yet. It is
- * not a clue on any level (nobody collects it), so it is one picture, not a
- * `ClueKind` pair. Until `art-source/pista pelo de gato.png` exists it
- * borrows the cat's own lineup silhouette — clearly not fur, and the card
- * says GATO under it either way.
- *
- * Swap (`docs/22` §5.8): one `SINGLES` row in `build_art.py`
- * (`('pista pelo de gato.png', 'sample-cat-fur.png', 256, 'contour', True)`)
- * plus its `AUTHORED_SOURCE_SIZES` entry, run it, point this constant at the
- * new file and drop the entry from `PLACEHOLDER_SAMPLE_SOURCES`.
+ * three samples (the wool, a duck feather, cat fur). Cat fur is not a clue
+ * on any level (nobody collects it), so it is one picture, not a `ClueKind`
+ * pair. T48: `pista pelo de gato.png` (`docs/23` D1), which replaced the
+ * cat's lineup silhouette it borrowed until then.
  */
-export const CAT_FUR_SAMPLE_ART: ArtImage = { href: '/art/animal-gato-silhouette.png', w: 448, h: 414 }
+export const CAT_FUR_SAMPLE_ART: ArtImage = { href: '/art/sample-cat-fur.png', w: 256, h: 206 }
 
 /** T45: placeholder pictures that are not clue kinds, each mapped to the
  *  `art-source/` file that will replace it. Guarded the same way as
- *  {@link PLACEHOLDER_CLUE_ART} (`artManifest.test.ts`). */
-export const PLACEHOLDER_SAMPLE_SOURCES: Readonly<Record<string, string>> = {
-  catFur: 'pista pelo de gato.png',
-}
+ *  {@link PLACEHOLDER_CLUE_ART} (`artManifest.test.ts`). Empty since T48. */
+export const PLACEHOLDER_SAMPLE_SOURCES: Readonly<Record<string, string>> = {}
 
 /**
  * The lineup art. Each animal's own picture only — WHO is ruled out by WHAT
@@ -625,6 +751,11 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   | 'stone'
   | 'apple'
   | 'mushroom'
+  // T48 (`docs/23` D21/D22): the leaf's and the apple's " 2"/" 3".
+  | 'leaf2'
+  | 'leaf3'
+  | 'apple2'
+  | 'apple3'
   | 'leaf',
   ArtImage
 >> = {
@@ -661,12 +792,34 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   // the rebuilt `manifest.json`'s own `sector-chest`/`sector-stone`/
   // `sector-leaf` entries, never guessed.
   chest: { href: '/art/sector-chest.png', w: 256, h: 200 },
-  stone: { href: '/art/sector-stone.png', w: 256, h: 170 },
+  // T48: `piedra v2.png` (`docs/23` D11), the rolling stone with cracks.
+  stone: { href: '/art/sector-stone.png', w: 256, h: 238 },
   leaf: { href: '/art/sector-leaf.png', w: 242, h: 256 },
+  // T48 (`docs/23` D21): two more leaves of the same tree. See `variationOf`.
+  leaf2: { href: '/art/sector-leaf-2.png', w: 194, h: 256 },
+  leaf3: { href: '/art/sector-leaf-3.png', w: 123, h: 256 },
   // `docs/20` B12 (T43): the hedgehog's apple and mushroom, found on
   // `night2`/`night3` and shown as the night case's chips.
   apple: { href: '/art/sector-apple.png', w: 227, h: 256 },
+  // T48 (`docs/23` D22): the second and third apple. See `variationOf`.
+  apple2: { href: '/art/sector-apple-2.png', w: 224, h: 256 },
+  apple3: { href: '/art/sector-apple-3.png', w: 226, h: 256 },
   mushroom: { href: '/art/sector-mushroom.png', w: 256, h: 245 },
+}
+
+/** T48 (`docs/23` §7.1): drawn-world props that come in three drawings,
+ *  keyed by their variation 1's `href`. */
+const PROP_VARIATIONS: ReadonlyMap<string, readonly ArtImage[]> = new Map([
+  [SECTOR_ADVENTURE_ART.leaf.href, [SECTOR_ADVENTURE_ART.leaf, SECTOR_ADVENTURE_ART.leaf2, SECTOR_ADVENTURE_ART.leaf3]],
+  [SECTOR_ADVENTURE_ART.apple.href, [SECTOR_ADVENTURE_ART.apple, SECTOR_ADVENTURE_ART.apple2, SECTOR_ADVENTURE_ART.apple3]],
+])
+
+/** T48: the `i`-th copy of `art` on one level — variation `i mod 3` of a
+ *  prop that has three drawings (two leaves crossing `monkey3` are two
+ *  different leaves), `art` itself for any other picture. */
+export function variationOf(art: ArtImage, i: number): ArtImage {
+  const seq = PROP_VARIATIONS.get(art.href)
+  return seq ? seq[((i % seq.length) + seq.length) % seq.length] : art
 }
 
 /** The flower's two states. Both derive from `flor.png`, so the swap is an

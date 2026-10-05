@@ -100,13 +100,13 @@ imagen esté guardada y pase su checklist.
 | C12 | `pista banana.png` | Banana entera | monos: `monkey2` | **alta** | hecho (T43: en el juego) | `grano de maiz.png` (en los monos); B13 |
 | C3 | `pista huella de pato.png` | Huella palmeada | pato; deducción por huellas | media | hecho (T43: en el juego) | `huella palmeada.png` |
 | C5 | `pista semillas.png` | Tres semillas | pato | media | hecho (T43: en el juego) | `grano de maiz.png` (en el pato); B11 |
-| C6 | `pista escama.png` | Escamitas de pez | peces: `f2-agua2`, `f2-buceo` | media | hecho (T43: en el juego) | `gota de agua.png` (en los peces) |
+| C6 | `pista escama.png` | Escamitas de pez | peces: `f2-agua2`, `f2-buceo` | media | hecho (T43); reemplazada por `docs/23` D3 en T48 | `gota de agua.png` (en los peces) |
 | C11 | `pista cascara de banana.png` | Cáscara de banana vacía | monos: `monkey-lianas` | media | hecho (T43: registrada; `monkey-lianas` no existe todavía) | B13 |
 | C7 | `pista huellita de erizo.png` | Huellita de erizo | noche: `night-rastro` | media | hecho (T43: registrada; `night-rastro` no existe todavía) | — |
 | B12 | ver `docs/20` §6 | Manzana y hongo | noche: `night2`, `night3` | media | hecho (T43: en el juego) | `piedra.png` (en la noche) |
-| C9 | `pista lana.png` | Mechón de lana | ovejas: `sheep-lana` | media (decisión 1 aprobada 2026-10-02) | pendiente (T45: el nivel existe y usa un reemplazo provisorio, §5.8) | — |
-| C13 | `pista pelo de gato.png` | Mechón de pelo de gato | ovejas: la deducción "¿De quién es esta lana?" (una de las tres muestras) | media (decisión de la autora, 2026-10-02) | pendiente (T45: la deducción usa la silueta del gato, §5.8). Falta escribir el pedido | — |
-| C10 | `pista huella de tortuga.png` | Huella de tortuga | tortugas: `turtle-huellas` y su deducción | media (decisión 1 aprobada 2026-10-02) | pendiente (T45: el nivel existe y usa un reemplazo provisorio, §5.8) | — |
+| C9 | `pista lana.png` | Mechón de lana | ovejas: `sheep-lana` | media (decisión 1 aprobada 2026-10-02) | hecho (T48: en el juego, con sus variaciones de `docs/23` D23) | — |
+| C13 | `pista pelo de gato.png` | Mechón de pelo de gato | ovejas: la deducción "¿De quién es esta lana?" (una de las tres muestras) | media (decisión de la autora, 2026-10-02) | hecho (T48: en la deducción; pedido como `docs/23` D1) | — |
+| C10 | `pista huella de tortuga.png` | Huella de tortuga | tortugas: `turtle-huellas` y su deducción | media (decisión 1 aprobada 2026-10-02) | hecho (T48: en el juego y en la deducción, con sus variaciones de `docs/23` D24) | — |
 
 ---
 
