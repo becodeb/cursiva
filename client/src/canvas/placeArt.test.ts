@@ -33,14 +33,16 @@ describe('placeArt (design.md §7: "placeArt() lives in canvas/, takes a structu
     expect(box.y).not.toBe(defaultBox.y)
   })
 
-  it("the SHIPPED carrier-lens grip (0.603, 0.391) lands off the bbox centre — fails if the fix is ever reverted", () => {
+  it("the SHIPPED carrier-lens grip (0.503, 0.3) lands off the bbox centre — fails if the fix is ever reverted", () => {
     const center = { x: 0, y: 0 }
     const withGrip = placeArt(CARRIER_LENS_ART, 104, center)
     const bboxCentred = placeArt({ ...CARRIER_LENS_ART, grip: undefined }, 104, center)
-    expect(CARRIER_LENS_ART.grip).toEqual([0.603, 0.391])
-    // (0.603, 0.391) is not (0.5, 0.5): both axes must actually move.
-    expect(withGrip.x).not.toBe(bboxCentred.x)
-    expect(withGrip.y).not.toBe(bboxCentred.y)
+    // [T49] `lupa v2.png` (`docs/23` D8): the handle hangs straight down, so
+    // the glass is centred across and only the vertical grip moves — the
+    // glass sits in the top part of the picture, well above the bbox centre.
+    expect(CARRIER_LENS_ART.grip).toEqual([0.503, 0.3])
+    expect(withGrip.x).toBeCloseTo(bboxCentred.x, 0)
+    expect(withGrip.y - bboxCentred.y).toBeGreaterThan(104 * 0.15)
     // And the grip point itself — not the box's top-left corner — is what
     // lands on `center`: x + grip[0]*width === center.x, y + grip[1]*height === center.y.
     const [gx, gy] = CARRIER_LENS_ART.grip as readonly [number, number]

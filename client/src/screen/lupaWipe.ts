@@ -4,9 +4,10 @@
 // un círculo blanco que crece" — `ScreenTransition.tsx`'s growing `clip-path:
 // circle()` reveal (T24) is UNCHANGED (it is the actual screen transition,
 // already tested, already within budget); this module is the pure geometry
-// behind a DECORATIVE rim/handle/highlight drawn ON TOP of it, in plain
-// HTML/CSS, so the same growing circle reads as a magnifying glass rather
-// than a plain wipe.
+// behind a DECORATIVE magnifier drawn ON TOP of it, so the same growing
+// circle reads as a magnifying glass rather than a plain wipe. (T49: the
+// magnifier is the author's drawing now, `TRANSITION_LENS_ART`; the CSS ring,
+// rod and glint described below were its first, code-drawn version.)
 //
 // No `<mask>`/`<clipPath>`/`url(#…)` of any kind (this repo's own ban,
 // `canvas/TraceCanvas.tsx:69-86`) — every shape below is a plain `border-
@@ -35,6 +36,7 @@
 // exact synchronisation was never the goal for a ≤400ms decorative flourish;
 // reading as ONE lupa growing toward the viewer is.
 import type { CSSProperties } from 'react'
+import { TRANSITION_LENS_ART } from '../detective/assets'
 
 /** How long the rim's own grow animation takes (ms) — the SAME duration
  *  `screen/ScreenTransition.tsx`'s own `WIPE_DURATION_MS` uses, so the rim
@@ -52,58 +54,48 @@ export const LUPA_WIPE_DURATION_MS = 300
 const LUPA_RIM_FINAL_RADIUS_VMAX = 145
 export const LUPA_RIM_FINAL_DIAMETER_VMAX = LUPA_RIM_FINAL_RADIUS_VMAX * 2
 
-/** The rim's own stroke thickness, a fixed px value rather than a percentage
- *  of the (huge, by the end) growing box — a marker-style ring reads best at
- *  a constant, legible thickness throughout the whole grow, never
- *  vanishingly thin at the start or absurdly fat once the circle has grown
- *  past the viewport. `#1a1a1a` matches this app's own ubiquitous marker ink
- *  (`screen/AdventureIntro.tsx`'s `.cv-intro-tool` border, `screen/
- *  DetectiveNotebook.tsx`'s `INK`). */
-export const LUPA_RIM_BORDER_PX = 14
-export const LUPA_RIM_INK = '#1a1a1a'
-
 /**
- * Where the handle attaches to the rim, as a percent of the rim's own
- * (square) box — the point on the circle's edge at exactly
- * `LUPA_HANDLE_ANGLE_DEG` from the box's centre, in BOX-LOCAL percent
- * coordinates (0% = the box's own left/top edge, 100% = its right/bottom
- * edge), so a caller can position the handle with a plain `left`/`top`
- * percentage that scales automatically as the box's own width/height
- * animate — no per-frame recomputation needed.
+ * T49 (`docs/23` D35, `docs/23` §7 point 6): the rim, the handle and the
+ * glint are no longer CSS shapes (a 14px ink ring, an ink rod at 45deg and a
+ * gradient blob) but the author's drawn transition magnifier,
+ * `TRANSITION_LENS_ART`. It rides the SAME growing `.cv-lupa-circle` box
+ * (same `cv-lupa-grow` keyframe, same View Transition capture), so nothing
+ * about timing or the T38 visibility gate changes.
  *
- * Derivation: a box of side `D` has its centre at `(D/2, D/2)`; the edge
- * point at angle `a` from centre (0deg = straight right, growing clockwise,
- * matching CSS's own `rotate()` convention) sits at
- * `(D/2 + (D/2)*cos(a), D/2 + (D/2)*sin(a))` — as a FRACTION of `D`, that is
- * `(0.5 + 0.5*cos(a), 0.5 + 0.5*sin(a))`, independent of `D` itself, which is
- * exactly what makes a single percent pair correct at every size the box
- * ever grows to.
+ * The box is the GLASS: its edge is the drawing's measured empty hole, not
+ * an estimate. `scripts/art/build_art.py`'s `measure_lens_hole` fits a circle
+ * to the marker line on the glass's inner edge of the shipped file and the
+ * manifest carries it (`hole`, guarded against `TRANSITION_LENS_ART.hole`
+ * by `artManifest.test.ts`). With the box's side `D = 2r` (r in image px),
+ * the image is `W / 2r` boxes wide and its top-left sits at
+ * `(r - cx, r - cy)` image px from the box's own top-left, all of which are
+ * plain percentages of the (square) box, so they scale with it for free.
  */
-export function lupaEdgeAnchorPercent(angleDeg: number): { leftPct: number; topPct: number } {
-  const rad = (angleDeg * Math.PI) / 180
-  return { leftPct: 50 + 50 * Math.cos(rad), topPct: 50 + 50 * Math.sin(rad) }
+export function lupaLensPlacement(art: {
+  readonly w: number
+  readonly h: number
+  readonly hole: { readonly cx: number; readonly cy: number; readonly r: number }
+}): { leftPct: number; topPct: number; widthPct: number } {
+  const r = art.hole.r * art.w
+  const cx = art.hole.cx * art.w
+  const cy = art.hole.cy * art.h
+  const d = 2 * r
+  return {
+    leftPct: ((r - cx) / d) * 100,
+    topPct: ((r - cy) / d) * 100,
+    widthPct: (art.w / d) * 100,
+  }
 }
 
-/** The angle the handle sticks out at — "a handle at ~45°" (the task's own
- *  brief), down and to the right of the growing lens, the classic
- *  magnifying-glass silhouette (CSS `rotate()`'s own clockwise-from-right
- *  convention: 45deg is down-right). */
-export const LUPA_HANDLE_ANGLE_DEG = 45
+export const LUPA_LENS_PLACEMENT = lupaLensPlacement(TRANSITION_LENS_ART)
 
-/** `lupaEdgeAnchorPercent` at the handle's own angle, precomputed once as a
- *  named export — `screen/ScreenTransition.tsx` positions the handle's own
- *  `left`/`top` from these two numbers directly, and `lupaWipe.test.ts`
- *  asserts the exact value (`50 + 50*cos(45deg) ≈ 85.355%`) rather than
- *  trusting the formula unchecked. */
-export const LUPA_HANDLE_ANCHOR = lupaEdgeAnchorPercent(LUPA_HANDLE_ANGLE_DEG)
-
-/** The CSS for the decorative rim/handle/highlight group — a sibling of the
- *  existing `.cv-screen-wipe` reveal, drawn on TOP of it (later in document
- *  order) so it reads as the edge of the glass the new screen is being seen
- *  THROUGH. `position: fixed; inset: 0; overflow: hidden` is what naturally
- *  clips the rim/handle once they grow past the real viewport — no manual
- *  fade-out needed, the same "grows until nothing of it is left on screen"
- *  behaviour `clip-path`'s own 150% already relies on for the reveal itself.
+/** The CSS for the decorative magnifier — a sibling of the existing
+ *  `.cv-screen-wipe` reveal, drawn on TOP of it (later in document order) so
+ *  it reads as the edge of the glass the new screen is being seen THROUGH.
+ *  `position: fixed; inset: 0; overflow: hidden` is what naturally clips the
+ *  magnifier once it grows past the real viewport — no manual fade-out
+ *  needed, the same "grows until nothing of it is left on screen" behaviour
+ *  `clip-path`'s own 150% already relies on for the reveal itself.
  *  `pointer-events: none` throughout: purely decorative, never blocking the
  *  screen it is drawn over. */
 export const LUPA_WIPE_CSS = `
@@ -114,9 +106,6 @@ export const LUPA_WIPE_CSS = `
   top: var(--cv-wipe-y, 50%);
   width: 0;
   height: 0;
-  border-radius: 50%;
-  border: ${LUPA_RIM_BORDER_PX}px solid ${LUPA_RIM_INK};
-  box-sizing: border-box;
   transform: translate(-50%, -50%);
   animation: cv-lupa-grow ${LUPA_WIPE_DURATION_MS}ms ease-out both;
 }
@@ -124,36 +113,15 @@ export const LUPA_WIPE_CSS = `
   0% { width: 0; height: 0; }
   100% { width: ${LUPA_RIM_FINAL_DIAMETER_VMAX}vmax; height: ${LUPA_RIM_FINAL_DIAMETER_VMAX}vmax; }
 }
-/* The lens highlight — a soft glint near the upper-left of the glass, the
-   one purely decorative touch that reads as glass rather than a flat ring.
-   Percent-of-parent sizing/position: it scales together with the rim's own
-   width/height keyframe above with no separate animation of its own. */
-.cv-lupa-highlight {
+/* The drawn magnifier (TRANSITION_LENS_ART), its empty glass on the box. */
+.cv-lupa-lens {
   position: absolute;
-  left: 18%;
-  top: 16%;
-  width: 22%;
-  height: 12%;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(255,255,255,0));
-  transform: rotate(-30deg);
-}
-/* The handle: a rod attached at the rim's own ${LUPA_HANDLE_ANGLE_DEG}deg
-   edge point (LUPA_HANDLE_ANCHOR, computed by lupaEdgeAnchorPercent above),
-   rotated to point straight out along that same angle — transform-origin at
-   its own left-centre (the attach point) means the rod extends AWAY from
-   the rim, never through it. Percent width/height of the SAME growing
-   parent, so it scales in lockstep with the rim with no separate keyframe. */
-.cv-lupa-handle {
-  position: absolute;
-  left: ${LUPA_HANDLE_ANCHOR.leftPct}%;
-  top: ${LUPA_HANDLE_ANCHOR.topPct}%;
-  width: 32%;
-  height: 9%;
-  transform-origin: 0% 50%;
-  transform: rotate(${LUPA_HANDLE_ANGLE_DEG}deg);
-  background: ${LUPA_RIM_INK};
-  border-radius: 999px;
+  left: ${LUPA_LENS_PLACEMENT.leftPct.toFixed(3)}%;
+  top: ${LUPA_LENS_PLACEMENT.topPct.toFixed(3)}%;
+  width: ${LUPA_LENS_PLACEMENT.widthPct.toFixed(3)}%;
+  height: auto;
+  max-width: none;
+  display: block;
 }
 @media (prefers-reduced-motion: reduce) { .cv-lupa-rim { display: none; } }
 `

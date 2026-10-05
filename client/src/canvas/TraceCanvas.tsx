@@ -641,8 +641,11 @@ export interface TraceVertexArt {
   /** Rendered HEIGHT in viewBox units, per image. Width follows the aspect
    * ratio. */
   size: number
-  /** Where each copy stands, sheet coordinates. One `<image>` per entry. */
-  at: readonly { x: number; y: number }[]
+  /** Where each copy stands, sheet coordinates. One `<image>` per entry.
+   *  [T49] An entry's own `art` replaces the shared `href`/`w`/`h` for that
+   *  copy alone (a collected family drawn in several poses,
+   *  `levels/collect.ts`'s `collectArtAt`); `size` stays shared. */
+  at: readonly { x: number; y: number; art?: { href: string; w: number; h: number } }[]
 }
 
 /**
@@ -2059,9 +2062,9 @@ export default function TraceCanvas({
           {vertexArt.at.map((point, idx) => (
             <image
               key={`vertex-art-${idx}`}
-              href={vertexArt.href}
+              href={(point.art ?? vertexArt).href}
               {...clampArtBox(
-                placeArt({ ...vertexArt, grip: STANDING_GRIP }, vertexArt.size, point),
+                placeArt({ ...(point.art ?? vertexArt), grip: STANDING_GRIP }, vertexArt.size, point),
                 sheetBounds,
               )}
               preserveAspectRatio="xMidYMid meet"
@@ -2082,9 +2085,9 @@ export default function TraceCanvas({
             <image
               key={`vertex-art-departing-${idx}`}
               className="cv-collect-hop"
-              href={vertexArtDeparting.href}
+              href={(point.art ?? vertexArtDeparting).href}
               {...clampArtBox(
-                placeArt({ ...vertexArtDeparting, grip: STANDING_GRIP }, vertexArtDeparting.size, point),
+                placeArt({ ...(point.art ?? vertexArtDeparting), grip: STANDING_GRIP }, vertexArtDeparting.size, point),
                 sheetBounds,
               )}
               preserveAspectRatio="xMidYMid meet"

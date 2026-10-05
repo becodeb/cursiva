@@ -111,23 +111,17 @@ describe('notebookEntries', () => {
     }
   })
 
-  // T23 follow-up (orchestrator screenshot review): `mono`'s own art is
-  // still `make_placeholders.py`'s flat sign block — its derived silhouette
-  // recolours to a featureless black square. `placeholderArt` is what tells
-  // `DetectiveNotebook` to draw a paw print instead, for that one animal
-  // only, and only while it is still missing.
+  // T23 follow-up (orchestrator screenshot review): `placeholderArt` tells
+  // `DetectiveNotebook` to draw a paw print instead of a placeholder
+  // animal's featureless silhouette. [T49] `mono`, the only placeholder, got
+  // its real drawing (`docs/23` D4), so no entry needs it any more.
   describe('placeholderArt', () => {
-    it('is true for mono while missing, and false for every other missing animal', () => {
+    it('is false for every missing animal, mono included', () => {
       const entries = notebookEntries({})
-      const byId = Object.fromEntries(entries.map((e) => [e.id, e]))
-      expect(byId.mono.placeholderArt).toBe(true)
-      for (const entry of entries) {
-        if (entry.id === 'mono') continue
-        expect(entry.placeholderArt).toBe(false)
-      }
+      for (const entry of entries) expect(entry.placeholderArt, entry.id).toBe(false)
     })
 
-    it('is false for mono once actually rescued (a separate, already-disclosed art gap)', () => {
+    it('is false for mono once actually rescued', () => {
       const entries = notebookEntries(filed('monkey4'))
       const mono = entries.find((e) => e.id === 'mono')!
       expect(mono.rescued).toBe(true)

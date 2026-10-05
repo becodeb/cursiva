@@ -51,13 +51,13 @@ describe('DetectiveNotebook', () => {
     expect(html).toContain('class="cv-caption">?</span>')
   })
 
-  it('draws the monkey as a PawPrintIcon while missing (its own art is still a placeholder block), never the black-square silhouette', () => {
+  it('[T49] draws the missing monkey as its own silhouette now that it is real art, no paw stand-in', () => {
     const html = render()
-    expect(html).not.toContain('src="/art/animal-mono-silhouette.png"')
-    expect(html).toContain('data-cv-picture="true"')
+    expect(html).toContain('src="/art/animal-mono-silhouette.png"')
+    expect(html).not.toContain('data-cv-picture="true"')
   })
 
-  it('shows the monkey in colour (the placeholder art, unmasked) once actually rescued — a separate, already-disclosed gap', () => {
+  it('shows the monkey in colour once actually rescued', () => {
     const html = render(filed('monkey4'))
     expect(html).toContain(`src="${ZOO_ANIMAL_ART.mono.href}"`)
     expect(html).not.toContain('data-cv-picture="true"')

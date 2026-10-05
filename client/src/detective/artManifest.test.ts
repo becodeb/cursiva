@@ -30,6 +30,7 @@ import {
   CARRIER_LENS_ART,
   CART_ART,
   CLUE_ART,
+  DUCKLING_ART,
   GOAL_MEDUSA_ART,
   GROUND_GRASS,
   GROUND_MUD,
@@ -38,13 +39,17 @@ import {
   HOME_DESK_ART,
   HOME_OCTOPUS_ART,
   LAMP_ART,
+  MONKEY_FAMILY_ART,
   OCTOPUS_ART,
+  OCTOPUS_EMPTY_HANDED_ART,
   PLACEHOLDER_CLUE_ART,
   PLACEHOLDER_SAMPLE_SOURCES,
   PROMISED_ANIMAL_ART,
+  PULPITO_POSE_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
   SIGN_ART,
+  TRANSITION_LENS_ART,
   ZOO_BACKPACK_ART,
   ZOO_CARETAKER_ART,
   ZOO_FOG_ART,
@@ -52,6 +57,7 @@ import {
   ZOO_OCTOPUS_BACKPACK_ART,
   ZOO_OCTOPUS_PRINT_ART,
   ZOO_SPEECH_BUBBLE_ART,
+  ZOO_SPEECH_BUBBLE_LEFT_ART,
   ZOO_STAR_ART,
   ZOO_ANIMAL_SILHOUETTE_ART,
   type ArtImage,
@@ -184,9 +190,20 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
   // `ANIMAL_SILHOUETTE_ART.abeja` was added BY REFERENCE from this exact
   // `ZOO_ANIMAL_SILHOUETTE_ART.abeja` file — the same "never a second
   // derivation" move `erizo`/`oveja`/`llama` made in T25.
+  // T49 adds `mono` to the exclusion list: with the real monkey drawn,
+  // `ANIMAL_SILHOUETTE_ART.mono` (the `monkeys` lineup) is the file and the
+  // notebook's entry points at it by reference.
   ...Object.entries(ZOO_ANIMAL_SILHOUETTE_ART)
-    .filter(([id]) => !['pato', 'erizo', 'oveja', 'llama', 'abeja'].includes(id))
+    .filter(([id]) => !['pato', 'erizo', 'oveja', 'llama', 'abeja', 'mono'].includes(id))
     .map(([id, art]) => [`ZOO_ANIMAL_SILHOUETTE_ART.${id}`, art] as const),
+  // T49 (`docs/23` round 2, characters).
+  ['OCTOPUS_EMPTY_HANDED_ART', OCTOPUS_EMPTY_HANDED_ART] as const,
+  ...Object.entries(PULPITO_POSE_ART).map(([id, art]) => [`PULPITO_POSE_ART.${id}`, art] as const),
+  ['ZOO_SPEECH_BUBBLE_LEFT_ART', ZOO_SPEECH_BUBBLE_LEFT_ART] as const,
+  ['TRANSITION_LENS_ART', TRANSITION_LENS_ART] as const,
+  // `MONKEY_FAMILY_ART[0]` IS `PROMISED_ANIMAL_ART.mono` (registered above).
+  ...MONKEY_FAMILY_ART.slice(1).map((art, i) => [`MONKEY_FAMILY_ART[${i + 1}]`, art] as const),
+  ...DUCKLING_ART.map((art, i) => [`DUCKLING_ART[${i}]`, art] as const),
 ]
 
 /** `manifest.json` stores the pipeline-relative `art/x.png`; the registry
@@ -277,7 +294,12 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // " 2"/" 3" x two states, plus the scale's one variation x two states,
     // `docs/23` §7.1) + 4 sector adventure cutouts (leaf 2/3, apple 2/3).
     // The cat-fur sample still borrows `ANIMAL_SILHOUETTE_ART.gato`.
-    expect(REGISTERED.length).toBe(185)
+    // + 13 (T49, `docs/23` round 2): the empty-handed octopus, the three
+    // Pulpito poses, the stage bubble, the transition magnifier, monkey
+    // poses 2 and 3, three ducklings, the uncurling hedgehog and the shed
+    // snake skin. `mono`'s silhouette moves from ZOO_ANIMAL_SILHOUETTE_ART to
+    // ANIMAL_SILHOUETTE_ART (shared by reference, net zero).
+    expect(REGISTERED.length).toBe(198)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -529,6 +551,17 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // colour (design.md §3.1's own prediction, confirmed by the rebuild).
     expect(forest.quiet).toBe('#86a678')
     expect(forest.brightest).toBe('#86a678')
+  })
+
+  it("T49: TRANSITION_LENS_ART.hole is the glass the pipeline measured on the shipped file", () => {
+    const entry = manifest['zoo-transition-lens'] as ManifestEntry & { hole?: { cx: number; cy: number; r: number } }
+    expect(entry.hole).toEqual(TRANSITION_LENS_ART.hole)
+  })
+
+  it("T49: the framed pairs and families share one canvas (FRAMED in build_art.py)", () => {
+    expect([OCTOPUS_EMPTY_HANDED_ART.w, OCTOPUS_EMPTY_HANDED_ART.h]).toEqual([OCTOPUS_ART.w, OCTOPUS_ART.h])
+    for (const art of MONKEY_FAMILY_ART) expect([art.w, art.h]).toEqual([MONKEY_FAMILY_ART[0].w, MONKEY_FAMILY_ART[0].h])
+    for (const art of DUCKLING_ART) expect([art.w, art.h]).toEqual([DUCKLING_ART[0].w, DUCKLING_ART[0].h])
   })
 
   it("gives the flower's two states IDENTICAL w/h (free-trail-waypoints design.md §3.2) — both derive from flor.png", () => {

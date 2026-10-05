@@ -20,10 +20,11 @@
 // `artManifest.test.ts`'s `REGISTERED` table — it ships no orphaned file,
 // it simply has no consumer left in this catalog.
 import {
-  ANIMAL_ART,
+  DUCKLING_ART,
   FLOWER_ART,
   HAZARD_STARFISH_ART,
   HEDGEHOG_ART,
+  MONKEY_FAMILY_ART,
   SECTOR_ADVENTURE_ART,
   ZOO_ANIMAL_ART,
 } from '../detective/assets'
@@ -835,11 +836,12 @@ const PHASE_1: LevelConfig[] = [
     // (`levels/collect.ts`'s `waveCrestArcs`, NOT `'peaks'`/`routeApexes` —
     // that function finds zero apexes on this smooth a wave, see its own
     // header) derives one duckling per wave crest plus one more at the
-    // route's end. `ANIMAL_ART.pato` scaled down stands in for a real
-    // duckling — there is no smaller-duck art yet (flagged to the author as
-    // a new art request, `docs/20`'s own `B…` numbering; T21's own report
-    // names it `B16`).
-    collect: { items: 'crests', art: ANIMAL_ART.pato, size: 40 },
+    // route's end. [T49, `docs/23` D5] The ducklings are their own drawing
+    // now (three poses, `DUCKLING_ART`), replacing the scaled-down adult
+    // duck that stood in for them. `size` is the shared frame's height
+    // (54, up from the adult duck's 40: the frame is taller than a
+    // duckling, and at 40 they read as specks on a 1024x768 capture).
+    collect: { items: 'crests', art: DUCKLING_ART[0], variants: DUCKLING_ART, size: 54 },
     // [T41, author: "que aprendan cuándo frenar y no hacer todo apurado"]
     // One fish jumping across the pond, on the first descending flank, well
     // clear of the first crest's duckling (`catalog.test.ts`'s T41 block
@@ -880,7 +882,7 @@ const PHASE_1: LevelConfig[] = [
     demo: true,
     // [T21] Same reasoning as `duck-trail3` above — the last of the duck
     // family, gathered along the route's three crests plus the end.
-    collect: { items: 'crests', art: ANIMAL_ART.pato, size: 40 },
+    collect: { items: 'crests', art: DUCKLING_ART[0], variants: DUCKLING_ART, size: 54 },
   },
   {
     id: 'trail1',
@@ -2567,10 +2569,8 @@ const PHASE_2: LevelConfig[] = [
   // documents for a smooth bezier wave. `waveCrestArcs`'s window-based
   // comparison finds exactly one crest per loop instead, at the same
   // place docs/19 §3 puts a monkey ("un mono colgado arriba de cada
-  // bucle"). `ZOO_ANIMAL_ART.mono`
-  // is itself a placeholder sign block (`docs/20` B10, real monkey art
-  // still pending) — flagged the same way `duck-trail3`/`4`'s scaled-down
-  // `ANIMAL_ART.pato` duckling stand-in already is.
+  // bucle"). [T49] The monkeys standing there are the real drawn family
+  // (`MONKEY_FAMILY_ART`, `docs/23` D4), no longer a placeholder block.
   //
   // [T40] Sizes are chosen so every loop's HOLE stays visible with the plain
   // corridor (no centreline): `loopHoleClearances` (`paths.ts`) measures the
@@ -2725,10 +2725,11 @@ const PHASE_2: LevelConfig[] = [
     // `duck-trail3`/`4` ship (T17): `'crests'` (`waveCrestArcs`), NOT
     // `'peaks'` — see this family's own header comment (measured, not
     // guessed: `routeApexes` finds zero apexes on this shipped route).
-    // `ZOO_ANIMAL_ART.mono` is a placeholder sign block (`docs/20` B10
-    // pending), flagged the same way as `duck-trail3`/`4`'s own scaled-
-    // down duckling stand-in.
-    collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, size: 50 },
+    // [T49, `docs/23` D4] The real monkey family, three poses
+    // (`MONKEY_FAMILY_ART`), replacing the placeholder sign block. `size`
+    // is the shared frame's height: 72, up from the square block's 50,
+    // because the frame is a tall standing monkey with its arm raised.
+    collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, variants: MONKEY_FAMILY_ART, size: 72 },
   },
   {
     id: 'monkey4',
@@ -2752,7 +2753,7 @@ const PHASE_2: LevelConfig[] = [
     demo: true,
     // [T27] Same reasoning as `monkey3` above — the last of the monkey
     // family, gathered along the route's own loop apexes.
-    collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, size: 50 },
+    collect: { items: 'crests', art: ZOO_ANIMAL_ART.mono, variants: MONKEY_FAMILY_ART, size: 72 },
   },
   {
     id: 'f2-guirnalda',

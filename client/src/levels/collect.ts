@@ -299,6 +299,21 @@ export interface CollectConfig {
   readonly items: readonly number[] | 'peaks' | 'crests' | 'troughs' | 'extrema' | 'loops'
   readonly art: ArtImage
   readonly size: number
+  /** T49 (`docs/23` §7 points 1 and 4): a family drawn in several poses
+   *  (the monkeys, the ducklings). Item `i` stands as `variants[i % n]`, so
+   *  two neighbours never repeat the same pose; `art` stays the family's
+   *  one picture where a single one is needed. Every variant shares one
+   *  framed canvas (`scripts/art/build_art.py`'s `FRAMED`), so `size` keeps
+   *  their relative heights. Absent = every item is `art`. */
+  readonly variants?: readonly ArtImage[]
+}
+
+/** The picture item `index` of a collect level stands as — see
+ *  {@link CollectConfig.variants}. */
+export function collectArtAt(config: Pick<CollectConfig, 'art' | 'variants'>, index: number): ArtImage {
+  const variants = config.variants
+  if (!variants || variants.length === 0) return config.art
+  return variants[((index % variants.length) + variants.length) % variants.length]
 }
 
 /** {@link collectItemsFromPeaks}'s own construction, restated for

@@ -541,20 +541,24 @@ export const ANIMAL_SILHOUETTE_ART: Readonly<Partial<Record<ZooAnimalId, ArtImag
   // their own `fill='contour'` authored ink/fill split in the coloured
   // original, but `recolour(..., keep_ink=False)` flattens every opaque
   // pixel regardless (`build_art.py`'s own silhouette-pass comment).
-  erizo: { href: '/art/hedgehog-profile-silhouette.png', w: 448, h: 306 },
-  oveja: { href: '/art/sector-sheep-silhouette.png', w: 420, h: 448 },
+  // [T49, `docs/20` B14] The erizo's lineup picture is the uncurling
+  // hedgehog with every spine on (`HEDGEHOG_ART.uncurling`'s silhouette),
+  // the same drawing `ZOO_ANIMAL_ART.erizo` reveals; the spineless profile
+  // stays only on the spine-drawing levels.
+  erizo: { href: '/art/hedgehog-uncurling-silhouette.png', w: 349, h: 355 },
+  oveja: { href: '/art/sector-sheep-silhouette.png', w: 448, h: 380 },
   llama: { href: '/art/sector-llama-silhouette.png', w: 299, h: 448 },
   // [T27, `docs/19` §3 monos row] `abeja` joins the deduction lineup as one
   // of the `monkeys` case's two distractors — reused BY REFERENCE from
   // `ZOO_ANIMAL_SILHOUETTE_ART.abeja` (the SAME real bee silhouette file
   // the notebook already draws), the same "never a second derivation"
-  // convention `pato` above already follows. `mono` is deliberately absent
-  // here: its own derived silhouette is a featureless placeholder sign
-  // block (`PLACEHOLDER_ZOO_ANIMALS`'s own header), so `Deduction.tsx`
-  // branches around ever calling `silhouetteArtFor('mono')` and draws
-  // `PawPrintIcon` instead — adding a "silhouette" here would only give
-  // that broken picture a technically-valid lookup.
-  abeja: { href: '/art/sector-bee-silhouette.png', w: 256, h: 230 },
+  // convention `pato` above already follows.
+  abeja: { href: '/art/sector-bee-silhouette.png', w: 256, h: 235 },
+  // [T49, `docs/23` D4] The real monkey's silhouette (long curled tail,
+  // round ears), now that `mono` is no placeholder: the `monkeys` lineup
+  // shows it like every other option. `ZOO_ANIMAL_SILHOUETTE_ART.mono`
+  // points at this same object.
+  mono: { href: '/art/animal-mono-silhouette.png', w: 269, h: 448 },
 }
 
 /** Throws by name rather than rendering `undefined` — the same "fail loud,
@@ -584,10 +588,8 @@ export function silhouetteArtFor(id: ZooAnimalId): ArtImage {
  * already draws from (`SECTOR_ADVENTURE_ART`/`HEDGEHOG_ART`/
  * `PROMISED_ANIMAL_ART`, below) — same `w`/`h` as the coloured original by
  * construction, guarded by `artManifest.test.ts`. `mono`'s own silhouette is
- * a recolour of `PROMISED_ANIMAL_ART.mono`'s placeholder sign art (that
- * record's own header explains why real monkey art is still pending) — a
- * bordered block, not a monkey-shaped silhouette, until that art request is
- * closed.
+ * a recolour of the real monkey (T49, `docs/23` D4), shared by reference
+ * with `ANIMAL_SILHOUETTE_ART.mono`.
  */
 export const ZOO_ANIMAL_SILHOUETTE_ART: Readonly<Partial<Record<ZooAnimalId, ArtImage>>> = {
   pato: ANIMAL_SILHOUETTE_ART.pato,
@@ -602,7 +604,7 @@ export const ZOO_ANIMAL_SILHOUETTE_ART: Readonly<Partial<Record<ZooAnimalId, Art
   erizo: ANIMAL_SILHOUETTE_ART.erizo,
   pez: { href: '/art/animal-pez-silhouette.png', w: 448, h: 358 },
   tortuga: { href: '/art/animal-tortuga-silhouette.png', w: 448, h: 292 },
-  mono: { href: '/art/animal-mono-silhouette.png', w: 320, h: 320 },
+  mono: ANIMAL_SILHOUETTE_ART.mono,
 }
 
 /** The magnifying glass that rides the child's fingertip on a detective trail
@@ -619,12 +621,14 @@ export const ZOO_ANIMAL_SILHOUETTE_ART: Readonly<Partial<Record<ZooAnimalId, Art
  * differently. */
 export const CARRIER_LENS_ART: ArtImage = {
   href: '/art/carrier-lens.png',
-  w: 361,
+  w: 234,
   h: 384,
   // Measured on the shipped file (design.md §7's own worked measurement) —
   // this is a fact about the PICTURE, never about the arm that holds it or
-  // the finger that carries it.
-  grip: [0.603, 0.391],
+  // the finger that carries it. [T49] Re-measured on `lupa v2.png`'s
+  // redraw (`docs/23` D8): the centroid of the glass's light-blue band.
+  // Its handle hangs straight down, so the glass is centred across.
+  grip: [0.503, 0.3],
 }
 
 /** The octopus holding the glass — the child's own presence in the world.
@@ -632,8 +636,30 @@ export const CARRIER_LENS_ART: ArtImage = {
  * (`LevelPlay`'s `startArt`). */
 export const OCTOPUS_ART: ArtImage = {
   href: '/art/carrier-octopus.png',
-  w: 384,
-  h: 353,
+  w: 326,
+  h: 384,
+}
+
+/** [T49, `docs/23` D6, `docs/20` B18] The same octopus, same pose, with the
+ * glass taken out of his raised tentacle: shown while the finger is down
+ * and the glass rides the fingertip (`screen/LevelPlay.tsx`, T38). Cut from
+ * the same sheet as {@link OCTOPUS_ART} and shipped on the SAME aligned
+ * canvas (`scripts/art/build_art.py`'s `FRAMED`), so the two share `w`/`h`
+ * and every pixel of the body: the swap neither jumps nor resizes. */
+export const OCTOPUS_EMPTY_HANDED_ART: ArtImage = {
+  href: '/art/carrier-octopus-empty.png',
+  w: 326,
+  h: 384,
+}
+
+/** [T49, `docs/23` D7, `docs/19` §4.1] The Pulpito on the scene, three poses:
+ * `points` (to the RIGHT; mirrored when he stands in the right corner) on an
+ * adventure's entry screen, `thinks` on the deduction, `cheers` on the rescue
+ * closing. Each is a tight cutout sized by its own screen. */
+export const PULPITO_POSE_ART: Readonly<Record<'points' | 'thinks' | 'cheers', ArtImage>> = {
+  points: { href: '/art/zoo-octopus-points.png', w: 279, h: 337 },
+  thinks: { href: '/art/zoo-octopus-thinks.png', w: 228, h: 346 },
+  cheers: { href: '/art/zoo-octopus-cheers.png', w: 258, h: 332 },
 }
 
 /** Full-canvas zoo journey map. Unlike the cutout art, this stays opaque and
@@ -681,6 +707,33 @@ export const ZOO_SPEECH_BUBBLE_ART: ArtImage = {
   href: '/art/zoo-speech-bubble.png',
   w: 488,
   h: 372,
+}
+
+/** [T49, `docs/20` B9] The redrawn speech bubble of the Pulpito on the scene
+ * (an adventure's entry and closing screens): the same design and tail
+ * corner (bottom left) as {@link ZOO_SPEECH_BUBBLE_ART}, which the map, the
+ * prologue and the deduction keep. Mirrored with CSS when the bubble opens
+ * the other way. Its measured tail is `ZOO_SPEECH_BUBBLE_LEFT_TAIL`
+ * (`screen/bubblePlacement.ts`). */
+export const ZOO_SPEECH_BUBBLE_LEFT_ART: ArtImage = {
+  href: '/art/zoo-speech-bubble-left.png',
+  w: 496,
+  h: 373,
+}
+
+/** [T49, `docs/23` D35] The big magnifier that grows over the screen
+ * transition (`screen/lupaWipe.ts`), its glass empty so the new screen shows
+ * through. `hole` is the glass measured on the shipped file by
+ * `build_art.py`'s `measure_lens_hole` (centre as fractions of `w`/`h`,
+ * radius as a fraction of `w`), copied from `manifest.json` and guarded by
+ * `artManifest.test.ts`. */
+export const TRANSITION_LENS_ART: ArtImage & {
+  readonly hole: { readonly cx: number; readonly cy: number; readonly r: number }
+} = {
+  href: '/art/zoo-transition-lens.png',
+  w: 288,
+  h: 471,
+  hole: { cx: 0.5018, cy: 0.3029, r: 0.3636 },
 }
 
 /** The arena's backpack reward (`docs/13` §8 row E) — a snake carried home
@@ -773,7 +826,9 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   | 'leaf3'
   | 'apple2'
   | 'apple3'
-  | 'leaf',
+  | 'leaf'
+  // [T49, `docs/20` B17] The shed snake skin on the snakes' entry screen.
+  | 'shedSkin',
   ArtImage
 >> = {
   snakeSmall: { href: '/art/sector-snake-small.png', w: 480, h: 98 },
@@ -791,15 +846,19 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   // Row C (docs/13 §8): the sheep standing on the sheep-hill ridge peaks.
   // `w` is measured off `manifest.json`'s `sector-sheep` entry (`h`, 448, is
   // the pipeline's target height, held fixed by `build_art.py`'s `SINGLES`).
-  sheep: { href: '/art/sector-sheep.png', w: 420, h: 448 },
-  bee: { href: '/art/sector-bee.png', w: 256, h: 230 },
-  flower: { href: '/art/sector-flower.png', w: 256, h: 245 },
+  // [T49, `docs/23` D10] Redrawn side-on, legs and cream wool: wider than
+  // tall now, so `w` is the pipeline's 448 and `h` the measured one.
+  sheep: { href: '/art/sector-sheep.png', w: 448, h: 380 },
+  // [T49, `docs/23` D9] Bright yellow bee, white-and-yellow flower and a
+  // honey-orange comb, replacing the khaki and dusty-pink first round.
+  bee: { href: '/art/sector-bee.png', w: 256, h: 235 },
+  flower: { href: '/art/sector-flower.png', w: 171, h: 256 },
   // The flower BEFORE the bee has been to it (`free-trail-waypoints`
   // design.md §3.2). Derives from the SAME `flor.png` as `flower` above, so
   // the two states share `w`/`h` exactly — `artManifest.test.ts` guards the
   // parity, a divergence being the `clue-footprint` failure class repeating.
-  flowerDormant: { href: '/art/sector-flower-dormant.png', w: 256, h: 245 },
-  honeycomb: { href: '/art/sector-honeycomb.png', w: 181, h: 256 },
+  flowerDormant: { href: '/art/sector-flower-dormant.png', w: 171, h: 256 },
+  honeycomb: { href: '/art/sector-honeycomb.png', w: 221, h: 228 },
   dolphin: { href: '/art/sector-dolphin.png', w: 448, h: 418 },
   snail: { href: '/art/sector-snail.png', w: 448, h: 321 },
   flashlight: { href: '/art/sector-flashlight.png', w: 256, h: 234 },
@@ -822,6 +881,7 @@ export const SECTOR_ADVENTURE_ART: Readonly<Record<
   apple2: { href: '/art/sector-apple-2.png', w: 224, h: 256 },
   apple3: { href: '/art/sector-apple-3.png', w: 226, h: 256 },
   mushroom: { href: '/art/sector-mushroom.png', w: 256, h: 245 },
+  shedSkin: { href: '/art/sector-shed-skin.png', w: 448, h: 145 },
 }
 
 /** T48 (`docs/23` §7.1): drawn-world props that come in three drawings,
@@ -853,9 +913,14 @@ export const FLOWER_ART: Readonly<Record<'dormant' | 'lit', ArtImage>> = {
  * Declared BEFORE `ZOO_ANIMAL_ART` so its `erizo` row (below) can reference
  * `HEDGEHOG_ART.profile` directly, module-init order — moved up from its
  * original position (Phase 1) for exactly this reason. */
-export const HEDGEHOG_ART: Readonly<Record<'profile' | 'curled', ArtImage>> = {
+export const HEDGEHOG_ART: Readonly<Record<'profile' | 'curled' | 'uncurling', ArtImage>> = {
   profile: { href: '/art/hedgehog-profile.png', w: 448, h: 306 },
   curled: { href: '/art/hedgehog-curled.png', w: 412, h: 407 },
+  // [T49, `docs/20` B14 pose 2] The finished hedgehog: every spine on, head
+  // peeking out as it uncurls ("se anima a salir", the hedgehog adventure's
+  // own intro). NOT a spine-drawing pose: `HEDGEHOG_SILHOUETTE` measures
+  // only the two above, and `levels/spines.ts` never draws on this one.
+  uncurling: { href: '/art/hedgehog-uncurling.png', w: 349, h: 355 },
 }
 
 /** The prologue's promise, kept (P1, `odd/tasks/promised-animals.md`):
@@ -874,26 +939,41 @@ export const HEDGEHOG_ART: Readonly<Record<'profile' | 'curled', ArtImage>> = {
  * copied from the rebuilt `manifest.json` (`docs/17` §4 step 3's own rule:
  * read, never estimated), guarded by `artManifest.test.ts`.
  *
- * `mono` is PENDING REAL ART (`docs/18` §6 is the standing request):
- * `art-source/mono.png` is a placeholder written by `make_placeholders.py`'s
- * `make_sign('MONO')` — a bordered block with the word stamped across it,
- * not a drawing of a monkey — shipped so the third promised animal still
- * has a legible stand-in rather than no entry at all. Swapping it for an
- * authored cutout is a source-file replacement plus a pipeline rerun
- * (`docs/17` §4); this record's `w`/`h` will need the same manifest
- * re-copy that step always does.
+ * `mono` is the real monkey since T49 (`docs/23` D4, pose 1 of `monos
+ * lamina.png`), replacing the `make_placeholders.py` sign block that stood
+ * in for it since P1.
  */
 export const PROMISED_ANIMAL_ART: Readonly<Record<'pez' | 'tortuga' | 'mono', ArtImage>> = {
   pez: { href: '/art/animal-pez.png', w: 448, h: 358 },
   tortuga: { href: '/art/animal-tortuga.png', w: 448, h: 292 },
-  mono: { href: '/art/animal-mono.png', w: 320, h: 320 },
+  mono: { href: '/art/animal-mono.png', w: 269, h: 448 },
 }
+
+/** [T49, `docs/23` D4] The monkey family gathered along `monkey3`/`monkey4`
+ * (`LevelConfig.collect.variants`): pose 1 is {@link PROMISED_ANIMAL_ART}'s
+ * own `mono` (its frame is its own tight box), poses 2 (sitting with a
+ * banana) and 3 (waving) share that frame (`build_art.py`'s `FRAMED`), so
+ * the three stand at one scale with their feet on the item. */
+export const MONKEY_FAMILY_ART: readonly [ArtImage, ArtImage, ArtImage] = [
+  PROMISED_ANIMAL_ART.mono,
+  { href: '/art/animal-mono-family-2.png', w: 269, h: 448 },
+  { href: '/art/animal-mono-family-3.png', w: 269, h: 448 },
+]
+
+/** [T49, `docs/23` D5] The duck's three ducklings, gathered along
+ * `duck-trail3`/`duck-trail4` in place of the scaled-down adult duck. One
+ * shared frame (`build_art.py`'s `FRAMED`), feet on its bottom edge. */
+export const DUCKLING_ART: readonly [ArtImage, ArtImage, ArtImage] = [
+  { href: '/art/animal-duckling-1.png', w: 186, h: 256 },
+  { href: '/art/animal-duckling-2.png', w: 186, h: 256 },
+  { href: '/art/animal-duckling-3.png', w: 186, h: 256 },
+]
 
 /**
  * Every {@link ZooAnimalId} whose colour art is still a `make_placeholders.py`
- * stand-in rather than an authored drawing — today just `mono` (this
- * record's own header, above; `docs/20_PEDIDOS_DE_ARTE_TANDA_3.md` request
- * B10, "El mono", pending art A6). `screen/DetectiveNotebook.tsx` (T23
+ * stand-in rather than an authored drawing — EMPTY since T49: `mono`, the
+ * only one, got its real drawing (`docs/23` D4). The mechanism stays for the
+ * next placeholder animal. `screen/DetectiveNotebook.tsx` (T23
  * follow-up, orchestrator screenshot review) reads this to skip a MISSING
  * placeholder animal's own derived silhouette — a flat sign block recolours
  * to a featureless black square, which reads as broken art rather than "not
@@ -902,7 +982,7 @@ export const PROMISED_ANIMAL_ART: Readonly<Record<'pez' | 'tortuga' | 'mono', Ar
  * animal to need this (any future placeholder) need not be a "promised"
  * entrance animal at all.
  */
-export const PLACEHOLDER_ZOO_ANIMALS: ReadonlySet<ZooAnimalId> = new Set(['mono'])
+export const PLACEHOLDER_ZOO_ANIMALS: ReadonlySet<ZooAnimalId> = new Set<ZooAnimalId>([])
 
 /** `ZOO_ANIMAL_ART` resolves every {@link ZooAnimalId} — spreading
  * `ANIMAL_ART` preserves referential identity for every existing entry, so
@@ -920,12 +1000,11 @@ export const ZOO_ANIMAL_ART: Readonly<Record<ZooAnimalId, ArtImage>> = {
   // `artHierarchy.test.ts`'s coverage guard. Verify, don't rebuild
   // (design.md §8, task 6.7).
   delfin: SECTOR_ADVENTURE_ART.dolphin,
-  // `radial-spines` design.md §5, §9 item 2: both shipped PNGs are
-  // SPINELESS by design (`docs/13` §7), so the animal standing on the map
-  // after `hedgehog4` is a hedgehog with no spines — a real art gap, flagged
-  // to the author rather than silently accepted. Closing it needs a third
-  // drawing (`erizo con espinas.png`), which is art, not code.
-  erizo: HEDGEHOG_ART.profile,
+  // `radial-spines` design.md §5, §9 item 2: both spine-drawing PNGs are
+  // SPINELESS by design (`docs/13` §7). [T49, `docs/20` B14] The rescued
+  // hedgehog (map, closing, notebook, deduction reveal) is the uncurling
+  // drawing with every spine on, closing that gap.
+  erizo: HEDGEHOG_ART.uncurling,
   // `pez`/`tortuga`/`mono` — see `PROMISED_ANIMAL_ART`'s own header,
   // declared just above, for why this is a spread of a dedicated record
   // rather than three inline literals.

@@ -11,12 +11,13 @@ import { boxesIntersect, rescueFreeRegion, resolveRescueAnimalBox } from './resc
 import {
   octopusBoxAtCorner,
   OCTOPUS_CORNER_INSET,
-  OCTOPUS_CORNER_SIZE_PCT,
+  RESCUE_OCTOPUS_ART,
+  stageOctopusSizing,
   stanceBubbleSide,
 } from './pulpitoStance'
 import { placeAndFitBubble } from './bubbleFit'
-import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
-import { ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
+import { ZOO_SPEECH_BUBBLE_LEFT_TAIL } from './bubblePlacement'
+import { ZOO_ANIMAL_ART } from '../detective/assets'
 import { ADVENTURES } from '../zoo/adventures'
 
 const FRAME = { w: 100, h: 100 }
@@ -34,10 +35,9 @@ const duckBeat = duck.closingBeat![0]
  *  and animal — reused by every test below instead of re-deriving an
  *  equivalent pair of boxes by hand. */
 function realBoxes(corner: 'left' | 'right', text: string) {
-  const octopusBox = octopusBoxAtCorner(ZOO_OCTOPUS_BACKPACK_ART, {
+  const octopusBox = octopusBoxAtCorner(RESCUE_OCTOPUS_ART, {
     corner,
-    sizeBy: 'width',
-    size: OCTOPUS_CORNER_SIZE_PCT,
+    ...stageOctopusSizing(RESCUE_OCTOPUS_ART),
     bottom: 2,
     inset: OCTOPUS_CORNER_INSET,
   })
@@ -46,7 +46,7 @@ function realBoxes(corner: 'left' | 'right', text: string) {
   const { placement } = placeAndFitBubble({
     frame: FRAME,
     headBox: octopusBox,
-    tail: ZOO_SPEECH_BUBBLE_TAIL,
+    tail: ZOO_SPEECH_BUBBLE_LEFT_TAIL,
     side: stanceBubbleSide(corner),
     text,
   })
@@ -92,10 +92,9 @@ describe('rescueFreeRegion', () => {
   it('keeps the free region\'s full height (no bubble-bottom clip) when the bubble does not reach into the far column at all', () => {
     // A short, narrow bubble (a one-word line) that never crosses the
     // frame's own midline — the far column should keep its full height.
-    const octopusBox = octopusBoxAtCorner(ZOO_OCTOPUS_BACKPACK_ART, {
+    const octopusBox = octopusBoxAtCorner(RESCUE_OCTOPUS_ART, {
       corner: 'left',
-      sizeBy: 'width',
-      size: OCTOPUS_CORNER_SIZE_PCT,
+      ...stageOctopusSizing(RESCUE_OCTOPUS_ART),
       bottom: 2,
       inset: OCTOPUS_CORNER_INSET,
     })
@@ -182,10 +181,9 @@ describe('resolveRescueAnimalBox (the coordinator\'s own regression: no intersec
     // A generously wide free region (a short, narrow fixture bubble) so the
     // vh cap — not the free region's own width — is the binding constraint
     // at every viewport, isolating exactly what this test claims.
-    const octopusBox = octopusBoxAtCorner(ZOO_OCTOPUS_BACKPACK_ART, {
+    const octopusBox = octopusBoxAtCorner(RESCUE_OCTOPUS_ART, {
       corner: 'left',
-      sizeBy: 'width',
-      size: OCTOPUS_CORNER_SIZE_PCT,
+      ...stageOctopusSizing(RESCUE_OCTOPUS_ART),
       bottom: 2,
       inset: OCTOPUS_CORNER_INSET,
     })

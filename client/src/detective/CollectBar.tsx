@@ -39,6 +39,10 @@ export interface CollectBarProps {
   /** This level's own collect items, in route order. */
   collected: readonly boolean[]
   art: ArtImage
+  /** [T49] Each socket's own picture, by index (a family drawn in several
+   *  poses, `levels/collect.ts`'s `collectArtAt`). Absent = `art` in every
+   *  socket. */
+  arts?: readonly ArtImage[]
 }
 
 /** "Faltan 2 de 4" — one accessible name for the whole bar, mirroring
@@ -53,14 +57,14 @@ export function accessibleCollectName(collected: readonly boolean[]): string {
   return `Faltan ${total - done} de ${total}`
 }
 
-export default function CollectBar({ collected, art }: CollectBarProps) {
+export default function CollectBar({ collected, art, arts }: CollectBarProps) {
   // Baseline captured ONCE at mount — see this file's own header for why:
   // only a slot that transitions false → true AFTER the bar first appeared
   // should ever fly. `LevelPlay.tsx` keys the whole subtree on `level.id`, so
   // a genuinely new level always remounts this bar with a fresh baseline.
   const initiallyCollectedRef = useRef(collected)
   if (collected.length === 0) return null
-  const width = (MARK_HEIGHT * art.w) / art.h
+  const widthOf = (a: ArtImage) => (MARK_HEIGHT * a.w) / a.h
   // [T27 follow-up, orchestrator screenshot review 2026-09-27] A
   // `PLACEHOLDER_ZOO_ANIMALS` entry's own colour art never shows here as its
   // grey sign block either — the SAME `PlaceholderAnimalBadge` every other
@@ -72,6 +76,8 @@ export default function CollectBar({ collected, art }: CollectBarProps) {
       <div className="pistas-slots">
         {collected.map((filled, i) => {
           const justCollected = filled && !initiallyCollectedRef.current[i]
+          const slotArt = arts?.[i] ?? art
+          const width = widthOf(slotArt)
           return (
             <span
               key={i}
@@ -82,7 +88,7 @@ export default function CollectBar({ collected, art }: CollectBarProps) {
                 (placeholder ? (
                   <PlaceholderAnimalBadge className="pistas-flight" style={{ width: MARK_HEIGHT, height: MARK_HEIGHT }} />
                 ) : (
-                  <img className="pistas-flight" src={art.href} width={width} height={MARK_HEIGHT} alt="" aria-hidden="true" />
+                  <img className="pistas-flight" src={slotArt.href} width={width} height={MARK_HEIGHT} alt="" aria-hidden="true" />
                 ))}
               <svg
                 className="pistas-slot"
@@ -108,7 +114,7 @@ export default function CollectBar({ collected, art }: CollectBarProps) {
                     <PlaceholderAnimalBadge x={12 - MARK_HEIGHT / 2} y={12 - MARK_HEIGHT / 2} width={MARK_HEIGHT} height={MARK_HEIGHT} />
                   ) : (
                     <image
-                      href={art.href}
+                      href={slotArt.href}
                       x={12 - width / 2}
                       y={12 - MARK_HEIGHT / 2}
                       width={width}

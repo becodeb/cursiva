@@ -379,13 +379,15 @@ export const SECTORS: readonly ZooSector[] = [
     // animals share this one spot where the pond gives the duck and the
     // dolphin one each: fish left (`dx: -70`, box x∈[413.9, 470.2]),
     // turtle centre (`dx: 0`, box x∈[477.5, 546.5], aspect 448/292),
-    // monkey right (`dx: 70`, box x∈[559.5, 604.5], aspect 320/320 —
-    // today's placeholder, `PROMISED_ANIMAL_ART.mono`) — three clear
-    // gaps, all inside `ENTRADA_HIT`'s own x∈[398, 626].
+    // monkey right (`dx: 70`) — three clear gaps, all inside
+    // `ENTRADA_HIT`'s own x∈[398, 626]. [T49] The real monkey
+    // (`docs/23` D4) is a tall figure (aspect 269/448), so at the shared 45
+    // it stood 27 units wide, a speck beside the turtle; at 64 it is 38
+    // wide (box x∈[563, 601]) and about as present as its two neighbours.
     animals: [
       { id: 'pez', dx: -70, dy: 0, size: 45, appearsWhen: ['f2-agua4'] },
       { id: 'tortuga', dx: 0, dy: 0, size: 45, appearsWhen: ['turtle4'] },
-      { id: 'mono', dx: 70, dy: 0, size: 45, appearsWhen: ['monkey4'] },
+      { id: 'mono', dx: 70, dy: 0, size: 64, appearsWhen: ['monkey4'] },
     ],
     // Narrowed from eight ids to four by adventure-flow-and-map-guidance T1
     // ("levels that must be done twice"): each enclosure used to carry TWO

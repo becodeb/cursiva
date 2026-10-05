@@ -46,6 +46,8 @@ import {
   ANDEAN_HAT_ART,
   CART_ART,
   OCTOPUS_ART,
+  OCTOPUS_EMPTY_HANDED_ART,
+  PULPITO_POSE_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
   ZOO_BACKPACK_ART,
@@ -55,7 +57,9 @@ import {
   ZOO_OCTOPUS_BACKPACK_ART,
   ZOO_OCTOPUS_PRINT_ART,
   ZOO_SPEECH_BUBBLE_ART,
+  ZOO_SPEECH_BUBBLE_LEFT_ART,
   ZOO_STAR_ART,
+  TRANSITION_LENS_ART,
   type ArtImage,
 } from './assets'
 
@@ -305,7 +309,7 @@ const MIN_AUTHORED_CLUE_CONTOUR_SHARE = 0.15
  * deliberate design, not a defect this guard should catch. */
 const WORLD_GUARD_FILES = import.meta.glob(
   [
-    '../../public/art/{zoo-*,sector-*,hedgehog-*,andean-hat,carrier-octopus,home-octopus}.png',
+    '../../public/art/{zoo-*,sector-*,hedgehog-*,andean-hat,carrier-octopus,carrier-octopus-empty,home-octopus}.png',
     '!../../public/art/*-silhouette.png',
   ],
   {
@@ -327,9 +331,17 @@ const WORLD_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
   'zoo-speech-bubble.png': ZOO_SPEECH_BUBBLE_ART,
   'zoo-cart.png': CART_ART,
   'carrier-octopus.png': OCTOPUS_ART,
+  'carrier-octopus-empty.png': OCTOPUS_EMPTY_HANDED_ART,
   'home-octopus.png': HOME_OCTOPUS_ART,
   'hedgehog-profile.png': HEDGEHOG_ART.profile,
   'hedgehog-curled.png': HEDGEHOG_ART.curled,
+  // T49 (`docs/23` D7, D35; `docs/20` B9, B14).
+  'hedgehog-uncurling.png': HEDGEHOG_ART.uncurling,
+  'zoo-octopus-points.png': PULPITO_POSE_ART.points,
+  'zoo-octopus-thinks.png': PULPITO_POSE_ART.thinks,
+  'zoo-octopus-cheers.png': PULPITO_POSE_ART.cheers,
+  'zoo-speech-bubble-left.png': ZOO_SPEECH_BUBBLE_LEFT_ART,
+  'zoo-transition-lens.png': TRANSITION_LENS_ART,
   'andean-hat.png': ANDEAN_HAT_ART,
   // The prologue's caretaker cutout (add-caretaker-prologue design.md D5,
   // §4). Not part of any spread below: `ZOO_CARETAKER_ART` is a standalone
