@@ -3748,7 +3748,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const backdropEntry = useMemo(() => backdropFor(level.id), [level.id])
   const backdrop = useMemo<TraceBackdrop | undefined>(() => {
     const b = backdropEntry
-    return b ? { href: b.art.href, quiet: b.quiet, channel: b.channel, ...(b.edge ? { edge: b.edge } : {}) } : undefined
+    return b ? { href: b.art.href, quiet: b.quiet, channel: b.channel, ...(b.edge ? { edge: b.edge } : {}), ...(b.dim ? { dim: b.dim } : {}) } : undefined
   }, [backdropEntry])
 
   // The level is drawn in a PLACE — a sector's backdrop or the detective

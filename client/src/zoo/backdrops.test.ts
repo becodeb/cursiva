@@ -4,7 +4,7 @@
 // inDetectiveWorld, Not on the Clue" — the medusa regression guard). Node
 // environment, no DOM.
 import { describe, expect, it } from 'vitest'
-import { FLOWER_DORMANT, luma } from '../detective/palette'
+import { ART_OUTLINE, FLOWER_DORMANT, luma } from '../detective/palette'
 import { viewBoxToImage } from './sectors'
 import { getLevel } from '../levels/catalog'
 import { buildLevelTarget } from '../levels/buildLevel'
@@ -20,6 +20,10 @@ import {
   WAYPOINT_BACKDROPS,
   WET_SAND_HOLLOW,
   backdropFor,
+  dimmedHex,
+  effectiveBrightest,
+  effectiveQuiet,
+  type AdventureBackdrop,
 } from './backdrops'
 
 /** `TraceCanvas.tsx`'s night-dim ink (private there), mirrored for the same
@@ -48,6 +52,19 @@ const INK_COLOR = '#1e293b'
 const OFF_PATH_INK = '#94a3b8'
 
 const MIN_BACKDROP_CONTRAST = 55 // docs/09:158
+
+/** The pair of paints that decides whether a row's painted surface reads
+ *  against its backdrop, and their luma gap. A reveal row's veil covers the
+ *  art, so it is the veil against the art's lightest pixel. A channel row is
+ *  the channel against the art's lightest pixel — unless the row declares a
+ *  marker `edge` (T50): then the channel never touches the art, the outline
+ *  does, and the channel's boundary is the channel-vs-edge contrast. */
+function surfaceGap(b: AdventureBackdrop): number {
+  if (b.tile) return Math.abs(luma(b.tile) - luma(effectiveBrightest(b)))
+  const paint = b.channel ?? SHEET_PAPER
+  if (b.edge) return Math.abs(luma(paint) - luma(b.edge))
+  return Math.abs(luma(paint) - luma(effectiveBrightest(b)))
+}
 
 /** The five reveal-grid rows, wired straight into `ADVENTURE_BACKDROP` — no
  * `PENDING_ENTRANCE_BACKDROP` indirection. Widened from three to five
@@ -100,10 +117,7 @@ describe('Reveal veil luma law (docs/09:158, design.md §2.5)', () => {
       ...Object.entries(REVEAL_BACKDROPS),
       ...Object.entries(ART_CORRIDOR_BACKDROPS),
     ]) {
-      expect(
-        Math.abs(luma(b.tile ?? b.channel ?? SHEET_PAPER) - luma(b.brightest)),
-        id,
-      ).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
+      expect(surfaceGap(b), id).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
     }
   })
 
@@ -249,13 +263,53 @@ describe('Corridor art luma law — the snake row (design.md §2.1, §2.2)', () 
 })
 
 describe('ADVENTURE_BACKDROP luma law (docs/09:158)', () => {
-  it('separates the corridor paint from the lightest thing it is painted over, for the three mountain/lagoon backdrops', () => {
+  it('separates the corridor paint from the lightest thing it is painted over (or from its marker edge), for every channel backdrop', () => {
     for (const [id, b] of Object.entries(CHANNEL_BACKDROPS)) {
-      expect(
-        Math.abs(luma(b.channel ?? SHEET_PAPER) - luma(b.brightest)),
-        id,
-      ).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
+      expect(surfaceGap(b), id).toBeGreaterThanOrEqual(MIN_BACKDROP_CONTRAST)
     }
+  })
+
+  // T50: the round-2 backgrounds (`docs/23` D25-D28) are detailed scenes —
+  // reeds, a dock and white clouds over the lagoon; flowers and a lit glade
+  // in the forest; grey rocks, cacti and a stone wall on the two mountains —
+  // not the flat band the old channel law was written for.
+  describe('the channel marker edge (T50)', () => {
+    const EDGED = ['duck', 'dolphin', 'fish', 'monkeys', 'sheep', 'llama'] as const
+
+    it('every channel row on a redrawn background declares the ART_OUTLINE edge; the sand rows keep none', () => {
+      for (const id of EDGED) expect(ADVENTURE_BACKDROP[id]!.edge, id).toBe(ART_OUTLINE)
+      for (const id of ['turtles', 'snake', 'peces', 'tortugas', 'monos', 'sendero', 'night', 'bee', 'hedgehog'] as const) {
+        expect(ADVENTURE_BACKDROP[id]!.edge, id).toBeUndefined()
+      }
+    })
+
+    it('the channel clears its own edge by the 55-luma law — paper and stone alike', () => {
+      for (const id of EDGED) {
+        const b = ADVENTURE_BACKDROP[id]!
+        expect(Math.abs(luma(b.channel ?? SHEET_PAPER) - luma(b.edge!)), id).toBeGreaterThanOrEqual(
+          MIN_BACKDROP_CONTRAST,
+        )
+      }
+    })
+
+    // Falsifiability: WHY the paper rows need the edge. Without it the paper
+    // channel is asserted against the redrawn art's own lightest pixel, and
+    // it fails by almost the whole law.
+    it('goes red for the bare paper channel against the redrawn lagoon and forest — the reason for the edge', () => {
+      for (const id of ['duck', 'dolphin', 'fish', 'monkeys'] as const) {
+        const b = ADVENTURE_BACKDROP[id]!
+        expect(b.channel, id).toBeUndefined()
+        expect(Math.abs(luma(SHEET_PAPER) - luma(b.brightest)), id).toBeLessThan(MIN_BACKDROP_CONTRAST)
+      }
+    })
+
+    // The two stone rows pass the one-sided brightest law on their own
+    // (CHANNEL_STONE, luma 100, against white: 155). Their edge answers the
+    // DARK side, which this law does not sample: the redrawn mountains put
+    // grey rocks, cacti, shaded grass and a stone wall of the stone's own
+    // grey inside the band (`docs/23` had asked these two bands for "nothing
+    // darker than" #9da396/#c8d3d8). That is a browser finding, recorded in
+    // `capturas/2026-10-05-t50/`, not a number this suite can sample.
   })
 
   it('goes red for the paint it replaced — which is WHY it replaced it', () => {
@@ -476,17 +530,31 @@ describe('ADVENTURE_BACKDROP.fish (promised-animals P2)', () => {
 describe('WAYPOINT_BACKDROPS luma law (design.md §3.4)', () => {
   const bee = WAYPOINT_BACKDROPS.bee
 
-  it('W1: the dormant flower separates from the forest band by at least 55 luma — findable', () => {
-    const gap = Math.abs(luma(FLOWER_DORMANT) - luma(bee.brightest))
-    expect(gap).toBeGreaterThanOrEqual(55)
-    expect(gap).toBeCloseTo(59, 0)
+  // T50: the redrawn forest (`docs/23` D28) is an illustrated glade — lit
+  // grass, white flowers and highlights — so `brightest` is pure white and
+  // `quiet` is the grass's own modal green. The two laws below are restated
+  // for that: a light paint can no longer clear the art's lightest pixel, so
+  // the dormant flower is findable by its own marker OUTLINE (the shipped
+  // `sector-flower-dormant.png` keeps the drawn contour, `build_art.py`'s
+  // `FLOWER_DORMANT` row), and the four "unusable" paints are measured
+  // against the ground they would vanish into, `quiet`.
+  it('W1: the dormant flower is findable by its own marker outline — fill vs ART_OUTLINE clears 55 whatever the art behind it', () => {
+    expect(Math.abs(luma(FLOWER_DORMANT) - luma(ART_OUTLINE))).toBeGreaterThanOrEqual(55)
   })
 
-  it("W2: the child's own trail (INK_COLOR, after A1's repair) separates from the forest band by at least 55 luma", () => {
+  it('W1 (falsifiability): the dormant fill alone no longer clears the redrawn forest — why the outline is load-bearing', () => {
+    expect(Math.abs(luma(FLOWER_DORMANT) - luma(bee.brightest))).toBeLessThan(55)
+    expect(Math.abs(luma(FLOWER_DORMANT) - luma(bee.quiet))).toBeLessThan(55)
+  })
+
+  it("W2: the child's own trail (INK_COLOR, after A1's repair) separates from the forest's lightest and modal colours by at least 55 luma", () => {
     const INK_COLOR = '#1e293b'
-    const gap = Math.abs(luma(INK_COLOR) - luma(bee.brightest))
-    expect(gap).toBeGreaterThanOrEqual(55)
-    expect(gap).toBeCloseTo(111, 0)
+    const vsBrightest = Math.abs(luma(INK_COLOR) - luma(bee.brightest))
+    const vsQuiet = Math.abs(luma(INK_COLOR) - luma(bee.quiet))
+    expect(vsBrightest).toBeGreaterThanOrEqual(55)
+    expect(vsQuiet).toBeGreaterThanOrEqual(55)
+    expect(vsBrightest).toBeCloseTo(215, 0)
+    expect(vsQuiet).toBeCloseTo(128, 0)
   })
 
   it('W3: the dormant flower is achromatic — chroma <= 12, the tolerance that lets the author pick a near-grey', () => {
@@ -497,25 +565,25 @@ describe('WAYPOINT_BACKDROPS luma law (design.md §3.4)', () => {
   // Falsifiability (paso D's discipline): each of these MUST go RED, encoding
   // an ARGUMENT rather than only its conclusion. None can pass alongside
   // W1/W2 above, by construction — each compares a DIFFERENT paint.
-  it('F1: the shipped dormant grey (CLUE_DRAINED) is unusable in this sector — without it FLOWER_DORMANT looks like a taste call', () => {
+  it('F1: the shipped dormant grey (CLUE_DRAINED) vanishes into the forest grass — without it FLOWER_DORMANT looks like a taste call', () => {
     const CLUE_DRAINED = '#838383'
-    expect(Math.abs(luma(CLUE_DRAINED) - luma(bee.brightest))).toBeLessThan(55)
+    expect(Math.abs(luma(CLUE_DRAINED) - luma(bee.quiet))).toBeLessThan(55)
   })
 
   it("F2: the night's own dim (TORCH_CHALK_DIM) is not reusable here, at any tint", () => {
-    expect(Math.abs(luma(TORCH_CHALK_DIM) - luma(bee.brightest))).toBeLessThan(55)
+    expect(Math.abs(luma(TORCH_CHALK_DIM) - luma(bee.quiet))).toBeLessThan(55)
   })
 
   it("F3: OFF_PATH_INK is A1's defect, as a number — the one row a future reader must not delete", () => {
     const OFF_PATH_INK = '#94a3b8'
-    const gap = Math.abs(luma(OFF_PATH_INK) - luma(bee.brightest))
+    const gap = Math.abs(luma(OFF_PATH_INK) - luma(bee.quiet))
     expect(gap).toBeLessThan(55)
-    expect(gap).toBeCloseTo(10, 0)
+    expect(gap).toBeCloseTo(7, 0)
   })
 
   it('F4: no earth channel (CORRIDOR_EARTH) is admissible either, so "no channel" is a finding and not an omission', () => {
     const CORRIDOR_EARTH = '#d9c3ae'
-    expect(Math.abs(luma(CORRIDOR_EARTH) - luma(bee.brightest))).toBeLessThan(55)
+    expect(Math.abs(luma(CORRIDOR_EARTH) - luma(bee.quiet))).toBeLessThan(55)
   })
 
   it('declares no channel, no tile, and no ink/inkDim — the vacuous-inheritance claim', () => {
@@ -557,36 +625,55 @@ describe('SPINE_BACKDROPS ink law (radial-spines design.md §2 D1(a)/D4, §8.2)'
     expect(hedgehog.inkDim).toBe(ADVENTURE_BACKDROP.night!.inkDim)
   })
 
-  it('keeps the established hedgehog art measurements when night discovery moves to renewed art', () => {
+  it('draws on its own redrawn night (D29), separate from the night-discovery art, through a 30% NIGHT_VEIL dim (T50)', () => {
     const night = ADVENTURE_BACKDROP.night!
     expect(hedgehog.art.href).toBe('/art/sector-night-background.png')
     expect(night.art.href).toBe('/art/sector-night-zoo-background.png')
     expect(hedgehog.art).not.toBe(night.art)
-    expect(hedgehog.quiet).toBe('#2a3346')
-    expect(hedgehog.brightest).toBe('#526083')
-    expect(hedgehog.corridorRows).toEqual(night.corridorRows)
+    expect(hedgehog.quiet).toBe('#1a325a')
+    expect(hedgehog.brightest).toBe('#fffbb5')
+    // The spines reach almost the whole sheet (hedgehog1's ball, hedgehog3's
+    // long profile spines), so the sampled band is the full image height.
+    expect(hedgehog.corridorRows).toEqual({ top: 0, bottom: 1023 })
+    expect(hedgehog.dim).toEqual({ color: NIGHT_VEIL, opacity: 0.3 })
   })
 
-  it('TORCH_CHALK (the earned mark, and the child\'s own line) clears the night band by >=55, both quiet and brightest', () => {
-    const vsQuiet = Math.abs(luma(TORCH_CHALK) - luma(hedgehog.quiet))
-    const vsBrightest = Math.abs(luma(TORCH_CHALK) - luma(hedgehog.brightest))
-    expect(vsQuiet).toBeGreaterThanOrEqual(55)
-    expect(vsBrightest).toBeGreaterThanOrEqual(55)
-    expect(vsQuiet).toBeCloseTo(189, 0)
-    expect(vsBrightest).toBeCloseTo(142.7, 0)
+  it('goes red for TORCH_CHALK against the UNDIMMED redrawn night — the moon and the lit dome are why the dim exists', () => {
+    expect(Math.abs(luma(TORCH_CHALK) - luma(hedgehog.brightest))).toBeLessThan(55)
   })
 
-  it('the unfilled mark (TORCH_CHALK_DIM) clears the night band too — brightest by only 0.8, recorded as a risk', () => {
-    const vsQuiet = Math.abs(luma(dimInk) - luma(hedgehog.quiet))
-    const vsBrightest = Math.abs(luma(dimInk) - luma(hedgehog.brightest))
+  it('dimmedHex mixes per channel, the way the browser composites the veil', () => {
+    expect(dimmedHex('#ffffff', { color: '#000000', opacity: 0.5 })).toBe('#808080')
+    expect(dimmedHex('#123456', { color: '#123456', opacity: 0.3 })).toBe('#123456')
+    expect(dimmedHex('#fffbb5', { color: NIGHT_VEIL, opacity: 0 })).toBe('#fffbb5')
+  })
+
+  it('TORCH_CHALK (the earned mark, and the child\'s own line) clears the dimmed night by >=55, both quiet and brightest', () => {
+    const vsQuiet = Math.abs(luma(TORCH_CHALK) - luma(effectiveQuiet(hedgehog)))
+    const vsBrightest = Math.abs(luma(TORCH_CHALK) - luma(effectiveBrightest(hedgehog)))
     expect(vsQuiet).toBeGreaterThanOrEqual(55)
     expect(vsBrightest).toBeGreaterThanOrEqual(55)
-    expect(vsBrightest).toBeCloseTo(55.8, 0)
+    expect(vsQuiet).toBeCloseTo(199, 0)
+    expect(vsBrightest).toBeCloseTo(62, 0)
+  })
+
+  // Recorded risk, as before T50 (when it cleared by only 0.8): the unfilled
+  // anchor mark clears the dimmed night ground, but NOT the moon, the stars
+  // or the lit dome — no dim that keeps the scene a picture gets it there
+  // (it would take ~66% of NIGHT_VEIL). The marks sit on the body's own
+  // anchor ring, over the dark ground, fence and trees, never on the moon
+  // (`capturas/2026-10-05-t50/level-hedgehog1-*`).
+  it('the unfilled mark (TORCH_CHALK_DIM) clears the dimmed night ground; the bright spots stay a recorded risk', () => {
+    const vsQuiet = Math.abs(luma(dimInk) - luma(effectiveQuiet(hedgehog)))
+    const vsBrightest = Math.abs(luma(dimInk) - luma(effectiveBrightest(hedgehog)))
+    expect(vsQuiet).toBeGreaterThanOrEqual(55)
+    expect(vsBrightest).toBeLessThan(55)
+    expect(vsBrightest).toBeCloseTo(25, 0)
   })
 
   it('goes red for INK_COLOR against the night band — no dark ink is admissible (falsifiability, docs/09 §4)', () => {
     const INK_COLOR = '#1e293b'
-    expect(Math.abs(luma(INK_COLOR) - luma(hedgehog.quiet))).toBeLessThan(55)
+    expect(Math.abs(luma(INK_COLOR) - luma(effectiveQuiet(hedgehog)))).toBeLessThan(55)
   })
 
   it('TORCH_CHALK FAILS the body\'s brightest by 29.3 — chalk over the body is undrawable, which is WHY measure 5 excludes it', () => {

@@ -69,6 +69,38 @@ export interface AdventureBackdrop {
    *  law (`docs/09:158`): with the outline, the channel's boundary is the
    *  channel-vs-edge contrast, which `backdrops.test.ts` asserts instead. */
   edge?: string
+  /** A flat veil laid over the whole backdrop art, under every play layer
+   *  (`TraceBackdrop.dim`, `canvas/TraceCanvas.tsx`; T50). ABSENT = the art
+   *  shows at full strength, every row that predates T50. For a level whose
+   *  child's line is drawn straight on the art (no channel, no reveal veil
+   *  to carry it), when the art's own sampled `brightest` is too light for
+   *  that line: the veil pulls every pixel toward `color` by `opacity`, and
+   *  `effectiveBrightest` is what the 55-luma law is then asserted on. */
+  dim?: { color: string; opacity: number }
+}
+
+/** `hex` seen through a `dim` veil: the straight per-channel mix the browser
+ *  composites (`opacity` of `dim.color` over `hex`). Luma is linear in the
+ *  channels, so the mixed colour's luma is the same mix of the two lumas. */
+export function dimmedHex(hex: string, dim: { color: string; opacity: number }): string {
+  const ch = (h: string, i: number) => parseInt(h.slice(1 + 2 * i, 3 + 2 * i), 16)
+  let out = '#'
+  for (let i = 0; i < 3; i++) {
+    const v = Math.round(ch(hex, i) * (1 - dim.opacity) + ch(dim.color, i) * dim.opacity)
+    out += v.toString(16).padStart(2, '0')
+  }
+  return out
+}
+
+/** The lightest colour the child's line can actually land on: `brightest`,
+ *  or `brightest` seen through the row's `dim` veil when it has one. */
+export function effectiveBrightest(b: AdventureBackdrop): string {
+  return b.dim ? dimmedHex(b.brightest, b.dim) : b.brightest
+}
+
+/** The quiet colour as the child sees it — `quiet` through `dim`, if any. */
+export function effectiveQuiet(b: AdventureBackdrop): string {
+  return b.dim ? dimmedHex(b.quiet, b.dim) : b.quiet
 }
 
 /** Mountain stone. Not a taste call — design.md §2.1's window is `[95,
@@ -346,6 +378,13 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
     quiet: '#1a325a',
     brightest: '#fffbb5',
     corridorRows: { top: 0, bottom: 1023 },
+    // T50: the redrawn night (`docs/23` D29) has a moon, stars, a lit
+    // lantern and a glowing dome — `brightest` #fffbb5 (luma 244) — and the
+    // chalk line is drawn straight on it, with no channel or veil of its
+    // own. A 30% `NIGHT_VEIL` brings that brightest down to luma 177, which
+    // `TORCH_CHALK` (239) clears by 62. The scene stays a night scene; the
+    // moon just glows less.
+    dim: { color: NIGHT_VEIL, opacity: 0.3 },
     ink: TORCH_CHALK,
     inkDim: TORCH_CHALK_DIM,
   },

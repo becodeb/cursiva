@@ -44,6 +44,7 @@ import {
   PROMISED_ANIMAL_ART,
   SECTOR_ADVENTURE_ART,
   SECTOR_BACKGROUND_ART,
+  UI_BUTTON_ART,
   SIGN_ART,
   ZOO_BACKPACK_ART,
   ZOO_CARETAKER_ART,
@@ -156,6 +157,7 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
   ...Object.entries(SECTOR_BACKGROUND_ART).map(([id, art]) =>
     [`SECTOR_BACKGROUND_ART.${id}`, art] as const,
   ),
+  ...Object.entries(UI_BUTTON_ART).map(([id, art]) => [`UI_BUTTON_ART.${id}`, art] as const),
   ...Object.entries(SECTOR_ADVENTURE_ART).map(([id, art]) =>
     [`SECTOR_ADVENTURE_ART.${id}`, art] as const,
   ),
@@ -187,12 +189,31 @@ const keyOf = (href: string) => href.replace(/^\/art\//, '').replace(/\.png$/, '
 
 describe('art registry matches the shipped pipeline manifest', () => {
   it('builds the approved glass and night sources into the public background exports', () => {
+    // T50: the aquarium moved to the round-2 tank (`docs/23` D31, 2:1); the
+    // night zoo keeps its 3:2 original (its 2:1 extension, D33, has a seam).
     expect(buildScript).toContain(
-      "('fondo entrada vidrio.png', 'sector-aquarium-background.png', 1536, 1024, (51, 973))",
+      "('fondo pecera v2.png', 'sector-aquarium-background.png', 2048, 1024, (0, 1023))",
     )
     expect(buildScript).toContain(
       "('fondo noche zoo.png', 'sector-night-zoo-background.png', 1536, 1024, (51, 973))",
     )
+  })
+
+  it('ships the seven round-2 redraws as 2:1 pass-throughs, and keeps the three seamed extensions on their 3:2 originals (T50)', () => {
+    for (const [src, out, rows] of [
+      ['fondo laguna v2.png', 'sector-lagoon-background.png', '(93, 931)'],
+      ['fondo ladera v2.png', 'sector-slope-background.png', '(187, 906)'],
+      ['fondo cordillera v2.png', 'sector-range-background.png', '(127, 897)'],
+      ['fondo bosque v2.png', 'sector-forest-background.png', '(155, 973)'],
+      ['fondo nocturno v2.png', 'sector-night-background.png', '(0, 1023)'],
+      ['fondo sendero v2.png', 'sector-path-background.png', '(0, 1023)'],
+    ] as const) {
+      expect(buildScript).toContain(`('${src}', '${out}', 2048, 1024, ${rows})`)
+      expect(manifest[out.replace(/\.png$/, '')]).toMatchObject({ w: 2048, h: 1024 })
+    }
+    for (const out of ['sector-sand-background', 'sector-night-zoo-background', 'sector-monkeys-background']) {
+      expect(manifest[out]).toMatchObject({ w: 1536, h: 1024 })
+    }
   })
 
   it.each(REGISTERED.map(([label, art]) => [label, art] as const))(
@@ -262,7 +283,9 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // + 16 clue (T43, `docs/22`: puddle, seeds, duckFeather, scale,
     // handprint, banana, hedgehogPrint, bananaPeel, two states each) + 2
     // sector adventure cutouts (`docs/20` B12: apple, mushroom).
-    expect(REGISTERED.length).toBe(127)
+    // + 8 UI_BUTTON_ART (T50, `docs/23` D36): the chrome buttons cut from
+    // `botones lamina.png`.
+    expect(REGISTERED.length).toBe(135)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -381,9 +404,9 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(entry.quiet).toBe(backdrop.quiet)
     expect(entry.brightest).toBe(backdrop.brightest)
     expect(entry.corridorRows).toEqual(backdrop.corridorRows)
-    expect(backdrop.quiet).toBe('#b4c5d0')
-    expect(backdrop.brightest).toBe('#b4c5d0')
-    expect(backdrop.corridorRows).toEqual({ top: 135, bottom: 889 })
+    expect(backdrop.quiet).toBe('#80a2b9')
+    expect(backdrop.brightest).toBe('#ffffff')
+    expect(backdrop.corridorRows).toEqual({ top: 93, bottom: 931 })
   })
 
   it("matches ADVENTURE_BACKDROP.sheep/.llama's quiet/brightest/corridorRows against the pipeline's own sampled values (row C)", () => {
@@ -441,7 +464,7 @@ describe('art registry matches the shipped pipeline manifest', () => {
     expect(aquarium.quiet).toBe(glass.quiet)
     expect(aquarium.brightest).toBe(glass.brightest)
     expect(aquarium.corridorRows).toEqual(glass.corridorRows)
-    expect(glass.quiet).toBe('#b5e7f2')
+    expect(glass.quiet).toBe('#0f96d8')
     expect(glass.brightest).toBe('#ffffff')
 
     expect(sand.quiet).toBe(sandBackdrop.quiet)
@@ -488,11 +511,15 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // values in Phase 7 (task 3.6/7.1) — asserted here, ahead of that row's
     // own creation, as the guard against the pipeline's own numbers drifting.
     const forest = manifest['sector-forest-background']
-    expect(forest.corridorRows).toEqual({ top: 191, bottom: 926 })
-    // The band is flat over this range: quiet and brightest are the SAME
-    // colour (design.md §3.1's own prediction, confirmed by the rebuild).
-    expect(forest.quiet).toBe('#86a678')
-    expect(forest.brightest).toBe('#86a678')
+    expect(forest.corridorRows).toEqual({ top: 155, bottom: 973 })
+    // T50: the redrawn forest (`docs/23` D28) is an illustrated glade, not a
+    // flat band, so quiet (the grass's modal green) and brightest (a white
+    // highlight) no longer coincide.
+    expect(forest.quiet).toBe('#a3c03d')
+    expect(forest.brightest).toBe('#ffffff')
+    expect(forest.quiet).toBe(ADVENTURE_BACKDROP.bee!.quiet)
+    expect(forest.brightest).toBe(ADVENTURE_BACKDROP.bee!.brightest)
+    expect(forest.corridorRows).toEqual(ADVENTURE_BACKDROP.bee!.corridorRows)
   })
 
   it("gives the flower's two states IDENTICAL w/h (free-trail-waypoints design.md §3.2) — both derive from flor.png", () => {

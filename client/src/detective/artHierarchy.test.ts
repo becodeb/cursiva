@@ -365,23 +365,34 @@ const COLOUR_GRADED_FULL_CANVAS = new Set([
   'sector-night-background.png',
   'sector-night-zoo-background.png',
   'sector-sand-background.png',
+  // T50: the redrawn round-2 scenes (`docs/23` D25-D30) are illustrated
+  // like the sand and monkeys art — shaded foliage, water and stone — so
+  // their near-black pixels are scene fills, not a contour.
+  'sector-lagoon-background.png',
+  'sector-slope-background.png',
+  'sector-range-background.png',
+  'sector-forest-background.png',
+  'sector-path-background.png',
 ])
 
 /** Authoring canvases are a separate contract from compact shipped assets:
- * backgrounds retain their final 3:2 coordinate system, while cutouts retain
- * a square transparent workspace before `build_art.py` crops them. */
+ * backgrounds retain their final coordinate system (3:2, or 2:1 for the
+ * round-2 redraws, T50), while cutouts retain a square transparent
+ * workspace before `build_art.py` crops them. */
 const SECTOR_SOURCE_FILES = import.meta.glob(
-  '../../../art-source/{fondo laguna,fondo arena,fondo ladera,fondo cordillera,fondo bosque,fondo nocturno,vibora chica,vibora mediana,vibora grande,llama,abeja,flor,panal,delfin,caracol,linterna,erizo,erizo enroscado,gorro andino}.png',
+  '../../../art-source/{fondo laguna v2,fondo arena,fondo ladera v2,fondo cordillera v2,fondo bosque v2,fondo nocturno v2,fondo pecera v2,fondo sendero v2,vibora chica,vibora mediana,vibora grande,llama,abeja,flor,panal,delfin,caracol,linterna,erizo,erizo enroscado,gorro andino}.png',
   { eager: true, query: '?inline', import: 'default' },
 ) as Inlined
 
 const SECTOR_SOURCE_CANVASES: Readonly<Record<string, { w: number; h: number; opaque: boolean }>> = {
-  'fondo laguna.png': { w: 1536, h: 1024, opaque: true },
+  'fondo laguna v2.png': { w: 2048, h: 1024, opaque: true },
   'fondo arena.png': { w: 1536, h: 1024, opaque: true },
-  'fondo ladera.png': { w: 1536, h: 1024, opaque: true },
-  'fondo cordillera.png': { w: 1536, h: 1024, opaque: true },
-  'fondo bosque.png': { w: 1536, h: 1024, opaque: true },
-  'fondo nocturno.png': { w: 1536, h: 1024, opaque: true },
+  'fondo ladera v2.png': { w: 2048, h: 1024, opaque: true },
+  'fondo cordillera v2.png': { w: 2048, h: 1024, opaque: true },
+  'fondo bosque v2.png': { w: 2048, h: 1024, opaque: true },
+  'fondo nocturno v2.png': { w: 2048, h: 1024, opaque: true },
+  'fondo pecera v2.png': { w: 2048, h: 1024, opaque: true },
+  'fondo sendero v2.png': { w: 2048, h: 1024, opaque: true },
   'vibora chica.png': { w: 1024, h: 1024, opaque: false },
   'vibora mediana.png': { w: 1024, h: 1024, opaque: false },
   'vibora grande.png': { w: 1024, h: 1024, opaque: false },
@@ -397,29 +408,28 @@ const SECTOR_SOURCE_CANVASES: Readonly<Record<string, { w: number; h: number; op
   'gorro andino.png': { w: 1024, h: 1024, opaque: false },
 }
 
-/** Legacy flat-band sources reserve y=20–80% for one calm base colour. The
+/** Legacy flat-band sources reserved y=20–80% for one calm base colour. The
  * renewed illustrated backgrounds use organic calm zones instead and are
  * protected by manifest sampling, pixel-identical export tests, and browser
- * evidence rather than this obsolete flat-fill invariant. */
-const SECTOR_QUIET_BAND_BASE: Readonly<Record<string, readonly [number, number, number]>> = {
-  'fondo laguna.png': [180, 197, 208],
-  'fondo ladera.png': [157, 163, 150],
-  'fondo cordillera.png': [200, 211, 216],
-  'fondo bosque.png': [134, 166, 120],
-  'fondo nocturno.png': [42, 51, 70],
-}
+ * evidence rather than this obsolete flat-fill invariant. Since T50 no
+ * shipped background comes from a flat-band source (the five that did were
+ * redrawn as `docs/23` D25-D29), so the table is empty; the check stays for
+ * any future flat-band source. */
+const SECTOR_QUIET_BAND_BASE: Readonly<Record<string, readonly [number, number, number]>> = {}
 
 /** Full-canvas sector art is a true pass-through: the authored source IS the
  * shipped coordinate system. Keep this explicit rather than deriving names,
  * because `laguna` → `lagoon` and `cordillera` → `range` are intentional
  * product vocabulary translations. */
 const SECTOR_SOURCE_TO_EMITTED: Readonly<Record<string, string>> = {
-  'fondo laguna.png': 'sector-lagoon-background.png',
+  'fondo laguna v2.png': 'sector-lagoon-background.png',
   'fondo arena.png': 'sector-sand-background.png',
-  'fondo ladera.png': 'sector-slope-background.png',
-  'fondo cordillera.png': 'sector-range-background.png',
-  'fondo bosque.png': 'sector-forest-background.png',
-  'fondo nocturno.png': 'sector-night-background.png',
+  'fondo ladera v2.png': 'sector-slope-background.png',
+  'fondo cordillera v2.png': 'sector-range-background.png',
+  'fondo bosque v2.png': 'sector-forest-background.png',
+  'fondo nocturno v2.png': 'sector-night-background.png',
+  'fondo pecera v2.png': 'sector-aquarium-background.png',
+  'fondo sendero v2.png': 'sector-path-background.png',
 }
 
 function named(files: Inlined): readonly (readonly [string, string])[] {
@@ -517,11 +527,15 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
           }
         }
         expect(decorated, `${name}: the y=20–80% tracing band must stay calm`).toBe(0)
+      }
 
-        // `PASSTHROUGHS` must not later introduce a resize, recolour, or
-        // crop. Check every RGBA byte, including the quiet corridor and the
-        // intentionally dark/chromatic scenery fills outside it.
-        const emittedName = SECTOR_SOURCE_TO_EMITTED[name]
+      // `PASSTHROUGHS` must not later introduce a resize, recolour, or
+      // crop. Check every RGBA byte, including the quiet corridor and the
+      // intentionally dark/chromatic scenery fills outside it. T50: run for
+      // every background source, not only the flat-band ones, so the 2:1
+      // redraws are held to the same pixel-identical export.
+      const emittedName = SECTOR_SOURCE_TO_EMITTED[name]
+      if (emittedName) {
         const emittedUrl = emitted.get(emittedName)
         expect(emittedUrl, `${name}: its pass-through output is missing`).toBeDefined()
         const shipped = await decodePng(base64ToBytes(emittedUrl!.split(',')[1]))
