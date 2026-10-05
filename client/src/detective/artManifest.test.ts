@@ -97,6 +97,11 @@ interface ManifestEntry {
  * cart` (`carrito.png`'s row, task 1.2) was the one pending entry, and
  * Phase 7 registers `CART_ART` and wires its consumer (`zoo/backpack.ts`),
  * closing the gap design.md §7.1's resequencing note opened. */
+/** T48 (`docs/23` §7.2): how far, per RGB channel, a clue variation's
+ *  measured fill may sit from its kind's token. Set from the round-2 art's
+ *  own spread (see the test that reads it). */
+const VARIATION_FILL_TOLERANCE = 48
+
 const PENDING_MANIFEST_KEYS = new Set<string>([])
 
 const manifest: Record<string, ManifestEntry> = JSON.parse(
@@ -129,6 +134,11 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
     .flatMap(([kind, art]) => [
     [`CLUE_ART.${kind}.art.earned`, art.art.earned] as const,
     [`CLUE_ART.${kind}.art.drained`, art.art.drained] as const,
+    // T48: every variation's pair is shipped art of its own.
+    ...(art.variations ?? []).flatMap((pair, i) => [
+      [`CLUE_ART.${kind}.variations[${i}].earned`, pair.earned] as const,
+      [`CLUE_ART.${kind}.variations[${i}].drained`, pair.drained] as const,
+    ]),
   ]),
   ...Object.entries(ANIMAL_ART).map(([id, a]) => [`ANIMAL_ART.${id}`, a] as const),
   ...Object.entries(ANIMAL_SILHOUETTE_ART).map(
@@ -283,9 +293,14 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // + 16 clue (T43, `docs/22`: puddle, seeds, duckFeather, scale,
     // handprint, banana, hedgehogPrint, bananaPeel, two states each) + 2
     // sector adventure cutouts (`docs/20` B12: apple, mushroom).
+    // + 4 clue (T48: wool and turtlePrint stop borrowing the bread crumb and
+    // the hedgehog print, two states each) + 50 clue variations (12 kinds x
+    // " 2"/" 3" x two states, plus the scale's one variation x two states,
+    // `docs/23` §7.1) + 4 sector adventure cutouts (leaf 2/3, apple 2/3).
+    // The cat-fur sample still borrows `ANIMAL_SILHOUETTE_ART.gato`.
     // + 8 UI_BUTTON_ART (T50, `docs/23` D36): the chrome buttons cut from
     // `botones lamina.png`.
-    expect(REGISTERED.length).toBe(135)
+    expect(REGISTERED.length).toBe(193)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -377,12 +392,33 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // painted TO its token instead.
     const authored = Object.entries(CLUE_ART).filter(([, art]) => manifest[keyOf(art.art.earned.href)].fill)
     expect(authored.map(([kind]) => kind).sort()).toEqual(
-      ['banana', 'bananaPeel', 'bubble', 'duckFeather', 'puddle', 'scale', 'seaweed', 'seeds'],
+      ['banana', 'bananaPeel', 'bubble', 'duckFeather', 'puddle', 'scale', 'seaweed', 'seeds', 'wool'],
     )
     for (const [kind, art] of authored) {
       expect(art.earned, `CLUE_ART.${kind}.earned: copy the manifest's fill`).toBe(
         manifest[keyOf(art.art.earned.href)].fill,
       )
+    }
+  })
+
+  it('keeps every variation of an authored-colour clue near its kind\'s token (T48, docs/23 §7.2)', () => {
+    // One token per kind, measured off variation 1 (the test above). The
+    // " 2"/" 3" were requested with that same hex; a hand-coloured drawing
+    // never measures to the exact byte, so each variation's measured fill
+    // must sit within `VARIATION_FILL_TOLERANCE` of the token on every
+    // channel. A variation further off is a different colour and goes back
+    // to the author (`docs/23` §7.2), not into the game.
+    const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+    for (const [kind, art] of Object.entries(CLUE_ART)) {
+      if (!manifest[keyOf(art.art.earned.href)].fill) continue
+      for (const [i, pair] of (art.variations ?? []).entries()) {
+        const fill = manifest[keyOf(pair.earned.href)].fill
+        expect(fill, `CLUE_ART.${kind}.variations[${i}]: no measured fill`).toBeDefined()
+        const gap = Math.max(...channels(fill!).map((c, j) => Math.abs(c - channels(art.earned)[j])))
+        expect(gap, `CLUE_ART.${kind}.variations[${i}]: ${fill} vs ${art.earned}`).toBeLessThanOrEqual(
+          VARIATION_FILL_TOLERANCE,
+        )
+      }
     }
   })
 

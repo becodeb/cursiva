@@ -429,6 +429,10 @@ export interface TraceHazards {
    *  and the hit circle (`obstacles.ts`'s `hitObstacle`) can never drift
    *  apart (design.md §4). */
   art?: { href: string; w: number; h: number }
+  /** [T48] Per-hazard pictures, index-aligned with `radii`, overriding
+   *  {@link art} for that hazard (two leaves on one level are two different
+   *  drawings, `docs/23` D21). Same size contract as `art`. */
+  arts?: readonly { href: string; w: number; h: number }[]
 }
 
 /** Hazard body. A muted plum: far from the green start dot and the ochre goal
@@ -2450,8 +2454,9 @@ export default function TraceCanvas({
         // the ball coming while their own trace is already under it. `cx`/`cy`
         // are mutated by the rAF loop — these values are only the t=0 pose.
         <g pointerEvents="none">
-          {hazards.radii.map((r, idx) =>
-            hazards.art ? (
+          {hazards.radii.map((r, idx) => {
+            const art = hazards.arts?.[idx] ?? hazards.art
+            return art ? (
               // Art hazard: a SEPARATE, untouched branch from the plain
               // circle below — never a `<g>` wrapping a circle (design.md
               // §4's corrected choice). The `<image>` carries its own
@@ -2464,8 +2469,8 @@ export default function TraceCanvas({
                 transform={`translate(${hazardHome[idx]?.x ?? 0} ${hazardHome[idx]?.y ?? 0})`}
               >
                 <image
-                  href={hazards.art.href}
-                  {...placeArt(hazards.art, 2 * r, { x: 0, y: 0 })}
+                  href={art.href}
+                  {...placeArt(art, 2 * r, { x: 0, y: 0 })}
                   preserveAspectRatio="xMidYMid meet"
                   opacity={HAZARD_OPACITY}
                   style={{ filter: HAZARD_STICKER_FILTER }}
@@ -2483,8 +2488,8 @@ export default function TraceCanvas({
                 strokeWidth={inkOnly ? 3 : 0}
                 opacity={HAZARD_OPACITY}
               />
-            ),
-          )}
+            )
+          })}
         </g>
       )}
       {carrier && (

@@ -649,6 +649,15 @@ describe('TraceCanvas hazards (docs/08: obstáculos con tiempo)', () => {
     expect(renderToString(<TraceCanvas />)).not.toContain('drop-shadow')
   })
 
+  it('T48: draws each hazard with its own picture from `arts`, falling back to `art`', () => {
+    const art = { href: '/art/sector-leaf.png', w: 242, h: 256 }
+    const arts = [art, { href: '/art/sector-leaf-2.png', w: 200, h: 256 }]
+    const html = renderToString(<TraceCanvas hazards={{ ...hazards, art, arts }} />)
+    expect(html).toContain('href="/art/sector-leaf.png"')
+    expect(html).toContain('href="/art/sector-leaf-2.png"')
+    expect((html.match(/filter:drop-shadow\(/g) ?? []).length).toBe(2)
+  })
+
   it('renders one solid muted circle per hazard, at its own radius', () => {
     const html = renderToString(<TraceCanvas hazards={hazards} />)
     expect((html.match(/fill="#7e6a9e"/g) ?? []).length).toBe(2)
