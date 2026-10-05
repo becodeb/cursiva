@@ -3,9 +3,15 @@
 import { describe, expect, it } from 'vitest'
 import { hasOpenedNotebookOnce, markNotebookOpenedOnce, NOTEBOOK_HINT_LINE, type StorageLike } from './notebookDiscovery'
 import { placeAndFitBubble } from './bubbleFit'
-import { OCTOPUS_CORNER_INSET, OCTOPUS_CORNER_SIZE_PCT, octopusBoxAtCorner, stageSizePx, stanceBubbleSide } from './pulpitoStance'
-import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
-import { ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
+import {
+  OCTOPUS_CORNER_INSET,
+  octopusBoxAtCorner,
+  RESCUE_OCTOPUS_ART,
+  stageOctopusSizing,
+  stageSizePx,
+  stanceBubbleSide,
+} from './pulpitoStance'
+import { ZOO_SPEECH_BUBBLE_LEFT_TAIL } from './bubblePlacement'
 import { ADVENTURES } from '../zoo/adventures'
 
 /** An in-memory fake, the same shape `window.localStorage` exposes for the
@@ -99,16 +105,15 @@ describe('NOTEBOOK_HINT_LINE — fits the closing bubble even appended to the lo
     for (const [vw, vh] of REQUIRED_VIEWPORTS) {
       it(`corner=${corner} viewport=${vw}x${vh}: the longest rescue line + the hint still fits, at a readable font size`, () => {
         const frame = { w: 100, h: 100 }
-        const headBox = octopusBoxAtCorner(ZOO_OCTOPUS_BACKPACK_ART, {
+        const headBox = octopusBoxAtCorner(RESCUE_OCTOPUS_ART, {
           corner,
-          sizeBy: 'width',
-          size: OCTOPUS_CORNER_SIZE_PCT,
+          ...stageOctopusSizing(RESCUE_OCTOPUS_ART),
           bottom: 2,
           inset: OCTOPUS_CORNER_INSET,
         })
         const side = stanceBubbleSide(corner)
         const framePx = stageSizePx(vw, vh)
-        const { content } = placeAndFitBubble({ frame, headBox, tail: ZOO_SPEECH_BUBBLE_TAIL, side, text: combined })
+        const { content } = placeAndFitBubble({ frame, headBox, tail: ZOO_SPEECH_BUBBLE_LEFT_TAIL, side, text: combined })
         const fontPx = (content.fontSize / 100) * framePx
         expect(content.fits, `fontPx=${fontPx.toFixed(1)}`).toBe(true)
         expect(fontPx, `${vw}x${vh}`).toBeGreaterThanOrEqual(11)

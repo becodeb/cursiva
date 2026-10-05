@@ -13,16 +13,18 @@ import {
   placeAndFitBubble,
   wrapLineCount,
 } from './bubbleFit'
-import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
+import { ZOO_SPEECH_BUBBLE_LEFT_TAIL, ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 import {
+  INTRO_OCTOPUS_ART,
   OCTOPUS_CORNER_INSET,
-  OCTOPUS_CORNER_SIZE_PCT,
   PROLOGUE_OCTOPUS_SIZE_PCT,
   octopusBoxAtCorner,
+  RESCUE_OCTOPUS_ART,
+  stageOctopusSizing,
   stageSizePx,
   stanceBubbleSide,
 } from './pulpitoStance'
-import { ADVENTURES, adventureIcon } from '../zoo/adventures'
+import { ADVENTURES, introBubbleArt } from '../zoo/adventures'
 import { PROLOGUE_PLATES } from '../zoo/prologue'
 import { ZOO_CARETAKER_ART, ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
 import type { ArtImage } from '../detective/assets'
@@ -194,13 +196,25 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
     readonly id: string
     readonly text: string
     readonly art?: ArtImage
+    /** [T49] The octopus picture the screen really stands there: the
+     *  pointing pose on an entry, the cheering pose on a rescue closing, a
+     *  beat's own `figure` or the backpack octopus otherwise — exactly
+     *  `AdventureIntro.tsx`/`AdventureClosing.tsx`'s own choices. */
+    readonly octopus: ArtImage
   }
 
   const cases: Case[] = []
   for (const adventure of ADVENTURES) {
-    cases.push({ id: `${adventure.id}: intro`, text: adventure.intro, art: adventureIcon(adventure) })
+    cases.push({ id: `${adventure.id}: intro`, text: adventure.intro, art: introBubbleArt(adventure), octopus: INTRO_OCTOPUS_ART })
+    const isRescue = adventure.animal !== undefined
     for (const [i, beat] of (adventure.closingBeat ?? []).entries()) {
-      cases.push({ id: `${adventure.id}: closingBeat[${i}]`, text: beat.line, art: beat.art })
+      cases.push({
+        id: `${adventure.id}: closingBeat[${i}]`,
+        text: beat.line,
+        // A rescue closing is text-only (`AdventureClosing.tsx`, T24).
+        art: isRescue ? undefined : beat.art,
+        octopus: beat.figure ?? (isRescue ? RESCUE_OCTOPUS_ART : ZOO_OCTOPUS_BACKPACK_ART),
+      })
     }
   }
   // The prologue's own three lines are deliberately NOT swept here any more
@@ -228,6 +242,15 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
   // builds the octopusBoxAtCorner/frame size from Deduction.tsx's OWN
   // exported constants instead.
 
+  /** The stage screens' own octopus box for `octopus` in `corner`. */
+  const stageHeadBox = (octopus: ArtImage, corner: 'left' | 'right') =>
+    octopusBoxAtCorner(octopus, {
+      corner,
+      ...stageOctopusSizing(octopus),
+      bottom: 2,
+      inset: OCTOPUS_CORNER_INSET,
+    })
+
   it('the registry sweep actually covers every shipped adventure (sanity: not accidentally empty)', () => {
     expect(cases.length).toBeGreaterThanOrEqual(ADVENTURES.length)
   })
@@ -236,18 +259,12 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
     for (const [vw, vh] of REQUIRED_VIEWPORTS) {
       it(`corner=${corner} viewport=${vw}x${vh}: every line fits, at a readable font size`, () => {
         const frame = { w: 100, h: 100 }
-        const headBox = octopusBoxAtCorner(ZOO_OCTOPUS_BACKPACK_ART, {
-          corner,
-          sizeBy: 'width',
-          size: OCTOPUS_CORNER_SIZE_PCT,
-          bottom: 2,
-          inset: OCTOPUS_CORNER_INSET,
-        })
         const side = stanceBubbleSide(corner)
         const framePx = stageSizePx(vw, vh)
 
-        for (const { id, text, art } of cases) {
-          const { content } = placeAndFitBubble({ frame, headBox, tail: ZOO_SPEECH_BUBBLE_TAIL, side, text, art })
+        for (const { id, text, art, octopus } of cases) {
+          const headBox = stageHeadBox(octopus, corner)
+          const { content } = placeAndFitBubble({ frame, headBox, tail: ZOO_SPEECH_BUBBLE_LEFT_TAIL, side, text, art })
           const fontPx = (content.fontSize / 100) * framePx
           expect(content.fits, `${id} (fontPx=${fontPx.toFixed(1)})`).toBe(true)
           // A minimum readable size at the SMALLEST required viewport is a
@@ -274,17 +291,11 @@ describe('placeAndFitBubble — every real intro/closing line in the registry, a
       // every real line, at every required viewport, in both stances.
       it(`corner=${corner} viewport=${vw}x${vh}: no word ever breaks inside a line`, () => {
         const frame = { w: 100, h: 100 }
-        const headBox = octopusBoxAtCorner(ZOO_OCTOPUS_BACKPACK_ART, {
-          corner,
-          sizeBy: 'width',
-          size: OCTOPUS_CORNER_SIZE_PCT,
-          bottom: 2,
-          inset: OCTOPUS_CORNER_INSET,
-        })
         const side = stanceBubbleSide(corner)
 
-        for (const { id, text, art } of cases) {
-          const { placement, content } = placeAndFitBubble({ frame, headBox, tail: ZOO_SPEECH_BUBBLE_TAIL, side, text, art })
+        for (const { id, text, art, octopus } of cases) {
+          const headBox = stageHeadBox(octopus, corner)
+          const { placement, content } = placeAndFitBubble({ frame, headBox, tail: ZOO_SPEECH_BUBBLE_LEFT_TAIL, side, text, art })
           const wideWidth = placement.width * CONTENT_WIDTH_FRAC
           const assignments =
             content.layout === 'float'

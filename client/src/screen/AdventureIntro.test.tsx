@@ -5,17 +5,37 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import AdventureIntro, { introSpokenLine } from './AdventureIntro'
 import { auditCaptions } from '../detective/captionAudit'
-import { ANDEAN_HAT_ART, ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import {
+  ANDEAN_HAT_ART,
+  PULPITO_POSE_ART,
+  SECTOR_ADVENTURE_ART,
+  ZOO_ANIMAL_ART,
+  ZOO_SPEECH_BUBBLE_LEFT_ART,
+} from '../detective/assets'
 import { ADVENTURES } from '../zoo/adventures'
 
 const adventure = ADVENTURES[0] // the duck
 
 describe('AdventureIntro (main-screen spec "Narrative Entry Screen Content")', () => {
-  it('renders the three registered hrefs: backpack octopus, speech bubble, duck', () => {
+  it('renders the three registered hrefs: pointing octopus, stage speech bubble, duck (T49)', () => {
     const html = renderToString(<AdventureIntro adventure={adventure} onStart={() => {}} />)
-    expect(html).toContain(`src="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
-    expect(html).toContain(`src="${ZOO_SPEECH_BUBBLE_ART.href}"`)
+    expect(html).toContain(`src="${PULPITO_POSE_ART.points.href}"`)
+    expect(html).toContain(`src="${ZOO_SPEECH_BUBBLE_LEFT_ART.href}"`)
     expect(html).toContain(`href="${ZOO_ANIMAL_ART[adventure.animal!].href}"`)
+  })
+
+  it('[T49] points at the centre: unmirrored in the left corner, mirrored in the right one', () => {
+    const left = renderToString(<AdventureIntro adventure={{ ...adventure, introStance: { corner: 'left' } }} onStart={() => {}} />)
+    const right = renderToString(<AdventureIntro adventure={{ ...adventure, introStance: { corner: 'right' } }} onStart={() => {}} />)
+    expect(left).not.toContain('scale:-1 1')
+    expect(right).toContain('scale:-1 1')
+  })
+
+  it("[T49, docs/20 B17] the snakes' entry bubble shows the shed skin, not a snake in colour", () => {
+    const snake = ADVENTURES.find((a) => a.id === 'snake')!
+    const html = renderToString(<AdventureIntro adventure={snake} onStart={() => {}} />)
+    expect(html).toContain(`href="${SECTOR_ADVENTURE_ART.shedSkin.href}"`)
+    expect(html).not.toContain(`href="${ZOO_ANIMAL_ART.vibora.href}"`)
   })
 
   it('renders the intro line exactly once', () => {

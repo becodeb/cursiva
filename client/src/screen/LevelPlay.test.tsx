@@ -2012,14 +2012,15 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
 
   it('rests the glass in the octopus\'s raised tentacle, not at the route\'s first point', () => {
     // "Que se vea que la tiene el pulpo, no que la tiene adentro." The rest
-    // point is offset up and to the right of the octopus's feet; while
-    // drawing, the canvas puts the glass on the fingertip and this offset
-    // plays no part.
+    // point is offset up and to the LEFT of the octopus's feet ([T49] the
+    // redrawn octopus, `docs/23` D6, raises the glass on the viewer's left);
+    // while drawing, the canvas puts the glass on the fingertip and this
+    // offset plays no part.
     render(makeDetectiveLevel({ carrier: true }))
     const carrier = traceCanvasProbe.current?.carrier as { x: number; y: number } | undefined
     const startMarker = traceCanvasProbe.current?.startMarker as { x: number; y: number }
     expect(carrier).toBeTruthy()
-    expect(carrier?.x).toBeGreaterThan(startMarker.x) // to the right
+    expect(carrier?.x).toBeLessThan(startMarker.x) // to the left
     expect(carrier?.y).toBeLessThan(startMarker.y) // and up (y grows down)
     // Bounded against the OCTOPUS'S OWN rendered height rather than a bare
     // number, because that is what the offset actually has to agree with: far
@@ -2027,9 +2028,9 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     // as this character holding it. The art stands on its feet, so the glass
     // belongs above them and within about one body height.
     const size = (traceCanvasProbe.current?.startArt as Art)!.size
-    const dx = carrier!.x - startMarker.x
+    const dx = startMarker.x - carrier!.x // leftward, positive
     const dy = startMarker.y - carrier!.y // upward, positive
-    expect(dx).toBeLessThan(size) // not off beyond the octopus's own width
+    expect(dx).toBeLessThan(size / 2) // within the octopus's own half-width
     expect(dy).toBeGreaterThan(size * 0.4) // clear of the body's centre
     expect(dy).toBeLessThan(size * 1.2) // not floating away above it
   })
