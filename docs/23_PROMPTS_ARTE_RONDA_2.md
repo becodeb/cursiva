@@ -76,9 +76,9 @@ ChatGPT: cambiar solo la columna "Estado" (ver §0, punto 9).
 
 | ID | Archivo(s) en `art-source/` | Qué | Dónde se usa | Prioridad | Estado | Reemplaza o rehace |
 |---|---|---|---|---|---|---|
-| D1 | `pista pelo de gato.png` | Mechón de pelo del gato naranja | deducción de las ovejas | **alta** | hecho (T48: en la deducción de las ovejas) | nuevo |
+| D1 | `pista pelo de gato.png` | Mechón de pelo del gato naranja | deducción de las ovejas | **alta** | rechazado (T48: se lee como fuego, no se usa; lo rehace D38) | nuevo |
 | D2 | `pista alga.png`, `pista alga 2.png`, `pista alga 3.png` | Alga del fondo de la laguna, tres variaciones | peces: `f2-buceo` | **alta** | hecho (T48: en el juego, `f2-buceo`) | `alga.png` |
-| D3 | `pista escamas de pez.png`, `pista escamas de pez 2.png`, `pista escamas de pez 3.png` | Escamas de pez, tres variaciones | peces: `f2-agua2` | **alta** | hecho (T48: en el juego, `f2-agua2`; la variación 1 salió azul y como un pedazo de piel, no tres escamas naranjas: ver T48) | C6 (`pista escama.png`) |
+| D3 | `pista escamas de pez.png`, `pista escamas de pez 2.png`, `pista escamas de pez 3.png` | Escamas de pez, tres variaciones | peces: `f2-agua2` | **alta** | hecho (T48: en el juego, `f2-agua2`, solo con la 2 y la 3; la 1 salió azul gris, como un pedazo de piel, y no se usa) | C6 (`pista escama.png`) |
 | D4 | `monos lamina.png` | El mono, tres poses | monos: juntar, rescate, mapa, libreta | **alta** | pendiente | B10 (`mono.png`, placeholder) |
 | D5 | `patitos lamina.png` | Tres patitos | pato: juntar la familia | **alta** | pendiente | B16 |
 | D6 | `pulpo lupa lamina.png` | El Pulpito con lupa y sin lupa, misma pose | todos los niveles | **alta** | pendiente | B18; `pulpo con lupa.png` |
@@ -113,8 +113,9 @@ ChatGPT: cambiar solo la columna "Estado" (ver §0, punto 9).
 | D35 | `lupa transicion.png` | La lupa grande de la transición | entre pantallas | baja | pendiente | — |
 | D36 | `botones lamina.png` | Los ocho botones | todas las pantallas | baja | pendiente | — |
 | D37 | `escritorio v2.png` | El escritorio de la oficina | inicio | baja | pendiente | `escritorio.png` |
+| D38 | `pista pelo de gato v2.png` | Mechón de pelo de gato atigrado gris y blanco (rehace D1) | deducción de las ovejas | **alta** | pendiente | D1 (`pista pelo de gato.png`) |
 
-Son **37 pedidos y 54 archivos**. Antes de D23 y D24 van C9 y C10 de `docs/22` (§0, punto 2).
+Son **38 pedidos y 55 archivos** (D38, agregado en T48, rehace D1). Antes de D23 y D24 van C9 y C10 de `docs/22` (§0, punto 2).
 
 ---
 
@@ -2849,6 +2850,67 @@ leg.
 
 ---
 
+## 6 bis. Pedido agregado en T48 (prioridad alta)
+
+Va antes que los de prioridad media y baja (§0, punto 1).
+
+### D38 — El pelo de gato, de nuevo (rehace D1)
+
+- **Archivo**: `art-source/pista pelo de gato v2.png`. PNG 1024 × 1024, fondo transparente. **No pisar** `pista pelo de gato.png`.
+- **Adjuntar**: `art-source/pista lana.png` (el estilo, el grosor de línea y el tamaño: el pelo de gato va al lado de esa lana y tiene que pesar lo mismo) y `art-source/pista pluma de pato.png` (para que se vea distinto).
+- **Por qué se pide de nuevo**: D1 salió como una llama naranja: todas las puntas para arriba y del color del fuego. Un chico dice "fuego". Esta vez el pelo es **gris y blanco** (un gato atigrado gris), **suelto y esponjoso**, y nada naranja ni amarillo.
+- **Qué es y qué tiene que reconocer el chico**: en la deducción de las ovejas, "¿De quién es esta lana?", van tres muestras grandes: el mechón de lana, este pelo de gato y la pluma de pato. Tiene que ser **pelo de gato** (o "pelusa") a primera vista.
+
+```
+Style: a single 2D game asset drawn with a thick felt-tip marker, by
+hand. Dark outline #1a1a1a, thick, with rounded ends. The line is
+HUMAN, not vector: slight wobble along the stroke, small variation in
+thickness, curves that do not close perfectly. Flat colour fill that
+overshoots the outline slightly on one side and falls short on the
+other, like a child colouring in tidily. Chunky, generous shapes with
+no fine detail. Flat colours only.
+
+Do NOT produce: smooth vector or clip-art lines, a logo, gradients,
+soft or drop shadows, glow, 3D shading, bevels, outlines in any colour
+other than #1a1a1a, texture noise, photorealism, or a background.
+
+Canvas: one image, 1024x1024 pixels, TRANSPARENT background (a real
+alpha channel: not white, not grey, not a painted checkerboard). One
+single subject, centred, filling about three quarters of the canvas,
+the SAME size on the canvas as the attached wool tuft. Nothing else:
+no ground, no shadow under it, no text, no frame.
+
+Colour rule: the #1a1a1a outline and TWO flat fills only: soft light
+grey #b9b9b9 and off-white #f2f0ea, like a grey-and-white tabby cat.
+No orange, no yellow, no red, no brown. Every inner detail is a #1a1a1a
+line. No highlights, no gradients.
+
+This is a clue picture in a deduction screen of a game for 6-year-olds.
+It is shown big, next to the attached tuft of sheep's wool and the
+attached duck feather, and the child must tell the three apart at a
+glance.
+
+The subject: a loose, soft clump of cat hair, the fluff a grey tabby
+leaves on a sofa. A low, roundish clump, WIDER than tall, lying flat.
+Its whole outline is made of many SHORT, FINE hairs radiating outwards
+in EVERY direction (sideways and downwards too, not only up), like a
+dandelion clock squashed flat, with three or four single loose hairs
+escaping at the sides. Inside it, short thin #1a1a1a strokes show the
+hair, and two or three soft grey patches on the off-white like tabby
+markings. It must look clearly FLUFFY and soft. It must NEVER look like
+a flame: no tall pointed tongues, no shape that narrows to a tip at the
+top, no flickering outline.
+```
+
+- **Evitar**: una llama o una fogata (puntas largas hacia arriba, base ancha); cualquier naranja o amarillo; rulos o espirales (eso es la lana); un cañón en el medio (eso es la pluma); un gato entero; una nube lisa; un pompón perfectamente redondo.
+- **Checklist**: el común (§3.3), y además:
+  1. Mostrarla sola: ¿un chico de 6 años dice "pelo de gato" o "pelusa"? Si dice "fuego", "llama" o "pasto", se rechaza.
+  2. Al lado de `pista lana.png`: ¿mismo tamaño, mismo grosor de línea, y aun así claramente otra cosa (sin rulos)?
+  3. Al lado de `pista pluma de pato.png`: ¿claramente otra cosa (sin cañón)?
+  4. ¿No tiene nada naranja ni amarillo?
+
+---
+
 ## 7. Notas para la implementación (no son para ChatGPT)
 
 Para la sesión que meta las imágenes en el juego. Lo de siempre vale igual:
@@ -2920,7 +2982,13 @@ alpha fantasma (`docs/17` §3 bis), se copian `w`/`h` del manifiesto a
    el piso de 64 px de toque no cambian.
 8. **D1, el pelo de gato.** Solo aparece en la deducción de las ovejas
    (T46). No necesita versión apagada salvo que esa pantalla la muestre
-   apagada.
+   apagada. **T48:** D1 se lee como fuego y no se usa; la deducción sigue
+   con la silueta del gato hasta D38 (`pista pelo de gato v2.png`). Cuando
+   llegue: una fila `('pista pelo de gato v2.png', 'sample-cat-fur.png',
+   256, 'contour', True)` y su `AUTHORED_SOURCE_SIZES`, apuntar
+   `CAT_FUR_SAMPLE_ART` al archivo nuevo y sacar `catFur` de
+   `PLACEHOLDER_SAMPLE_SOURCES` (`artManifest.test.ts` falla hasta que se
+   haga).
 9. **D10 antes de C9.** C9 (`docs/22`) adjunta `oveja.png`; si D10 ya está,
    ChatGPT adjunta también `oveja v2.png` (§0, punto 2), y el crema de la
    lana sale igual en los dos.

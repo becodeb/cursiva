@@ -79,6 +79,7 @@ import LevelPlay, {
   seedCameraFor,
   shouldFileClue,
   shouldTickClue,
+  CLUE_MARK_SIZE,
   torchView,
   TORCH_MARKER_GLOW,
 } from './LevelPlay'
@@ -1304,6 +1305,22 @@ describe('LevelPlay onFrame/onRelease wiring (integration, SSR probe)', () => {
     // §7.1): mark `i` is variation `i mod 3`, drained.
     expect(clues!.marks.map((m) => m.href)).toEqual(clues!.marks.map((_, i) => clueArtAt(kind, i).drained.href))
     expect(new Set(clues!.marks.map((m) => m.href)).size).toBe(Math.min(3, clues!.marks.length))
+  })
+
+  // T48 follow-up: the scales and the wool read as specks at the shared
+  // mark size, so their kinds draw bigger — and still fit their corridor.
+  it.each([
+    ['f2-agua2', 'scale'],
+    ['sheep-lana', 'wool'],
+  ] as const)('%s draws its %s marks at the kind\'s own size, inside the corridor', (id, kind) => {
+    const level = getLevel(id)
+    renderToString(<LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />)
+    const clues = traceCanvasProbe.current?.clues as { marks: readonly { size: number }[] } | undefined
+    expect(clues?.marks.length).toBeGreaterThan(0)
+    for (const mark of clues!.marks) {
+      expect(mark.size).toBeCloseTo(CLUE_MARK_SIZE * CLUE_ART[kind].markScale!, 6)
+      expect(mark.size).toBeLessThan(level.corridorWidth)
+    }
   })
 
   it('passes `ground` only on a detective trail, and memoises one field per route', () => {

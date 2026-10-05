@@ -29,7 +29,6 @@ import {
   ANIMAL_SILHOUETTE_ART,
   CARRIER_LENS_ART,
   CART_ART,
-  CAT_FUR_SAMPLE_ART,
   CLUE_ART,
   GOAL_MEDUSA_ART,
   GROUND_GRASS,
@@ -102,15 +101,6 @@ interface ManifestEntry {
  *  own spread (see the test that reads it). */
 const VARIATION_FILL_TOLERANCE = 48
 
-/** T48: kinds whose variations measurably do NOT match their token, each with
- *  the reason. Not a tolerance: a known defect, named so it stays visible.
- *  `scale`: `docs/23` D3's variation 1 came back blue-grey (`#8eb1ce`, a
- *  patch of fish skin) instead of three loose `#fb7e08` scales; its " 2"/" 3"
- *  are the requested orange. Redo the 1 and drop this entry. */
-const OFF_TOKEN_VARIATIONS: Readonly<Record<string, string>> = {
-  scale: 'docs/23 D3 variation 1 is blue-grey, its 2/3 are orange',
-}
-
 const PENDING_MANIFEST_KEYS = new Set<string>([])
 
 const manifest: Record<string, ManifestEntry> = JSON.parse(
@@ -149,8 +139,6 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
       [`CLUE_ART.${kind}.variations[${i}].drained`, pair.drained] as const,
     ]),
   ]),
-  // T48: the sheep deduction's cat-fur sample (`docs/23` D1).
-  ['CAT_FUR_SAMPLE_ART', CAT_FUR_SAMPLE_ART] as const,
   ...Object.entries(ANIMAL_ART).map(([id, a]) => [`ANIMAL_ART.${id}`, a] as const),
   ...Object.entries(ANIMAL_SILHOUETTE_ART).map(
     ([id, a]) => [`ANIMAL_SILHOUETTE_ART.${id}`, a] as const,
@@ -285,10 +273,11 @@ describe('art registry matches the shipped pipeline manifest', () => {
     // handprint, banana, hedgehogPrint, bananaPeel, two states each) + 2
     // sector adventure cutouts (`docs/20` B12: apple, mushroom).
     // + 4 clue (T48: wool and turtlePrint stop borrowing the bread crumb and
-    // the hedgehog print, two states each) + 52 clue variations (13 kinds x
-    // " 2"/" 3" x two states, `docs/23` §7.1) + 1 cat-fur sample + 4 sector
-    // adventure cutouts (leaf 2/3, apple 2/3).
-    expect(REGISTERED.length).toBe(188)
+    // the hedgehog print, two states each) + 50 clue variations (12 kinds x
+    // " 2"/" 3" x two states, plus the scale's one variation x two states,
+    // `docs/23` §7.1) + 4 sector adventure cutouts (leaf 2/3, apple 2/3).
+    // The cat-fur sample still borrows `ANIMAL_SILHOUETTE_ART.gato`.
+    expect(REGISTERED.length).toBe(185)
     const hrefs = REGISTERED.map(([, art]) => art.href)
     expect(new Set(hrefs).size, 'two registry entries point at the same file').toBe(hrefs.length)
   })
@@ -399,7 +388,6 @@ describe('art registry matches the shipped pipeline manifest', () => {
     const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
     for (const [kind, art] of Object.entries(CLUE_ART)) {
       if (!manifest[keyOf(art.art.earned.href)].fill) continue
-      if (kind in OFF_TOKEN_VARIATIONS) continue
       for (const [i, pair] of (art.variations ?? []).entries()) {
         const fill = manifest[keyOf(pair.earned.href)].fill
         expect(fill, `CLUE_ART.${kind}.variations[${i}]: no measured fill`).toBeDefined()
@@ -408,15 +396,6 @@ describe('art registry matches the shipped pipeline manifest', () => {
           VARIATION_FILL_TOLERANCE,
         )
       }
-    }
-    // An exception that no longer fails is stale: remove it.
-    for (const kind of Object.keys(OFF_TOKEN_VARIATIONS)) {
-      const art = CLUE_ART[kind as keyof typeof CLUE_ART]
-      const gaps = (art.variations ?? []).map((pair) => {
-        const fill = manifest[keyOf(pair.earned.href)].fill!
-        return Math.max(...channels(fill).map((c, j) => Math.abs(c - channels(art.earned)[j])))
-      })
-      expect(Math.max(...gaps), `OFF_TOKEN_VARIATIONS.${kind} is stale`).toBeGreaterThan(VARIATION_FILL_TOLERANCE)
     }
   })
 

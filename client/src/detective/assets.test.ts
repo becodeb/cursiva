@@ -68,7 +68,20 @@ describe('clue variations (T48, docs/23 §7.1)', () => {
     'scale',
   ]
 
-  it.each(VARIED)('%s has three different drawings, in both states', (kind) => {
+  it('draws the scales with two drawings only, alternating (docs/23 D3 variation 1 is unused)', () => {
+    const hrefs = [0, 1, 2, 3].map((i) => clueArtAt('scale', i).earned.href)
+    expect(hrefs).toEqual([hrefs[0], hrefs[1], hrefs[0], hrefs[1]])
+    expect(hrefs[0]).not.toBe(hrefs[1])
+    expect(clueArtAt('scale', 0)).toBe(CLUE_ART.scale.art)
+  })
+
+  it('draws the scales and the wool bigger than the shared mark, and nothing smaller', () => {
+    expect(CLUE_ART.scale.markScale).toBeGreaterThanOrEqual(1.5)
+    expect(CLUE_ART.wool.markScale).toBeGreaterThanOrEqual(1.5)
+    for (const art of Object.values(CLUE_ART)) expect(art.markScale ?? 1).toBeGreaterThanOrEqual(1)
+  })
+
+  it.each(VARIED.filter((k) => k !== 'scale'))('%s has three different drawings, in both states', (kind) => {
     const seq = [0, 1, 2].map((i) => clueArtAt(kind, i))
     expect(new Set(seq.map((p) => p.earned.href)).size).toBe(3)
     expect(new Set(seq.map((p) => p.drained.href)).size).toBe(3)
@@ -77,7 +90,7 @@ describe('clue variations (T48, docs/23 §7.1)', () => {
     expect(seq[0]).toBe(CLUE_ART[kind].art)
   })
 
-  it.each(VARIED)('%s cycles 1, 2, 3, 1, 2, 3 along a trail, so no two neighbours match', (kind) => {
+  it.each(VARIED.filter((k) => k !== 'scale'))('%s cycles 1, 2, 3, 1, 2, 3 along a trail, so no two neighbours match', (kind) => {
     const hrefs = Array.from({ length: 9 }, (_, i) => clueArtAt(kind, i).earned.href)
     for (let i = 0; i < hrefs.length; i++) {
       expect(hrefs[i]).toBe(hrefs[i % 3])

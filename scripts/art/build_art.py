@@ -481,11 +481,14 @@ SINGLES = [
     ('pista huella de pato.png', 'clue-webfoot-drained.png',   256, CLUE_DRAINED, False),
     ('pista burbujas.png',    'clue-bubble-earned.png',        256, 'contour',    True),
     ('pista burbujas.png',    'clue-bubble-drained.png',       256, CLUE_DRAINED, True),
-    # T48 (`docs/23` D3): `pista escamas de pez.png` replaces C6's `pista
-    # escama.png` (it read as tangerine segments). The old source stays in
-    # `art-source/` (`docs/23` §3.1) but nothing reads it any more.
-    ('pista escamas de pez.png', 'clue-scale-earned.png',      256, 'contour',    True),
-    ('pista escamas de pez.png', 'clue-scale-drained.png',     256, CLUE_DRAINED, True),
+    # T48 (`docs/23` D3): the round-2 scales replace C6's `pista escama.png`
+    # (it read as tangerine segments). Only D3's " 2" and " 3" are used:
+    # its variation 1, `pista escamas de pez.png`, came back as a blue-grey
+    # patch of fish skin instead of loose orange scales, so the " 2" is this
+    # kind's first drawing and the " 3" its only variation (below). The
+    # unused sources stay in `art-source/` (`docs/23` §3.1).
+    ('pista escamas de pez 2.png', 'clue-scale-earned.png',    256, 'contour',    True),
+    ('pista escamas de pez 2.png', 'clue-scale-drained.png',   256, CLUE_DRAINED, True),
     ('pista mano de mono.png', 'clue-handprint-earned.png',    256, PRINT,        False),
     ('pista mano de mono.png', 'clue-handprint-drained.png',   256, CLUE_DRAINED, False),
     ('pista banana.png',      'clue-banana-earned.png',        256, 'contour',    True),
@@ -509,13 +512,12 @@ SINGLES = [
     # turtle's print replace the T45 placeholders (the bread crumb and the
     # hedgehog print); the wool keeps its authored cream like every coloured
     # clue, the turtle print is a bare black silhouette like the other
-    # prints. The cat fur is not a trail clue but one of the three samples
-    # of the sheep deduction, so it has one picture and no drained twin.
+    # prints. (`pista pelo de gato.png`, `docs/23` D1, is NOT shipped: it
+    # reads as a flame; its redo is `docs/23` D38.)
     ('pista lana.png',        'clue-wool-earned.png',          256, 'contour',    True),
     ('pista lana.png',        'clue-wool-drained.png',         256, CLUE_DRAINED, True),
     ('pista huella de tortuga.png', 'clue-turtle-print-earned.png', 256, PRINT,   False),
     ('pista huella de tortuga.png', 'clue-turtle-print-drained.png', 256, CLUE_DRAINED, False),
-    ('pista pelo de gato.png', 'sample-cat-fur.png',           256, 'contour',    True),
     # T48 (`docs/23` D2-D3, D12-D20, D23-D24): the variations " 2"/" 3" of
     # every trail clue. A trail draws mark `i` with variation `i mod 3`
     # (`detective/assets.ts`'s `clueArtAt`), so no two neighbours are the
@@ -578,10 +580,9 @@ SINGLES = [
     ('pista alga 2.png',                'clue-seaweed-2-drained.png', 256, CLUE_DRAINED, True),
     ('pista alga 3.png',                'clue-seaweed-3-earned.png', 256, 'contour', True),
     ('pista alga 3.png',                'clue-seaweed-3-drained.png', 256, CLUE_DRAINED, True),
-    ('pista escamas de pez 2.png',      'clue-scale-2-earned.png', 256, 'contour', True),
-    ('pista escamas de pez 2.png',      'clue-scale-2-drained.png', 256, CLUE_DRAINED, True),
-    ('pista escamas de pez 3.png',      'clue-scale-3-earned.png', 256, 'contour', True),
-    ('pista escamas de pez 3.png',      'clue-scale-3-drained.png', 256, CLUE_DRAINED, True),
+    # The scales: D3's " 3" is this kind's second drawing (see `clue-scale`).
+    ('pista escamas de pez 3.png',      'clue-scale-2-earned.png', 256, 'contour', True),
+    ('pista escamas de pez 3.png',      'clue-scale-2-drained.png', 256, CLUE_DRAINED, True),
     ('lamparita prendida.png', 'lamp-on.png',              192, LAMP,         True),
     # BOTH lamp states come from the LIT drawing, and that is deliberate.
     # `lamparita apagada.png` is a bare dark silhouette with no contour of its
@@ -1173,9 +1174,7 @@ AUTHORED_SOURCE_SIZES = {
     # the square canvas `docs/23` §0 asks for.
     'pista lana.png': (1024, 1024),
     'pista huella de tortuga.png': (1024, 1024),
-    'pista pelo de gato.png': (1024, 1024),
     'pista alga.png': (1024, 1024),
-    'pista escamas de pez.png': (1024, 1024),
     'pista charco 2.png': (1024, 1024),
     'pista charco 3.png': (1024, 1024),
     'pista semillas 2.png': (1024, 1024),

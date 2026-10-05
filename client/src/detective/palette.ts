@@ -166,13 +166,11 @@ export const SEEDS = '#dba43c'
  * green `PLUME` (which stays for the hen case's `trail4`). */
 export const DUCK_FEATHER = '#f6ca3c'
 
-/** Fish case — the fish scales. T48: measured off `docs/23` D3's variation
- * 1 (`pista escamas de pez.png`), which came back as a blue-grey patch of
- * fish skin instead of the requested three loose orange (`#fb7e08`) scales;
- * its " 2"/" 3" are the requested orange (`#fb7800`/`#fb7500`). Was
- * `#fb7e08`, C6's orange. `artManifest.test.ts` names the mismatch
- * (`OFF_TOKEN_VARIATIONS`) until the drawing is redone. */
-export const SCALE = '#8eb1ce'
+/** Fish case — the orange scales, the colour of the fish. T48: measured
+ * off `docs/23` D3's " 2" (`pista escamas de pez 2.png`, now this kind's
+ * first drawing; D3's variation 1 is unused, see `build_art.py`). Was
+ * `#fb7e08`, C6's orange. */
+export const SCALE = '#fb7800'
 
 /** Monkey case — the banana (`docs/22` C12). */
 export const BANANA = '#fbd63a'

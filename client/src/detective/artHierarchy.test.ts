@@ -646,7 +646,8 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
 
   it('outlines every authored-colour clue in a thick achromatic contour (T43)', async () => {
     const files = named(AUTHORED_CLUE_FILES)
-    expect(files.length, 'the authored clue glob has gone stale').toBe(27)
+    // 9 kinds x 3 drawings, minus the scale's unused third (T48).
+    expect(files.length, 'the authored clue glob has gone stale').toBe(26)
     for (const [name, url] of files) {
       const art = await decodePng(base64ToBytes(url.split(',')[1]))
       let opaque = 0

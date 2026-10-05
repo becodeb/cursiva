@@ -3714,7 +3714,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         href: img.href,
         w: img.w,
         h: img.h,
-        size: level.torch ? TORCH_CLUE_MARK_SIZE : CLUE_MARK_SIZE,
+        // [T48] A kind whose drawing reads small at the shared size is drawn
+        // bigger (`ClueArt.markScale`: the scales, the wool).
+        size: (level.torch ? TORCH_CLUE_MARK_SIZE : CLUE_MARK_SIZE) * (CLUE_ART[mark.kind].markScale ?? 1),
       }
     })
   }, [clueDef, trailClueMarks, clueState, level.torch])

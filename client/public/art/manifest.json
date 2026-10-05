@@ -429,43 +429,30 @@
     "w": 214
   },
   "clue-scale-2-drained": {
-    "bytes": 11202,
-    "file": "art/clue-scale-2-drained.png",
-    "h": 215,
-    "w": 256
-  },
-  "clue-scale-2-earned": {
-    "bytes": 27630,
-    "file": "art/clue-scale-2-earned.png",
-    "fill": "#fb7800",
-    "h": 215,
-    "w": 256
-  },
-  "clue-scale-3-drained": {
     "bytes": 12005,
-    "file": "art/clue-scale-3-drained.png",
+    "file": "art/clue-scale-2-drained.png",
     "h": 239,
     "w": 256
   },
-  "clue-scale-3-earned": {
+  "clue-scale-2-earned": {
     "bytes": 28116,
-    "file": "art/clue-scale-3-earned.png",
+    "file": "art/clue-scale-2-earned.png",
     "fill": "#fb7500",
     "h": 239,
     "w": 256
   },
   "clue-scale-drained": {
-    "bytes": 13750,
+    "bytes": 11202,
     "file": "art/clue-scale-drained.png",
-    "h": 256,
-    "w": 246
+    "h": 215,
+    "w": 256
   },
   "clue-scale-earned": {
-    "bytes": 46097,
+    "bytes": 27630,
     "file": "art/clue-scale-earned.png",
-    "fill": "#8eb1ce",
-    "h": 256,
-    "w": 246
+    "fill": "#fb7800",
+    "h": 215,
+    "w": 256
   },
   "clue-seaweed-2-drained": {
     "bytes": 9800,
@@ -829,12 +816,6 @@
     "file": "art/lamp-on.png",
     "h": 192,
     "w": 181
-  },
-  "sample-cat-fur": {
-    "bytes": 35486,
-    "file": "art/sample-cat-fur.png",
-    "h": 206,
-    "w": 256
   },
   "sector-apple": {
     "bytes": 34550,

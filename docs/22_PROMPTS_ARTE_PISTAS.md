@@ -105,7 +105,7 @@ imagen esté guardada y pase su checklist.
 | C7 | `pista huellita de erizo.png` | Huellita de erizo | noche: `night-rastro` | media | hecho (T43: registrada; `night-rastro` no existe todavía) | — |
 | B12 | ver `docs/20` §6 | Manzana y hongo | noche: `night2`, `night3` | media | hecho (T43: en el juego) | `piedra.png` (en la noche) |
 | C9 | `pista lana.png` | Mechón de lana | ovejas: `sheep-lana` | media (decisión 1 aprobada 2026-10-02) | hecho (T48: en el juego, con sus variaciones de `docs/23` D23) | — |
-| C13 | `pista pelo de gato.png` | Mechón de pelo de gato | ovejas: la deducción "¿De quién es esta lana?" (una de las tres muestras) | media (decisión de la autora, 2026-10-02) | hecho (T48: en la deducción; pedido como `docs/23` D1) | — |
+| C13 | `pista pelo de gato.png` | Mechón de pelo de gato | ovejas: la deducción "¿De quién es esta lana?" (una de las tres muestras) | media (decisión de la autora, 2026-10-02) | pendiente (T48: `docs/23` D1 se lee como fuego y no se usa; la deducción sigue con la silueta del gato hasta `docs/23` D38) | — |
 | C10 | `pista huella de tortuga.png` | Huella de tortuga | tortugas: `turtle-huellas` y su deducción | media (decisión 1 aprobada 2026-10-02) | hecho (T48: en el juego y en la deducción, con sus variaciones de `docs/23` D24) | — |
 
 ---
@@ -859,9 +859,11 @@ Para la sesión que meta las imágenes en el juego.
    `w`/`h`) y sacarlo de `PLACEHOLDER_SAMPLE_SOURCES`. La misma guarda de
    `artManifest.test.ts` avisa.
 
-   **Hecho en T48 (2026-10-05).** La lana, la huella de tortuga y el pelo de
-   gato están en el juego; `PLACEHOLDER_CLUE_ART` y
-   `PLACEHOLDER_SAMPLE_SOURCES` quedaron vacíos.
+   **Hecho en T48 (2026-10-05).** La lana y la huella de tortuga están en el
+   juego y `PLACEHOLDER_CLUE_ART` quedó vacío. El pelo de gato no: `docs/23`
+   D1 se lee como fuego, así que sigue la silueta y
+   `PLACEHOLDER_SAMPLE_SOURCES` espera `pista pelo de gato v2.png`
+   (`docs/23` D38).
 
 ---
 

@@ -156,6 +156,13 @@ export interface ClueArt {
    *  draws {@link clueArtAt}`(kind, i)`. Absent = one drawing. All share
    *  the kind's one `earned` token (`docs/23` §7.2). */
   variations?: readonly ClueArtPair[]
+  /** T48 follow-up: how big a TRAIL mark of this kind is drawn, relative to
+   *  the shared mark size (`LevelPlay`'s `CLUE_MARK_SIZE`). Absent = 1. For
+   *  drawings whose subject fills little of a 28-unit mark: the scales are
+   *  two or three small pieces spread over the picture, the wool tuft a
+   *  narrow upright blob, and both read as specks beside a puddle. The
+   *  rail, the deduction and the route's end are unaffected. */
+  markScale?: number
 }
 
 export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
@@ -282,20 +289,19 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
       },
     ],
   },
+  // T48: `docs/23` D3's " 2" and " 3" only (its 1 is a blue-grey skin
+  // patch, not scales), so the trail alternates two drawings.
   scale: {
     earned: SCALE,
+    markScale: 1.6,
     art: {
-      earned: { href: '/art/clue-scale-earned.png', w: 246, h: 256 },
-      drained: { href: '/art/clue-scale-drained.png', w: 246, h: 256 },
+      earned: { href: '/art/clue-scale-earned.png', w: 256, h: 215 },
+      drained: { href: '/art/clue-scale-drained.png', w: 256, h: 215 },
     },
     variations: [
       {
-        earned: { href: '/art/clue-scale-2-earned.png', w: 256, h: 215 },
-        drained: { href: '/art/clue-scale-2-drained.png', w: 256, h: 215 },
-      },
-      {
-        earned: { href: '/art/clue-scale-3-earned.png', w: 256, h: 239 },
-        drained: { href: '/art/clue-scale-3-drained.png', w: 256, h: 239 },
+        earned: { href: '/art/clue-scale-2-earned.png', w: 256, h: 239 },
+        drained: { href: '/art/clue-scale-2-drained.png', w: 256, h: 239 },
       },
     ],
   },
@@ -389,6 +395,7 @@ export const CLUE_ART: Readonly<Record<ClueKind, ClueArt>> = {
   // the turtle's print, like every print, has no colour of its own.
   wool: {
     earned: WOOL,
+    markScale: 1.5,
     art: {
       earned: { href: '/art/clue-wool-earned.png', w: 196, h: 256 },
       drained: { href: '/art/clue-wool-drained.png', w: 196, h: 256 },
@@ -451,15 +458,25 @@ export const PLACEHOLDER_CLUE_ART: Readonly<Partial<Record<ClueKind, string>>> =
  * T45 (the author's decision of 2026-10-02): the sheep deduction compares
  * three samples (the wool, a duck feather, cat fur). Cat fur is not a clue
  * on any level (nobody collects it), so it is one picture, not a `ClueKind`
- * pair. T48: `pista pelo de gato.png` (`docs/23` D1), which replaced the
- * cat's lineup silhouette it borrowed until then.
+ * pair. It borrows the cat's own lineup silhouette — clearly not fur, and
+ * the card says GATO under it either way. T48: `pista pelo de gato.png`
+ * (`docs/23` D1) was not shipped because it reads as a flame; its redo is
+ * `docs/23` D38, `pista pelo de gato v2.png`.
+ *
+ * Swap: one `SINGLES` row in `build_art.py`
+ * (`('pista pelo de gato v2.png', 'sample-cat-fur.png', 256, 'contour', True)`)
+ * plus its `AUTHORED_SOURCE_SIZES` entry, run it, point this constant at the
+ * new file (registering it in `artManifest.test.ts`) and drop the entry from
+ * `PLACEHOLDER_SAMPLE_SOURCES`.
  */
-export const CAT_FUR_SAMPLE_ART: ArtImage = { href: '/art/sample-cat-fur.png', w: 256, h: 206 }
+export const CAT_FUR_SAMPLE_ART: ArtImage = { href: '/art/animal-gato-silhouette.png', w: 448, h: 414 }
 
 /** T45: placeholder pictures that are not clue kinds, each mapped to the
  *  `art-source/` file that will replace it. Guarded the same way as
- *  {@link PLACEHOLDER_CLUE_ART} (`artManifest.test.ts`). Empty since T48. */
-export const PLACEHOLDER_SAMPLE_SOURCES: Readonly<Record<string, string>> = {}
+ *  {@link PLACEHOLDER_CLUE_ART} (`artManifest.test.ts`). */
+export const PLACEHOLDER_SAMPLE_SOURCES: Readonly<Record<string, string>> = {
+  catFur: 'pista pelo de gato v2.png',
+}
 
 /**
  * The lineup art. Each animal's own picture only — WHO is ruled out by WHAT
