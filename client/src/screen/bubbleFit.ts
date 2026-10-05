@@ -205,13 +205,12 @@ export const LINE_HEIGHT = 1.14
 export const CAPTION_CONTENT_AREA_EM = 1.364
 
 /** [T51] Caption advance widths in em at weight 700, measured in Chromium
- *  from a 1000 px span per character inside a bubble. NOTE: the shipped
- *  `public/fonts/nunito.woff2` only covers "A" and the space (measured: every
- *  other letter, digit and accent falls back), so captions really render in
- *  the system sans: DejaVu Sans Bold on the Linux test host, which is what
- *  this table holds. It is wider than Roboto, Arial/Liberation Sans and
- *  Nunito at the same weight, so it over-estimates on a tablet and stays
- *  safe if the font file is fixed. Kerning only ever tightened a pair in
+ *  from a 1000 px span per character inside a bubble, while the shipped
+ *  `public/fonts/nunito.woff2` was a broken subset and captions fell back to
+ *  DejaVu Sans Bold on the Linux test host — that is what this table holds.
+ *  The latin Nunito subset now ships; DejaVu Sans Bold is wider than Nunito
+ *  (and than Roboto/Arial) at the same weight, so the table over-estimates
+ *  and stays safe. Kerning only ever tightened a pair in
  *  the registry's words ("Te" 1.228 vs 1.360 summed), so summing advances
  *  over-estimates too. */
 export const CAPTION_ADVANCE_EM: Readonly<Record<string, number>> = {
