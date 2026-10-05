@@ -67,6 +67,10 @@ Para leer primero:
    **todos** los archivos de la fila están guardados y pasaron su
    checklist (o `2 de 3`, etc., mientras tanto). Meter las imágenes en el
    juego lo hace otra sesión (§7).
+10. **Hay más pedidos en la §6 ter (D39–D46)**, con su propia tabla de
+    estado: los de prioridad alta (D39, D40) van junto con los altos de la
+    §1, antes de cualquier pedido de prioridad media; los de media
+    (D41–D46), después de los medios de la §1 y antes de los de baja.
 
 ---
 
@@ -2908,6 +2912,616 @@ top, no flickering outline.
   2. Al lado de `pista lana.png`: ¿mismo tamaño, mismo grosor de línea, y aun así claramente otra cosa (sin rulos)?
   3. Al lado de `pista pluma de pato.png`: ¿claramente otra cosa (sin cañón)?
   4. ¿No tiene nada naranja ni amarillo?
+
+---
+
+## 6 ter. Pedidos agregados tras integrar la ronda 2 (T48–T50)
+
+Al meter en el juego lo que volvió de la ronda 2 (T48: pistas; T49:
+personajes; T50: fondos) aparecieron ocho defectos que no se arreglan en
+el código: hay que pedir el dibujo de nuevo. Están medidos sobre los
+archivos de `art-source/` y las capturas de `capturas/2026-10-05-t49/`.
+
+**Orden** (§0, punto 10): D39 y D40 son de prioridad alta y van junto con
+los altos de la §1, antes de cualquier pedido de prioridad media. D41–D46
+son de prioridad media y van después de los medios de la §1 y antes de los
+de baja. **Su estado se marca en la tabla de abajo**, no en la §1, con la
+misma regla del §0, punto 9.
+
+Valen igual el §0 entero (un pedido por mensaje, nombre exacto, nunca pisar
+un archivo, tres intentos y `descartado`) y las reglas de la §3.
+
+### Estado de D39–D46
+
+ChatGPT: cambiar solo la columna "Estado" de esta tabla.
+
+| ID | Archivo(s) en `art-source/` | Qué | Dónde se usa | Prioridad | Estado | Reemplaza o rehace |
+|---|---|---|---|---|---|---|
+| D39 | `erizo con espinas v2.png` | El erizo parado con espinas, entero adentro del lienzo | erizo: el erizo terminado (`docs/20` B14, pose 1) | **alta** | pendiente | `erizo con espinas.png` (cortado por el borde derecho) |
+| D40 | `pista escamas de pez v2.png` | La variación 1 de las escamas, naranja y suelta | peces: `f2-agua2` | **alta** | pendiente | `pista escamas de pez.png` (D3, salió azul gris) |
+| D41 | `pulpo poses lamina v2.png` | El Pulpito señala, piensa y festeja, igual a D6 | entrada, deducción, rescate | media | pendiente | `pulpo poses lamina.png` (D7: ojos azules y capa) |
+| D42 | `pulpo mochila y cuidador lamina.png` | El Pulpito con mochila (igual a D6) y el Pulpito cuidador (mismo cuerpo, ropa de cuidador) | mapa y cierres; prólogo | media | pendiente | `pulpo mochila.png`, `pulpo cuidador.png` |
+| D43 | `pista huella de pato 2 v2.png`, `pista huella de pato 3 v2.png`, `pista mano de mono 2 v2.png`, `pista mano de mono 3 v2.png`, `pista huellita de erizo 2 v2.png`, `pista huellita de erizo 3 v2.png`, `pista huella de tortuga 2 v2.png`, `pista huella de tortuga 3 v2.png` | Las variaciones 2 y 3 de las cuatro huellas, distintas en la FORMA | pato, monos, noche, tortugas | media | pendiente | las " 2" y " 3" de D15, D17, D20 y D24 |
+| D44 | `fondo arena v3.png` | La arena a 2:1, en una sola composición | tortugas, víboras, prólogo | media | pendiente | `fondo arena v2.png` (D32, con costuras) |
+| D45 | `fondo noche zoo v3.png` | La noche del zoológico a 2:1, en una sola composición | noche (linterna) | media | pendiente | `fondo noche zoo v2.png` (D33, con costuras) |
+| D46 | `fondo recinto monos v3.png` | El recinto de los monos a 2:1, en una sola composición | prólogo: monos | media | pendiente | `fondo recinto monos v2.png` (D34, con costuras) |
+
+Son **8 pedidos y 15 archivos**. Ninguno pisa un archivo que exista: los
+viejos quedan en `art-source/` (§3.1).
+
+### Cómo se nombran las huellas de D43
+
+`pista huella de pato 2.png` ya existe y no se pisa. Su reemplazo sigue la
+regla `<nombre> v2.png` de la §3.1 aplicada al nombre completo de la
+variación: `pista huella de pato 2` + ` v2` = **`pista huella de pato 2
+v2.png`**. Se lee "la variación 2, rehecha". La variación 1 (`pista huella
+de pato.png`) no cambia y no se pide.
+
+### D39 — El erizo con espinas, entero (rehace `erizo con espinas.png`)
+
+- **Archivo**: `art-source/erizo con espinas v2.png`. PNG **1536 × 1024**, fondo transparente. **No pisar** `erizo con espinas.png`.
+- **Adjuntar**: `art-source/erizo con espinas.png` (el dibujo: la pose, las espinas, los colores y el tamaño) y `art-source/erizo desenroscando.png` (para que sea el mismo animal que la pose 2, que ya está en el juego).
+- **Por qué se pide de nuevo**: el dibujo de hoy está bien, pero se sale por el borde derecho del lienzo: la columna 1023 tiene 418 filas opacas, así que el lomo termina en una recta vertical y no se puede usar (`build_art.py`, comentario de `erizo desenroscando recortado.png`). Del otro lado, la nariz queda a 9 px del borde izquierdo.
+- **Qué se pide**: **el mismo dibujo**, con la misma pose, los mismos colores y **el mismo tamaño**, pero entero y con aire alrededor. Para no achicarlo, el lienzo pasa de 1024 × 1024 a 1536 × 1024: hoy el erizo mide unos 780 px de alto (de la punta de la espina más alta a la planta de las patas), y así sigue midiendo eso. Que tenga el mismo tamaño sirve para medir de nuevo sus puntos de anclaje sin cambiar la escala.
+
+```
+Style: a 2D game asset drawn with a thick felt-tip marker, by hand.
+Dark outline #1a1a1a, thick, with rounded ends: a true neutral black,
+never navy, never dark blue, never dark green. The line is HUMAN, not
+vector: slight wobble along the stroke, small variation in thickness,
+curves that do not close perfectly. Flat fills, one flat colour per
+shape, that overshoot the outline slightly here and there, like a
+child colouring in tidily. Chunky, generous shapes with no fine
+detail. Every inner detail is a dark #1a1a1a line, never a shadow.
+
+Do NOT produce: smooth vector or clip-art lines, a logo, gradients,
+soft or drop shadows, glow, 3D shading, bevels, texture noise,
+photorealism, or a background.
+
+Canvas: one image, 1536x1024 pixels, landscape, TRANSPARENT background
+(a real alpha channel: not white, not grey, not a painted
+checkerboard). Nothing else in the image: no ground line, no shadow
+under the subject, no text, no frame, no second animal or part of one.
+
+Redraw the FIRST attached image, the hedgehog standing in profile,
+EXACTLY as it is: same pose (facing LEFT, nose on the left, four short
+legs on the ground), same spines with the same short dark dash marks,
+same ear, same eye, same small smile, same colours (spines brown
+#78553c, face and belly light tan #f7d1a1, ear and feet tan #d8aa7b)
+and the SAME SIZE: about 780 pixels from the tip of the highest spine
+down to the soles of the feet. It is the same hedgehog as the second
+attached image.
+
+The one thing that changes: today the hedgehog runs off the RIGHT edge
+of its canvas and its back ends in a straight vertical cut. This time
+the WHOLE hedgehog is inside the canvas: the rounded end of its back,
+with its last spines, is drawn completely, curving down to the back
+legs. Centre the hedgehog. Leave clear empty space on every side: at
+least 125 pixels on the left and on the right, at least 85 pixels at
+the top and at the bottom. No part of the drawing touches or crosses
+any edge of the canvas.
+```
+
+- **Evitar**: achicarlo para que entre en 1024 × 1024 (cambia la escala); otra pose (enroscado, de frente, caminando); otro erizo (otro marrón, otra cara); un pedazo de otro erizo al costado (el error de `erizo desenroscando.png`); el lomo cortado con una recta; pasto o suelo.
+- **Checklist**: el común (§3.3, puntos 1–3 y 9), y además:
+  1. ¿Mide 1536 × 1024 y el fondo es transparente de verdad?
+  2. ¿Ningún píxel del erizo toca un borde? Recorrer las cuatro columnas y filas del borde: tienen que estar vacías, y el dibujo tiene que quedar a 125 px o más de los costados y a 85 px o más de arriba y abajo (el 8 % de cada lado).
+  3. ¿El lomo termina en una curva, con espinas, y no en una recta?
+  4. Al lado de `erizo con espinas.png`: ¿misma pose, mismos colores y mismo tamaño? La altura de la espina más alta a las patas tiene que dar unos 780 px (entre 740 y 820).
+  5. Al lado de `erizo desenroscando.png`: ¿es el mismo animal?
+
+### D40 — Las escamas de pez, variación 1 (rehace `pista escamas de pez.png`)
+
+- **Archivo**: `art-source/pista escamas de pez v2.png`. PNG 1024 × 1024, fondo transparente. **No pisar** `pista escamas de pez.png`.
+- **Adjuntar**: `art-source/pista escamas de pez 2.png` (el estilo, el naranja, el grosor y el tamaño de cada escama) y `art-source/pista escamas de pez 3.png` (para que la nueva sea distinta de las dos).
+- **Por qué se pide de nuevo**: la variación 1 de D3 salió como un pedazo de piel azul gris con escamas dibujadas adentro, no como escamas sueltas y naranjas. El juego hoy usa solo la ` 2` (como primera) y la ` 3` (`build_art.py`, T48): a la secuencia le falta una. La nueva completa el trío.
+- **Cómo es cada una**: la ` 2` tiene **dos** escamas sueltas en diagonal; la ` 3`, **tres** escamas en fila diagonal, de grande a chica. La nueva lleva **tres escamas en triángulo** (la distribución que D3 pedía para la 1): así ninguna de las tres repite el arreglo de otra.
+- **El color**: el token del juego es el relleno medido de la ` 2`, `#fb7800` (`client/public/art/manifest.json`, `clue-scale-earned`). La ` 3` trae un brillo y una sombra que la nueva **no** tiene que copiar.
+
+```
+Style: a single 2D game asset drawn with a thick felt-tip marker, by
+hand. Dark outline #1a1a1a, thick, with rounded ends. The line is
+HUMAN, not vector: slight wobble along the stroke, small variation in
+thickness, curves that do not close perfectly. Flat colour fill that
+overshoots the outline slightly on one side and falls short on the
+other, like a child colouring in tidily. Chunky, generous shapes with
+no fine detail. Flat colours only.
+
+Do NOT produce: smooth vector or clip-art lines, a logo, gradients,
+soft or drop shadows, glow, 3D shading, bevels, outlines in any colour
+other than #1a1a1a, texture noise, photorealism, or a background.
+
+Canvas: one image, 1024x1024 pixels, TRANSPARENT background (a real
+alpha channel: not white, not grey, not a painted checkerboard). One
+single subject, centred, filling about three quarters of the canvas.
+Nothing else: no ground, no shadow under it, no text, no frame.
+
+Colour rule: exactly TWO colours, the #1a1a1a outline and ONE flat fill
+colour, bright goldfish orange #fb7800. Every inner detail is a thick
+#1a1a1a line. No white highlights, no lighter or darker orange
+patches, no blue, no grey.
+
+This is a clue mark in a finger-tracing game for 6-year-olds. It is
+shown about 28 pixels tall, repeated many times along a path, and
+rotated to follow the path, so its FRONT must point UP.
+
+The subject: three loose orange fish scales that fell off a goldfish,
+drawn EXACTLY like the scales in the first attached image: each scale
+is a rounded fan shape, like a guitar pick, wide and round at the top
+and narrowing to a short blunt point at the bottom, with ONE thick
+#1a1a1a curved line inside, parallel to its round top edge. Same
+outline weight, same orange, same size of each scale as in the first
+attached image. This time there are THREE scales in a small TRIANGLE:
+two side by side at the bottom and one above, centred between them.
+Each scale is tilted a little differently, and they do NOT touch:
+small clear gaps between them.
+
+This is VARIATION 1 of 3 of the same clue. The two attached images are
+variations 2 and 3: keep their outline weight, their orange and their
+scale size, but do not copy their arrangement (two scales on a
+diagonal; three scales in a diagonal row). This is NOT a patch of fish
+skin with scales drawn on it: the scales are separate, loose pieces.
+```
+
+- **Evitar**: un pedazo de piel con escamas dibujadas adentro (el defecto de la 1); azul, gris o cualquier color que no sea el naranja; brillos o sombras (los de la ` 3`); escamas pegadas o superpuestas; gajos de mandarina (`docs/22` C6); la ` 2` o la ` 3` espejada o rotada.
+- **Checklist**: el común (§3.3), y además:
+  1. ¿Son tres escamas sueltas, naranjas, en triángulo, que no se tocan?
+  2. Al lado de la ` 2` y la ` 3`: ¿mismo naranja, mismo grosor, cada escama del mismo tamaño? ¿Se ve que son las tres de la misma pista, pero ninguna repite el arreglo de otra?
+  3. ¿El relleno es plano? Medir un píxel del medio de una escama: tiene que dar `#fb7800` o un redondeo (§7, punto 2).
+
+### D41 — El Pulpito señala, piensa y festeja, igual al de D6 (rehace D7)
+
+- **Archivo**: `art-source/pulpo poses lamina v2.png`. PNG 1536 × 1024, fondo transparente. Lámina: se guarda entera (§0, punto 7). **No pisar** `pulpo poses lamina.png`.
+- **Adjuntar**: `art-source/pulpo lupa lamina.png` (D6: **el personaje que manda**) y `art-source/pulpo poses lamina.png` (D7: **solo las poses**; su cara, sus ojos y su ropa no).
+- **Por qué se pide de nuevo**: el Pulpito detective de D6 (gorro de detective, cuello y corbata) es ahora el aspecto principal: está al principio de cada camino y en el final del mapa. Las poses de D7 salieron con el mismo gorro pero **distinto**: ojos de iris **azul** (los de D6 son negros con un brillo blanco), una **capa** marrón en lugar del cuello con corbata, un gorro más claro y sin la lupa. Puestas una después de la otra (la entrada con D7, el camino con D6), el chico ve dos pulpos.
+- **Cómo es el Pulpito de D6** (medido en `pulpo lupa lamina.png`):
+  - cuerpo naranja `#fd6a29`, cabeza redonda grande, ocho brazos enrulados con ventosas claras;
+  - ojos grandes, blanco `#fdfbfb`, pupila negra grande con **un brillo blanco**, sin iris de color; dos cejas cortas arqueadas, contentas;
+  - una sonrisa chica, cerrada;
+  - gorro de detective (*deerstalker*) marrón `#ad6b3f` a cuadros, con visera y el moño arriba;
+  - cuello de camisa color tostado `#d09657` con dos puntas, un botón marrón `#783b1b` en el medio y una corbata roja `#e1231d` colgando;
+  - **sin capa**.
+- **Sin lupa**: las poses de hoy no la tienen y así se integraron (T49); la lupa es del Pulpito del camino (D6), que la presta al dedo. Pedirla acá agrega un objeto más en cada pose sin que ninguna pantalla lo use.
+
+```
+Style: a 2D game asset drawn with a thick felt-tip marker, by hand.
+Dark outline #1a1a1a, thick, with rounded ends: a true neutral black,
+never navy, never dark blue, never dark green. The line is HUMAN, not
+vector: slight wobble along the stroke, small variation in thickness,
+curves that do not close perfectly. Flat fills, one flat colour per
+shape, that overshoot the outline slightly here and there, like a
+child colouring in tidily. Chunky, generous shapes with no fine
+detail. Every inner detail is a dark #1a1a1a line, never a shadow.
+
+Do NOT produce: smooth vector or clip-art lines, a logo, gradients,
+soft or drop shadows, glow or a coloured halo around the outline, 3D
+shading, bevels, texture noise, photorealism, or a background.
+
+Canvas: TRANSPARENT background (a real alpha channel: not white, not
+grey, not a painted checkerboard). Nothing else in the image: no
+ground line, no shadow under the subject, no text, no frame.
+
+One image, 1536x1024. THREE separate full-body poses of EXACTLY the
+octopus detective of the FIRST attached image. He must be the same
+character, detail for detail:
+- body orange #fd6a29, big round head, eight curly arms with pale
+  suckers;
+- big eyes: white #fdfbfb with a large BLACK pupil and one small white
+  shine dot; NO coloured iris, NO blue; two short, happy, arched
+  eyebrows;
+- the same brown checked deerstalker hat #ad6b3f, with its peak and
+  the little bow on top;
+- the same tan shirt collar #d09657 with two pointed tips, a brown
+  button #783b1b at the front and a red tie #e1231d hanging below it;
+- NO cape, NO cloak, NO coat. No magnifying glass in these poses.
+Take ONLY the three body poses from the SECOND attached image; ignore
+its blue eyes, its cape and its lighter hat.
+
+Pose 1 (left): pointing to the RIGHT, excited: one arm stretched out
+to the right, its tip curled like a pointing finger; mouth open in a
+happy "look!".
+Pose 2 (centre): thinking: one arm tip touching his chin, eyes looking
+up, mouth a small closed smile.
+Pose 3 (right): celebrating: three or four arms raised high, a big
+open smile.
+
+Layout rules (the game cuts this sheet into three pictures with one
+rule, so these matter):
+- All three at the SAME scale: the head is the same size in all three,
+  about 260 pixels wide, and each figure is about 650 pixels tall.
+- All three stand on the SAME invisible ground line: the lowest arm
+  tips of every pose touch the same height, about 100 pixels above the
+  bottom of the image.
+- Each pose is ONE connected drawing: nothing floating around it, no
+  motion lines, no stars, no question marks, no sweat drops.
+- Clear empty space between poses, at least 40 pixels, so they never
+  touch; and at least 80 pixels from every edge of the image.
+```
+
+- **Evitar**: ojos azules o de cualquier color de iris; la capa; un gorro más claro o sin cuadros; la corbata o el cuello faltando; otro naranja; cejas de enojado o de preocupado; un brillo o halo naranja alrededor del contorno (D6 y D7 lo trajeron); signos, estrellitas o rayas de movimiento sueltas; la lupa.
+- **Checklist**: el común (§3.3, puntos 1–3 y 9), y además:
+  1. Recortar la cabeza de cada pose y ponerla al lado de la de `pulpo lupa lamina.png`: ¿mismos ojos (negros, con brillo, sin azul), mismo gorro, mismo naranja?
+  2. ¿Las tres tienen el cuello tostado con botón y corbata roja, y ninguna tiene capa?
+  3. ¿Las tres cabezas miden lo mismo y las tres apoyan en la misma línea?
+  4. ¿Cada pose es una sola figura, sin nada suelto alrededor, y ninguna toca a otra ni al borde?
+  5. ¿Se entiende cada pose sin explicación: señala, piensa, festeja?
+
+### D42 — El Pulpito con mochila y el Pulpito cuidador (rehace `pulpo mochila.png` y `pulpo cuidador.png`)
+
+- **Archivo**: `art-source/pulpo mochila y cuidador lamina.png`. PNG 1536 × 1024, fondo transparente. Lámina: se guarda entera (§0, punto 7). **No pisar** `pulpo mochila.png` ni `pulpo cuidador.png`.
+- **Adjuntar**: `art-source/pulpo lupa lamina.png` (D6: **el personaje que manda**), `art-source/pulpo mochila.png` (solo la mochila verde y cómo la lleva) y `art-source/pulpo cuidador.png` (solo la ropa de cuidador: gorra con la huellita y delantal con bolsillo).
+- **Por qué se pide de nuevo**: los dos son del primer pase de arte, anterior a D6, y se ven como otro pulpo: sin gorro ni cuello, con cejas de enojado, otro naranja y otro dibujo de los brazos. El de la mochila está en el mapa y en los cierres de aventura que no son rescate (la captura `1024x768-16-night-closing.png` de T49 lo muestra al lado del erizo); en el final del mapa ya aparece el de D6, y el cambio de uno a otro se nota. `pulpo cuidador.png` además vino con el fondo casi transparente en lugar de transparente (`GHOST_ALPHA_SOURCES`).
+- **El cuidador es el mismo personaje, no otro**: `docs/16` (§2, beat 0 y beat 5) y `docs/11` dicen que **el Pulpito es el cuidador del zoológico** y que al final del prólogo nace el detective (`docs/16` §7, punto 7: "el Pulpito ya detective: lupa en un tentáculo, sombrero puesto"). Por eso el cuidador lleva **el mismo cuerpo, los mismos ojos y la misma cara de D6**, pero **su ropa de cuidador y no la de detective**: ni el gorro de detective ni el cuello con corbata, que se los pone recién al final del prólogo.
+- **Quedan afuera** `pulpo oficina.png` (`home-octopus`, ninguna pantalla lo muestra hoy) y `pulpo con lupa v2.png` / `pulpo sin lupa.png` (son D6).
+
+```
+Style: a 2D game asset drawn with a thick felt-tip marker, by hand.
+Dark outline #1a1a1a, thick, with rounded ends: a true neutral black,
+never navy, never dark blue, never dark green. The line is HUMAN, not
+vector: slight wobble along the stroke, small variation in thickness,
+curves that do not close perfectly. Flat fills, one flat colour per
+shape, that overshoot the outline slightly here and there, like a
+child colouring in tidily. Chunky, generous shapes with no fine
+detail. Every inner detail is a dark #1a1a1a line, never a shadow.
+
+Do NOT produce: smooth vector or clip-art lines, a logo, gradients,
+soft or drop shadows, glow or a coloured halo around the outline, 3D
+shading, bevels, texture noise, photorealism, or a background.
+
+Canvas: TRANSPARENT background (a real alpha channel: not white, not
+grey, not a painted checkerboard; the background must be fully
+transparent, not almost transparent). Nothing else in the image: no
+ground line, no shadow under the subject, no text, no frame.
+
+One image, 1536x1024. TWO separate full-body poses of EXACTLY the
+octopus of the FIRST attached image, side by side. In both poses he is
+the same character, detail for detail: body orange #fd6a29, big round
+head, eight curly arms with pale suckers drawn like the first attached
+image; big eyes, white #fdfbfb with a large BLACK pupil and one small
+white shine dot, NO coloured iris; two short, happy, arched eyebrows,
+NEVER angry or frowning eyebrows; a small closed smile.
+
+Pose 1 (left), the detective with his backpack: dressed EXACTLY as in
+the first attached image (the brown checked deerstalker hat #ad6b3f,
+the tan shirt collar #d09657 with a brown button #783b1b and the red
+tie #e1231d, NO cape), and wearing the green backpack of the second
+attached image on his back: the two green straps #47cb3d pass over
+his shoulders, two arms hold the straps at chest height, and the
+backpack shows a little on both sides of his body. Standing, facing
+the viewer, the other arms curled out to the sides. No magnifying
+glass.
+
+Pose 2 (right), the zoo caretaker, BEFORE he becomes a detective: the
+same octopus, wearing the caretaker clothes of the third attached
+image instead of the detective ones: a cream cap with a green peak and
+a small dark green paw print on the front, and a cream apron with green
+straps and one green front pocket. NO deerstalker hat, NO collar, NO
+tie. One arm raised in a friendly wave; the other arms curled out to
+the sides. Standing, facing the viewer.
+
+Layout rules (the game cuts this sheet into two pictures with one
+rule, so these matter):
+- Both at the SAME scale: the head is the same size in both, about 300
+  pixels wide, and each figure is about 750 pixels tall.
+- Both stand on the SAME invisible ground line: the lowest arm tips of
+  both poses touch the same height, about 100 pixels above the bottom
+  of the image.
+- Each pose is ONE connected drawing: the backpack touches his body,
+  and nothing floats around him: no wave lines next to the raised arm,
+  no stars, no motion lines.
+- Clear empty space between the two poses, at least 60 pixels; at
+  least 80 pixels from every edge of the image.
+```
+
+- **Evitar**: las cejas de enojado de los dos dibujos viejos; otro naranja u otros ojos; el cuidador con gorro de detective o corbata (todavía no es detective); el detective con capa; las rayitas de saludo al lado del brazo (se recortan y quedan raras); el carrito de limpieza (no va en esta lámina); un fondo casi transparente o gris claro detrás del cuidador.
+- **Checklist**: el común (§3.3, puntos 1–3 y 9), y además:
+  1. Al lado de `pulpo lupa lamina.png`: ¿los dos son el mismo pulpo (mismos ojos negros con brillo, mismas cejas contentas, mismo naranja, mismos brazos)?
+  2. Pose 1: ¿gorro de detective, cuello tostado, corbata roja, sin capa, y la mochila verde puesta (tiras sobre los hombros)?
+  3. Pose 2: ¿gorra crema con huellita y delantal con bolsillo, sin nada de la ropa de detective?
+  4. ¿Las dos cabezas miden lo mismo y las dos apoyan en la misma línea? ¿Cada pose es una sola figura, sin rayitas sueltas?
+  5. Abrirla sobre un fondo oscuro: ¿no queda un velo claro alrededor de ninguna de las dos poses?
+
+### D43 — Las huellas, variaciones 2 y 3 de nuevo (rehace las de D15, D17, D20 y D24)
+
+- **Qué es y qué tiene que reconocer el chico**: las cuatro huellas del juego (pato, mano de mono, huellita de erizo, huella de tortuga). En el juego, una huella **no tiene color**: el pipeline la aplana a una silueta negra sólida (`PRINT`, `keep_ink=False`, `docs/22` §3.3). Con las variaciones de hoy, una vez aplanadas, la 1, la 2 y la 3 son **casi el mismo sello**: en la tira de las doce siluetas embarcadas (`client/public/art/clue-*-earned.png`) las tres manos de mono, las tres huellitas de erizo, las tres de tortuga y las tres de pato se distinguen solo mirando de cerca. ChatGPT cambió detalles que el aplanado borra (líneas de adentro, bordes) o retocó la imagen adjunta en lugar de dibujar otra.
+- **Qué se pide**: ocho dibujos nuevos, la 2 y la 3 de cada huella, que **se distingan por la silueta**: cuánto se abren los dedos, hacia dónde se inclinan, un poco más chica, una impresa a medias. El nombre sigue la regla de arriba ("Cómo se nombran las huellas de D43").
+- **Lo que no cambia** (§3.2): sigue siendo la misma huella del mismo animal, negra sólida, con el frente hacia arriba, y la 1 no se toca.
+- **Adjuntar en cada mensaje**: la variación 1 de esa huella (para el animal, el estilo y el tamaño). Las cuatro huellas se piden **en ocho mensajes seguidos**, la 2 y después la 3 de cada una.
+
+Los ocho prompts comparten el texto; cambian el nombre de la 1, el animal y
+la frase "This time". El bloque común es este, con `<VARIACION>`,
+`<ARCHIVO 1>`, `<ANIMAL>` y `<THIS TIME>` reemplazados por los de la tabla
+de abajo:
+
+```
+Style: a single 2D game asset drawn by hand with a thick felt-tip
+marker, like a rubber stamp pressed on the ground. The edges are
+slightly irregular and hand-made, never perfectly smooth. Chunky,
+generous shapes with no fine detail.
+
+Do NOT produce: smooth vector or clip-art shapes, a logo, gradients,
+shadows, glow, 3D shading, texture noise, photorealism, or a
+background.
+
+Canvas: one image, 1024x1024 pixels, TRANSPARENT background (a real
+alpha channel: not white, not grey, not a painted checkerboard). One
+single subject, centred. Nothing else: no ground, no shadow, no text,
+no frame.
+
+Colour rule: the whole print is ONE solid shape filled with #1a1a1a.
+No outline of another colour, no inner lines, no second colour.
+
+This is a clue mark in a finger-tracing game for 6-year-olds. It is
+shown about 28 pixels tall, repeated many times along a path, and
+rotated to follow the path, so its FRONT must point UP.
+
+IMPORTANT: the game flattens this print into one solid black
+silhouette. Only the OUTER SHAPE survives: inner lines, edge texture
+and small details disappear. So this variation must differ from the
+attached print in its SILHOUETTE, clearly visible when both are filled
+solid black and shown 28 pixels tall. Do NOT edit, trace or retouch the
+attached image: draw a NEW print from scratch. The attached image is
+only a guide for the animal, the style and the size.
+
+The subject: <ANIMAL> <THIS TIME>
+
+This is VARIATION <VARIACION> of 3 of the same clue. Variation 1 is the
+attached image "<ARCHIVO 1>". Keep the same animal, the solid #1a1a1a
+colour, the level of detail and the front pointing UP. Never simply a
+mirrored or rotated copy of variation 1, and never the same silhouette
+with small changes: side by side, a child must see at once that it is
+the same kind of print, but a different one.
+```
+
+| Archivo nuevo | `<VARIACION>` | `<ARCHIVO 1>` (adjuntar) | `<ANIMAL>` | `<THIS TIME>` |
+|---|---|---|---|---|
+| `pista huella de pato 2 v2.png` | 2 | `pista huella de pato.png` | one webbed duck footprint pressed into mud, toes pointing UP: three long, rounded toes joined by webbing, and a small rounded heel below. | This time the three toes spread VERY wide, almost flat, like a wide-open fan: the two side toes point sideways much more than in the attached print, and the web between them is full, its front edge almost straight. The print fills about three quarters of the canvas, like the attached one. |
+| `pista huella de pato 3 v2.png` | 3 | `pista huella de pato.png` | one webbed duck footprint pressed into mud, toes pointing UP: three long, rounded toes joined by webbing, and a small rounded heel below. | This time the toes are close together and all three lean clearly to the LEFT, as if the duck were turning; the heel is MISSING, because the duck stepped only on the front of its foot (a partial print, the back edge rounded off). The print is a little SMALLER: about two thirds of the canvas. |
+| `pista mano de mono 2 v2.png` | 2 | `pista mano de mono.png` | one monkey handprint, fingers pointing UP: a narrow rounded palm, four LONG fingers with clear gaps between them, and a long thumb set low and sticking out to one side. | This time the four fingers spread WIDE apart like an open fan, with big gaps between them, and the thumb sticks straight out SIDEWAYS, at a right angle to the fingers. The print fills about three quarters of the canvas, like the attached one. |
+| `pista mano de mono 3 v2.png` | 3 | `pista mano de mono.png` | one monkey handprint, fingers pointing UP: a narrow rounded palm, four LONG fingers with clear gaps between them, and a long thumb set low and sticking out to one side. | This time the hand pressed only partly: the palm is SHORT and its bottom edge is missing (rounded off, as if the hand lifted), the four fingers are close together and curved to the LEFT as if gripping a vine, and the thumb is shorter. The print is a little SMALLER: about two thirds of the canvas. |
+| `pista huellita de erizo 2 v2.png` | 2 | `pista huellita de erizo.png` | one small hedgehog footprint, toes pointing UP: a rounded palm pad at the bottom and FIVE small round toe pads in an arc above it, each toe pad separate, with clear gaps. | This time the palm pad is a WIDE, low bean shape, and the five toe pads sit in a very FLAT, wide arc, almost a straight row, spreading wider than the palm on both sides. The print fills about three quarters of the canvas, like the attached one. |
+| `pista huellita de erizo 3 v2.png` | 3 | `pista huellita de erizo.png` | one small hedgehog footprint, toes pointing UP: a rounded palm pad at the bottom and FIVE small round toe pads in an arc above it, each toe pad separate, with clear gaps. | This time the print is SMUDGED on one side: only FOUR toe pads show (the outermost one on the right did not press), the palm pad is a tall oval tilted to the left, and the toe arc is tight and high. The print is a little SMALLER: about two thirds of the canvas. |
+| `pista huella de tortuga 2 v2.png` | 2 | `pista huella de tortuga.png` | one turtle footprint in the sand, front pointing UP: a wide, rounded pad, wider than tall, whose top edge is made of short, blunt, stubby toes JOINED to the pad, and short thick claw scratches in front of the toes, separate from the pad. | This time the pad is much WIDER and flatter, like a wide bean, with FIVE stubby toes along its top edge, and FOUR long claw scratches spread out in a wide fan. The print fills about three quarters of the canvas, like the attached one. |
+| `pista huella de tortuga 3 v2.png` | 3 | `pista huella de tortuga.png` | one turtle footprint in the sand, front pointing UP: a wide, rounded pad, wider than tall, whose top edge is made of short, blunt, stubby toes JOINED to the pad, and short thick claw scratches in front of the toes, separate from the pad. | This time the foot dragged in the sand: the pad is ROUNDER and smaller, only THREE stubby toes, and only TWO claw scratches, longer and slanted to the RIGHT like drag marks. The print is a little SMALLER: about two thirds of the canvas. |
+
+- **Evitar**: retocar la 1 (salen iguales, el defecto de hoy); cambiar solo líneas de adentro o el borde; una huella espejada o girada; otro animal (la de pato con un dedo hacia atrás es gallina; la de erizo con dedos largos es mono; la de tortuga con dedos separados en puntitos es erizo); más de una huella por imagen; manchas sueltas alrededor (el recorte se queda con la mancha más grande).
+- **Checklist** (para cada una): el común (§3.3), y además:
+  1. **La prueba que hoy fallan**: rellenar de negro la 1 y la nueva, achicarlas a 28 px de alto y ponerlas lado a lado. ¿Se ve a simple vista que son dos sellos distintos? Si hay que acercarse para encontrar la diferencia, se rechaza.
+  2. Superponer la nueva sobre la 1 al 50 %: ¿los contornos no coinciden (dedos en otro lugar, otra apertura, otro tamaño)?
+  3. Al lado de la 1: ¿sigue siendo la huella del mismo animal, negra sólida, con el frente hacia arriba?
+  4. La 2 y la 3 nuevas de una misma huella: ¿también son distintas entre sí?
+  5. Las que se piden más chicas (las 3): ¿miden entre el 60 % y el 75 % del lienzo, y no menos (a 28 px tienen que seguir leyéndose)?
+
+### D44–D46 — Los tres fondos a 2:1, en una sola composición (rehacen D32–D34)
+
+- **Por qué se piden de nuevo**: D32–D34 pedían ampliar hacia los costados la imagen 3:2. ChatGPT pegó el original sin tocar en el centro y le agregó 256 px de cada lado, pero el agregado no continúa el dibujo: en las columnas **x = 256** y **x = 1792** hay un corte vertical duro (cielo, cerca, rocas y suelo cambian de golpe). Medido como la diferencia media de color entre una columna y la anterior, esas dos columnas dan entre **113 y 173**, contra un promedio de **10 a 19** en el resto de la imagen; en la arena y en la noche son, por lejos, las dos columnas más altas de toda la imagen. Se ven a simple vista en las tres.
+- **Qué se pide esta vez**: **no** una ampliación. Cada fondo se genera **de una vez, como una sola composición 2:1** de 2048 × 1024, con el original adjunto como referencia del lugar y del estilo. El centro 4:3 tiene que seguir siendo **reconocible** como el mismo lugar (los mismos elementos, en el mismo orden y más o menos en el mismo lugar), pero no hace falta que sea idéntico píxel a píxel: es un dibujo nuevo.
+- **El tono**: estos tres fondos ya estaban aprobados y su franja (filas 51–973) no tiene límite de tono nuevo (`manifest.json`). La regla es **no aclarar el suelo** respecto del original, no agregar blancos ni brillos en el medio y mantener la paleta.
+- **La zona segura** es la de la §3.4: lo que dice dónde estamos va en los 1365 px del centro; los 341 px de cada costado se pueden recortar.
+
+#### D44 · `fondo arena v3.png`
+
+- **Archivo**: `art-source/fondo arena v3.png`. PNG 2048 × 1024, opaco. **No pisar** `fondo arena.png` ni `fondo arena v2.png`.
+- **Adjuntar**: `art-source/fondo arena.png` (el original 3:2: el lugar y el estilo). **No adjuntar** `fondo arena v2.png`: tiene las costuras.
+
+```
+Match the drawing style, line weight and colour palette of the attached
+reference image exactly: a children's book illustration with bold
+dark outlines, flat colour areas with a soft painted texture inside
+them, and a scene with real depth (near things big, far things small).
+Landscape 2:1, exactly 2048x1024 pixels, full-bleed, FULLY OPAQUE:
+every single pixel painted, no transparency anywhere, not even at the
+corners. No animals, no characters, no people, no text, no writing on
+any sign.
+
+Draw the SAME PLACE as the attached picture, a sunny sandy zoo
+enclosure, as ONE NEW, COMPLETE, WIDE picture. This is NOT an
+extension of the attached image: do not paste the attached picture in
+the middle and do not add strips at the sides. Compose the whole
+2048-pixel width at once, as a single continuous scene.
+
+Keep the place recognisable, with the same elements in the same order
+from left to right: on the left, big grey and red rocks with a small
+waterfall falling into a round stone pool; along the back, a wooden
+rail fence with low bushes, a little blue sea and sky with a few white
+clouds; on the right, a sandy mound with a stone-arched cave
+entrance; big rocks and spiky green plants in the near corners. The
+open sand in the middle is warm golden yellow, never lighter than in
+the attached picture, with a soft, low-contrast painted texture.
+
+Composition rules. They matter more than any detail:
+- This is the backdrop of a finger-tracing game for young children.
+  The game draws a path ON TOP of the middle of this picture.
+- SAFE ZONE. Depending on the screen, up to 341 px of the width may be
+  cropped on the LEFT edge and the same on the RIGHT edge. The
+  waterfall pool, the cave and the fence go inside the CENTRAL 1365 px
+  of the 2048 px width, a 4:3 safe zone, not touching its edges. The
+  outer strips on both sides continue the same scenery naturally
+  (more rocks, plants, fence and sand), with nothing there that
+  matters.
+- NO SEAMS. The sky, the clouds, the fence, the rocks, the plants and
+  the sand run CONTINUOUSLY across the whole width. There is no
+  vertical line, no sudden change of colour, light or texture, and no
+  object cut by a vertical edge anywhere in the picture, especially
+  around 256 px from the left and 256 px from the right.
+- The top and bottom edges are never cropped, but nothing important
+  touches them: keep about 40 px of breathing room.
+- In the middle of the sand: no objects, no dark outlines, no white,
+  no sparkles, nothing that looks like a path, a road or a line.
+```
+
+- **Evitar**: pegar el original y agregar costados (es el defecto de D32); un corte vertical en cualquier columna; estirar el original; cambiar de lugar (otra arena, una playa); animales, carteles; la cascada o la cueva fuera de la zona segura.
+- **Checklist**: el de los fondos de la §5 (puntos 1, 2, 3, 6 y 7), y además los de las costuras, más abajo.
+
+#### D45 · `fondo noche zoo v3.png`
+
+- **Archivo**: `art-source/fondo noche zoo v3.png`. PNG 2048 × 1024, opaco. **No pisar** `fondo noche zoo.png` ni `fondo noche zoo v2.png`.
+- **Adjuntar**: `art-source/fondo noche zoo.png` (el original 3:2). **No adjuntar** `fondo noche zoo v2.png`.
+
+```
+Match the drawing style, line weight and colour palette of the attached
+reference image exactly: a children's book illustration with bold
+dark outlines, flat colour areas with a soft painted texture inside
+them, and a scene with real depth (near things big, far things small).
+Landscape 2:1, exactly 2048x1024 pixels, full-bleed, FULLY OPAQUE:
+every single pixel painted, no transparency anywhere, not even at the
+corners. No animals, no characters, no people, no text, no writing on
+any sign.
+
+Draw the SAME PLACE as the attached picture, the zoo at night, as ONE
+NEW, COMPLETE, WIDE picture. This is NOT an extension of the attached
+image: do not paste the attached picture in the middle and do not add
+strips at the sides. Compose the whole 2048-pixel width at once, as a
+single continuous scene.
+
+Keep the place recognisable, with the same elements in the same order
+from left to right: on the left, the stone arched gate with a glowing
+yellow lantern and an iron gate, under a big tree; along the back, a
+low wooden fence, round dark trees and tall cypresses, and the glass
+dome with warm yellow windows; on the right, a rock waterfall falling
+into a round stone pool with a small fence, under another big tree;
+a crescent moon and a few yellow stars in a deep blue sky; bushes,
+rocks and small flowers in the near corners. The open ground in the
+middle is a dark night blue, never lighter than in the attached
+picture, with a few flat stepping stones near the edges and a soft,
+low-contrast painted texture.
+
+Composition rules. They matter more than any detail:
+- This is the backdrop of a finger-tracing game for young children.
+  The game draws a path ON TOP of the middle of this picture.
+- SAFE ZONE. Depending on the screen, up to 341 px of the width may be
+  cropped on the LEFT edge and the same on the RIGHT edge. The gate
+  with its lantern, the dome and the waterfall go inside the CENTRAL
+  1365 px of the 2048 px width, a 4:3 safe zone, not touching its
+  edges. The outer strips on both sides continue the same scenery
+  naturally (more trees, bushes, fence and rocks), with nothing there
+  that matters.
+- NO SEAMS. The sky, the trees, the fence, the bushes and the ground
+  run CONTINUOUSLY across the whole width. There is no vertical line,
+  no sudden change of colour, light or texture, and no object cut by a
+  vertical edge anywhere in the picture, especially around 256 px from
+  the left and 256 px from the right.
+- The top and bottom edges are never cropped, but nothing important
+  touches them: keep about 40 px of breathing room.
+- In the middle of the ground: no objects, no dark outlines, no white,
+  no sparkles, nothing that looks like a path, a road or a line.
+```
+
+- **Evitar**: pegar el original y agregar costados (es el defecto de D33); un corte vertical; una segunda cascada repetida al costado (lo que hizo D33 a la derecha); aclarar la noche; animales, carteles; el farol o la cúpula fuera de la zona segura.
+- **Checklist**: el de los fondos de la §5 (puntos 1, 2, 3, 6 y 7), y además los de las costuras, más abajo.
+
+#### D46 · `fondo recinto monos v3.png`
+
+- **Archivo**: `art-source/fondo recinto monos v3.png`. PNG 2048 × 1024, opaco. **No pisar** `fondo recinto monos.png` ni `fondo recinto monos v2.png`.
+- **Adjuntar**: `art-source/fondo recinto monos.png` (el original 3:2). **No adjuntar** `fondo recinto monos v2.png`.
+
+```
+Match the drawing style, line weight and colour palette of the attached
+reference image exactly: a children's book illustration with bold
+dark outlines, flat colour areas with a soft painted texture inside
+them, and a scene with real depth (near things big, far things small).
+Landscape 2:1, exactly 2048x1024 pixels, full-bleed, FULLY OPAQUE:
+every single pixel painted, no transparency anywhere, not even at the
+corners. No animals, no characters, no people, no text, no writing on
+any sign.
+
+Draw the SAME PLACE as the attached picture, the monkeys' jungle
+enclosure in daylight, as ONE NEW, COMPLETE, WIDE picture. This is NOT
+an extension of the attached image: do not paste the attached picture
+in the middle and do not add strips at the sides. Compose the whole
+2048-pixel width at once, as a single continuous scene.
+
+Keep the place recognisable, with the same elements in the same order
+from left to right: on the left, a big tree with a wooden tree-house
+platform on poles, with rope railings; along the back, thick green
+jungle, a little blue sky and a row of pale grey rocks; on the right,
+tall wooden poles with a high platform and a slanted log, tied with
+ropes; thick ropes hanging in loose curves across the top; mossy
+boulders and big jungle leaves in the near corners. The open ground in
+the middle is warm orange-brown earth with lighter sunny patches and a
+few fallen leaves, never lighter than in the attached picture, with a
+soft, low-contrast painted texture.
+
+Composition rules. They matter more than any detail:
+- This is the backdrop of a finger-tracing game for young children.
+  The game draws a path ON TOP of the middle of this picture.
+- SAFE ZONE. Depending on the screen, up to 341 px of the width may be
+  cropped on the LEFT edge and the same on the RIGHT edge. The tree
+  house, the poles with the high platform and the grey rocks go inside
+  the CENTRAL 1365 px of the 2048 px width, a 4:3 safe zone, not
+  touching its edges. The outer strips on both sides continue the same
+  scenery naturally (more jungle, trees, leaves and boulders), with
+  nothing there that matters.
+- NO SEAMS. The sky, the jungle, the ropes, the boulders and the ground
+  run CONTINUOUSLY across the whole width. Every rope is one unbroken
+  curve from where it starts to where it ends. There is no vertical
+  line, no sudden change of colour, light or texture, and no object cut
+  by a vertical edge anywhere in the picture, especially around 256 px
+  from the left and 256 px from the right.
+- The top and bottom edges are never cropped, but nothing important
+  touches them: keep about 40 px of breathing room.
+- In the middle of the ground: no objects, no dark outlines, no white,
+  no sparkles, nothing that looks like a path, a road or a line.
+```
+
+- **Evitar**: pegar el original y agregar costados (es el defecto de D34); un corte vertical; sogas o troncos cortados de golpe (el tronco inclinado de D34 se corta en x = 1792); animales, carteles; la casita del árbol fuera de la zona segura.
+- **Checklist**: el de los fondos de la §5 (puntos 1, 2, 3, 6 y 7), y además los de las costuras, más abajo.
+
+#### Checklist de las costuras (D44, D45 y D46)
+
+1. ¿Mide exactamente 2048 × 1024 y es totalmente opaco?
+2. **Las columnas de las costuras viejas**: ampliar al 200 % la zona alrededor de x = 256 y después la de x = 1792, de arriba abajo. ¿El cielo, la cerca, las rocas y el suelo siguen de un lado al otro sin un corte, sin un cambio de color o de luz? Si se ve una raya vertical, se rechaza.
+3. **Toda la imagen**: recorrerla de izquierda a derecha buscando cualquier otra línea vertical recta, en cualquier columna (un dibujo nuevo puede poner la costura en otro lado). Si aparece una, se rechaza.
+4. ¿No es el original pegado en el medio? Ponerlo al lado: el centro tiene que ser **el mismo lugar**, pero dibujado de nuevo en una sola pieza, sin un rectángulo idéntico al original adentro.
+5. Tapar los 341 px de cada costado: ¿lo que queda se reconoce como el mismo lugar que el original, con sus elementos principales enteros?
+6. ¿El suelo del medio no quedó más claro que el del original, ni con blancos o brillos?
+
+### Notas para la integración de D39–D46 (no son para ChatGPT)
+
+Valen las de la §7 (`AUTHORED_SOURCE_SIZES`, alpha fantasma, `w`/`h` del
+manifiesto, captura). Además:
+
+1. **D39.** `erizo con espinas v2.png` mide 1536 × 1024: necesita su
+   entrada en `AUTHORED_SOURCE_SIZES`. Antes de usarlo, confirmar que las
+   cuatro columnas y filas del borde están vacías (la prueba que falló la
+   versión vieja: 418 filas opacas en la columna 1023) y medir el alto del
+   erizo contra los 780 px de `erizo con espinas.png`. Entra como la pose 1
+   de `docs/20` B14 (perfil con espinas); si va a convivir con
+   `hedgehog-uncurling.png` en un mismo lugar, decidir si va a `FRAMED`.
+2. **D40.** `pista escamas de pez v2.png` pasa a ser la primera de
+   `clue-scale` (la fila de `clue-scale-earned.png`), y la ` 2` y la ` 3`
+   pasan a ser la segunda y la tercera: el trío vuelve a la secuencia 1, 2,
+   3 de la §7, punto 1. Medir el relleno: el token `#fb7800` sale hoy de la
+   ` 2`; decidir si pasa a ser el de la nueva y verificar que las otras
+   dos sigan dentro de `VARIATION_FILL_TOLERANCE` (`artManifest.test.ts`).
+3. **D41.** `crop_sheets.py` corta `pulpo poses lamina v2.png` con la
+   misma regla que la vieja (`pose_crops(…, 3)`), a archivos nuevos (por
+   ejemplo `pulpo senala v2.png`, `pulpo piensa v2.png`, `pulpo festeja
+   v2.png`); se cambian las tres filas de `SINGLES` y los `w`/`h` de
+   `PULPITO_POSE_ART`. Si las tres tienen que compartir escala en pantalla,
+   pasarlas a `FRAMED` (el pedido ya pide la misma cabeza y la misma línea
+   de apoyo para que se pueda).
+4. **D42.** Cortar a `pulpo mochila v2.png` y `pulpo cuidador v2.png`.
+   `pulpo mochila v2.png` reemplaza la fila `zoo-octopus-backpack` y
+   `pulpo cuidador v2.png` la de `zoo-octopus-caretaker`. Medir el alpha
+   fantasma: si el nuevo cuidador vuelve limpio, sale de
+   `GHOST_ALPHA_SOURCES` (la entrada es por archivo, la vieja queda
+   para el archivo viejo). El de la mochila hoy se dimensiona por ancho
+   (`pulpitoStance.ts`, casi cuadrado, 442 × 448) y el cuidador por alto
+   (235 × 320): revisar esas dos reglas con las proporciones nuevas.
+5. **D43.** Cambiar la fuente de las ocho filas `… 2` y `… 3` de
+   `SINGLES` (las de `PRINT` y `CLUE_DRAINED`) a los `… v2.png`. Repetir la
+   tira de las doce siluetas embarcadas lado a lado (se arma con
+   `scripts/art/png.py`, como se hizo al escribir este pedido) y mirar que las tres de
+   cada fila se distingan a 28 px antes de dar por buena la integración.
+   Las 3, más chicas, cambian `w`/`h`: copiarlos del manifiesto.
+6. **D44–D46.** El procedimiento de la §7, punto 5. Antes de cambiar la
+   fila, medir la diferencia media de color entre cada columna y la
+   anterior en toda la imagen: ninguna columna puede sobresalir como
+   x = 256 y x = 1792 en las `v2` (113–173 contra un promedio de 10–19).
+   Como el centro ya no es el original pegado, la prueba de superponer de
+   la §7, punto 5 se reemplaza por la captura a 1024 × 768 y a pantalla
+   ancha, y el `quiet`/`brightest` del manifiesto se vuelve a medir.
 
 ---
 
