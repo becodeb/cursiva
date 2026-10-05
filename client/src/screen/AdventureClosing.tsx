@@ -54,7 +54,7 @@ import {
   isPlaceholderArt,
   ZOO_ANIMAL_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
-  ZOO_SPEECH_BUBBLE_ART,
+  ZOO_SPEECH_BUBBLE_LEFT_ART,
 } from '../detective/assets'
 import { PlaceholderAnimalBadge } from '../detective/icons'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
@@ -64,7 +64,7 @@ import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 import { BUBBLE_POP_CSS } from './BubblePop'
-import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
+import { ZOO_SPEECH_BUBBLE_LEFT_TAIL } from './bubblePlacement'
 import { recordDeparture, RESCUE_FLIGHT_VT_NAME } from '../zoo/rescueFlight'
 import { resolveRescueAnimalBox } from './rescueAnimalPlacement'
 import { hasOpenedNotebookOnce, NOTEBOOK_HINT_LINE } from './notebookDiscovery'
@@ -81,7 +81,9 @@ import {
   OCTOPUS_CORNER_INSET,
   OCTOPUS_CORNER_SIZE_PCT,
   octopusBoxAtCorner,
+  RESCUE_OCTOPUS_ART,
   resolvePulpitoStance,
+  stageOctopusSizing,
   stanceBubbleSide,
   STAGE_MARGIN_PCT,
   STAGE_MAX_PX,
@@ -272,11 +274,12 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
   // T18: the stance (`docs/19` §4.1) — this beat's own, falling back to the
   // shared default.
   const stance = resolvePulpitoStance(beat.stance)
-  const octopusArt = beat.figure ?? ZOO_OCTOPUS_BACKPACK_ART
+  // [T49, `docs/23` D7] A rescue closing shows him cheering; every other
+  // beat keeps its own `figure` or the backpack octopus.
+  const octopusArt = beat.figure ?? (isRescue ? RESCUE_OCTOPUS_ART : ZOO_OCTOPUS_BACKPACK_ART)
   const octopusBox = octopusBoxAtCorner(octopusArt, {
     corner: stance.corner,
-    sizeBy: 'width',
-    size: OCTOPUS_CORNER_SIZE_PCT,
+    ...stageOctopusSizing(octopusArt),
     bottom: 2,
     inset: OCTOPUS_CORNER_INSET,
   })
@@ -286,7 +289,7 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
   const { placement, content } = placeAndFitBubble({
     frame: { w: 100, h: 100 },
     headBox: octopusBox,
-    tail: ZOO_SPEECH_BUBBLE_TAIL,
+    tail: ZOO_SPEECH_BUBBLE_LEFT_TAIL,
     side: stanceBubbleSide(stance.corner),
     text: bubbleText,
     art: isRescue ? undefined : beat.art,
@@ -350,7 +353,10 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
               )}
             </span>
           )}
-          <span className="cv-closing-octopus" style={{ [stance.corner]: `${octopusBox.x}%` } as CSSProperties}>
+          <span
+            className="cv-closing-octopus"
+            style={{ [stance.corner]: `${octopusBox.x}%`, width: `${octopusBox.w}%` } as CSSProperties}
+          >
             <img src={octopusArt.href} alt="" className="cv-octopus-life" />
           </span>
           <span
@@ -380,7 +386,7 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
               className="cv-bubble-pop"
               style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
             >
-              <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+              <img src={ZOO_SPEECH_BUBBLE_LEFT_ART.href} alt="" />
               {isRescue ? (
                 <p className="cv-closing-bubble-text">{bubbleText}</p>
               ) : (

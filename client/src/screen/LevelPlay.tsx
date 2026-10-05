@@ -149,6 +149,7 @@ import {
 // sole discriminator, the same convention `level.clue` above uses — its
 // absence means an ordinary level and none of this wiring engages.
 import {
+  collectArtAt,
   collectTick,
   emptyCollectState,
   isCollectComplete,
@@ -161,9 +162,9 @@ import {
   CLUE_ART,
   GROUND_GRASS,
   GROUND_MUD,
-  HOME_OCTOPUS_ART,
   isPlaceholderArt,
   OCTOPUS_ART,
+  OCTOPUS_EMPTY_HANDED_ART,
   SIGN_ART,
   ZOO_ANIMAL_ART,
   ZOO_STAR_ART,
@@ -484,11 +485,13 @@ export function resultSpeechLine(
  * Left at the route's first point it renders dead-centre on the octopus's
  * body and reads as swallowed rather than held. These two numbers move the
  * home point to where the octopus's own raised tentacle holds the glass in
- * the source art (`/art/carrier-octopus.png`: its lens sits at about 85% of
- * the width and 27% of the height, which against `OCTOPUS_SIZE` and that
- * file's 384x353 aspect is about 55% of `OCTOPUS_SIZE` across and 94% of it
- * up from the feet). They scale WITH `OCTOPUS_SIZE`: raise one and the other
- * two move, or the glass drifts off the tentacle holding it.
+ * the source art. [T49] Re-measured on the redrawn `/art/carrier-octopus.png`
+ * (326x384, `docs/23` D6), whose raised tentacle is on the viewer's LEFT:
+ * the light-blue glass's centroid sits at 20.3% of the width and 17.0% of
+ * the height, which against `OCTOPUS_SIZE` (96 tall, so 81.5 wide) is 24
+ * units left of the feet and 80 up. They scale WITH `OCTOPUS_SIZE`: raise
+ * one and the other two move, or the glass drifts off the tentacle holding
+ * it.
  *
  * It is applied to the carrier's HOME POINT here rather than as an offset
  * inside the canvas, and that is the only place it can live: `TraceCanvas`'s
@@ -498,19 +501,14 @@ export function resultSpeechLine(
  * where the glass must sit exactly ON the finger, not beside it. Offsetting
  * the home point moves the glass only where it rests.
  */
-const GLASS_REST_DX = 53
+const GLASS_REST_DX = -24
 
-/**
- * T38: the octopus standing at the start WITHOUT the magnifying glass, shown
- * while the finger is down (the glass is then on the fingertip).
- *
- * `home-octopus.png` is a stand-in: same character, same marker style and
- * colours, but it is the home screen's pose (all eight tentacles curled
- * out), not `carrier-octopus.png`'s pose with the glass taken out of the
- * raised tentacle. `docs/20_PEDIDOS_DE_ARTE_TANDA_3.md` B18 asks for the
- * matching drawing; once it ships only this constant changes.
- */
-const OCTOPUS_EMPTY_HANDED_ART = HOME_OCTOPUS_ART
+// T38: the octopus standing at the start WITHOUT the magnifying glass, shown
+// while the finger is down (the glass is then on the fingertip):
+// `OCTOPUS_EMPTY_HANDED_ART` (`detective/assets.ts`). [T49] It is the real
+// twin of `OCTOPUS_ART` now (`docs/23` D6), the same drawing with the glass
+// taken out, shipped on the SAME canvas, so the swap on touch neither jumps
+// nor resizes (it used to be `home-octopus.png`, another pose).
 
 /**
  * T38: whether the octopus standing at the start is the one holding this
@@ -524,7 +522,7 @@ const OCTOPUS_EMPTY_HANDED_ART = HOME_OCTOPUS_ART
 export function octopusHoldsLens(level: Pick<LevelConfig, 'carrier' | 'carrierArt'>): boolean {
   return !!level.carrier && !level.carrierArt
 }
-const GLASS_REST_DY = -90
+const GLASS_REST_DY = -80
 
 /**
  * The child's own line on a detective trail: MUD, not ink.
@@ -610,7 +608,7 @@ export function worldInk(
 
 /** The octopus's standing height and widest drawing (holding the glass, or
  *  the empty-handed one), for keeping him clear of a segment level's marks. */
-const OCTOPUS_ASPECT = Math.max(OCTOPUS_ART.w / OCTOPUS_ART.h, HOME_OCTOPUS_ART.w / HOME_OCTOPUS_ART.h)
+const OCTOPUS_ASPECT = Math.max(OCTOPUS_ART.w / OCTOPUS_ART.h, OCTOPUS_EMPTY_HANDED_ART.w / OCTOPUS_EMPTY_HANDED_ART.h)
 
 /** [T45 follow-up] Where the octopus's feet go on a segment level: the
  *  nearest spot to the first start whose box stays on the sheet (which every
@@ -2317,7 +2315,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // reset by `restartRun`/`resetSurface` (an in-flight hop finishes on its
   // own timeout regardless), only by the level-id mount effect below.
   const [departingCollectMarks, setDepartingCollectMarks] = useState<
-    readonly { id: number; x: number; y: number }[]
+    readonly { id: number; x: number; y: number; index: number }[]
   >([])
   const departingCollectIdRef = useRef(0)
   const departingCollectTimeoutsRef = useRef<Set<number>>(new Set())
@@ -3155,7 +3153,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
               playSfx('collect', { index: collectIndex++ })
               const item = collectItems[i]
               const id = ++departingCollectIdRef.current
-              setDepartingCollectMarks((marks) => [...marks, { id, x: item.x, y: item.y }])
+              setDepartingCollectMarks((marks) => [...marks, { id, x: item.x, y: item.y, index: i }])
               const timeout = window.setTimeout(() => {
                 departingCollectTimeoutsRef.current.delete(timeout)
                 setDepartingCollectMarks((marks) => marks.filter((m) => m.id !== id))
@@ -3880,9 +3878,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // through `TraceCanvas`'s own `children` slot — never a second `<image>`.
   const collectVertexArt = useMemo<TraceVertexArt | undefined>(() => {
     if (!collectDef || isPlaceholderArt(collectDef.art)) return undefined
+    // [T49] Each item keeps its own pose (`collectArtAt`), decided by its
+    // index on the route, so the picture never changes as others are taken.
     const at = collectItems
-      .filter((_, i) => !collectState.collected[i])
-      .map((item) => ({ x: item.x, y: item.y }))
+      .map((item, i) => ({ x: item.x, y: item.y, art: collectArtAt(collectDef, i), i }))
+      .filter(({ i }) => !collectState.collected[i])
+      .map(({ x, y, art }) => ({ x, y, art }))
     if (at.length === 0) return undefined
     return { ...collectDef.art, size: collectDef.size, at }
   }, [collectDef, collectItems, collectState])
@@ -3899,7 +3900,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     return {
       ...collectDef.art,
       size: collectDef.size,
-      at: departingCollectMarks.map(({ x, y }) => ({ x, y })),
+      at: departingCollectMarks.map(({ x, y, index }) => ({ x, y, art: collectArtAt(collectDef, index) })),
     }
   }, [collectDef, departingCollectMarks])
 
@@ -4204,7 +4205,11 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
          * exact same absolutely-positioned slot, so swapping one for the
          * other adds no row and no height. */}
         {collectDef ? (
-          <CollectBar collected={collectState.collected} art={collectDef.art} />
+          <CollectBar
+            collected={collectState.collected}
+            art={collectDef.art}
+            arts={collectState.collected.map((_, i) => collectArtAt(collectDef, i))}
+          />
         ) : (
           progress && <TrailProgressBar progress={progress} />
         )}

@@ -46,6 +46,17 @@ export const ZOO_SPEECH_BUBBLE_TAIL: BubbleTailGeometry = {
   tailY: 0.997,
 }
 
+/** [T49, `docs/20` B9] `zoo-speech-bubble-left.png`, 496×373, the stage
+ *  screens' redrawn bubble — measured the same way on the shipped PNG: the
+ *  last row with opaque (alpha ≥ 128) pixels is 371, spanning x 53-61, so
+ *  the tip sits at (57, 372) — (11.5%, 99.7%) of the file, the same
+ *  bottom-left corner as the bubble it redraws. */
+export const ZOO_SPEECH_BUBBLE_LEFT_TAIL: BubbleTailGeometry = {
+  aspect: 373 / 496,
+  tailX: 57 / 496,
+  tailY: 372 / 373,
+}
+
 export interface OctopusBoxOptions {
   /** Which CSS dimension the octopus is sized by (`PrologueOpening.tsx`'s
    *  caretaker is sized by HEIGHT — see that file's own header on why a

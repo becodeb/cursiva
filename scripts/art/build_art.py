@@ -69,6 +69,11 @@ PLUME = (0x2F, 0x6B, 0x5C)
 LAMP = (0xF2, 0xD3, 0x77)
 BREADCRUMB = (0xA9, 0x68, 0x2C)
 BUBBLE = (0x4F, 0xB3, 0xD9)
+# T49: the inside of `bocadillo izquierda.png` (`docs/20` B9). The export
+# came back with a soft grey smudge in the middle of the white fill (luma
+# ~166 at its darkest), right where the line is written; a two-tone recolour
+# to INK + WHITE is the existing `recolour` path and removes it.
+WHITE = (0xFF, 0xFF, 0xFF)
 
 # The two ground bases, mirroring `TraceCanvas.tsx`'s `GROUND_FIELD` and
 # `CORRIDOR_EARTH`. Each scatter tile is muted toward the ground it lies on, so
@@ -541,17 +546,14 @@ SINGLES = [
     # precedent (also `fill='contour'`, also never added to that list).
     ('pez.png',               'animal-pez.png',            448, 'contour',    True),
     ('tortuga.png',           'animal-tortuga.png',        448, 'contour',    True),
-    # The monkey has no cutout yet — `docs/18` §4.5's own table says so, and
-    # `docs/18` §6 is the standing ChatGPT request for the real drawing.
-    # `art-source/mono.png` is a PLACEHOLDER written by `make_placeholders.py`
-    # (its `make_sign('MONO')` helper, reused rather than duplicated: the
-    # same bordered octagon block with a stamped word every `cartel *.png`
-    # placeholder already uses) — never overwritten by that script once
-    # present, and swapped for real art the same way `docs/17` §4 describes
-    # for any other placeholder: replace the source file, rerun the
-    # pipeline, copy the new `w`/`h` off the manifest. PENDING REAL ART.
-    ('mono.png',              'animal-mono.png',           448, 'contour',    True),
-    ('pulpo con lupa.png',    'carrier-octopus.png',       384, 'contour',    True),
+    # T49 (`docs/23` D4): the real monkey, pose 1 of `monos lamina.png`
+    # (cut by `crop_sheets.py`). It replaces `mono.png`, the
+    # `make_placeholders.py` sign block that stood in since P1; that file
+    # stays in `art-source/` (`docs/23` §7 point 3) but nothing ships it.
+    # Poses 2 and 3 are the `FRAMED` rows below.
+    ('mono v2.png',           'animal-mono.png',           448, 'contour',    True),
+    # `carrier-octopus.png` moved to `FRAMED` (T49, `docs/23` D6): it now
+    # ships on the same canvas as its lens-less twin.
     # The home screen (docs/10). The octopus sits in its office with eight free
     # arms; the desk is the "place" it sits at. Both keep their authored colour
     # for the same reason the carrier octopus does -- section 4's "colour is the
@@ -589,14 +591,16 @@ SINGLES = [
     ('vibora mediana.png',    'sector-snake-medium.png',   512, 'contour',    True, True),
     ('vibora grande.png',     'sector-snake-large.png',    512, 'contour',    True, True),
     ('llama.png',             'sector-llama.png',          448, 'contour',    True),
-    ('abeja.png',             'sector-bee.png',            256, 'contour',    True),
-    ('flor.png',              'sector-flower.png',         256, 'contour',    True),
+    # T49 (`docs/23` D9): the bee, flower and honeycomb, redrawn in bright
+    # colours (`abeja lamina.png`, cut by `crop_sheets.py`).
+    ('abeja v2.png',          'sector-bee.png',            256, 'contour',    True),
+    ('flor v2.png',           'sector-flower.png',         256, 'contour',    True),
     # [free-trail-waypoints, task 3.2] The flower BEFORE the bee has been to
     # it. `keep_ink=True` keeps the `#1a1a1a` contour and flattens only the
     # petal -- the same two-tone path every `clue-*-drained` row takes, so
     # the dormant state still reads as a flower rather than a blank patch.
-    ('flor.png',              'sector-flower-dormant.png', 256, FLOWER_DORMANT, True),
-    ('panal.png',             'sector-honeycomb.png',      256, 'contour',    True),
+    ('flor v2.png',           'sector-flower-dormant.png', 256, FLOWER_DORMANT, True),
+    ('panal v2.png',          'sector-honeycomb.png',      256, 'contour',    True),
     ('delfin.png',            'sector-dolphin.png',        448, 'contour',    True),
     ('caracol.png',           'sector-snail.png',          448, 'contour',    True),
     ('linterna.png',          'sector-flashlight.png',     256, 'contour',    True),
@@ -612,7 +616,12 @@ SINGLES = [
     # `gallina.png` do (design.md §6) -- no entry there, and `fill='contour'`
     # matches the llama's own row since both are drawn-world props that stand
     # beside the child's ink, not reward-coloured clue marks.
-    ('oveja.png',              'sector-sheep.png',          448, 'contour',    True),
+    # T49 (`docs/23` D10): `oveja v2.png`, side-on with legs and cream wool.
+    # Measured before deciding on `SPECKLED_ALPHA_SOURCES`: `alpha_bbox`
+    # returns the sheep's own box (45-988 x 122-923) and the 1-8 alpha band
+    # is a smooth antialiasing tail (0.56% of the canvas, falling from alpha
+    # 1, no spike), so it needs neither opt-in set.
+    ('oveja v2.png',           'sector-sheep.png',          448, 'contour',    True),
     # The entrance's night findable objects (design.md §3.4): drawn-world
     # props standing beside the child's own ink, not reward-coloured clue
     # marks, so `fill='contour'` matches every sibling `sector-*` row rather
@@ -651,7 +660,135 @@ SINGLES = [
     ('cartel peces.png',       'sign-fish.png',             256, 'contour',    True),
     ('cartel tortugas.png',    'sign-turtles.png',          256, 'contour',    True),
     ('cartel monos.png',       'sign-monkeys.png',          256, 'contour',    True),
+    # --- T49 (`odd/tasks/prewriting-stage-completion.md`, `docs/23` round 2:
+    # characters). None of these sources needs `GHOST_ALPHA_SOURCES` or
+    # `SPECKLED_ALPHA_SOURCES`: measured, their 1-8 alpha band is a smooth
+    # antialiasing tail (0.2-1.8% of the canvas, falling off from alpha 1, no
+    # spike at 8), and the sheet crops already drop stray blobs
+    # (`crop_sheets.py`'s `isolate`).
+    #
+    # `docs/23` D7: the Pulpito on the scene. Points at the entry screen
+    # (mirrored when he stands in the right corner), thinks on the deduction,
+    # cheers on the rescue closing (`docs/19` §4.1's table).
+    ('pulpo senala.png',       'zoo-octopus-points.png',    448, 'contour',    True),
+    ('pulpo piensa.png',       'zoo-octopus-thinks.png',    448, 'contour',    True),
+    ('pulpo festeja.png',      'zoo-octopus-cheers.png',    448, 'contour',    True),
+    # `docs/20` B14 pose 2: the hedgehog uncurling with every spine on, for
+    # the hedgehog's rescue (closing, map, notebook, deduction). Pose 1
+    # (`erizo con espinas.png`) is NOT shipped: its export is cut off by the
+    # right edge of the canvas (418 opaque rows on column 1023), so the
+    # hedgehog's back ends in a straight vertical line.
+    ('erizo desenroscando recortado.png', 'hedgehog-uncurling.png', 448, 'contour', True),
+    # `docs/20` B17: the shed snake skin, shown on the snakes' entry screen.
+    ('piel vibora.png',        'sector-shed-skin.png',      448, 'contour',    True),
+    # `docs/20` B9: the stage screens' speech bubble, same tail corner as
+    # `bocadillo.png`. Two-tone INK + WHITE to drop its grey smudge (WHITE's
+    # own comment, above).
+    ('bocadillo izquierda.png', 'zoo-speech-bubble-left.png', 512, WHITE,     True),
+    # `docs/23` D35: the transition's magnifier. Its empty glass is measured
+    # into the manifest (`measure_lens_hole`) so `screen/lupaWipe.ts` lines
+    # the hole up with the reveal circle from numbers, not estimates.
+    ('lupa transicion.png',    'zoo-transition-lens.png',   512, 'contour',    True),
 ]
+
+# T49 (`docs/23` §7 point 4): family poses that must ship on ONE shared
+# canvas, at one scale. `crop_sheets.py` puts each sheet's poses on a common
+# transparent frame (centred, feet on the bottom edge); these rows keep that
+# frame instead of cropping each pose to itself, so:
+#   * the two Pulpitos (`docs/23` D6, `docs/20` B18) are pixel-aligned and
+#     the swap on touch (`screen/LevelPlay.tsx`'s `OCTOPUS_EMPTY_HANDED_ART`)
+#     never jumps or resizes;
+#   * a family collected along a route (`LevelConfig.collect.variants`) keeps
+#     its relative sizes: the sitting monkey stays shorter than the standing
+#     ones at the same `size`.
+# (source, output, target size of the frame's longer side)
+FRAMED = [
+    ('pulpo con lupa v2.png',  'carrier-octopus.png',       384),
+    ('pulpo sin lupa.png',     'carrier-octopus-empty.png', 384),
+    # Pose 1's frame is its own tight box (`crop_sheets.py`), so
+    # `animal-mono.png` (the `SINGLES` row above) is the first of the three.
+    ('mono familia 2.png',     'animal-mono-family-2.png',  448),
+    ('mono familia 3.png',     'animal-mono-family-3.png',  448),
+    ('patito 1.png',           'animal-duckling-1.png',     256),
+    ('patito 2.png',           'animal-duckling-2.png',     256),
+    ('patito 3.png',           'animal-duckling-3.png',     256),
+]
+
+
+def emit_framed(name: str, img: png.Image) -> dict:
+    """`emit` without the alpha-bbox crop: the frame IS the layout."""
+    path = os.path.join(OUT, name)
+    size = png.write_png(path, img)
+    return {
+        'file': f'art/{name}',
+        'w': img.w,
+        'h': img.h,
+        'bytes': size,
+    }
+
+
+def measure_lens_hole(img: png.Image) -> dict:
+    """The empty glass of `zoo-transition-lens.png`, as fractions of the
+    shipped file: centre `cx`/`cy` (of width/height) and radius `r` (of
+    width). Rays from a seed near the glass centre march outward to the first dark ring pixel (alpha >= 128, luma < 120:
+    the marker line on the glass's inner edge -- the white glint inside the
+    glass is skipped by the luma test), and a least-squares circle (Kasa)
+    is fitted to the 360 hits."""
+    import math
+    w, h = img.w, img.h
+    px = img.px
+
+    def solid_dark(x: int, y: int) -> bool:
+        i = (y * w + x) * 4
+        return px[i + 3] >= 128 and luma(px[i], px[i + 1], px[i + 2]) < 120
+
+    # Seed: the rim is the widest part of the drawing and its top is the
+    # bbox's top, so the glass centre sits near (w/2, w/2) of the tight crop.
+    cx0, cy0 = w * 0.5, w * 0.5
+    hits = []
+    for k in range(360):
+        a = math.radians(k)
+        rr = 1.0
+        while True:
+            x = int(round(cx0 + rr * math.cos(a)))
+            y = int(round(cy0 + rr * math.sin(a)))
+            if not (0 <= x < w and 0 <= y < h):
+                break
+            if solid_dark(x, y):
+                hits.append((x + 0.5, y + 0.5))
+                break
+            rr += 0.5
+    # Kasa fit: minimise sum (x^2 + y^2 + D x + E y + F)^2.
+    sxx = sxy = syy = sx1 = sy1 = sxz = syz = sz = 0.0
+    m = len(hits)
+    for x, y in hits:
+        z = x * x + y * y
+        sxx += x * x
+        sxy += x * y
+        syy += y * y
+        sx1 += x
+        sy1 += y
+        sxz += x * z
+        syz += y * z
+        sz += z
+    # Normal equations for [D, E, F].
+    a11, a12, a13, b1 = sxx, sxy, sx1, -sxz
+    a21, a22, a23, b2 = sxy, syy, sy1, -syz
+    a31, a32, a33, b3 = sx1, sy1, float(m), -sz
+    det = (a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31)
+           + a13 * (a21 * a32 - a22 * a31))
+    d = (b1 * (a22 * a33 - a23 * a32) - a12 * (b2 * a33 - a23 * b3)
+         + a13 * (b2 * a32 - a22 * b3)) / det
+    e = (a11 * (b2 * a33 - a23 * b3) - b1 * (a21 * a33 - a23 * a31)
+         + a13 * (a21 * b3 - b2 * a31)) / det
+    f = (a11 * (a22 * b3 - b2 * a32) - a12 * (a21 * b3 - b2 * a31)
+         + b1 * (a21 * a32 - a22 * a31)) / det
+    cx, cy = -d / 2, -e / 2
+    r = math.sqrt(cx * cx + cy * cy - f)
+    worst = max(abs(math.hypot(x - cx, y - cy) - r) for x, y in hits)
+    if worst > r * 0.06:
+        raise SystemExit(f'measure_lens_hole: the glass is not a circle (worst {worst:.1f}px of r {r:.1f})')
+    return {'hole': {'cx': round(cx / w, 4), 'cy': round(cy / h, 4), 'r': round(r / w, 4)}}
 
 # Full-canvas scenes are already authored at final dimensions. They bypass the
 # 2x work pass: scaling a 1536x1024 map up and back down can only soften its
@@ -1064,6 +1201,29 @@ AUTHORED_SOURCE_SIZES = {
     'pista banana.png': (1024, 1024),
     'manzana.png': (1024, 1024),
     'hongo.png': (1024, 1024),
+    # T49: the round-2 character sources, and the crops `crop_sheets.py`
+    # writes from the sheets (pinned so a re-cut that changes a frame fails
+    # here instead of silently moving a pose).
+    'oveja v2.png': (1024, 1024),
+    'lupa v2.png': (1024, 1024),
+    'lupa transicion.png': (1024, 1024),
+    'bocadillo izquierda.png': (1024, 1024),
+    'piel vibora.png': (1024, 1024),
+    'mono v2.png': (599, 997),
+    'mono familia 2.png': (599, 997),
+    'mono familia 3.png': (599, 997),
+    'patito 1.png': (500, 686),
+    'patito 2.png': (500, 686),
+    'patito 3.png': (500, 686),
+    'pulpo con lupa v2.png': (716, 843),
+    'pulpo sin lupa.png': (716, 843),
+    'pulpo senala.png': (558, 674),
+    'pulpo piensa.png': (456, 693),
+    'pulpo festeja.png': (515, 663),
+    'abeja v2.png': (514, 473),
+    'flor v2.png': (371, 554),
+    'panal v2.png': (442, 455),
+    'erizo desenroscando recortado.png': (697, 710),
 }
 
 
@@ -1184,8 +1344,12 @@ def centre_on(img: png.Image, feature_test) -> png.Image:
 # The glass, centred on its lens. The author drew it standalone after the first
 # pass had to cut one out of the octopus drawing; this replaces that extraction.
 CENTRED = [
-    ('lupa.png', 'carrier-lens.png', 192,
-     lambda r, g, b: b > 180 and 100 < g < 210 and r < 160),
+    # T49 (`docs/23` D8): `lupa v2.png`, the same grey-rimmed glass the new
+    # Pulpito holds. Its glass is EMPTY (transparent) inside a light-blue
+    # band, so the feature is that band: blue clearly above red (the grey
+    # rim and the white glint are near-neutral), bright.
+    ('lupa v2.png', 'carrier-lens.png', 192,
+     lambda r, g, b: b > 225 and g > 195 and b - r > 35),
 ]
 
 
@@ -1230,12 +1394,9 @@ def main() -> None:
                 # real photographed cutouts with a genuine antialiased
                 # contour, the same blend risk the `sector-`/`zoo-` rows
                 # above are already re-run for — an `animal-` prefix does not
-                # exempt them. `animal-mono.png` is deliberately NOT here: it
-                # is a hand-drawn flat placeholder block (`make_placeholders.
-                # py`'s `make_sign`), with no soft edge to blend in the first
-                # place, matching `sign-*.png`'s own precedent of skipping
-                # this list for the same reason.
-                'animal-pez.png', 'animal-tortuga.png',
+                # exempt them. `animal-mono.png` joined in T49: it is the
+                # real drawn monkey now, no longer the flat placeholder block.
+                'animal-pez.png', 'animal-tortuga.png', 'animal-mono.png',
             )
         ):
             recontour(final)
@@ -1250,8 +1411,24 @@ def main() -> None:
         manifest[key] = emit(name, final)
         if fill == 'contour' and name.startswith('clue-'):
             manifest[key]['fill'] = dominant_fill(final)
+        if name == 'zoo-transition-lens.png':
+            x0, y0, x1, y1 = png.alpha_bbox(final)
+            manifest[key].update(measure_lens_hole(png.crop(final, x0, y0, x1, y1)))
         if spine is not None:
             manifest[key].update(spine)
+        print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
+              f'{manifest[key]["bytes"] / 1024:6.1f} KB')
+
+    # T49: the framed family poses (`FRAMED`'s own header).
+    for src, name, target in FRAMED:
+        img = png.read_png(os.path.join(SRC, src))
+        scale = target * 2 / max(img.w, img.h)
+        img = png.box_resize(img, max(1, round(img.w * scale)), max(1, round(img.h * scale)))
+        recontour(img)
+        final = png.box_resize(img, max(1, img.w // 2), max(1, img.h // 2))
+        recontour(final)
+        key = name[:-4]
+        manifest[key] = emit_framed(name, final)
         print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
               f'{manifest[key]["bytes"] / 1024:6.1f} KB')
 
@@ -1315,7 +1492,9 @@ def main() -> None:
         'animal-gallina.png',
         'animal-vaca.png',
         'animal-gato.png',
-        'hedgehog-profile.png',
+        # T49: the erizo's lineup/notebook picture is the uncurling hedgehog
+        # with its spines (`docs/20` B14) instead of the spineless profile.
+        'hedgehog-uncurling.png',
         'sector-sheep.png',
         'sector-llama.png',
     ):
@@ -1414,7 +1593,7 @@ def main() -> None:
         'sector-dolphin.png',       # delfin
         'animal-pez.png',           # pez
         'animal-tortuga.png',       # tortuga
-        'animal-mono.png',          # mono (placeholder sign art today)
+        'animal-mono.png',          # mono (the real monkey since T49)
     ):
         img = png.read_png(os.path.join(OUT, animal_file))
         recolour(img, INK, keep_ink=False)

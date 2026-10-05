@@ -200,9 +200,15 @@ def main() -> None:
     # D4: pose 1 is the monkey of the rescue, map, notebook and deduction;
     # all three poses are the family collected along `monkey3`/`monkey4`.
     monkeys = pose_crops(png.read_png(os.path.join(SRC, 'monos lamina.png')), 3)
+    # Pose 1 is the widest and the tallest, so the shared frame IS its own
+    # tight box: `mono v2.png` doubles as the family's first frame, and only
+    # poses 2 and 3 need a framed file of their own.
+    family = framed(monkeys)
+    if (family[0].w, family[0].h) != (monkeys[0].w, monkeys[0].h):
+        raise SystemExit('monkey pose 1 is no longer the largest: frame it too')
     write('mono v2.png', monkeys[0])
-    for i, img in enumerate(framed(monkeys), start=1):
-        write(f'mono familia {i}.png', img)
+    write('mono familia 2.png', family[1])
+    write('mono familia 3.png', family[2])
 
     # D5: the three ducklings collected along `duck-trail3`/`duck-trail4`.
     ducklings = pose_crops(png.read_png(os.path.join(SRC, 'patitos lamina.png')), 3)
@@ -240,6 +246,12 @@ def main() -> None:
     write('abeja v2.png', bee)
     write('flor v2.png', flower)
     write('panal v2.png', comb)
+
+    # `docs/20` B14 pose 2, exported as its own file but with a sliver of the
+    # sheet's other pose left on its left edge: keep the hedgehog only.
+    uncurling = isolate(png.read_png(os.path.join(SRC, 'erizo desenroscando.png')))
+    x0, y0, x1, y1 = png.alpha_bbox(uncurling)
+    write('erizo desenroscando recortado.png', png.crop(uncurling, x0, y0, x1, y1))
 
 
 if __name__ == '__main__':

@@ -10,6 +10,7 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import ScreenTransition, { ROOT_VIEW_TRANSITION_CSS, ROOT_VIEW_TRANSITION_DURATION_MS } from './ScreenTransition'
+import { TRANSITION_LENS_ART } from '../detective/assets'
 
 describe('ScreenTransition (T24: the lupa wipe replaces the plain fade)', () => {
   it('wraps its children in the wipe class by default, unchanged otherwise', () => {
@@ -108,7 +109,7 @@ describe("ScreenTransition kind='native' (T31 follow-up #2)", () => {
     expect(html).toContain('<p>hola</p>')
   })
 
-  it('still renders the rim/handle/highlight, tagged for the View Transition path', () => {
+  it('still renders the drawn magnifier (T49), tagged for the View Transition path', () => {
     const html = renderToString(
       <ScreenTransition screenKey="map" kind="native">
         <p>hola</p>
@@ -116,8 +117,8 @@ describe("ScreenTransition kind='native' (T31 follow-up #2)", () => {
     )
     expect(html).toContain('class="cv-lupa-rim cv-lupa-rim--vt"')
     expect(html).toContain('class="cv-lupa-circle"')
-    expect(html).toContain('class="cv-lupa-highlight"')
-    expect(html).toContain('class="cv-lupa-handle"')
+    expect(html).toContain('class="cv-lupa-lens"')
+    expect(html).toContain(`src="${TRANSITION_LENS_ART.href}"`)
   })
 
   it('the rim renders AFTER children, so it paints above both View Transition snapshots', () => {

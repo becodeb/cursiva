@@ -25,25 +25,27 @@
 // comment ends the string.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
-import { ZOO_OCTOPUS_BACKPACK_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import { ZOO_SPEECH_BUBBLE_LEFT_ART } from '../detective/assets'
 import { SHEET_PAPER, fitContentWithInsets } from '../canvas/TraceCanvas'
 import { RevealLayer } from '../canvas/RevealLayer'
 import type { ArtBox } from '../canvas/placeArt'
 import { backdropFor } from '../zoo/backdrops'
-import { adventureIcon, type Adventure } from '../zoo/adventures'
+import { introBubbleArt, type Adventure } from '../zoo/adventures'
 import { introCoverFor, INTRO_COVER_VIEWBOX_HEIGHT } from './introCover'
 import { IntroChromeGhost, levelChromeFacts } from './introChrome'
 import { LEVEL_CHROME_SIDE_INSET } from './LevelPlay'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import { BUBBLE_POP_CSS } from './BubblePop'
-import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
+import { ZOO_SPEECH_BUBBLE_LEFT_TAIL } from './bubblePlacement'
 import { CONTENT_LEFT_FRAC, CONTENT_TOP_FRAC, CONTENT_WIDTH_FRAC, GAP_FRAC, LINE_HEIGHT, placeAndFitBubble } from './bubbleFit'
 import {
+  INTRO_OCTOPUS_ART,
   OCTOPUS_CORNER_INSET,
   OCTOPUS_CORNER_SIZE_PCT,
   octopusBoxAtCorner,
   resolvePulpitoStance,
+  stageOctopusSizing,
   stanceBubbleSide,
   STAGE_MARGIN_PCT,
   STAGE_MAX_PX,
@@ -255,18 +257,20 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
   // T18: the stance (`docs/19` §4.1) — which bottom corner he stands in,
   // and therefore which side the bubble opens toward.
   const stance = resolvePulpitoStance(adventure.introStance)
-  const octopusBox = octopusBoxAtCorner(ZOO_OCTOPUS_BACKPACK_ART, {
+  // [T49, `docs/23` D7] He points at the scene: the drawing points right,
+  // so in the right corner it is mirrored (CSS `scale`, which composes with
+  // the blink keyframe's own `transform` instead of replacing it).
+  const octopusBox = octopusBoxAtCorner(INTRO_OCTOPUS_ART, {
     corner: stance.corner,
-    sizeBy: 'width',
-    size: OCTOPUS_CORNER_SIZE_PCT,
+    ...stageOctopusSizing(INTRO_OCTOPUS_ART),
     bottom: 2,
     inset: OCTOPUS_CORNER_INSET,
   })
-  const icon = adventureIcon(adventure)
+  const icon = introBubbleArt(adventure)
   const { placement, content } = placeAndFitBubble({
     frame: { w: 100, h: 100 },
     headBox: octopusBox,
-    tail: ZOO_SPEECH_BUBBLE_TAIL,
+    tail: ZOO_SPEECH_BUBBLE_LEFT_TAIL,
     side: stanceBubbleSide(stance.corner),
     text: adventure.intro,
     art: icon,
@@ -336,8 +340,16 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
       {backdrop && !cover && <img className="cv-intro-backdrop" src={backdrop.art.href} alt="" />}
       <div className="cv-intro-frame">
         <button type="button" className="cv-intro-stage" onClick={onStart}>
-          <span className="cv-intro-octopus" style={{ [stance.corner]: `${octopusBox.x}%` } as CSSProperties}>
-            <img src={ZOO_OCTOPUS_BACKPACK_ART.href} alt="" className="cv-octopus-life" />
+          <span
+            className="cv-intro-octopus"
+            style={{ [stance.corner]: `${octopusBox.x}%`, width: `${octopusBox.w}%` } as CSSProperties}
+          >
+            <img
+              src={INTRO_OCTOPUS_ART.href}
+              alt=""
+              className="cv-octopus-life"
+              style={stance.corner === 'right' ? { scale: '-1 1' } : undefined}
+            />
           </span>
           <span
             className={`cv-intro-bubble${placement.mirrored ? ' cv-intro-bubble--mirror-x' : ''}`}
@@ -363,7 +375,7 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
               className="cv-bubble-pop"
               style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
             >
-              <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+              <img src={ZOO_SPEECH_BUBBLE_LEFT_ART.href} alt="" />
               <CaptionedArt
                 art={icon}
                 label={adventure.intro}
