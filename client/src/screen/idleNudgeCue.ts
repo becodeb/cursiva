@@ -175,10 +175,12 @@ export interface IdleCueContext {
 }
 
 /** How far `pathCue` pushes its slide forward when the level's own start
- *  shows the octopus (`IdleCueContext.hasStartArt`) — a bit over half
- *  `OCTOPUS_SIZE` (96, `screen/LevelPlay.tsx`), enough to clear its drawn
- *  footprint without needing that screen's own constant imported here. */
-export const START_ART_CUE_PUSH = 95
+ *  shows the octopus (`IdleCueContext.hasStartArt`) — about
+ *  `OCTOPUS_SIZE` (`screen/LevelPlay.tsx`), enough to clear its drawn
+ *  footprint without needing that screen's own constant imported here.
+ *  [T51] 95 -> 111 with the octopus's 96 -> 112 (`levelOctopus.test.tsx`
+ *  keeps the two in step). */
+export const START_ART_CUE_PUSH = 111
 
 /**
  * The one dispatcher `screen/LevelPlay.tsx` calls: picks the right cue
