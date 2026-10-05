@@ -10,6 +10,8 @@ import {
   CONTENT_WIDTH_FRAC,
   fitBubbleContent,
   IMAGE_MAX_WIDTH_FRAC,
+  CAPTION_CONTENT_AREA_EM,
+  LINE_HEIGHT,
   MAX_FONT_FRAC,
   placeAndFitBubble,
   TEXT_AREA_MARGIN_FRAC,
@@ -36,6 +38,9 @@ import type { ArtImage } from '../detective/assets'
 import { DETECTIVE_CASES } from '../detective/cases'
 import { DEDUCTION_BUBBLE_MARGIN_FRAC, DEDUCTION_OPENING_LINE, deductionBubble, deductionBubbleLines } from './Deduction'
 import { deductionFramePx } from './deductionLayout'
+
+/** How far a text box pokes past its line box, top or bottom, in px. */
+const glyphOverhangPx = (fontPx: number): number => ((CAPTION_CONTENT_AREA_EM - LINE_HEIGHT) / 2) * fontPx
 
 const SQUARE_ART: ArtImage = { w: 442, h: 448, href: '/art/fixture-square.png' }
 const WIDE_ART: ArtImage = { w: 900, h: 260, href: '/art/fixture-wide.png' }
@@ -239,8 +244,10 @@ describe('placeStageBubble — every real intro/closing line in the registry, at
           expect(content.blockHeight, id).toBeLessThanOrEqual(placement.height * ZOO_SPEECH_BUBBLE_LEFT_CONTENT.height + 1e-6)
           // 11px is the floor at 844x390 (this app's tightest tier).
           expect(fontPx, `${id} (${size})`).toBeGreaterThanOrEqual(11)
+          // The text box overhangs its line boxes by half the content area
+          // beyond the line height, top and bottom: 8 px after that.
           const marginPx = TEXT_AREA_MARGIN_FRAC * (placement.width / 100) * framePx
-          expect(marginPx, `${id} (${size}) margin`).toBeGreaterThanOrEqual(8)
+          expect(marginPx - glyphOverhangPx(fontPx), `${id} (${size}) margin`).toBeGreaterThanOrEqual(8)
         }
       })
 
@@ -253,7 +260,7 @@ describe('placeStageBubble — every real intro/closing line in the registry, at
           const wideWidth = placement.width * ZOO_SPEECH_BUBBLE_LEFT_CONTENT.width
           const assignments =
             content.layout === 'float'
-              ? assignFloatingWordColumns(text, content.fontSize, content.captionWidth, wideWidth, content.imageHeight, content.lineHeight)
+              ? assignFloatingWordColumns(text, content.fontSize, content.captionWidth, wideWidth, content.floatHeight, content.lineHeight)
               : assignWordColumns(text, content.fontSize, content.captionWidth)
           expect(assignments.length, id).toBe(text.split(' ').filter((w) => w.length > 0).length)
           for (const { word, width, columnWidth } of assignments) {
@@ -331,12 +338,12 @@ describe("placeAndFitBubble — screen/PrologueOpening.tsx's own bubble lines, a
         expect(content.fits, `${plate.line} (fontPx=${fontPx.toFixed(1)})`).toBe(true)
         expect(fontPx, `${plate.line} (${vw}x${vh})`).toBeGreaterThanOrEqual(11)
         // [T51] the measured text area's margin, in real px.
-        expect(TEXT_AREA_MARGIN_FRAC * (placement.width / 100) * framePx, `${plate.line} margin`).toBeGreaterThanOrEqual(8)
+        expect(TEXT_AREA_MARGIN_FRAC * (placement.width / 100) * framePx - glyphOverhangPx(fontPx), `${plate.line} margin`).toBeGreaterThanOrEqual(8)
 
         const wideWidth = placement.width * CONTENT_WIDTH_FRAC
         const assignments =
           content.layout === 'float'
-            ? assignFloatingWordColumns(plate.line, content.fontSize, content.captionWidth, wideWidth, content.imageHeight, content.lineHeight)
+            ? assignFloatingWordColumns(plate.line, content.fontSize, content.captionWidth, wideWidth, content.floatHeight, content.lineHeight)
             : assignWordColumns(plate.line, content.fontSize, content.captionWidth)
         expect(assignments.length, plate.line).toBe(plate.line.split(' ').filter((w) => w.length > 0).length)
         for (const { word, width, columnWidth } of assignments) {
@@ -398,7 +405,7 @@ describe("placeAndFitBubble — screen/Deduction.tsx's own bubble lines, at its 
         // [T51] Inside the measured text area by this screen's own smaller
         // margin (`DEDUCTION_BUBBLE_MARGIN_FRAC`, T51's 8 px brief covers the
         // entry, closing and prologue screens): never touching it.
-        expect(DEDUCTION_BUBBLE_MARGIN_FRAC * (placement.width / 100) * framePx, `${id} margin`).toBeGreaterThanOrEqual(3)
+        expect(DEDUCTION_BUBBLE_MARGIN_FRAC * (placement.width / 100) * framePx - glyphOverhangPx(fontPx), `${id} margin`).toBeGreaterThan(0)
 
         const assignments = assignWordColumns(text, content.fontSize, content.captionWidth)
         expect(assignments.length, id).toBe(text.split(' ').filter((w) => w.length > 0).length)

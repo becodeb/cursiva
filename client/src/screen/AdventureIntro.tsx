@@ -37,7 +37,7 @@ import { LEVEL_CHROME_SIDE_INSET } from './LevelPlay'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import { BUBBLE_POP_CSS } from './BubblePop'
-import { GAP_FRAC, LINE_HEIGHT, ZOO_SPEECH_BUBBLE_LEFT_CONTENT } from './bubbleFit'
+import { FLOAT_BOTTOM_MARGIN_FRAC, GAP_FRAC, LINE_HEIGHT, ZOO_SPEECH_BUBBLE_LEFT_CONTENT } from './bubbleFit'
 import {
   INTRO_OCTOPUS_ART,
   OCTOPUS_CORNER_SIZE_PCT,
@@ -79,7 +79,7 @@ const INTRO_CSS = `
 .cv-intro { position: relative; height: 100dvh; width: 100vw; overflow: hidden; background-color: ${SHEET_PAPER}; }
 .cv-intro-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .cv-intro-frame { position: absolute; bottom: ${STAGE_MARGIN_PCT}%; width: min(100%, ${STAGE_MAX_PX}px, ${STAGE_MAX_VH_FRAC * 100}dvh); aspect-ratio: 1 / 1; container-type: inline-size; }
-.cv-intro-stage { position: absolute; inset: 0; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; }
+.cv-intro-stage { position: absolute; inset: 0; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; font: inherit; text-align: left; }
 /* T8 item 1 (odd/tasks/prewriting-stage-completion.md): idle life, using
    only the existing art. T18: no more translateX(-50%) — a corner octopus
    is positioned by a plain inline left/right (octopusBoxAtCorner's own x
@@ -116,8 +116,12 @@ ${BUBBLE_POP_CSS}
 .cv-intro-bubble { position: absolute; container-type: inline-size; }
 .cv-intro-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
 .cv-intro-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
-.cv-intro-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); text-align: left; }
-.cv-intro-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
+/* [T51] The caption block carries the caption font too: its line boxes take
+   their height from the BLOCK strut as well as the inline caption, so a block
+   left at the page font (16px, normal line height) spaced small captions
+   wider than the fit assumed. */
+.cv-intro-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); text-align: left; font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; }
+.cv-intro-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: ${FLOAT_BOTTOM_MARGIN_FRAC * 100}cqw; }
 /* T18 follow-up (bubbleFit.ts's own header): the STACK layout — the image
    sits above the caption instead of beside it, so the caption always wraps
    at the bubble's full content width and never has to fit a word into a

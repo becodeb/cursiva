@@ -31,6 +31,7 @@ const baseContent: BubbleContentFit = {
   lineCount: 1,
   imageWidth: 0,
   imageHeight: 0,
+  floatHeight: 0,
   captionWidth: 60,
   captionHeight: 45,
   blockHeight: 6, // one short line, far under the content box's own budget

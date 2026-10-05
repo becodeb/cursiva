@@ -4,12 +4,15 @@
 // DOM-free — the same convention `bubblePlacement.ts` follows, and for the
 // same reason: this repo's test harness is `renderToString` in node, with
 // no layout engine to measure real text against (`docs/…`'s own "no DOM
-// libs" rule, restated by this task's own brief). A real glyph-width
-// measurement is unavailable here, so `AVG_CHAR_WIDTH_FRACTION` below is a
-// deliberately GENEROUS heuristic (wider than Nunito Bold's true average
-// advance width) — the goal is "never overflow", and over-estimating a
-// word's width can only make this shrink text/grow the bubble MORE than a
-// real measurement would ask for, never less.
+// libs" rule, restated by this task's own brief). No layout engine here, so
+// words are measured with `CAPTION_ADVANCE_EM`, per-character advances
+// measured in Chromium (T51), times a small safety factor — the goal is
+// "never overflow", and over-estimating a word's width can only make this
+// shrink text/grow the bubble MORE than the browser needs, never less.
+// (Until T51 this was a flat 0.54 em per character, "generous" by
+// assumption; the face the captions really render in measures about 0.63 em
+// per lowercase letter, so real lines wrapped earlier than the model and
+// the last one left the bubble.)
 //
 // Layout model (matches `AdventureIntro.tsx`'s/`AdventureClosing.tsx`'s own
 // CSS box, restated here as fractions of the BUBBLE's own rendered size —
@@ -105,10 +108,12 @@ export const ZOO_SPEECH_BUBBLE_LEFT_TEXT_AREA: BubbleRect = {
 
 /** [T51] Inner margin between the text area and the text, as a fraction of
  *  the bubble's WIDTH on both axes (so it is the same distance in px on
- *  every side). 0.04 keeps it at or above 8 px on the smallest bubble any
- *  stage screen draws (the deduction's opening line at 844x390, ~206 px
- *  wide), proven for every registry line by `bubbleFit.test.ts`. */
-export const TEXT_AREA_MARGIN_FRAC = 0.04
+ *  every side). 0.046 keeps the TEXT box (glyph overhang included,
+ *  `CAPTION_CONTENT_AREA_EM`) at or above 8 px inside the measured area on
+ *  the smallest bubble an entry, closing or prologue screen draws (a rescue
+ *  closing at 844x390, ~234 px wide), proven for every registry line by
+ *  `bubbleFit.test.ts` and measured in Chromium (T51). */
+export const TEXT_AREA_MARGIN_FRAC = 0.046
 
 /** The CONTENT box text and image are laid out in: `area` inset by
  *  `TEXT_AREA_MARGIN_FRAC` on every side. `aspect` is the bubble's own
@@ -168,6 +173,13 @@ export const IMAGE_STACK_MAX_HEIGHT_FRAC = 0.3
  *  every real case, so the visual gap stays essentially the same size). */
 export const GAP_FRAC = 0.04
 
+/** [T51] The floated image's own bottom margin (the screens' CSS writes
+ *  this as `cqw` of the bubble): the browser keeps a line NARROW while its
+ *  top is above the image's bottom PLUS this margin, so the wrap below
+ *  counts it too. Ignoring it let a real line wrap narrow one more time
+ *  than the model and push the last line out of the text area. */
+export const FLOAT_BOTTOM_MARGIN_FRAC = 0.01
+
 /** Font size bounds, percent of the bubble's own width. `MAX` reproduces
  *  the pre-T18 fixed `5.6cqw` (of the FRAME) for the common case: a
  *  default-width bubble is ~78% of the frame, and `0.072 * 78 ≈ 5.6`. `MIN`
@@ -184,18 +196,60 @@ export const MIN_FONT_FRAC = 0.04
 
 export const LINE_HEIGHT = 1.14
 
-/** A generous average glyph advance width, as a fraction of the font size
- *  — see this file's own header on why wider-than-real is the safe
- *  direction. Nunito Bold's true average is closer to 0.5; treating the
- *  inter-word space as costing the same as a character is an additional
- *  safety margin on top of that. */
-const AVG_CHAR_WIDTH_FRACTION = 0.54
+/** [T51] Nunito's content area (ascent + descent) in em, measured in
+ *  Chromium (the first family's metrics set it even where its glyphs fall
+ *  back, `CAPTION_ADVANCE_EM`): a text box (what `Range.getBoundingClientRect` reports) is
+ *  this tall, so it pokes `(CAPTION_CONTENT_AREA_EM - LINE_HEIGHT) / 2` em
+ *  above the first line box and below the last. `TEXT_AREA_MARGIN_FRAC`
+ *  is sized to keep 8 px even after that overhang. */
+export const CAPTION_CONTENT_AREA_EM = 1.364
+
+/** [T51] Caption advance widths in em at weight 700, measured in Chromium
+ *  from a 1000 px span per character inside a bubble. NOTE: the shipped
+ *  `public/fonts/nunito.woff2` only covers "A" and the space (measured: every
+ *  other letter, digit and accent falls back), so captions really render in
+ *  the system sans: DejaVu Sans Bold on the Linux test host, which is what
+ *  this table holds. It is wider than Roboto, Arial/Liberation Sans and
+ *  Nunito at the same weight, so it over-estimates on a tablet and stays
+ *  safe if the font file is fixed. Kerning only ever tightened a pair in
+ *  the registry's words ("Te" 1.228 vs 1.360 summed), so summing advances
+ *  over-estimates too. */
+export const CAPTION_ADVANCE_EM: Readonly<Record<string, number>> = {
+  "0": 0.696, "1": 0.696, "2": 0.696, "3": 0.696, "4": 0.696, "5": 0.696, "6": 0.696,
+  "7": 0.696, "8": 0.696, "9": 0.696, " ": 0.271, a: 0.675, b: 0.716, c: 0.593,
+  d: 0.716, e: 0.678, f: 0.435, g: 0.716, h: 0.712, i: 0.343, j: 0.343, k: 0.665,
+  l: 0.343, m: 1.042, n: 0.712, o: 0.687, p: 0.716, q: 0.716, r: 0.493, s: 0.595,
+  t: 0.478, u: 0.712, v: 0.652, w: 0.924, x: 0.645, y: 0.652, z: 0.582, A: 0.744,
+  B: 0.762, C: 0.734, D: 0.83, E: 0.683, F: 0.683, G: 0.821, H: 0.837, I: 0.372,
+  J: 0.372, K: 0.775, L: 0.637, M: 0.995, N: 0.837, O: 0.85, P: 0.733, Q: 0.85,
+  R: 0.77, S: 0.72, T: 0.682, U: 0.812, V: 0.774, W: 1.103, X: 0.771, Y: 0.724,
+  Z: 0.725, "á": 0.675, "é": 0.678, "í": 0.343, "ó": 0.687, "ú": 0.712, "ü": 0.712,
+  "ñ": 0.712, "Á": 0.744, "É": 0.683, "Í": 0.372, "Ó": 0.85, "Ú": 0.812, "Ü": 0.812,
+  "Ñ": 0.837, "¡": 0.456, "!": 0.456, "¿": 0.58, "?": 0.58, ".": 0.38, ",": 0.38,
+  ":": 0.4, ";": 0.4, "…": 1, "'": 0.306, "\"": 0.521, "“": 0.657, "”": 0.657,
+  "‘": 0.38, "’": 0.38, "-": 0.415, "–": 0.5, "—": 1, "(": 0.457, ")": 0.457,
+}
+
+/** Any character the table lacks counts as the widest one it has ("W"). */
+const UNKNOWN_ADVANCE_EM = 1.103
+
+/** Headroom over the measured advances, for sub-pixel rounding and a
+ *  fallback face being a touch wider. */
+const TEXT_WIDTH_SAFETY = 1.04
+
+/** The rendered width of `text` (no wrapping) at `fontSize`, in the same
+ *  unit as `fontSize`. */
+export function textWidth(text: string, fontSize: number): number {
+  let em = 0
+  for (const ch of text) em += CAPTION_ADVANCE_EM[ch] ?? UNKNOWN_ADVANCE_EM
+  return em * fontSize * TEXT_WIDTH_SAFETY
+}
 
 /**
  * How many lines `text` wraps into at `fontSize`, inside a plain
  * (non-floating) box of `maxWidth` — a greedy word-wrap simulation, the
  * same algorithm a real text layout engine runs, just measuring each word
- * by its character COUNT instead of its real glyph widths. A single word
+ * with `textWidth` (measured advances, no kerning). A single word
  * wider than `maxWidth` still occupies only one line (this model cannot
  * break mid-word, the one case where it can UNDER-count — Spanish sentence
  * words are short enough in this game's registry that `bubbleFit.test.ts`
@@ -204,14 +258,14 @@ const AVG_CHAR_WIDTH_FRACTION = 0.54
  * `wrapFloatingBlock` instead, which calls this once per row).
  */
 export function wrapLineCount(text: string, fontSize: number, maxWidth: number): number {
-  const charWidth = fontSize * AVG_CHAR_WIDTH_FRACTION
+  const spaceWidth = textWidth(' ', fontSize)
   const words = text.split(' ').filter((w) => w.length > 0)
   if (words.length === 0) return 1
   let lines = 1
   let lineWidth = 0
   for (const word of words) {
-    const wordWidth = word.length * charWidth
-    const candidate = lineWidth === 0 ? wordWidth : lineWidth + charWidth + wordWidth
+    const wordWidth = textWidth(word, fontSize)
+    const candidate = lineWidth === 0 ? wordWidth : lineWidth + spaceWidth + wordWidth
     if (candidate > maxWidth && lineWidth > 0) {
       lines += 1
       lineWidth = wordWidth
@@ -243,25 +297,23 @@ export interface WordColumnAssignment {
  * it on — one column width throughout, since there is no floated image.
  */
 export function assignWordColumns(text: string, fontSize: number, maxWidth: number): WordColumnAssignment[] {
-  const charWidth = fontSize * AVG_CHAR_WIDTH_FRACTION
   const words = text.split(' ').filter((w) => w.length > 0)
-  return words.map((word) => ({ word, width: word.length * charWidth, columnWidth: maxWidth }))
+  return words.map((word) => ({ word, width: textWidth(word, fontSize), columnWidth: maxWidth }))
 }
 
 /**
  * The widest single WORD in `text`, at `fontSize` — measured with the exact
- * same per-character heuristic `wrapLineCount`/`wrapFloatingBlock` use for a
- * whole line (`AVG_CHAR_WIDTH_FRACTION`), so a word this function clears is
+ * same `textWidth` `wrapLineCount`/`wrapFloatingBlock` use for a
+ * whole line, so a word this function clears is
  * guaranteed not to be the reason either of those functions would have
  * broken a line early. Empty text has no word to overflow anything, so this
  * returns `0`. Punctuation attached to a word (Spanish's leading `¡`/`¿`)
- * counts as part of it, same as `wrapLineCount`'s own `word.length`.
+ * counts as part of it, same as in `wrapLineCount`.
  */
 export function longestWordWidth(text: string, fontSize: number): number {
-  const charWidth = fontSize * AVG_CHAR_WIDTH_FRACTION
   const words = text.split(' ').filter((w) => w.length > 0)
   let widest = 0
-  for (const word of words) widest = Math.max(widest, word.length * charWidth)
+  for (const word of words) widest = Math.max(widest, textWidth(word, fontSize))
   return widest
 }
 
@@ -275,8 +327,8 @@ export interface FloatingBlockFit {
  * top of the box (this file's own header diagram): each line's available
  * width is `narrowWidth` while the block's running height is still under
  * `floatHeight` (beside the image), and `wideWidth` afterward (below it) —
- * matches real CSS `float: left` word-wrap exactly, just measuring by
- * character count instead of real glyph widths (`wrapLineCount`'s own
+ * matches real CSS `float: left` word-wrap exactly, just measuring with
+ * `textWidth` instead of the real layout (`wrapLineCount`'s own
  * caveat applies here too). `floatHeight <= 0` (no image at all) is the
  * degenerate case where every line already uses `wideWidth`.
  */
@@ -295,8 +347,8 @@ interface FloatingLayout extends FloatingBlockFit {
  * that quietly drifts apart). Each line's available width is `narrowWidth`
  * while the block's running height is still under `floatHeight` (beside
  * the image), and `wideWidth` afterward (below it) — matches real CSS
- * `float: left` word-wrap exactly, just measuring by character count
- * instead of real glyph widths. `floatHeight <= 0` (no image at all) is the
+ * `float: left` word-wrap exactly, just measuring with `textWidth`
+ * instead of the real layout. `floatHeight <= 0` (no image at all) is the
  * degenerate case where every line already uses `wideWidth`.
  */
 function layoutFloatingWords(
@@ -307,7 +359,7 @@ function layoutFloatingWords(
   floatHeight: number,
   lineHeight: number,
 ): FloatingLayout {
-  const charWidth = fontSize * AVG_CHAR_WIDTH_FRACTION
+  const spaceWidth = textWidth(' ', fontSize)
   const words = text.split(' ').filter((w) => w.length > 0)
   if (words.length === 0) return { lineCount: 1, blockHeight: fontSize * lineHeight, words: [] }
 
@@ -319,8 +371,8 @@ function layoutFloatingWords(
     const available = blockHeight < floatHeight ? narrowWidth : wideWidth
     let lineWidth = 0
     while (i < words.length) {
-      const wordWidth = words[i].length * charWidth
-      const candidate = lineWidth === 0 ? wordWidth : lineWidth + charWidth + wordWidth
+      const wordWidth = textWidth(words[i], fontSize)
+      const candidate = lineWidth === 0 ? wordWidth : lineWidth + spaceWidth + wordWidth
       if (candidate > available && lineWidth > 0) break
       assignments.push({ word: words[i], width: wordWidth, columnWidth: available })
       lineWidth = candidate
@@ -374,6 +426,10 @@ export interface BubbleContentFit {
   readonly lineCount: number
   readonly imageWidth: number
   readonly imageHeight: number
+  /** [T51] How far down the caption wraps NARROW beside the image: the
+   *  image's height plus its bottom margin (`FLOAT_BOTTOM_MARGIN_FRAC`);
+   *  `0` for a STACK layout or no image. */
+  readonly floatHeight: number
   readonly captionWidth: number
   readonly captionHeight: number
   /** T34 (`odd/tasks/prewriting-stage-completion.md`): the TOTAL visual
@@ -501,6 +557,7 @@ export function fitBubbleContent(
 
   const gap = hasImage ? bubbleWidth * GAP_FRAC : 0
   const narrowWidth = Math.max(0, contentWidth - imageWidth - gap)
+  const floatHeight = imageHeight > 0 ? imageHeight + bubbleWidth * FLOAT_BOTTOM_MARGIN_FRAC : 0
 
   const maxFont = bubbleWidth * MAX_FONT_FRAC
   const minFont = bubbleWidth * MIN_FONT_FRAC
@@ -509,18 +566,19 @@ export function fitBubbleContent(
   // only when BOTH its longest word fits the narrow column and the whole
   // block still fits the (measured-safe) content height at that size.
   const float = searchFontSize(maxFont, minFont, contentHeight, (fontSize) =>
-    wrapFloatingBlock(text, fontSize, narrowWidth, contentWidth, imageHeight, LINE_HEIGHT).blockHeight,
+    wrapFloatingBlock(text, fontSize, narrowWidth, contentWidth, floatHeight, LINE_HEIGHT).blockHeight,
   )
   const floatWordFits = imageHeight <= 0 || longestWordWidth(text, float.fontSize) <= narrowWidth + EPS
   const floatHeightFits = float.blockHeight <= contentHeight + EPS
   if (floatWordFits && floatHeightFits) {
-    const block = wrapFloatingBlock(text, float.fontSize, narrowWidth, contentWidth, imageHeight, LINE_HEIGHT)
+    const block = wrapFloatingBlock(text, float.fontSize, narrowWidth, contentWidth, floatHeight, LINE_HEIGHT)
     return {
       fontSize: float.fontSize,
       lineHeight: LINE_HEIGHT,
       lineCount: block.lineCount,
       imageWidth,
       imageHeight,
+      floatHeight,
       captionWidth: narrowWidth,
       captionHeight: contentHeight,
       // FLOAT: the image and the caption's early lines share the same
@@ -557,6 +615,7 @@ export function fitBubbleContent(
     lineCount: stackLineCount,
     imageWidth: stackImageWidth,
     imageHeight: stackImageHeight,
+    floatHeight: 0,
     captionWidth: contentWidth,
     captionHeight: contentHeight,
     // STACK: the image sits ABOVE the caption, so their heights genuinely
