@@ -552,28 +552,55 @@ export const CART_ART: ArtImage = {
   h: 256,
 }
 
-/** Full-canvas sectors are scenery rather than sprites: callers preserve their
- * 3:2 intrinsic coordinate system and leave the quiet centre free for a
- * finger-drawn route. */
+/** Full-canvas sectors are scenery rather than sprites: callers preserve each
+ * image's own intrinsic coordinate system (`w`/`h` below, per image) and
+ * leave the quiet centre free for a finger-drawn route.
+ *
+ * T50 (`docs/23` D25-D31): the seven redrawn round-2 scenes ship at 2:1
+ * (2048x1024), important content inside the central 4:3 safe zone
+ * (`docs/20` §2.2), so a 4:3 tablet crops only their sides and a wide
+ * screen shows more of them. `sand`/`nightZoo`/`monkeys` stay on their 3:2
+ * originals: their 2:1 extensions (D32-D34) carry a visible seam
+ * (`scripts/art/build_art.py`'s `PASSTHROUGHS` header). */
 export const SECTOR_BACKGROUND_ART: Readonly<Record<
   | 'lagoon' | 'sand' | 'slope' | 'range' | 'forest' | 'aquarium' | 'night'
   | 'nightZoo' | 'monkeys' | 'path',
   ArtImage
 >> = {
-  lagoon: { href: '/art/sector-lagoon-background.png', w: 1536, h: 1024 },
+  lagoon: { href: '/art/sector-lagoon-background.png', w: 2048, h: 1024 },
   sand: { href: '/art/sector-sand-background.png', w: 1536, h: 1024 },
-  slope: { href: '/art/sector-slope-background.png', w: 1536, h: 1024 },
-  range: { href: '/art/sector-range-background.png', w: 1536, h: 1024 },
-  forest: { href: '/art/sector-forest-background.png', w: 1536, h: 1024 },
-  aquarium: { href: '/art/sector-aquarium-background.png', w: 1536, h: 1024 },
-  // Authored from `fondo nocturno.png` — a full-canvas opaque scene like
-  // every other row here, same 1536x1024.
-  night: { href: '/art/sector-night-background.png', w: 1536, h: 1024 },
+  slope: { href: '/art/sector-slope-background.png', w: 2048, h: 1024 },
+  range: { href: '/art/sector-range-background.png', w: 2048, h: 1024 },
+  forest: { href: '/art/sector-forest-background.png', w: 2048, h: 1024 },
+  // Authored from `fondo pecera v2.png` (D31): an underwater tank with the
+  // seaweed, chest and stones the fish closing names.
+  aquarium: { href: '/art/sector-aquarium-background.png', w: 2048, h: 1024 },
+  // Authored from `fondo nocturno v2.png` (D29) — the hedgehog's night.
+  night: { href: '/art/sector-night-background.png', w: 2048, h: 1024 },
   nightZoo: { href: '/art/sector-night-zoo-background.png', w: 1536, h: 1024 },
-  // The prologue's third and fourth enclosures (design.md §4). Placeholder
-  // sources, same full-canvas opaque contract as every other row here.
+  // The prologue's third and fourth enclosures (design.md §4).
   monkeys: { href: '/art/sector-monkeys-background.png', w: 1536, h: 1024 },
-  path: { href: '/art/sector-path-background.png', w: 1536, h: 1024 },
+  path: { href: '/art/sector-path-background.png', w: 2048, h: 1024 },
+}
+
+/** The UI chrome buttons (T50, `docs/23` D36): eight round, hand-drawn
+ * buttons cut from `botones lamina.png` by `scripts/art/build_art.py`. They
+ * replace the code-drawn glyphs inside the same `<button>`s; the button
+ * keeps its `aria-label` and its 64px tap floor, the picture is
+ * `aria-hidden`. `w`/`h` are copied from the rebuilt `manifest.json`,
+ * guarded by `artManifest.test.ts`. */
+export const UI_BUTTON_ART: Readonly<Record<
+  'next' | 'retry' | 'replay' | 'back' | 'close' | 'notebook' | 'sound' | 'soundOff',
+  ArtImage
+>> = {
+  next: { href: '/art/ui-button-next.png', w: 160, h: 160 },
+  retry: { href: '/art/ui-button-retry.png', w: 160, h: 157 },
+  replay: { href: '/art/ui-button-replay.png', w: 160, h: 158 },
+  back: { href: '/art/ui-button-back.png', w: 160, h: 158 },
+  close: { href: '/art/ui-button-close.png', w: 160, h: 158 },
+  notebook: { href: '/art/ui-button-notebook.png', w: 160, h: 156 },
+  sound: { href: '/art/ui-button-sound.png', w: 160, h: 159 },
+  soundOff: { href: '/art/ui-button-sound-off.png', w: 160, h: 156 },
 }
 
 /** The prologue's caretaker cutout — the Pulpito shown in beat 0, before the
@@ -871,12 +898,16 @@ export const HOME_OCTOPUS_ART: ArtImage = {
 /** The detective's desk, in front of the octopus (`docs/10` §3). Scenery: it
  * gives the screen a PLACE without competing with the character, which is why
  * it is drawn empty — anything on the desktop would read as a second thing to
- * touch. Wide and low (512x242), so a caller sizes it by WIDTH and lets the
- * legs run off the bottom of the canvas rather than squashing it. */
+ * touch. Wide and low (502x238), so a caller sizes it by WIDTH and lets the
+ * legs run off the bottom of the canvas rather than squashing it. T50
+ * (`docs/23` D37): redrawn with the neutral marker outline (`escritorio
+ * v2.png`), same proportions. No screen mounts it today — the home office
+ * gave way to the zoo map — so the registry entry is what keeps the shipped
+ * file guarded until one does. */
 export const HOME_DESK_ART: ArtImage = {
   href: '/art/home-desk.png',
-  w: 512,
-  h: 242,
+  w: 502,
+  h: 238,
 }
 
 /** Ground scatter marks, biggest first. Cut out of one authored tile field by

@@ -741,7 +741,7 @@ export function DeductionView({
             playSfx('tap')
             onExit()
           }}
-          className="cv-btn cv-btn-back"
+          className="cv-btn cv-btn-back cv-btn-art"
           aria-label="Volver"
         >
           <BackIcon />

@@ -20,6 +20,7 @@
 // hold two values for one key.
 import type { ArtImage } from '../detective/assets'
 import { SECTOR_BACKGROUND_ART } from '../detective/assets'
+import { ART_OUTLINE } from '../detective/palette'
 import { adventureFor, type AdventureId } from './adventures'
 
 export interface AdventureBackdrop {
@@ -61,6 +62,13 @@ export interface AdventureBackdrop {
    *  colour the ink has to clear. ABSENT = this adventure paints its
    *  corridor, which is every row that predates this change. */
   corridorArt?: { brightest: string; darkest: string; headWhite: string }
+  /** A marker outline stroked under the painted channel
+   *  (`TraceBackdrop.edge`, `canvas/TraceCanvas.tsx`; T50). ABSENT = no
+   *  outline, every row that predates T50. Declared only where the channel
+   *  paint cannot clear the backdrop's own sampled extremes by the 55-luma
+   *  law (`docs/09:158`): with the outline, the channel's boundary is the
+   *  channel-vs-edge contrast, which `backdrops.test.ts` asserts instead. */
+  edge?: string
 }
 
 /** Mountain stone. Not a taste call — design.md §2.1's window is `[95,
@@ -137,9 +145,10 @@ export const PATH_MUD = '#75634c'
 export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>> = {
   duck: {
     art: SECTOR_BACKGROUND_ART.lagoon,
-    quiet: '#b4c5d0',
-    brightest: '#b4c5d0',
-    corridorRows: { top: 135, bottom: 889 },
+    quiet: '#80a2b9',
+    brightest: '#ffffff',
+    corridorRows: { top: 93, bottom: 931 },
+    edge: ART_OUTLINE,
     // No `channel` — the lagoon keeps `SHEET_PAPER`, byte-identical to
     // before this change.
   },
@@ -152,9 +161,10 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // no `build_art.py` re-run, no new manifest literal.
   dolphin: {
     art: SECTOR_BACKGROUND_ART.lagoon,
-    quiet: '#b4c5d0',
-    brightest: '#b4c5d0',
-    corridorRows: { top: 135, bottom: 889 },
+    quiet: '#80a2b9',
+    brightest: '#ffffff',
+    corridorRows: { top: 93, bottom: 931 },
+    edge: ART_OUTLINE,
     // No `channel` — the lagoon keeps `SHEET_PAPER`, exactly as the ducks do.
   },
   // The fish adventure (promised-animals P2) — the duck row's own literals,
@@ -169,30 +179,33 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // makes for its camera worlds.
   fish: {
     art: SECTOR_BACKGROUND_ART.lagoon,
-    quiet: '#b4c5d0',
-    brightest: '#b4c5d0',
-    corridorRows: { top: 135, bottom: 889 },
+    quiet: '#80a2b9',
+    brightest: '#ffffff',
+    corridorRows: { top: 93, bottom: 931 },
+    edge: ART_OUTLINE,
     // No `channel` — the lagoon keeps `SHEET_PAPER`, exactly as the ducks
     // and the dolphin do.
   },
   sheep: {
     art: SECTOR_BACKGROUND_ART.slope,
-    quiet: '#9da396',
+    quiet: '#abb84a',
     // Measured over the frozen corridor rows (220, 866) — `scripts/art/
     // build_art.py`'s rebuilt manifest, NOT the wider range design.md's
     // draft table guessed from: the ladera's brightest pixel over this
     // exact band is its own quiet modal colour.
-    brightest: '#9da396',
-    corridorRows: { top: 220, bottom: 866 },
+    brightest: '#ffffff',
+    corridorRows: { top: 187, bottom: 906 },
     channel: CHANNEL_STONE,
+    edge: ART_OUTLINE,
   },
   llama: {
     art: SECTOR_BACKGROUND_ART.range,
-    quiet: '#c8d3d8',
-    // Measured over the frozen corridor rows (166, 858).
-    brightest: '#f5f5f5',
-    corridorRows: { top: 166, bottom: 858 },
+    quiet: '#d9e0e2',
+    // Measured over the corridor rows (127, 897) of the 2:1 art (T50).
+    brightest: '#ffffff',
+    corridorRows: { top: 127, bottom: 897 },
     channel: CHANNEL_STONE,
+    edge: ART_OUTLINE,
   },
   // The entrance's four enclosures and the night sector's row (design.md
   // §2.5, re-keyed by add-caretaker-prologue design.md D6/§4). `peces`/
@@ -204,9 +217,9 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // `manifest.json` (task 1.10), not hand-guessed.
   peces: {
     art: SECTOR_BACKGROUND_ART.aquarium,
-    quiet: '#b5e7f2',
+    quiet: '#0f96d8',
     brightest: '#ffffff',
-    corridorRows: { top: 51, bottom: 973 },
+    corridorRows: { top: 0, bottom: 1023 },
     tile: GLASS_GRIME,
   },
   tortugas: {
@@ -225,9 +238,9 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   },
   sendero: {
     art: SECTOR_BACKGROUND_ART.path,
-    quiet: '#d5c8b0',
-    brightest: '#d5c8b0',
-    corridorRows: { top: 51, bottom: 973 },
+    quiet: '#e19f4f',
+    brightest: '#ffffff',
+    corridorRows: { top: 0, bottom: 1023 },
     tile: PATH_MUD,
   },
   night: {
@@ -293,9 +306,9 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // (`artManifest.test.ts` guards the parity).
   bee: {
     art: SECTOR_BACKGROUND_ART.forest,
-    quiet: '#86a678',
-    brightest: '#86a678',
-    corridorRows: { top: 191, bottom: 926 },
+    quiet: '#a3c03d',
+    brightest: '#ffffff',
+    corridorRows: { top: 155, bottom: 973 },
   },
   // The monkeys adventure (`promised-animals` P4) — the SAME forest art and
   // measured `quiet`/`brightest` `bee` already draws on, a different
@@ -317,9 +330,10 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // `dolphin`'s and `fish`'s own entries above make for `duck`'s.
   monkeys: {
     art: SECTOR_BACKGROUND_ART.forest,
-    quiet: '#86a678',
-    brightest: '#86a678',
-    corridorRows: { top: 191, bottom: 926 },
+    quiet: '#a3c03d',
+    brightest: '#ffffff',
+    corridorRows: { top: 155, bottom: 973 },
+    edge: ART_OUTLINE,
   },
   // The hedgehog adventure keeps the established low-contrast night backdrop;
   // the renewed discovery scene is scoped to night1..4 so this existing ink
@@ -329,9 +343,9 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
   // one law over one backdrop, asserted once (design.md §2 D4, docs/09 §4).
   hedgehog: {
     art: SECTOR_BACKGROUND_ART.night,
-    quiet: '#2a3346',
-    brightest: '#526083',
-    corridorRows: { top: 51, bottom: 973 },
+    quiet: '#1a325a',
+    brightest: '#fffbb5',
+    corridorRows: { top: 0, bottom: 1023 },
     ink: TORCH_CHALK,
     inkDim: TORCH_CHALK_DIM,
   },

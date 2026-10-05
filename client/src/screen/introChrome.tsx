@@ -83,7 +83,7 @@ export function IntroChromeGhost({ facts, topRef, bottomRef }: IntroChromeGhostP
       <style>{LAYOUT_CSS}</style>
       <div className="cv-top" ref={topRef}>
         <header className={`cv-head${zooSign || hasProgressBar ? ' cv-head-wide' : ''}`}>
-          <button type="button" className="cv-btn cv-btn-back" tabIndex={-1}>
+          <button type="button" className="cv-btn cv-btn-back cv-btn-art" tabIndex={-1}>
             <BackIcon />
           </button>
           {zooSign && (
@@ -104,7 +104,7 @@ export function IntroChromeGhost({ facts, topRef, bottomRef }: IntroChromeGhostP
       <div className="cv-foot" ref={bottomRef}>
         <nav aria-label="Acciones" className="cv-actions">
           {playDemo && (
-            <button type="button" className="cv-btn" tabIndex={-1}>
+            <button type="button" className="cv-btn cv-btn-art" tabIndex={-1}>
               <ReplayIcon />
             </button>
           )}

@@ -452,10 +452,10 @@
     "w": 448
   },
   "home-desk": {
-    "bytes": 74832,
+    "bytes": 78499,
     "file": "art/home-desk.png",
-    "h": 242,
-    "w": 512
+    "h": 238,
+    "w": 502
   },
   "home-octopus": {
     "bytes": 39452,
@@ -483,15 +483,15 @@
   },
   "sector-aquarium-background": {
     "brightest": "#ffffff",
-    "bytes": 2099948,
+    "bytes": 3597111,
     "corridorRows": {
-      "bottom": 973,
-      "top": 51
+      "bottom": 1023,
+      "top": 0
     },
     "file": "art/sector-aquarium-background.png",
     "h": 1024,
-    "quiet": "#b5e7f2",
-    "w": 1536
+    "quiet": "#0f96d8",
+    "w": 2048
   },
   "sector-bee": {
     "bytes": 19806,
@@ -542,16 +542,16 @@
     "w": 256
   },
   "sector-forest-background": {
-    "brightest": "#86a678",
-    "bytes": 47084,
+    "brightest": "#ffffff",
+    "bytes": 3926448,
     "corridorRows": {
-      "bottom": 926,
-      "top": 191
+      "bottom": 973,
+      "top": 155
     },
     "file": "art/sector-forest-background.png",
     "h": 1024,
-    "quiet": "#86a678",
-    "w": 1536
+    "quiet": "#a3c03d",
+    "w": 2048
   },
   "sector-honeycomb": {
     "bytes": 16525,
@@ -560,16 +560,16 @@
     "w": 181
   },
   "sector-lagoon-background": {
-    "brightest": "#b4c5d0",
-    "bytes": 103852,
+    "brightest": "#ffffff",
+    "bytes": 3597063,
     "corridorRows": {
-      "bottom": 889,
-      "top": 135
+      "bottom": 931,
+      "top": 93
     },
     "file": "art/sector-lagoon-background.png",
     "h": 1024,
-    "quiet": "#b4c5d0",
-    "w": 1536
+    "quiet": "#80a2b9",
+    "w": 2048
   },
   "sector-leaf": {
     "bytes": 32586,
@@ -608,16 +608,16 @@
     "w": 256
   },
   "sector-night-background": {
-    "brightest": "#526083",
-    "bytes": 22289,
+    "brightest": "#fffbb5",
+    "bytes": 2599486,
     "corridorRows": {
-      "bottom": 973,
-      "top": 51
+      "bottom": 1023,
+      "top": 0
     },
     "file": "art/sector-night-background.png",
     "h": 1024,
-    "quiet": "#2a3346",
-    "w": 1536
+    "quiet": "#1a325a",
+    "w": 2048
   },
   "sector-night-zoo-background": {
     "brightest": "#fbf4b6",
@@ -632,28 +632,28 @@
     "w": 1536
   },
   "sector-path-background": {
-    "brightest": "#d5c8b0",
-    "bytes": 684562,
+    "brightest": "#ffffff",
+    "bytes": 4066847,
     "corridorRows": {
-      "bottom": 973,
-      "top": 51
+      "bottom": 1023,
+      "top": 0
     },
     "file": "art/sector-path-background.png",
     "h": 1024,
-    "quiet": "#d5c8b0",
-    "w": 1536
+    "quiet": "#e19f4f",
+    "w": 2048
   },
   "sector-range-background": {
-    "brightest": "#f5f5f5",
-    "bytes": 46390,
+    "brightest": "#ffffff",
+    "bytes": 3802870,
     "corridorRows": {
-      "bottom": 858,
-      "top": 166
+      "bottom": 897,
+      "top": 127
     },
     "file": "art/sector-range-background.png",
     "h": 1024,
-    "quiet": "#c8d3d8",
-    "w": 1536
+    "quiet": "#d9e0e2",
+    "w": 2048
   },
   "sector-sand-background": {
     "brightest": "#ffffff",
@@ -680,16 +680,16 @@
     "w": 420
   },
   "sector-slope-background": {
-    "brightest": "#9da396",
-    "bytes": 38744,
+    "brightest": "#ffffff",
+    "bytes": 3926803,
     "corridorRows": {
-      "bottom": 866,
-      "top": 220
+      "bottom": 906,
+      "top": 187
     },
     "file": "art/sector-slope-background.png",
     "h": 1024,
-    "quiet": "#9da396",
-    "w": 1536
+    "quiet": "#abb84a",
+    "w": 2048
   },
   "sector-snail": {
     "bytes": 27559,
@@ -1926,6 +1926,54 @@
     "file": "art/sign-turtles.png",
     "h": 256,
     "w": 199
+  },
+  "ui-button-back": {
+    "bytes": 27312,
+    "file": "art/ui-button-back.png",
+    "h": 158,
+    "w": 160
+  },
+  "ui-button-close": {
+    "bytes": 28647,
+    "file": "art/ui-button-close.png",
+    "h": 158,
+    "w": 160
+  },
+  "ui-button-next": {
+    "bytes": 26765,
+    "file": "art/ui-button-next.png",
+    "h": 160,
+    "w": 160
+  },
+  "ui-button-notebook": {
+    "bytes": 30096,
+    "file": "art/ui-button-notebook.png",
+    "h": 156,
+    "w": 160
+  },
+  "ui-button-replay": {
+    "bytes": 25387,
+    "file": "art/ui-button-replay.png",
+    "h": 158,
+    "w": 160
+  },
+  "ui-button-retry": {
+    "bytes": 26462,
+    "file": "art/ui-button-retry.png",
+    "h": 157,
+    "w": 160
+  },
+  "ui-button-sound": {
+    "bytes": 29151,
+    "file": "art/ui-button-sound.png",
+    "h": 159,
+    "w": 160
+  },
+  "ui-button-sound-off": {
+    "bytes": 28594,
+    "file": "art/ui-button-sound-off.png",
+    "h": 156,
+    "w": 160
   },
   "zoo-backpack": {
     "bytes": 7232,

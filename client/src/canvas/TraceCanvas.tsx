@@ -622,7 +622,21 @@ export interface TraceBackdrop {
    * there is no admissible LIGHT channel over either mountain backdrop, so a
    * dark `channel` is the only remaining move for those two. */
   channel?: string
+  /** A marker outline stroked UNDER the channel, {@link CHANNEL_EDGE_WIDTH}
+   * wider on each side (T50, `odd/tasks/prewriting-stage-completion.md`).
+   * ABSENT = no outline, byte-identical to before this field existed. The
+   * round-2 backgrounds are detailed scenes, not a flat band, so the light
+   * or dark pixels a channel can land next to span almost the whole luma
+   * range: no single channel paint clears every one of them by the 55-luma
+   * law. An outline makes the channel's own boundary the channel-vs-edge
+   * contrast instead, whatever the art behind it does. */
+  edge?: string
 }
+
+/** How far, in viewBox units, a {@link TraceBackdrop.edge} outline shows
+ * past each side of the channel. About the art's own marker line at the
+ * sheet's usual 1-1.3 px per unit. */
+export const CHANNEL_EDGE_WIDTH = 5
 
 /**
  * Static art standing at one or more points on the sheet — the sheep on
@@ -1867,6 +1881,35 @@ export default function TraceCanvas({
               fill={ground ? GROUND_FIELD : MAZE_WALL}
             />
           )}
+          {/* T50: the channel's marker outline, every piece BEFORE any
+              channel stroke, so one piece's outline never paints over a
+              neighbouring piece's channel. */}
+          {backdrop?.edge &&
+            (corridorPieces
+              ? corridorPieces.map((piece, idx) => (
+                  <path
+                    key={`edge-${idx}`}
+                    d={piece.d}
+                    fill="none"
+                    stroke={backdrop.edge}
+                    strokeWidth={piece.width + 2 * CHANNEL_EDGE_WIDTH}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    data-channel-edge="true"
+                  />
+                ))
+              : corridor.paths.map((cd, idx) => (
+                  <path
+                    key={`edge-${idx}`}
+                    d={cd}
+                    fill="none"
+                    stroke={backdrop.edge}
+                    strokeWidth={corridor.width + 2 * CHANNEL_EDGE_WIDTH}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    data-channel-edge="true"
+                  />
+                )))}
           {corridorPieces
             ? corridorPieces.map((piece, idx) => (
                 <path

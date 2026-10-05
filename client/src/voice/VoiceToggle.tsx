@@ -20,7 +20,6 @@ import { SpeakerIcon } from './icons'
  *  old white-pill identity would have recreated the exact "two chrome
  *  families on one screen" mismatch that rework fixed for the star/
  *  backpack/recovered pills. */
-const SHEET_PAPER = '#fdfcf7'
 const BASE_STYLE: CSSProperties = {
   width: 44,
   height: 44,
@@ -28,8 +27,10 @@ const BASE_STYLE: CSSProperties = {
   minHeight: 44,
   boxSizing: 'border-box',
   borderRadius: '50%',
-  border: '3px solid #1a1a1a',
-  background: SHEET_PAPER,
+  // T50: the hand-drawn button art (`SpeakerIcon`) is the whole face, its
+  // own outline and paper fill included, so the button draws no chrome.
+  border: 'none',
+  background: 'transparent',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',

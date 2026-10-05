@@ -565,7 +565,10 @@ SINGLES = [
     # them now would be dead weight by that test's own definition. They enter
     # with their mode.
     ('pulpo oficina.png',     'home-octopus.png',          448, 'contour',    True),
-    ('escritorio.png',        'home-desk.png',             512, None,         True),
+    # T50 (`docs/23` D37): the redrawn desk, neutral marker outline instead of
+    # navy. Same shape and proportions as `escritorio.png` (kept, not
+    # deleted), so the shipped crop lands at the same size.
+    ('escritorio v2.png',     'home-desk.png',             512, None,         True),
     # Nivel 3 (design.md §6): the jellyfish stands at the route's end and the
     # starfish crosses it as a hazard. Both keep their authored fills because
     # they are living things, not reward-coloured clues; the `contour` mode
@@ -682,10 +685,19 @@ SINGLES = [
 # against a synthetic 2:1 fixture rather than assuming it.
 PASSTHROUGHS = [
     ('mapa zoologico.png', 'zoo-map.png', 1536, 1024, None),
-    ('fondo laguna.png', 'sector-lagoon-background.png', 1536, 1024, (135, 889)),
+    # T50 (`docs/23` D25-D31): the seven redrawn round-2 backgrounds ship at
+    # 2:1 (2048x1024). Their `(top, bottom)` rows are the old 3:2 rows pushed
+    # through `viewBoxToImage` at the new size (a 2:1 image is height-fit on
+    # the 1000x600 stage, so 1 viewBox unit = 1024/600 source rows), which is
+    # what `backdrops.test.ts`'s coverage checks measure against. The three
+    # 2:1 EXTENSIONS (D32-D34: arena, noche zoo, recinto monos) stay on their
+    # 3:2 originals: their added sides meet the untouched centre along a hard
+    # vertical seam at x=256 and x=1792 (`docs/23` D32-D34 checklist item 3,
+    # "si se ve, se rechaza"), visible on any screen wider than 3:2.
+    ('fondo laguna v2.png', 'sector-lagoon-background.png', 2048, 1024, (93, 931)),
     ('fondo arena.png', 'sector-sand-background.png', 1536, 1024, (51, 973)),
-    ('fondo ladera.png', 'sector-slope-background.png', 1536, 1024, (220, 866)),
-    ('fondo cordillera.png', 'sector-range-background.png', 1536, 1024, (166, 858)),
+    ('fondo ladera v2.png', 'sector-slope-background.png', 2048, 1024, (187, 906)),
+    ('fondo cordillera v2.png', 'sector-range-background.png', 2048, 1024, (127, 897)),
     # [free-trail-waypoints, task 3.1] The bee family draws no corridor at
     # all -- the whole play area is the band, per `docs/13` §4 decision 3 --
     # so the range is the widest one a bee level's art boxes actually sit
@@ -694,14 +706,14 @@ PASSTHROUGHS = [
     # (regenerated forest art, 2026-09-15; `#949b8c` before that) over this
     # range, so the two fields below are equal (design.md §3.1's own
     # prediction, verified by re-running this script).
-    ('fondo bosque.png', 'sector-forest-background.png', 1536, 1024, (191, 926)),
-    ('fondo entrada vidrio.png', 'sector-aquarium-background.png', 1536, 1024, (51, 973)),
-    ('fondo nocturno.png', 'sector-night-background.png', 1536, 1024, (51, 973)),
+    ('fondo bosque v2.png', 'sector-forest-background.png', 2048, 1024, (155, 973)),
+    ('fondo pecera v2.png', 'sector-aquarium-background.png', 2048, 1024, (0, 1023)),
+    ('fondo nocturno v2.png', 'sector-night-background.png', 2048, 1024, (0, 1023)),
     ('fondo noche zoo.png', 'sector-night-zoo-background.png', 1536, 1024, (51, 973)),
     # The prologue's two new entrance enclosures (design.md D6/§4). Same
     # corridor band as the other entrance backgrounds -- (51, 973).
     ('fondo recinto monos.png', 'sector-monkeys-background.png', 1536, 1024, (51, 973)),
-    ('fondo sendero.png', 'sector-path-background.png', 1536, 1024, (51, 973)),
+    ('fondo sendero v2.png', 'sector-path-background.png', 2048, 1024, (0, 1023)),
 ]
 
 
@@ -1064,6 +1076,17 @@ AUTHORED_SOURCE_SIZES = {
     'pista banana.png': (1024, 1024),
     'manzana.png': (1024, 1024),
     'hongo.png': (1024, 1024),
+    # T50 (`docs/23` D25-D31, D36, D37): the redrawn 2:1 backgrounds, the
+    # button sheet and the redrawn desk.
+    'fondo laguna v2.png': (2048, 1024),
+    'fondo ladera v2.png': (2048, 1024),
+    'fondo cordillera v2.png': (2048, 1024),
+    'fondo bosque v2.png': (2048, 1024),
+    'fondo nocturno v2.png': (2048, 1024),
+    'fondo sendero v2.png': (2048, 1024),
+    'fondo pecera v2.png': (2048, 1024),
+    'botones lamina.png': (1536, 1024),
+    'escritorio v2.png': (1024, 1024),
 }
 
 
@@ -1187,6 +1210,24 @@ CENTRED = [
     ('lupa.png', 'carrier-lens.png', 192,
      lambda r, g, b: b > 180 and 100 < g < 210 and r < 160),
 ]
+
+
+# T50 (`docs/23` D36): the button sheet and the order its eight buttons are
+# drawn in (top row left to right, then the bottom row), straight from the
+# prompt. Shipped at 160px: the chrome shows them at 64-72 CSS px, so this is
+# a crisp 2x on a high-density tablet.
+BUTTON_SHEET = 'botones lamina.png'
+BUTTON_SHEET_NAMES = (
+    'ui-button-next.png',
+    'ui-button-retry.png',
+    'ui-button-replay.png',
+    'ui-button-back.png',
+    'ui-button-close.png',
+    'ui-button-notebook.png',
+    'ui-button-sound.png',
+    'ui-button-sound-off.png',
+)
+BUTTON_TARGET = 160
 
 
 def main() -> None:
@@ -1421,6 +1462,36 @@ def main() -> None:
         out_name = animal_file[:-4] + '-silhouette.png'
         key = out_name[:-4]
         manifest[key] = emit(out_name, img)
+        print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
+              f'{manifest[key]["bytes"] / 1024:6.1f} KB')
+
+    # --- T50 (`docs/23` D36, §7.4/§7.7): the UI button sheet. One authored
+    # 1536x1024 sheet, two rows of four round buttons; each is cut out as its
+    # own blob (the sheet's alpha is a clean cutout: exactly eight components
+    # at `png.components`' default threshold) and shipped in its authored
+    # colours. Reading order is fixed by the prompt, so the blobs are sorted
+    # top row first, then left to right, and named from `BUTTON_SHEET_NAMES`.
+    # A missing or extra button fails loudly rather than shifting every name
+    # by one.
+    sheet = png.read_png(os.path.join(SRC, BUTTON_SHEET))
+    blobs = png.components(sheet)
+    if len(blobs) != len(BUTTON_SHEET_NAMES):
+        raise SystemExit(
+            f'{BUTTON_SHEET}: wanted {len(BUTTON_SHEET_NAMES)} buttons, found {len(blobs)}'
+        )
+    mid_y = sheet.h / 2
+    ordered = sorted(blobs, key=lambda b: (b['box'][1] >= mid_y, b['box'][0]))
+    for blob, name in zip(ordered, BUTTON_SHEET_NAMES):
+        bx0, by0, bx1, by1 = blob['box']
+        piece = keep_largest_blob(png.crop(sheet, bx0, by0, bx1, by1))
+        x0, y0, x1, y1 = png.alpha_bbox(piece)
+        piece = png.crop(piece, x0, y0, x1, y1)
+        work = BUTTON_TARGET * 2
+        scale = work / max(piece.w, piece.h)
+        piece = png.box_resize(piece, max(1, round(piece.w * scale)), max(1, round(piece.h * scale)))
+        piece = png.box_resize(piece, max(1, piece.w // 2), max(1, piece.h // 2))
+        key = name[:-4]
+        manifest[key] = emit(name, piece)
         print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '
               f'{manifest[key]["bytes"] / 1024:6.1f} KB')
 
