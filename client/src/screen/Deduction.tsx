@@ -75,7 +75,7 @@ import {
   placeAndFitBubble,
   type PlacedBubbleContent,
 } from './bubbleFit'
-import { octopusBoxAtCorner, OCTOPUS_CORNER_INSET, stanceBubbleSide } from './pulpitoStance'
+import { octopusBoxAtCorner, OCTOPUS_CORNER_INSET, stageSpeechTarget, stanceBubbleSide } from './pulpitoStance'
 import { bubbleContentCssVars } from './bubbleCssVars'
 import {
   DEDUCTION_OCTOPUS_SIZE_PCT,
@@ -418,6 +418,7 @@ export function deductionBubble(text: string): PlacedBubbleContent {
     frame: { w: 100, h: 100 },
     headBox: OCTOPUS_BOX,
     tail: ZOO_SPEECH_BUBBLE_TAIL,
+    target: stageSpeechTarget(DEDUCTION_OCTOPUS_ART, OCTOPUS_BOX, 'left'),
     side: stanceBubbleSide('left'),
     text,
   })

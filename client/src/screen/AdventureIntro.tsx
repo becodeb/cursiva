@@ -37,21 +37,18 @@ import { LEVEL_CHROME_SIDE_INSET } from './LevelPlay'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import { BUBBLE_POP_CSS } from './BubblePop'
-import { ZOO_SPEECH_BUBBLE_LEFT_TAIL } from './bubblePlacement'
-import { CONTENT_LEFT_FRAC, CONTENT_TOP_FRAC, CONTENT_WIDTH_FRAC, GAP_FRAC, LINE_HEIGHT, placeAndFitBubble } from './bubbleFit'
+import { GAP_FRAC, LINE_HEIGHT, ZOO_SPEECH_BUBBLE_LEFT_CONTENT } from './bubbleFit'
 import {
   INTRO_OCTOPUS_ART,
-  OCTOPUS_CORNER_INSET,
   OCTOPUS_CORNER_SIZE_PCT,
-  octopusBoxAtCorner,
   resolvePulpitoStance,
-  stageOctopusSizing,
-  stanceBubbleSide,
   STAGE_MARGIN_PCT,
   STAGE_MAX_PX,
   STAGE_MAX_VH_FRAC,
 } from './pulpitoStance'
-import { bubbleContentCssVars } from './bubbleCssVars'
+import { bubbleContentCssVars, bubbleContentFracs } from './bubbleCssVars'
+import { useViewportSize } from './useViewportSize'
+import { placeStageBubble } from './stageBubble'
 
 /* The stage is a percentage box with container-type: inline-size, the same
    fix the zoo map's own bubble uses (ZooMap.tsx's ZOO_CSS): everything
@@ -119,7 +116,7 @@ ${BUBBLE_POP_CSS}
 .cv-intro-bubble { position: absolute; container-type: inline-size; }
 .cv-intro-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
 .cv-intro-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
-.cv-intro-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); }
+.cv-intro-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); text-align: left; }
 .cv-intro-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
 /* T18 follow-up (bubbleFit.ts's own header): the STACK layout — the image
    sits above the caption instead of beside it, so the caption always wraps
@@ -256,22 +253,16 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
   useNarration(spokenLine)
   // T18: the stance (`docs/19` §4.1) — which bottom corner he stands in,
   // and therefore which side the bubble opens toward.
+  const viewport = useViewportSize()
   const stance = resolvePulpitoStance(adventure.introStance)
   // [T49, `docs/23` D7] He points at the scene: the drawing points right,
   // so in the right corner it is mirrored (CSS `scale`, which composes with
   // the blink keyframe's own `transform` instead of replacing it).
-  const octopusBox = octopusBoxAtCorner(INTRO_OCTOPUS_ART, {
-    corner: stance.corner,
-    ...stageOctopusSizing(INTRO_OCTOPUS_ART),
-    bottom: 2,
-    inset: OCTOPUS_CORNER_INSET,
-  })
   const icon = introBubbleArt(adventure)
-  const { placement, content } = placeAndFitBubble({
-    frame: { w: 100, h: 100 },
-    headBox: octopusBox,
-    tail: ZOO_SPEECH_BUBBLE_LEFT_TAIL,
-    side: stanceBubbleSide(stance.corner),
+  const { octopusBox, placement, content } = placeStageBubble({
+    figure: INTRO_OCTOPUS_ART,
+    corner: stance.corner,
+    viewport,
     text: adventure.intro,
     art: icon,
   })
@@ -357,12 +348,7 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
               left: `${placement.left}%`,
               top: `${placement.top}%`,
               width: `${placement.width}%`,
-              ...bubbleContentCssVars(placement, content, {
-                contentLeftFrac: CONTENT_LEFT_FRAC,
-                contentTopFrac: CONTENT_TOP_FRAC,
-                contentWidthFrac: CONTENT_WIDTH_FRAC,
-                gapFrac: GAP_FRAC,
-              }),
+              ...bubbleContentCssVars(placement, content, bubbleContentFracs(ZOO_SPEECH_BUBBLE_LEFT_CONTENT, GAP_FRAC, false)),
             }}
           >
             {/* Keyed on the line (T8 item 2), same reasoning

@@ -102,7 +102,7 @@ ${BUBBLE_POP_CSS}
    text is licensed through .cv-prologue-frame instead, the same
    .cv-deduction-frame/.cv-closing-frame precedent captionAudit.ts's own
    header lists. NO BACKTICKS in this block. */
-.cv-prologue-bubble .cv-captioned, .cv-prologue-bubble .cv-prologue-bubble-text { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); }
+.cv-prologue-bubble .cv-captioned, .cv-prologue-bubble .cv-prologue-bubble-text { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); text-align: left; }
 .cv-prologue-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
 .cv-prologue-bubble .cv-captioned--stack > svg { float: none; display: block; margin: 0 auto var(--cv-gap) auto; }
 .cv-prologue-bubble .cv-caption { font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; }

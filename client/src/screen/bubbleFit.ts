@@ -68,36 +68,79 @@
 import type { ArtImage } from '../detective/assets'
 import { placeSpeechBubble, type BubblePlacement, type PlaceSpeechBubbleOptions } from './bubblePlacement'
 
-/** Inset of the content box from the bubble's own edges, percent of the
- *  bubble. Measured directly against the shipped
- *  `client/public/art/zoo-speech-bubble.png` (488×372, a standalone PNG
- *  decode + per-row opaque-pixel scan, the same convention
- *  `bubblePlacement.ts`'s own header describes for the tail): a rectangle
- *  inset 10% from each SIDE (this file's own `CONTENT_WIDTH_FRAC`) sits
- *  fully inside the drawn oval only for rows between about 16% and 76% of
- *  the bubble's height — above 16% the oval narrows in from the top, and
- *  past 76% it is already narrowing into the tail (which fully separates
- *  at 86%, `bubblePlacement.ts`'s own measurement). `16%`/`58%` (ending at
- *  74%) keeps a small margin inside that measured safe range on both ends.
+/** A rectangle inside a bubble, as fractions of the bubble's own box:
+ *  `left`/`width` of its WIDTH, `top`/`height` of its HEIGHT. */
+export interface BubbleRect {
+  readonly left: number
+  readonly top: number
+  readonly width: number
+  readonly height: number
+}
+
+/** [T51] The TEXT AREA of each bubble art: the rectangle that sits fully on
+ *  the drawn white inside, measured on the shipped PNG (decode, per row the
+ *  longest run of white pixels — alpha > 200, luma > 200 — then the tallest
+ *  rectangle at least 74% of the bubble wide that every row it spans
+ *  contains). History: T18 hand-set `0.1/0.16/0.8/0.58` for the old bubble,
+ *  which the measurement shows was never fully inside it (at 80% width the
+ *  white inside only spans rows 20%-72%); T49's left bubble reused those
+ *  numbers, and its oval is shorter at the bottom, so the last line touched
+ *  the lower edge (`intro-sheep-lana-1920x911.png`, T50).
  *
- *  An earlier version of this file widened this to `14%`/`66%` (ending at
- *  80%) to give the longest intro sentences more room — which DID fit by
- *  this file's own height arithmetic, but 80% reaches past the measured
- *  76% safe bound, so the text's own bottom line rendered OUTSIDE the
- *  drawn bubble in the real browser (`intro-monkeys1-1024x768.png`, an
- *  orchestrator-reported follow-up). The STACK layout (this file's own
- *  header) is what actually solves "a long sentence needs more room" now —
- *  by removing the image's narrow column entirely rather than by claiming
- *  more of the bubble than it can safely draw text in — so this reverts to
- *  the measured-safe values instead of re-widening them. */
-export const CONTENT_LEFT_FRAC = 0.1
-export const CONTENT_TOP_FRAC = 0.16
-export const CONTENT_WIDTH_FRAC = 0.8
-export const CONTENT_HEIGHT_FRAC = 0.58
+ *  `zoo-speech-bubble.png` (488x372): x 65-427, y 60-277. */
+export const ZOO_SPEECH_BUBBLE_TEXT_AREA: BubbleRect = {
+  left: 65 / 488,
+  top: 60 / 372,
+  width: 363 / 488,
+  height: 218 / 372,
+}
+
+/** `zoo-speech-bubble-left.png` (496x373, T49): x 64-431, y 65-272. */
+export const ZOO_SPEECH_BUBBLE_LEFT_TEXT_AREA: BubbleRect = {
+  left: 64 / 496,
+  top: 65 / 373,
+  width: 368 / 496,
+  height: 208 / 373,
+}
+
+/** [T51] Inner margin between the text area and the text, as a fraction of
+ *  the bubble's WIDTH on both axes (so it is the same distance in px on
+ *  every side). 0.045 keeps it at or above 8 px on the smallest bubble any
+ *  stage screen draws (844x390, proven by `bubbleFit.test.ts`). */
+export const TEXT_AREA_MARGIN_FRAC = 0.035
+
+/** The CONTENT box text and image are laid out in: `area` inset by
+ *  `TEXT_AREA_MARGIN_FRAC` on every side. `aspect` is the bubble's own
+ *  height / width (`BubbleTailGeometry.aspect`), which turns the
+ *  width-relative margin into a fraction of the height. */
+export function bubbleContentBox(area: BubbleRect, aspect: number, margin = TEXT_AREA_MARGIN_FRAC): BubbleRect {
+  const marginY = margin / aspect
+  return {
+    left: area.left + margin,
+    top: area.top + marginY,
+    width: area.width - 2 * margin,
+    height: area.height - 2 * marginY,
+  }
+}
+
+/** The old bubble's content box (prologue, deduction). */
+export const ZOO_SPEECH_BUBBLE_CONTENT: BubbleRect = bubbleContentBox(ZOO_SPEECH_BUBBLE_TEXT_AREA, 372 / 488)
+/** The left bubble's content box (entry and closing screens, T49). */
+export const ZOO_SPEECH_BUBBLE_LEFT_CONTENT: BubbleRect = bubbleContentBox(ZOO_SPEECH_BUBBLE_LEFT_TEXT_AREA, 373 / 496)
+
+/** The old bubble's content box as plain fractions, kept for the callers
+ *  and tests that predate `BubbleRect`. */
+export const CONTENT_LEFT_FRAC = ZOO_SPEECH_BUBBLE_CONTENT.left
+export const CONTENT_TOP_FRAC = ZOO_SPEECH_BUBBLE_CONTENT.top
+export const CONTENT_WIDTH_FRAC = ZOO_SPEECH_BUBBLE_CONTENT.width
+export const CONTENT_HEIGHT_FRAC = ZOO_SPEECH_BUBBLE_CONTENT.height
 
 /** The checklist's own cap: an inline image never exceeds 35% of the
- *  bubble's own width. */
-export const IMAGE_MAX_WIDTH_FRAC = 0.35
+ *  bubble's own width. [T51] Lowered to 30%: the measured text areas leave
+ *  less room than the old hand-set box, and the longest entry line
+ *  (`fish`, 100 characters beside its picture) only stays at or above the
+ *  11 px floor on 844x390 with the smaller picture. */
+export const IMAGE_MAX_WIDTH_FRAC = 0.3
 /** Additional cap so a very TALL image (portrait art) cannot blow past the
  *  content box's own height either — leaves a small margin under the exact
  *  content height so the image never touches the caption's own line box.
@@ -130,9 +173,13 @@ export const GAP_FRAC = 0.04
  *  is the floor this task's own brief asks for ("shrink the font within a
  *  minimum readable size") — chosen, and then PROVEN by
  *  `bubbleFit.test.ts`'s own fixture sweep, to still fit every real
- *  intro/closing line in this game's registry at the required viewports. */
+ *  intro/closing line in this game's registry at the required viewports.
+ *  [T51] `MIN` 0.05 -> 0.04: with the measured text areas a 0.05 floor
+ *  left the longest lines with no admissible font even on the 620 px
+ *  stage (where 0.04 is still 15 px or more); the absolute 11 px floor
+ *  `bubbleFit.test.ts` checks at 844x390 is what guards readability. */
 export const MAX_FONT_FRAC = 0.072
-export const MIN_FONT_FRAC = 0.05
+export const MIN_FONT_FRAC = 0.04
 
 export const LINE_HEIGHT = 1.14
 
@@ -424,9 +471,10 @@ export function fitBubbleContent(
   art: ArtImage | undefined,
   bubbleWidth: number,
   bubbleHeight: number,
+  box: BubbleRect = ZOO_SPEECH_BUBBLE_CONTENT,
 ): BubbleContentFit {
-  const contentWidth = bubbleWidth * CONTENT_WIDTH_FRAC
-  const contentHeight = bubbleHeight * CONTENT_HEIGHT_FRAC
+  const contentWidth = bubbleWidth * box.width
+  const contentHeight = bubbleHeight * box.height
 
   // `art` absent (T21 follow-up, prewriting-stage-completion.md: the
   // deduction screen's own bubble is TEXT ONLY — no clue/animal picture
@@ -524,6 +572,9 @@ export interface PlaceAndFitBubbleOptions extends PlaceSpeechBubbleOptions {
   /** Absent = a TEXT-ONLY bubble (`fitBubbleContent`'s own header on the
    *  T21 follow-up that added this). */
   readonly art?: ArtImage
+  /** [T51] The bubble art's content box (`ZOO_SPEECH_BUBBLE_CONTENT` by
+   *  default; the left bubble passes `ZOO_SPEECH_BUBBLE_LEFT_CONTENT`). */
+  readonly box?: BubbleRect
 }
 
 export interface PlacedBubbleContent {
@@ -556,16 +607,16 @@ const GROWTH_TRIGGER_FRACTION = 0.85
  * viewport, and asserts the chosen result always reports `fits: true`.
  */
 export function placeAndFitBubble(opts: PlaceAndFitBubbleOptions): PlacedBubbleContent {
-  const { text, art, ...placementOpts } = opts
+  const { text, art, box, ...placementOpts } = opts
   const base = placeSpeechBubble(placementOpts)
-  const baseContent = fitBubbleContent(text, art, base.width, base.height)
+  const baseContent = fitBubbleContent(text, art, base.width, base.height, box)
   const baseMaxFont = base.width * MAX_FONT_FRAC
   const needsGrowth = !baseContent.fits || baseContent.fontSize < baseMaxFont * GROWTH_TRIGGER_FRACTION
   if (!needsGrowth) return { placement: base, content: baseContent }
 
   const margin = placementOpts.margin ?? 3
   const grown = placeSpeechBubble({ ...placementOpts, preferredWidth: placementOpts.frame.w - 2 * margin })
-  const grownContent = fitBubbleContent(text, art, grown.width, grown.height)
+  const grownContent = fitBubbleContent(text, art, grown.width, grown.height, box)
   if (grownContent.fontSize > baseContent.fontSize) {
     return { placement: grown, content: grownContent }
   }

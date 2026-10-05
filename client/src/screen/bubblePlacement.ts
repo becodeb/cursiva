@@ -140,6 +140,12 @@ export interface PlaceSpeechBubbleOptions {
   /** Floor under `preferredWidth`'s own shrinking — never produces a bubble
    *  narrower than this even under an extreme `headBox`/`frame` pair. */
   readonly minWidth?: number
+  /** [T51] An explicit tail-tip target, same units as `headBox` — set when
+   *  the figure has a measured speech anchor (`pulpitoStance.ts`'s
+   *  `stageSpeechTarget`), so the tail lands beside his head instead of
+   *  `gap` above the box's top edge (the hat's crown on the T49 poses).
+   *  Overrides `side`/`sideFraction`/`gap`. */
+  readonly target?: { readonly x: number; readonly y: number }
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -197,7 +203,7 @@ export function placeSpeechBubble(opts: PlaceSpeechBubbleOptions): BubblePlaceme
     minWidth = 20,
   } = opts
 
-  const target = {
+  const target = opts.target ?? {
     x: side === 'left' ? headBox.x + headBox.w * sideFraction : headBox.x + headBox.w * (1 - sideFraction),
     y: headBox.y - gap,
   }

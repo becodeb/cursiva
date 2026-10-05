@@ -64,32 +64,21 @@ import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 import { BUBBLE_POP_CSS } from './BubblePop'
-import { ZOO_SPEECH_BUBBLE_LEFT_TAIL } from './bubblePlacement'
 import { recordDeparture, RESCUE_FLIGHT_VT_NAME } from '../zoo/rescueFlight'
 import { resolveRescueAnimalBox } from './rescueAnimalPlacement'
 import { hasOpenedNotebookOnce, NOTEBOOK_HINT_LINE } from './notebookDiscovery'
+import { GAP_FRAC, LINE_HEIGHT, ZOO_SPEECH_BUBBLE_LEFT_CONTENT } from './bubbleFit'
 import {
-  CONTENT_HEIGHT_FRAC,
-  CONTENT_LEFT_FRAC,
-  CONTENT_TOP_FRAC,
-  CONTENT_WIDTH_FRAC,
-  GAP_FRAC,
-  LINE_HEIGHT,
-  placeAndFitBubble,
-} from './bubbleFit'
-import {
-  OCTOPUS_CORNER_INSET,
   OCTOPUS_CORNER_SIZE_PCT,
-  octopusBoxAtCorner,
   RESCUE_OCTOPUS_ART,
   resolvePulpitoStance,
-  stageOctopusSizing,
-  stanceBubbleSide,
   STAGE_MARGIN_PCT,
   STAGE_MAX_PX,
   STAGE_MAX_VH_FRAC,
 } from './pulpitoStance'
-import { bubbleContentCssVars } from './bubbleCssVars'
+import { bubbleContentCssVars, bubbleContentFracs } from './bubbleCssVars'
+import { useViewportSize } from './useViewportSize'
+import { placeStageBubble } from './stageBubble'
 
 /** The real viewport, CSS px — `undefined` under `renderToString` (node,
  *  no `window`), which is exactly when nothing here reads it: `resolve
@@ -189,7 +178,7 @@ ${BUBBLE_POP_CSS}
 .cv-closing-bubble { position: absolute; container-type: inline-size; }
 .cv-closing-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
 .cv-closing-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
-.cv-closing-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); }
+.cv-closing-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); text-align: left; }
 .cv-closing-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
 /* T18 follow-up (bubbleFit.ts's own header): the STACK layout -- see
    AdventureIntro.tsx's own INTRO_CSS for the full rationale. No
@@ -273,24 +262,18 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
   useNarration(bubbleText)
   // T18: the stance (`docs/19` §4.1) — this beat's own, falling back to the
   // shared default.
+  const viewport = useViewportSize()
   const stance = resolvePulpitoStance(beat.stance)
   // [T49, `docs/23` D7] A rescue closing shows him cheering; every other
   // beat keeps its own `figure` or the backpack octopus.
   const octopusArt = beat.figure ?? (isRescue ? RESCUE_OCTOPUS_ART : ZOO_OCTOPUS_BACKPACK_ART)
-  const octopusBox = octopusBoxAtCorner(octopusArt, {
-    corner: stance.corner,
-    ...stageOctopusSizing(octopusArt),
-    bottom: 2,
-    inset: OCTOPUS_CORNER_INSET,
-  })
   // T24 follow-up: text-only for a rescue beat (no `art`) — the big animal
   // below is the one picture now; a non-rescue beat (entrance enclosures,
   // night) keeps its own small caption image exactly as before.
-  const { placement, content } = placeAndFitBubble({
-    frame: { w: 100, h: 100 },
-    headBox: octopusBox,
-    tail: ZOO_SPEECH_BUBBLE_LEFT_TAIL,
-    side: stanceBubbleSide(stance.corner),
+  const { octopusBox, placement, content } = placeStageBubble({
+    figure: octopusArt,
+    corner: stance.corner,
+    viewport,
     text: bubbleText,
     art: isRescue ? undefined : beat.art,
   })
@@ -365,13 +348,7 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
               left: `${placement.left}%`,
               top: `${placement.top}%`,
               width: `${placement.width}%`,
-              ...bubbleContentCssVars(placement, content, {
-                contentLeftFrac: CONTENT_LEFT_FRAC,
-                contentTopFrac: CONTENT_TOP_FRAC,
-                contentWidthFrac: CONTENT_WIDTH_FRAC,
-                contentHeightFrac: CONTENT_HEIGHT_FRAC,
-                gapFrac: GAP_FRAC,
-              }),
+              ...bubbleContentCssVars(placement, content, bubbleContentFracs(ZOO_SPEECH_BUBBLE_LEFT_CONTENT, GAP_FRAC, true)),
             }}
           >
             {/* Keyed on the line (T8 item 2): a beat advance re-renders THIS
