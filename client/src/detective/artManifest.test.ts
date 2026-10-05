@@ -58,14 +58,14 @@ import {
   type ArtImage,
 } from './assets'
 import { ART_OUTLINE, luma } from './palette'
-import { ADVENTURE_BACKDROP } from '../zoo/backdrops'
+import { ADVENTURE_BACKDROP, effectiveBrightest } from '../zoo/backdrops'
 
 /** Every PNG actually present in `public/art/`, keyed by bare name. The glob
  * is evaluated against the filesystem at transform time, so a file named in
  * the manifest but never emitted simply will not appear here. */
 const ON_DISK = new Set(
-  Object.keys(import.meta.glob('../../public/art/*.png')).map(
-    (path) => path.split('/').pop()!.replace(/\.png$/, ''),
+  Object.keys(import.meta.glob('../../public/art/*.{png,webp}')).map(
+    (path) => path.split('/').pop()!.replace(/\.(png|webp)$/, ''),
   ),
 )
 
@@ -90,6 +90,15 @@ interface ManifestEntry {
   bodyBrightest?: string
   bodyDarkest?: string
   headWhite?: string
+  /** T50 follow-up (`scripts/art/encode_webp.mjs`): set on the WebP
+   *  backdrops only — the encoder's own decode-and-compare against the PNG
+   *  master `quiet`/`brightest` were sampled from. */
+  webp?: {
+    quality: number
+    pngBytes: number
+    lumaError: { mean: number; p99: number; max: number }
+    shippedBrightest: string
+  }
 }
 
 /** Pipeline rows landed ahead of their registry entry, closed in a LATER
@@ -195,7 +204,7 @@ const REGISTERED: readonly (readonly [string, ArtImage])[] = [
  * stores the root-absolute `/art/x.png` the browser and `<image href>` need.
  * The `/` is the only difference, and this is the one place that is asserted
  * rather than assumed. */
-const keyOf = (href: string) => href.replace(/^\/art\//, '').replace(/\.png$/, '')
+const keyOf = (href: string) => href.replace(/^\/art\//, '').replace(/\.(png|webp)$/, '')
 
 describe('art registry matches the shipped pipeline manifest', () => {
   it('builds the approved glass and night sources into the public background exports', () => {
@@ -230,7 +239,7 @@ describe('art registry matches the shipped pipeline manifest', () => {
     '%s has a manifest entry with matching intrinsic size, and the file exists',
     (label, art) => {
       expect(art.href, `${label}: href must be a root-absolute /art/ path`).toMatch(
-        /^\/art\/[a-z0-9-]+\.png$/,
+        /^\/art\/[a-z0-9-]+\.(png|webp)$/,
       )
 
       const entry = manifest[keyOf(art.href)]
@@ -613,5 +622,83 @@ describe('placeholder clue art (T45, docs/22 §5)', () => {
       expect(ART_SOURCES.has(source!), `${kind}: ${source} exists — swap the placeholder`).toBe(false)
       expect(buildScript.includes(`'${source}'`), `${kind}: build_art.py already reads ${source}`).toBe(false)
     }
+  })
+})
+
+// T50 follow-up: the full-screen backdrops ship as lossy WebP
+// (`scripts/art/encode_webp.mjs`, run by `build_art.py`). The luma
+// measurements (`quiet`/`brightest`/`corridorRows`) stay on the PNG master
+// they were sampled from — vitest has no WebP decoder here, and the master
+// is the authored art. The encoder decodes every WebP it writes in the same
+// Chromium and records how far it drifted; these tests hold it to that.
+describe('WebP backdrops (T50 follow-up)', () => {
+  const backdrops = Object.entries(SECTOR_BACKGROUND_ART)
+
+  it('every sector backdrop ships as WebP, its PNG master is not shipped beside it, and the manifest names the WebP', () => {
+    for (const [id, art] of backdrops) {
+      expect(art.href, id).toMatch(/^\/art\/sector-[a-z-]+-background\.webp$/)
+      const entry = manifest[keyOf(art.href)]
+      expect(entry.file, id).toBe(art.href.slice(1))
+      expect(entry.webp, id).toBeDefined()
+      expect(entry.webp!.quality, id).toBe(0.8)
+    }
+    expect(
+      Object.keys(import.meta.glob('../../public/art/sector-*-background.png')),
+      'a backdrop PNG master was shipped alongside its WebP',
+    ).toEqual([])
+  })
+
+  it('no other shipped file is a full-screen PNG over 500 KB', () => {
+    for (const [key, entry] of Object.entries(manifest)) {
+      if (entry.file.endsWith('.png')) expect(entry.bytes, key).toBeLessThan(500 * 1024)
+    }
+  })
+
+  it('each WebP decodes within a small luma error of its measured PNG master', () => {
+    for (const [id, art] of backdrops) {
+      const { lumaError } = manifest[keyOf(art.href)].webp!
+      expect(lumaError.mean, id).toBeLessThanOrEqual(3)
+      expect(lumaError.p99, id).toBeLessThanOrEqual(12)
+      expect(lumaError.max, id).toBeLessThanOrEqual(40)
+    }
+  })
+
+  it("each WebP's own brightest over the corridor rows stays within the encoder's error of the master's", () => {
+    for (const [id, art] of backdrops) {
+      const entry = manifest[keyOf(art.href)]
+      const gap = Math.abs(luma(entry.webp!.shippedBrightest) - luma(entry.brightest!))
+      expect(gap, id).toBeLessThanOrEqual(entry.webp!.lumaError.max)
+    }
+  })
+
+  it("the backdrop luma laws hold against the SHIPPED WebP's own brightest, not only the master's", () => {
+    for (const [id, row] of Object.entries(ADVENTURE_BACKDROP)) {
+      const shipped = { ...row!, brightest: manifest[keyOf(row!.art.href)].webp!.shippedBrightest }
+      const light = luma(effectiveBrightest(shipped))
+      if (row!.tile) {
+        expect(Math.abs(luma(row!.tile) - light), `${id} veil`).toBeGreaterThanOrEqual(55)
+      } else if (row!.ink && !row!.channel) {
+        // A line drawn straight on the art (hedgehog): the ink against it.
+        expect(Math.abs(luma(row!.ink) - light), `${id} ink`).toBeGreaterThanOrEqual(55)
+      } else if (row!.channel && !row!.edge && !row!.corridorArt) {
+        expect(Math.abs(luma(row!.channel) - light), `${id} channel`).toBeGreaterThanOrEqual(55)
+      }
+      // An edged row's law is channel-vs-edge, independent of the art
+      // (`backdrops.test.ts`); the snake's is its own corridor art; the bee
+      // draws no channel. None of the three reads `brightest`.
+    }
+  })
+
+  it('the shipped backdrops weigh a fraction of their PNG masters, and all shipped art stays under ~18 MB', () => {
+    let shipped = 0
+    let masters = 0
+    for (const [, art] of backdrops) {
+      const entry = manifest[keyOf(art.href)]
+      shipped += entry.bytes
+      masters += entry.webp!.pngBytes
+    }
+    expect(shipped).toBeLessThan(masters / 5)
+    const total = Object.values(manifest).reduce((sum, e) => sum + e.bytes, 0)
+    expect(total).toBeLessThan(18 * 1024 * 1024)
   })
 })

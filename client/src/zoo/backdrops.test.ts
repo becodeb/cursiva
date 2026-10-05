@@ -627,8 +627,8 @@ describe('SPINE_BACKDROPS ink law (radial-spines design.md §2 D1(a)/D4, §8.2)'
 
   it('draws on its own redrawn night (D29), separate from the night-discovery art, through a 30% NIGHT_VEIL dim (T50)', () => {
     const night = ADVENTURE_BACKDROP.night!
-    expect(hedgehog.art.href).toBe('/art/sector-night-background.png')
-    expect(night.art.href).toBe('/art/sector-night-zoo-background.png')
+    expect(hedgehog.art.href).toBe('/art/sector-night-background.webp')
+    expect(night.art.href).toBe('/art/sector-night-zoo-background.webp')
     expect(hedgehog.art).not.toBe(night.art)
     expect(hedgehog.quiet).toBe('#1a325a')
     expect(hedgehog.brightest).toBe('#fffbb5')

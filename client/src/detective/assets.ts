@@ -710,20 +710,20 @@ export const SECTOR_BACKGROUND_ART: Readonly<Record<
   | 'nightZoo' | 'monkeys' | 'path',
   ArtImage
 >> = {
-  lagoon: { href: '/art/sector-lagoon-background.png', w: 2048, h: 1024 },
-  sand: { href: '/art/sector-sand-background.png', w: 1536, h: 1024 },
-  slope: { href: '/art/sector-slope-background.png', w: 2048, h: 1024 },
-  range: { href: '/art/sector-range-background.png', w: 2048, h: 1024 },
-  forest: { href: '/art/sector-forest-background.png', w: 2048, h: 1024 },
+  lagoon: { href: '/art/sector-lagoon-background.webp', w: 2048, h: 1024 },
+  sand: { href: '/art/sector-sand-background.webp', w: 1536, h: 1024 },
+  slope: { href: '/art/sector-slope-background.webp', w: 2048, h: 1024 },
+  range: { href: '/art/sector-range-background.webp', w: 2048, h: 1024 },
+  forest: { href: '/art/sector-forest-background.webp', w: 2048, h: 1024 },
   // Authored from `fondo pecera v2.png` (D31): an underwater tank with the
   // seaweed, chest and stones the fish closing names.
-  aquarium: { href: '/art/sector-aquarium-background.png', w: 2048, h: 1024 },
+  aquarium: { href: '/art/sector-aquarium-background.webp', w: 2048, h: 1024 },
   // Authored from `fondo nocturno v2.png` (D29) — the hedgehog's night.
-  night: { href: '/art/sector-night-background.png', w: 2048, h: 1024 },
-  nightZoo: { href: '/art/sector-night-zoo-background.png', w: 1536, h: 1024 },
+  night: { href: '/art/sector-night-background.webp', w: 2048, h: 1024 },
+  nightZoo: { href: '/art/sector-night-zoo-background.webp', w: 1536, h: 1024 },
   // The prologue's third and fourth enclosures (design.md §4).
-  monkeys: { href: '/art/sector-monkeys-background.png', w: 1536, h: 1024 },
-  path: { href: '/art/sector-path-background.png', w: 2048, h: 1024 },
+  monkeys: { href: '/art/sector-monkeys-background.webp', w: 1536, h: 1024 },
+  path: { href: '/art/sector-path-background.webp', w: 2048, h: 1024 },
 }
 
 /** The UI chrome buttons (T50, `docs/23` D36): eight round, hand-drawn

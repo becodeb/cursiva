@@ -538,7 +538,7 @@ describe('DeductionView rendering — case-independent layout', () => {
       <DeductionView kase={DUCK} state={initialDeductionState()} onPick={noop} onExit={noop} />,
     )
     expect(html).toContain('cv-deduction-backdrop')
-    expect(html).toMatch(/<img[^>]*class(Name)?="cv-deduction-backdrop"[^>]*src="\/art\/sector-lagoon-background\.png"/)
+    expect(html).toMatch(/<img[^>]*class(Name)?="cv-deduction-backdrop"[^>]*src="\/art\/sector-lagoon-background\.webp"/)
   })
 
   it("stands Pulpito in a corner with his own speech bubble, reusing the SAME frame/bubble engine AdventureIntro.tsx uses", () => {

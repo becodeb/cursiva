@@ -338,11 +338,11 @@ const WORLD_GUARDED_ART: Readonly<Record<string, ArtImage>> = {
   // `sector-*`/… prefixed, so `WORLD_GUARD_FILES`'s own glob never picks
   // them up and no entry is needed here for them.
   'zoo-octopus-caretaker.png': ZOO_CARETAKER_ART,
-  ...Object.fromEntries(
-    Object.entries(SECTOR_BACKGROUND_ART).map(([id, art]) => [
-      `sector-${id.replace(/([A-Z])/g, '-$1').toLowerCase()}-background.png`, art,
-    ]),
-  ),
+  // T50 follow-up: the sector backdrops ship as lossy WebP
+  // (`scripts/art/encode_webp.mjs`), which this PNG-only glob (and the
+  // `decodePng` below) cannot read; they are guarded at their PNG source
+  // here (`SECTOR_SOURCE_CANVASES`) and at the shipped WebP by
+  // `artManifest.test.ts`'s "WebP backdrops" block.
   ...Object.fromEntries(
     Object.entries(SECTOR_ADVENTURE_ART).map(([id, art]) => [
       // T48: a trailing digit is a variation (`leaf2` -> `sector-leaf-2.png`).
@@ -490,7 +490,6 @@ function scatterSizes(): readonly number[] {
 describe('visual hierarchy: the clue outranks the ground it lies on', () => {
   it('locks the sector source canvas and alpha contracts before shipping', async () => {
     const files = named(SECTOR_SOURCE_FILES)
-    const emitted = new Map(named(WORLD_GUARD_FILES))
     expect(files.map(([name]) => name).sort()).toEqual(Object.keys(SECTOR_SOURCE_CANVASES).sort())
     for (const [name, url] of files) {
       const expected = SECTOR_SOURCE_CANVASES[name]
@@ -536,25 +535,22 @@ describe('visual hierarchy: the clue outranks the ground it lies on', () => {
         expect(decorated, `${name}: the y=20–80% tracing band must stay calm`).toBe(0)
       }
 
-      // `PASSTHROUGHS` must not later introduce a resize, recolour, or
-      // crop. Check every RGBA byte, including the quiet corridor and the
-      // intentionally dark/chromatic scenery fills outside it. T50: run for
-      // every background source, not only the flat-band ones, so the 2:1
-      // redraws are held to the same pixel-identical export.
+      // `PASSTHROUGHS` must not later introduce a resize or crop. Before the
+      // T50 follow-up this compared every RGBA byte of the shipped PNG; the
+      // backdrops now ship as lossy WebP, so the shipped coordinate system
+      // (the registry's own `w`/`h`, which `artManifest.test.ts` ties to the
+      // manifest and the manifest to the decoded WebP) must equal the
+      // source's, and the colour drift is bounded there instead.
       const emittedName = SECTOR_SOURCE_TO_EMITTED[name]
       if (emittedName) {
-        const emittedUrl = emitted.get(emittedName)
-        expect(emittedUrl, `${name}: its pass-through output is missing`).toBeDefined()
-        const shipped = await decodePng(base64ToBytes(emittedUrl!.split(',')[1]))
-        expect({ w: shipped.w, h: shipped.h }, `${name}: pass-through dimensions drifted`).toEqual({
+        const shipped = Object.values(SECTOR_BACKGROUND_ART).find(
+          (bg) => bg.href === `/art/${emittedName.replace(/\.png$/, '.webp')}`,
+        )
+        expect(shipped, `${name}: its shipped backdrop is not registered`).toBeDefined()
+        expect({ w: shipped!.w, h: shipped!.h }, `${name}: pass-through dimensions drifted`).toEqual({
           w: art.w,
           h: art.h,
         })
-        let mismatchedBytes = 0
-        for (let index = 0; index < art.px.length; index++) {
-          if (art.px[index] !== shipped.px[index]) mismatchedBytes += 1
-        }
-        expect(mismatchedBytes, `${name}: emitted art differs from its source`).toBe(0)
       }
     }
   }, 40_000)

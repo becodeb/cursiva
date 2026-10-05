@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from collections import deque
 
@@ -1645,6 +1646,19 @@ def main() -> None:
         fh.write('\n')
     print(f'\n{len(manifest)} files, {total / 1024:.1f} KB total '
           f'(sources were {sum(os.path.getsize(os.path.join(SRC, f)) for f in os.listdir(SRC)) / 1024 / 1024:.1f} MB)')
+
+    # T50 follow-up: the full-screen `sector-*-background` PNGs above are the
+    # MEASURED masters (`quiet`/`brightest` were sampled from the authored
+    # source before they were written); what ships is a lossy WebP of each,
+    # encoded by headless Chromium. `encode_webp.mjs`'s header has the why
+    # (no WebP encoder on this host) and what it adds to the manifest (the
+    # decoded file's own luma error and brightest, which the tests read).
+    print('\nEncoding the sector backdrops as WebP (scripts/art/encode_webp.mjs)...')
+    subprocess.run(['node', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'encode_webp.mjs')],
+                   check=True)
+    with open(os.path.join(OUT, 'manifest.json')) as fh:
+        shipped = json.load(fh)
+    print(f'{len(shipped)} files, {sum(e["bytes"] for e in shipped.values()) / 1024:.1f} KB shipped')
 
 
 if __name__ == '__main__':
