@@ -259,6 +259,97 @@ def recontour(img: png.Image):
         px[i:i + 3] = got
 
 
+# T49: below this luma a pixel of a round-2 character is unambiguously its
+# marker line (the line measures luma 0-9, the darkest fills 70+).
+CHARACTER_INK_LUMA = 50
+
+
+def lift_dark_fills(img: png.Image) -> None:
+    """The `'character'` mode (T49): `recontour` for art whose FILLS are dark.
+
+    `recontour` sends every pixel under `INK_LUMA` (90) to INK, which is right
+    for art drawn with light fills and wrong for the round-2 characters: the
+    monkey's fur (`#8a5a3c` and its shading) measures luma 80-99, the
+    uncurling hedgehog's spines 80-99, the Pulpito's hat 70-79. Through
+    `recontour` that fill straddles the threshold and ships as black speckle
+    over brown (measured on the first build of this task: 22% of the
+    monkey's opaque pixels sat in the 80-89 band).
+
+    Here only pixels under `CHARACTER_INK_LUMA` become INK. Between that and
+    `INK_LUMA`, an achromatic pixel (chroma <= 4, the sheep's grey face) is
+    kept as drawn, and a chromatic one is a fill: it is lifted, hue kept, to
+    luma `INK_LUMA`, so the drawn world's rule that every dark pixel is an
+    achromatic line (`artHierarchy.test.ts`) still holds without
+    blackening the fill. Cached on the RGB triple like `recontour`."""
+    px = img.px
+    cache: dict[bytes, bytes] = {}
+    for i in range(0, len(px), 4):
+        if px[i + 3] == 0:
+            continue
+        key = bytes(px[i:i + 3])
+        got = cache.get(key)
+        if got is None:
+            r, g, b = key
+            level = luma(r, g, b)
+            if level < CHARACTER_INK_LUMA:
+                got = bytes(INK)
+            elif level < INK_LUMA and max(r, g, b) - min(r, g, b) > 4:
+                k = (INK_LUMA + 0.5) / max(1, level)
+                got = bytes(min(255, round(c * k)) for c in (r, g, b))
+            else:
+                got = key
+            cache[key] = got
+        px[i:i + 3] = got
+
+
+def fill_enclosed_alpha(img: png.Image) -> None:
+    """Make everything enclosed by the outline fully opaque (T49).
+
+    `bocadillo izquierda.png`'s inside came back at alpha ~242 under its grey
+    smudge, so even repainted white the smudge stayed visible as a faint
+    patch of whatever is behind the bubble. The outside is every pixel under
+    alpha 128 reachable from the canvas border; it is grown by two pixels so
+    the outline's own antialiased outer edge is left alone, and everything
+    else becomes alpha 255."""
+    w, h = img.w, img.h
+    px = img.px
+    outside = bytearray(w * h)
+    queue: deque[int] = deque()
+    for x in range(w):
+        for y in (0, h - 1):
+            queue.append(y * w + x)
+    for y in range(h):
+        for x in (0, w - 1):
+            queue.append(y * w + x)
+    while queue:
+        ci = queue.popleft()
+        if outside[ci] or px[ci * 4 + 3] >= 128:
+            continue
+        outside[ci] = 1
+        cy, cx = divmod(ci, w)
+        if cx > 0:
+            queue.append(ci - 1)
+        if cx < w - 1:
+            queue.append(ci + 1)
+        if cy > 0:
+            queue.append(ci - w)
+        if cy < h - 1:
+            queue.append(ci + w)
+    for _ in range(2):
+        grown = bytearray(outside)
+        for ci in range(w * h):
+            if outside[ci]:
+                continue
+            cy, cx = divmod(ci, w)
+            if ((cx > 0 and outside[ci - 1]) or (cx < w - 1 and outside[ci + 1])
+                    or (cy > 0 and outside[ci - w]) or (cy < h - 1 and outside[ci + w])):
+                grown[ci] = 1
+        outside = grown
+    for ci in range(w * h):
+        if not outside[ci]:
+            px[ci * 4 + 3] = 255
+
+
 def dominant_fill(img: png.Image) -> str:
     """The authored fill of a two-tone clue mark, as `#rrggbb`.
 
@@ -421,7 +512,9 @@ def prepare(src_name: str, target_h: int) -> png.Image:
 # (source, output, target height, fill or None, keep_ink[, sample_spine])
 #
 # `fill=None` keeps authored colours without contour processing;
-# `fill='contour'` keeps the fills but normalizes every dark contour to INK.
+# `fill='contour'` keeps the fills but normalizes every dark contour to INK;
+# `fill='character'` (T49) is `contour` for art with dark fills, see
+# `lift_dark_fills`.
 # The animals, octopuses, and world characters keep authored fills because
 # they ARE the answer/presence in the scene, not reward-coloured clue marks.
 #
@@ -551,7 +644,7 @@ SINGLES = [
     # `make_placeholders.py` sign block that stood in since P1; that file
     # stays in `art-source/` (`docs/23` §7 point 3) but nothing ships it.
     # Poses 2 and 3 are the `FRAMED` rows below.
-    ('mono v2.png',           'animal-mono.png',           448, 'contour',    True),
+    ('mono v2.png',           'animal-mono.png',           448, 'character',    True),
     # `carrier-octopus.png` moved to `FRAMED` (T49, `docs/23` D6): it now
     # ships on the same canvas as its lens-less twin.
     # The home screen (docs/10). The octopus sits in its office with eight free
@@ -621,7 +714,7 @@ SINGLES = [
     # returns the sheep's own box (45-988 x 122-923) and the 1-8 alpha band
     # is a smooth antialiasing tail (0.56% of the canvas, falling from alpha
     # 1, no spike), so it needs neither opt-in set.
-    ('oveja v2.png',           'sector-sheep.png',          448, 'contour',    True),
+    ('oveja v2.png',           'sector-sheep.png',          448, 'character',    True),
     # The entrance's night findable objects (design.md §3.4): drawn-world
     # props standing beside the child's own ink, not reward-coloured clue
     # marks, so `fill='contour'` matches every sibling `sector-*` row rather
@@ -670,15 +763,15 @@ SINGLES = [
     # `docs/23` D7: the Pulpito on the scene. Points at the entry screen
     # (mirrored when he stands in the right corner), thinks on the deduction,
     # cheers on the rescue closing (`docs/19` §4.1's table).
-    ('pulpo senala.png',       'zoo-octopus-points.png',    448, 'contour',    True),
-    ('pulpo piensa.png',       'zoo-octopus-thinks.png',    448, 'contour',    True),
-    ('pulpo festeja.png',      'zoo-octopus-cheers.png',    448, 'contour',    True),
+    ('pulpo senala.png',       'zoo-octopus-points.png',    448, 'character',    True),
+    ('pulpo piensa.png',       'zoo-octopus-thinks.png',    448, 'character',    True),
+    ('pulpo festeja.png',      'zoo-octopus-cheers.png',    448, 'character',    True),
     # `docs/20` B14 pose 2: the hedgehog uncurling with every spine on, for
     # the hedgehog's rescue (closing, map, notebook, deduction). Pose 1
     # (`erizo con espinas.png`) is NOT shipped: its export is cut off by the
     # right edge of the canvas (418 opaque rows on column 1023), so the
     # hedgehog's back ends in a straight vertical line.
-    ('erizo desenroscando recortado.png', 'hedgehog-uncurling.png', 448, 'contour', True),
+    ('erizo desenroscando recortado.png', 'hedgehog-uncurling.png', 448, 'character', True),
     # `docs/20` B17: the shed snake skin, shown on the snakes' entry screen.
     ('piel vibora.png',        'sector-shed-skin.png',      448, 'contour',    True),
     # `docs/20` B9: the stage screens' speech bubble, same tail corner as
@@ -1378,8 +1471,12 @@ def main() -> None:
         src, name, target_h, fill, keep_ink = row[:5]
         want_spine = row[5] if len(row) > 5 else False
         img = prepare(src, target_h)
+        if name == 'zoo-speech-bubble-left.png':
+            fill_enclosed_alpha(img)
         if fill == 'contour':
             recontour(img)
+        elif fill == 'character':
+            lift_dark_fills(img)
         elif fill is not None:
             recolour(img, fill, keep_ink)
         final = png.box_resize(img, max(1, img.w // 2), max(1, img.h // 2))
@@ -1400,6 +1497,8 @@ def main() -> None:
             )
         ):
             recontour(final)
+        if fill == 'character':
+            lift_dark_fills(final)
         # `sample_spine` reads the SHIPPED file -- the exact array `emit`
         # crops to its own alpha bbox -- so the manifest's `w`/`h` fractions
         # match what `assets.ts`'s registry ships, not the pre-crop canvas.
@@ -1424,9 +1523,9 @@ def main() -> None:
         img = png.read_png(os.path.join(SRC, src))
         scale = target * 2 / max(img.w, img.h)
         img = png.box_resize(img, max(1, round(img.w * scale)), max(1, round(img.h * scale)))
-        recontour(img)
+        lift_dark_fills(img)
         final = png.box_resize(img, max(1, img.w // 2), max(1, img.h // 2))
-        recontour(final)
+        lift_dark_fills(final)
         key = name[:-4]
         manifest[key] = emit_framed(name, final)
         print(f'  {key:26s} {manifest[key]["w"]}x{manifest[key]["h"]} '

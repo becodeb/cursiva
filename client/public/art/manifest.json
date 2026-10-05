@@ -6,19 +6,19 @@
     "w": 216
   },
   "animal-duckling-1": {
-    "bytes": 34874,
+    "bytes": 37824,
     "file": "art/animal-duckling-1.png",
     "h": 256,
     "w": 186
   },
   "animal-duckling-2": {
-    "bytes": 33159,
+    "bytes": 36149,
     "file": "art/animal-duckling-2.png",
     "h": 256,
     "w": 186
   },
   "animal-duckling-3": {
-    "bytes": 36939,
+    "bytes": 40240,
     "file": "art/animal-duckling-3.png",
     "h": 256,
     "w": 186
@@ -48,25 +48,25 @@
     "w": 448
   },
   "animal-mono": {
-    "bytes": 56952,
+    "bytes": 74599,
     "file": "art/animal-mono.png",
     "h": 448,
     "w": 269
   },
   "animal-mono-family-2": {
-    "bytes": 54157,
+    "bytes": 69710,
     "file": "art/animal-mono-family-2.png",
     "h": 448,
     "w": 269
   },
   "animal-mono-family-3": {
-    "bytes": 58292,
+    "bytes": 73001,
     "file": "art/animal-mono-family-3.png",
     "h": 448,
     "w": 269
   },
   "animal-mono-silhouette": {
-    "bytes": 18567,
+    "bytes": 18557,
     "file": "art/animal-mono-silhouette.png",
     "h": 448,
     "w": 269
@@ -126,13 +126,13 @@
     "w": 234
   },
   "carrier-octopus": {
-    "bytes": 97945,
+    "bytes": 114888,
     "file": "art/carrier-octopus.png",
     "h": 384,
     "w": 326
   },
   "carrier-octopus-empty": {
-    "bytes": 92540,
+    "bytes": 108657,
     "file": "art/carrier-octopus-empty.png",
     "h": 384,
     "w": 326
@@ -482,7 +482,7 @@
     "w": 448
   },
   "hedgehog-uncurling": {
-    "bytes": 79346,
+    "bytes": 91409,
     "file": "art/hedgehog-uncurling.png",
     "h": 355,
     "w": 349
@@ -716,13 +716,13 @@
     "w": 448
   },
   "sector-sheep": {
-    "bytes": 101331,
+    "bytes": 115248,
     "file": "art/sector-sheep.png",
     "h": 380,
     "w": 448
   },
   "sector-sheep-silhouette": {
-    "bytes": 20676,
+    "bytes": 20738,
     "file": "art/sector-sheep-silhouette.png",
     "h": 380,
     "w": 448
@@ -2024,13 +2024,13 @@
     "w": 235
   },
   "zoo-octopus-cheers": {
-    "bytes": 80091,
+    "bytes": 93288,
     "file": "art/zoo-octopus-cheers.png",
     "h": 332,
     "w": 258
   },
   "zoo-octopus-points": {
-    "bytes": 79446,
+    "bytes": 91820,
     "file": "art/zoo-octopus-points.png",
     "h": 337,
     "w": 279
@@ -2042,7 +2042,7 @@
     "w": 134
   },
   "zoo-octopus-thinks": {
-    "bytes": 68687,
+    "bytes": 79166,
     "file": "art/zoo-octopus-thinks.png",
     "h": 346,
     "w": 228
@@ -2054,7 +2054,7 @@
     "w": 488
   },
   "zoo-speech-bubble-left": {
-    "bytes": 26245,
+    "bytes": 13774,
     "file": "art/zoo-speech-bubble-left.png",
     "h": 373,
     "w": 496
