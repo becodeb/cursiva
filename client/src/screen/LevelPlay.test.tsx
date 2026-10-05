@@ -74,6 +74,7 @@ import LevelPlay, {
   eraseResultMessage,
   isOffPath,
   octopusHoldsLens,
+  OCTOPUS_SIZE,
   releasedRevealState,
   resultSpeechLine,
   seedCameraFor,
@@ -1856,13 +1857,16 @@ describe('LevelPlay stands the octopus at the start and the lamp at the end', ()
     expect(art, 'no startArt reached the canvas: the octopus would not render').toBeTruthy()
     expect(art?.href).toBe(OCTOPUS_ART.href)
     // The canvas needs the intrinsic size to hold aspect, and a target height
-    // to render at. The guide's figure is ~60 units; the shipped size is 96,
+    // to render at. The guide's figure is ~60 units; the shipped size was 96,
     // because at 60 a screenshot showed the character reading as a pin rather
-    // than as the child's own detective. `GLASS_REST_DX/DY` are derived from
-    // this number, so the three move together.
+    // than as the child's own detective, and [T51] 112 once the hat made 96
+    // read small (`levelOctopus.test.tsx` holds the placement rules at it).
+    // `GLASS_REST_DX/DY` are derived from this number, so the three move
+    // together.
     expect(art?.w).toBe(OCTOPUS_ART.w)
     expect(art?.h).toBe(OCTOPUS_ART.h)
-    expect(art?.size).toBe(96)
+    expect(art?.size).toBe(OCTOPUS_SIZE)
+    expect(OCTOPUS_SIZE).toBe(112)
   })
 
   // T6 (adventure-flow-and-map-guidance) drops the generic case lamp: docs/18

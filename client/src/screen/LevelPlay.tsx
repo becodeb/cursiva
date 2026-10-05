@@ -382,8 +382,16 @@ export const TORCH_CLUE_MARK_SIZE = 38
 /** Rendered HEIGHT of the octopus standing at the start of a trail, in sheet
  * units (`docs/09_GUIA_DE_ESTILO_VISUAL.md` §3). It stands on its FEET — the
  * canvas's `TraceStandingArt` contract — so it waits AT the start of the route
- * rather than being bisected by it. */
-const OCTOPUS_SIZE = 96
+ * rather than being bisected by it.
+ *
+ * [T51] 96 -> 112: with the T49 hat in the frame he read small. 112 is the
+ * largest size every placement rule still holds at (`levelOctopus.test.tsx`
+ * sweeps every level that stands him): at 116 the snakes' rotated column
+ * (`snake3`) is the first thing he would touch, and from 120 the snake
+ * levels clamp him off his own spot at the sheet's edge. Clue marks are
+ * drawn OVER him (`TraceCanvas`'s clue layer comes after the start art), so
+ * a bigger body never hides a clue. */
+export const OCTOPUS_SIZE = 112
 
 /** How far before an art-corridor piece's own drawn box the start octopus's
  *  feet land (`standBesideArtCorridor`). The margin has to clear the whole
@@ -490,10 +498,10 @@ export function resultSpeechLine(
  * the source art. [T49] Re-measured on the redrawn `/art/carrier-octopus.png`
  * (326x384, `docs/23` D6), whose raised tentacle is on the viewer's LEFT:
  * the light-blue glass's centroid sits at 20.3% of the width and 17.0% of
- * the height, which against `OCTOPUS_SIZE` (96 tall, so 81.5 wide) is 24
- * units left of the feet and 80 up. They scale WITH `OCTOPUS_SIZE`: raise
- * one and the other two move, or the glass drifts off the tentacle holding
- * it.
+ * the height, which against `OCTOPUS_SIZE` (96 tall, so 81.5 wide) was 24
+ * units left of the feet and 80 up. [T51] Derived from those two fractions
+ * now, so they scale WITH `OCTOPUS_SIZE` (112: 28 left, 93 up) and the glass
+ * cannot drift off the tentacle holding it when the size changes.
  *
  * It is applied to the carrier's HOME POINT here rather than as an offset
  * inside the canvas, and that is the only place it can live: `TraceCanvas`'s
@@ -503,7 +511,9 @@ export function resultSpeechLine(
  * where the glass must sit exactly ON the finger, not beside it. Offsetting
  * the home point moves the glass only where it rests.
  */
-const GLASS_REST_DX = -24
+const GLASS_CENTROID_X_FRAC = 0.203
+const GLASS_CENTROID_Y_FRAC = 0.17
+const GLASS_REST_DX = Math.round((GLASS_CENTROID_X_FRAC - 0.5) * OCTOPUS_SIZE * (OCTOPUS_ART.w / OCTOPUS_ART.h))
 
 // T38: the octopus standing at the start WITHOUT the magnifying glass, shown
 // while the finger is down (the glass is then on the fingertip):
@@ -524,7 +534,7 @@ const GLASS_REST_DX = -24
 export function octopusHoldsLens(level: Pick<LevelConfig, 'carrier' | 'carrierArt'>): boolean {
   return !!level.carrier && !level.carrierArt
 }
-const GLASS_REST_DY = -80
+const GLASS_REST_DY = -Math.round((1 - GLASS_CENTROID_Y_FRAC) * OCTOPUS_SIZE)
 
 /**
  * The child's own line on a detective trail: MUD, not ink.
@@ -610,7 +620,7 @@ export function worldInk(
 
 /** The octopus's standing height and widest drawing (holding the glass, or
  *  the empty-handed one), for keeping him clear of a segment level's marks. */
-const OCTOPUS_ASPECT = Math.max(OCTOPUS_ART.w / OCTOPUS_ART.h, OCTOPUS_EMPTY_HANDED_ART.w / OCTOPUS_EMPTY_HANDED_ART.h)
+export const OCTOPUS_ASPECT = Math.max(OCTOPUS_ART.w / OCTOPUS_ART.h, OCTOPUS_EMPTY_HANDED_ART.w / OCTOPUS_EMPTY_HANDED_ART.h)
 
 /** [T45 follow-up] Where the octopus's feet go on a segment level: the
  *  nearest spot to the first start whose box stays on the sheet (which every
@@ -623,6 +633,27 @@ export function segmentOctopusFeet(target: LevelTarget): { x: number; y: number 
     segmentStandPoint(target.routes, target.corridorWidth, OCTOPUS_SIZE, OCTOPUS_ASPECT, bounds) ??
     segmentStandPoint(target.routes, target.config.corridorWidth, OCTOPUS_SIZE, OCTOPUS_ASPECT, bounds)
   )
+}
+
+/**
+ * Where the start octopus's FEET land when that is not the route's own start
+ * point (`TraceStandingArt.at`), or `undefined` to stand on `target.start`:
+ * beside the first art-corridor piece's drawn body (N3), or beside a segment
+ * level's segments (T45). Pure and exported (T51) so `levelOctopus.test.tsx`
+ * sweeps the exact spot the screen renders.
+ */
+export function octopusFeetOverride(target: LevelTarget, hasSegments: boolean): { x: number; y: number } | undefined {
+  const piece0 = target.artCorridor?.[0]
+  // `standBesideArtCorridor` already rotates the offset WITH the piece
+  // (`placeArt.test.ts`'s own "rotate:-90 column shifts on Y, not X"
+  // proof) — verified on `snake3`'s rotated column too
+  // (`fix-snakes-true-alignment`'s own browser QA), so a rotated piece no
+  // longer needs to fall back to the unmoved default.
+  if (piece0 && target.start) return standBesideArtCorridor(target.start, piece0, OCTOPUS_STAND_MARGIN, true)
+  // [T45 follow-up] On a segment level the octopus stands beside the
+  // segments, never on a start dot, stop mark, clue or corridor.
+  if (hasSegments) return segmentOctopusFeet(target)
+  return undefined
 }
 
 /**
@@ -3460,19 +3491,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // sits on the body's centreline — `TraceStandingArt.at`'s own doc, N3).
   // Every other level keeps `undefined`, so `startArt` falls back to
   // `startMarker` exactly as it always has.
-  const startArtAt = useMemo(() => {
-    const piece0 = target.artCorridor?.[0]
-    // `standBesideArtCorridor` already rotates the offset WITH the piece
-    // (`placeArt.test.ts`'s own "rotate:-90 column shifts on Y, not X"
-    // proof) — verified on `snake3`'s rotated column too
-    // (`fix-snakes-true-alignment`'s own browser QA), so a rotated piece no
-    // longer needs to fall back to the unmoved default.
-    if (piece0 && startMarker) return standBesideArtCorridor(startMarker, piece0, OCTOPUS_STAND_MARGIN, true)
-    // [T45 follow-up] On a segment level the octopus stands beside the
-    // segments, never on a start dot, stop mark, clue or corridor.
-    if (segmentDef) return segmentOctopusFeet(target)
-    return undefined
-  }, [target, startMarker, segmentDef])
+  const startArtAt = useMemo(() => octopusFeetOverride(target, !!segmentDef), [target, segmentDef])
   const directionArrow = useMemo(() => directionArrowOf(target), [target])
 
   // T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):

@@ -25,7 +25,7 @@
 // opens rightward from his left-corner body — already further right than a
 // centred box's tail-side bias ever put it.
 import type { PulpitoCorner, PulpitoStance } from '../zoo/adventures'
-import { PULPITO_POSE_ART } from '../detective/assets'
+import { OCTOPUS_ART, PULPITO_POSE_ART, ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
 import type { Box } from './bubblePlacement'
 
 /** No per-line author bothered to declare a stance (every adventure row
@@ -120,6 +120,66 @@ export const RESCUE_OCTOPUS_ART = PULPITO_POSE_ART.cheers
  *  pixel font sizes for the required viewports without a browser. */
 export function stageSizePx(viewportWidth: number, viewportHeight: number): number {
   return Math.min(viewportWidth, STAGE_MAX_PX, STAGE_MAX_VH_FRAC * viewportHeight)
+}
+
+/** [T51] Where the speech bubble's tail tip lands on a stage figure, as a
+ *  fraction of the figure's own UNMIRRORED box (x of its width, y of its
+ *  height), for the LEFT corner (bubble opening to his right); the right
+ *  corner mirrors x. Measured on the shipped PNGs (per row the rightmost
+ *  opaque pixel, per column the topmost): each anchor sits in free space
+ *  just beside the head, with nothing of the figure above or to the right
+ *  of it, where the tail rises toward the bubble, and about 0.08 of the
+ *  figure's width clear of the head: the tail's inked tip leans that far
+ *  LEFT of its measured point (`bubbleArt.test.ts` checks no bubble pixel
+ *  lands on the figure).
+ *  - points (279x337): head and hat end at x 0.62 down to y 0.35, the
+ *    pointing tentacle starts at y 0.40 -> beside his cheek, (0.74, 0.33).
+ *  - cheers (258x332): both raised tentacles reach y 0.11 at x 0.85-0.9 and
+ *    the hat brim ends at x 0.70 (top 0.13) -> just over the brim's right
+ *    end, (0.72, 0.06), clear of the raised tentacle.
+ *  - backpack (442x448): the head's right edge is x 0.78 at y 0.25-0.30,
+ *    columns 0.80-0.95 start at y 0.33 or lower -> (0.86, 0.20).
+ *  - carrier, with the lens (326x384, a closing beat's figure): head right
+ *    edge x 0.88 at y 0.30, columns 0.90-0.95 start at y 0.45 -> (0.96, 0.32).
+ *  Before T51 the tip landed 2% above the box's top edge at 78% of its
+ *  width, which on the T49 poses is above the hat's crown: lower anchors
+ *  point at the head and also let the bubble grow (its height is bounded
+ *  by how far the tip sits below the stage's top). */
+export const STAGE_SPEECH_ANCHORS: ReadonlyMap<string, { readonly x: number; readonly y: number }> = new Map([
+  [PULPITO_POSE_ART.points.href, { x: 0.74, y: 0.33 }],
+  [PULPITO_POSE_ART.cheers.href, { x: 0.72, y: 0.06 }],
+  [ZOO_OCTOPUS_BACKPACK_ART.href, { x: 0.86, y: 0.2 }],
+  [OCTOPUS_ART.href, { x: 0.96, y: 0.32 }],
+])
+
+/** The tail-tip target for `art` standing in `box` at `corner`, or
+ *  `undefined` for a figure with no measured anchor (the bubble then aims
+ *  `gap` above the box, `bubblePlacement.ts`'s default). */
+export function stageSpeechTarget(
+  art: { readonly href: string },
+  box: Box,
+  corner: PulpitoCorner,
+): { readonly x: number; readonly y: number } | undefined {
+  const anchor = STAGE_SPEECH_ANCHORS.get(art.href)
+  if (!anchor) return undefined
+  const fx = corner === 'left' ? anchor.x : 1 - anchor.x
+  return { x: box.x + box.w * fx, y: box.y + box.h * anchor.y }
+}
+
+/** [T51] The frame an entry or closing screen places its bubble in, in the
+ *  stage's own percent units. The stage square sits at the screen's LEFT
+ *  edge (`.cv-intro-frame`/`.cv-closing-frame` set no left), so on any
+ *  screen wider than the stage the room to its right is free: the frame
+ *  reaches the screen's right edge instead of the square's, which lets the
+ *  bubble of a left-corner Pulpito grow until the stage's TOP bounds it.
+ *  Without a viewport (SSR) it is the plain 100x100 square, as before. */
+export function stageBubbleFrame(viewport: { readonly width: number; readonly height: number } | undefined): {
+  readonly w: number
+  readonly h: number
+} {
+  if (!viewport) return { w: 100, h: 100 }
+  const stage = stageSizePx(viewport.width, viewport.height)
+  return { w: stage > 0 ? Math.max(100, (viewport.width / stage) * 100) : 100, h: 100 }
 }
 
 /** `stance ?? DEFAULT_PULPITO_STANCE` — a named function instead of the

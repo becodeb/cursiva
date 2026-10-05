@@ -14,6 +14,7 @@ import {
   type SegmentConfig,
 } from './segments'
 import { placeArt, STANDING_GRIP } from '../canvas/placeArt'
+import { OCTOPUS_ASPECT, OCTOPUS_SIZE } from '../screen/LevelPlay'
 import { buildLevelTarget } from './buildLevel'
 import { getLevel } from './catalog'
 import { segmentClueMarks, segmentClueState } from '../detective/clues'
@@ -275,8 +276,10 @@ describe('the octopus stands clear of every segment (both shipped levels)', () =
   const START_R = 22
   const STOP_R = 34 + 2.5
   const MARK_HALF = 14
-  const OCTOPUS_H = 96
-  const ASPECT = Math.max(384 / 353, 448 / 399)
+  // [T51] The screen's own size and aspect (they were restated here as 96
+  // and the pre-T49 art's aspect, so a size change would not be caught).
+  const OCTOPUS_H = OCTOPUS_SIZE
+  const ASPECT = OCTOPUS_ASPECT
   const hits = (box: { x: number; y: number; width: number; height: number }, p: Point, r: number) => {
     const cx = Math.max(box.x, Math.min(p.x, box.x + box.width))
     const cy = Math.max(box.y, Math.min(p.y, box.y + box.height))

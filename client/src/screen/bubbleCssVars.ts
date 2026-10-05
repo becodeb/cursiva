@@ -14,7 +14,7 @@
 // no notion of a CSS property name; this one is pure string formatting, with
 // no notion of layout math. Neither needs a DOM to be exercised.
 import type { CSSProperties } from 'react'
-import type { BubbleContentFit } from './bubbleFit'
+import type { BubbleContentFit, BubbleRect } from './bubbleFit'
 import type { BubblePlacement } from './bubblePlacement'
 
 export interface BubbleContentFracs {
@@ -50,7 +50,13 @@ export function bubbleContentCssVars(
   fracs: BubbleContentFracs,
 ): CSSProperties {
   const toCqw = (value: number): string => `${(value / placement.width) * 100}cqw`
-  let contentTopCqw = fracs.contentTopFrac * 100
+  // [T51] `contentTopFrac` is a fraction of the bubble's HEIGHT, and `cqw`
+  // is a percent of its WIDTH: convert through the bubble's own aspect.
+  // Until T51 this wrote the raw fraction as cqw, which put every caption
+  // `contentTopFrac * (1 - aspect)` of the width LOWER than the fit assumed
+  // (about 4% of the bubble's width) — half of why the last line touched
+  // the left bubble's lower edge.
+  let contentTopCqw = (fracs.contentTopFrac * placement.height * 100) / placement.width
   if (fracs.contentHeightFrac !== undefined) {
     // Both `budgetHeight` and `content.blockHeight` are frame-percent
     // quantities on `placement.height`'s own scale (`bubbleFit.ts`'s own
@@ -71,4 +77,17 @@ export function bubbleContentCssVars(
     '--cv-caption-font': toCqw(content.fontSize),
   }
   return vars as CSSProperties
+}
+
+/** [T51] The `BubbleContentFracs` for a content box (`bubbleFit.ts`'s
+ *  `BubbleRect`): `centre` passes its height too, which turns on the T34
+ *  vertical centring. */
+export function bubbleContentFracs(box: BubbleRect, gapFrac: number, centre: boolean): BubbleContentFracs {
+  return {
+    contentLeftFrac: box.left,
+    contentTopFrac: box.top,
+    contentWidthFrac: box.width,
+    gapFrac,
+    ...(centre ? { contentHeightFrac: box.height } : {}),
+  }
 }

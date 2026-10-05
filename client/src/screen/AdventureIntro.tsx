@@ -37,21 +37,18 @@ import { LEVEL_CHROME_SIDE_INSET } from './LevelPlay'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import { BUBBLE_POP_CSS } from './BubblePop'
-import { ZOO_SPEECH_BUBBLE_LEFT_TAIL } from './bubblePlacement'
-import { CONTENT_LEFT_FRAC, CONTENT_TOP_FRAC, CONTENT_WIDTH_FRAC, GAP_FRAC, LINE_HEIGHT, placeAndFitBubble } from './bubbleFit'
+import { FLOAT_BOTTOM_MARGIN_FRAC, GAP_FRAC, LINE_HEIGHT, ZOO_SPEECH_BUBBLE_LEFT_CONTENT } from './bubbleFit'
 import {
   INTRO_OCTOPUS_ART,
-  OCTOPUS_CORNER_INSET,
   OCTOPUS_CORNER_SIZE_PCT,
-  octopusBoxAtCorner,
   resolvePulpitoStance,
-  stageOctopusSizing,
-  stanceBubbleSide,
   STAGE_MARGIN_PCT,
   STAGE_MAX_PX,
   STAGE_MAX_VH_FRAC,
 } from './pulpitoStance'
-import { bubbleContentCssVars } from './bubbleCssVars'
+import { bubbleContentCssVars, bubbleContentFracs } from './bubbleCssVars'
+import { useViewportSize } from './useViewportSize'
+import { placeStageBubble } from './stageBubble'
 
 /* The stage is a percentage box with container-type: inline-size, the same
    fix the zoo map's own bubble uses (ZooMap.tsx's ZOO_CSS): everything
@@ -82,7 +79,7 @@ const INTRO_CSS = `
 .cv-intro { position: relative; height: 100dvh; width: 100vw; overflow: hidden; background-color: ${SHEET_PAPER}; }
 .cv-intro-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .cv-intro-frame { position: absolute; bottom: ${STAGE_MARGIN_PCT}%; width: min(100%, ${STAGE_MAX_PX}px, ${STAGE_MAX_VH_FRAC * 100}dvh); aspect-ratio: 1 / 1; container-type: inline-size; }
-.cv-intro-stage { position: absolute; inset: 0; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; }
+.cv-intro-stage { position: absolute; inset: 0; container-type: inline-size; border: none; background: none; padding: 0; cursor: pointer; font: inherit; text-align: left; }
 /* T8 item 1 (odd/tasks/prewriting-stage-completion.md): idle life, using
    only the existing art. T18: no more translateX(-50%) — a corner octopus
    is positioned by a plain inline left/right (octopusBoxAtCorner's own x
@@ -119,8 +116,12 @@ ${BUBBLE_POP_CSS}
 .cv-intro-bubble { position: absolute; container-type: inline-size; }
 .cv-intro-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
 .cv-intro-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
-.cv-intro-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); }
-.cv-intro-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: 1cqw; }
+/* [T51] The caption block carries the caption font too: its line boxes take
+   their height from the BLOCK strut as well as the inline caption, so a block
+   left at the page font (16px, normal line height) spaced small captions
+   wider than the fit assumed. */
+.cv-intro-bubble .cv-captioned { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); text-align: left; font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; }
+.cv-intro-bubble .cv-captioned > svg { float: left; width: var(--cv-image-w); height: var(--cv-image-h); margin-right: var(--cv-gap); margin-bottom: ${FLOAT_BOTTOM_MARGIN_FRAC * 100}cqw; }
 /* T18 follow-up (bubbleFit.ts's own header): the STACK layout — the image
    sits above the caption instead of beside it, so the caption always wraps
    at the bubble's full content width and never has to fit a word into a
@@ -256,22 +257,16 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
   useNarration(spokenLine)
   // T18: the stance (`docs/19` §4.1) — which bottom corner he stands in,
   // and therefore which side the bubble opens toward.
+  const viewport = useViewportSize()
   const stance = resolvePulpitoStance(adventure.introStance)
   // [T49, `docs/23` D7] He points at the scene: the drawing points right,
   // so in the right corner it is mirrored (CSS `scale`, which composes with
   // the blink keyframe's own `transform` instead of replacing it).
-  const octopusBox = octopusBoxAtCorner(INTRO_OCTOPUS_ART, {
-    corner: stance.corner,
-    ...stageOctopusSizing(INTRO_OCTOPUS_ART),
-    bottom: 2,
-    inset: OCTOPUS_CORNER_INSET,
-  })
   const icon = introBubbleArt(adventure)
-  const { placement, content } = placeAndFitBubble({
-    frame: { w: 100, h: 100 },
-    headBox: octopusBox,
-    tail: ZOO_SPEECH_BUBBLE_LEFT_TAIL,
-    side: stanceBubbleSide(stance.corner),
+  const { octopusBox, placement, content } = placeStageBubble({
+    figure: INTRO_OCTOPUS_ART,
+    corner: stance.corner,
+    viewport,
     text: adventure.intro,
     art: icon,
   })
@@ -357,12 +352,7 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
               left: `${placement.left}%`,
               top: `${placement.top}%`,
               width: `${placement.width}%`,
-              ...bubbleContentCssVars(placement, content, {
-                contentLeftFrac: CONTENT_LEFT_FRAC,
-                contentTopFrac: CONTENT_TOP_FRAC,
-                contentWidthFrac: CONTENT_WIDTH_FRAC,
-                gapFrac: GAP_FRAC,
-              }),
+              ...bubbleContentCssVars(placement, content, bubbleContentFracs(ZOO_SPEECH_BUBBLE_LEFT_CONTENT, GAP_FRAC, false)),
             }}
           >
             {/* Keyed on the line (T8 item 2), same reasoning
