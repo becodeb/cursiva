@@ -859,6 +859,10 @@ Para la sesión que meta las imágenes en el juego.
    `w`/`h`) y sacarlo de `PLACEHOLDER_SAMPLE_SOURCES`. La misma guarda de
    `artManifest.test.ts` avisa.
 
+   **Hecho en T48 (2026-10-05).** La lana, la huella de tortuga y el pelo de
+   gato están en el juego; `PLACEHOLDER_CLUE_ART` y
+   `PLACEHOLDER_SAMPLE_SOURCES` quedaron vacíos.
+
 ---
 
 ## 6. Qué cambia de `docs/20`
