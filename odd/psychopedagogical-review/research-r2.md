@@ -48,3 +48,10 @@ reads. Directionally reliable; verify page-level detail before quoting precisely
 CABA Diseño Curricular / NAP text; explicit counter-clockwise rule source; Beery manual; repetition with
 variation in graphomotor learning; adaptive difficulty for tracing games; peer-reviewed multisensory
 evidence; self-determination theory at age 6; full Clarín article.
+
+## Follow-up (Argentine sources)
+
+- Fetched https://bde-ueicee.bue.edu.ar/documentos/482/download: it is *Progresiones de los aprendizajes: Prácticas del Lenguaje, Primer ciclo* (Kaufman & Caldani, GCBA/UEICEE, 2018), not the Diseño Curricular. Its text uses CID fonts that could not be extracted here, so nothing is quoted from it. The progresionescaba.bue.edu.ar PDFs were unreachable.
+- Snippet only (unverified): a CABA document would treat uppercase and lowercase print as core in 1st grade and cursive as extension, core by 2nd–3rd grade.
+- Read in full (Spain, not Argentina): *Manual básico de ejercicios de grafomotricidad* (Molinero Claramunt, aulapt.org): exercises "de arriba abajo, de izquierda a derecha (y viceversa); y en movimiento circular", left→right recommended. https://www.aulapt.org/wp-content/uploads/2016/01/manual-basico-de-ejercicios-de-grafomotricidad.pdf
+- Still unverified: an Argentine source for counter-clockwise ovals, entry ligatures, high-exit letters and double-ruled notebooks.
