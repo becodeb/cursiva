@@ -39,7 +39,7 @@ concrete proposal. `docs/24_…` stays reserved for the next ChatGPT art-prompt 
 | R1 | Map the journey in play order (prologue, map, adventures, levels, cases, f3) and capture every screen at both viewports, with spoken lines, timings and measurements | delegated (4+ files, browser work) | done | 103 steps (59 levels + 44 story/map screens), 538 captures + `LOG.md` in `capturas/2026-10-07-revision/` (git-ignored; harness in `_harness/`). Limits and orchestrator review in `odd/psychopedagogical-review/orchestrator-notes.md` |
 | R2 | Collect external evidence on graphomotor practice and educational-game design for 6-year-olds | delegated (research, parallel with R1) | done | `odd/psychopedagogical-review/research-r2.md` (WebSearch snippets; gaps listed there) |
 | R3 | Analyse every screen against the criteria and write `docs/25` with prioritised findings and a proposal | delegated (opus writer) | done | `docs/25_REVISION_PSICOPEDAGOGICA.md` (`82e010b`, 571 lines): 2 P1, 6 P2, 3 P3 + 6 visual defects, 5 batches, 5 questions. Also found three harness errors that change the LOG's reading (§2.3) |
-| R4 | Orchestrator review of captures and doc; merge `--no-ff` to `main`, push | inline | pending | |
+| R4 | Orchestrator review of captures and doc; merge `--no-ff` to `main`, push | inline | done | Doc read in full; spot-checked `resultSpeechLine` (`LevelPlay.tsx:480-489`), `checkpoints.ts:74-98`, `snake3` hint (`catalog.ts:1511`). Docs-only merge: suite and build not run (no code changed) |
 
 ## Progress
 
