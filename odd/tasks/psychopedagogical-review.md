@@ -38,7 +38,7 @@ concrete proposal. `docs/24_…` stays reserved for the next ChatGPT art-prompt 
 |----|------|-------|--------|----------|
 | R1 | Map the journey in play order (prologue, map, adventures, levels, cases, f3) and capture every screen at both viewports, with spoken lines, timings and measurements | delegated (4+ files, browser work) | done | 103 steps (59 levels + 44 story/map screens), 538 captures + `LOG.md` in `capturas/2026-10-07-revision/` (git-ignored; harness in `_harness/`). Limits and orchestrator review in `odd/psychopedagogical-review/orchestrator-notes.md` |
 | R2 | Collect external evidence on graphomotor practice and educational-game design for 6-year-olds | delegated (research, parallel with R1) | done | `odd/psychopedagogical-review/research-r2.md` (WebSearch snippets; gaps listed there) |
-| R3 | Analyse every screen against the criteria and write `docs/25` with prioritised findings and a proposal | delegated (opus writer) | pending | |
+| R3 | Analyse every screen against the criteria and write `docs/25` with prioritised findings and a proposal | delegated (opus writer) | done | `docs/25_REVISION_PSICOPEDAGOGICA.md` (`82e010b`, 571 lines): 2 P1, 6 P2, 3 P3 + 6 visual defects, 5 batches, 5 questions. Also found three harness errors that change the LOG's reading (§2.3) |
 | R4 | Orchestrator review of captures and doc; merge `--no-ff` to `main`, push | inline | pending | |
 
 ## Progress
@@ -46,7 +46,8 @@ concrete proposal. `docs/24_…` stays reserved for the next ChatGPT art-prompt 
 - 2026-10-07: feature document created.
 - 2026-10-07: R2 done; evidence saved with its gaps (CABA curriculum text and the counter-clockwise rule not reached).
 - 2026-10-07: R1 done after ~2h (asked to wrap up after it began re-shooting). The orchestrator looked at contact sheets of every first frame, every imperfect attempt and every portrait frame; notes saved.
+- 2026-10-07: R3 done (`82e010b`). The LOG's "18 not approved" is mostly a harness artefact: on collect levels the first clean stroke completed the level and the game auto-advanced, so 13 of those 18 "imperfect" frames show the next screen; f3-l/f3-o were counted approved because the regex matched "Sentido ✓".
 
 ## Next step
 
-R3: opus writer for `docs/25`.
+R4: orchestrator review of the captures and `docs/25`; merge `--no-ff` to `main`, push.
