@@ -37,13 +37,14 @@ concrete proposal. `docs/24_…` stays reserved for the next ChatGPT art-prompt 
 | ID | Task | Route | Status | Evidence |
 |----|------|-------|--------|----------|
 | R1 | Map the journey in play order (prologue, map, adventures, levels, cases, f3) and capture every screen at both viewports, with spoken lines, timings and measurements | delegated (4+ files, browser work) | pending | |
-| R2 | Collect external evidence on graphomotor practice and educational-game design for 6-year-olds | delegated (research, parallel with R1) | pending | |
+| R2 | Collect external evidence on graphomotor practice and educational-game design for 6-year-olds | delegated (research, parallel with R1) | done | `odd/psychopedagogical-review/research-r2.md` (WebSearch snippets; gaps listed there) |
 | R3 | Analyse every screen against the criteria and write `docs/25` with prioritised findings and a proposal | delegated (opus writer) | pending | |
 | R4 | Orchestrator review of captures and doc; merge `--no-ff` to `main`, push | inline | pending | |
 
 ## Progress
 
 - 2026-10-07: feature document created.
+- 2026-10-07: R2 done; evidence saved with its gaps (CABA curriculum text and the counter-clockwise rule not reached).
 
 ## Next step
 
