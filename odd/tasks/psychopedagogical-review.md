@@ -48,6 +48,8 @@ concrete proposal. `docs/24_…` stays reserved for the next ChatGPT art-prompt 
 - 2026-10-07: R1 done after ~2h (asked to wrap up after it began re-shooting). The orchestrator looked at contact sheets of every first frame, every imperfect attempt and every portrait frame; notes saved.
 - 2026-10-07: R3 done (`82e010b`). The LOG's "18 not approved" is mostly a harness artefact: on collect levels the first clean stroke completed the level and the game auto-advanced, so 13 of those 18 "imperfect" frames show the next screen; f3-l/f3-o were counted approved because the regex matched "Sentido ✓".
 
+- 2026-10-09: author's answer to §8 question 1 (tentative): cursive starts with an entry stroke from the baseline, as the letter SVGs already do. To confirm against the school's notebook.
+
 ## Next step
 
-R4: orchestrator review of the captures and `docs/25`; merge `--no-ff` to `main`, push.
+The author approves or rejects `docs/25` §7 item by item and answers §8. Nothing is implemented until then.
