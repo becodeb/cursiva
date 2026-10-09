@@ -426,6 +426,28 @@ export const DEDUCTION_BUBBLE_CONTENT = bubbleContentBox(
   DEDUCTION_BUBBLE_MARGIN_FRAC,
 )
 
+/** [Review batch 1 V5, `docs/25_REVISION_PSICOPEDAGOGICA.md` section 5.4:
+ *  "Texto pequeño en el globo de las deducciones"] This screen's own corner
+ *  stage (`deductionLayout.ts`'s `DEDUCTION_STAGE_DVH`/
+ *  `DEDUCTION_STAGE_MAX_VW`) is deliberately a SMALLER physical square than
+ *  every other narrative screen's — T46's own "the evidence and the
+ *  choices need that room more than the narrator does" — so the SAME font
+ *  fraction every other screen uses (`bubbleFit.ts`'s own
+ *  `MAX_FONT_FRAC`/`MIN_FONT_FRAC`) renders visibly smaller here in real
+ *  px, even though neither screen's own fit ever overflows. These two
+ *  override `fitBubbleContent`'s defaults for THIS bubble only — about
+ *  double the usual ceiling/floor, chosen so a short line (the common
+ *  case, every deduction opening/solved/hint line in the registry) reaches
+ *  a comparable ABSOLUTE size to `AdventureIntro.tsx`'s own bubble at the
+ *  same viewport. The stage geometry itself is untouched
+ *  (`deductionLayout.test.ts`'s own invariants keep holding), and the
+ *  search in `fitBubbleContent` still shrinks a line that cannot afford
+ *  this bigger ceiling, exactly like every other caller —
+ *  `bubbleFit.test.ts`'s own Deduction sweep proves every registry line
+ *  still fits, at every required viewport, with this override applied. */
+export const DEDUCTION_MAX_FONT_FRAC = 0.145
+export const DEDUCTION_MIN_FONT_FRAC = 0.065
+
 /** Pulpito's bubble for one line — the SAME engine `AdventureIntro.tsx`
  *  uses, text only. Exported so `bubbleFit.test.ts` sweeps the exact call. */
 export function deductionBubble(text: string): PlacedBubbleContent {
@@ -436,6 +458,8 @@ export function deductionBubble(text: string): PlacedBubbleContent {
     box: DEDUCTION_BUBBLE_CONTENT,
     side: stanceBubbleSide('left'),
     text,
+    maxFontFrac: DEDUCTION_MAX_FONT_FRAC,
+    minFontFrac: DEDUCTION_MIN_FONT_FRAC,
   })
 }
 
