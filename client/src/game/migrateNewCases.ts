@@ -43,6 +43,10 @@ function seedFrom(source: LevelRecord): LevelRecord {
     streakFail: EMPTY_RECORD.streakFail,
     streakPass: Math.max(source.streakPass, EMPTY_RECORD.streakPass),
     widthFactor: Math.max(source.widthFactor, EMPTY_RECORD.widthFactor),
+    // 1.6: fresh, like streakFail above -- the destination level is a
+    // DIFFERENT level from the source, so the source's own attempt-pace
+    // timings do not describe it; never carried forward.
+    durationsMs: EMPTY_RECORD.durationsMs,
   }
 }
 

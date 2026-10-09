@@ -754,6 +754,28 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
             Saltar nivel (dev)
           </button>
         )}
+        {/* 1.6 (`odd/tasks/review-batch-1.md`): no UI for attempt durations
+         * yet — this dev-only dump is the "read it somehow" the task asks
+         * for, the same `isDevMode()` gate every other dev surface here
+         * uses. Logs THIS level's own `durationsMs` (oldest first, ms) plus
+         * its `attempts`/`approvals`, so a real playtest's own pace can be
+         * read straight from the browser console instead of estimated. */}
+        {state.view === 'play' && isDevMode() && (
+          <button
+            type="button"
+            onClick={() => {
+              const current = store.get(state.levelId)
+              // eslint-disable-next-line no-console -- the dev-only readout itself
+              console.log(`[cursiva] ${state.levelId} durationsMs`, current.durationsMs, {
+                attempts: current.attempts,
+                approvals: current.approvals,
+              })
+            }}
+            style={DEV_TIMES_BUTTON}
+          >
+            Ver tiempos (dev)
+          </button>
+        )}
       </ScreenTransition>
       </>
     )
@@ -877,4 +899,13 @@ const DEV_SKIP_BUTTON: CSSProperties = {
   background: 'rgba(255,255,255,0.85)',
   color: '#334155',
   cursor: 'pointer',
+}
+
+/** 1.6's own dev button — bottom-LEFT, the opposite corner from
+ *  `DEV_SKIP_BUTTON`, so the two never overlap (both render together on
+ *  every `play` view). */
+const DEV_TIMES_BUTTON: CSSProperties = {
+  ...DEV_SKIP_BUTTON,
+  right: undefined,
+  left: 8,
 }

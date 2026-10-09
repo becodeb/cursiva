@@ -18,6 +18,13 @@ export interface LevelAttempt extends PillarScores {
   approved: boolean
   /** which rule blocked approval, for the coaching message. */
   failedPillar: 'accuracy' | 'direction' | 'fluency' | null
+  /** 1.6 (`odd/tasks/review-batch-1.md`, `docs/25_REVISION_PSICOPEDAGOGICA.md`
+   *  section 7 item 1.6): how long THIS attempt took, pointer-down of its
+   *  first stroke to this exact resolution (approved or not) —
+   *  `screen/LevelPlay.tsx`'s `takeAttemptDurationMs`. Absent when no stroke
+   *  was ever actually drawn for it (the dev skip button's synthetic
+   *  `SKIP_ATTEMPT`, `GameScreen.tsx`) — never a fabricated `0`. */
+  durationMs?: number
 }
 
 /** Persisted per-level state. */
@@ -33,7 +40,21 @@ export interface LevelRecord {
   streakPass: number
   /** accumulated corridor multiplier, 1 = nominal, capped [0.7, 2]. */
   widthFactor: number
+  /** 1.6: this level's last `MAX_DURATIONS_KEPT` attempt durations, in ms,
+   *  oldest first — so real sessions can be TIMED instead of estimated
+   *  (`docs/21_…` section 5's own "es una estimación, no una medición").
+   *  No UI reads this yet (the task's own scope: a dev-only readout is
+   *  enough); `game/LevelProgressStore.ts`'s `toRecord` defaults it to `[]`
+   *  for every record saved before this field existed, so old progress
+   *  loads exactly as before. `LevelAttempt.durationMs` absent (the dev
+   *  skip button) contributes nothing — never a fabricated `0`. */
+  durationsMs: readonly number[]
 }
+
+/** 1.6: how many of a level's own most recent attempt durations are kept —
+ *  enough for a real session's worth of retries without the record growing
+ *  without bound over a child's whole history with this level. */
+export const MAX_DURATIONS_KEPT = 20
 
 export const EMPTY_RECORD: LevelRecord = {
   bestAccuracy: 0,
@@ -43,6 +64,7 @@ export const EMPTY_RECORD: LevelRecord = {
   streakFail: 0,
   streakPass: 0,
   widthFactor: 1,
+  durationsMs: [],
 }
 
 /** Approvals needed to unlock the next level (one pass can be luck). */

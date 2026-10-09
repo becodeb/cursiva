@@ -70,6 +70,8 @@ function seedFrom(source: LevelRecord | undefined): LevelRecord {
     streakFail: EMPTY_RECORD.streakFail,
     streakPass: Math.max(source?.streakPass ?? 0, EMPTY_RECORD.streakPass),
     widthFactor: Math.max(source?.widthFactor ?? 0, EMPTY_RECORD.widthFactor),
+    // 1.6: fresh, like streakFail above — see migratePhase1.ts's seedFrom.
+    durationsMs: EMPTY_RECORD.durationsMs,
   }
 }
 

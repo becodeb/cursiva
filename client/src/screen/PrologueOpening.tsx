@@ -134,7 +134,19 @@ ${BUBBLE_POP_CSS}
    early (this file's own top-of-file note). */
 .cv-prologue-speak { position: absolute; top: ${STAGE_MARGIN_PCT}%; right: ${STAGE_MARGIN_PCT}%; z-index: 2; }
 .cv-prologue-skip { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; border-radius: 16px; padding: 6px 10px; cursor: pointer; }
-.cv-prologue-skip .cv-caption { font-size: 14px; font-weight: 700; color: #1e293b; }
+/* (V1, docs/25 section 5.4) CaptionedArt's own markup has NO whitespace
+   between its <svg> and its <span class="cv-caption"> (two adjacent JSX
+   children, never a text node) -- left to the default inline flow, that is
+   a literal ZERO-pixel gap, icon edge touching the label's first glyph.
+   AdventureIntro.tsx's own .cv-intro-tool shares this exact structure and
+   gets the same explicit row rule below; a .cv-prologue-skip fix with
+   nothing to pair it against would only hide the same defect one call site
+   over. flex-wrap: nowrap, so a narrow viewport shrinks nothing silently --
+   this pill's content is two short fixed-size children (a 28px icon, a
+   14px label), never wide enough to need wrapping at any viewport this
+   game ships. */
+.cv-prologue-skip .cv-captioned { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 6px; }
+.cv-prologue-skip .cv-caption { font-size: 14px; font-weight: 700; color: #1e293b; white-space: nowrap; }
 /* docs/25 P2-5 (tanda 1, item 1.3): the start tap. A browser will not speak
    before the page has seen a gesture, so on a first visit plate 0's line was
    silent. While audio is still locked, the WHOLE screen is one button (any

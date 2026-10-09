@@ -1,7 +1,7 @@
 // Adaptive tolerance + coaching contract (docs/03 sections 4 and 7).
 import { describe, expect, it } from 'vitest'
 import { MAX_WIDTH_FACTOR, MIN_WIDTH_FACTOR, applyAttempt, coachMessage } from './adaptiveTolerance'
-import { EMPTY_RECORD } from './types'
+import { EMPTY_RECORD, MAX_DURATIONS_KEPT } from './types'
 import type { LevelAttempt, LevelRecord } from './types'
 
 function attempt(over: Partial<LevelAttempt> = {}): LevelAttempt {
@@ -224,5 +224,42 @@ describe('coachMessage', () => {
     expect(coachMessage(attempt({ approved: false, failedPillar: null }))).toBe(
       'Probá una vez más, tranquilo.',
     )
+  })
+})
+
+// 1.6 (`odd/tasks/review-batch-1.md`, `docs/25_REVISION_PSICOPEDAGOGICA.md`
+// section 7 item 1.6): "guardar la duración de cada intento" — `applyAttempt`
+// is the one place every attempt (approved or not, `LevelPlay.tsx`'s own two
+// `onAttempt` call sites) is folded into the persisted record, so it is the
+// one place durationsMs can be appended without LevelPlay.tsx itself knowing
+// the storage shape.
+describe('applyAttempt — durationsMs (1.6)', () => {
+  it('appends a real duration, oldest first', () => {
+    const record = run([
+      attempt({ durationMs: 1000 }),
+      attempt({ durationMs: 2000 }),
+      attempt({ approved: false, failedPillar: 'accuracy', durationMs: 3000 }),
+    ])
+    expect(record.durationsMs).toEqual([1000, 2000, 3000])
+  })
+
+  it('an attempt with no durationMs (the dev skip button\'s synthetic attempt) leaves the list untouched, never a fabricated 0', () => {
+    const record = run([attempt({ durationMs: 1000 }), attempt({ durationMs: undefined })])
+    expect(record.durationsMs).toEqual([1000])
+  })
+
+  it('never mutates the input record\'s own durationsMs array', () => {
+    const before: LevelRecord = { ...EMPTY_RECORD, durationsMs: [500] }
+    const after = applyAttempt(before, attempt({ durationMs: 999 }))
+    expect(before.durationsMs).toEqual([500]) // untouched
+    expect(after.durationsMs).toEqual([500, 999])
+  })
+
+  it(`keeps only the most recent ${MAX_DURATIONS_KEPT}, dropping the oldest first`, () => {
+    const sequence = Array.from({ length: MAX_DURATIONS_KEPT + 5 }, (_, i) => attempt({ durationMs: i }))
+    const record = run(sequence)
+    expect(record.durationsMs.length).toBe(MAX_DURATIONS_KEPT)
+    // the first 5 (0..4) fell off the front; 5..24 remain, oldest-first.
+    expect(record.durationsMs).toEqual(Array.from({ length: MAX_DURATIONS_KEPT }, (_, i) => i + 5))
   })
 })

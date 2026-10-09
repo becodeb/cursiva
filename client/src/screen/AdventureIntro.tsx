@@ -149,7 +149,15 @@ ${BUBBLE_POP_CSS}
    no plate behind it. NO BACKTICKS in this block -- one inside a comment
    ends this template literal early (this file's own top-of-file note). */
 .cv-intro-tool { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; border-radius: 16px; padding: 6px 10px; }
-.cv-intro-tool .cv-caption { font-size: 14px; font-weight: 700; color: #1e293b; }
+/* (V1 sibling, docs/25 section 5.4: PrologueOpening.tsx's own
+   .cv-prologue-skip carries the identical fix, and its header explains
+   why) CaptionedArt's <svg> and <span class="cv-caption"> are adjacent
+   JSX children with no text node between them -- the default inline flow
+   gives them a literal zero-pixel gap, so the icon's edge touches the
+   label's first glyph. An explicit row with a real gap never lets that
+   happen, at any viewport. */
+.cv-intro-tool .cv-captioned { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 6px; }
+.cv-intro-tool .cv-caption { font-size: 14px; font-weight: 700; color: #1e293b; white-space: nowrap; }
 `
 
 export interface AdventureIntroProps {

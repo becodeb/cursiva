@@ -139,6 +139,46 @@ describe('LevelProgressStore — defensiveness', () => {
   })
 })
 
+// 1.6 (`odd/tasks/review-batch-1.md`, `docs/25_REVISION_PSICOPEDAGOGICA.md`
+// section 7 item 1.6): attempt durations are the ONE new field this task
+// adds to `LevelRecord` — these tests are the "backward compatible with
+// already-saved data" half of that task's own brief; `adaptiveTolerance.test.ts`
+// covers `applyAttempt`'s own bounding-to-the-last-20 half.
+describe('LevelProgressStore — durationsMs (1.6)', () => {
+  it('a record saved before this field existed loads with an empty list, never a crash', () => {
+    // Exactly the shape `toRecord` would have produced pre-1.6 — no
+    // `durationsMs` key at all.
+    const payload = JSON.stringify({
+      'f1-libre': { bestAccuracy: 80, bestFluency: 70, attempts: 3, approvals: 1, streakFail: 0, streakPass: 1, widthFactor: 1 },
+    })
+    const store = new LevelProgressStore(fakeStorage(payload))
+    expect(store.get('f1-libre').durationsMs).toEqual([])
+  })
+
+  it('round-trips real durations in order', () => {
+    const store = new LevelProgressStore(fakeStorage())
+    store.save('f1-libre', record({ durationsMs: [1200, 3400, 980] }))
+    expect(store.get('f1-libre').durationsMs).toEqual([1200, 3400, 980])
+  })
+
+  it('a corrupt durationsMs (wrong type, negative, non-finite entries) reads as a cleaned list rather than poisoning the record', () => {
+    const payload = JSON.stringify({
+      'f1-libre': { ...EMPTY_RECORD, durationsMs: 'not an array' },
+      'f1-ondas': { ...EMPTY_RECORD, durationsMs: [100, -5, Number.NaN, 'oops', 200, null] },
+    })
+    const store = new LevelProgressStore(fakeStorage(payload))
+    expect(store.get('f1-libre').durationsMs).toEqual([])
+    expect(store.get('f1-ondas').durationsMs).toEqual([100, 200])
+  })
+
+  it('a payload carrying more than the kept bound is truncated to the most recent ones on load', () => {
+    const long = Array.from({ length: 30 }, (_, i) => i)
+    const payload = JSON.stringify({ 'f1-libre': { ...EMPTY_RECORD, durationsMs: long } })
+    const store = new LevelProgressStore(fakeStorage(payload))
+    expect(store.get('f1-libre').durationsMs).toEqual(long.slice(-20))
+  })
+})
+
 describe('LevelProgressStore — unlocking', () => {
   it('always unlocks the first level of the catalog', () => {
     expect(new LevelProgressStore(fakeStorage()).isUnlocked(FIRST)).toBe(true)

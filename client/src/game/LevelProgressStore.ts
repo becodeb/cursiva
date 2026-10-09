@@ -4,7 +4,7 @@
 // and is overwritten on the next write, an absent or throwing storage (SSR,
 // privacy mode) degrades to in-memory, and NOTHING here ever throws. A child
 // losing their progress is bad; a child facing a blank screen is worse.
-import { APPROVALS_TO_UNLOCK, EMPTY_RECORD } from './types'
+import { APPROVALS_TO_UNLOCK, EMPTY_RECORD, MAX_DURATIONS_KEPT } from './types'
 import type { LevelRecord } from './types'
 import { LEVELS } from '../levels/catalog'
 
@@ -38,6 +38,28 @@ function num(value: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+/** 1.6: `r.durationsMs` coerced into a plain array of finite numbers, bounded
+ *  to the last `MAX_DURATIONS_KEPT` — never trusts a stored payload's own
+ *  length or contents. Absent, not an array, or every entry non-finite
+ *  (every record saved before this field existed, or a hand-edited/corrupt
+ *  payload) reads as `[]`, the same "corrupt field never poisons a record"
+ *  contract `num` already keeps for every other field here. */
+function durationsFrom(value: unknown): readonly number[] {
+  if (!Array.isArray(value)) return []
+  const kept: number[] = []
+  for (const entry of value) {
+    // `typeof entry === 'number'` first, deliberately NOT `Number(entry)`:
+    // coercing a non-number (`Number(null) === 0`, `Number('') === 0`) would
+    // silently turn a corrupt entry into a fabricated zero-length duration
+    // instead of dropping it — the one thing `num`'s own fallback-on-
+    // non-finite convention does not have to guard against elsewhere in
+    // this file, since every OTHER field has a real fallback value to use
+    // instead of "drop this one entry".
+    if (typeof entry === 'number' && Number.isFinite(entry) && entry >= 0) kept.push(entry)
+  }
+  return kept.length > MAX_DURATIONS_KEPT ? kept.slice(kept.length - MAX_DURATIONS_KEPT) : kept
+}
+
 /** Coerce an unknown payload entry into a valid LevelRecord. */
 function toRecord(raw: unknown): LevelRecord | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null
@@ -50,6 +72,7 @@ function toRecord(raw: unknown): LevelRecord | null {
     streakFail: num(r.streakFail, 0),
     streakPass: num(r.streakPass, 0),
     widthFactor: num(r.widthFactor, 1),
+    durationsMs: durationsFrom(r.durationsMs),
   }
 }
 

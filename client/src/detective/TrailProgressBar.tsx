@@ -31,6 +31,7 @@
 import { useRef } from 'react'
 import { CLUE_ART, ZOO_ANIMAL_ART, ZOO_STAR_ART, type ZooAnimalId } from './assets'
 import { CLUE_DRAINED } from './palette'
+import { pistasCountStyle } from './pistasFit'
 import type { AdventureProgress, AdventureProgressSlot } from '../zoo/progress'
 
 /** Matches `Pillar`'s own star glyph colour (`LevelPlay.tsx`) — the same
@@ -263,7 +264,12 @@ export default function TrailProgressBar({ progress }: TrailProgressBarProps) {
   // construction, without needing to hardcode that rule here.
   const initiallyFiledRef = useRef(progress.slots.map((slot) => slot.filed))
   return (
-    <div className="pistas-bar" role="img" aria-label={accessibleTrailName(progress)}>
+    <div
+      className="pistas-bar"
+      role="img"
+      aria-label={accessibleTrailName(progress)}
+      style={pistasCountStyle(progress.slots.length)}
+    >
       <div className="pistas-slots">
         {progress.slots.map((slot, i) => (
           <Slot key={slot.levelId} slot={slot} justFiled={slot.filed && !initiallyFiledRef.current[i]} />
