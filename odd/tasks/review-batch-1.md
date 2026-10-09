@@ -39,13 +39,14 @@ end of the batch. Expected size: each task well under 400 authored lines.
 | ID | Task | Branch / route | Status | Evidence |
 |----|------|----------------|--------|----------|
 | B1 | 1.1 speak the corrections that are text only today (reveal/erase hints, night "Encontraste…", `f3-*` advice) + 1.2 wall-contact restart: soft sound and the T33 start-point hint, plus the existing "Volvé a empezar" line if it already exists | `fix/spoken-feedback`, delegated writer | pending | |
-| B2 | 1.3 big start tap before prologue plate 0 so its line is heard + 1.4 demo hand on `night2`–`4` and a demo on `bee1`–`4` | `fix/prologue-and-demos`, delegated writer | pending | |
+| B2 | 1.3 big start tap before prologue plate 0 so its line is heard + 1.4 demo hand on `night2`–`4` and a demo on `bee1`–`4` | `fix/prologue-and-demos`, delegated writer (opus) | done | `1c772aa`, `925656a`. Full suite 3610 passed, build exit 0, diff-check clean. Spied speech: start tap speaks plate 0 once. Orchestrator looked at `_sheets/b2-*.png`: play button centred, no overlap; demo hand on night2-4; blue demo stroke on bee1/bee3. Bee demo replaces bee1's short hand nudge; bee levels gain the replay button |
 | B3 | 1.5 visual defects V1 (prologue map button), V2 (turtles intro bubble wrap), V3 (`dolphin4` HUD clipped in portrait), V5 (deduction bubble type size) + 1.6 store each attempt's duration | `fix/review-visual-and-timing`, delegated writer | pending | |
 | B4 | Orchestrator review of screenshots, merge the three branches, full checks on `main`, push | inline | pending | |
 
 ## Progress
 
 - 2026-10-09: feature document created; three worktrees ready.
+- 2026-10-09: B2 done and reviewed from its screenshots.
 
 ## Next step
 
