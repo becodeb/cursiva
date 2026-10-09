@@ -40,15 +40,22 @@ end of the batch. Expected size: each task well under 400 authored lines.
 |----|------|----------------|--------|----------|
 | B1 | 1.1 speak the corrections that are text only today (reveal/erase hints, night "Encontraste…", `f3-*` advice) + 1.2 wall-contact restart: soft sound and the T33 start-point hint, plus the existing "Volvé a empezar" line if it already exists | `fix/spoken-feedback`, delegated writer | done | `072d53f`. Full suite 3615 passed, build exit 0, diff-check clean. Spied speech: glass1 "Seguí limpiando el vidrio.", night2 "Encontraste N de 2…", f3-a coach line, sheep-hill1 wall contact "Volvé a empezar" (existing `RESTART_MESSAGE`) + existing soft `wrong` sfx (two close sine partials, no alert) + T33 hand cue sliding up the first leg. Anti-repeat: identical line within 4 s swallowed. No new copy. Orchestrator looked at `_sheets/b1-00.png` |
 | B2 | 1.3 big start tap before prologue plate 0 so its line is heard + 1.4 demo hand on `night2`–`4` and a demo on `bee1`–`4` | `fix/prologue-and-demos`, delegated writer (opus) | done | `1c772aa`, `925656a`. Full suite 3610 passed, build exit 0, diff-check clean. Spied speech: start tap speaks plate 0 once. Orchestrator looked at `_sheets/b2-*.png`: play button centred, no overlap; demo hand on night2-4; blue demo stroke on bee1/bee3. Bee demo replaces bee1's short hand nudge; bee levels gain the replay button |
-| B3 | 1.5 visual defects V1 (prologue map button), V2 (turtles intro bubble wrap), V3 (`dolphin4` HUD clipped in portrait), V5 (deduction bubble type size) + 1.6 store each attempt's duration | `fix/review-visual-and-timing`, delegated writer | pending | |
-| B4 | Orchestrator review of screenshots, merge the three branches, full checks on `main`, push | inline | pending | |
+| B3 | 1.5 visual defects V1 (prologue map button), V2 (turtles intro bubble wrap), V3 (`dolphin4` HUD clipped in portrait), V5 (deduction bubble type size) + 1.6 store each attempt's duration | `fix/review-visual-and-timing`, delegated writer | done | `05dc269` V1, `95a216d` V2 (caption advance table re-measured in real Nunito), `f248b8d` V3 (`detective/pistasFit.ts`), `1956049` V5, `0ed4e41` 1.6 (`LevelRecord.durationsMs`, last 20, migrations seed `[]`, dev button "Ver tiempos (dev)"). Suite 3619 passed, build 0, diff-check clean; 75 bubble measurements, 0 overflow. Orchestrator looked at `_sheets/b3-*.png` |
+| B4 | Orchestrator review of screenshots, merge the three branches, full checks on `main`, push | inline | done | Merged `--no-ff`; one conflict in `PrologueOpening.tsx` CSS resolved by hand keeping both (V1 flex row + start button). On main: 3638 tests passed (117 files), build exit 0, diff-check clean. Post-merge browser check: prologue icon/label 6 px apart, start disc 193 px (`B4-prologue-merged.png`) |
 
 ## Progress
 
 - 2026-10-09: feature document created; three worktrees ready.
 - 2026-10-09: B2 done and reviewed from its screenshots.
 - 2026-10-09: B1 done and reviewed from its screenshots.
+- 2026-10-09: B3 done and reviewed; batch merged to main and pushed.
+
+## Open
+
+- `dolphin4` at 844x390 shows plain bands at the left and right edges (`B3-dolphin4-844x390.png`); not caused by this batch (HUD only), not checked against main before.
+- V5 font constants (0.145/0.065) picked by eye; revisit if the author wants an exact match with the intros.
+- The start button's 'audio already unlocked' path is covered by unit tests only.
 
 ## Next step
 
-B1, B2, B3 in parallel.
+Author tests the deploy. Then tanda 2 (script decisions) needs her answers, or line 2 (letters).
