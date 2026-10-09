@@ -265,3 +265,43 @@ export function debugCarrier(cfg: WaypointConfig, k: number): Point {
 export function seedWaypoints(cfg: WaypointConfig, debugCount: number | null): WaypointState {
   return debugCount !== null ? debugWaypoints(cfg, debugCount) : EMPTY_WAYPOINTS
 }
+
+/** Rounds a coordinate for an SVG path string — two decimals is far below a
+ *  rendered pixel and keeps the emitted `d` short and stable in tests. */
+function fmt(n: number): string {
+  return String(Math.round(n * 100) / 100)
+}
+
+/**
+ * The bee's demonstration (`docs/25` P2-6, tanda 1 item 1.4; `docs/18` P5):
+ * the errand drawn the way a child would draw it — from the bee's own rest
+ * point through every flower in AUTHORED order and on to the hive. Authored
+ * order is not a required visit order (`stops`' own doc), but it is the
+ * route each bee level was laid out along, so it is the natural one to show.
+ *
+ * One path PER LEG (start→flower 1, flower 1→flower 2, …, last flower→hive),
+ * so `screen/LevelPlay.tsx`'s shared demo sequence draws the errand one leg
+ * at a time, exactly like a routed level's pen-lift segments. The legs are a
+ * Catmull-Rom curve through the same points (uniform, tension 1/6), split
+ * into one cubic per leg: consecutive legs share their tangent at every
+ * flower, so the whole errand reads as ONE smooth stroke rather than a
+ * zigzag of straight lines. Only `M`/`C` commands (the generator rule in
+ * `odd/tasks/prewriting-stage-completion.md` §Constraints).
+ */
+export function waypointDemoPaths(cfg: Pick<WaypointConfig, 'start' | 'stops' | 'goal'>): string[] {
+  const points: Point[] = [cfg.start, ...cfg.stops.map((s) => ({ x: s.x, y: s.y })), { x: cfg.goal.x, y: cfg.goal.y }]
+  const at = (i: number): Point => points[Math.max(0, Math.min(points.length - 1, i))]
+  const legs: string[] = []
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = at(i - 1)
+    const p1 = at(i)
+    const p2 = at(i + 1)
+    const p3 = at(i + 2)
+    const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 }
+    const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 }
+    legs.push(
+      `M ${fmt(p1.x)} ${fmt(p1.y)} C ${fmt(c1.x)} ${fmt(c1.y)} ${fmt(c2.x)} ${fmt(c2.y)} ${fmt(p2.x)} ${fmt(p2.y)}`,
+    )
+  }
+  return legs
+}

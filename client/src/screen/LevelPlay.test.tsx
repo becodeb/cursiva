@@ -3557,13 +3557,17 @@ describe('LevelPlay portrait guidance (finish-mvp-roadmap U5)', () => {
 // reads `level.introCue` synchronously, so bee1/night1 show their cue on
 // the very first frame with no timer involved.
 describe('LevelPlay idle nudge / night hint wiring (T33)', () => {
-  it('bee1 shows its one-shot intro cue on first render (introCue: true)', () => {
-    renderToString(
-      <LevelPlay level={getLevel('bee1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
-    )
-    const cue = traceCanvasProbe.current?.idleCue as { visual: string } | null | undefined
-    expect(cue).toBeTruthy()
-    expect(cue?.visual).toBe('hand')
+  // `docs/25` P2-6 (tanda 1, item 1.4): the bee's one-shot hand gave way to a
+  // real demo of the whole errand on every bee level.
+  it('bee1..bee4 open on their route demo (bee → flowers → hive), with no competing intro cue', () => {
+    for (const id of ['bee1', 'bee2', 'bee3', 'bee4']) {
+      const level = getLevel(id)
+      renderToString(<LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />)
+      const demo = traceCanvasProbe.current?.demo as Array<{ d: string; delay: number }> | undefined
+      expect(Array.isArray(demo), id).toBe(true)
+      expect(demo?.length, id).toBe(level.waypoints!.stops.length + 1)
+      expect(traceCanvasProbe.current?.idleCue ?? null, id).toBeNull()
+    }
   })
 
   it('night1 shows its one-shot intro cue on first render, as a torch', () => {
@@ -3575,12 +3579,17 @@ describe('LevelPlay idle nudge / night hint wiring (T33)', () => {
     expect(cue?.visual).toBe('torch')
   })
 
-  it('night2 (no introCue authored) shows no cue on first render — only the idle nudge, not yet due', () => {
-    renderToString(
-      <LevelPlay level={getLevel('night2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
-    )
-    expect(traceCanvasProbe.current?.idleCue ?? null).toBeNull()
-    expect(traceCanvasProbe.current?.idleNudgeActive ?? false).toBe(false)
+  // `docs/25` P2-6 (tanda 1, item 1.4): every night level, not only the first,
+  // opens with night1's torch-sweep demo hand.
+  it('night2..night4 show the same one-shot torch intro cue on first render', () => {
+    for (const id of ['night2', 'night3', 'night4']) {
+      renderToString(<LevelPlay level={getLevel(id)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />)
+      const cue = traceCanvasProbe.current?.idleCue as { visual: string } | null | undefined
+      expect(cue, id).toBeTruthy()
+      expect(cue?.visual, id).toBe('torch')
+      // The intro, not the stuck-child nudge: the start dot does not insist.
+      expect(traceCanvasProbe.current?.idleNudgeActive ?? false, id).toBe(false)
+    }
   })
 
   it('an ordinary routed level shows no cue and no strengthened start pulse on first render', () => {

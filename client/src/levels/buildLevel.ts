@@ -23,6 +23,7 @@ import type { LetterCheckpoint, Point } from '../letters/types'
 import type { LevelConfig, LevelTarget, RouteSegment, Taper } from './types'
 import { placeArtCorridor } from './artCorridor'
 import { DEMO_SPINES, spineDemoPaths, spineOrigin } from './spines'
+import { waypointDemoPaths } from './waypoints'
 
 /** Narrowest / widest corridor the engine will ever score against, in viewBox px. */
 export const MIN_CORRIDOR = 30
@@ -203,9 +204,15 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
       paths: noPaths,
       // A routeless level with `spines` supplies its own demo segments —
       // the first `DEMO_SPINES` anchor→tip lines the generator already
-      // emits. Every other free/empty level keeps the SAME empty array
-      // `paths` is, so `demoPaths === paths` holds by reference.
-      demoPaths: config.spines ? spineDemoPaths(config.spines, DEMO_SPINES) : noPaths,
+      // emits. A `waypoints` level with `demo: true` (the bee, `docs/25`
+      // P2-6) shows its errand, bee → flowers → hive, one leg per segment.
+      // Every other free/empty level keeps the SAME empty array `paths` is,
+      // so `demoPaths === paths` holds by reference.
+      demoPaths: config.spines
+        ? spineDemoPaths(config.spines, DEMO_SPINES)
+        : config.waypoints && config.demo
+          ? waypointDemoPaths(config.waypoints)
+          : noPaths,
       viewBoxWidth: MIN_VIEWBOX_WIDTH,
       // (a `free`/empty-path level authors no `camera`, so this always
       // resolves to `MIN_VIEWBOX_WIDTH` — same expression as the real branch

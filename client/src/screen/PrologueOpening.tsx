@@ -34,7 +34,9 @@ import { ZOO_MAP_ART, ZOO_CARETAKER_ART, ZOO_SPEECH_BUBBLE_ART } from '../detect
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { PROLOGUE_PLATES, advancePlate } from '../zoo/prologue'
 import { useNarration } from '../voice/useNarration'
+import { canAutoSpeak, speak } from '../voice/narrator'
 import SpeakButton from '../voice/SpeakButton'
+import { ReplayIcon } from '../detective/icons'
 import { BUBBLE_POP_CSS } from './BubblePop'
 import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 import {
@@ -133,6 +135,22 @@ ${BUBBLE_POP_CSS}
 .cv-prologue-speak { position: absolute; top: ${STAGE_MARGIN_PCT}%; right: ${STAGE_MARGIN_PCT}%; z-index: 2; }
 .cv-prologue-skip { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; border-radius: 16px; padding: 6px 10px; cursor: pointer; }
 .cv-prologue-skip .cv-caption { font-size: 14px; font-weight: 700; color: #1e293b; }
+/* docs/25 P2-5 (tanda 1, item 1.3): the start tap. A browser will not speak
+   before the page has seen a gesture, so on a first visit plate 0's line was
+   silent. While audio is still locked, the WHOLE screen is one button (any
+   tap starts, nothing to aim at) with the shipped round play-triangle button
+   art (the same face as the levels' replay button) large in the middle; the
+   skip pill stays above it (z-index 2) for the grown-up. No words. NO
+   BACKTICKS in this block. */
+.cv-prologue-start { position: absolute; inset: 0; z-index: 1; border: none; background: transparent; padding: 0; margin: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.cv-prologue-start-disc { display: block; width: clamp(120px, 24vmin, 200px); height: clamp(120px, 24vmin, 200px); animation: cv-prologue-start-pulse 1.8s ease-in-out infinite; }
+@keyframes cv-prologue-start-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-prologue-start-disc { animation: none; }
+}
 `
 
 export interface PrologueOpeningProps {
@@ -155,6 +173,15 @@ function clampPlate(from: number | undefined): number {
   return Math.min(Math.max(index, 0), PROLOGUE_PLATES.length - 1)
 }
 
+/** Whether the opening must wait for a start tap before its first plate
+ *  (`docs/25` P2-5): exactly when the browser would still refuse to speak
+ *  (`voice/narrator.ts`'s `canAutoSpeak`). Reached by a tap — a later visit,
+ *  the dev route opened from a link the page already saw a tap on — this is
+ *  `false` and the opening adds no step at all. */
+export function prologueNeedsStartTap(audioUnlocked: boolean = canAutoSpeak()): boolean {
+  return !audioUnlocked
+}
+
 /** The caretaker's opening (`docs/16` §4). Tapping the stage advances to the
  *  next plate; tapping the last one, or the skip control on ANY plate, ends
  *  the opening the same way — `onDone` — so the caller cannot distinguish
@@ -162,14 +189,27 @@ function clampPlate(from: number | undefined): number {
 export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) {
   const [index, setIndex] = useState(() => clampPlate(from))
   const plate = PROLOGUE_PLATES[index]
+  // `docs/25` P2-5: locked until the start tap below, decided ONCE at mount.
+  const [awaitingStart, setAwaitingStart] = useState(() => prologueNeedsStartTap())
+  // The plate whose line the start tap itself spoke — its narration effect
+  // must not speak it a second time (that effect's own cleanup would cancel
+  // the tap's utterance and restart it mid-word).
+  const [spokenByStart, setSpokenByStart] = useState<number | null>(null)
 
   // Voice narration (docs/18 D1, "sin voz no se entera de la historia"; T7):
   // every plate speaks its own line the instant it appears. The FIRST plate
-  // mounts before any tap has happened at all, so `canAutoSpeak()` (inside
-  // `useNarration`) correctly stays silent for it — its own `SpeakButton`
-  // below is the only way that first line is ever heard, and the tap that
-  // advances past it is what makes every LATER plate's own autoplay allowed.
-  useNarration(plate.line)
+  // can mount before any tap has happened at all, when the browser refuses
+  // to speak — `docs/25` P2-5 found that line was then simply never heard.
+  // That case now waits behind the start tap (`awaitingStart`), which speaks
+  // the line itself, INSIDE the gesture (the one place every engine,
+  // Safari included, is sure to allow it).
+  useNarration(plate.line, { auto: !awaitingStart && spokenByStart !== index })
+
+  const handleStart = (): void => {
+    speak(plate.line)
+    setSpokenByStart(index)
+    setAwaitingStart(false)
+  }
 
   // T36: always the LEFT corner — every plate stands the same caretaker
   // with the same stance, and `docs/16` names no reason for any plate to
@@ -214,63 +254,75 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
           <span className="cv-prologue-octopus" style={{ [stance.corner]: `${octopusBox.x}%` } as CSSProperties}>
             <img src={ZOO_CARETAKER_ART.href} alt="" className="cv-octopus-life" />
           </span>
-          <span
-            className={`cv-prologue-bubble${placement.mirrored ? ' cv-prologue-bubble--mirror-x' : ''}`}
-            style={{
-              left: `${placement.left}%`,
-              top: `${placement.top}%`,
-              width: `${placement.width}%`,
-              ...bubbleContentCssVars(placement, content, {
-                contentLeftFrac: CONTENT_LEFT_FRAC,
-                contentTopFrac: CONTENT_TOP_FRAC,
-                contentWidthFrac: CONTENT_WIDTH_FRAC,
-                gapFrac: GAP_FRAC,
-                contentHeightFrac: CONTENT_HEIGHT_FRAC,
-              }),
-            }}
-          >
-            {/* Keyed on the line itself (T8 item 2): a fresh key on every
-                plate forces React to remount this span, replaying the
-                pop-in — while `useNarration` above, unaffected by this
-                child remounting, keeps deciding on its own when to speak.
-                `transform-origin` is set inline to the tail tip's own
-                position within the box (`placement.tailOriginX/Y`), so the
-                pop-in grows OUT of the tail — out of the caretaker —
-                instead of the box's geometric centre. */}
+          {/* Before the start tap the bubble is not shown yet: it pops in
+              with the voice, so the line appears exactly when it is heard. */}
+          {!awaitingStart && (
             <span
-              key={plate.line}
-              className="cv-bubble-pop"
-              style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
+              className={`cv-prologue-bubble${placement.mirrored ? ' cv-prologue-bubble--mirror-x' : ''}`}
+              style={{
+                left: `${placement.left}%`,
+                top: `${placement.top}%`,
+                width: `${placement.width}%`,
+                ...bubbleContentCssVars(placement, content, {
+                  contentLeftFrac: CONTENT_LEFT_FRAC,
+                  contentTopFrac: CONTENT_TOP_FRAC,
+                  contentWidthFrac: CONTENT_WIDTH_FRAC,
+                  gapFrac: GAP_FRAC,
+                  contentHeightFrac: CONTENT_HEIGHT_FRAC,
+                }),
+              }}
             >
-              <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
-              {/* `plate.art` absent (the first plate, docs/18 D3's own fix,
-                  `zoo/prologue.ts`'s header) renders a TEXT-ONLY bubble —
-                  `CaptionedArt` itself requires an `art` prop, so this plate
-                  renders the caption directly instead, in `.cv-prologue-
-                  bubble-text` rather than `.cv-captioned` (that class's own
-                  header, above, on why a picture-less `.cv-captioned` fails
-                  `captionAudit.ts` outright — this text is licensed through
-                  `.cv-prologue-frame` instead, which already saw the big
-                  caretaker's own `<img>` above). `screen/bubbleFit.ts`'s
-                  art-absent case (already proven by `screen/Deduction.tsx`)
-                  is what computed `content`'s placement either way. */}
-              {plate.art ? (
-                <CaptionedArt
-                  art={plate.art}
-                  label={plate.line}
-                  size={76}
-                  className={content.layout === 'stack' ? 'cv-captioned--stack' : undefined}
-                />
-              ) : (
-                <span className="cv-prologue-bubble-text">
-                  <span className="cv-caption">{plate.line}</span>
-                </span>
-              )}
+              {/* Keyed on the line itself (T8 item 2): a fresh key on every
+                  plate forces React to remount this span, replaying the
+                  pop-in — while `useNarration` above, unaffected by this
+                  child remounting, keeps deciding on its own when to speak.
+                  `transform-origin` is set inline to the tail tip's own
+                  position within the box (`placement.tailOriginX/Y`), so the
+                  pop-in grows OUT of the tail — out of the caretaker —
+                  instead of the box's geometric centre. */}
+              <span
+                key={plate.line}
+                className="cv-bubble-pop"
+                style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
+              >
+                <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+                {/* `plate.art` absent (the first plate, docs/18 D3's own fix,
+                    `zoo/prologue.ts`'s header) renders a TEXT-ONLY bubble —
+                    `CaptionedArt` itself requires an `art` prop, so this plate
+                    renders the caption directly instead, in `.cv-prologue-
+                    bubble-text` rather than `.cv-captioned` (that class's own
+                    header, above, on why a picture-less `.cv-captioned` fails
+                    `captionAudit.ts` outright — this text is licensed through
+                    `.cv-prologue-frame` instead, which already saw the big
+                    caretaker's own `<img>` above). `screen/bubbleFit.ts`'s
+                    art-absent case (already proven by `screen/Deduction.tsx`)
+                    is what computed `content`'s placement either way. */}
+                {plate.art ? (
+                  <CaptionedArt
+                    art={plate.art}
+                    label={plate.line}
+                    size={76}
+                    className={content.layout === 'stack' ? 'cv-captioned--stack' : undefined}
+                  />
+                ) : (
+                  <span className="cv-prologue-bubble-text">
+                    <span className="cv-caption">{plate.line}</span>
+                  </span>
+                )}
+              </span>
             </span>
-          </span>
+          )}
         </button>
       </div>
-      <SpeakButton line={plate.line} className="cv-prologue-speak" />
+      {awaitingStart ? (
+        <button type="button" className="cv-prologue-start" aria-label="Empezar" onClick={handleStart}>
+          <span className="cv-prologue-start-disc">
+            <ReplayIcon />
+          </span>
+        </button>
+      ) : (
+        <SpeakButton line={plate.line} className="cv-prologue-speak" />
+      )}
       {/* The "go to the map" skip control — a marker-style pill, always
           reachable (design.md D1/D8: the opening is never mandatory). Text
           + picture, never bare (`docs/12` §3, `detective/captionAudit.ts`):

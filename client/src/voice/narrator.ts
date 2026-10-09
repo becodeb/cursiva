@@ -168,8 +168,9 @@ export function clipFor(line: string): string | undefined {
  * PERMISSIVE default (`true`) rather than being silenced by a feature test
  * that says nothing about the actual policy. `PrologueOpening`'s first plate
  * is the one screen in this app that can genuinely mount before any gesture
- * at all — its own `SpeakButton` (a tap IS a gesture) is what covers that
- * case; every plate/screen after it is reached by tapping something, so
+ * at all — it asks this function at mount and, when the answer is `false`,
+ * waits behind a big start tap that speaks the line inside the gesture
+ * (`docs/25` P2-5); every plate/screen after it is reached by tapping something, so
  * `canAutoSpeak()` is true by the time any other screen's narration effect
  * runs.
  */

@@ -2593,11 +2593,14 @@ describe('the bee family — C1-C6 and R1-R5 (design.md §4.2/§6.2)', () => {
     expect(BEE_IDS.map((id) => getLevel(id).waypoints!.stops.length)).toEqual([1, 3, 3, 3])
   })
 
-  it('R5: minAccuracy 100, demo absent, carrier true with its own carrierArt, on all four', () => {
+  // `docs/25` P2-6 (tanda 1, item 1.4) reverses R5's "demo absent": every bee
+  // level now demonstrates its errand (`levels/waypoints.ts`'s
+  // `waypointDemoPaths`).
+  it('R5: minAccuracy 100, demo on, carrier true with its own carrierArt, on all four', () => {
     for (const id of BEE_IDS) {
       const level = getLevel(id)
       expect(level.rules.minAccuracy, id).toBe(100)
-      expect(level.demo, id).toBeUndefined()
+      expect(level.demo, id).toBe(true)
       expect(level.carrier, id).toBe(true)
       expect(level.carrierArt?.art.href, id).toBe(SECTOR_ADVENTURE_ART.bee.href)
     }

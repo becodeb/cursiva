@@ -6,6 +6,7 @@ import { LEGACY_PHASE_1, LEVELS, getLevel } from './catalog'
 import { flattenPathD } from '../letters/svgLetter'
 import { straight, wave, waveCrestRadius } from './paths'
 import { DEMO_SPINES, spineDemoPaths, spineOrigin, type SpineConfig } from './spines'
+import { waypointDemoPaths } from './waypoints'
 import type { LevelConfig } from './types'
 import { demoPlays, type GuideLevel } from '../screen/LevelPlay'
 
@@ -515,9 +516,9 @@ describe('buildLevelTarget — demoPaths (the demo repair, half 1: target.paths 
     expect(target.demoPaths).toEqual([])
   })
 
-  it('demoPaths === paths BY REFERENCE for every shipped level without spines (routed or empty free alike)', () => {
+  it('demoPaths === paths BY REFERENCE for every shipped level without spines or a waypoint demo (routed or empty free alike)', () => {
     for (const level of [...LEVELS, ...LEGACY_PHASE_1]) {
-      if (level.spines) continue
+      if (level.spines || (level.waypoints && level.demo)) continue
       const target = buildLevelTarget(level)
       expect(target.demoPaths, level.id).toBe(target.paths)
     }
@@ -572,10 +573,10 @@ describe('buildLevelTarget — demoPaths (the demo repair, half 2: the demoPlays
   // both `spines` and `demo: true`, which the second half below covers on
   // its own terms — the pattern the two `spines`-fixture tests directly
   // above this one already established.
-  it('demoPlays(l, g) === (!!l.demo && g === \'full\') for every shipped level WITHOUT spines, every GuideLevel', () => {
+  it('demoPlays(l, g) === (!!l.demo && g === \'full\') for every shipped level WITHOUT spines or waypoints, every GuideLevel', () => {
     const guideLevels: readonly GuideLevel[] = ['full', 'dotted', 'minimal', 'none']
     for (const level of [...LEVELS, ...LEGACY_PHASE_1]) {
-      if (level.spines) continue
+      if (level.spines || level.waypoints) continue
       for (const g of guideLevels) {
         expect(demoPlays(level, g), `${level.id}/${g}`).toBe(!!level.demo && g === 'full')
       }
@@ -595,10 +596,60 @@ describe('buildLevelTarget — demoPaths (the demo repair, half 2: the demoPlays
     }
   })
 
-  it('no shipped kind:\'free\' level declares demo — the new branch is unreachable without spines', () => {
+  it('no shipped kind:\'free\' level declares demo — the new branch is unreachable without spines or waypoints', () => {
     for (const level of [...LEVELS, ...LEGACY_PHASE_1]) {
-      if (level.kind === 'free' && !level.spines) expect(level.demo).toBeFalsy()
+      if (level.kind === 'free' && !level.spines && !level.waypoints) expect(level.demo).toBeFalsy()
     }
+  })
+})
+
+// `docs/25` P2-6 (tanda 1, item 1.4; `docs/18` P5): the bee shows its errand
+// before it is asked for — bee → every flower in authored order → hive.
+describe('the bee demo (docs/25 P2-6)', () => {
+  const BEES = ['bee1', 'bee2', 'bee3', 'bee4'] as const
+
+  it('bee1..bee4 declare demo, and it plays whatever the guide band (no guide ladder to withdraw from)', () => {
+    const guideLevels: readonly GuideLevel[] = ['full', 'dotted', 'minimal', 'none']
+    for (const id of BEES) {
+      const level = getLevel(id)
+      expect(level.demo, id).toBe(true)
+      for (const g of guideLevels) expect(demoPlays(level, g), `${id}/${g}`).toBe(true)
+    }
+  })
+
+  it('each bee target produces one demo leg per flower plus the hive, from the bee to the hive', () => {
+    for (const id of BEES) {
+      const level = getLevel(id)
+      const wp = level.waypoints!
+      const target = buildLevelTarget(level)
+      expect(target.paths, id).toEqual([])
+      expect(target.demoPaths, id).toEqual(waypointDemoPaths(wp))
+      expect(target.demoPaths.length, id).toBe(wp.stops.length + 1)
+      const stops = [wp.start, ...wp.stops, wp.goal]
+      target.demoPaths.forEach((d, i) => {
+        const pts = flattenPathD(d).points
+        expect(pts[0].x, `${id} leg ${i} start`).toBeCloseTo(stops[i].x, 1)
+        expect(pts[0].y, `${id} leg ${i} start`).toBeCloseTo(stops[i].y, 1)
+        expect(pts[pts.length - 1].x, `${id} leg ${i} end`).toBeCloseTo(stops[i + 1].x, 1)
+        expect(pts[pts.length - 1].y, `${id} leg ${i} end`).toBeCloseTo(stops[i + 1].y, 1)
+        // Only M/C — the generator rule.
+        expect(d.replace(/[\d.\s-]/g, ''), `${id} leg ${i}`).toBe('MC')
+        // Stays on the 1000 x 600 sheet.
+        for (const p of pts) {
+          expect(p.x).toBeGreaterThanOrEqual(0)
+          expect(p.x).toBeLessThanOrEqual(1000)
+          expect(p.y).toBeGreaterThanOrEqual(0)
+          expect(p.y).toBeLessThanOrEqual(600)
+        }
+      })
+    }
+  })
+
+  it('a waypoints level WITHOUT demo keeps the empty demo (and demoPaths === paths)', () => {
+    const level = { ...getLevel('bee2'), demo: undefined }
+    const target = buildLevelTarget(level)
+    expect(target.demoPaths).toBe(target.paths)
+    expect(demoPlays(level, 'none')).toBe(false)
   })
 })
 

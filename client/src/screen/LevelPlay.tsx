@@ -199,6 +199,13 @@ const DEMO_STEP_S = 1.7
  */
 const SPINE_DEMO_DURATION_S = 0.5
 const SPINE_DEMO_STEP_S = 0.55
+
+/** The bee's demo pace (`docs/25` P2-6): one leg per flower, drawn back to
+ *  back (step === duration, no pause at a flower), so the whole errand reads
+ *  as one continuous stroke — 0.9s per leg keeps `bee2`..`bee4`'s four legs
+ *  under 4s, where the shared 1.7s step would have taken almost 7. */
+const WAYPOINT_DEMO_DURATION_S = 0.9
+const WAYPOINT_DEMO_STEP_S = 0.9
 /** T13: how long a rejected (non-spine) stroke's ink stays visible while it
  *  fades (`.cv-spine-fading`, `LAYOUT_CSS` below) before `SpineLayer` stops
  *  being asked to render it at all. */
@@ -1905,8 +1912,11 @@ export function guideLevelFor(record: LevelRecord, level: LevelConfig): GuideLev
  * unchanged formula, so the whole-catalog invariant holds for every level
  * this change does not touch.
  */
-export function demoPlays(level: Pick<LevelConfig, 'demo' | 'spines'>, guideLevel: GuideLevel): boolean {
-  if (level.spines) return !!level.demo
+export function demoPlays(level: Pick<LevelConfig, 'demo' | 'spines' | 'waypoints'>, guideLevel: GuideLevel): boolean {
+  // `docs/25` P2-6 (tanda 1, item 1.4): a `waypoints` level (the bee) is the
+  // same no-guide-ladder case — `showGuide: false`, so the band gate would be
+  // the same vacuous permanent lock described above.
+  if (level.spines || level.waypoints) return !!level.demo
   return !!level.demo && guideLevel === 'full'
 }
 
@@ -2177,8 +2187,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // T13: `level.spines` alone picks the faster pace — never `target.kind` or
   // anything about the shape of `demoPaths` itself, so a future routeless
   // family that is NOT spines keeps the original shared pace by default.
-  const demoStepS = level.spines ? SPINE_DEMO_STEP_S : DEMO_STEP_S
-  const demoDurationS = level.spines ? SPINE_DEMO_DURATION_S : DEMO_DURATION_S
+  const demoStepS = level.spines ? SPINE_DEMO_STEP_S : level.waypoints ? WAYPOINT_DEMO_STEP_S : DEMO_STEP_S
+  const demoDurationS = level.spines
+    ? SPINE_DEMO_DURATION_S
+    : level.waypoints
+      ? WAYPOINT_DEMO_DURATION_S
+      : DEMO_DURATION_S
   const demos = useMemo<DrawDemo[]>(
     () =>
       target.demoPaths.map((d, idx) => ({
@@ -2504,9 +2518,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const lastProgressAtRef = useRef(performance.now())
   const lastHintSpokenAtRef = useRef(Number.NEGATIVE_INFINITY)
   const lastNudgeCueIndexRef = useRef(-1)
-  // `bee1`/`night1` play a ONE-SHOT intro cue instead of the shared route
+  // The night levels play a ONE-SHOT intro cue instead of the shared route
   // demo, which their own `kind: 'free'` shape can never animate (`demoPaths`
-  // is always empty for them — `levels/catalog.ts`'s own `bee1` header).
+  // is always empty for them; the bee's waypoints are the one free shape
+  // that has a demo of its own, `levels/waypoints.ts`'s `waypointDemoPaths`).
   const [introCuePlaying, setIntroCuePlaying] = useState<boolean>(() => hasIntroCue(level))
   // Ticked on a slow poll while the sheet is actually waiting for a touch —
   // see the dedicated effect below. Every idle-nudge/night-hint value is
@@ -2724,7 +2739,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // colour effect below is not folded into the combined mount effect above
   // (that effect's own `resetSurface` dependency churns far more often than
   // "a genuinely new level started", which is the only thing that should
-  // ever rewind these). `bee1`/`night1` re-arm their one-shot intro cue here
+  // ever rewind these). The night levels re-arm their one-shot intro cue here
   // too — the ONE place a level is known to have just started fresh.
   useEffect(() => {
     const now = performance.now()
@@ -3613,7 +3628,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     if (canAutoSpeak()) speak(level.hint)
   }, [nudgeCueIndex, level.hint])
   // Shows the cue for the general idle nudge (`nudgePhase === 'nudge'`) OR,
-  // once per level, the one-shot intro for `bee1`/`night1` — the two never
+  // once per level, the one-shot intro for the night levels — the two never
   // overlap (`idleNudgeArmed`, above, only starts the poll once the intro
   // cue is done). `-1` is a key no real `nudgeCueIndex` ever takes (it starts
   // at 0), so the intro's own mount never collides with the nudge's first
