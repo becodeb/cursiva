@@ -240,6 +240,23 @@ export function speak(line: string, storage: StorageLike | null = defaultStorage
   }
 }
 
+/**
+ * Is the engine currently speaking anything at all? (`screen/LevelPlay.tsx`'s
+ * B1 fix, docs/25 §7 1.1: a correction line must never cut off a level's own
+ * instruction mid-sentence — checking this before calling `speak()` for a
+ * coaching/correction line is how a caller defers instead of interrupting.)
+ * `false` outside a browser or on an engine with no `speechSynthesis` at
+ * all — there is nothing there TO be speaking, never a reason to throw.
+ */
+export function isSpeaking(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.speechSynthesis?.speaking === true
+  } catch {
+    return false // best-effort, same convention as every other export here
+  }
+}
+
 /** Stop whatever is currently being spoken — `useNarration`'s unmount
  *  cleanup, so leaving a screen mid-sentence never lets it run over the
  *  NEXT screen's own line. Never throws, and a no-op wherever `speak` itself

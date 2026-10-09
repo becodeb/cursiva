@@ -176,7 +176,7 @@ import TrailProgressBar, { ANIMAL_MAX_WIDTH } from '../detective/TrailProgressBa
 import CollectBar from '../detective/CollectBar'
 import { BackIcon, PlaceholderAnimalBadge, ReplayIcon } from '../detective/icons'
 import { useNarration } from '../voice/useNarration'
-import { canAutoSpeak, speak } from '../voice/narrator'
+import { canAutoSpeak, isSpeaking, speak } from '../voice/narrator'
 import SpeakButton from '../voice/SpeakButton'
 
 /** Seconds one demonstration sub-path takes, and the gap before the next one. */
@@ -461,16 +461,38 @@ export function eraseResultMessage(levelId: string, approved: boolean): string {
 }
 
 /**
- * The exact sentence spoken once an erase/light attempt is APPROVED (docs/18
- * D1, "Todo se escucha"; T7) — the SAME success text `.cv-result-pill` shows
- * on screen (`eraseResultMessage` for erase; the light mode's own literal for
- * light), so a child who cannot read it yet still hears the exact words a
- * grown-up reading over their shoulder would say. `null` for anything that
- * is not a successful erase/light attempt: a "keep going" coaching message
- * is deliberately never spoken here — D1/T7 is about the instruction and the
- * celebration, not about narrating every intermediate nudge out loud, and a
- * routed/lettered level's own three-pillar result section has no single
- * sentence to read at all (`docs/01` principle 2's "never a single grade").
+ * The exact sentence shown/spoken for a `light` reveal attempt — the same
+ * literal `.cv-result-pill` already rendered inline before this fix (docs/25
+ * §7 1.1, P2-1: "Encontraste 0 de 2…" was text only). Pulled out into its
+ * own pure function for the same reason `eraseResultMessage` already is one:
+ * directly testable, and reusable from both the on-screen pill and
+ * `resultSpeechLine` below without the two ever drifting apart.
+ */
+export function lightResultMessage(lit: number, total: number, approved: boolean): string {
+  if (approved) return '¡Descubrimiento brillante!'
+  return `Encontraste ${lit} de ${total}. Volvé a alumbrar las luces que faltan.`
+}
+
+/**
+ * The exact sentence spoken for an erase/light/classic attempt result
+ * (docs/18 D1, "Todo se escucha"; T7; docs/25 §7 1.1) — the SAME text the
+ * on-screen result already shows, so a child who cannot read it yet still
+ * hears the exact words a grown-up reading over their shoulder would say.
+ *
+ * Before docs/25 §7 1.1 this returned `null` for anything that was not a
+ * successful erase/light attempt — the reveal/erase hints ("Seguí limpiando
+ * el vidrio."), the night "Encontraste N de M…" and the classic/`f3-*`
+ * letter coaching (`coachMessage`) were text only. All three are now spoken
+ * too, reusing the EXACT existing strings (`eraseResultMessage`,
+ * `lightResultMessage`, `coachMessage`) — never a newly authored phrase.
+ *
+ * `extra.lit`/`extra.total` carry the night mode's own counters (the pure
+ * `resultSpeechLine` has no access to `revealState`/`level.reveal` itself);
+ * `extra.coachLine` is the caller's own `coachMessage(attempt)`, passed in
+ * only for a classic (non-drawn-place, non-collect) level's non-approval —
+ * an approved classic attempt already has a dedicated pillars/checkmark
+ * celebration on screen and is left unspoken here, matching this function's
+ * pre-existing behaviour for `mode === undefined && approved`.
  *
  * Pure and exported so the exact wording is directly testable without a
  * live pointer release — the same reason `eraseResultMessage` itself is
@@ -481,11 +503,39 @@ export function resultSpeechLine(
   levelId: string,
   mode: 'erase' | 'light' | undefined,
   approved: boolean,
+  extra: { lit?: number; total?: number; coachLine?: string } = {},
 ): string | null {
-  if (!approved) return null
-  if (mode === 'erase') return eraseResultMessage(levelId, true)
-  if (mode === 'light') return '¡Descubrimiento brillante!'
+  if (mode === 'erase') return eraseResultMessage(levelId, approved)
+  if (mode === 'light') {
+    if (!approved && (extra.lit === undefined || extra.total === undefined)) return null
+    return lightResultMessage(extra.lit ?? 0, extra.total ?? 0, approved)
+  }
+  if (!approved && extra.coachLine) return extra.coachLine
   return null
+}
+
+/**
+ * The shared "say it again?" gate for a correction/result line (docs/25 §7
+ * 1.1: "don't repeat the identical line on consecutive releases within a
+ * few seconds"). A DIFFERENT line always speaks (a new release means new
+ * guidance); the SAME line only speaks again once `cooldownMs` has actually
+ * passed — so a child who releases, half-corrects, and releases again a
+ * second later hears the coaching ONCE, not on every retry, while a genuine
+ * change in what they need to hear is never swallowed.
+ *
+ * Pure and exported — the caller (`LevelPlay`'s own narration effects) owns
+ * the two refs (`lastLine`, `lastAt`) this reads; this function holds no
+ * state of its own, the same split `screen/idleNudge.ts`'s own header
+ * documents for its clock.
+ */
+export function shouldSpeakAgain(
+  line: string,
+  prevLine: string | null,
+  elapsedSincePrevMs: number,
+  cooldownMs = 4000,
+): boolean {
+  if (prevLine !== line) return true
+  return elapsedSincePrevMs >= cooldownMs
 }
 
 /**
@@ -667,6 +717,10 @@ export function octopusFeetOverride(target: LevelTarget, hasSegments: boolean): 
 export const RESTART_MESSAGE = 'Volvé a empezar'
 /** How long the restart cue stays up before the standing hint returns. */
 const RESTART_CUE_MS = 2200
+/** docs/25 §7 1.2: the wall-contact restart cue's own spoken debounce — a
+ *  child bouncing off the same wall repeatedly hears `RESTART_MESSAGE` at
+ *  most this often, never on every single contact. */
+const WALL_CUE_COOLDOWN_MS = 3000
 /** T10: how often `animNow` is allowed to re-render while a flashlight
  *  grow is in flight — well under the ~400ms/~1400ms durations themselves,
  *  and well over the 60fps `onFrame` cadence, so the grow reads as smooth
@@ -2751,20 +2805,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // a given device is allowed to speak.
   useNarration(level.hint)
 
-  // The erase/light SUCCESS line is narrated too, the instant it appears
-  // (docs/18 D1/T7) — `resultSpeechLine` (above `eraseResultMessage`) is the
-  // exact same text `.cv-result-pill` shows, `null` for a coaching ("keep
-  // going") message or for a level with no `reveal` mode, matching what
-  // that pill itself only shows on `attempt.approved`. Keyed on the
-  // `attempt` OBJECT (a fresh reference on every `onRelease`'s own
-  // `setAttempt`, below) rather than on `attempt.approved` alone, so
-  // replaying an already-clean level and succeeding again is announced
-  // again instead of silently skipped for "looking unchanged".
-  useEffect(() => {
-    if (!attempt) return
-    const line = resultSpeechLine(level.id, level.reveal?.mode, attempt.approved)
-    if (line) speak(line)
-  }, [attempt, level.id, level.reveal?.mode])
+  // The erase/light/classic result line is narrated too (docs/18 D1/T7;
+  // docs/25 §7 1.1) — moved below `drawnPlace`/`collectDef`'s own
+  // declarations (this screen's "is this a classic level?" answer), right
+  // next to the `coachMessage` call its own classic coaching text already
+  // uses, so the two can never read a different verdict. See that effect's
+  // own comment, near the `return (` below, for the anti-spam rule and why
+  // it waits here instead of up here next to `useNarration` itself.
 
   useEffect(() => {
     if (phase !== 'demo') return
@@ -2859,6 +2906,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
    * penalty is a scolding with arithmetic. The haptic pulse is the SAME neutral
    * buzz leaving the corridor already gives (`haptics.ts`), not an error tone.
    */
+  // docs/25 §7 1.2 (P2-1: "el reinicio es mudo"): the one ref the wall-reset
+  // cue needs of its own — a debounce so a child bouncing off the same wall
+  // repeatedly hears "Volvé a empezar" at most once every few seconds rather
+  // than on every single contact, the same "don't nag" shape `shouldSpeakAgain`
+  // already gives the correction lines above.
+  const lastWallCueAtRef = useRef<number>(Number.NEGATIVE_INFINITY)
   const restartRun = useCallback((): void => {
     contactRef.current = NO_CONTACT
     // Back to the start of the route with NO progress banked. This is what
@@ -2889,6 +2942,35 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     setResetSignal((n) => n + 1)
     setRestarted(true)
     setRevealState(EMPTY_REVEAL)
+    // docs/25 §7 1.2: a wall contact used to be "sin texto, sin voz y sin
+    // sonido" on every `resetOnContact` level (the detective-world trails
+    // and the collect levels — duck-trail/trail*/sheep-hill/llama-peak,
+    // `levels/catalog.ts`'s own `resetOnContact: true` set). Gated on
+    // `resetOnContact` alone, not on `drawnPlace`/`collectDef`: every level
+    // that sets it IS one of those two families (confirmed against
+    // `levels/catalog.ts`), and `resetOnContact` is already in scope here
+    // with no extra hook reordering needed. A HAZARD-triggered restart
+    // (turtles/monkeys, `resetOnContact: false`) never reaches this branch
+    // — this task is the wall only, matching docs/25's own evidence.
+    //
+    // Sound: `playSfx('wrong')` reused on purpose — `audio/sfx.ts`'s own
+    // header already built it to be "a soft, LOW, NEUTRAL hum… closer to a
+    // quiet 'hmm' than any kind of alert", exactly the "no error buzzer, no
+    // red" property this task asks for, not a new sound.
+    //
+    // Speech: `RESTART_MESSAGE` ('Volvé a empezar') already exists as the
+    // text this screen shows on a CLASSIC level's own restart cue (below,
+    // `!drawnPlace && !collectDef`'s branch) — speaking that exact line
+    // here, debounced the same "don't nag" way as the correction lines
+    // above, is reusing it, not inventing a new phrase.
+    if (resetOnContact) {
+      playSfx('wrong')
+      const now = performance.now()
+      if (now - lastWallCueAtRef.current >= WALL_CUE_COOLDOWN_MS) {
+        lastWallCueAtRef.current = now
+        if (!isSpeaking()) speak(RESTART_MESSAGE)
+      }
+    }
     // T41: a bee level reaches `restartRun` now (its hazard), and the
     // flowers it already opened STAY open — the rule T29 set for collected
     // items ("collected things persist"). Only `seen` goes back to 0, because
@@ -2934,6 +3016,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     debugSearch,
     target.viewWidth,
     target.viewBoxWidth,
+    resetOnContact,
   ])
 
   // The cue is a passing line, not a state the child has to dismiss.
@@ -3535,8 +3618,23 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // cue is done). `-1` is a key no real `nudgeCueIndex` ever takes (it starts
   // at 0), so the intro's own mount never collides with the nudge's first
   // occurrence.
-  const showIdleCue = introCuePlaying || nudgePhase === 'nudge'
-  const idleCueKey = introCuePlaying ? -1 : nudgeCueIndex
+  // docs/25 §7 1.2: a wall contact on a `resetOnContact` level now shows this
+  // SAME "start here" cue right after the reset — `restarted` is already
+  // true for exactly `RESTART_CUE_MS` after `restartRun` (above), the
+  // identical timing the on-screen `RESTART_MESSAGE` cue already uses, so
+  // the two read as one event. `resetOnContact` keeps this off every other
+  // level kind (a classic level's own restart, if it ever gets one, is out
+  // of this task's scope). Never overlaps the idle nudge or the one-shot
+  // intro: both of those require `phase === 'ready'` to even poll
+  // (`idleNudgeArmed`, above), and a fresh touch is exactly what a wall
+  // contact just gave the sheet.
+  const wallResetCueActive = resetOnContact && restarted
+  const showIdleCue = introCuePlaying || nudgePhase === 'nudge' || wallResetCueActive
+  const idleCueKey = introCuePlaying
+    ? -1
+    : wallResetCueActive
+      ? -100 - resetSignal // negative range disjoint from both -1 and nudgeCueIndex (>= 0)
+      : nudgeCueIndex
   const idleCue =
     showIdleCue && idleCueSegment
       ? {
@@ -3550,8 +3648,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // The start dot's own stronger pulse belongs to the ONGOING nudge, not the
   // one-shot level intro — the intro is "here is how this works", the nudge
   // is "you seem stuck", and only the second one needs the dot itself to
-  // insist.
-  const idleNudgeActive = nudgePhase === 'nudge'
+  // insist. The wall-reset cue gets the same stronger pulse: it is exactly
+  // as insistent a "look here, start again" moment as the idle nudge is.
+  const idleNudgeActive = nudgePhase === 'nudge' || wallResetCueActive
 
   // The night hint (T33 item 2) — a SEPARATE, much more targeted cue than
   // the general idle nudge above: it needs real elapsed searching time
@@ -4184,6 +4283,57 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // slot and needs the exact same width class.
   const hasProgressBar = !!progress || !!collectDef
 
+  // The erase/light/classic result line, narrated (docs/18 D1/T7; docs/25
+  // §7 1.1, P2-1: "las correcciones no se escuchan"). Lives here, after
+  // `drawnPlace`/`collectDef`, so the classic branch below can match the
+  // EXACT condition the on-screen pillars/coach section (`!drawnPlace &&
+  // !collectDef`) already uses — the same `coachMessage(attempt)` that
+  // section already renders as `.cv-coach`, never a new phrase.
+  //
+  // Anti-spam, three rules, each named in the task brief:
+  //  - "at most once per release": this effect is keyed on the `attempt`
+  //    OBJECT, a fresh reference only on a genuine `onRelease`
+  //    (`setAttempt`, above) — a re-render with the same attempt never
+  //    re-fires it.
+  //  - "never while the narrator is already speaking the level's
+  //    instruction": `isSpeaking()` guards the call — `useNarration`'s own
+  //    mount-time `speak(level.hint)` can still be mid-sentence when a very
+  //    fast release lands, and this must defer to it rather than cut it
+  //    off (`speak()` itself always cancels whatever is playing, which
+  //    would be wrong here).
+  //  - "don't repeat the identical line on consecutive releases within a
+  //    few seconds": `shouldSpeakAgain` (pure, exported, directly tested)
+  //    reads the two refs below; only on a decision to actually speak does
+  //    this effect stamp them, so it never writes state it did not use.
+  const lastResultLineRef = useRef<string | null>(null)
+  const lastResultLineAtRef = useRef<number>(Number.NEGATIVE_INFINITY)
+  useEffect(() => {
+    if (!attempt) return
+    const coachLine =
+      !drawnPlace && !collectDef && !attempt.approved ? coachMessage(attempt) : undefined
+    const lightTotal = level.reveal?.mode === 'light' ? level.reveal.objects.length : undefined
+    const line = resultSpeechLine(level.id, level.reveal?.mode, attempt.approved, {
+      lit: revealState.lit.size,
+      total: lightTotal,
+      coachLine,
+    })
+    if (!line) return
+    if (isSpeaking()) return
+    const now = performance.now()
+    if (!shouldSpeakAgain(line, lastResultLineRef.current, now - lastResultLineAtRef.current)) return
+    lastResultLineRef.current = line
+    lastResultLineAtRef.current = now
+    speak(line)
+  }, [
+    attempt,
+    level.id,
+    level.reveal?.mode,
+    level.reveal?.mode === 'light' ? level.reveal.objects.length : undefined,
+    revealState.lit.size,
+    drawnPlace,
+    collectDef,
+  ])
+
   return (
     <main
       className={mainClassName}
@@ -4623,16 +4773,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       )}
       {drawnPlace && level.reveal?.mode === 'light' && attempt && (
         <p className="cv-result-pill" role="status" aria-label="Resultado del intento">
-          {attempt.approved ? (
-            <>
-              <span className="cv-result-check" aria-hidden="true">
-                ✓
-              </span>
-              ¡Descubrimiento brillante!
-            </>
-          ) : (
-            `Encontraste ${revealState.lit.size} de ${level.reveal.objects.length}. Volvé a alumbrar las luces que faltan.`
+          {attempt.approved && (
+            <span className="cv-result-check" aria-hidden="true">
+              ✓
+            </span>
           )}
+          {lightResultMessage(revealState.lit.size, level.reveal.objects.length, attempt.approved)}
         </p>
       )}
       {/* T7: every OTHER drawn-place family (a plain corridor, hedgehog's

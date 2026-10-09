@@ -61,6 +61,24 @@ vi.mock('../zoo/backdrops', async (importOriginal) => {
   }
 })
 
+// docs/25 §7 1.2: the wall-contact reset cue's two side effects
+// (`playSfx('wrong')`, `speak(RESTART_MESSAGE)`) are plain function calls
+// inside `restartRun`, not React state — unlike `idleCue`/`idleNudgeActive`
+// (props on the mocked `TraceCanvas` above, only observable on the NEXT
+// render this SSR harness cannot produce, this file's own header), a call
+// is already a fact by the time `onFrame` returns, so mocking these two and
+// asserting on them is how this file proves the wall-contact cue actually
+// fires without needing a live re-render.
+const { playSfxMock, speakMock } = vi.hoisted(() => ({ playSfxMock: vi.fn(), speakMock: vi.fn() }))
+vi.mock('../audio/sfx', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../audio/sfx')>()),
+  playSfx: playSfxMock,
+}))
+vi.mock('../voice/narrator', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../voice/narrator')>()),
+  speak: speakMock,
+}))
+
 import LevelPlay, {
   segmentOctopusFeet,
   worldInk,
@@ -73,12 +91,15 @@ import LevelPlay, {
   drawingBand,
   eraseResultMessage,
   isOffPath,
+  lightResultMessage,
   octopusHoldsLens,
   OCTOPUS_SIZE,
   releasedRevealState,
   resultSpeechLine,
+  RESTART_MESSAGE,
   seedCameraFor,
   shouldFileClue,
+  shouldSpeakAgain,
   shouldTickClue,
   CLUE_MARK_SIZE,
   torchView,
@@ -1544,6 +1565,51 @@ describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', (
     expect(() => onFrame([target.polyline[1]], true, 2000)).not.toThrow()
   })
 
+  // docs/25 §7 1.2 (P2-1: "el reinicio es mudo"): a wall contact on a
+  // `resetOnContact` level (the detective-world trails and the collect
+  // levels, `sheep-hill1` included) must now play the soft, non-punishing
+  // cue sound and speak the existing `RESTART_MESSAGE` text, not run
+  // silently. Reuses the exact same off-path sequence the test just above
+  // already proves triggers `restartRun`.
+  it('a wall contact on a resetOnContact level plays the soft cue sound and speaks "Volvé a empezar"', () => {
+    playSfxMock.mockClear()
+    speakMock.mockClear()
+    const level = getLevel('sheep-hill1')
+    expect(level.resetOnContact).toBe(true)
+    const target = buildLevelTarget(level)
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    const onFrame = traceCanvasProbe.current?.onFrame as (
+      points: TracePoint[],
+      drawing: boolean,
+      timeMs: number,
+    ) => void
+    onFrame([target.polyline[1]], true, 200)
+    const half = (target.corridorWidth || 60) / 2
+    for (let i = 0; i < 6; i++) {
+      onFrame([{ x: target.polyline[1].x + half * 10, y: target.polyline[1].y + half * 10 }], true, 400 + i * 200)
+    }
+    expect(playSfxMock).toHaveBeenCalledWith('wrong')
+    expect(speakMock).toHaveBeenCalledWith(RESTART_MESSAGE)
+  })
+
+  // The SAME wall contact on a level with `resetOnContact: false` (the
+  // hazard-only families, e.g. monkeys/turtles) must stay exactly as silent
+  // as it was before this task — this task's own scope is the wall, never
+  // the hazard, and `resetOnContact: false` levels are out of scope entirely.
+  it('does not play the wall-reset cue on a resetOnContact: false level', () => {
+    playSfxMock.mockClear()
+    speakMock.mockClear()
+    const level = getLevel('turtle1')
+    expect(level.resetOnContact).toBe(false)
+    renderToString(
+      <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
+    )
+    expect(playSfxMock).not.toHaveBeenCalledWith('wrong')
+    expect(speakMock).not.toHaveBeenCalledWith(RESTART_MESSAGE)
+  })
+
   // T41: a hazard restarts the run even where the walls are forgiving
   // (turtles, monkeys) and on a routeless sheet (the bee), so the surface
   // must be handed the restart signal there too — and the hazard picture.
@@ -2556,15 +2622,13 @@ describe('LevelPlay reveal grid wiring (reveal-grid capability, design.md §4.2)
 // a live `attempt`, which needs a real pointer release this harness cannot
 // produce (this file's own header: `onFrame`/`onRelease` are not
 // observable through `renderToString`).
-describe('resultSpeechLine (adventure-flow-and-map-guidance T7)', () => {
-  it('is null for anything that is not an approved attempt, whatever the mode', () => {
-    expect(resultSpeechLine('glass1', 'erase', false)).toBeNull()
-    expect(resultSpeechLine('night1', 'light', false)).toBeNull()
-    expect(resultSpeechLine('test-level', undefined, false)).toBeNull()
+describe('resultSpeechLine (adventure-flow-and-map-guidance T7; docs/25 §7 1.1)', () => {
+  it('is null for an approved attempt with no reveal mode and no coach line (a routed/lettered level)', () => {
+    expect(resultSpeechLine('test-level', undefined, true)).toBeNull()
   })
 
-  it('is null for an approved attempt with no reveal mode at all (a routed/lettered level)', () => {
-    expect(resultSpeechLine('test-level', undefined, true)).toBeNull()
+  it('is null for a non-approved attempt with no reveal mode and no coach line passed in', () => {
+    expect(resultSpeechLine('test-level', undefined, false)).toBeNull()
   })
 
   it('speaks the exact erase success text, matching the on-screen .cv-result-pill wording', () => {
@@ -2576,6 +2640,76 @@ describe('resultSpeechLine (adventure-flow-and-map-guidance T7)', () => {
 
   it('speaks the exact light success text, matching the on-screen .cv-result-pill wording', () => {
     expect(resultSpeechLine('night1', 'light', true)).toBe('¡Descubrimiento brillante!')
+  })
+
+  // docs/25 §7 1.1 (P2-1): "Seguí limpiando el vidrio." etc. used to be text
+  // only — this is the fix, reusing the exact `eraseResultMessage` string a
+  // non-approved erase/light attempt already shows on screen.
+  it('now also speaks the non-approval erase/glass/sand/mud hint, reusing the exact on-screen text', () => {
+    expect(resultSpeechLine('glass1', 'erase', false)).toBe('Seguí limpiando el vidrio.')
+    expect(resultSpeechLine('sand1', 'erase', false)).toBe('Seguí barriendo la arena.')
+    expect(resultSpeechLine('glass3', 'erase', false)).toBe('Seguí juntando las hojas.')
+    expect(resultSpeechLine('sand3', 'erase', false)).toBe('Seguí limpiando el sendero.')
+    expect(resultSpeechLine('glass1', 'erase', false)).toBe(eraseResultMessage('glass1', false))
+  })
+
+  it('speaks the night "Encontraste N de M" hint only once the caller supplies lit/total', () => {
+    expect(resultSpeechLine('night1', 'light', false)).toBeNull()
+    expect(resultSpeechLine('night1', 'light', false, { lit: 0, total: 2 })).toBe(
+      'Encontraste 0 de 2. Volvé a alumbrar las luces que faltan.',
+    )
+    expect(resultSpeechLine('night2', 'light', false, { lit: 1, total: 3 })).toBe(
+      lightResultMessage(1, 3, false),
+    )
+  })
+
+  it('speaks a classic (non-drawn-place) level\'s own coach line only when the caller passes one in', () => {
+    expect(resultSpeechLine('f3-a', undefined, false)).toBeNull()
+    expect(resultSpeechLine('f3-a', undefined, false, { coachLine: 'Quedate adentro del camino, despacito.' })).toBe(
+      'Quedate adentro del camino, despacito.',
+    )
+  })
+
+  it('never speaks a coach line on an approved classic attempt, matching the pre-existing behaviour', () => {
+    expect(resultSpeechLine('f3-a', undefined, true, { coachLine: 'should never be reached' })).toBeNull()
+  })
+})
+
+describe('lightResultMessage (docs/25 §7 1.1)', () => {
+  it('is the fixed celebration on approval, independent of the counts', () => {
+    expect(lightResultMessage(2, 2, true)).toBe('¡Descubrimiento brillante!')
+    expect(lightResultMessage(0, 0, true)).toBe('¡Descubrimiento brillante!')
+  })
+
+  it('names the exact counts on a non-approved attempt', () => {
+    expect(lightResultMessage(0, 2, false)).toBe('Encontraste 0 de 2. Volvé a alumbrar las luces que faltan.')
+    expect(lightResultMessage(1, 3, false)).toBe('Encontraste 1 de 3. Volvé a alumbrar las luces que faltan.')
+  })
+})
+
+// docs/25 §7 1.1's own anti-spam rule: "speak at most once per release…
+// don't repeat the identical line on consecutive releases within a few
+// seconds". `shouldSpeakAgain` is the pure gate the narration effect reads;
+// directly testable with a plain elapsed-ms number, no fake clock needed.
+describe('shouldSpeakAgain (docs/25 §7 1.1 anti-spam rule)', () => {
+  it('always speaks a line that differs from the previous one, however recent', () => {
+    expect(shouldSpeakAgain('Seguí limpiando el vidrio.', null, 0)).toBe(true)
+    expect(shouldSpeakAgain('Seguí limpiando el vidrio.', 'Encontraste 0 de 2…', 1)).toBe(true)
+  })
+
+  it('withholds the identical line again before the cooldown has passed', () => {
+    expect(shouldSpeakAgain('Seguí limpiando el vidrio.', 'Seguí limpiando el vidrio.', 100)).toBe(false)
+    expect(shouldSpeakAgain('Seguí limpiando el vidrio.', 'Seguí limpiando el vidrio.', 3999)).toBe(false)
+  })
+
+  it('allows the identical line again once the cooldown has fully passed', () => {
+    expect(shouldSpeakAgain('Seguí limpiando el vidrio.', 'Seguí limpiando el vidrio.', 4000)).toBe(true)
+    expect(shouldSpeakAgain('Seguí limpiando el vidrio.', 'Seguí limpiando el vidrio.', 9000)).toBe(true)
+  })
+
+  it('honours a custom cooldown window', () => {
+    expect(shouldSpeakAgain('x', 'x', 999, 1000)).toBe(false)
+    expect(shouldSpeakAgain('x', 'x', 1000, 1000)).toBe(true)
   })
 })
 
