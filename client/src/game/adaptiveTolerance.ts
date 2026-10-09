@@ -7,6 +7,7 @@
 // "La app NUNCA bloquea. Se registra que el nivel necesitó ayuda; eso es dato
 // para el docente, no un castigo para el chico." A stuck child always widens
 // their way forward; a fluent one quietly gets a tighter corridor.
+import { MAX_DURATIONS_KEPT } from './types'
 import type { LevelAttempt, LevelRecord } from './types'
 
 /** Consecutive failures that widen the corridor. */
@@ -35,6 +36,14 @@ export function applyAttempt(record: LevelRecord, attempt: LevelAttempt): LevelR
     attempts: record.attempts + 1,
     bestAccuracy: Math.max(record.bestAccuracy, attempt.accuracy),
     bestFluency: Math.max(record.bestFluency, attempt.fluency),
+    // 1.6: appended oldest-last, then bounded to the most recent
+    // MAX_DURATIONS_KEPT — `attempt.durationMs` absent (the dev skip
+    // button's synthetic attempt, `GameScreen.tsx`'s `SKIP_ATTEMPT`) leaves
+    // the list untouched rather than recording a fabricated `0`.
+    durationsMs:
+      attempt.durationMs === undefined
+        ? record.durationsMs
+        : [...record.durationsMs, attempt.durationMs].slice(-MAX_DURATIONS_KEPT),
   }
 
   if (attempt.approved) {
