@@ -175,6 +175,7 @@ import CaptionedArt from '../detective/CaptionedArt'
 import TrailProgressBar, { ANIMAL_MAX_WIDTH } from '../detective/TrailProgressBar'
 import CollectBar from '../detective/CollectBar'
 import { BackIcon, PlaceholderAnimalBadge, ReplayIcon } from '../detective/icons'
+import { PISTAS_BAR_CHROME_PX, PISTAS_BUDGET_VW_FRAC, PISTAS_MIN_SLOT } from '../detective/pistasFit'
 import { useNarration } from '../voice/useNarration'
 import { canAutoSpeak, speak } from '../voice/narrator'
 import SpeakButton from '../voice/SpeakButton'
@@ -1188,8 +1189,36 @@ html, body, #root { margin: 0; padding: 0; }
   border: 3px solid #1a1a1a;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.3);
   pointer-events: none;
+  /* (V3, docs/25 section 5.4: "Barra de dolphin4 con ~16 casilleros,
+     cortada en los dos bordes en vertical") the DEFAULT square size/gap for
+     this breakpoint tier -- every @media override below only ever changes
+     THESE two custom properties now, never .pistas-slots svg's own
+     width/height directly, so the one clamp()/calc() rule right below is
+     the only place the actual rendered size is ever computed, at every
+     breakpoint. --pistas-count comes from the ROOT element's own inline
+     style (detective/pistasFit.ts's pistasCountStyle, set by both
+     CollectBar.tsx and TrailProgressBar.tsx, the two components that
+     render into this class) -- the one piece of information neither this
+     stylesheet nor pistasFit.ts's own formula can know on their own. NO
+     BACKTICKS in this block -- one inside a comment ends this template
+     literal early (this file's own top-of-file note). */
+  --pistas-max-slot: 40px;
+  --pistas-gap: 6px;
 }
-.pistas-slots { flex: 0 0 auto; display: flex; flex-direction: row; align-items: center; gap: 6px; }
+.pistas-slots { flex: 0 0 auto; display: flex; flex-direction: row; align-items: center; gap: var(--pistas-gap); }
+/* fitPistasSlots (detective/pistasFit.ts) is this EXACT formula, kept in
+   one place so a test can prove it without a DOM: the largest square that
+   both respects this breakpoint's own --pistas-max-slot (unchanged for
+   the common 4-to-8 item case, where "raw" always exceeds it and min()
+   picks the max) AND keeps the WHOLE bar's width under
+   PISTAS_BUDGET_VW_FRAC of the real viewport -- dolphin4's own 15
+   sockets at a tall-but-narrow (768x1024) viewport is exactly the case
+   that never hit a max-height breakpoint before and kept its full-size
+   40px squares regardless of how many there were. NO BACKTICKS. */
+.pistas-slots svg {
+  width: clamp(${PISTAS_MIN_SLOT}px, calc((${PISTAS_BUDGET_VW_FRAC * 100}vw - ${PISTAS_BAR_CHROME_PX}px - (var(--pistas-count, 1) - 1) * var(--pistas-gap)) / var(--pistas-count, 1)), var(--pistas-max-slot));
+  height: clamp(${PISTAS_MIN_SLOT}px, calc((${PISTAS_BUDGET_VW_FRAC * 100}vw - ${PISTAS_BAR_CHROME_PX}px - (var(--pistas-count, 1) - 1) * var(--pistas-gap)) / var(--pistas-count, 1)), var(--pistas-max-slot));
+}
 .pistas-slot-shell { position: relative; display: inline-flex; align-items: center; justify-content: center; border-radius: 13px; }
 /* The current level's own slot (D20/D21's "no festejo" complaint, restated
  * for the bar: the child should be able to find "which one is THIS tramo"
@@ -1598,11 +1627,14 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-btn-back { min-height: 56px; }
   .cv-btn.cv-btn-art { width: 58px; height: 58px; }
   .cv-btn-art.cv-btn-back { width: 56px; height: 56px; }
-  .pistas-slots { gap: 5px; }
   /* Both target viewports at this breakpoint (1280x720, 1024x768) want the
    * whole bar around 40px tall — the animal end-cap is the tallest element,
-   * so it alone is sized to the target; the slots stay a little under it. */
-  .pistas-slots svg { width: 34px; height: 34px; }
+   * so it alone is sized to the target; the slots stay a little under it.
+   * (V3 fix, this file's own .pistas-bar header) only the two custom
+   * properties change here now — .pistas-slots svg's own clamp()/calc()
+   * rule, written once at the top of this stylesheet, is what actually
+   * turns them into a rendered size. */
+  .pistas-bar { --pistas-max-slot: 34px; --pistas-gap: 5px; }
   .pistas-animal img { height: 40px; }
   /* width: 47px -> ~50px tall, comfortably inside the 48px back button row
    * this breakpoint sets just above (1280x720 and 1024x768 both land here). */
@@ -1664,9 +1696,9 @@ html, body, #root { margin: 0; padding: 0; }
 
   /* The bar is already centred at every height — a short viewport only
    * needs it SMALLER, never restructured, so every pixel reclaimed here
-   * still goes straight into canvas height (844x390 lands here). */
-  .pistas-slots { gap: 4px; }
-  .pistas-slots svg { width: 26px; height: 26px; }
+   * still goes straight into canvas height (844x390 lands here). (V3 fix:
+   * same two custom properties as the breakpoint above, same reason.) */
+  .pistas-bar { --pistas-max-slot: 26px; --pistas-gap: 4px; }
   .pistas-animal img { height: 32px; }
 }
 `
@@ -2956,11 +2988,26 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // callbacks it has always lived beside, instead of moving past a third of
   // this file to sit after `drawnPlace`.
   const clearOnFailedRetryRef = useRef(false)
+  // 1.6 (`odd/tasks/review-batch-1.md`, `docs/25_REVISION_PSICOPEDAGOGICA.md`
+  // section 7 item 1.6): how long one attempt actually takes, so real
+  // sessions can be timed instead of estimated (docs/21 section 5's own
+  // "es una estimación, no una medición"). An "attempt" is one pointer-down-
+  // to-resolution cycle: `onStart` below stamps the FIRST stroke's own start
+  // time, and only the FIRST — a continuous/segmented level's later strokes
+  // within the SAME attempt never overwrite it — and `takeAttemptDurationMs`
+  // (declared after `onRelease`/`onFrame` are both in scope, so it can be
+  // called from either) reads and clears it the instant `onAttempt` actually
+  // fires (approved or not — a failed attempt still ends one, and the very
+  // next stroke starts the clock over for the next one). `null` until the
+  // first stroke, so a level that is never touched this session reports no
+  // duration at all, never a bogus zero.
+  const attemptStartRef = useRef<number | null>(null)
   const onStart = useCallback((): void => {
     // T33: a touch is the one thing that stops the idle nudge outright — the
     // intro cue too, since a child who is already touching does not need a
     // demo of where to start.
     lastTouchAtRef.current = performance.now()
+    if (attemptStartRef.current === null) attemptStartRef.current = performance.now()
     setIntroCuePlaying(false)
     setRestarted(false)
     setPhase(endDemoOnStrokeStart)
@@ -2968,6 +3015,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       resetSurface()
     }
   }, [attempt, resetSurface])
+
+  /** Reads and clears `attemptStartRef` — called exactly once per `onAttempt`
+   *  (both call sites below), right before building the `LevelAttempt` each
+   *  one reports, so `attempt.durationMs` is always this attempt's own
+   *  pointer-down-to-resolution span, never a stale or leaked one. */
+  const takeAttemptDurationMs = useCallback((): number | undefined => {
+    const start = attemptStartRef.current
+    attemptStartRef.current = null
+    return start === null ? undefined : performance.now() - start
+  }, [])
 
   // Live corridor feedback (docs/03 §6 "salirse atenúa el trazo, no lo corta"):
   // throttled to ~30 Hz so it never competes with the 60fps ink loop, and it
@@ -3224,7 +3281,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
           if (!collectApprovedRef.current && isCollectComplete(next)) {
             collectApprovedRef.current = true
             const evaluated = evaluateLevel([points], target, 'touch')
-            const result: LevelAttempt = { ...evaluated, approved: true, failedPillar: null }
+            const result: LevelAttempt = {
+              ...evaluated,
+              approved: true,
+              failedPillar: null,
+              durationMs: takeAttemptDurationMs(),
+            }
             setAttempt(result)
             setPhase('result')
             playApprovalTone() // best-effort, approval only
@@ -3308,6 +3370,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       hasSnakeColour,
       level.torch,
       onAttempt,
+      takeAttemptDurationMs,
     ],
   )
 
@@ -3450,11 +3513,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // level — the parent (`GameScreen`) persists it and bumps its own
       // `version`, which is what recomputes this level's `progress` prop
       // (`zoo/progress.ts`) with this attempt's own filing already in it.
-      onAttempt(result)
+      // 1.6: `durationMs` attached here, AFTER the `alreadyFinalized` guard
+      // above — a collect level's own approval already took (and cleared)
+      // `attemptStartRef` from `onFrame`'s own branch, so this release, a
+      // no-op past that point, must never read the clock a second time for
+      // the SAME attempt (this file's own comment above on why `onAttempt`
+      // itself must not fire twice applies just as much to the duration it
+      // carries).
+      onAttempt({ ...result, durationMs: takeAttemptDurationMs() })
     },
     [
       target,
       onAttempt,
+      takeAttemptDurationMs,
       clueDef,
       collectDef,
       arrangeOpen,

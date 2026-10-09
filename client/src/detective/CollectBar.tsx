@@ -25,6 +25,7 @@
 import { useRef } from 'react'
 import { isPlaceholderArt, type ArtImage } from './assets'
 import { PlaceholderAnimalBadge } from './icons'
+import { pistasCountStyle } from './pistasFit'
 
 /** Matches `TrailProgressBar.tsx`'s own `STAR_COLOR`/`SLOT_SIZE`/
  *  `MARK_HEIGHT` literals — not imported (they are module-private there) but
@@ -72,7 +73,7 @@ export default function CollectBar({ collected, art, arts }: CollectBarProps) {
   // level, `LevelConfig.collect` is authored per level), not per slot.
   const placeholder = isPlaceholderArt(art)
   return (
-    <div className="pistas-bar" role="img" aria-label={accessibleCollectName(collected)}>
+    <div className="pistas-bar" role="img" aria-label={accessibleCollectName(collected)} style={pistasCountStyle(collected.length)}>
       <div className="pistas-slots">
         {collected.map((filled, i) => {
           const justCollected = filled && !initiallyCollectedRef.current[i]
