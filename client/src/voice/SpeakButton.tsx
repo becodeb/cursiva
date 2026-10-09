@@ -66,9 +66,9 @@ export interface SpeakButtonProps {
  * it speaks `line` regardless of the persisted mute setting — muting turns
  * off the automatic narration `useNarration` drives, never this explicit,
  * on-purpose request, and a tap is itself the user gesture that lets speech
- * play at all (`narrator.ts`'s own `canAutoSpeak` doc comment) — this button
- * is therefore also the ONLY way the prologue's very first line is ever
- * heard, since nothing has been tapped yet when it first mounts.
+ * play at all (`narrator.ts`'s own `canAutoSpeak` doc comment). (The
+ * prologue's very first line, which can mount before any tap at all, has
+ * its own start tap since `docs/25` P2-5 — `screen/PrologueOpening.tsx`.)
  *
  * `aria-label="Escuchar"` is REQUIRED here, not optional chrome: the glyph
  * inside is `aria-hidden` (`SpeakerIcon`), so without this label the control

@@ -12,8 +12,9 @@
 // position, never the click-driven transition between them, which this
 // harness has no way to simulate (no DOM, no test-renderer).
 import { renderToString } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
-import PrologueOpening, { prologueRoute } from './PrologueOpening'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import PrologueOpening, { prologueNeedsStartTap, prologueRoute } from './PrologueOpening'
+import { UI_BUTTON_ART } from '../detective/assets'
 import { auditCaptions } from '../detective/captionAudit'
 import { PROLOGUE_PLATES } from '../zoo/prologue'
 
@@ -155,5 +156,64 @@ describe('PrologueOpening idle life and bubble pop-in (prewriting-stage-completi
       expect(audit.uncaptioned, `plate ${i}`).toEqual([])
       expect(audit.imagelessContainers, `plate ${i}`).toEqual([])
     }
+  })
+})
+
+// `docs/25` P2-5 (tanda 1, item 1.3): a browser refuses to speak before the
+// page has seen a gesture, so plate 0's line was silent on a first visit.
+// The gate is `voice/narrator.ts`'s `canAutoSpeak`, which reads
+// `navigator.userActivation.hasBeenActive` — stubbed here, since node has no
+// such field (and therefore reads as "unlocked", the permissive default).
+describe('PrologueOpening start tap (docs/25 P2-5)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  const lockAudio = (hasBeenActive: boolean): void => {
+    vi.stubGlobal('navigator', { userActivation: { hasBeenActive } })
+  }
+
+  it('prologueNeedsStartTap is true exactly while audio is still locked', () => {
+    expect(prologueNeedsStartTap(false)).toBe(true)
+    expect(prologueNeedsStartTap(true)).toBe(false)
+  })
+
+  it('while audio is locked: one wordless full-screen start button with the play art, bubble deferred', () => {
+    lockAudio(false)
+    expect(prologueNeedsStartTap()).toBe(true)
+    const html = renderToString(<PrologueOpening onDone={() => {}} />)
+    expect(html).toContain('class="cv-prologue-start"')
+    expect(html).toContain('aria-label="Empezar"')
+    expect(html).toContain(UI_BUTTON_ART.replay.href)
+    // The line pops in with the voice, on the tap — not before it.
+    expect(html).not.toContain(PROLOGUE_PLATES[0].line)
+    expect(html).not.toContain('class="cv-prologue-bubble')
+    // The start tap speaks the line itself; no separate speaker yet.
+    expect(html).not.toContain('aria-label="Escuchar"')
+    // The grown-up's skip stays reachable.
+    expect(html).toContain('class="cv-prologue-skip"')
+    // Wordless: the start button carries no visible text at all.
+    const start = html.slice(html.lastIndexOf('<button', html.indexOf('class="cv-prologue-start"')))
+    const startButton = start.slice(0, start.indexOf('</button>'))
+    expect(startButton.replace(/<[^>]*>/g, '').trim()).toBe('')
+    const audit = auditCaptions(html)
+    expect(audit.uncaptioned).toEqual([])
+    expect(audit.imagelessContainers).toEqual([])
+    expect(html).not.toContain('url(#')
+  })
+
+  it('adds no step when audio is already unlocked', () => {
+    lockAudio(true)
+    expect(prologueNeedsStartTap()).toBe(false)
+    const html = renderToString(<PrologueOpening onDone={() => {}} />)
+    expect(html).not.toContain('class="cv-prologue-start"')
+    expect(html.split(PROLOGUE_PLATES[0].line).length - 1).toBe(1)
+    expect(html).toContain('aria-label="Escuchar"')
+  })
+
+  it('an engine without userActivation reads as unlocked (no start step), the permissive default', () => {
+    vi.stubGlobal('navigator', {})
+    const html = renderToString(<PrologueOpening onDone={() => {}} />)
+    expect(html).not.toContain('class="cv-prologue-start"')
   })
 })
