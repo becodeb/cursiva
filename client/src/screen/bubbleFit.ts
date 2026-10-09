@@ -204,33 +204,41 @@ export const LINE_HEIGHT = 1.14
  *  is sized to keep 8 px even after that overhang. */
 export const CAPTION_CONTENT_AREA_EM = 1.364
 
-/** [T51] Caption advance widths in em at weight 700, measured in Chromium
- *  from a 1000 px span per character inside a bubble, while the shipped
- *  `public/fonts/nunito.woff2` was a broken subset and captions fell back to
- *  DejaVu Sans Bold on the Linux test host — that is what this table holds.
- *  The latin Nunito subset now ships; DejaVu Sans Bold is wider than Nunito
- *  (and than Roboto/Arial) at the same weight, so the table over-estimates
- *  and stays safe. Kerning only ever tightened a pair in
- *  the registry's words ("Te" 1.228 vs 1.360 summed), so summing advances
- *  over-estimates too. */
+/** [T52, review batch 1 V2] Caption advance widths in em at weight 700,
+ *  re-measured in Chromium from a 1000px span per character, now that the
+ *  real `public/fonts/nunito.woff2` subset ships (`fix(font): ship the
+ *  latin Nunito subset`, 182de59) and captions actually render in Nunito
+ *  rather than the DejaVu Sans Bold fallback the [T51] table below was
+ *  measured from. DejaVu Sans Bold is markedly WIDER than Nunito at the
+ *  same weight (e.g. "m" 1.042em vs 0.877em, "a" 0.675em vs 0.547em) —
+ *  over-estimating every word's width wraps lines EARLIER than the real
+ *  browser does, which is how `AdventureIntro.tsx`'s turtles entry
+ *  (`docs/25_REVISION_PSICOPEDAGOGICA.md` §5.4 V2) stranded its sentence's
+ *  last word, "seguimos?", alone on its own full-width line below the
+ *  image: the FLOAT layout's greedy fill judged "¿Las" too wide for the
+ *  narrow column at the over-estimated size and pushed it (and the word
+ *  after it) down a line early. Narrower, accurate advances let the real
+ *  wrap point match the browser's, fixing this for every caption that hits
+ *  it, not just this one line. Kerning only ever tightened a pair in the
+ *  registry's words ("Te" 1.228 vs 1.360 summed under the old table), so
+ *  summing per-character advances still over-estimates slightly, which
+ *  `TEXT_WIDTH_SAFETY` below covers. */
 export const CAPTION_ADVANCE_EM: Readonly<Record<string, number>> = {
-  "0": 0.696, "1": 0.696, "2": 0.696, "3": 0.696, "4": 0.696, "5": 0.696, "6": 0.696,
-  "7": 0.696, "8": 0.696, "9": 0.696, " ": 0.271, a: 0.675, b: 0.716, c: 0.593,
-  d: 0.716, e: 0.678, f: 0.435, g: 0.716, h: 0.712, i: 0.343, j: 0.343, k: 0.665,
-  l: 0.343, m: 1.042, n: 0.712, o: 0.687, p: 0.716, q: 0.716, r: 0.493, s: 0.595,
-  t: 0.478, u: 0.712, v: 0.652, w: 0.924, x: 0.645, y: 0.652, z: 0.582, A: 0.744,
-  B: 0.762, C: 0.734, D: 0.83, E: 0.683, F: 0.683, G: 0.821, H: 0.837, I: 0.372,
-  J: 0.372, K: 0.775, L: 0.637, M: 0.995, N: 0.837, O: 0.85, P: 0.733, Q: 0.85,
-  R: 0.77, S: 0.72, T: 0.682, U: 0.812, V: 0.774, W: 1.103, X: 0.771, Y: 0.724,
-  Z: 0.725, "á": 0.675, "é": 0.678, "í": 0.343, "ó": 0.687, "ú": 0.712, "ü": 0.712,
-  "ñ": 0.712, "Á": 0.744, "É": 0.683, "Í": 0.372, "Ó": 0.85, "Ú": 0.812, "Ü": 0.812,
-  "Ñ": 0.837, "¡": 0.456, "!": 0.456, "¿": 0.58, "?": 0.58, ".": 0.38, ",": 0.38,
-  ":": 0.4, ";": 0.4, "…": 1, "'": 0.306, "\"": 0.521, "“": 0.657, "”": 0.657,
-  "‘": 0.38, "’": 0.38, "-": 0.415, "–": 0.5, "—": 1, "(": 0.457, ")": 0.457,
+  "0": 0.6, "1": 0.6, "2": 0.6, "3": 0.6, "4": 0.6, "5": 0.6, "6": 0.6, "7": 0.6, "8": 0.6, "9": 0.6, " ": 0.271,
+  a: 0.547, b: 0.6, c: 0.472, d: 0.6, e: 0.542, f: 0.364, g: 0.604, h: 0.585, i: 0.255, j: 0.259, k: 0.536, l: 0.319, m: 0.877,
+  n: 0.585, o: 0.576, p: 0.6, q: 0.6, r: 0.392, s: 0.488, t: 0.384, u: 0.579, v: 0.527, w: 0.853, x: 0.546, y: 0.526, z: 0.474,
+  A: 0.744, B: 0.688, C: 0.68, D: 0.762, E: 0.597, F: 0.562, G: 0.736, H: 0.773, I: 0.282, J: 0.354, K: 0.665, L: 0.562, M: 0.868,
+  N: 0.748, O: 0.785, P: 0.652, Q: 0.785, R: 0.686, S: 0.631, T: 0.621, U: 0.738, V: 0.713, W: 1.113, X: 0.672, Y: 0.618, Z: 0.605,
+  "á": 0.547, "é": 0.542, "í": 0.255, "ó": 0.576, "ú": 0.579, "ü": 0.579, "ñ": 0.585,
+  "Á": 0.744, "É": 0.597, "Í": 0.282, "Ó": 0.785, "Ú": 0.738, "Ü": 0.738, "Ñ": 0.748,
+  "¡": 0.248, "!": 0.248, "¿": 0.459, "?": 0.459, ".": 0.248, ",": 0.248,
+  ":": 0.248, ";": 0.248, "…": 0.745, "'": 0.243, "\"": 0.448, "“": 0.443,
+  "”": 0.443, "‘": 0.248, "’": 0.248, "-": 0.434, "–": 0.5, "—": 1,
+  "(": 0.358, ")": 0.358,
 }
 
 /** Any character the table lacks counts as the widest one it has ("W"). */
-const UNKNOWN_ADVANCE_EM = 1.103
+const UNKNOWN_ADVANCE_EM = 1.113
 
 /** Headroom over the measured advances, for sub-pixel rounding and a
  *  fallback face being a touch wider. */
@@ -521,13 +529,31 @@ function searchFontSize(
  * `bubbleFit.test.ts`'s own absurd-input fixture exercises; every real line
  * in this game's registry picks one of the two layouts above and reports
  * `fits: true`.
- */
+ *
+ * `maxFontFrac`/`minFontFrac` default to the module's own `MAX_FONT_FRAC`/
+ * `MIN_FONT_FRAC` — every call site that predates them (every stage screen
+ * except `Deduction.tsx`) stays byte-identical. [Review batch 1 V5,
+ * `docs/25_REVISION_PSICOPEDAGOGICA.md` section 5.4: "Texto pequeño en el
+ * globo de las deducciones"] `Deduction.tsx`'s own corner stage is
+ * DELIBERATELY smaller than every other screen's (`deductionLayout.ts`'s
+ * `DEDUCTION_STAGE_DVH`/`DEDUCTION_STAGE_MAX_VW`, T46's own "the evidence
+ * and the choices need that room more than the narrator does") — the SAME
+ * font FRACTION of a physically smaller bubble renders a visibly smaller
+ * ABSOLUTE font than `AdventureIntro.tsx`'s, even though neither screen's
+ * own fit ever overflows. Overriding just the font bounds (never the box,
+ * never the stage geometry `deductionLayout.test.ts` already locks down)
+ * lets `Deduction.tsx` ask for a bigger fraction of ITS OWN smaller bubble
+ * — still run through this exact same shrink-to-fit search, so a line that
+ * cannot afford the bigger ceiling still shrinks, exactly like every other
+ * caller, never actually overflowing its box. */
 export function fitBubbleContent(
   text: string,
   art: ArtImage | undefined,
   bubbleWidth: number,
   bubbleHeight: number,
   box: BubbleRect = ZOO_SPEECH_BUBBLE_CONTENT,
+  maxFontFrac: number = MAX_FONT_FRAC,
+  minFontFrac: number = MIN_FONT_FRAC,
 ): BubbleContentFit {
   const contentWidth = bubbleWidth * box.width
   const contentHeight = bubbleHeight * box.height
@@ -558,8 +584,8 @@ export function fitBubbleContent(
   const narrowWidth = Math.max(0, contentWidth - imageWidth - gap)
   const floatHeight = imageHeight > 0 ? imageHeight + bubbleWidth * FLOAT_BOTTOM_MARGIN_FRAC : 0
 
-  const maxFont = bubbleWidth * MAX_FONT_FRAC
-  const minFont = bubbleWidth * MIN_FONT_FRAC
+  const maxFont = bubbleWidth * maxFontFrac
+  const minFont = bubbleWidth * minFontFrac
 
   // 1. FLOAT, at its own normal (height-determined) font size — accepted
   // only when BOTH its longest word fits the narrow column and the whole
@@ -634,6 +660,14 @@ export interface PlaceAndFitBubbleOptions extends PlaceSpeechBubbleOptions {
   /** [T51] The bubble art's content box (`ZOO_SPEECH_BUBBLE_CONTENT` by
    *  default; the left bubble passes `ZOO_SPEECH_BUBBLE_LEFT_CONTENT`). */
   readonly box?: BubbleRect
+  /** [Review batch 1 V5] Optional font-fraction overrides, forwarded
+   *  verbatim to `fitBubbleContent` (that function's own header on why —
+   *  `Deduction.tsx`'s smaller stage is the one caller that sets these).
+   *  Absent = `fitBubbleContent`'s own `MAX_FONT_FRAC`/`MIN_FONT_FRAC`
+   *  defaults, byte-identical to every call site before this option
+   *  existed. */
+  readonly maxFontFrac?: number
+  readonly minFontFrac?: number
 }
 
 export interface PlacedBubbleContent {
@@ -666,16 +700,16 @@ const GROWTH_TRIGGER_FRACTION = 0.85
  * viewport, and asserts the chosen result always reports `fits: true`.
  */
 export function placeAndFitBubble(opts: PlaceAndFitBubbleOptions): PlacedBubbleContent {
-  const { text, art, box, ...placementOpts } = opts
+  const { text, art, box, maxFontFrac, minFontFrac, ...placementOpts } = opts
   const base = placeSpeechBubble(placementOpts)
-  const baseContent = fitBubbleContent(text, art, base.width, base.height, box)
-  const baseMaxFont = base.width * MAX_FONT_FRAC
+  const baseContent = fitBubbleContent(text, art, base.width, base.height, box, maxFontFrac, minFontFrac)
+  const baseMaxFont = base.width * (maxFontFrac ?? MAX_FONT_FRAC)
   const needsGrowth = !baseContent.fits || baseContent.fontSize < baseMaxFont * GROWTH_TRIGGER_FRACTION
   if (!needsGrowth) return { placement: base, content: baseContent }
 
   const margin = placementOpts.margin ?? 3
   const grown = placeSpeechBubble({ ...placementOpts, preferredWidth: placementOpts.frame.w - 2 * margin })
-  const grownContent = fitBubbleContent(text, art, grown.width, grown.height, box)
+  const grownContent = fitBubbleContent(text, art, grown.width, grown.height, box, maxFontFrac, minFontFrac)
   if (grownContent.fontSize > baseContent.fontSize) {
     return { placement: grown, content: grownContent }
   }
