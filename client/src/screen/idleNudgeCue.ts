@@ -206,9 +206,10 @@ export function idleCueForLevel(level: IdleCueLevel, ctx: IdleCueContext): IdleC
  * always empty, so `demoPlays` can never be true for it no matter what
  * `demo` is set to). Reads the level's own `introCue` field rather than
  * checking its id — `levels/catalog.ts` is the one place that decides WHICH
- * levels get it (today, only the first level of each family: `bee2..4`/
- * `night2..4` already assume the mechanic from here on, the same "first
- * time" framing `docs/18` §3 uses for "mostrar antes de pedir").
+ * levels get it: today every night level (`night1..4` — `docs/25` P2-6
+ * found that each one opens on a dark, silent sheet, so "the first one
+ * taught it" was not enough). The bee family plays a real route demo
+ * instead (`demo: true` + `levels/waypoints.ts`'s `waypointDemoPaths`).
  */
 export function hasIntroCue(level: Pick<IdleCueLevel, 'introCue'>): boolean {
   return !!level.introCue

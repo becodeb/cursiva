@@ -1318,6 +1318,10 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
+    // `docs/25` P2-6 (tanda 1, item 1.4): the same one-shot torch-sweep
+    // demo hand `night1` opens with — every night level opens on a dark,
+    // silent sheet, and that is the moment of most doubt, not only the first.
+    introCue: true,
     // T25 (`docs/19` §3.2): a bitten apple and another leaf. [T43] The
     // apple is real art now (`docs/20` B12), no longer the leaf standing in.
     // Positions/radius unchanged from the pre-T25 config.
@@ -1354,6 +1358,10 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
+    // `docs/25` P2-6 (tanda 1, item 1.4): the same one-shot torch-sweep
+    // demo hand `night1` opens with — every night level opens on a dark,
+    // silent sheet, and that is the moment of most doubt, not only the first.
+    introCue: true,
     reveal: {
       mode: 'light',
       cols: 20,
@@ -1425,6 +1433,10 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
+    // `docs/25` P2-6 (tanda 1, item 1.4): the same one-shot torch-sweep
+    // demo hand `night1` opens with — every night level opens on a dark,
+    // silent sheet, and that is the moment of most doubt, not only the first.
+    introCue: true,
     // Off-centre for the same reason `night1`'s own fix documents (~322
     // units from the sheet's (500, 300) centre, well past `radius: 110`): a
     // curious first blind tap must not win the level outright.
@@ -1584,11 +1596,13 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
-    // T33 (`odd/tasks/prewriting-stage-completion.md`, docs/18 P5/D24): the
-    // bee's own first level plays a one-shot intro nudging toward the first
-    // flower instead of the (never-available, `kind: 'free'`) route demo —
-    // D24's own "sin demo ni consigna; no se entiende qué hacer".
-    introCue: true,
+    // T33 gave the bee's first level a one-shot hand nudging toward the
+    // first flower (D24: "sin demo ni consigna; no se entiende qué hacer").
+    // `docs/25` P2-6 (tanda 1, item 1.4) replaces it with a real demo — the
+    // whole errand drawn from the bee through the flower to the hive
+    // (`levels/waypoints.ts`'s `waypointDemoPaths`) — on every bee level.
+    // No `introCue` here any more: the two would play over each other.
+    demo: true,
     waypoints: {
       start: { x: 250, y: 400 },
       stops: [{ x: 500, y: 265, radius: 110 }],
@@ -1616,6 +1630,11 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
+    // `docs/25` P2-6 (tanda 1, item 1.4; `docs/18` P5): the errand is
+    // demonstrated before it is asked for — a demo stroke from the bee
+    // through the flowers to the hive (`levels/waypoints.ts`'s
+    // `waypointDemoPaths`), the same shared demo a routed level plays.
+    demo: true,
     waypoints: {
       start: { x: 250, y: 400 },
       stops: [
@@ -1648,6 +1667,11 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
+    // `docs/25` P2-6 (tanda 1, item 1.4; `docs/18` P5): the errand is
+    // demonstrated before it is asked for — a demo stroke from the bee
+    // through the flowers to the hive (`levels/waypoints.ts`'s
+    // `waypointDemoPaths`), the same shared demo a routed level plays.
+    demo: true,
     waypoints: {
       start: { x: 90, y: 420 },
       stops: [
@@ -1690,6 +1714,11 @@ const PHASE_1: LevelConfig[] = [
     rules: { ...rules(1, false, false, 0), minAccuracy: 100 },
     showGuide: false,
     letters: [],
+    // `docs/25` P2-6 (tanda 1, item 1.4; `docs/18` P5): the errand is
+    // demonstrated before it is asked for — a demo stroke from the bee
+    // through the flowers to the hive (`levels/waypoints.ts`'s
+    // `waypointDemoPaths`), the same shared demo a routed level plays.
+    demo: true,
     waypoints: {
       start: { x: 95, y: 175 },
       stops: [
