@@ -24,7 +24,7 @@ Rules derived from it:
 - Copy changes are limited to what rule 1 forces; new lines keep the existing Rioplatense child voice
   and name the clue or "alguien" instead of the animal. Every changed line is listed for the author.
 - No new art: the clue art already exists (`docs/22`, `docs/23` round 2).
-- Out of scope here: `snake3` direction (2.2) and the suggested stop (2.3) — still waiting for the author.
+- `snake3` top→down (2.2): approved by the author 2026-10-16 ("podés cambiar lo que quieras como lo de las snake"). The suggested stop (2.3) is still open.
 - Constraints of `odd/tasks/prewriting-stage-completion.md` apply. Pi limits as in `review-batch-1.md`.
 
 ## Mode and checks
@@ -38,12 +38,15 @@ browser QA (Chromium under `flock /tmp/cursiva-chromium.lock`) of every changed 
 | ID | Task | Branch / route | Status | Evidence |
 |----|------|----------------|--------|----------|
 | M1 | Audit every case (duck, sheep, night, fish, turtles, monkeys, hen if present) against rules 1–3; fix intros (line + bubble icon) and anything else that breaks a rule; add a test that enforces rules 1 and 3 from data | `feat/intro-mystery`, delegated writer (opus, copy) | pending | |
+| S3 | `snake3` heads up, traced top→down; reveal re-measured | `fix/snake3-top-down`, delegated writer | pending | |
+| A1 | `docs/24_PROMPTS_ARTE_RONDA_3.md` (everything pending + lore intro layers + docs/25 art) and `docs/26_INTRO_ANIMADA_DEL_LORE.md` (storyboard and approach for the code-made lore intro the author asked for) | `docs/art-round-4`, delegated writer (opus) | pending | |
 | M2 | Orchestrator review, merge `--no-ff`, checks on `main`, push | inline | pending | |
 
 ## Progress
 
 - 2026-10-16: author's decision recorded; worktree ready.
+- 2026-10-16: author approved flipping snake3 and asked for one ChatGPT doc with everything pending plus a code-made lore intro.
 
 ## Next step
 
-M1.
+M1, S3, A1 in parallel.
