@@ -7,6 +7,7 @@ import AdventureIntro, { introSpokenLine } from './AdventureIntro'
 import { auditCaptions } from '../detective/captionAudit'
 import {
   ANDEAN_HAT_ART,
+  CLUE_ART,
   PULPITO_POSE_ART,
   SECTOR_ADVENTURE_ART,
   ZOO_ANIMAL_ART,
@@ -17,11 +18,12 @@ import { ADVENTURES } from '../zoo/adventures'
 const adventure = ADVENTURES[0] // the duck
 
 describe('AdventureIntro (main-screen spec "Narrative Entry Screen Content")', () => {
-  it('renders the three registered hrefs: pointing octopus, stage speech bubble, duck (T49)', () => {
+  it("renders the three registered hrefs: pointing octopus, stage speech bubble, the duck case's first clue (T49; review batch 2)", () => {
     const html = renderToString(<AdventureIntro adventure={adventure} onStart={() => {}} />)
     expect(html).toContain(`src="${PULPITO_POSE_ART.points.href}"`)
     expect(html).toContain(`src="${ZOO_SPEECH_BUBBLE_LEFT_ART.href}"`)
-    expect(html).toContain(`href="${ZOO_ANIMAL_ART[adventure.animal!].href}"`)
+    expect(html).toContain(`href="${CLUE_ART.puddle.art.earned.href}"`)
+    expect(html).not.toContain(`href="${ZOO_ANIMAL_ART[adventure.animal!].href}"`)
   })
 
   it('[T49] points at the centre: unmirrored in the left corner, mirrored in the right one', () => {
@@ -84,9 +86,10 @@ describe("AdventureIntro — row C's sheep and llama entries render their own an
   const sheep = ADVENTURES[1]
   const llama = ADVENTURES[2]
 
-  it("the sheep adventure's entry shows ZOO_ANIMAL_ART.oveja's href and its own intro text", () => {
+  it("the sheep adventure's entry shows the wool clue, never the sheep, and its own intro text (review batch 2)", () => {
     const html = renderToString(<AdventureIntro adventure={sheep} onStart={() => {}} />)
-    expect(html).toContain(`href="${ZOO_ANIMAL_ART.oveja.href}"`)
+    expect(html).toContain(`href="${CLUE_ART.wool.art.earned.href}"`)
+    expect(html).not.toContain(`href="${ZOO_ANIMAL_ART.oveja.href}"`)
     expect(html.split(sheep.intro).length - 1).toBe(1)
   })
 
