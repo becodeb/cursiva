@@ -291,37 +291,59 @@ function snakeHorizontalPiecesReordered(): readonly ArtCorridorPiece[] {
 
 /** `snake3`'s three VERTICAL pieces, at `s_L = 0.72` (design.md §3.4: three
  *  oblique snakes fit the sheet at no scale that also clears the phase-1
- *  span guard; three vertical ones fit comfortably at 0.72). `rotate: -90`
- *  puts the tail at the bottom and the head at the top. */
+ *  span guard; three vertical ones fit comfortably at 0.72).
+ *
+ *  `fix-snake3-top-down` (docs/25 §5.2 P2-4, §7 item 2.2): `rotate: 90`,
+ *  NOT `-90` — a prior version of this comment claimed `-90` put the head
+ *  on top, but it does the opposite. `snakePathD`'s own head point is the
+ *  FIRST spine sample (`traceFrom`, low local x — see
+ *  `snakeHorizontalPiecesReordered`'s "traced head-to-tail, LOW x to HIGH
+ *  x"), and `paths.ts`'s `transformPath` maps a point at `dx < 0` (left of
+ *  the piece's own pivot) to `pivot.y + dx·sin(rotate)`: at `rotate: -90`
+ *  (`sin = -1`) that is `pivot.y − dx`, i.e. GREATER y — lower on screen,
+ *  since viewBox y grows downward — so `-90` puts the head at the BOTTOM
+ *  and the child traced bottom→top, against the top-down convention every
+ *  other level in the game uses. At `rotate: 90` (`sin = 1`) the same head
+ *  point maps to `pivot.y + dx`, i.e. LESS y — the head sits at the TOP,
+ *  and tracing (still head-to-tail, first point to last) now runs
+ *  top→bottom. Verified by measuring the actual rotated geometry, not
+ *  re-derived from the sign error this replaces. */
 function snakeVerticalPieces(): readonly ArtCorridorPiece[] {
   return [
-    // Column x's are 197.95/497.95/797.95, not 200/500/800: the same
+    // Column x's are 201.83/501.83/801.83, not 200/500/800: the same
     // traceFrom/traceTo asymmetry that shifts the horizontal levels' `at.x`
     // (see `snakeHorizontalPieces`) shifts these columns too, once rotated
-    // — corrected by measuring so `layOutPaths`'s `tx` clears R6's 0.5 bound.
+    // — corrected by measuring so `layOutPaths`'s `tx` clears R6's 0.5
+    // bound. Re-measured for `rotate: 90` (flipping the head to the top
+    // flips the SIGN of this same asymmetry, not just its rotation): the
+    // old `-90` columns (197.95/497.95/797.95, a −2.05 shift off round
+    // numbers) measured `tx = +3.875` at `rotate: 90`; shifting all three
+    // columns by the SAME +3.875 (to 201.83/501.83/801.83, a +3.88 shift
+    // off round numbers now) brings `tx` back to −0.005, matching the old
+    // arrangement's own margin.
     {
       art: SECTOR_ADVENTURE_ART.snakeSmall,
       greyArt: SECTOR_ADVENTURE_ART.snakeSmallGrey,
       spine: 'snakeSmall',
       span: 374.4,
-      at: { x: 197.95, y: 300 },
-      rotate: -90,
+      at: { x: 201.83, y: 300 },
+      rotate: 90,
     },
     {
       art: SECTOR_ADVENTURE_ART.snakeMedium,
       greyArt: SECTOR_ADVENTURE_ART.snakeMediumGrey,
       spine: 'snakeMedium',
       span: 460.8,
-      at: { x: 497.95, y: 300 },
-      rotate: -90,
+      at: { x: 501.83, y: 300 },
+      rotate: 90,
     },
     {
       art: SECTOR_ADVENTURE_ART.snakeLarge,
       greyArt: SECTOR_ADVENTURE_ART.snakeLargeGrey,
       spine: 'snakeLarge',
       span: 547.2,
-      at: { x: 797.95, y: 300 },
-      rotate: -90,
+      at: { x: 801.83, y: 300 },
+      rotate: 90,
     },
   ]
 }
@@ -1520,7 +1542,7 @@ const PHASE_1: LevelConfig[] = [
     id: 'snake3',
     phase: 1,
     title: 'Víboras paradas',
-    hint: 'Están de pie. Acariciálas de abajo arriba, de más chica a más grande.',
+    hint: 'Están de pie. Acariciálas de arriba abajo, de más chica a más grande.',
     kind: 'path',
     surface: 'blank',
     maze: false,
