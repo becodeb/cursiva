@@ -10,6 +10,7 @@
 import type { ArtImage, ZooAnimalId } from '../detective/assets'
 import {
   ANDEAN_HAT_ART,
+  CLUE_ART,
   CARRIER_LENS_ART,
   CART_ART,
   HEDGEHOG_ART,
@@ -166,8 +167,10 @@ interface AdventureBase {
    *  earlier. */
   introTool?: AdventureTool
   /** [T49, `docs/20` B17] The picture inside the entry screen's bubble when
-   *  it is not the adventure's own animal or icon (`introBubbleArt`). Absent
-   *  on every row but the snakes', whose entry shows the skin they shed. */
+   *  it is not the adventure's own animal or icon (`introBubbleArt`). The
+   *  snakes' entry shows the skin they shed. Every row with a `deduction`
+   *  shows its case's first clue instead (review batch 2, `docs/25` P2-2):
+   *  the animal stays a mystery until the deduction (`caseMystery.test.ts`). */
   introArt?: ArtImage
   /** His line on the map once this adventure's animal is standing in the
    *  zoo (`zoo-map` spec, "Octopus Phrase Reads as a Closing"). */
@@ -230,7 +233,8 @@ export const ADVENTURES: readonly Adventure[] = [
     deduction: { after: 'duck-trail6', caseId: 'duck' },
     sector: 'estanque',
     animal: 'pato',
-    intro: 'El pato se fue por la laguna. ¿Lo seguimos?',
+    introArt: CLUE_ART.puddle.art.earned,
+    intro: 'Alguien se fue por la laguna. ¿Lo seguimos?',
     closing: '¡Encontramos al pato! Ya está en su laguna.',
     // The rescue closing (adventure-flow-and-map-guidance T8, docs/18 §4.7
     // item 1): ONE beat, `closing`'s own line verbatim (approved copy) with
@@ -254,6 +258,7 @@ export const ADVENTURES: readonly Adventure[] = [
     deduction: { after: 'sheep-lana', caseId: 'sheep' },
     sector: 'montanas',
     animal: 'oveja',
+    introArt: CLUE_ART.wool.art.earned,
     intro: 'Alguien dejó lana enganchada en el alambrado de la ladera. ¿Vamos a ver?',
     closing: '¡Juntamos las ovejas! Ya están en su ladera.',
     // Rescue closing (T8) — the duck row's own reasoning, restated: one
@@ -450,6 +455,7 @@ export const ADVENTURES: readonly Adventure[] = [
     // every `turtle1..4` level.
     // [T45] The entry now opens on the prints, the case's first step; the
     // rings ("demos la vuelta a cada una") come after the deduction.
+    introArt: CLUE_ART.turtlePrint.art.earned,
     intro: 'Alguien dejó huellas y un surco en la arena. ¿Las seguimos?',
     closing: '¡Asomaron la cabeza! Ya volvieron a su recinto.',
     // Rescue closing (T8) — the snake row's own reasoning, restated: one
@@ -488,7 +494,8 @@ export const ADVENTURES: readonly Adventure[] = [
     deduction: { after: 'monkey-lianas', caseId: 'monkeys' },
     sector: 'bosque',
     animal: 'mono',
-    intro: 'Los monos se escaparon de sus sogas y se fueron colgados de las lianas del bosque. ¿Seguimos sus vueltas?',
+    introArt: CLUE_ART.handprint.art.earned,
+    intro: 'Alguien se escapó de sus sogas y se fue colgado de las lianas del bosque. ¿Seguimos sus vueltas?',
     closing: '¡Encontramos a los monos! Ya volvieron a sus sogas.',
     // Rescue closing (T8) — the bee row's own reasoning, restated. Placed
     // right after `bee`, matching the bosque's own real play order — see
@@ -513,7 +520,8 @@ export const ADVENTURES: readonly Adventure[] = [
     deduction: { after: 'f2-buceo', caseId: 'fish' },
     sector: 'estanque',
     animal: 'pez',
-    intro: 'Los peces se escaparon de la pecera y se escondieron en la laguna. ¡Dejaron burbujas! ¿Las seguimos?',
+    introArt: CLUE_ART.bubble.art.earned,
+    intro: 'Alguien se escapó de su recinto y se escondió en la laguna. ¡Dejó burbujas! ¿Las seguimos?',
     closing: '¡Encontramos a los peces! Ya volvieron a su pecera.',
     // Rescue closing (T8) — the duck row's own reasoning, restated: one
     // beat, `closing` verbatim, the animal's own art, default figure.

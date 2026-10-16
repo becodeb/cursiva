@@ -677,7 +677,7 @@ const PHASE_1: LevelConfig[] = [
     // pato salió del agua a los saltitos, de charco en charco." Same id
     // (saved progress), same clue kind; the shape and the copy changed.
     title: 'De charco en charco',
-    hint: 'Hacé los puentes del pato y pasá por todos los charquitos.',
+    hint: 'Hacé los puentes y pasá por todos los charquitos.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -716,7 +716,7 @@ const PHASE_1: LevelConfig[] = [
     phase: 1,
     // [T43] Renamed from "El maíz del pato": the kernel became the seeds of
     // `docs/22` C5.
-    title: 'Las semillas del pato',
+    title: 'Las semillas',
     hint: 'Seguí las semillas sin salirte.',
     kind: 'path',
     surface: 'blank',
@@ -743,7 +743,7 @@ const PHASE_1: LevelConfig[] = [
     phase: 1,
     // [T40] Renamed from "El sendero de migas" / "Seguí las migas": this
     // trail has carried feathers since T21, never crumbs.
-    title: 'Las plumas del pato',
+    title: 'Las plumas',
     hint: 'Seguí las plumas sin salirte.',
     kind: 'path',
     surface: 'blank',
@@ -766,8 +766,8 @@ const PHASE_1: LevelConfig[] = [
   {
     id: 'duck-trail6',
     phase: 1,
-    title: 'Las huellas del pato',
-    hint: 'Seguí las huellas del pato, ola por ola.',
+    title: 'Las huellas',
+    hint: 'Seguí las huellas, ola por ola.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -1391,7 +1391,7 @@ const PHASE_1: LevelConfig[] = [
     id: 'night-rastro',
     phase: 1,
     title: 'Las huellitas en la oscuridad',
-    hint: 'Alumbrá el piso y seguí las huellitas del erizo hasta la manzana.',
+    hint: 'Alumbrá el piso y seguí las huellitas hasta la manzana.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -2412,7 +2412,7 @@ const PHASE_2: LevelConfig[] = [
     id: 'turtle-huellas',
     phase: 2,
     title: 'El surco de la cola',
-    hint: 'Seguí el surco de la tortuga y frená en cada marca. Mirá las huellas.',
+    hint: 'Seguí el surco y frená en cada marca. Mirá las huellas.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -2624,7 +2624,7 @@ const PHASE_2: LevelConfig[] = [
     // [T27 follow-up] The hint names what the clue ACTUALLY shows. [T43]
     // The bird footprint stand-in became the monkey's own handprint
     // (`docs/22` C8).
-    hint: 'Subí como el mono y juntá las manitos que dejó en la liana.',
+    hint: 'Subí por la liana y juntá las manitos que dejó alguien.',
     kind: 'path',
     surface: 'blank',
     maze: true,
@@ -2793,7 +2793,7 @@ const PHASE_2: LevelConfig[] = [
     // …"), so a medusa name for a fish trail was a real, spoken
     // inconsistency once P2 retired the jellyfish's own `goalArt` — not
     // merely a cosmetic label nobody reads.
-    title: 'Las burbujas de los peces',
+    title: 'Las burbujas',
     // The fish adventure's own first tramo (P2, `odd/tasks/promised-
     // animals.md`; `zoo/adventures.ts`'s `fish` row): the child follows the
     // bubbles the fish left behind on their way out, not a medusa swimming
@@ -2896,8 +2896,8 @@ const PHASE_2: LevelConfig[] = [
   {
     id: 'f2-buceo',
     phase: 2,
-    title: 'El pez bajó al fondo',
-    hint: 'Bajá como el pez hasta el fondo, girá y volvé a subir. Juntá las algas.',
+    title: 'Al fondo de la laguna',
+    hint: 'Bajá hasta el fondo, girá y volvé a subir. Juntá las algas.',
     kind: 'path',
     surface: 'blank',
     maze: true,

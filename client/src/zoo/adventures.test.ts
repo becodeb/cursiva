@@ -196,7 +196,7 @@ describe('ADVENTURES', () => {
     expect(fish.sector).toBe('estanque')
     expect(fish.animal).toBe('pez')
     expect(fish.intro).toBe(
-      'Los peces se escaparon de la pecera y se escondieron en la laguna. ¡Dejaron burbujas! ¿Las seguimos?',
+      'Alguien se escapó de su recinto y se escondió en la laguna. ¡Dejó burbujas! ¿Las seguimos?',
     )
     expect(fish.closing).toBe('¡Encontramos a los peces! Ya volvieron a su pecera.')
     expect(fish.closingBeat).toEqual([{ line: fish.closing, art: ZOO_ANIMAL_ART.pez }])
@@ -233,7 +233,7 @@ describe('ADVENTURES', () => {
     expect(monkeys.sector).toBe('bosque')
     expect(monkeys.animal).toBe('mono')
     expect(monkeys.intro).toBe(
-      'Los monos se escaparon de sus sogas y se fueron colgados de las lianas del bosque. ¿Seguimos sus vueltas?',
+      'Alguien se escapó de sus sogas y se fue colgado de las lianas del bosque. ¿Seguimos sus vueltas?',
     )
     expect(monkeys.closing).toBe('¡Encontramos a los monos! Ya volvieron a sus sogas.')
     expect(monkeys.closingBeat).toEqual([{ line: monkeys.closing, art: ZOO_ANIMAL_ART.mono }])
