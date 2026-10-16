@@ -37,9 +37,9 @@ browser QA (Chromium under `flock /tmp/cursiva-chromium.lock`) of every changed 
 
 | ID | Task | Branch / route | Status | Evidence |
 |----|------|----------------|--------|----------|
-| M1 | Audit every case (duck, sheep, night, fish, turtles, monkeys, hen if present) against rules 1–3; fix intros (line + bubble icon) and anything else that breaks a rule; add a test that enforces rules 1 and 3 from data | `feat/intro-mystery`, delegated writer (opus, copy) | pending | |
+| M1 | Audit every case (duck, sheep, night, fish, turtles, monkeys, hen if present) against rules 1–3; fix intros (line + bubble icon) and anything else that breaks a rule; add a test that enforces rules 1 and 3 from data | `feat/intro-mystery`, delegated writer (opus, copy) | done | `c591b66` + orchestrator follow-up (monkeys/fish intros shortened so the bubble reads large). Intros duck/monkeys/fish reworded to "Alguien…"; 6 hints and 5 titles stop naming the animal; bubble icons are the first clue (puddle, wool, turtle print, handprint, bubble). `zoo/caseMystery.test.ts` enforces rules 1 and 3 from data (13 failures RED on old data). Main after merge: 3665 passed, build 0, diff-check clean. Orchestrator looked at `_sheets/m1-00.png`, `m1b-00.png` |
 | S3 | `snake3` heads up, traced top→down; reveal re-measured | `fix/snake3-top-down`, delegated writer | pending | |
-| A1 | `docs/24_PROMPTS_ARTE_RONDA_3.md` (everything pending + lore intro layers + docs/25 art) and `docs/26_INTRO_ANIMADA_DEL_LORE.md` (storyboard and approach for the code-made lore intro the author asked for) | `docs/art-round-4`, delegated writer (opus) | pending | |
+| A1 | `docs/24_PROMPTS_ARTE_RONDA_3.md` (everything pending + lore intro layers + docs/25 art) and `docs/26_INTRO_ANIMADA_DEL_LORE.md` (storyboard and approach for the code-made lore intro the author asked for) | `docs/art-round-4`, delegated writer (opus) | done | `112a433` docs/24 (21 requests, 33 files; D38–D46 point to docs/23; D42 promoted to high as reference for E1/E2/E7; E11/E12 on hold until docs/25 3.2/5.2 approved), `2b23245` docs/26 (9-shot 64 s storyboard + part B; in-game framer-motion scene recommended over a video file). Orchestrator read docs/24 §0–§2 and E1 |
 | M2 | Orchestrator review, merge `--no-ff`, checks on `main`, push | inline | pending | |
 
 ## Progress
@@ -47,6 +47,13 @@ browser QA (Chromium under `flock /tmp/cursiva-chromium.lock`) of every changed 
 - 2026-10-16: author's decision recorded; worktree ready.
 - 2026-10-16: author approved flipping snake3 and asked for one ChatGPT doc with everything pending plus a code-made lore intro.
 
+## Open for the author (docs/26)
+
+1. Night escape heard (recommended) or shown as shadows.
+2. Include part B, the detective's birth (recommended).
+3. Voice: her own recording of 9 short lines (recommended) or the browser voice.
+4. Soft music or only synthesized effects.
+
 ## Next step
 
-M1, S3, A1 in parallel.
+S3 (snake3). Author pulls and runs docs/24 in ChatGPT.
