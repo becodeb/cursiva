@@ -495,7 +495,7 @@ export const ADVENTURES: readonly Adventure[] = [
     sector: 'bosque',
     animal: 'mono',
     introArt: CLUE_ART.handprint.art.earned,
-    intro: 'Alguien se escapó de sus sogas y se fue colgado de las lianas del bosque. ¿Seguimos sus vueltas?',
+    intro: 'Alguien se fue colgado de las lianas. ¿Seguimos sus vueltas?',
     closing: '¡Encontramos a los monos! Ya volvieron a sus sogas.',
     // Rescue closing (T8) — the bee row's own reasoning, restated. Placed
     // right after `bee`, matching the bosque's own real play order — see
@@ -521,7 +521,7 @@ export const ADVENTURES: readonly Adventure[] = [
     sector: 'estanque',
     animal: 'pez',
     introArt: CLUE_ART.bubble.art.earned,
-    intro: 'Alguien se escapó de su recinto y se escondió en la laguna. ¡Dejó burbujas! ¿Las seguimos?',
+    intro: 'Alguien se escondió en la laguna y dejó burbujas. ¿Las seguimos?',
     closing: '¡Encontramos a los peces! Ya volvieron a su pecera.',
     // Rescue closing (T8) — the duck row's own reasoning, restated: one
     // beat, `closing` verbatim, the animal's own art, default figure.
