@@ -60,7 +60,7 @@ recuadro que se mueve sobre las capas apiladas.
 | 4 | 7 s | El Pulpito cruza frente a la cerca con el carrito; cada animal que pasa se mueve un poquito (un salto chico, uno solo) | Quieta. Corte limpio desde la toma 3 | "Todas las mañanas limpio los recintos." (frase de hoy) | Ruedita | E1 empuja |
 | 5 | 8 s | El cielo pasa a atardecer y a noche; el sol baja, los animales bajan detrás de la cerca (se van a dormir), el Pulpito bosteza y sale por la derecha con el carrito. Sale la luna | Se abre un poco (aleja 5 %) | "Y a la noche, todos a dormir." | Grillos que entran de a poco | E1 bosteza, E6 sol y luna, fundido E3 → E5 |
 | 6 | 10 s | Noche quieta, el farol prendido. Pausa larga. Después, la reja se abre sola, despacio, una hoja y después la otra | Quieta 3 s; después se acerca a la reja, 8 % en 6 s | "Pero esa noche… alguien dejó la reja abierta." (dicha cuando la reja ya está abierta, no antes) | Grillos; un chirrido largo y suave; después, pasitos chiquitos que cruzan de un parlante al otro, un chapoteo, hojas | E5 noche, E4 reja |
-| 7 | 8 s | Entra la niebla del mapa desde los costados y tapa la noche. Cuando se va, es de día: la plaza, sin ningún animal. El Pulpito entra, frena, se sorprende y mira para los costados | Fundido a través de la niebla; después quieta | "¿Qué silencio… dónde están todos?" | Los grillos se apagan; de día, nada: ni pájaro. El silencio es la toma | `niebla 1–3`, E3 día, E2 sorprendido y busca |
+| 7 | 8 s | Entra la niebla del mapa desde los costados y tapa la noche. Cuando se va, es de día: la plaza, sin ningún animal. El Pulpito entra, frena, se sorprende y mira para los costados | Fundido a través de la niebla; después quieta | "¡Qué silencio! ¿Dónde están todos?" | Los grillos se apagan; de día, nada: ni pájaro. El silencio es la toma | `niebla 1–3`, E3 día, E2 sorprendido y busca |
 | 8 | 6 s | El Pulpito se da vuelta hacia el chico y le ofrece la mano | Se acerca a él, 6 % en 2 s, y se queda | "Vamos a empezar por limpiar los recintos. ¿Me ayudás?" | La música vuelve | E2 invita |
 | 9 | 4 s | La escena se achica y se funde en el mapa real, con su niebla y la plaza; el globo del mapa toma la posta | Se aleja hasta que la plaza de la escena coincide con la plaza del mapa | — | Un acorde corto que cierra | `mapa zoologico.png` (el `ZooMap` real) |
 
@@ -69,7 +69,7 @@ recuadro que se mueve sobre las capas apiladas.
 
 Las frases nuevas son cinco, cortas y en voseo: "Este es mi zoológico. Acá
 viven un montón de animales.", "Y a la noche, todos a dormir.", "Pero esa
-noche… alguien dejó la reja abierta.", "¿Qué silencio… dónde están todos?" y
+noche… alguien dejó la reja abierta.", "¡Qué silencio! ¿Dónde están todos?" y
 la primera mitad de "Vamos a empezar por limpiar los recintos. ¿Me
 ayudás?". Las otras dos son las de `zoo/prologue.ts`, sin tocar.
 
