@@ -163,7 +163,8 @@ export default function Puppet({
     })
 
     const media = prefersReducedMotion()
-    const isCalm = (): boolean => still || media?.matches === true
+    const isSnapped = (): boolean => media?.matches === true
+    const isCalm = (): boolean => still || isSnapped()
     const apply = (): void => {
       const frame = computeFrame(rig, actor, isCalm())
       root.setAttribute('transform', partTransform(frame.root))
@@ -177,7 +178,7 @@ export default function Puppet({
     let onScreen = true
     let stop: (() => void) | null = null
     const onTick = (dt: number): void => {
-      stepActor(actor, dt, isCalm())
+      stepActor(actor, dt, isCalm(), isSnapped())
       apply()
       sync()
     }
@@ -193,7 +194,7 @@ export default function Puppet({
     syncRef.current = sync
 
     const onMotionChange = (): void => {
-      stepActor(actor, 0, isCalm())
+      stepActor(actor, 0, isCalm(), isSnapped())
       apply()
       sync()
     }
@@ -221,7 +222,7 @@ export default function Puppet({
       window.addEventListener('pointerdown', onPointer, { passive: true })
     }
 
-    stepActor(actor, 0, isCalm())
+    stepActor(actor, 0, isCalm(), isSnapped())
     apply()
     sync()
     return () => {

@@ -82,3 +82,18 @@ describe('demoTipAt: the tip is the pen', () => {
     expect(demoTipAt(demos, sample, Infinity)).toEqual([100, 100])
   })
 })
+
+describe('the arm on the sheet', () => {
+  it('is thin: it never covers the corridor it reaches across', () => {
+    const points = tentacleOutline([100, 500], [800, 200]).match(/-?\d+\.\d+ -?\d+\.\d+/g)!.map((p) => p.split(' ').map(Number))
+    const spine = tentacleSpine([100, 500], [800, 200])
+    const widest = Math.max(...points.map((p) => Math.min(...spine.map((q) => Math.hypot(p[0] - q[0], p[1] - q[1])))))
+    expect(widest).toBeLessThanOrEqual(8)
+  })
+
+  it('is curved: it bows well off the straight line between its ends', () => {
+    const spine = tentacleSpine([0, 0], [600, 0])
+    const middle = spine[Math.floor(spine.length / 2)]
+    expect(Math.abs(middle[1])).toBeGreaterThan(600 * 0.2)
+  })
+})

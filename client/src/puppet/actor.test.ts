@@ -88,3 +88,32 @@ describe('lookFromPointer', () => {
     expect(lookFromPointer({ x: 5, y: 5 }, { x: 5, y: 5 }, 100)).toEqual([0, 0])
   })
 })
+
+describe('a still puppet reacts with easing; only reduced motion snaps', () => {
+  it('a scare on a still puppet rises over several frames instead of jumping', () => {
+    const actor = createActor(7)
+    actFor(actor, 'scare', 1)
+    stepActor(actor, 1 / 30, true, false)
+    expect(actor.acts.scare).toBeGreaterThan(0.1)
+    expect(actor.acts.scare).toBeLessThan(0.5)
+    for (let i = 0; i < 12; i++) stepActor(actor, 1 / 30, true, false)
+    expect(actor.acts.scare).toBeGreaterThan(0.9)
+  })
+
+  it('and falls the same way when the act ends', () => {
+    const actor = createActor(7)
+    actFor(actor, 'scare', 0.1)
+    for (let i = 0; i < 12; i++) stepActor(actor, 1 / 30, true, false)
+    const peak = actor.acts.scare
+    for (let i = 0; i < 3; i++) stepActor(actor, 1 / 30, true, false)
+    expect(actor.acts.scare).toBeGreaterThan(0)
+    expect(actor.acts.scare).toBeLessThan(peak)
+  })
+
+  it('reduced motion jumps', () => {
+    const actor = createActor(7)
+    actFor(actor, 'scare', 1)
+    stepActor(actor, 1 / 30, true)
+    expect(actor.acts.scare).toBe(1)
+  })
+})
