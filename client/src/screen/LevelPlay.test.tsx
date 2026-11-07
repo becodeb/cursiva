@@ -871,7 +871,7 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
       <LevelPlay level={getLevel('hedgehog2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={midway} />,
     )
     const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
-    expect(body).toContain(`src="${ZOO_ANIMAL_ART.erizo.href}"`)
+    expect(body).toContain('data-puppet="erizo"')
     expect(body).toContain('class="pistas-animal"')
     expect(body).not.toContain('pistas-animal-rescued')
 
@@ -898,10 +898,10 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
       <LevelPlay level={getLevel('snake2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} progress={midway} />,
     )
     const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
-    const img = body.match(/<span class="pistas-animal">\s*<img[^>]*>/)?.[0] ?? ''
-    expect(img).toContain(`src="${ZOO_ANIMAL_ART.vibora.href}"`)
-    const width = Number(img.match(/width="([^"]+)"/)?.[1] ?? NaN)
-    const height = Number(img.match(/height="([^"]+)"/)?.[1] ?? NaN)
+    const img = body.match(/<span class="pistas-animal">\s*<svg[^>]*>/)?.[0] ?? ''
+    expect(body).toContain('data-puppet="vibora"')
+    const width = Number(img.match(/width:([\d.]+)px/)?.[1] ?? NaN)
+    const height = Number(img.match(/height:([\d.]+)px/)?.[1] ?? NaN)
     expect(width).toBeLessThanOrEqual(ANIMAL_MAX_WIDTH + 1e-6)
     // Never distorted: the rendered box keeps the art's own real aspect ratio.
     expect(width / height).toBeCloseTo(ZOO_ANIMAL_ART.vibora.w / ZOO_ANIMAL_ART.vibora.h, 3)

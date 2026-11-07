@@ -29,7 +29,7 @@
 // also what keeps the caption licence (`detective/captionAudit.ts`'s
 // `CAPTION_CONTAINERS`) satisfied with no change to that registry.
 import { useRef } from 'react'
-import { ArtInSvg } from '../puppet/ArtFigure'
+import { ArtImg, ArtInSvg } from '../puppet/ArtFigure'
 import { CLUE_ART, ZOO_ANIMAL_ART, ZOO_STAR_ART, type ZooAnimalId } from './assets'
 import { CLUE_DRAINED } from './palette'
 import { pistasCountStyle } from './pistasFit'
@@ -213,13 +213,16 @@ function Slot({ slot, justFiled }: { slot: AdventureProgressSlot; justFiled: boo
  * device this repo has scarred comments about; a CSS `filter` on an HTML
  * `<img>` resolves entirely client-side with no `<defs>` to hydrate).
  */
+/** Who is being searched for stays a shape until found. */
+const END_CAP_OUTLINE = '#6f787f'
+
 function AnimalEndCap({ progress }: { progress: AdventureProgress }) {
   if (!progress.animal) return null
   const art = ZOO_ANIMAL_ART[progress.animal]
   const { width, height } = containAnimalSize(art, ANIMAL_MAX_WIDTH, ANIMAL_HEIGHT)
   return (
     <span className={`pistas-animal${progress.rescued ? ' pistas-animal-rescued' : ''}`}>
-      <img src={art.href} width={width} height={height} alt="" aria-hidden="true" />
+      <ArtImg art={art} silhouette={progress.rescued ? undefined : END_CAP_OUTLINE} style={{ width, height }} />
     </span>
   )
 }

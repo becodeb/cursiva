@@ -24,7 +24,7 @@ import type { TracePaper } from '../canvas/TraceCanvas'
 import type { ActName, RigState } from './actor'
 import { markTransform, MARK_EDGE_PAPER, MARK_EDGE_WIDTH, paperMarkFor } from './marks'
 import { paperPropFor } from './props'
-import { SceneLayers } from './scene/Scene'
+import { SceneLayers, sceneFor } from './scene/Scene'
 import type { CutScene } from './scene/engine'
 import type { PuppetName } from './characters'
 import Puppet, { type PuppetAccessories, type PuppetHandle } from './Puppet'
@@ -184,6 +184,16 @@ export function ArtInSvg({ art, box, still = true, entrance, holding, followPoin
   if (!figure) {
     const thing = paperPropFor(art)
     if (thing) return <PropInSvg art={art} thing={thing} box={box} />
+    const scene = sceneFor(art)
+    if (scene) {
+      // A whole place as a small picture: still, and cropped to the box it was given.
+      return (
+        <svg x={box.x} y={box.y} width={box.width} height={box.height} viewBox={`0 0 ${scene.w} ${scene.h}`} preserveAspectRatio="xMidYMid slice" data-art={art.href} aria-hidden="true" focusable="false">
+          <rect width={scene.w} height={scene.h} fill={scene.base} />
+          <SceneLayers scene={scene} still />
+        </svg>
+      )
+    }
     const mark = paperMarkFor(art)
     if (mark) {
       return (

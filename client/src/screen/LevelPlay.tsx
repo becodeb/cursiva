@@ -1398,8 +1398,7 @@ html, body, #root { margin: 0; padding: 0; }
  * it was never meant to reach. A normal (narrower-than-cap) animal's own
  * natural size already sits under this cap, so nothing here changes for it
  * -- object-fit is a no-op once content already fits its box. */
-.pistas-animal img { display: block; max-width: ${ANIMAL_MAX_WIDTH}px; object-fit: contain; filter: brightness(0); opacity: 0.5; }
-.pistas-animal-rescued img { filter: none; opacity: 1; }
+.pistas-animal svg, .pistas-animal img { display: block; max-width: ${ANIMAL_MAX_WIDTH}px; object-fit: contain; }
 .pistas-slot { display: block; border-radius: 13px; background: rgba(255,255,255,0.42); }
 .pistas-slot-shell-filed .pistas-slot {
   animation: pistas-store-pop 760ms cubic-bezier(.2,.9,.25,1.2) both;
@@ -1775,7 +1774,7 @@ html, body, #root { margin: 0; padding: 0; }
    * rule, written once at the top of this stylesheet, is what actually
    * turns them into a rendered size. */
   .pistas-bar { --pistas-max-slot: 34px; --pistas-gap: 5px; }
-  .pistas-animal img { height: 40px; }
+  .pistas-animal svg, .pistas-animal img { height: 40px !important; width: auto !important; }
   /* width: 47px -> ~50px tall, comfortably inside the 48px back button row
    * this breakpoint sets just above (1280x720 and 1024x768 both land here). */
   .cv-level-zoo-sign > svg { width: 47px; }
@@ -1839,7 +1838,7 @@ html, body, #root { margin: 0; padding: 0; }
    * still goes straight into canvas height (844x390 lands here). (V3 fix:
    * same two custom properties as the breakpoint above, same reason.) */
   .pistas-bar { --pistas-max-slot: 26px; --pistas-gap: 4px; }
-  .pistas-animal img { height: 32px; }
+  .pistas-animal svg, .pistas-animal img { height: 32px !important; width: auto !important; }
 }
 `
 
