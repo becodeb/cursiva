@@ -569,3 +569,40 @@ Primero se arregla la medición; después se construye encima.
    detective) o puede ser una pantalla aparte más sobria?
 5. ¿Los niños usan en paralelo un cuaderno, y de qué tipo (renglón simple o
    doble pauta)?
+
+---
+
+## 9. Lo que se decidió sin esperar la respuesta
+
+La autora pidió implementar y probar al final, así que la tanda 4 se construyó con
+estos supuestos. Son valores por defecto para confirmar, no respuestas (`odd/tasks/papel-world.md`).
+
+| Pregunta de §8 | Se hizo así | Por qué, y qué cambia si la respuesta es otra |
+|---|---|---|
+| 1. Trazo de entrada | Las letras arrancan con entrada desde el renglón, como `f3-l` y `f3-o` | Es lo que dibujan los SVG de `letters/svg/`. Si la escuela arranca directo en la letra, hay que redibujar esas entradas |
+| 2. Sesión y quién para | El juego no corta: cada capítulo se puede dejar y el mapa lo retoma en el paso que quedó | Sin datos de duración real. Si la docente quiere cortes, van entre letras |
+| 3. Animal como misterio | Sigue siendo misterio hasta la deducción (revisión anterior, `caseMystery.test.ts`) | Sin cambio en esta tanda |
+| 4. Etapa de letras | Dentro de la historia: la libreta del detective (4.5), una página de papel recortado dibujada en código | Si se prefiere pantalla sobria, se cambia la página, no la secuencia |
+| 5. Cuaderno en paralelo | Pauta de tres zonas, con el cuerpo de la letra teñido | Si usan renglón simple, se saca la línea alta y el tinte |
+
+**Orden real de las letras.** 4.6 las lista empezando por `o a`, pero cada par va después
+de su familia y el recorrido visita primero al pato: un chico llega en el orden
+`m n`, `u`, `o a`, `l e`. Se priorizó que la letra llegue pronto (`docs/21` §3.3) y que siga
+a su gesto. Si la autora quiere `o a` primero, hay que reordenar el recorrido, no las letras.
+
+**Palabras.** `mano`, `ola` y `luna`, solo con letras ya practicadas. `mamá` quedó afuera:
+`buildWord` no sabe hacer el acento y escribiría `mama`. En las costuras del modelo hay un
+pequeño retroceso de 20 unidades (`combinations.ts`), que se ve en la guía como un guioncito;
+el corredor lo absorbe y no se le exige al trazo.
+
+**Niveles.** Cada letra son cuatro niveles guardados: `<letra>-calco` (demo y corredor),
+`-punteado`, `-copia`, `-memoria`, más un nivel puente por familia (`duck-puente`,
+`fish-puente`, `turtle-puente`, `monkey-puente`). En copia y memoria el trazo se juzga por su
+forma donde haya caído en la hoja (`game/freehand.ts`): no hay corredor que diga dónde va.
+Nunca bloquea: a los dos intentos vuelve la guía con la demo, a los cuatro aparece la flecha
+para seguir. `f3-*` quedan como estaban y solo se abren con enlace de desarrollo.
+
+**Puntaje (4.1).** Calibrado solo con trazos simulados. Falta lo que 4.1 pide: dos o tres
+tablets reales y chicos reales. Los umbrales están en `canvas/validation/fluency.ts` y
+`backAndForth.ts`, y los trazos de prueba en `testing/childStrokes.ts`.
+

@@ -12,8 +12,8 @@ Una app web táctil que construye la **memoria motora del trazo cursivo** de for
 
 ## 3. Público objetivo
 
-- **Núcleo:** 1º y 2º grado (6–8 años). Son quienes están aprendiendo cursiva de forma obligatoria.
-- **Extensión:** 3º a 5º grado como remediación para chicos con grafía trabada, y sala de 5 en las fases 1–2 (motricidad pura, sin letras).
+- **Núcleo:** chicos de 5 a 7 años (sala de 5, 1º y 2º grado), que van de la grafía a la cursiva. Muchos todavía no leen: toda consigna se oye y se muestra, nunca se escribe sola.
+- **Extensión:** 3º a 5º grado como remediación para chicos con grafía trabada.
 
 La app **no** pide un test de nivel. La progresión por fases hace que un chico de 5º que arranca desde cero pase rápido las fases 1–2 y un chico de 1º las recorra completas.
 
@@ -73,6 +73,7 @@ Acá aparece por primera vez la regla que define la cursiva: *no se levanta el d
 **Qué entrena:** memoria motora de largo plazo, integración forma-sentido, uso de las tres zonas del renglón.
 **Mecánica:** trazado de la letra respetando punto de inicio, dirección del giro y altura en la pauta.
 **Agrupamiento por familia de movimiento, no alfabético:** la `a` se enseña con la `c`, `d`, `g`, `o`, `q` porque comparten el mismo giro antihorario.
+**En el recorrido:** cada capítulo de letras sigue a la familia de animales que ya entrenó ese gesto, y se escribe en la libreta del detective (`docs/25` §9).
 
 ### Fase 4 — Enlace y ligadura (Nivel 6 · Enlace y ligadura)
 **Qué entrena:** anticipación espacial, empalme, memoria de trabajo secuencial. **Es el núcleo de la cursiva.**
