@@ -7,6 +7,10 @@ export type ActName = 'wave' | 'cheer' | 'scare' | 'sad' | 'sleep'
 
 export const ACT_NAMES: readonly ActName[] = ['wave', 'cheer', 'scare', 'sad', 'sleep']
 
+/** What a rig is, rather than what it is doing: the hedgehog's curl, the snake's
+ *  length. Numbers, so a change can ease like a mood does. */
+export type RigState = Readonly<Record<string, number>>
+
 /** Seconds an act lasts when the caller does not say. */
 export const ACT_SECONDS: Readonly<Record<ActName, number>> = { wave: 2.4, cheer: 2.2, scare: 1.3, sad: 2.6, sleep: 3.2 }
 
@@ -20,6 +24,7 @@ export interface Pose {
   open: number
   brow: number
   hop: number
+  state: RigState
 }
 
 export interface Actor {
@@ -31,6 +36,8 @@ export interface Actor {
   until: Record<ActName, number>
   look: [number, number]
   lookGoal: [number, number]
+  state: Record<string, number>
+  stateGoal: Record<string, number>
   nextBlink: number
   blinkAt: number | null
   rand: () => number
@@ -39,7 +46,7 @@ export interface Actor {
 /** Below this an act no longer shows: the puppet has finished moving. */
 const SETTLED = 0.002
 
-export function createActor(seed: number, held?: ActName): Actor {
+export function createActor(seed: number, held?: ActName, state?: RigState): Actor {
   const rand = seeded(seed * 31 + 11)
   const acts: Record<ActName, number> = { wave: 0, cheer: 0, scare: 0, sad: 0, sleep: 0 }
   const until: Record<ActName, number> = { wave: 0, cheer: 0, scare: 0, sad: 0, sleep: 0 }
@@ -54,6 +61,8 @@ export function createActor(seed: number, held?: ActName): Actor {
     until,
     look: [0, 0],
     lookGoal: [0, 0],
+    state: { ...state },
+    stateGoal: { ...state },
     nextBlink: rand() * 3,
     blinkAt: null,
     rand,
@@ -68,6 +77,11 @@ export function holdAct(actor: Actor, name: ActName, on: boolean): void {
   actor.until[name] = on ? Infinity : 0
 }
 
+/** Eases the rig towards `values`; a calm puppet just arrives. */
+export function setActorState(actor: Actor, values: RigState): void {
+  Object.assign(actor.stateGoal, values)
+}
+
 /** Advances one frame. Calm snaps moods to their goal instead of easing them
  *  and does not breathe, blink or hop, but an act still shows and still ends. */
 export function stepActor(actor: Actor, dt: number, calm: boolean): void {
@@ -78,6 +92,11 @@ export function stepActor(actor: Actor, dt: number, calm: boolean): void {
   for (const name of ACT_NAMES) {
     const goal = actor.clock < actor.until[name] ? 1 : 0
     actor.acts[name] += (goal - actor.acts[name]) * ease
+  }
+  const settle = calm ? 1 : 1 - Math.exp(-dt * 5)
+  for (const key of Object.keys(actor.stateGoal)) {
+    const from = actor.state[key] ?? actor.stateGoal[key]
+    actor.state[key] = from + (actor.stateGoal[key] - from) * settle
   }
   if (!calm) {
     actor.nextBlink -= dt
@@ -97,6 +116,7 @@ export function stepActor(actor: Actor, dt: number, calm: boolean): void {
  *  pending costs nothing: it is simply not on the ticker. */
 export function actorNeedsTicks(actor: Actor, calm: boolean): boolean {
   if (!calm) return true
+  if (Object.keys(actor.stateGoal).some((key) => Math.abs(actor.stateGoal[key] - (actor.state[key] ?? actor.stateGoal[key])) > SETTLED)) return true
   return ACT_NAMES.some((name) => actor.clock < actor.until[name] || actor.acts[name] > SETTLED)
 }
 
@@ -115,6 +135,7 @@ export function poseOf(actor: Actor, calm: boolean): Pose {
     open: clamp(a.cheer * 0.95 + a.wave * 0.5 + a.scare * 0.55, 0, 1),
     brow: a.sad + a.scare * 0.7,
     hop: Math.abs(Math.sin(actor.t * 7.5)),
+    state: actor.state,
   }
 }
 

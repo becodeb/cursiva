@@ -6,18 +6,22 @@
 import type { CSSProperties, ReactNode } from 'react'
 import {
   ANIMAL_ART,
+  GOAL_MEDUSA_ART,
   OCTOPUS_ART,
   OCTOPUS_EMPTY_HANDED_ART,
+  PROMISED_ANIMAL_ART,
   PULPITO_POSE_ART,
+  SECTOR_ADVENTURE_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
 } from '../detective/assets'
-import type { ActName } from './actor'
+import type { ActName, RigState } from './actor'
 import type { PuppetName } from './characters'
 import Puppet, { type PuppetAccessories } from './Puppet'
 
 export interface PuppetFigure {
   readonly name: PuppetName
   readonly accessories?: PuppetAccessories
+  readonly state?: RigState
 }
 
 /** The lens comes out only where the registry's own drawing holds it. */
@@ -30,6 +34,11 @@ const PUPPET_FIGURES: ReadonlyMap<string, PuppetFigure> = new Map<string, Puppet
   // No backpack on the engine yet: the map's figure wears what the others wear.
   [ZOO_OCTOPUS_BACKPACK_ART.href, { name: 'pulpo' }],
   [ANIMAL_ART.pato.href, { name: 'pato' }],
+  [SECTOR_ADVENTURE_ART.sheep.href, { name: 'oveja' }],
+  [SECTOR_ADVENTURE_ART.llama.href, { name: 'llama' }],
+  [PROMISED_ANIMAL_ART.pez.href, { name: 'pez' }],
+  [GOAL_MEDUSA_ART.href, { name: 'medusa' }],
+  [PROMISED_ANIMAL_ART.tortuga.href, { name: 'tortuga' }],
 ])
 
 export function puppetFigureFor(art: { readonly href: string }): PuppetFigure | undefined {
@@ -65,6 +74,7 @@ export function ArtImg({ art, className, style, still = true, entrance, holding,
     <Puppet
       name={figure.name}
       accessories={figure.accessories}
+      state={figure.state}
       aspect={art.w / art.h}
       artHref={art.href}
       className={className}
@@ -97,6 +107,7 @@ export function ArtInSvg({ art, box, still = true, entrance, holding, followPoin
     <Puppet
       name={figure.name}
       accessories={figure.accessories}
+      state={figure.state}
       box={box}
       artHref={art.href}
       still={still}

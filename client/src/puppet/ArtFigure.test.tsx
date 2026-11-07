@@ -1,7 +1,7 @@
 import { isValidElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { ANIMAL_ART, OCTOPUS_ART, OCTOPUS_EMPTY_HANDED_ART, PULPITO_POSE_ART, ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
+import { ANIMAL_ART, ANIMAL_SILHOUETTE_ART, OCTOPUS_ART, OCTOPUS_EMPTY_HANDED_ART, PULPITO_POSE_ART, SIGN_ART, ZOO_ANIMAL_ART, ZOO_OCTOPUS_BACKPACK_ART } from '../detective/assets'
 import { stageSpeechTarget } from '../screen/pulpitoStance'
 import { ArtImg, ArtInSvg, puppetFigureFor, standingFigure } from './ArtFigure'
 import { puppetView } from './characters'
@@ -9,14 +9,14 @@ import { puppetView } from './characters'
 const BOX = { x: 10, y: 20, width: 80, height: 100 }
 
 describe('the seam', () => {
-  it('names a puppet for the Pulpito and the duck, and nothing for the rest of the cast', () => {
+  it('names a puppet for the cast, and nothing for a prop or a silhouette', () => {
     expect(puppetFigureFor(ZOO_ANIMAL_ART.pato)?.name).toBe('pato')
     for (const art of [OCTOPUS_ART, OCTOPUS_EMPTY_HANDED_ART, ZOO_OCTOPUS_BACKPACK_ART, ...Object.values(PULPITO_POSE_ART)]) {
       expect(puppetFigureFor(art)?.name, art.href).toBe('pulpo')
     }
-    for (const id of ['oveja', 'delfin', 'erizo', 'mono', 'pez', 'tortuga'] as const) {
-      expect(puppetFigureFor(ZOO_ANIMAL_ART[id]), id).toBeUndefined()
-    }
+    expect(puppetFigureFor(SIGN_ART.fish)).toBeUndefined()
+    // The deduction's "who is it?" stays a silhouette until it is answered.
+    for (const art of Object.values(ANIMAL_SILHOUETTE_ART)) expect(puppetFigureFor(art!), art!.href).toBeUndefined()
   })
 
   it('only the drawing that holds the lens gets the lens', () => {
@@ -26,10 +26,10 @@ describe('the seam', () => {
   })
 
   it('renders the PNG when there is no puppet, in both worlds', () => {
-    const img = renderToString(<ArtImg art={ANIMAL_ART.vaca} className="x" />)
-    expect(img).toContain(`src="${ANIMAL_ART.vaca.href}"`)
-    const image = renderToString(<svg><ArtInSvg art={ANIMAL_ART.vaca} box={BOX} /></svg>)
-    expect(image).toContain(`href="${ANIMAL_ART.vaca.href}"`)
+    const img = renderToString(<ArtImg art={SIGN_ART.fish} className="x" />)
+    expect(img).toContain(`src="${SIGN_ART.fish.href}"`)
+    const image = renderToString(<svg><ArtInSvg art={SIGN_ART.fish} box={BOX} /></svg>)
+    expect(image).toContain(`href="${SIGN_ART.fish.href}"`)
     expect(image).toContain('width="80"')
     expect(image).not.toContain('data-puppet')
   })
@@ -61,7 +61,7 @@ describe('standingFigure, for the trace canvas', () => {
   })
 
   it('leaves the canvas its <image> for a picture with no puppet', () => {
-    expect(standingFigure(ANIMAL_ART.vaca)).toBeUndefined()
+    expect(standingFigure(SIGN_ART.fish)).toBeUndefined()
   })
 
   it('keeps one function per picture across renders', () => {
