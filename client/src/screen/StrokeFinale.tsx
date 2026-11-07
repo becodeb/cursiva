@@ -59,13 +59,13 @@ function propDrawing(kind: FinaleProp['kind']): ReactNode {
     case 'drop':
       return <circle r={14} fill="#f1fcfd" />
     case 'scute':
-      return <path d="M0 -14L12 -7L12 7L0 14L-12 7L-12 -7Z" fill="#7a9e58" />
+      return <path d="M-13 -7C-8 -14 8 -14 13 -7C16 0 13 9 6 12C0 14 -8 13 -12 8C-16 3 -16 -3 -13 -7Z" fill="#25583c" />
   }
 }
 
 function propTransform(prop: FinaleProp, frame: FinaleFrame['props'][number]): string {
   const scale = (prop.size / 14) * frame.shown
-  return `translate(${fmt(frame.x)} ${fmt(frame.y)})scale(${scale.toFixed(3)})`
+  return `translate(${fmt(frame.x)} ${fmt(frame.y)})rotate(${prop.turn ?? 0})scale(${scale.toFixed(3)})`
 }
 
 function fillTransform(rise: number, shown: number): string | undefined {

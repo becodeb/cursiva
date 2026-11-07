@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getCharacterView } from '../puppet/characters'
 import { ADVENTURES, type AdventureFinale, type FinaleKind } from '../zoo/adventures'
 import type { TracedLine } from '../zoo/tracedLine'
 import { composeFinale, firstLoop, fitStrokes, finaleFrame, FINALE_STAGE, type FinaleScene } from './strokeFinale'
@@ -234,5 +235,84 @@ describe('the hedgehog', () => {
 describe('nothing to draw with', () => {
   it('composes no scene: the closing runs alone', () => {
     expect(composeFinale({ kind: 'water' }, { levelId: 'l', w: 1, h: 1, strokes: [] })).toBeNull()
+  })
+})
+
+describe('paper polish', () => {
+  const numbers = (d: string) => d.match(/-?\d+\.\d+ -?\d+\.\d+/g)!.map((pair) => pair.split(' ').map(Number))
+
+  it('the water has no step: past the line it runs on as a dying swell, not a flat edge', () => {
+    const s = scene('water')
+    const left = numbers(s.fills[0].d).filter(([x]) => x < s.track[0][0] - 20 && x > s.track[0][0] - 500)
+    expect(new Set(left.map(([, y]) => y.toFixed(0))).size).toBeGreaterThan(3)
+  })
+
+  it('the deeper a sheet of water, the calmer: same line, softer', () => {
+    const s = scene('water')
+    const rough = (d: string) => {
+      const ys = numbers(d).filter(([x]) => x > 100 && x < 900).map(([, y]) => y)
+      return Math.max(...ys) - Math.min(...ys)
+    }
+    expect(rough(s.fills[2].d)).toBeLessThan(rough(s.fills[0].d))
+  })
+
+  it('the strip is a curve through every kept point, not a polygon', () => {
+    const s = scene('water')
+    expect(s.strokes[0]).toContain('C')
+    expect(s.strokes[0]).not.toContain('L')
+    for (const p of s.track) expect(s.strokes[0]).toContain(`${p[0].toFixed(1)} ${p[1].toFixed(1)}`)
+  })
+
+  const oval: TracedLine = {
+    levelId: 'l',
+    w: 1,
+    h: 0.6,
+    strokes: [
+      Array.from({ length: 41 }, (_, i): [number, number] => {
+        const a = (i / 40) * Math.PI * 2
+        return [0.5 + Math.sin(a) * 0.5, 0.3 - Math.cos(a) * 0.3]
+      }),
+    ],
+  }
+
+  it("the plate lies over the turtle's real shell: her shell's middle is the plate's middle", () => {
+    const aspect = 448 / 292
+    const s = composeFinale({ kind: 'shell' }, oval, aspect)!
+    const view = getCharacterView('tortuga', aspect)
+    const box = { w: s.carriage.size * aspect, h: s.carriage.size }
+    const shellInBox: [number, number] = [((175 - view.x) / view.w) * box.w, ((119 - view.y) / view.h) * box.h]
+    expect(box.w * (s.carriage.pivotX ?? 0.5)).toBeCloseTo(shellInBox[0], 3)
+    expect(box.h * (1 - s.carriage.anchor)).toBeCloseTo(shellInBox[1], 3)
+    const plate = numbers(s.fills[0].d)
+    const xs = plate.map((p) => p[0])
+    const ys = plate.map((p) => p[1])
+    expect((Math.min(...xs) + Math.max(...xs)) / 2).toBeCloseTo(s.track[0][0], -1)
+    expect((Math.min(...ys) + Math.max(...ys)) / 2).toBeCloseTo(s.track[0][1], -1)
+  })
+
+  it('the shell keeps the wobble with no facets: its outline is curves', () => {
+    const s = scene('shell', {}, oval)
+    expect(s.fills[0].d).toContain('C')
+    expect(s.fills[0].d).not.toContain('L')
+  })
+
+  it('a few vines reach the canopy, never one per loop', () => {
+    const loops: TracedLine = {
+      levelId: 'l',
+      w: 1,
+      h: 0.5,
+      strokes: [Array.from({ length: 121 }, (_, i): [number, number] => [i / 120 + Math.sin((i / 120) * Math.PI * 12) * 0.03, 0.25 - Math.cos((i / 120) * Math.PI * 12) * 0.25])],
+    }
+    const s = scene('lianas', {}, loops)
+    expect(s.hangs.length).toBeGreaterThan(0)
+    expect(s.hangs.length).toBeLessThanOrEqual(4)
+  })
+
+  it("the monkey hangs by its raised hand: the hand is the point it travels on", () => {
+    const aspect = 269 / 448
+    const s = composeFinale({ kind: 'lianas' }, waveLine, aspect)!
+    const view = getCharacterView('mono', aspect, { pose: 0 })
+    const box = { w: s.carriage.size * aspect, h: s.carriage.size }
+    expect(box.w * (s.carriage.pivotX ?? 0.5)).toBeCloseTo(((234 - view.x) / view.w) * box.w, 3)
   })
 })
