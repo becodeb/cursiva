@@ -1,9 +1,8 @@
-// The detective's notebook (`odd/tasks/prewriting-stage-completion.md` T23;
-// `docs/19_PROPUESTA_HISTORIA_Y_MECANICAS.md` §5.1/§5.3): opened from the
-// map's backpack pill (`screen/ZooMap.tsx`), it shows every animal of the
-// zoo — rescued ones in colour with their own spot, missing ones as a
-// silhouette with a bare "?" — plus a strip of the tools the Pulpito has
-// been given so far (`zoo/backpack.ts`'s own registry).
+// The detective's notebook and the animal album in one (`docs/19` §5.1/§5.3,
+// `docs/18` §7 P2): opened from the map's backpack pill (`screen/ZooMap.tsx`), it shows
+// every animal of the zoo: the live puppet once rescued, with what this child wrote for
+// its family beside it, and its bare outline until then. Nothing on the cards is a word:
+// a tap is heard. A strip of the tools the Pulpito has been given sits above them.
 //
 // [T23 follow-up, orchestrator screenshot review] The first pass read as
 // unfinished: tiny floating pictures on an empty page, inconsistent caption
@@ -23,21 +22,28 @@
 // aspect slot) rather than a JS-computed pixel size: any aspect ratio, from
 // the llama's tall portrait to vibora's long low body, simply shrinks to
 // fit the same card shape.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { playSfx } from '../audio/sfx'
 import { CloseIcon, NotebookPadIcon, PawPrintIcon, PencilIcon } from '../detective/icons'
 import { CARRIER_LENS_ART, type ZooAnimalId } from '../detective/assets'
 import { ArtImg } from '../puppet/ArtFigure'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { BACKPACK_ITEMS, earnedItems } from '../zoo/backpack'
-import { notebookEntries } from '../zoo/notebook'
+import { lettersOf, notebookEntries, type NotebookAnimalEntry } from '../zoo/notebook'
+import { ADVENTURES } from '../zoo/adventures'
+import { puppetFigureFor } from '../puppet/ArtFigure'
+import type { PuppetHandle } from '../puppet/Puppet'
+import { PAPER_CARD_SHADOW, PAPER_EDGE } from '../puppet/rig'
+import { loadTracedLines, smoothStrokePath, type TracedLine } from '../zoo/tracedLine'
 import type { Records } from '../zoo/sectors'
 import { canAutoSpeak, speak } from '../voice/narrator'
 import { loadWritings, notebookWritings, type Writing } from '../zoo/notebookWriting'
 import { strokePath, writingViewBox } from './NotebookKeepsake'
 import { NotebookRule } from './NotebookPaper'
 
-const INK = '#1a1a1a'
+/** An animal not found yet: its shape and nothing else, dark enough to wonder about. */
+const SILHOUETTE = '#4a5560'
+const WHO_LINE = '¿Dónde estará?'
 
 const NOTEBOOK_CSS = `
 /* position: fixed (not absolute): the map's own stage is a letterboxed 5:3
@@ -69,7 +75,7 @@ const NOTEBOOK_CSS = `
 .cv-notebook-title { display: flex; align-items: center; gap: 10px; }
 .cv-notebook-title img, .cv-notebook-title svg { height: min(6dvh, 42px); width: auto; display: block; }
 .cv-notebook-header-right { display: flex; align-items: center; gap: 8px; }
-.cv-notebook-tab { flex: none; width: max(44px, min(9dvh, 60px)); height: max(44px, min(9dvh, 60px)); box-sizing: border-box; border-radius: 50%; border: 3px solid ${INK}; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; padding: 7px; cursor: pointer; }
+.cv-notebook-tab { flex: none; width: max(44px, min(9dvh, 60px)); height: max(44px, min(9dvh, 60px)); box-sizing: border-box; border-radius: 50%; border: 3px solid ${PAPER_EDGE}; box-shadow: ${PAPER_CARD_SHADOW}; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; padding: 7px; cursor: pointer; }
 .cv-notebook-tab svg { width: 100%; height: 100%; display: block; }
 /* What the child wrote: their own strokes on the rule, nothing else on the page. */
 .cv-notebook-writing { position: relative; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 1.5dvh 2%; padding: 0 3% 2dvh; }
@@ -84,7 +90,7 @@ const NOTEBOOK_CSS = `
    already use. box-sizing: border-box so the border never adds to the
    grid track's own computed size (the overflow this whole pass exists to
    fix). */
-.cv-notebook-card { box-sizing: border-box; background: ${SHEET_PAPER}; border: 3px solid ${INK}; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4%; min-width: 0; min-height: 0; overflow: hidden; }
+.cv-notebook-card { box-sizing: border-box; background: ${SHEET_PAPER}; border: 3px solid ${PAPER_EDGE}; box-shadow: ${PAPER_CARD_SHADOW}; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4%; min-width: 0; min-height: 0; overflow: hidden; }
 /* The image+caption group gets a DEFINITE height (100% of the card's own
    content box) so the picture's percentage height below has something
    real to resolve against — an "auto"-height ancestor would otherwise
@@ -98,7 +104,13 @@ const NOTEBOOK_CSS = `
 .cv-notebook-card-art { width: 60%; height: 60%; object-fit: contain; display: block; flex: none; }
 .cv-notebook-card .cv-caption { margin-top: 4%; flex: none; font-size: clamp(10px, 1.6vw, 15px); line-height: 1.15; font-weight: 700; color: #1e293b; text-align: center; }
 button.cv-notebook-card { cursor: pointer; font: inherit; }
-button.cv-notebook-card:disabled { cursor: default; }
+/* A page of the album: the animal, and beside it what this child wrote for its family. */
+.cv-album-card { position: relative; flex-direction: row; gap: 3%; padding: 3%; }
+.cv-album-figure { flex: 1 1 58%; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: center; }
+.cv-album-figure > svg, .cv-album-figure > img { width: 100%; height: 100%; max-height: 100%; display: block; }
+.cv-album-written { flex: 0 1 40%; min-width: 0; height: 74%; display: block; }
+.cv-album-written svg { width: 100%; height: 100%; display: block; }
+.cv-album-card--missing { background: #efeadb; }
 /* Tools strip: fixed-size SQUARE cards in a centred row — a strip, not a
    grid, so it never competes with the animal grid below it for space.
    Sized by HEIGHT (dvh, bounded) rather than by width/flex-grow: at a
@@ -204,6 +216,78 @@ function WrittenPiece({ writing }: { writing: Writing }) {
   )
 }
 
+/** What this child wrote for a family, small, beside its animal: a real letter once
+ *  there is one, otherwise the line they drew for it. Never a model. */
+function AlbumKeepsake({ writing, line }: { writing?: Writing | null; line?: TracedLine | null }) {
+  if (writing) {
+    return (
+      <span className="cv-album-written" data-cv-album-written="letter">
+        <svg viewBox={writingViewBox(writing, 16)} aria-hidden="true" data-cv-picture="true">
+          {writing.strokes.map((stroke, i) => (
+            <path key={i} d={strokePath(stroke)} fill="none" stroke="#2a3442" strokeWidth={14} strokeLinecap="round" strokeLinejoin="round" />
+          ))}
+        </svg>
+      </span>
+    )
+  }
+  if (!line) return null
+  const k = 100
+  return (
+    <span className="cv-album-written" data-cv-album-written="line">
+      <svg viewBox={`-8 -8 ${line.w * k + 16} ${line.h * k + 16}`} aria-hidden="true" data-cv-picture="true">
+        {line.strokes.map((stroke, i) => (
+          <path
+            key={i}
+            d={smoothStrokePath(stroke.map(([x, y]) => [x * k, y * k]))}
+            fill="none"
+            stroke="#2a3442"
+            strokeWidth={4.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ))}
+      </svg>
+    </span>
+  )
+}
+
+function AlbumCard({ entry, highlighted, writing, line }: { entry: NotebookAnimalEntry; highlighted: boolean; writing?: Writing | null; line?: TracedLine | null }) {
+  const puppet = useRef<PuppetHandle | null>(null)
+  const classes = ['cv-notebook-card', 'cv-album-card']
+  if (highlighted) classes.push('cv-notebook-card--highlight')
+  if (!entry.rescued) classes.push('cv-album-card--missing')
+  const hasPuppet = !!puppetFigureFor(entry.figure)
+  return (
+    <button
+      type="button"
+      className={classes.join(' ')}
+      aria-label={entry.rescued ? `${entry.id}, ${entry.caption}` : 'Animal todavía no encontrado'}
+      data-cv-album={entry.id}
+      data-cv-album-found={entry.rescued ? 'true' : 'false'}
+      onClick={() => {
+        playSfx('tap')
+        if (!entry.rescued) {
+          if (canAutoSpeak()) speak(WHO_LINE)
+          return
+        }
+        puppet.current?.act('cheer', 1.4)
+        if (entry.line && canAutoSpeak()) speak(entry.line)
+      }}
+    >
+      <span className="cv-album-figure">
+        {hasPuppet ? (
+          <ArtImg art={entry.figure} silhouette={entry.rescued ? undefined : SILHOUETTE} puppetRef={puppet} />
+        ) : entry.placeholderArt ? (
+          <PawPrintIcon />
+        ) : (
+          <img src={entry.art.href} alt="" />
+        )}
+      </span>
+      {entry.rescued && <AlbumKeepsake writing={writing} line={line} />}
+    </button>
+  )
+}
+
 export interface DetectiveNotebookProps {
   records: Records
   onClose: () => void
@@ -214,6 +298,7 @@ export interface DetectiveNotebookProps {
   highlightId?: ZooAnimalId | null
   /** Tests pin it: there is no `localStorage` under `renderToString`. */
   writings?: readonly Writing[]
+  lines?: Readonly<Partial<Record<string, TracedLine>>>
 }
 
 /**
@@ -224,8 +309,20 @@ export interface DetectiveNotebookProps {
  * for the pieces that DO need one (this one does not: there is no auto-hide
  * timer to drive).
  */
-export default function DetectiveNotebook({ records, onClose, highlightId, writings }: DetectiveNotebookProps) {
+export default function DetectiveNotebook({ records, onClose, highlightId, writings, lines }: DetectiveNotebookProps) {
   const [written] = useState(() => writings ?? notebookWritings(loadWritings()))
+  const [familyLines] = useState(() => lines ?? loadTracedLines())
+  const writingOf = (id: NotebookAnimalEntry['id']): Writing | null => {
+    for (const key of lettersOf(id)) {
+      const found = written.find((w) => w.key === key)
+      if (found) return found
+    }
+    return null
+  }
+  const lineOf = (id: NotebookAnimalEntry['id']): TracedLine | null => {
+    const row = ADVENTURES.find((a) => a.animal === id)
+    return (row && familyLines[row.id]) ?? null
+  }
   const [page, setPage] = useState<'animals' | 'writing'>('animals')
   const animals = notebookEntries(records)
   const earnedIds = new Set(earnedItems(records).map((item) => item.id))
@@ -292,42 +389,13 @@ export default function DetectiveNotebook({ records, onClose, highlightId, writi
               earnedIds.has(item.id) ? 'cv-notebook-card' : 'cv-notebook-card cv-notebook-tool-pending'
             }
           >
-            <img src={item.art.href} alt="" className="cv-notebook-card-art" />
+            <ArtImg art={item.art} className="cv-notebook-card-art" />
           </div>
         ))}
       </div>
       <div className="cv-notebook-grid">
         {animals.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            className={entry.id === highlightId ? 'cv-notebook-card cv-notebook-card--highlight' : 'cv-notebook-card'}
-            disabled={!entry.rescued}
-            aria-label={entry.rescued ? `${entry.id}, ${entry.caption}` : 'Animal todavía no encontrado'}
-            onClick={
-              entry.rescued
-                ? () => {
-                    if (entry.line && canAutoSpeak()) speak(entry.line)
-                  }
-                : undefined
-            }
-          >
-            {/* `cv-captioned`: the licensed container `detective/captionAudit.ts`
-                requires around any visible word (the caption below). The
-                picture is either the real art (colour or silhouette) or, for
-                a placeholder animal's own missing page, a drawn paw print
-                (`PawPrintIcon`'s own `data-cv-picture="true"` is what lets a
-                hand-drawn glyph satisfy the SAME invariant a raster <img>
-                normally does). */}
-            <span className="cv-captioned">
-              {entry.placeholderArt ? (
-                <PawPrintIcon className="cv-notebook-card-art" />
-              ) : (
-                <img src={entry.art.href} alt="" className="cv-notebook-card-art" />
-              )}
-              <span className="cv-caption">{entry.caption}</span>
-            </span>
-          </button>
+          <AlbumCard key={entry.id} entry={entry} highlighted={entry.id === highlightId} writing={writingOf(entry.id)} line={lineOf(entry.id)} />
         ))}
       </div>
       </>

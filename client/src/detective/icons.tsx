@@ -72,11 +72,13 @@ export function CloseIcon() {
 export function NotebookPadIcon() {
   return (
     <svg viewBox="0 0 40 40" aria-hidden="true" focusable="false">
-      <rect x="8" y="4" width="25" height="32" rx="3" fill="none" stroke={ICON_INK} strokeWidth={3} />
-      <circle cx="8" cy="10" r="1.6" fill={ICON_INK} />
-      <circle cx="8" cy="17" r="1.6" fill={ICON_INK} />
-      <circle cx="8" cy="24" r="1.6" fill={ICON_INK} />
-      <circle cx="8" cy="31" r="1.6" fill={ICON_INK} />
+      <rect x="9" y="5" width="25" height="32" rx="3" fill={PAPER_SHADOW_FILL} />
+      <rect x="8" y="3" width="25" height="32" rx="3" fill="#3e9a7f" />
+      <rect x="12" y="6" width="19" height="26" rx="1.5" fill={SHEET_PAPER} />
+      <circle cx="8" cy="10" r="1.8" fill={ICON_INK} />
+      <circle cx="8" cy="17" r="1.8" fill={ICON_INK} />
+      <circle cx="8" cy="24" r="1.8" fill={ICON_INK} />
+      <circle cx="8" cy="31" r="1.8" fill={ICON_INK} />
       <line x1="14" y1="13" x2="28" y2="13" stroke={ICON_INK} strokeWidth={2} strokeLinecap="round" />
       <line x1="14" y1="20" x2="28" y2="20" stroke={ICON_INK} strokeWidth={2} strokeLinecap="round" />
       <line x1="14" y1="27" x2="24" y2="27" stroke={ICON_INK} strokeWidth={2} strokeLinecap="round" />

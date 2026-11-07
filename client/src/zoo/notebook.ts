@@ -79,6 +79,8 @@ export function isAnimalRescued(id: ZooAnimalId, records: Records): boolean {
 export interface NotebookAnimalEntry {
   id: ZooAnimalId
   rescued: boolean
+  /** The animal itself, whichever way it is shown: a puppet draws its own silhouette. */
+  figure: ArtImage
   /** Colour art once rescued; a derived silhouette (`ANIMAL_SILHOUETTE_ART`
    *  via `ZOO_ANIMAL_SILHOUETTE_ART`, `scripts/art/build_art.py`) while
    *  missing — never the coloured art, which would give the animal away.
@@ -114,10 +116,23 @@ export function notebookEntries(records: Records): readonly NotebookAnimalEntry[
     return {
       id,
       rescued,
+      figure: ZOO_ANIMAL_ART[id],
       art,
       placeholderArt: !rescued && PLACEHOLDER_ZOO_ANIMALS.has(id),
       caption: rescued ? (copy?.spot ?? '') : '?',
       line: rescued ? (copy?.line ?? null) : null,
     }
   })
+}
+
+/** The letters each family became. A family with no letters of its own keeps its line. */
+const ANIMAL_LETTERS: Readonly<Partial<Record<ZooAnimalId, readonly string[]>>> = {
+  pato: ['m', 'n'],
+  pez: ['u'],
+  tortuga: ['o', 'a'],
+  mono: ['l', 'e'],
+}
+
+export function lettersOf(id: ZooAnimalId): readonly string[] {
+  return ANIMAL_LETTERS[id] ?? []
 }

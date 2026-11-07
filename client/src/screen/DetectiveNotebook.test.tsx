@@ -6,7 +6,7 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import DetectiveNotebook from './DetectiveNotebook'
 import { auditCaptions } from '../detective/captionAudit'
-import { ANIMAL_SILHOUETTE_ART, CARRIER_LENS_ART, ZOO_ANIMAL_ART } from '../detective/assets'
+import { CARRIER_LENS_ART, ZOO_ANIMAL_ART } from '../detective/assets'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import type { Records } from '../zoo/sectors'
 
@@ -27,10 +27,10 @@ describe('DetectiveNotebook', () => {
     expect(html).toContain('.cv-notebook { position: fixed; inset: 0;')
   })
 
-  it('renders the wordless title (the lupa + the notebook pad icon) and a marker-style close button', () => {
+  it('renders the wordless title (the lupa + the notebook pad icon) and a paper close button', () => {
     const html = render()
     expect(html).toContain('class="cv-notebook-title"')
-    expect(html).toContain(`src="${CARRIER_LENS_ART.href}"`)
+    expect(html).toContain(`data-art="${CARRIER_LENS_ART.href}"`)
     expect(html).toContain('aria-label="Cerrar la libreta"')
     expect(html).toContain('class="cv-notebook-close"')
   })
@@ -44,36 +44,46 @@ describe('DetectiveNotebook', () => {
     expect(html).not.toContain('<clipPath')
   })
 
-  it('shows every real zoo animal as a missing silhouette on a fresh install', () => {
-    const html = render()
-    expect(html).toContain(`src="${ANIMAL_SILHOUETTE_ART.pato!.href}"`)
-    expect(html).not.toContain(`src="${ZOO_ANIMAL_ART.pato.href}"`)
-    expect(html).toContain('class="cv-caption">?</span>')
+  it('shows every real zoo animal as a bare outline on a fresh install: its shape and no face', () => {
+    const body = bodyOf(render())
+    expect((body.match(/data-cv-album-found="false"/g) ?? []).length).toBe(10)
+    expect(body).not.toContain(`data-art="${ZOO_ANIMAL_ART.pato.href}"`)
+    // No PNG, no white of an eye, no shadow: nothing that tells who it is.
+    expect(body).not.toContain('src="/art/animal-')
+    const pato = body.slice(body.indexOf('data-cv-album="pato"'))
+    const card = pato.slice(0, pato.indexOf('</button>')).replace(/--[a-zA-Z0-9]+:[^;"]+;?/g, '')
+    expect(card).not.toContain('#ffffff')
   })
 
-  it('[T49] draws the missing monkey as its own silhouette now that it is real art, no paw stand-in', () => {
-    const html = render()
-    expect(html).toContain('src="/art/animal-mono-silhouette.png"')
-    expect(html).not.toContain('data-cv-picture="true"')
+  it('shows the live puppet once rescued, and only for the one rescued', () => {
+    const body = bodyOf(render(filed('duck-trail4')))
+    expect(body).toContain(`data-art="${ZOO_ANIMAL_ART.pato.href}"`)
+    expect(body).toContain('data-puppet="pato"')
+    expect((body.match(/data-cv-album-found="true"/g) ?? []).length).toBe(1)
+    expect(body).not.toContain(`data-art="${ZOO_ANIMAL_ART.mono.href}"`)
   })
 
-  it('shows the monkey in colour once actually rescued', () => {
-    const html = render(filed('monkey4'))
-    expect(html).toContain(`src="${ZOO_ANIMAL_ART.mono.href}"`)
-    expect(html).not.toContain('data-cv-picture="true"')
+  it('has no word on a card, and every card can be tapped and heard', () => {
+    const body = bodyOf(render(filed('duck-trail4')))
+    expect(body).not.toContain('class="cv-caption"')
+    expect(body).not.toMatch(/<button[^>]*disabled/)
   })
 
-  it('shows a rescued animal in colour with its own spot caption', () => {
-    const html = render(filed('duck-trail4'))
-    expect(html).toContain(`src="${ZOO_ANIMAL_ART.pato.href}"`)
-    expect(html).toContain('class="cv-caption">en su laguna</span>')
+  it('puts the letter this child wrote beside its family, a real letter before a line', () => {
+    const m = { key: 'm', strokes: [[[10, 10], [40, 50], [80, 20]]] } as const
+    const line = { levelId: 'duck-trail4', w: 1, h: 0.3, strokes: [[[0, 0], [1, 0.3]]] } as const
+    const withLetter = bodyOf(renderToString(<DetectiveNotebook records={filed('duck-trail4')} onClose={() => {}} writings={[m]} lines={{ duck: line }} />))
+    expect(withLetter).toContain('data-cv-album-written="letter"')
+    const onlyLine = bodyOf(renderToString(<DetectiveNotebook records={filed('duck-trail4')} onClose={() => {}} writings={[]} lines={{ duck: line }} />))
+    expect(onlyLine).toContain('data-cv-album-written="line"')
+    const nothing = bodyOf(renderToString(<DetectiveNotebook records={filed('duck-trail4')} onClose={() => {}} writings={[]} lines={{}} />))
+    expect(nothing).not.toContain('data-cv-album-written')
   })
 
-  it('disables the button for a missing animal, and not for a rescued one', () => {
-    const html = render(filed('duck-trail4'))
-    // Nine animals remain missing out of the ten real zoo animals.
-    const disabledCount = (html.match(/<button[^>]*disabled/g) ?? []).length
-    expect(disabledCount).toBe(9)
+  it('never shows a keepsake for an animal not found yet', () => {
+    const line = { levelId: 'duck-trail4', w: 1, h: 0.3, strokes: [[[0, 0], [1, 0.3]]] } as const
+    const body = bodyOf(renderToString(<DetectiveNotebook records={{}} onClose={() => {}} writings={[]} lines={{ duck: line }} />))
+    expect(body).not.toContain('data-cv-album-written')
   })
 
   it('dims a not-yet-earned tool and shows a genuinely earned one at full strength', () => {
