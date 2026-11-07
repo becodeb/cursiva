@@ -31,6 +31,8 @@ import { SHEET_PAPER, fitContentWithInsets } from '../canvas/TraceCanvas'
 import { RevealLayer } from '../canvas/RevealLayer'
 import type { ArtBox } from '../canvas/placeArt'
 import { backdropFor } from '../zoo/backdrops'
+import { TRACE_PAPER } from '../puppet/ArtFigure'
+import { ArtBackdrop, SCENE_CSS, ScenePicture, sceneFor } from '../puppet/scene/Scene'
 import { introBubbleArt, type Adventure } from '../zoo/adventures'
 import { introCoverFor, INTRO_COVER_VIEWBOX_HEIGHT } from './introCover'
 import { IntroChromeGhost, levelChromeFacts } from './introChrome'
@@ -283,7 +285,7 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
   })
   return (
     <main className="cv-intro" style={{ backgroundColor: backdrop?.quiet ?? SHEET_PAPER }}>
-      <style>{INTRO_CSS}</style>
+      <style>{INTRO_CSS + SCENE_CSS}</style>
       {backdrop && cover && windowBounds && displayBounds && (
         // T31 follow-up: `viewBox`/the backdrop `<image>`'s own box are now
         // `displayBounds` — the SAME JS-computed, chrome-inset-aware box
@@ -311,16 +313,27 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
             height={displayBounds.height}
             fill={backdrop.quiet}
           />
-          <image
-            href={cover.backdropHref}
-            x={displayBounds.x}
-            y={displayBounds.y}
-            width={displayBounds.width}
-            height={displayBounds.height}
-            preserveAspectRatio="xMidYMid slice"
-          />
+          {sceneFor({ href: cover.backdropHref }) ? (
+            <ScenePicture
+              scene={sceneFor({ href: cover.backdropHref })!}
+              x={displayBounds.x}
+              y={displayBounds.y}
+              width={displayBounds.width}
+              height={displayBounds.height}
+              artHref={cover.backdropHref}
+            />
+          ) : (
+            <image
+              href={cover.backdropHref}
+              x={displayBounds.x}
+              y={displayBounds.y}
+              width={displayBounds.width}
+              height={displayBounds.height}
+              preserveAspectRatio="xMidYMid slice"
+            />
+          )}
           {cover.kind === 'veil' ? (
-            <RevealLayer reveal={cover.reveal} sheetBounds={windowBounds} displayBounds={displayBounds} />
+            <RevealLayer reveal={cover.reveal} sheetBounds={windowBounds} displayBounds={displayBounds} drawArt={TRACE_PAPER.art} />
           ) : (
             cover.pieces.map((piece, i) => (
               <image
@@ -343,7 +356,7 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
       {chromeFacts && typeof window !== 'undefined' && (
         <IntroChromeGhost facts={chromeFacts} topRef={topGhostRef} bottomRef={bottomGhostRef} />
       )}
-      {backdrop && !cover && <img className="cv-intro-backdrop" src={backdrop.art.href} alt="" />}
+      {backdrop && !cover && <ArtBackdrop className="cv-intro-backdrop" art={backdrop.art} />}
       <div className="cv-intro-frame">
         <button type="button" className="cv-intro-stage" onClick={onStart}>
           <span

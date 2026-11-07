@@ -10,6 +10,9 @@
 // no filter. Every picture is an `<image href="/art/…">`, the one mechanism
 // that survives this repo's ban (`TraceCanvas.tsx:69-86` — it hydrates
 // BLANK on real devices).
+import { ell } from '../puppet/geometry'
+import { PAPER_SHADOW_FILL } from '../puppet/rig'
+import { SCENE_CSS, SceneLayers, sceneFor } from '../puppet/scene/Scene'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { flushSync } from 'react-dom'
 import CaptionedArt from '../detective/CaptionedArt'
@@ -634,20 +637,42 @@ export function tailOriginFor(anchor: BubbleAnchor): { x: number; y: number } {
  *  is explicit that the alternation is what makes a track read as walking,
  *  and that is a screenshot check, not a test one. */
 function Footprint({ x, y, angle }: FootprintMark) {
-  const height = 36
-  const width = (height * ZOO_OCTOPUS_PRINT_ART.w) / ZOO_OCTOPUS_PRINT_ART.h
   return (
-    <image
-      href={ZOO_OCTOPUS_PRINT_ART.href}
-      x={x - width / 2}
-      y={y - height / 2}
-      width={width}
-      height={height}
-      transform={`rotate(${angle.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)})`}
-      preserveAspectRatio="xMidYMid meet"
+    <path
+      d={MAP_PRINT}
+      fill={MAP_PRINT_INK}
+      data-art={ZOO_OCTOPUS_PRINT_ART.href}
+      transform={`translate(${x.toFixed(2)} ${y.toFixed(2)})rotate(${angle.toFixed(2)})scale(0.3)`}
+      stroke={MAP_PRINT_EDGE}
+      strokeWidth={8}
+      strokeLinejoin="round"
+      paintOrder="stroke"
     />
   )
 }
+
+/** One sucker-tipped arm print, heel to tip along -y (the way `PRINT_FACING` turns
+ *  it): a long soft pad and two round suckers, never three stacked lights. */
+const MAP_PRINT = `${ell(0, 16, 20, 34)}${ell(-13, -36, 10, 11)}${ell(14, -34, 9, 10)}`
+const MAP_PRINT_INK = '#6b4a2e'
+const MAP_PRINT_EDGE = '#fdf6df'
+
+/** Fog is a paper cloud in the patch's own box, the box the containment proof in
+ *  `zoo/sectors.ts` reasons about. */
+const FOG_PAPER = '#e4ecf1'
+const FOG_PAPER_LIGHT = '#f4f8fa'
+const FOG_CLOUD = `${ell(50, 54, 46, 38)}${ell(20, 50, 20, 26)}${ell(80, 50, 20, 26)}${ell(36, 26, 24, 24)}${ell(66, 26, 24, 24)}${ell(34, 76, 24, 22)}${ell(66, 76, 24, 22)}`
+const FOG_CLOUD_LIGHT = `${ell(40, 34, 18, 13)}${ell(66, 36, 13, 10)}`
+
+function fogTransform(box: { x: number; y: number; width: number; height: number }, flip?: boolean): string {
+  const sx = box.width / 100
+  const sy = box.height / 100
+  return flip
+    ? `translate(${(box.x + box.width).toFixed(2)} ${box.y.toFixed(2)})scale(${(-sx).toFixed(3)} ${sy.toFixed(3)})`
+    : `translate(${box.x.toFixed(2)} ${box.y.toFixed(2)})scale(${sx.toFixed(3)} ${sy.toFixed(3)})`
+}
+
+const MAP_SCENE = sceneFor(ZOO_MAP_ART)!
 
 
 const SECTOR_LABELS: Record<SectorId, string> = {
@@ -1053,7 +1078,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
 
   return (
     <main className="cv-zoo">
-      <style>{ZOO_CSS}</style>
+      <style>{ZOO_CSS + SCENE_CSS}</style>
       <p id="cv-zoo-status" className="cv-zoo-sr" role="status" aria-live="polite">{statusText}</p>
       <section
         className="cv-zoo-portrait-guidance"
@@ -1091,14 +1116,19 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               a level's own backdrop), cropping only whatever the container's
               aspect actually demands, rather than a fixed 33.333 units off
               the top and bottom on every device alike. */}
-          <image
-            href={ZOO_MAP_ART.href}
-            x={displayBounds.x}
-            y={displayBounds.y}
-            width={displayBounds.width}
-            height={displayBounds.height}
-            preserveAspectRatio="xMidYMid slice"
-          />
+          {/* The map is a paper diorama drawn in stage units, not a picture fitted to
+              the window: every `hit` and `animalSpot` lands on what it names, at any
+              screen shape, and a wider screen simply shows more of the zoo's edge. */}
+          <g data-art={ZOO_MAP_ART.href} aria-hidden="true" style={{ pointerEvents: 'none' }}>
+            <rect
+              x={displayBounds.x}
+              y={displayBounds.y}
+              width={displayBounds.width}
+              height={displayBounds.height}
+              fill={MAP_SCENE.base}
+            />
+            <SceneLayers scene={MAP_SCENE} still={false} />
+          </g>
 
           {/* Fog, per closed sector. Two patches each (design.md §4's
               closed-form construction) — `flip` mirrors the drawn picture
@@ -1124,18 +1154,17 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               const art = ZOO_FOG_ART[patch.art]
               const box = placeArt(art, patch.size, { x: patch.x, y: patch.y })
               return (
-                <image
+                <g
                   key={`fog-${sector.id}-${i}`}
                   data-fog-sector={sector.id}
+                  data-art={art.href}
                   className={fogClassFor(sector.id, discovered)}
-                  href={art.href}
-                  x={box.x}
-                  y={box.y}
-                  width={box.width}
-                  height={box.height}
-                  transform={patch.flip ? `translate(${2 * patch.x},0) scale(-1,1)` : undefined}
-                  preserveAspectRatio="xMidYMid meet"
-                />
+                  transform={fogTransform(box, patch.flip)}
+                >
+                  <path d={FOG_CLOUD} fill={PAPER_SHADOW_FILL} transform="translate(1.2 2.4)" />
+                  <path d={FOG_CLOUD} fill={FOG_PAPER} />
+                  <path d={FOG_CLOUD_LIGHT} fill={FOG_PAPER_LIGHT} />
+                </g>
               )
             }),
           )}

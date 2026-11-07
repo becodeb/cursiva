@@ -27,6 +27,7 @@ import { useEffect } from 'react'
 import { playSfx } from '../audio/sfx'
 import { CloseIcon, NotebookPadIcon, PawPrintIcon } from '../detective/icons'
 import { CARRIER_LENS_ART, type ZooAnimalId } from '../detective/assets'
+import { ArtImg } from '../puppet/ArtFigure'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { BACKPACK_ITEMS, earnedItems } from '../zoo/backpack'
 import { notebookEntries } from '../zoo/notebook'
@@ -194,7 +195,7 @@ export default function DetectiveNotebook({ records, onClose, highlightId }: Det
       <div className="cv-notebook-page" aria-hidden="true" />
       <div className="cv-notebook-header">
         <div className="cv-notebook-title">
-          <img src={CARRIER_LENS_ART.href} alt="" />
+          <ArtImg art={CARRIER_LENS_ART} />
           <NotebookPadIcon />
         </div>
         <button

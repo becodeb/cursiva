@@ -18,7 +18,11 @@ import {
   SECTOR_ADVENTURE_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
 } from '../detective/assets'
+import type { TracePaper } from '../canvas/TraceCanvas'
 import type { ActName, RigState } from './actor'
+import { markTransform, MARK_EDGE_PAPER, MARK_EDGE_WIDTH, paperMarkFor } from './marks'
+import { paperPropFor } from './props'
+import { SceneLayers } from './scene/Scene'
 import type { PuppetName } from './characters'
 import Puppet, { type PuppetAccessories, type PuppetHandle } from './Puppet'
 
@@ -97,7 +101,25 @@ export interface ArtImgProps extends FigureLife {
 /** For HTML surfaces: a puppet `<svg>`, or the `<img>` it replaces. */
 export function ArtImg({ art, className, style, still = true, entrance, holding, followPointer, puppetRef }: ArtImgProps) {
   const figure = puppetFigureFor(art)
-  if (!figure) return <img src={art.href} alt="" className={className} style={style} />
+  if (!figure) {
+    const thing = paperPropFor(art)
+    if (thing) {
+      return (
+        <svg viewBox={`0 0 ${thing.w} ${thing.h}`} className={className} style={{ overflow: 'visible', ...style }} data-art={art.href} aria-hidden="true" focusable="false">
+          <SceneLayers scene={thing} still />
+        </svg>
+      )
+    }
+    const mark = paperMarkFor(art)
+    if (mark) {
+      return (
+        <svg viewBox="-60 -60 120 120" className={className} style={style} data-art={art.href} aria-hidden="true" focusable="false">
+          <path d={mark.d} fill={mark.fill} stroke={MARK_EDGE_PAPER} strokeWidth={MARK_EDGE_WIDTH} strokeLinejoin="round" paintOrder="stroke" />
+        </svg>
+      )
+    }
+    return <img src={art.href} alt="" className={className} style={style} />
+  }
   return (
     <Puppet
       ref={puppetRef}
@@ -131,7 +153,32 @@ export interface ArtInSvgProps extends FigureLife {
 /** For SVG surfaces: a puppet `<g>` filling `box`, or the `<image>` it replaces. */
 export function ArtInSvg({ art, box, still = true, entrance, holding, followPointer, puppetRef }: ArtInSvgProps) {
   const figure = puppetFigureFor(art)
-  if (!figure) return <image href={art.href} {...box} preserveAspectRatio="xMidYMid meet" />
+  if (!figure) {
+    const thing = paperPropFor(art)
+    if (thing) {
+      return (
+        <svg x={box.x} y={box.y} width={box.width} height={box.height} viewBox={`0 0 ${thing.w} ${thing.h}`} overflow="visible" data-art={art.href} aria-hidden="true" focusable="false">
+          <SceneLayers scene={thing} still />
+        </svg>
+      )
+    }
+    const mark = paperMarkFor(art)
+    if (mark) {
+      return (
+        <path
+          d={mark.d}
+          fill={mark.fill}
+          stroke={MARK_EDGE_PAPER}
+          strokeWidth={MARK_EDGE_WIDTH}
+          strokeLinejoin="round"
+          paintOrder="stroke"
+          data-art={art.href}
+          transform={markTransform(mark, box.x + box.width / 2, box.y + box.height / 2, 0, box.height, 0)}
+        />
+      )
+    }
+    return <image href={art.href} {...box} preserveAspectRatio="xMidYMid meet" />
+  }
   return (
     <Puppet
       ref={puppetRef}
@@ -163,4 +210,25 @@ export function standingFigure(art: ArtPicture, puppetRef?: Ref<PuppetHandle>): 
     standingRenderers.set(art.href, render)
   }
   return render
+}
+
+/** What a level screen hands `TraceCanvas`, so the sheet draws its art in paper. */
+export const TRACE_PAPER: TracePaper = {
+  art: (art, box) => <ArtInSvg art={art} box={box} />,
+  mark: (mark, index) => {
+    const paper = paperMarkFor(mark)
+    if (!paper) return null
+    return (
+      <path
+        d={paper.d}
+        fill={paper.fill}
+        stroke={MARK_EDGE_PAPER}
+        strokeWidth={MARK_EDGE_WIDTH}
+        strokeLinejoin="round"
+        paintOrder="stroke"
+        data-art={mark.href}
+        transform={markTransform(paper, mark.x, mark.y, mark.angle, mark.size, index)}
+      />
+    )
+  },
 }

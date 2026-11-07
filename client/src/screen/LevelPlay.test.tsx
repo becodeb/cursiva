@@ -583,17 +583,19 @@ describe('LevelPlay backdrop (duck-undulations-and-sector-backdrop design.md §3
     expect(html).toContain('#80a2b9')
   })
 
-  // T50: the registry's corridor treatments reach the canvas — the marker
-  // edge on a channel level, the night dim on a hedgehog level — and a row
-  // that declares neither passes neither key at all.
-  it('passes the backdrop edge and dim through to the canvas, and omits both where the row has none', () => {
+  // T50: the registry's corridor treatments reach the canvas. T9 of the paper
+  // world: the marker edge is a PNG's answer to a busy picture, so a paper scene
+  // replaces it with the strip's own shadow (`scene.test.ts` holds the law it
+  // answered), and the night dim still reaches a hedgehog level.
+  it('hands the canvas the paper scene instead of the marker edge, and passes the dim through', () => {
     const shown = (id: string) => {
       renderToString(
         <LevelPlay level={getLevel(id)} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
       )
       return traceCanvasProbe.current?.backdrop as Record<string, unknown> | undefined
     }
-    expect(shown('duck-trail2')?.edge).toBe('#1a1a1a')
+    expect(shown('duck-trail2')).not.toHaveProperty('edge')
+    expect(shown('duck-trail2')?.scene).toBeDefined()
     expect(shown('duck-trail2')).not.toHaveProperty('dim')
     expect(shown('hedgehog1')?.dim).toEqual({ color: '#12161f', opacity: 0.3 })
     expect(shown('hedgehog1')).not.toHaveProperty('edge')

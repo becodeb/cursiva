@@ -22,8 +22,8 @@ describe('AdventureIntro (main-screen spec "Narrative Entry Screen Content")', (
     const html = renderToString(<AdventureIntro adventure={adventure} onStart={() => {}} />)
     expect(html).toContain(`data-art="${PULPITO_POSE_ART.points.href}"`)
     expect(html).toContain(`src="${ZOO_SPEECH_BUBBLE_LEFT_ART.href}"`)
-    expect(html).toContain(`href="${CLUE_ART.puddle.art.earned.href}"`)
-    expect(html).not.toContain(`href="${ZOO_ANIMAL_ART[adventure.animal!].href}"`)
+    expect(html).toContain(`data-art="${CLUE_ART.puddle.art.earned.href}"`)
+    expect(html).not.toContain(`data-art="${ZOO_ANIMAL_ART[adventure.animal!].href}"`)
   })
 
   it('[T49] points at the centre: unmirrored in the left corner, mirrored in the right one', () => {
@@ -36,8 +36,8 @@ describe('AdventureIntro (main-screen spec "Narrative Entry Screen Content")', (
   it("[T49, docs/20 B17] the snakes' entry bubble shows the shed skin, not a snake in colour", () => {
     const snake = ADVENTURES.find((a) => a.id === 'snake')!
     const html = renderToString(<AdventureIntro adventure={snake} onStart={() => {}} />)
-    expect(html).toContain(`href="${SECTOR_ADVENTURE_ART.shedSkin.href}"`)
-    expect(html).not.toContain(`href="${ZOO_ANIMAL_ART.vibora.href}"`)
+    expect(html).toContain(`data-art="${SECTOR_ADVENTURE_ART.shedSkin.href}"`)
+    expect(html).not.toContain(`data-art="${ZOO_ANIMAL_ART.vibora.href}"`)
   })
 
   it('renders the intro line exactly once', () => {
@@ -88,8 +88,8 @@ describe("AdventureIntro — row C's sheep and llama entries render their own an
 
   it("the sheep adventure's entry shows the wool clue, never the sheep, and its own intro text (review batch 2)", () => {
     const html = renderToString(<AdventureIntro adventure={sheep} onStart={() => {}} />)
-    expect(html).toContain(`href="${CLUE_ART.wool.art.earned.href}"`)
-    expect(html).not.toContain(`href="${ZOO_ANIMAL_ART.oveja.href}"`)
+    expect(html).toContain(`data-art="${CLUE_ART.wool.art.earned.href}"`)
+    expect(html).not.toContain(`data-art="${ZOO_ANIMAL_ART.oveja.href}"`)
     expect(html.split(sheep.intro).length - 1).toBe(1)
   })
 
@@ -131,7 +131,7 @@ describe('AdventureIntro — an animal-less adventure renders its own icon, not 
   it("renders the peces adventure's own icon href", () => {
     const html = renderToString(<AdventureIntro adventure={glass} onStart={() => {}} />)
     expect(glass.icon).toBeDefined()
-    expect(html).toContain(`href="${glass.icon!.href}"`)
+    expect(html).toContain(`data-art="${glass.icon!.href}"`)
   })
 
   it('keeps auditCaptions clean: zero uncaptioned words', () => {

@@ -11,6 +11,7 @@ import { fmt } from '../puppet/geometry'
 import { PAPER_SHADOW_FILL, PAPER_SHADOW_TRANSFORM } from '../puppet/rig'
 import { puppetTicker } from '../puppet/ticker'
 import { backdropFor } from '../zoo/backdrops'
+import { ArtBackdrop, SCENE_CSS } from '../puppet/scene/Scene'
 import { adventureIcon, type Adventure, type ClosingBeat } from '../zoo/adventures'
 import { approvedLineFor, type TracedLine } from '../zoo/tracedLine'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
@@ -287,8 +288,8 @@ export default function StrokeFinale({ adventure, beat, scene, onDone, reducedMo
 
   return (
     <main className="cv-finale" style={{ backgroundColor: backdrop?.quiet ?? SHEET_PAPER }}>
-      <style>{FINALE_CSS}</style>
-      {backdrop && <img className="cv-finale-backdrop" src={backdrop.art.href} alt="" />}
+      <style>{FINALE_CSS + SCENE_CSS}</style>
+      {backdrop && <ArtBackdrop className="cv-finale-backdrop" art={backdrop.art} />}
       <button type="button" className="cv-finale-tap" aria-label="Seguir" onClick={() => doneRef.current()}>
         <FinaleSceneView
           scene={scene}

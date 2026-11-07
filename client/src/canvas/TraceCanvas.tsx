@@ -35,7 +35,7 @@
 //   `hazards`          timed obstacles crossing the route (`levels/obstacles.ts`).
 //   `carrier`          a small character riding the fingertip.
 //   `resetSignal`      the run goes back to the start (docs/01 principle 2).
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 import { inkPath, inkPolicyAllowsLive, inkPolicyAllowsSettled, traceInk, type InkRenderPolicy } from './ink'
 import { taperedCorridor, type CorridorSegment } from './corridorTaper'
 import type { ScatterMark } from './groundScatter'
@@ -50,6 +50,8 @@ import { SpineLayer } from './SpineLayer'
 import { WaypointLayer } from './WaypointLayer'
 import { TentacleCueArm, TentacleDemoArm } from './Tentacle'
 import { armRootOf } from '../puppet/tentacle'
+import { ScenePicture } from '../puppet/scene/Scene'
+import type { CutScene } from '../puppet/scene/engine'
 import { devCheckpointState, type DevCheckpointState } from './devCheckpointState'
 import { DevCheckpointOverlay } from './devCheckpointOverlay'
 import type { LetterCheckpoint } from '../letters/types'
@@ -579,16 +581,34 @@ export interface TraceBackdrop {
    * law. An outline makes the channel's own boundary the channel-vs-edge
    * contrast instead, whatever the art behind it does. */
   edge?: string
+  /** The paper place to draw instead of `href`, when the picture has one. */
+  scene?: CutScene
   /** A flat veil over the whole backdrop art, under every play layer (T50).
    * ABSENT = the art at full strength, byte-identical to before. A plain
    * `<rect>` with `opacity` — no `<defs>`, no `url(#…)`. */
   dim?: { color: string; opacity: number }
 }
 
+/** How the sheet draws registry art when a world is in paper. The canvas holds no
+ *  registry: its own tests and any plain level keep the `<image>`, and a level screen
+ *  hands this in, as it does `TraceStandingArt.render`. */
+export interface TracePaper {
+  art: (art: { href: string; w: number; h: number }, box: ArtBox) => ReactNode
+  /** Null keeps the mark's own picture. */
+  mark: (mark: TraceClueMark, index: number) => ReactNode
+}
+
 /** How far, in viewBox units, a {@link TraceBackdrop.edge} outline shows
  * past each side of the channel. About the art's own marker line at the
  * sheet's usual 1-1.3 px per unit. */
 export const CHANNEL_EDGE_WIDTH = 5
+
+/** The corridor's own paper shadow on a paper place, the puppets' `PAPER_SHADOW_*`
+ * at the scale of the sheet. Painted as one group so overlapping pieces do not
+ * darken where they meet. */
+const CHANNEL_SHADOW_TRANSFORM = 'translate(4 8)'
+const CHANNEL_SHADOW_INK = '#101c18'
+const CHANNEL_SHADOW_OPACITY = 0.3
 
 /**
  * Static art standing at one or more points on the sheet — the sheep on
@@ -1154,6 +1174,8 @@ export interface TraceCanvasProps {
    * shipped grey wall / paper or field / earth channel, byte-identical to
    * before this prop existed. See {@link TraceBackdrop}. */
   backdrop?: TraceBackdrop
+  /** See {@link TracePaper}. Absent = the plain registry pictures. */
+  paper?: TracePaper
   /** Static art standing at one or more points on the route (design.md
    * §3.3). Absent = no vertex-art layer, byte-identical to before this prop
    * existed. See {@link TraceVertexArt}. */
@@ -1275,6 +1297,7 @@ export default function TraceCanvas({
   clues,
   ground,
   backdrop,
+  paper,
   vertexArt,
   vertexArtDeparting,
   reveal,
@@ -1454,7 +1477,7 @@ export default function TraceCanvas({
   // at every magnification instead of panning an already-cropped slice of
   // open water under a fixed window. `null` on every level with no backdrop
   // — the optional chaining below is the whole guard.
-  const backdropImgRef = useRef<SVGImageElement | null>(null)
+  const backdropImgRef = useRef<SVGGraphicsElement | null>(null)
   // T50: the backdrop's optional `dim` veil follows the image on a camera
   // level for the same reason, one statement after it.
   const backdropDimRef = useRef<SVGRectElement | null>(null)
@@ -1754,15 +1777,30 @@ export default function TraceCanvas({
               moves, height only through `displayYRef`/`displayHeightRef`,
               which React's ordinary re-render already keeps this JSX in
               sync with). */}
-          <image
-            ref={backdropImgRef}
-            href={backdrop.href}
-            x={displayBounds.x}
-            y={displayBounds.y}
-            width={displayBounds.width}
-            height={displayBounds.height}
-            preserveAspectRatio="xMidYMid slice"
-          />
+          {backdrop.scene ? (
+            // The paper place, fit the way the picture was. Always still here:
+            // on the trace screen only the finger moves anything (`docs/01` §5).
+            <ScenePicture
+              svgRef={backdropImgRef as Ref<SVGSVGElement>}
+              scene={backdrop.scene}
+              still
+              x={displayBounds.x}
+              y={displayBounds.y}
+              width={displayBounds.width}
+              height={displayBounds.height}
+              artHref={backdrop.href}
+            />
+          ) : (
+            <image
+              ref={backdropImgRef as Ref<SVGImageElement>}
+              href={backdrop.href}
+              x={displayBounds.x}
+              y={displayBounds.y}
+              width={displayBounds.width}
+              height={displayBounds.height}
+              preserveAspectRatio="xMidYMid slice"
+            />
+          )}
           {backdrop.dim && (
             <rect
               ref={backdropDimRef}
@@ -1791,7 +1829,7 @@ export default function TraceCanvas({
         // margin patch (`RevealLayer`'s own header) reach the same area the
         // backdrop `<image>` now covers — never leaving unclean/undark art
         // visible in the margin `sheetBounds` alone would leave uncovered.
-        <RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} nightHint={nightHint} />
+        <RevealLayer reveal={reveal} sheetBounds={sheetBounds} displayBounds={displayBounds} nightHint={nightHint} drawArt={paper?.art} />
       )}
       {waypoints && (
         // The waypoint fold's render projection (`free-trail-waypoints`
@@ -1801,7 +1839,7 @@ export default function TraceCanvas({
         // debug-only, plain `<circle>`s — this file's own scar (above): no
         // `<mask>`, `<pattern>`, `<clipPath>`, `<defs>`, `useId`, no
         // `url(#…)`.
-        <WaypointLayer waypoints={waypoints} sheetBounds={sheetBounds} />
+        <WaypointLayer waypoints={waypoints} sheetBounds={sheetBounds} drawArt={paper?.art} />
       )}
       {spines && (
         // The spine fold's render projection (`radial-spines` capability,
@@ -1870,6 +1908,23 @@ export default function TraceCanvas({
               height={viewBoxHeight}
               fill={ground ? GROUND_FIELD : MAZE_WALL}
             />
+          )}
+          {/* On a paper place the channel is a paper strip: one shadow for all its
+              pieces, so tapered pieces that overlap do not darken where they meet. */}
+          {backdrop?.scene && (
+            <g opacity={CHANNEL_SHADOW_OPACITY} transform={CHANNEL_SHADOW_TRANSFORM} data-channel-shadow="true">
+              {(corridorPieces ?? corridor.paths.map((d) => ({ d, width: corridor.width }))).map((piece, idx) => (
+                <path
+                  key={`shadow-${idx}`}
+                  d={piece.d}
+                  fill="none"
+                  stroke={CHANNEL_SHADOW_INK}
+                  strokeWidth={piece.width}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ))}
+            </g>
           )}
           {/* T50: the channel's marker outline, every piece BEFORE any
               channel stroke, so one piece's outline never paints over a
@@ -2067,15 +2122,24 @@ export default function TraceCanvas({
         // character band under every ink layer.
         <g pointerEvents="none">
           {vertexArt.at.map((point, idx) => (
-            <image
-              key={`vertex-art-${idx}`}
-              href={(point.art ?? vertexArt).href}
-              {...clampArtBox(
-                placeArt({ ...(point.art ?? vertexArt), grip: STANDING_GRIP }, vertexArt.size, point),
-                sheetBounds,
-              )}
-              preserveAspectRatio="xMidYMid meet"
-            />
+            paper ? (
+              <g key={`vertex-art-${idx}`}>
+                {paper.art(
+                  point.art ?? vertexArt,
+                  clampArtBox(placeArt({ ...(point.art ?? vertexArt), grip: STANDING_GRIP }, vertexArt.size, point), sheetBounds),
+                )}
+              </g>
+            ) : (
+              <image
+                key={`vertex-art-${idx}`}
+                href={(point.art ?? vertexArt).href}
+                {...clampArtBox(
+                  placeArt({ ...(point.art ?? vertexArt), grip: STANDING_GRIP }, vertexArt.size, point),
+                  sheetBounds,
+                )}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            )
           ))}
         </g>
       )}
@@ -2089,16 +2153,25 @@ export default function TraceCanvas({
         // component only ever draws whatever it is handed.
         <g pointerEvents="none">
           {vertexArtDeparting.at.map((point, idx) => (
-            <image
-              key={`vertex-art-departing-${idx}`}
-              className="cv-collect-hop"
-              href={(point.art ?? vertexArtDeparting).href}
-              {...clampArtBox(
-                placeArt({ ...(point.art ?? vertexArtDeparting), grip: STANDING_GRIP }, vertexArtDeparting.size, point),
-                sheetBounds,
-              )}
-              preserveAspectRatio="xMidYMid meet"
-            />
+            paper ? (
+              <g key={`vertex-art-departing-${idx}`} className="cv-collect-hop">
+                {paper.art(
+                  point.art ?? vertexArtDeparting,
+                  clampArtBox(placeArt({ ...(point.art ?? vertexArtDeparting), grip: STANDING_GRIP }, vertexArtDeparting.size, point), sheetBounds),
+                )}
+              </g>
+            ) : (
+              <image
+                key={`vertex-art-departing-${idx}`}
+                className="cv-collect-hop"
+                href={(point.art ?? vertexArtDeparting).href}
+                {...clampArtBox(
+                  placeArt({ ...(point.art ?? vertexArtDeparting), grip: STANDING_GRIP }, vertexArtDeparting.size, point),
+                  sheetBounds,
+                )}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            )
           ))}
         </g>
       )}
@@ -2114,15 +2187,21 @@ export default function TraceCanvas({
             {endArt.render(clampArtBox(placeArt({ ...endArt, grip: STANDING_GRIP }, endArt.size, endMarker), sheetBounds))}
           </g>
         ) : (
-          <image
-            href={endArt.href}
-            {...clampArtBox(
-              placeArt({ ...endArt, grip: STANDING_GRIP }, endArt.size, endMarker),
-              sheetBounds,
-            )}
-            preserveAspectRatio="xMidYMid meet"
-            pointerEvents="none"
-          />
+          paper ? (
+            <g pointerEvents="none">
+              {paper.art(endArt, clampArtBox(placeArt({ ...endArt, grip: STANDING_GRIP }, endArt.size, endMarker), sheetBounds))}
+            </g>
+          ) : (
+            <image
+              href={endArt.href}
+              {...clampArtBox(
+                placeArt({ ...endArt, grip: STANDING_GRIP }, endArt.size, endMarker),
+                sheetBounds,
+              )}
+              preserveAspectRatio="xMidYMid meet"
+              pointerEvents="none"
+            />
+          )
         )
       )}
       {endMarker && !endArt && (
@@ -2341,6 +2420,10 @@ export default function TraceCanvas({
         // mark" size instead of one being squashed.
         <g pointerEvents="none">
           {clues.marks.map((mark, idx) => {
+            // Static paths with a swapped `fill`: the 40 marks of a trail cost nothing
+            // per frame, and lighting one only touches that one.
+            const drawn = paper?.mark(mark, idx)
+            if (drawn) return <g key={idx}>{drawn}</g>
             const width = (mark.size * mark.w) / mark.h
             return (
               <image
@@ -2387,13 +2470,17 @@ export default function TraceCanvas({
                 ref={(el) => setHazardEl(idx, el)}
                 transform={`translate(${hazardHome[idx]?.x ?? 0} ${hazardHome[idx]?.y ?? 0})`}
               >
-                <image
-                  href={art.href}
-                  {...placeArt(art, 2 * r, { x: 0, y: 0 })}
-                  preserveAspectRatio="xMidYMid meet"
-                  opacity={HAZARD_OPACITY}
-                  style={{ filter: HAZARD_STICKER_FILTER }}
-                />
+                {paper ? (
+                  paper.art(art, placeArt(art, 2 * r, { x: 0, y: 0 }))
+                ) : (
+                  <image
+                    href={art.href}
+                    {...placeArt(art, 2 * r, { x: 0, y: 0 })}
+                    preserveAspectRatio="xMidYMid meet"
+                    opacity={HAZARD_OPACITY}
+                    style={{ filter: HAZARD_STICKER_FILTER }}
+                  />
+                )}
               </g>
             ) : (
               <circle
@@ -2439,11 +2526,15 @@ export default function TraceCanvas({
             // translated to the carried point every frame above). This is the
             // fix for the ~11-unit drift the old bbox-centred `x`/`y` shipped
             // with (design.md §7).
-            <image
-              href={carrierArt.href}
-              {...placeArt(carrierArt, carrierArt.size ?? CARRIER_ART_SIZE, { x: 0, y: 0 })}
-              preserveAspectRatio="xMidYMid meet"
-            />
+            paper ? (
+              paper.art(carrierArt, placeArt(carrierArt, carrierArt.size ?? CARRIER_ART_SIZE, { x: 0, y: 0 }))
+            ) : (
+              <image
+                href={carrierArt.href}
+                {...placeArt(carrierArt, carrierArt.size ?? CARRIER_ART_SIZE, { x: 0, y: 0 })}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            )
           ) : (
             <>
               <rect

@@ -173,7 +173,8 @@ import {
   ZOO_ANIMAL_ART,
   ZOO_STAR_ART,
 } from '../detective/assets'
-import { standingFigure } from '../puppet/ArtFigure'
+import { standingFigure, TRACE_PAPER } from '../puppet/ArtFigure'
+import { sceneFor } from '../puppet/scene/Scene'
 import type { PuppetHandle } from '../puppet/Puppet'
 import CaptionedArt from '../detective/CaptionedArt'
 import TrailProgressBar, { ANIMAL_MAX_WIDTH } from '../detective/TrailProgressBar'
@@ -4040,7 +4041,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const backdropEntry = useMemo(() => backdropFor(level.id), [level.id])
   const backdrop = useMemo<TraceBackdrop | undefined>(() => {
     const b = backdropEntry
-    return b ? { href: b.art.href, quiet: b.quiet, channel: b.channel, ...(b.edge ? { edge: b.edge } : {}), ...(b.dim ? { dim: b.dim } : {}) } : undefined
+    if (!b) return undefined
+    // A paper place draws the corridor as a strip with its own shadow, and every
+    // colour it can land on clears the paint by the 55-luma law (`scene.test.ts`),
+    // so the marker `edge` a picture needs would only be a line on cut paper.
+    const scene = sceneFor(b.art)
+    return { href: b.art.href, quiet: b.quiet, channel: b.channel, ...(scene ? { scene } : b.edge ? { edge: b.edge } : {}), ...(b.dim ? { dim: b.dim } : {}) }
   }, [backdropEntry])
 
   // The level is drawn in a PLACE — a sector's backdrop or the detective
@@ -4818,6 +4824,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         inkHidden={arrangeOpen}
         inkPolicy={inkPolicy}
         artCorridor={traceArtCorridor}
+        paper={backdrop?.scene ? TRACE_PAPER : undefined}
         // Any bump restarts the run (docs/01 principle 2); a hazard always
         // does (T41).
         resetSignal={resetOnContact || hazardResets ? resetSignal : undefined}

@@ -65,6 +65,7 @@ import {
 import { CELEBRATE_SKIP_GRACE_MS, LAYOUT_CSS, REVEAL_HOLD_MS } from './LevelPlay'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
+import { ArtBackdrop, SCENE_CSS } from '../puppet/scene/Scene'
 import { BUBBLE_POP_CSS } from './BubblePop'
 import { ZOO_SPEECH_BUBBLE_TAIL, type BubblePlacement } from './bubblePlacement'
 import {
@@ -576,7 +577,7 @@ ${BUBBLE_POP_CSS}
  * one pinned photo per clue. */
 .cv-evidence-board { position: absolute; border: ${BOARD_BORDER}px solid #1a1a1a; border-radius: 22px; background: #e2c48f; }
 .cv-evidence-badge { position: absolute; border-radius: 50%; border: 3px solid #1a1a1a; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; }
-.cv-evidence-badge img { display: block; height: 72%; width: auto; }
+.cv-evidence-badge img, .cv-evidence-badge svg { display: block; height: 72%; width: auto; }
 .cv-evidence-tile { position: absolute; border: 3px solid #1a1a1a; border-radius: 10px; background: ${SHEET_PAPER}; transform: rotate(var(--cv-tilt)); }
 .cv-evidence-tile > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* A strip of tape holding the photo up: flat, translucent paper. */
@@ -769,8 +770,8 @@ export function DeductionView({
         if (revealing) onSkipReveal?.()
       }}
     >
-      <style>{LAYOUT_CSS + DEDUCTION_CSS}</style>
-      {backdrop && <img className="cv-deduction-backdrop" src={backdrop.art.href} alt="" />}
+      <style>{LAYOUT_CSS + DEDUCTION_CSS + SCENE_CSS}</style>
+      {backdrop && <ArtBackdrop className="cv-deduction-backdrop" art={backdrop.art} />}
       <header className="cv-head">
         <button
           type="button"
@@ -795,7 +796,7 @@ export function DeductionView({
             height: layout.badge.h,
           }}
         >
-          <img src={CARRIER_LENS_ART.href} alt="" />
+          <ArtImg art={CARRIER_LENS_ART} />
         </span>
         {clueArt.map((art, i) => (
           <EvidenceTile key={i} art={art} rect={layout.clues[i]} origin={layout.board} index={i} />

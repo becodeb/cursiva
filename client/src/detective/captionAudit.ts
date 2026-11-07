@@ -185,7 +185,9 @@ export function auditCaptions(html: string): CaptionAudit {
       ((tagName === 'image' || tagName === 'img') && carriesHrefOrSrc(token)) ||
       (tagName === 'svg' && carriesDrawnPicture(token)) ||
       // A puppet (`puppet/Puppet.tsx`) is the registry picture drawn in code.
-      (tagName === 'g' && /\sdata-puppet="[^"]*"/.test(token))
+      (tagName === 'g' && /\sdata-puppet="[^"]*"/.test(token)) ||
+      // A paper prop or clue mark stands in for its registry picture and says which.
+      ((tagName === 'svg' || tagName === 'path') && /\sdata-art="[^"]*"/.test(token))
     ) {
       markImageSeen()
     }
