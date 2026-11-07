@@ -51,8 +51,8 @@ defaults to confirm, not settled answers.
 
 - [x] T1 — Puppet engine in `client/src/puppet/`, paper treatment only, pure and testable. Route: delegated.
 - [x] T2 — Pulpito and duck on the engine, wired into one complete adventure (intro, level, closing, map). Route: delegated.
-- [ ] T3 — Your stroke is the drawing: capture the real trace and replay it in the duck closing, then the other families. Route: delegated.
-- [ ] T4 — Tentacle demo and wordless corrections with spoken feedback (`docs/25` P2-1). Route: delegated.
+- [x] T3 — Your stroke is the drawing: capture the real trace and replay it in the duck closing, then the other families. Route: delegated.
+- [x] T4 — Tentacle demo and wordless corrections with spoken feedback (`docs/25` P2-1). Route: delegated.
 - [ ] T5 — Fix the letter score (`docs/25` 4.1). Route: delegated.
 - [ ] T6 — The bridge to letters: bridge levels, the notebook, the letter sequence and its place in the journey (`docs/25` 4.2 to 4.6). Route: delegated.
 - [ ] T7 — The rest of the cast on the engine. Route: delegated, reviewed side by side.
@@ -96,7 +96,25 @@ the user's decisions.
   notebook still shows the PNG duck. The gold puppet lens becomes the PNG lens on
   touch, a visible mismatch to settle in T7.
 - The intro speech anchor moved to (0.86, 0.30), clear of the puppet's cap brim.
+- T3 done (`ee000dc`, `a942bc3`): `zoo/tracedLine.ts` keeps the approved raw strokes
+  (Ramer-Douglas-Peucker, unit box, at most 120 points) in session memory and in
+  `cursiva.trazos.v1`. `screen/strokeFinale.ts` composes one scene per `finale` row
+  (water, leap, hills, shell, lianas, slither, route, bubbles, spines), and
+  `screen/StrokeFinale.tsx` plays it before `AdventureClosing` through `FinaleGate`.
+  No line means today's closing. The animal goes through the seam, so PNGs work now.
+  In the browser, real drags on `duck-trail4`, `turtle4`, `monkey4`, `bee4`, `hedgehog1`;
+  tap skip and reduced motion checked on the bee. The other five families were seen
+  only with injected lines of the right shape.
+- T4 done (`ad2b7b2`): `puppet/tentacle.ts` and `canvas/Tentacle.tsx` replace the idle hand
+  and draw the demo stroke on one clock. A restart, from a wall or a hazard, gets the scare,
+  the arm pointing at the start and a kind spoken line, with no failure sound. The
+  Pulpito stands beside the start (`besideRouteFeet`), the green dot stays, and
+  `duck-trail1` and `turtle4` are the two tight shapes. `docs/25` P2-1 text corrections were
+  already spoken (`resultSpeechLine`). The night demo is the arm over its one-shot cue.
+- Evidence: `npx vitest run --maxWorkers=2` 127 files, 3828 tests green; `npm run build` green.
+- Decisions to confirm: the hazard restart also speaks and points (the brief names the wall);
+  the sound on restart is gone; the arm also replaces the idle-cue hand on all cues.
 
 ## Next step
 
-Parent reads the T2 captures side by side, then T3.
+Parent reads the T3 and T4 captures, then T5.
