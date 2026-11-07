@@ -25,6 +25,49 @@ import type { SegmentConfig } from './segments'
 
 export type Phase = 1 | 2 | 3 | 4 | 5
 
+/** How much of the model the surface shows (`docs/03` §3). */
+export type GuideBand = 'full' | 'dotted' | 'minimal' | 'none'
+
+/** The window a letter is written through: zoomed in on the sheet so the corridor
+ *  fits a finger, and with the ruled zones kept true (only the crop changes). */
+export interface LevelView {
+  /** Sheet width. Narrower than the default sheet: that is the zoom. */
+  readonly width: number
+  /** The band of the sheet's 600 units that shows. */
+  readonly y: number
+  readonly height: number
+  /** Moves the paths off the sheet's centre, to leave room for the model. */
+  readonly shiftX?: number
+}
+
+/** A step of the letter sequence in the detective's notebook (`docs/25` 4.3 to 4.5). */
+export type NotebookStep = 'trace' | 'dotted' | 'copy' | 'memory' | 'word'
+
+/** The gesture turning into the letter, shown just before a letter's first step. */
+export interface LetterMorphConfig {
+  /** The family's bridge level: the child's line there is what morphs. */
+  readonly bridgeLevelId: string
+  /** The family's adventure, whose closing line is the next best thing. */
+  readonly family: string
+  /** How much of that line is one gesture of this letter. */
+  readonly fraction: number
+  /** Spoken as it turns. */
+  readonly line: string
+}
+
+export interface NotebookConfig {
+  readonly step: NotebookStep
+  /** What is being written: a letter, or a word. */
+  readonly text: string
+  /** The written step is judged by its shape, wherever on the page it landed. */
+  readonly freehand?: boolean
+  /** How far left of the writing the model stands, in sheet units (`copy`). */
+  readonly modelDx?: number
+  readonly morph?: LetterMorphConfig
+  /** Who reacts to a finished word. */
+  readonly animal?: ArtImage
+}
+
 /**
  * What the child is doing on the surface.
  * `free`  — no target at all: open scribbling to warm up the whole arm.
@@ -343,6 +386,20 @@ export interface LevelConfig {
    *  is. Only on a routed level with several `paths`; absent on every level
    *  that predates it. */
   segments?: SegmentConfig
+  /** Written in the detective's notebook. Absent on every level before the bridge. */
+  notebook?: NotebookConfig
+  /** A bridge level: the family's gesture, small, with the ruled zones showing
+   *  in the scene (`docs/25` 4.2). */
+  peekingRule?: boolean
+  /** The window this level is drawn through. Absent = the whole sheet. */
+  view?: LevelView
+  /** Pins the guide band: this step of the sequence IS a band. Absent = earned
+   *  from mastery (`guideLevelFor`). */
+  guideBand?: GuideBand
+  /** How long the demonstration takes. Absent = the shared pace. */
+  demoSeconds?: number
+  /** Keep the approved stroke under this key: it goes into the notebook. */
+  keepWriting?: string
 }
 
 /** The camera's own authored parameters (`scrolling-camera` capability).

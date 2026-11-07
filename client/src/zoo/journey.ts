@@ -48,6 +48,10 @@ export const JOURNEY: readonly string[] = [
   'glass3',
   'sand3',
   'duck-trail1',
+  // [`docs/25` 4.6] Each chapter of letters right after its own family, so every
+  // child reaches a letter on the way and not only at the very end (`docs/21`
+  // §3.3 warns against a long run of pre-writing before any letter).
+  'duck-puente',
   // [T45] The sheep's first level is its pistas level since `docs/21` N5.
   'sheep-lana',
   'llama-peak1',
@@ -56,6 +60,7 @@ export const JOURNEY: readonly string[] = [
   'snake1',
   'bee1',
   'f2-guirnalda',
+  'fish-puente',
   'dolphin1',
   // The turtles' and monkeys' own stops (`promised-animals` P3/P4): both
   // are a SECOND stop for an already-visited sector (`arena`'s own snake1
@@ -68,7 +73,9 @@ export const JOURNEY: readonly string[] = [
   // among the earlier ones.
   // [T45] The turtles' first level is its pistas level since `docs/21` N6.
   'turtle-huellas',
+  'turtle-puente',
   'monkey1',
+  'monkey-puente',
 ]
 
 /**

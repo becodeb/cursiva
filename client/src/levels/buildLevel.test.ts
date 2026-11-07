@@ -228,7 +228,8 @@ describe('buildLevelTarget — horizontal centring', () => {
     for (const level of LEVELS) {
       if (level.kind === 'free') continue // no bounding box to centre
       const target = buildLevelTarget(level)
-      expect(centreX(target.paths)).toBeCloseTo(target.viewBoxWidth / 2, 0)
+      // The copy step sits right of centre on purpose: the model stands to its left.
+      expect(centreX(target.paths)).toBeCloseTo(target.viewBoxWidth / 2 + (level.view?.shiftX ?? 0), 0)
     }
   })
 

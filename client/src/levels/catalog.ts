@@ -29,6 +29,7 @@ import {
   ZOO_ANIMAL_ART,
 } from '../detective/assets'
 import { buildWord } from '../letters/combinations'
+import { BRIDGE_LEVELS, LETTER_LEVELS, WORD_LEVELS } from './notebookLevels'
 import { LETTER_REGISTRY } from '../letters/registry'
 import type { LetterConfig } from '../letters/types'
 import {
@@ -3289,7 +3290,10 @@ export const LEVELS: readonly LevelConfig[] = [
   ...PHASE_1,
   ...PHASE_2,
   ...PHASE_3,
+  ...BRIDGE_LEVELS,
+  ...LETTER_LEVELS,
   ...PHASE_4,
+  ...WORD_LEVELS,
   ...PHASE_5,
 ]
 

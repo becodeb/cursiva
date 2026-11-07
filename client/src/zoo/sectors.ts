@@ -11,6 +11,7 @@
 // numbers picked by eye. `docs/12` §4 governs what happens when one misses: a
 // misplaced `hit` is corrected HERE, never in `zoo-map.png` itself.
 import { LEVELS } from '../levels/catalog'
+import { CHAPTER_LEVEL_IDS } from '../levels/notebookLevels'
 import { ZOO_ANIMAL_ART, ZOO_FOG_ART, type ArtImage, type ZooAnimalId } from '../detective/assets'
 import { placeArt, STANDING_GRIP, type ArtBox } from '../canvas/placeArt'
 import type { LevelRecord } from '../game/types'
@@ -424,7 +425,7 @@ export const SECTORS: readonly ZooSector[] = [
     // `arena`'s own `turtle1..4` just made: the monkeys' own five-loop
     // family (`promised-animals` P4), played right after the bee.
     // `unlockedWhen` stays UNCHANGED.
-    adventureIds: ['bee1', 'bee2', 'bee3', 'bee4', 'monkey1', 'monkey2', 'monkey-lianas', 'monkey3', 'monkey4'],
+    adventureIds: ['bee1', 'bee2', 'bee3', 'bee4', 'monkey1', 'monkey2', 'monkey-lianas', 'monkey3', 'monkey4', ...CHAPTER_LEVEL_IDS.le],
     // The ladder's new last rung: entrada → estanque ← sand4 → montañas ←
     // duck-trail4 → nocturna ← llama-peak4 → arena ← night4 → bosque ←
     // snake4 (`free-trail-waypoints` design.md §9). Only ever WIDENS access.
@@ -466,11 +467,14 @@ export const SECTORS: readonly ZooSector[] = [
       'duck-trail6',
       'duck-trail3',
       'duck-trail4',
+      // [`docs/25` 4.6] Each chapter of letters follows its own family.
+      ...CHAPTER_LEVEL_IDS.mn,
       'f2-guirnalda',
       'f2-agua2',
       'f2-buceo',
       'f2-agua3',
       'f2-agua4',
+      ...CHAPTER_LEVEL_IDS.u,
       'dolphin1',
       'dolphin2',
       'dolphin3',
@@ -546,6 +550,7 @@ export const SECTORS: readonly ZooSector[] = [
       'turtle2',
       'turtle3',
       'turtle4',
+      ...CHAPTER_LEVEL_IDS.oa,
     ],
     // The ladder's new last rung: entrada → estanque ← sand4 → montañas ←
     // duck-trail4 → nocturna ← llama-peak4 → arena ← night4. Only ever

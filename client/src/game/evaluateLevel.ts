@@ -23,6 +23,7 @@ import { revealScore } from '../levels/revealGrid'
 import { spineScore } from '../levels/spines'
 import { waypointScore } from '../levels/waypoints'
 import type { LevelTarget } from '../levels/types'
+import { alignFreehand } from './freehand'
 import type { LevelAttempt } from './types'
 
 /** Total arc length of a point list — the sum of consecutive chord distances. */
@@ -198,19 +199,24 @@ export function evaluateLevel(
     return emptyAttempt(Math.max(0, strokes.length - allowedStrokes))
   }
 
+  // A step written from a model or from memory has no corridor to stay in, so
+  // the shape is judged wherever on the page it landed (`game/freehand.ts`).
+  const judged = target.config.notebook?.freehand ? alignFreehand(strokes, target.polyline) : strokes
+  const judgedAll: Point[] = judged.flat()
+
   // ── Pilar 1: precisión — ¿se mantuvo dentro del camino? ────────────────────
   const tolerance = toleranceFor(target.corridorWidth, pointerType)
-  const accuracy = Math.round(score(resampleForScoring(strokes, K), target.ideal, tolerance))
+  const accuracy = Math.round(score(resampleForScoring(judged, K), target.ideal, tolerance))
 
   // ── Pilar 2: sentido — ¿el recorrido fue en el orden correcto? ─────────────
-  const order = checkCheckpointOrder(all, target.checkpoints)
+  const order = checkCheckpointOrder(judgedAll, target.checkpoints)
   // When the level does not enforce order the pillar cannot block approval, but
   // the real flag is KEPT: an inverted turn still earns its coaching message.
   // On a letter, reaching every zone in turn is not enough: a zigzag crosses the
   // route at each of them (`docs/25` P1-1). Only letters ask: everywhere else
   // the corridor is the exercise, and how the child got through is their own.
   const isLetter = target.config.letters.length > 0
-  const toAndFro = isLetter && checkBackAndForth(strokes, target.polyline).backAndForth
+  const toAndFro = isLetter && checkBackAndForth(judged, target.polyline).backAndForth
   const directionOk = rules.enforceOrder ? order.orderPassed && !toAndFro : true
   const wrongDirection = order.wrongDirection
 

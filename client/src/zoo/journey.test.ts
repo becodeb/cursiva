@@ -62,13 +62,14 @@ describe('JOURNEY (guard: every ADVENTURES row start and every no-row block star
     }
   })
 
-  it('is exactly the 15 documented stops, in narrative order', () => {
+  it('is exactly the documented stops, in narrative order, each chapter of letters after its family', () => {
     expect(JOURNEY).toEqual([
       'glass1',
       'sand1',
       'glass3',
       'sand3',
       'duck-trail1',
+      'duck-puente',
       'sheep-lana',
       'llama-peak1',
       'night1',
@@ -76,9 +77,12 @@ describe('JOURNEY (guard: every ADVENTURES row start and every no-row block star
       'snake1',
       'bee1',
       'f2-guirnalda',
+      'fish-puente',
       'dolphin1',
       'turtle-huellas',
+      'turtle-puente',
       'monkey1',
+      'monkey-puente',
     ])
   })
 })
@@ -145,6 +149,7 @@ describe('nextJourneyStep', () => {
       'duck-trail6',
       'duck-trail3',
       'duck-trail4',
+      ...ADVENTURES.find((a) => a.id === 'letters-mn')!.levelIds,
       'sheep-lana',
       'sheep-hill1',
       'sheep-hill2',
@@ -172,6 +177,7 @@ describe('nextJourneyStep', () => {
     const records = filed(
       ...entrada.adventureIds,
       ...duck.levelIds,
+      ...ADVENTURES.find((a) => a.id === 'letters-mn')!.levelIds,
       ...sheep.levelIds,
       ...llama.levelIds,
       ...night.levelIds,
@@ -208,9 +214,13 @@ describe('nextJourneyStep', () => {
     expect(nextJourneyStep(baseline)?.sector.id).toBe('arena')
 
     const turtles = ADVENTURES.find((a) => a.id === 'turtles')!
+    const lettersOA = ADVENTURES.find((a) => a.id === 'letters-oa')!
     const afterTurtles = { ...baseline, ...filed(...turtles.levelIds) }
-    expect(nextJourneyStep(afterTurtles)?.entryLevel).toBe('monkey1')
-    expect(nextJourneyStep(afterTurtles)?.sector.id).toBe('bosque')
+    // [`docs/25` 4.6] The turtles' letters first, and only then the monkeys.
+    expect(nextJourneyStep(afterTurtles)?.entryLevel).toBe('turtle-puente')
+    const afterLetters = { ...afterTurtles, ...filed(...lettersOA.levelIds) }
+    expect(nextJourneyStep(afterLetters)?.entryLevel).toBe('monkey1')
+    expect(nextJourneyStep(afterLetters)?.sector.id).toBe('bosque')
   })
 
   it('returns null once every sector the ladder reaches is fully filed', () => {
@@ -229,5 +239,31 @@ describe('nextJourneyStep', () => {
       ...bosque.adventureIds,
     )
     expect(nextJourneyStep(records)).toBeNull()
+  })
+})
+
+describe('the letters on the journey (`docs/25` P1-2: no child ever reached one)', () => {
+  it('reaches a letter chapter right after each family, with no dev link', () => {
+    for (const [family, chapter] of [
+      ['duck-trail1', 'duck-puente'],
+      ['f2-guirnalda', 'fish-puente'],
+      ['turtle-huellas', 'turtle-puente'],
+      ['monkey1', 'monkey-puente'],
+    ] as const) {
+      expect(JOURNEY.indexOf(chapter), chapter).toBe(JOURNEY.indexOf(family) + 1)
+    }
+  })
+
+  it('walks a child who plays the whole story through every letter', () => {
+    const seen = new Set<string>()
+    let records: Records = {}
+    for (const entryLevel of JOURNEY) {
+      expect(nextJourneyStep(records)?.entryLevel).toBe(entryLevel)
+      for (const id of idsFor(entryLevel)) seen.add(id)
+      records = { ...records, ...filed(...idsFor(entryLevel)) }
+    }
+    for (const char of 'mnuoale') {
+      for (const step of ['calco', 'punteado', 'copia', 'memoria']) expect(seen).toContain(`${char}-${step}`)
+    }
   })
 })

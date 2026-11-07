@@ -140,12 +140,25 @@ const EXPECTED_IDS = [
   'f5-mama',
 ]
 
+/** The bridge to the letters (`levels/notebookLevels.ts`, `docs/25` 4.2 to 4.6): these
+ *  ids are persisted the moment they ship, so they are spelled out here too. */
+const NOTEBOOK_IDS = [
+  ...['duck-puente', 'fish-puente', 'turtle-puente', 'monkey-puente'],
+  ...'mnuoale'.split('').flatMap((c) => [`${c}-calco`, `${c}-punteado`, `${c}-copia`, `${c}-memoria`]),
+  ...['palabra-mano', 'palabra-ola', 'palabra-luna'],
+]
+/** The doc tables below predate the notebook levels, which carry their own rules
+ *  and are checked on their own (`levels/notebookLevels.test.ts`). */
+const isNotebookLevel = (l: { id: string }) => NOTEBOOK_IDS.includes(l.id)
+const TABLED_LEVELS = LEVELS.filter((l) => !isNotebookLevel(l))
+
 const REMOVED_IDS = ['f1-travesia', 'f1-pelotas', 'f1-paseo', 'f1-pasillo', 'f1-ondas', 'f1-espiral']
 
 describe('LEVELS — catalog shape', () => {
   it('holds exactly the levels of the docs/08 section 5 tables, in play order', () => {
-    expect(LEVELS.map((l) => l.id)).toEqual(EXPECTED_IDS)
-    expect(LEVELS).toHaveLength(EXPECTED_IDS.length)
+    expect(TABLED_LEVELS.map((l) => l.id)).toEqual(EXPECTED_IDS)
+    expect(LEVELS).toHaveLength(EXPECTED_IDS.length + NOTEBOOK_IDS.length)
+    expect(LEVELS.filter(isNotebookLevel).map((l) => l.id).sort()).toEqual([...NOTEBOOK_IDS].sort())
   })
 
   it('has unique ids', () => {
@@ -349,11 +362,11 @@ describe('LEVELS — authored values match the doc tables', () => {
   }
 
   it('matches the corridor widths', () => {
-    for (const level of LEVELS) expect(level.corridorWidth).toBe(CORRIDORS[level.id])
+    for (const level of TABLED_LEVELS) expect(level.corridorWidth).toBe(CORRIDORS[level.id])
   })
 
   it('matches the minimum fluency thresholds', () => {
-    for (const level of LEVELS) expect(level.rules.minFluency).toBe(FLUENCY[level.id])
+    for (const level of TABLED_LEVELS) expect(level.rules.minFluency).toBe(FLUENCY[level.id])
   })
 
   it('scales minAccuracy by phase: 55 / 60 / 65, except the twelve reveal-grid levels and the snake family', () => {
@@ -363,7 +376,7 @@ describe('LEVELS — authored values match the doc tables', () => {
     // ("LEVELS — the reveal grid's twelve authored levels"). The snake
     // family does the same (55/62/70/76, `snake-drag-and-art-corridor`
     // design.md §6.2 R2) — asserted in its own describe block below.
-    for (const level of LEVELS) {
+    for (const level of TABLED_LEVELS) {
       if (level.reveal) continue
       if (level.artCorridor) continue
       // The bee family also authors its own minAccuracy (100 — every flower
@@ -426,7 +439,7 @@ describe('LEVELS — authored values match the doc tables', () => {
     expect(getLevel('f3-a').letters).toEqual(['a'])
     expect(getLevel('f4-la').letters).toEqual(['l', 'a'])
     expect(getLevel('f5-mama').letters).toEqual(['m', 'a', 'm', 'a'])
-    for (const level of LEVELS) {
+    for (const level of TABLED_LEVELS) {
       if (level.phase <= 2) expect(level.letters).toEqual([])
       else expect(level.letters.length).toBeGreaterThan(0)
     }
@@ -567,7 +580,9 @@ describe('LEVELS — the spoken hint names only what is on screen (T40)', () => 
   ]
 
   it('never names a trail picture the level does not draw', () => {
-    for (const level of LEVELS) {
+    // A word being written is not a picture on the trail: `palabra-mano` says "mano"
+    // because that is the word.
+    for (const level of TABLED_LEVELS) {
       for (const { kinds, word } of WORDS_BY_KIND) {
         if (!word.test(level.hint)) continue
         expect(kinds, `${level.id}: "${level.hint}"`).toContain(level.clue?.kind)
@@ -699,6 +714,11 @@ describe('LEVELS — inhibition hazards across the journey (T41)', () => {
     dolphin: 0,
     turtles: 1,
     monkeys: 1,
+    // Writing on the page is the whole task: nothing crosses a letter.
+    'letters-mn': 0,
+    'letters-u': 0,
+    'letters-oa': 0,
+    'letters-le': 0,
   }
   const hazardLevels = (ids: readonly string[]) => ids.filter((id) => (getLevel(id).obstacles?.length ?? 0) > 0)
 
@@ -1621,7 +1641,7 @@ describe('levelsByPhase', () => {
       'hedgehog4',
     ])
     expect(levelsByPhase(4).map((l) => l.id)).toEqual(['f4-la', 'f4-ma'])
-    expect(levelsByPhase(5)).toHaveLength(2)
+    expect(levelsByPhase(5).map((l) => l.id)).toEqual(['palabra-mano', 'palabra-ola', 'palabra-luna', 'f5-ala', 'f5-mama'])
     const total = ([1, 2, 3, 4, 5] as Phase[]).reduce((n, p) => n + levelsByPhase(p).length, 0)
     expect(total).toBe(LEVELS.length)
   })
@@ -1636,7 +1656,8 @@ describe('nextLevelId', () => {
       if (current !== null) walked.push(current)
       expect(walked.length).toBeLessThanOrEqual(LEVELS.length) // no cycles
     }
-    expect(walked).toEqual(EXPECTED_IDS)
+    expect(walked).toEqual(LEVELS.map((l) => l.id))
+    expect(walked.filter((id) => !NOTEBOOK_IDS.includes(id))).toEqual(EXPECTED_IDS)
   })
 
   it('returns null on the last level and for an unknown id', () => {

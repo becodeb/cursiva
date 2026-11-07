@@ -20,7 +20,7 @@ import {
   transformPathD,
 } from '../letters/svgLetter'
 import type { LetterCheckpoint, Point } from '../letters/types'
-import type { LevelConfig, LevelTarget, RouteSegment, Taper } from './types'
+import type { LevelConfig, LevelTarget, LevelView, RouteSegment, Taper } from './types'
 import { placeArtCorridor } from './artCorridor'
 import { DEMO_SPINES, spineDemoPaths, spineOrigin } from './spines'
 import { waypointDemoPaths } from './waypoints'
@@ -156,7 +156,7 @@ const VIEWBOX_MARGIN = 80
  * untouched: there is no bounding box to centre, and the derivation downstream
  * already degrades safely.
  */
-function layOutPaths(paths: string[]): { paths: string[]; viewBoxWidth: number; tx: number } {
+function layOutPaths(paths: string[], view?: LevelView): { paths: string[]; viewBoxWidth: number; tx: number } {
   let minX = Infinity
   let maxX = -Infinity
   for (const d of paths) {
@@ -169,10 +169,10 @@ function layOutPaths(paths: string[]): { paths: string[]; viewBoxWidth: number; 
     return { paths, viewBoxWidth: MIN_VIEWBOX_WIDTH, tx: 0 }
   }
   const viewBoxWidth = Math.max(
-    MIN_VIEWBOX_WIDTH,
+    view?.width ?? MIN_VIEWBOX_WIDTH,
     Math.ceil(maxX - minX + 2 * VIEWBOX_MARGIN),
   )
-  const tx = viewBoxWidth / 2 - (minX + maxX) / 2
+  const tx = viewBoxWidth / 2 - (minX + maxX) / 2 + (view?.shiftX ?? 0)
   return { paths: paths.map((d) => transformPathD(d, 1, 1, tx, 0)), viewBoxWidth, tx }
 }
 
@@ -241,7 +241,7 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
     }
   }
 
-  const { paths, viewBoxWidth, tx } = layOutPaths(config.paths)
+  const { paths, viewBoxWidth, tx } = layOutPaths(config.paths, config.view)
   const polyline = flattenPathD(paths[0] ?? '').points
   const length = polylineLength(polyline)
 

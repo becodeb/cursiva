@@ -21,6 +21,7 @@ import {
   ZOO_OCTOPUS_PRINT_ART,
   ZOO_SPEECH_BUBBLE_ART,
 } from '../detective/assets'
+import { CHAPTER_LEVEL_IDS } from '../levels/notebookLevels'
 import {
   animalPlacements,
   isFiled,
@@ -64,6 +65,11 @@ export type AdventureId =
   // entrance's cleaning enclosures, which recover no animal at all).
   | 'turtles'
   | 'monkeys'
+  // The letter chapters (`docs/25` 4.6): each follows its own family on the map.
+  | 'letters-mn'
+  | 'letters-u'
+  | 'letters-oa'
+  | 'letters-le'
 
 /** Which bottom corner the Pulpito stands in on a narrative stage screen
  *  (`docs/19_PROPUESTA_HISTORIA_Y_MECANICAS.md` §4.1 rule 2: "en una esquina
@@ -209,6 +215,10 @@ interface AdventureBase {
    *  `if (!adventure.closingBeat)` guard needs the empty case
    *  unrepresentable to stay byte-unchanged. */
   closingBeat?: readonly [ClosingBeat, ...ClosingBeat[]]
+  /** A chapter of letters: it ends on the map, where the story picks up. Without
+   *  this it would chain, as an animal-less row does, into its sector's next
+   *  adventure (the duck's letters into the fish, past the sheep). */
+  chapter?: boolean
 }
 
 /** An adventure recovers an animal, or it carries a picture of its own.
@@ -235,6 +245,10 @@ export function adventureIcon(a: Adventure): ArtImage {
 export function introBubbleArt(a: Adventure): ArtImage {
   return a.introArt ?? adventureIcon(a)
 }
+
+/** The notebook line every chapter closes on: the closings have promised it all
+ *  along ("¡Lo anoté en mi libreta!", `docs/25` 4.5). */
+const CHAPTER_CLOSING = '¡Lo anotamos en la libreta! Mirala cuando quieras.'
 
 export const ADVENTURES: readonly Adventure[] = [
   {
@@ -609,6 +623,46 @@ export const ADVENTURES: readonly Adventure[] = [
     // `ADVENTURES` — only relative order matters here, unlike `catalog.ts`'s
     // real ascending-phase ordering constraint, design.md §2 D6).
     closingBeat: [{ line: '¡El erizo tiene todas sus espinas!', art: ZOO_ANIMAL_ART.erizo }],
+  },
+  {
+    id: 'letters-mn',
+    chapter: true,
+    levelIds: CHAPTER_LEVEL_IDS.mn,
+    sector: 'estanque',
+    icon: ZOO_ANIMAL_ART.pato,
+    intro: '¿Te acordás de los puentes del pato? ¡Vamos a anotarlos en mi libreta!',
+    closing: CHAPTER_CLOSING,
+    closingBeat: [{ line: CHAPTER_CLOSING, art: ZOO_ANIMAL_ART.pato }],
+  },
+  {
+    id: 'letters-u',
+    chapter: true,
+    levelIds: CHAPTER_LEVEL_IDS.u,
+    sector: 'estanque',
+    icon: ZOO_ANIMAL_ART.pez,
+    intro: '¿Te acordás de la guirnalda de los peces? ¡Vamos a anotarla en mi libreta!',
+    closing: CHAPTER_CLOSING,
+    closingBeat: [{ line: CHAPTER_CLOSING, art: ZOO_ANIMAL_ART.pez }],
+  },
+  {
+    id: 'letters-oa',
+    chapter: true,
+    levelIds: CHAPTER_LEVEL_IDS.oa,
+    sector: 'arena',
+    icon: ZOO_ANIMAL_ART.tortuga,
+    intro: '¿Te acordás de las vueltas de la tortuga? ¡Vamos a anotarlas en mi libreta!',
+    closing: CHAPTER_CLOSING,
+    closingBeat: [{ line: CHAPTER_CLOSING, art: ZOO_ANIMAL_ART.tortuga }],
+  },
+  {
+    id: 'letters-le',
+    chapter: true,
+    levelIds: CHAPTER_LEVEL_IDS.le,
+    sector: 'bosque',
+    icon: ZOO_ANIMAL_ART.mono,
+    intro: '¿Te acordás de los rulos del mono? ¡Vamos a anotarlos en mi libreta!',
+    closing: CHAPTER_CLOSING,
+    closingBeat: [{ line: CHAPTER_CLOSING, art: ZOO_ANIMAL_ART.mono }],
   },
 ]
 

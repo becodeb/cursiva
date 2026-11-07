@@ -82,6 +82,11 @@ const REVEAL_BACKDROPS = {
  * rows above so the "no admissible light paint" falsifiability below stays
  * meaningful for each group on its own terms. */
 const CHANNEL_BACKDROPS = {
+  // A chapter of letters opens on its family's own place, the same object.
+  'letters-mn': ADVENTURE_BACKDROP['letters-mn']!,
+  'letters-u': ADVENTURE_BACKDROP['letters-u']!,
+  'letters-oa': ADVENTURE_BACKDROP['letters-oa']!,
+  'letters-le': ADVENTURE_BACKDROP['letters-le']!,
   duck: ADVENTURE_BACKDROP.duck!,
   // The dolphin row shares the duck row's own literals verbatim (design.md
   // §3.1) — same group, same reasoning, no `channel` of its own.

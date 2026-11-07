@@ -4,6 +4,7 @@
 // Resolution", "Recovered Animal Placement"). Node environment, no DOM —
 // every function under test is pure over plain data (design.md §5's table).
 import { describe, expect, it } from 'vitest'
+import { CHAPTER_LEVEL_IDS } from '../levels/notebookLevels'
 import { LEVELS } from '../levels/catalog'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import { ZOO_ANIMAL_ART } from '../detective/assets'
@@ -208,7 +209,7 @@ describe('Fog Containment Invariant', () => {
 describe('Registry↔Catalog Structural Consistency', () => {
   const catalogIds = new Set(LEVELS.map((l) => l.id))
 
-  it("estanque's fifteen adventures are in the exact documented order (patos → medusa → delfines)", () => {
+  it("estanque's adventures are in the exact documented order (patos → medusa → delfines)", () => {
     expect(estanque.adventureIds).toEqual([
       'duck-trail1',
       'duck-trail5',
@@ -216,11 +217,13 @@ describe('Registry↔Catalog Structural Consistency', () => {
       'duck-trail6',
       'duck-trail3',
       'duck-trail4',
+      ...CHAPTER_LEVEL_IDS.mn,
       'f2-guirnalda',
       'f2-agua2',
       'f2-buceo',
       'f2-agua3',
       'f2-agua4',
+      ...CHAPTER_LEVEL_IDS.u,
       'dolphin1',
       'dolphin2',
       'dolphin3',
@@ -311,6 +314,7 @@ describe('Registry↔Catalog Structural Consistency', () => {
     expect(bosque.adventureIds).toEqual([
       'bee1', 'bee2', 'bee3', 'bee4',
       'monkey1', 'monkey2', 'monkey-lianas', 'monkey3', 'monkey4',
+      ...CHAPTER_LEVEL_IDS.le,
     ])
     for (const records of [{}, filed('sand4', 'night4', 'llama-peak4')]) {
       expect(bosque.unlockedWhen(records)).toBe(false)
@@ -333,6 +337,7 @@ describe('Registry↔Catalog Structural Consistency', () => {
     expect(arena.adventureIds).toEqual([
       'snake1', 'snake2', 'snake3', 'snake4',
       'turtle-huellas', 'turtle1', 'turtle2', 'turtle3', 'turtle4',
+      ...CHAPTER_LEVEL_IDS.oa,
     ])
     expect(arena.unlockedWhen({})).toBe(false)
     expect(arena.unlockedWhen(filed('llama-peak4'))).toBe(false)
@@ -477,7 +482,9 @@ describe('Progression consistency (finish-mvp-roadmap U2)', () => {
 
     expect(totalStars(records)).toBe(entrada.adventureIds.length + duck.length)
     expect(animalPlacements(estanque, records).map((p) => p.art)).toEqual([ZOO_ANIMAL_ART.pato])
-    expect(nextAdventure(estanque, records)).toBe('f2-guirnalda')
+    // [`docs/25` 4.6] The duck's letters come next in the pond, and the mountains
+    // open all the same: letters never lock the story.
+    expect(nextAdventure(estanque, records)).toBe('duck-puente')
     expect(isOpen(montanas, records)).toBe(true)
   })
 })

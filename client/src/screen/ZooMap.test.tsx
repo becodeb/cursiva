@@ -450,6 +450,8 @@ describe('ZooMap spotlight (T4, D5: exactly one place highlighted)', () => {
       'duck-trail6',
       'duck-trail3',
       'duck-trail4',
+      // [`docs/25` 4.6] The duck's letters come before the mountains on the story.
+      ...ADVENTURES.find((row) => row.id === 'letters-mn')!.levelIds,
       'sheep-hill1',
       'sheep-hill2',
       'sheep-hill3',

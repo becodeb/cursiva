@@ -397,6 +397,13 @@ export const ADVENTURE_BACKDROP: Partial<Record<AdventureId, AdventureBackdrop>>
  *  claim to make. The group's own real law (W1-W3, design.md §3.4) is
  *  two-sided over `bee.brightest`: the dormant flower must be findable
  *  AND the child's own trail (after A1's repair) must be legible. */
+// A chapter of letters starts in its family's place, on the bridge level; the
+// letters themselves are on the notebook page (`LevelPlay`).
+ADVENTURE_BACKDROP['letters-mn'] = ADVENTURE_BACKDROP.duck
+ADVENTURE_BACKDROP['letters-u'] = ADVENTURE_BACKDROP.fish
+ADVENTURE_BACKDROP['letters-oa'] = ADVENTURE_BACKDROP.turtles
+ADVENTURE_BACKDROP['letters-le'] = ADVENTURE_BACKDROP.monkeys
+
 export const WAYPOINT_BACKDROPS = { bee: ADVENTURE_BACKDROP.bee! }
 
 /** The hedgehog row alone, split out for the same reason `WAYPOINT_BACKDROPS`

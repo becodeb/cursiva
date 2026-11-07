@@ -54,7 +54,8 @@ describe('ADVENTURES', () => {
   // of the same eight level ids, never renumbered (`zoo-map` delta
   // "Adventure Identifiers Regroup the Entrance Into Four Enclosures").
   it("declares fifteen rows: duck/sheep/llama, the entrance's four enclosures (peces/tortugas/monos/sendero), the night sector, the arena's snake and turtles, the forest's bee and monkeys, the pond's fish and dolphin, and the night sector's second adventure — the hedgehog (design.md §5, §6.1; free-trail-waypoints design.md §9; this change's §8; radial-spines design.md §8.2; add-caretaker-prologue design.md D7; promised-animals P2-P4 add `fish`/`turtles`/`monkeys`)", () => {
-    expect(ADVENTURES).toHaveLength(15)
+    // [`docs/25` 4.6] Four chapters of letters since then, one after each family.
+    expect(ADVENTURES).toHaveLength(19)
     expect(ADVENTURES.map((a) => a.id)).toEqual([
       'duck',
       'sheep',
@@ -79,6 +80,10 @@ describe('ADVENTURES', () => {
       'fish',
       'dolphin',
       'hedgehog',
+      'letters-mn',
+      'letters-u',
+      'letters-oa',
+      'letters-le',
     ])
 
     const duck = ADVENTURES[0]
