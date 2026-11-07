@@ -179,7 +179,15 @@ import { BackIcon, PlaceholderAnimalBadge, ReplayIcon } from '../detective/icons
 import { PISTAS_BAR_CHROME_PX, PISTAS_BUDGET_VW_FRAC, PISTAS_MIN_SLOT } from '../detective/pistasFit'
 import { useNarration } from '../voice/useNarration'
 import { canAutoSpeak, isSpeaking, speak } from '../voice/narrator'
+import { recordApprovedStroke, type RawPoint } from '../zoo/tracedLine'
 import SpeakButton from '../voice/SpeakButton'
+
+/** Keeps the child's own approved line for the closing finale (`zoo/tracedLine.ts`).
+ *  RAW points, as scoring reads them: never the rail-warped copy on screen. */
+function keepApprovedStroke(levelId: string, strokes: readonly (readonly RawPoint[])[]): void {
+  const adventure = adventureFor(levelId)
+  if (adventure?.finale) recordApprovedStroke(adventure.id, levelId, strokes)
+}
 
 /** Seconds one demonstration sub-path takes, and the gap before the next one. */
 const DEMO_DURATION_S = 1.6
@@ -2613,6 +2621,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // Seeded from `initialSpineState`, never the bare `EMPTY_SPINES`
   // constant.
   const spineRef = useRef<SpineState>(initialSpineState(level.spines, debugSearch))
+  // The real strokes behind the latch: what the hedgehog's finale wears as spines.
+  const acceptedSpinesRef = useRef<TracePoint[][]>([])
   const [spineState, setSpineState] = useState<SpineState>(spineRef.current)
   // `?debug=espinas:<k>` REPLACES live pointer input for the spine fold —
   // the same contract `waypointPin`/`debugLightPoint` carry: the seeded
@@ -2826,6 +2836,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // this attempt (design.md §6, `docs/01` "no punishment"); only a genuinely
   // new attempt (this effect) starts every spine unfilled again.
   useEffect(() => {
+    acceptedSpinesRef.current = []
     spineRef.current = initialSpineState(level.spines, debugSearch)
     setSpineState(spineRef.current)
     // T45: the segment latch and its ink, for the same reason.
@@ -3034,6 +3045,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // The spine latch resets the SAME way `resetSurface` does — THROUGH
     // `initialSpineState`, never a bare constant, so this new field does
     // not repeat the waypoint fold's own bug the moment it is born.
+    acceptedSpinesRef.current = []
     spineRef.current = initialSpineState(level.spines, debugSearch)
     setSpineState(spineRef.current)
     // The route itself is starting over, so any clue marks lit during the
@@ -3379,6 +3391,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
           // level and never gates this outcome.
           if (!collectApprovedRef.current && isCollectComplete(next)) {
             collectApprovedRef.current = true
+            keepApprovedStroke(level.id, [points])
             const evaluated = evaluateLevel([points], target, 'touch')
             const result: LevelAttempt = {
               ...evaluated,
@@ -3585,6 +3598,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         }, SPINE_REJECT_FADE_MS)
         fadingSpineTimeoutsRef.current.add(timeout)
       }
+      if (outcome.spineAccepted && lastStroke) acceptedSpinesRef.current.push(lastStroke)
+      // A collect level was kept at its last item; this release is the same line,
+      // now complete, so it replaces it.
+      if (result.approved) keepApprovedStroke(level.id, level.spines ? acceptedSpinesRef.current : snapshot)
       setAttempt(result)
       setPhase('result')
       // T29: on a collect level, `onFrame` already ran this exact override

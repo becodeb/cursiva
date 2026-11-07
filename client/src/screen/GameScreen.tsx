@@ -16,6 +16,7 @@ import type { LevelAttempt, LevelRecord } from '../game/types'
 import { openProgressStore } from '../game/openProgressStore'
 import { DETECTIVE_CASES, caseSolvedId, resolveCase } from '../detective/cases'
 import AdventureClosing from './AdventureClosing'
+import { FinaleGate } from './StrokeFinale'
 import { isDevMode } from '../canvas/devMode'
 import { sectorOf } from '../zoo/sectors'
 import { adventureFor, closingLevel, introLevel, isRescued } from '../zoo/adventures'
@@ -674,16 +675,18 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
         <>
           <style>{ROOT_VIEW_TRANSITION_CSS}</style>
           <ScreenTransition screenKey={screenTransitionKey(state)} kind={screenTransitionKind}>
-            <AdventureClosing
-              adventure={adventure}
-              beat={beat}
-              onContinue={() => {
-                const action = advanceClosing(state.levelId, index, store.all())
-                if (action.type === 'exit') onExit()
-                else if (action.type === 'enter') advanceView(action.view)
-                else advanceView({ view: 'close', levelId: state.levelId, beat: action.beat })
-              }}
-            />
+            <FinaleGate adventure={adventure} beat={beat}>
+              <AdventureClosing
+                adventure={adventure}
+                beat={beat}
+                onContinue={() => {
+                  const action = advanceClosing(state.levelId, index, store.all())
+                  if (action.type === 'exit') onExit()
+                  else if (action.type === 'enter') advanceView(action.view)
+                  else advanceView({ view: 'close', levelId: state.levelId, beat: action.beat })
+                }}
+              />
+            </FinaleGate>
           </ScreenTransition>
         </>
       )

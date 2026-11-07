@@ -146,8 +146,26 @@ export interface AdventureTool {
   line: string
 }
 
+/** What a closing finale does with the child's own line
+ *  (`screen/strokeFinale.ts` composes each one). One kind per family: adding an
+ *  adventure's finale is this one field. */
+export type FinaleKind = 'water' | 'leap' | 'hills' | 'shell' | 'lianas' | 'slither' | 'route' | 'bubbles' | 'spines'
+
+export interface AdventureFinale {
+  readonly kind: FinaleKind
+  /** Paper colours of the scene's big shapes, nearest first. */
+  readonly tint?: readonly string[]
+  /** The picture the line completes, when it is not the adventure's own animal. */
+  readonly art?: ArtImage
+  /** The way its art looks: it must walk the line head first. Absent is right. */
+  readonly faces?: 'left' | 'right'
+}
+
 interface AdventureBase {
   id: AdventureId
+  /** Absent: this adventure's closing plays no finale (nothing to replay on the
+   *  enclosures and the night, which leave no line). */
+  finale?: AdventureFinale
   /** In play order. `levelIds[0]` is where the narrative entry shows
    *  (`introLevel`). */
   levelIds: readonly string[]
@@ -221,6 +239,7 @@ export function introBubbleArt(a: Adventure): ArtImage {
 export const ADVENTURES: readonly Adventure[] = [
   {
     id: 'duck',
+    finale: { kind: 'water' },
     // [T40] Play order, not id order: one clue per level, so the two new
     // pistas levels (`duck-trail5`, `duck-trail6`) sit between the old ones.
     levelIds: ['duck-trail1', 'duck-trail5', 'duck-trail2', 'duck-trail6', 'duck-trail3', 'duck-trail4'],
@@ -251,6 +270,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'sheep',
+    finale: { kind: 'hills', tint: ['#9ccb78', '#7dae5c'], faces: 'left' },
     // [T45, `docs/21` N5] Recipe A since the author's decision 1 (`docs/21`
     // §6, 2026-10-02): the fence posts' wool first (`sheep-lana`), then
     // "¿Quién deja lana?", then the sheep gathered on the hills.
@@ -267,6 +287,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'llama',
+    finale: { kind: 'hills', tint: ['#d2a668', '#ae8247'] },
     levelIds: ['llama-peak1', 'llama-peak2', 'llama-peak3', 'llama-peak4'],
     sector: 'montanas',
     animal: 'llama',
@@ -416,6 +437,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'snake',
+    finale: { kind: 'slither' },
     levelIds: ['snake1', 'snake2', 'snake3', 'snake4'],
     sector: 'arena',
     animal: 'vibora',
@@ -442,6 +464,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'turtles',
+    finale: { kind: 'shell' },
     // [T45, `docs/21` N6] Recipe A: the tail furrow and its prints first
     // (`turtle-huellas`), then "¿De quién es esta huella?", then the rings.
     levelIds: ['turtle-huellas', 'turtle1', 'turtle2', 'turtle3', 'turtle4'],
@@ -473,6 +496,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'bee',
+    finale: { kind: 'route' },
     levelIds: ['bee1', 'bee2', 'bee3', 'bee4'],
     sector: 'bosque',
     animal: 'abeja',
@@ -483,6 +507,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'monkeys',
+    finale: { kind: 'lianas' },
     // [T44, `docs/21` N4] `monkey-lianas` is the case's last clue.
     levelIds: ['monkey1', 'monkey2', 'monkey-lianas', 'monkey3', 'monkey4'],
     // [T27, `docs/19` §2.3/§3 monos row] Recipe A's fourth and last complete
@@ -506,6 +531,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'fish',
+    finale: { kind: 'bubbles' },
     // [T44, `docs/21` N3] `f2-buceo` is the case's last clue.
     levelIds: ['f2-guirnalda', 'f2-agua2', 'f2-buceo', 'f2-agua3', 'f2-agua4'],
     // [T26, `docs/19` §2.3] Recipe A's third case: after `f2-agua2` — the
@@ -549,6 +575,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'dolphin',
+    finale: { kind: 'leap' },
     levelIds: ['dolphin1', 'dolphin2', 'dolphin3', 'dolphin4'],
     sector: 'estanque',
     animal: 'delfin',
@@ -565,6 +592,7 @@ export const ADVENTURES: readonly Adventure[] = [
   },
   {
     id: 'hedgehog',
+    finale: { kind: 'spines', art: HEDGEHOG_ART.curled },
     levelIds: ['hedgehog1', 'hedgehog2', 'hedgehog3', 'hedgehog4'],
     sector: 'nocturna',
     animal: 'erizo',

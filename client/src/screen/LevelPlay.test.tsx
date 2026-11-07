@@ -105,6 +105,7 @@ import LevelPlay, {
   torchView,
   TORCH_MARKER_GLOW,
 } from './LevelPlay'
+import { approvedLineFor, forgetSessionLines } from '../zoo/tracedLine'
 import {
   CARRIER_LENS_ART,
   CLUE_ART,
@@ -1563,6 +1564,42 @@ describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', (
       ).not.toThrow()
     }
     expect(() => onFrame([target.polyline[1]], true, 2000)).not.toThrow()
+  })
+
+  describe('the approved line is kept for the closing finale', () => {
+    const release = (id: string) => {
+      const level = getLevel(id)
+      const target = buildLevelTarget(level)
+      renderToString(<LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />)
+      const onRelease = traceCanvasProbe.current?.onRelease as (p: TracePoint[], t: string, all: TracePoint[][]) => void
+      const stroke = target.polyline.map((p, i) => ({ x: p.x, y: p.y, t: i * 16 })) as TracePoint[]
+      onRelease(stroke, 'touch', [stroke])
+    }
+
+    it('a passed level leaves its real points, simplified and bounded', () => {
+      forgetSessionLines()
+      release('duck-trail5')
+      const line = approvedLineFor('duck', null)
+      expect(line?.levelId).toBe('duck-trail5')
+      expect(line?.strokes[0].length).toBeGreaterThan(5)
+      forgetSessionLines()
+    })
+
+    it('an attempt that is not approved keeps nothing', () => {
+      forgetSessionLines()
+      const level = getLevel('duck-trail5')
+      renderToString(<LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />)
+      const onRelease = traceCanvasProbe.current?.onRelease as (p: TracePoint[], t: string, all: TracePoint[][]) => void
+      const dab = [{ x: 500, y: 40, t: 0 }, { x: 502, y: 41, t: 16 }] as TracePoint[]
+      onRelease(dab, 'touch', [dab])
+      expect(approvedLineFor('duck', null)).toBeNull()
+    })
+
+    it('an adventure with no finale keeps nothing', () => {
+      forgetSessionLines()
+      release('glass1')
+      expect(approvedLineFor('peces', null)).toBeNull()
+    })
   })
 
   // docs/25 §7 1.2 (P2-1: "el reinicio es mudo"): a wall contact on a
