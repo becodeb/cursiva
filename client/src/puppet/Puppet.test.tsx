@@ -1,7 +1,7 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { createActor, type ActName } from './actor'
-import { getRig, puppetView, type PuppetName } from './characters'
+import { getRig, PUPPET_NAMES, puppetView } from './characters'
 import { browPath, mouthPath } from './characters/face'
 import Puppet from './Puppet'
 import { computeFrame, figureView, frameBounds, PAPER_SHADOW_FILL, type PaperNode } from './rig'
@@ -16,6 +16,7 @@ const poseWith = (acts: Partial<Record<ActName, number>>): Pose => ({
   open: 0,
   brow: (acts.sad ?? 0) + (acts.scare ?? 0) * 0.7,
   hop: 0,
+  state: {},
 })
 
 /** The numbers out of an `M a b Q c d e f` brow. */
@@ -72,7 +73,7 @@ function allNodes(nodes: readonly PaperNode[]): PaperNode[] {
   return nodes.flatMap((n) => (n.kind === 'group' ? [n, ...allNodes(n.children)] : [n]))
 }
 
-describe.each<PuppetName>(['pulpo', 'pato'])('the %s rig', (name) => {
+describe.each(PUPPET_NAMES)('the %s rig', (name) => {
   it('is cut paper: every lifted piece has a shadow, and nothing has an outline', () => {
     const paths = allNodes(getRig(name).nodes).filter((n) => n.kind === 'path')
     const shadows = paths.filter((n) => n.shadow)

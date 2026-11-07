@@ -61,12 +61,23 @@ export interface RigEye {
   readonly r: number
 }
 
+/** How the whole figure moves on the page. A long snake must not swing about the
+ *  Pulpito's feet: the defaults are the ones the Pulpito and the duck were approved with. */
+export interface RootMotion {
+  readonly pivot?: readonly [number, number]
+  readonly hop?: number
+  readonly tilt?: number
+  readonly shake?: number
+  readonly squash?: number
+}
+
 export interface Rig {
   readonly nodes: readonly PaperNode[]
   readonly dynamics: readonly DynamicPath[]
   readonly eyes: readonly RigEye[]
   readonly palette: Readonly<Record<string, string>>
   readonly update: RigUpdate
+  readonly motion?: RootMotion
 }
 
 export interface ClusterShape {
@@ -140,7 +151,7 @@ export class RigBuilder {
   }
 
   /** A piece glued flat on the one below: no shadow of its own. */
-  flat(d: string, c: string, { part, step = 9 }: { part?: string; step?: number } = {}): void {
+  flat(d: string | DynamicPath, c: string, { part, step = 9 }: { part?: string; step?: number } = {}): void {
     this.shape(d, { part, step, style: { fill: paint(c) } })
   }
 
@@ -203,17 +214,39 @@ export function computeFrame(rig: Rig, actor: Actor, calm: boolean): PuppetFrame
   }
   rig.update(pose, set)
 
-  const stretch = 1 + 0.018 * pose.breath + (pose.hop - 0.5) * 0.09 * a.cheer + a.scare * 0.05 - a.sad * 0.05 - a.sleep * 0.05
+  const { pivot = [200, 380], hop = 1, tilt = 1, shake = 1, squash = 1 } = rig.motion ?? {}
+  const stretch = 1 + (0.018 * pose.breath + (pose.hop - 0.5) * 0.09 * a.cheer + a.scare * 0.05 - a.sad * 0.05 - a.sleep * 0.05) * squash
   const root: PartTransform = {
-    ox: 200,
-    oy: 380,
-    x: Math.sin(pose.t * 46) * 2.6 * a.scare,
-    y: -pose.hop * 34 * a.cheer + a.sad * 4,
-    r: Math.sin(pose.t * 7.5) * 4 * a.cheer + a.sleep * 3,
+    ox: pivot[0],
+    oy: pivot[1],
+    x: Math.sin(pose.t * 46) * 2.6 * a.scare * shake,
+    y: -pose.hop * 34 * a.cheer * hop + a.sad * 4,
+    r: (Math.sin(pose.t * 7.5) * 4 * a.cheer + a.sleep * 3) * tilt,
     sx: 1 / stretch,
     sy: stretch,
   }
   return { root, parts, dyn: rig.dynamics.map((fn) => fn(pose)) }
+}
+
+/** Where a puppet stands, set from outside: an offset from its box in the parent's
+ *  units, the way it faces, and a lean. The closing finale walks an animal along a
+ *  path with this and a held `wave`. */
+export interface PuppetPlacement {
+  readonly x?: number
+  readonly y?: number
+  readonly facing?: 1 | -1
+  readonly tilt?: number
+}
+
+/** An SVG transform for `placement`, turning and flipping about `pivot`: the middle
+ *  of the feet, so a flip leaves the animal on the spot. */
+export function placementTransform({ x = 0, y = 0, facing = 1, tilt = 0 }: PuppetPlacement, pivot: { x: number; y: number }): string {
+  return `translate(${fmt(x + pivot.x)} ${fmt(y + pivot.y)})rotate(${fmt(tilt)})scale(${facing} 1)translate(${fmt(-pivot.x)} ${fmt(-pivot.y)})`
+}
+
+/** The same for a standalone `<svg>`, whose `transform-origin` is its bottom middle. */
+export function placementCss({ x = 0, y = 0, facing = 1, tilt = 0 }: PuppetPlacement): string {
+  return `translate(${fmt(x)}px,${fmt(y)}px) rotate(${fmt(tilt)}deg) scaleX(${facing})`
 }
 
 export interface Bounds {

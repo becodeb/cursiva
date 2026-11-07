@@ -6,18 +6,26 @@
 import type { CSSProperties, ReactNode, Ref } from 'react'
 import {
   ANIMAL_ART,
+  CARRIER_LENS_ART,
+  DUCKLING_ART,
+  GOAL_MEDUSA_ART,
+  HEDGEHOG_ART,
+  MONKEY_FAMILY_ART,
   OCTOPUS_ART,
   OCTOPUS_EMPTY_HANDED_ART,
+  PROMISED_ANIMAL_ART,
   PULPITO_POSE_ART,
+  SECTOR_ADVENTURE_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
 } from '../detective/assets'
-import type { ActName } from './actor'
+import type { ActName, RigState } from './actor'
 import type { PuppetName } from './characters'
 import Puppet, { type PuppetAccessories, type PuppetHandle } from './Puppet'
 
 export interface PuppetFigure {
   readonly name: PuppetName
   readonly accessories?: PuppetAccessories
+  readonly state?: RigState
 }
 
 /** The lens comes out only where the registry's own drawing holds it. */
@@ -30,6 +38,32 @@ const PUPPET_FIGURES: ReadonlyMap<string, PuppetFigure> = new Map<string, Puppet
   // No backpack on the engine yet: the map's figure wears what the others wear.
   [ZOO_OCTOPUS_BACKPACK_ART.href, { name: 'pulpo' }],
   [ANIMAL_ART.pato.href, { name: 'pato' }],
+  [SECTOR_ADVENTURE_ART.sheep.href, { name: 'oveja' }],
+  [SECTOR_ADVENTURE_ART.llama.href, { name: 'llama' }],
+  [PROMISED_ANIMAL_ART.pez.href, { name: 'pez' }],
+  [GOAL_MEDUSA_ART.href, { name: 'medusa' }],
+  [PROMISED_ANIMAL_ART.tortuga.href, { name: 'tortuga' }],
+  [MONKEY_FAMILY_ART[0].href, { name: 'mono', state: { pose: 0 } }],
+  [MONKEY_FAMILY_ART[1].href, { name: 'mono', state: { pose: 1 } }],
+  [MONKEY_FAMILY_ART[2].href, { name: 'mono', state: { pose: 2 } }],
+  // One rig: the spine-drawing poses are the same body with its quills down.
+  [HEDGEHOG_ART.profile.href, { name: 'erizo', state: { curl: 0, quills: 0 } }],
+  [HEDGEHOG_ART.curled.href, { name: 'erizo', state: { curl: 1, quills: 0 } }],
+  [HEDGEHOG_ART.uncurling.href, { name: 'erizo', state: { curl: 0.85, quills: 1 } }],
+  [SECTOR_ADVENTURE_ART.snakeSmall.href, { name: 'vibora', state: { length: 0 } }],
+  [SECTOR_ADVENTURE_ART.snakeMedium.href, { name: 'vibora', state: { length: 1 } }],
+  [SECTOR_ADVENTURE_ART.snakeLarge.href, { name: 'vibora', state: { length: 2 } }],
+  [SECTOR_ADVENTURE_ART.bee.href, { name: 'abeja' }],
+  [SECTOR_ADVENTURE_ART.dolphin.href, { name: 'delfin' }],
+  [SECTOR_ADVENTURE_ART.snail.href, { name: 'caracol' }],
+  [ANIMAL_ART.gallina.href, { name: 'gallina' }],
+  [ANIMAL_ART.vaca.href, { name: 'vaca' }],
+  [ANIMAL_ART.gato.href, { name: 'gato' }],
+  [DUCKLING_ART[0].href, { name: 'patito', state: { pose: 0 } }],
+  [DUCKLING_ART[1].href, { name: 'patito', state: { pose: 1 } }],
+  [DUCKLING_ART[2].href, { name: 'patito', state: { pose: 2 } }],
+  // See-through: whatever is under the fingertip stays visible through the glass.
+  [CARRIER_LENS_ART.href, { name: 'lupa' }],
 ])
 
 export function puppetFigureFor(art: { readonly href: string }): PuppetFigure | undefined {
@@ -69,6 +103,7 @@ export function ArtImg({ art, className, style, still = true, entrance, holding,
       ref={puppetRef}
       name={figure.name}
       accessories={figure.accessories}
+      state={figure.state}
       aspect={art.w / art.h}
       artHref={art.href}
       className={className}
@@ -102,6 +137,7 @@ export function ArtInSvg({ art, box, still = true, entrance, holding, followPoin
       ref={puppetRef}
       name={figure.name}
       accessories={figure.accessories}
+      state={figure.state}
       box={box}
       artHref={art.href}
       still={still}

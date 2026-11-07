@@ -95,7 +95,7 @@ describe("AdventureIntro — row C's sheep and llama entries render their own an
 
   it("the llama adventure's entry shows ZOO_ANIMAL_ART.llama's href and its own intro text", () => {
     const html = renderToString(<AdventureIntro adventure={llama} onStart={() => {}} />)
-    expect(html).toContain(`href="${ZOO_ANIMAL_ART.llama.href}"`)
+    expect(html).toContain(`data-art="${ZOO_ANIMAL_ART.llama.href}"`)
     expect(html.split(llama.intro).length - 1).toBe(1)
   })
 

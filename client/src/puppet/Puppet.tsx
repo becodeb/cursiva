@@ -3,9 +3,19 @@
 // writes attributes through refs, on one shared ticker. React's props for those
 // attributes never change, so a re-render never fights the animation.
 import { useEffect, useImperativeHandle, useMemo, useRef, type CSSProperties, type Ref } from 'react'
-import { actFor, actorNeedsTicks, createActor, holdAct, lookFromPointer, stepActor, type ActName, type Actor } from './actor'
+import { actFor, actorNeedsTicks, createActor, holdAct, lookFromPointer, setActorState, stepActor, type ActName, type Actor, type RigState } from './actor'
 import { getRig, puppetView, type PuppetName } from './characters'
-import { computeFrame, partTransform, PAPER_SHADOW_TRANSFORM, type PaperNode, type PuppetFrame, type ViewBox } from './rig'
+import {
+  computeFrame,
+  partTransform,
+  PAPER_SHADOW_TRANSFORM,
+  placementCss,
+  placementTransform,
+  type PaperNode,
+  type PuppetFrame,
+  type PuppetPlacement,
+  type ViewBox,
+} from './rig'
 import { puppetTicker } from './ticker'
 
 export interface PuppetAccessories {
@@ -23,6 +33,10 @@ export interface PuppetHandle {
   hold(name: ActName, on: boolean): void
   /** Aim the eyes: each axis from -1 to 1. */
   lookAt(x: number, y: number): void
+  /** Stand somewhere else, without React: safe to call every frame of a walk. */
+  place(placement: PuppetPlacement): void
+  /** Ease the rig to a new state, such as a hedgehog uncurling. */
+  setState(values: RigState): void
 }
 
 export interface PuppetProps {
@@ -37,6 +51,10 @@ export interface PuppetProps {
   /** No idle life at all: the pose a trace screen needs. It still reacts to acts. */
   still?: boolean
   accessories?: PuppetAccessories
+  /** What the rig is: the hedgehog's curl, the snake's length. */
+  state?: RigState
+  /** Where it stands on the first paint; `PuppetHandle.place` moves it after that. */
+  placement?: PuppetPlacement
   /** Palette overrides by key (`{ body: '#3e9a7f' }`), set as CSS variables. */
   colors?: Readonly<Record<string, string>>
   /** Plays once when it mounts. */
@@ -75,6 +93,9 @@ function renderNodes(nodes: readonly PaperNode[], frame: PuppetFrame, hidden: Re
   })
 }
 
+/** The middle of the feet: what a placement turns about. */
+const feet = (box: { x: number; y: number; width: number; height: number }) => ({ x: box.x + box.width / 2, y: box.y + box.height })
+
 function prefersReducedMotion(): MediaQueryList | null {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -92,6 +113,8 @@ export default function Puppet({
   aspect,
   still = false,
   accessories,
+  state,
+  placement,
   colors,
   entrance,
   holding,
@@ -110,10 +133,17 @@ export default function Puppet({
   // Every puppet starts on the canonical pose, so the server's markup and the
   // first client paint agree before the first tick. The name keeps two characters
   // on one screen from blinking in step.
-  if (actorRef.current === null) actorRef.current = createActor(seed + name.length, holding)
+  if (actorRef.current === null) actorRef.current = createActor(seed + name.length, holding, state)
   const actor = actorRef.current
-  const firstFrame = useMemo(() => computeFrame(rig, createActor(seed, holding), true), [rig, seed, holding])
+  const stateKey = state ? JSON.stringify(state) : ''
+  const firstFrame = useMemo(
+    () => computeFrame(rig, createActor(seed, holding, stateKey ? (JSON.parse(stateKey) as RigState) : undefined), true),
+    [rig, seed, holding, stateKey],
+  )
   const rootRef = useRef<SVGGElement | null>(null)
+  const placedRef = useRef<SVGGElement | null>(null)
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  const facingRef = useRef<1 | -1>(placement?.facing ?? 1)
   const syncRef = useRef<() => void>(() => undefined)
 
   useEffect(() => {
@@ -183,7 +213,7 @@ export default function Puppet({
       const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
       const reach = Math.max(rect.width, rect.height) * POINTER_REACH_FACTOR
       const [x, y] = lookFromPointer(centre, { x: event.clientX, y: event.clientY }, reach)
-      actor.lookGoal = [x, y]
+      actor.lookGoal = [x * facingRef.current, y]
       if (isCalm()) onMotionChange()
     }
     if (followPointer && !still) {
@@ -216,6 +246,12 @@ export default function Puppet({
     }
   }, [actor, holding])
 
+  useEffect(() => {
+    if (!stateKey) return
+    setActorState(actor, JSON.parse(stateKey) as RigState)
+    syncRef.current()
+  }, [actor, stateKey])
+
   const entranceAct = entrance?.act
   const entranceSeconds = entrance?.seconds
   useEffect(() => {
@@ -236,11 +272,20 @@ export default function Puppet({
         syncRef.current()
       },
       lookAt(x, y) {
-        actor.lookGoal = [x, y]
+        actor.lookGoal = [x * facingRef.current, y]
+        syncRef.current()
+      },
+      place(next) {
+        facingRef.current = next.facing ?? 1
+        if (placedRef.current && box) placedRef.current.setAttribute('transform', placementTransform(next, feet(box)))
+        if (svgRef.current) svgRef.current.style.transform = placementCss(next)
+      },
+      setState(values) {
+        setActorState(actor, values)
         syncRef.current()
       },
     }),
-    [actor],
+    [actor, box],
   )
 
   const vars = useMemo(() => {
@@ -263,22 +308,25 @@ export default function Puppet({
   )
 
   if (box) {
-    const view = puppetView(name, box.width / box.height)
+    const view = puppetView(name, box.width / box.height, state)
     const k = box.width / view.w
     return (
-      <g
-        transform={`translate(${(box.x - view.x * k).toFixed(2)} ${(box.y - view.y * k).toFixed(2)})scale(${k.toFixed(4)})`}
-        aria-hidden="true"
-        style={style}
-      >
-        {figure}
+      <g ref={placedRef} transform={placement ? placementTransform(placement, feet(box)) : undefined}>
+        <g
+          transform={`translate(${(box.x - view.x * k).toFixed(2)} ${(box.y - view.y * k).toFixed(2)})scale(${k.toFixed(5)})`}
+          aria-hidden="true"
+          style={style}
+        >
+          {figure}
+        </g>
       </g>
     )
   }
 
-  const view: ViewBox = puppetView(name, aspect ?? null)
+  const view: ViewBox = puppetView(name, aspect ?? null, state)
   return (
     <svg
+      ref={svgRef}
       viewBox={`${view.x.toFixed(1)} ${view.y.toFixed(1)} ${view.w.toFixed(1)} ${view.h.toFixed(1)}`}
       width={size?.width}
       height={size?.height}
@@ -287,7 +335,7 @@ export default function Puppet({
       aria-hidden="true"
       focusable="false"
       // Acts reach past the rest pose (a raised arm, a hop): never crop them.
-      style={{ overflow: 'visible', ...style }}
+      style={{ overflow: 'visible', transformOrigin: '50% 100%', ...(placement ? { transform: placementCss(placement) } : null), ...style }}
     >
       {figure}
     </svg>
