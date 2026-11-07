@@ -23,6 +23,7 @@ import type { ActName, RigState } from './actor'
 import { markTransform, MARK_EDGE_PAPER, MARK_EDGE_WIDTH, paperMarkFor } from './marks'
 import { paperPropFor } from './props'
 import { SceneLayers } from './scene/Scene'
+import type { CutScene } from './scene/engine'
 import type { PuppetName } from './characters'
 import Puppet, { type PuppetAccessories, type PuppetHandle } from './Puppet'
 
@@ -150,18 +151,20 @@ export interface ArtInSvgProps extends FigureLife {
   box: ArtBox
 }
 
+function PropInSvg({ art, thing, box }: { art: ArtPicture; thing: CutScene; box: ArtBox }) {
+  return (
+    <svg x={box.x} y={box.y} width={box.width} height={box.height} viewBox={`0 0 ${thing.w} ${thing.h}`} overflow="visible" data-art={art.href} aria-hidden="true" focusable="false">
+      <SceneLayers scene={thing} still />
+    </svg>
+  )
+}
+
 /** For SVG surfaces: a puppet `<g>` filling `box`, or the `<image>` it replaces. */
 export function ArtInSvg({ art, box, still = true, entrance, holding, followPointer, puppetRef }: ArtInSvgProps) {
   const figure = puppetFigureFor(art)
   if (!figure) {
     const thing = paperPropFor(art)
-    if (thing) {
-      return (
-        <svg x={box.x} y={box.y} width={box.width} height={box.height} viewBox={`0 0 ${thing.w} ${thing.h}`} overflow="visible" data-art={art.href} aria-hidden="true" focusable="false">
-          <SceneLayers scene={thing} still />
-        </svg>
-      )
-    }
+    if (thing) return <PropInSvg art={art} thing={thing} box={box} />
     const mark = paperMarkFor(art)
     if (mark) {
       return (
@@ -214,7 +217,12 @@ export function standingFigure(art: ArtPicture, puppetRef?: Ref<PuppetHandle>): 
 
 /** What a level screen hands `TraceCanvas`, so the sheet draws its art in paper. */
 export const TRACE_PAPER: TracePaper = {
-  art: (art, box) => <ArtInSvg art={art} box={box} />,
+  // A prop wins over a puppet here: on the sheet a snake is the corridor itself, and
+  // it has to lie on the measured spine rather than on the puppet's own wave.
+  art: (art, box) => {
+    const thing = paperPropFor(art)
+    return thing ? <PropInSvg art={art} thing={thing} box={box} /> : <ArtInSvg art={art} box={box} />
+  },
   mark: (mark, index) => {
     const paper = paperMarkFor(mark)
     if (!paper) return null

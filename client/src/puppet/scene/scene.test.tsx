@@ -14,6 +14,7 @@ import { ArtImg, ArtInSvg } from '../ArtFigure'
 import { paperMarkFor } from '../marks'
 import { paperPropFor } from '../props'
 import { SECTOR_ADVENTURE_ART, HAZARD_STARFISH_ART } from '../../detective/assets'
+import { DRAWN_SPINE } from '../../levels/artCorridor'
 
 const LAW = 55
 const SHEET_PAPER = '#fdfcf7'
@@ -181,5 +182,34 @@ describe('the props', () => {
 
   it('reaches HTML surfaces too', () => {
     expect(renderToString(<ArtImg art={SECTOR_ADVENTURE_ART.chest} />)).toContain(`data-art="${SECTOR_ADVENTURE_ART.chest.href}"`)
+  })
+})
+
+describe('the paper snakes', () => {
+  it('lie on the measured spine, so the scored corridor does not move', () => {
+    const art = SECTOR_ADVENTURE_ART.snakeMedium
+    const snake = paperPropFor(art)!
+    const spine = DRAWN_SPINE.snakeMedium
+    const body = snake.layers[0].pieces[0]
+    const ys = spine.points.map(([, v]) => v * art.h)
+    expect(body.top).toBeLessThanOrEqual(Math.min(...ys))
+    expect(body.bottom).toBeGreaterThanOrEqual(Math.max(...ys))
+    expect(body.right).toBeGreaterThan(spine.traceTo * art.w)
+  })
+
+  it('keep the lumas the chalk line was measured against', () => {
+    const measured = ADVENTURE_BACKDROP.snake!.corridorArt!
+    const colour = paperPropFor(SECTOR_ADVENTURE_ART.snakeSmall)!
+    const body = colour.layers[0].pieces[0].c
+    expect(luma(body)).toBeLessThanOrEqual(luma(measured.brightest) + 1)
+    const chalk = ADVENTURE_BACKDROP.snake!.ink!
+    expect(Math.abs(luma(body) - luma(chalk))).toBeGreaterThanOrEqual(LAW)
+    expect(Math.abs(luma('#1a1a1a') - luma(chalk))).toBeGreaterThanOrEqual(LAW)
+  })
+
+  it('the grey sibling has no chroma: it is what colour replaces under the finger', () => {
+    const grey = paperPropFor(SECTOR_ADVENTURE_ART.snakeSmallGrey)!.layers[0].pieces[0].c
+    expect(grey.slice(1, 3)).toBe(grey.slice(3, 5))
+    expect(grey.slice(3, 5)).toBe(grey.slice(5, 7))
   })
 })

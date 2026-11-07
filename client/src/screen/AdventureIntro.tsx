@@ -336,15 +336,9 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
             <RevealLayer reveal={cover.reveal} sheetBounds={windowBounds} displayBounds={displayBounds} drawArt={TRACE_PAPER.art} />
           ) : (
             cover.pieces.map((piece, i) => (
-              <image
-                key={i}
-                href={piece.href}
-                x={piece.box.x}
-                y={piece.box.y}
-                width={piece.box.width}
-                height={piece.box.height}
-                transform={piece.rotate ? `rotate(${piece.rotate} ${piece.pivot.x} ${piece.pivot.y})` : undefined}
-              />
+              <g key={i} transform={piece.rotate ? `rotate(${piece.rotate} ${piece.pivot.x} ${piece.pivot.y})` : undefined}>
+                {TRACE_PAPER.art({ href: piece.href, w: piece.box.width, h: piece.box.height }, piece.box)}
+              </g>
             ))
           )}
         </svg>

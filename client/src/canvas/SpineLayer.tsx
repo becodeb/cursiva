@@ -51,6 +51,7 @@
 // child ink to a tidy spike happens by simply no longer drawing the old
 // shape and starting to draw the new one — no morph animation, no new art,
 // just a `.cv-spine-spike` pop-in (`LAYOUT_CSS`) on the fresh shape.
+import type { ReactNode } from 'react'
 import { clampArtBox, type ArtBox } from './placeArt'
 import { inkPath, traceInk } from './ink'
 import type { TraceSpines } from './TraceCanvas'
@@ -66,13 +67,19 @@ export interface SpineLayerProps {
   /** The visible sheet band, for `clampArtBox` — the same `sheetBounds`
    *  every other art layer in `TraceCanvas.tsx` clamps against. */
   sheetBounds: ArtBox
+  /** How a paper world draws the body (`TracePaper.art`), in the box the scorer uses. */
+  drawArt?: (art: { href: string; w: number; h: number }, box: ArtBox) => ReactNode
 }
 
-export function SpineLayer({ spines, sheetBounds }: SpineLayerProps) {
+export function SpineLayer({ spines, sheetBounds, drawArt }: SpineLayerProps) {
   const bodyBox = clampArtBox(spines.body, sheetBounds)
   return (
     <g pointerEvents="none">
-      <image href={spines.body.href} {...bodyBox} preserveAspectRatio="xMidYMid meet" />
+      {drawArt ? (
+        drawArt({ href: spines.body.href, w: bodyBox.width, h: bodyBox.height }, bodyBox)
+      ) : (
+        <image href={spines.body.href} {...bodyBox} preserveAspectRatio="xMidYMid meet" />
+      )}
       {spines.spikes?.map((d, idx) => (
         <path
           key={`spine-spike-${idx}`}

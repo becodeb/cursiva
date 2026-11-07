@@ -7,7 +7,8 @@ import {
   SECTOR_ADVENTURE_ART,
   ZOO_OCTOPUS_PRINT_ART,
 } from '../detective/assets'
-import { ell, type Vec } from './geometry'
+import { DRAWN_SPINE, type DrawnSpine } from '../levels/artCorridor'
+import { ell, tubePath, type Vec } from './geometry'
 import { cutScene, poly, type CutScene, type SceneLayer, type ScenePiece } from './scene/engine'
 
 const SHEET = 200
@@ -198,6 +199,58 @@ const octopusPrint = prop([
   { pieces: [{ d: `${ell(100, 124, 34, 64)}${ell(72, 34, 18, 20)}${ell(128, 38, 16, 18)}`, c: '#6b4a2e' }] },
 ])
 
+/** A snake lying on its measured centre line, the one the corridor is scored on: the
+ *  body is the spine the picture was measured to have, so nothing about the level moves.
+ *  Its colours keep the row's measured lumas (`zoo/backdrops.ts`, `corridorArt`). */
+function paperSnake(art: { w: number; h: number }, spineOf: DrawnSpine, grey: boolean): CutScene {
+  const X = (u: number): number => u * art.w
+  const Y = (v: number): number => v * art.h
+  const half = (spineOf.thickness * art.h) / 2
+  const points = spineOf.points.map(([u, v]): Vec => [X(u), Y(v)])
+  const first = points[0]
+  const last = points[points.length - 1]
+  const tailEnd: Vec = [art.w * 0.995, last[1] + half * 0.3]
+  const tail: Vec[] = [0.25, 0.5, 0.75, 1].map((t): Vec => [last[0] + (tailEnd[0] - last[0]) * t, last[1] + (tailEnd[1] - last[1]) * t * t])
+  const neck: Vec = [first[0] - art.w * 0.02, first[1] - half * 0.1]
+  const spinePoints = [neck, ...points, ...tail]
+  const n = spinePoints.length
+  const widthAt = (s: number): number => {
+    const u = s * (n - 1)
+    return u > n - 5 ? half * Math.max(0.22, (n - 1 - u) / 4) : half
+  }
+  const body = grey ? '#8f8f8f' : '#7b9b6e'
+  const headFill = grey ? '#9c9c9c' : '#83a576'
+  const spot = '#1a1a1a'
+  const head: Vec = [art.w * 0.12, first[1] - half * 0.4]
+  const headR = Math.min(art.h * 0.34, art.w * 0.105)
+  const spots = points.filter((_, i) => i % 6 === 3).map((p): ScenePiece => ({ d: ell(p[0], p[1], half * 0.42, half * 0.36), c: spot }))
+  return cutScene(
+    {
+      w: art.w,
+      h: art.h,
+      base: 'none',
+      grain: 0.16,
+      layers: [
+        {
+          pieces: [
+            { d: tubePath(spinePoints, widthAt), c: body },
+            { d: smooth([head[0] - headR, head[1]], [head[0] - headR * 0.4, head[1] - headR * 0.9], [head[0] + headR * 0.6, head[1] - headR * 0.7], [first[0] + 2, first[1] - half * 0.6], [first[0] + 2, first[1] + half * 0.6], [head[0] + headR * 0.3, head[1] + headR * 0.85], [head[0] - headR * 0.6, head[1] + headR * 0.7]), c: headFill },
+          ],
+        },
+        {
+          pieces: [
+            ...spots,
+            { d: ell(head[0] - headR * 0.25, head[1] - headR * 0.25, headR * 0.3, headR * 0.34), c: '#f5f5f5' },
+            { d: ell(head[0] - headR * 0.33, head[1] - headR * 0.25, headR * 0.17, headR * 0.2), c: spot },
+          ],
+          flat: true,
+        },
+      ],
+    },
+    9,
+  )
+}
+
 const PROPS: ReadonlyMap<string, CutScene> = new Map<string, CutScene>([
   [SECTOR_ADVENTURE_ART.stone.href, stone],
   [SECTOR_ADVENTURE_ART.leaf.href, leaf(0, '#c78a2f', '#94621c')],
@@ -217,6 +270,12 @@ const PROPS: ReadonlyMap<string, CutScene> = new Map<string, CutScene>([
   [LAMP_ART.on.href, lamp('#f2d377', '#8a6a3f')],
   [LAMP_ART.off.href, lamp('#838383', '#6a6a6a')],
   [ZOO_OCTOPUS_PRINT_ART.href, octopusPrint],
+  [SECTOR_ADVENTURE_ART.snakeSmall.href, paperSnake(SECTOR_ADVENTURE_ART.snakeSmall, DRAWN_SPINE.snakeSmall, false)],
+  [SECTOR_ADVENTURE_ART.snakeMedium.href, paperSnake(SECTOR_ADVENTURE_ART.snakeMedium, DRAWN_SPINE.snakeMedium, false)],
+  [SECTOR_ADVENTURE_ART.snakeLarge.href, paperSnake(SECTOR_ADVENTURE_ART.snakeLarge, DRAWN_SPINE.snakeLarge, false)],
+  [SECTOR_ADVENTURE_ART.snakeSmallGrey.href, paperSnake(SECTOR_ADVENTURE_ART.snakeSmallGrey, DRAWN_SPINE.snakeSmall, true)],
+  [SECTOR_ADVENTURE_ART.snakeMediumGrey.href, paperSnake(SECTOR_ADVENTURE_ART.snakeMediumGrey, DRAWN_SPINE.snakeMedium, true)],
+  [SECTOR_ADVENTURE_ART.snakeLargeGrey.href, paperSnake(SECTOR_ADVENTURE_ART.snakeLargeGrey, DRAWN_SPINE.snakeLarge, true)],
 ])
 
 /** The paper drawing for a registry picture of a thing, if it has one. */

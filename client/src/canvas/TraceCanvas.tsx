@@ -1849,7 +1849,7 @@ export default function TraceCanvas({
         // `<image>` and plain `<circle>`s — this file's own scar (above):
         // no `<mask>`, `<pattern>`, `<clipPath>`, `<defs>`, `useId`, no
         // `url(#…)`.
-        <SpineLayer spines={spines} sheetBounds={sheetBounds} />
+        <SpineLayer spines={spines} sheetBounds={sheetBounds} drawArt={paper?.art} />
       )}
       {corridor && !artCorridor && (mazeOn || ground || !!backdrop) && (
         // MAZE (docs/01 fase 1: "senderos y laberintos … sin tocar los
@@ -1986,7 +1986,7 @@ export default function TraceCanvas({
         // (trace-canvas spec, "Art Corridor Layer Renders as Plain
         // Images..."). Live through both the arrange and trace phases — the
         // CALLER decides which box each piece gets; this only draws it.
-        <ArtCorridorLayer artCorridor={artCorridor} />
+        <ArtCorridorLayer artCorridor={artCorridor} drawArt={paper?.art} />
       )}
       {ground && (
         // The ground itself: individual `<image>` marks, because a texture FILL
