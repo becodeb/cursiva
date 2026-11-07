@@ -76,9 +76,11 @@ const paw = (fan: number): string =>
   blob([-18, -16], [8, -18], [18, 0], [8, 18], [-18, 16], [-24, 0]) +
   [-1.5, -0.5, 0.5, 1.5].map((u) => ell(24 + (1.6 - Math.abs(u)) * 5, u * fan, 6.5, 6.5)).join('')
 
-/** The turtle's flat flipper print: one long oval and a row of nicks. */
+/** The turtle's flat print: a broad pad and a fan of separate toes, so a big one in a
+ *  speech bubble still reads as a foot and not as a stone. */
 const flipper = (lean: number): string =>
-  blob([-34, -12 + lean], [4, -22 + lean], [32, -12], [36, 6], [8, 22 - lean], [-30, 14 - lean]) + digit(36, -8, -24, 12, 4) + digit(38, 4, 0, 13, 4) + digit(34, 14, 24, 12, 4)
+  blob([-30, -14 + lean], [0, -20 + lean], [18, -8], [18, 8], [0, 20 - lean], [-30, 14 - lean]) +
+  [-1.5, -0.5, 0.5, 1.5].map((u) => ell(32 - Math.abs(u) * 3, u * 15, 7.5, 6)).join('')
 
 /** A puddle, its own droplet thrown off to one side. */
 const puddle = (a: number, b: number): string =>

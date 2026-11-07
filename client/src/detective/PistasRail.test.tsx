@@ -187,7 +187,7 @@ describe('PistasRail slots', () => {
     // What is new: the slot shows the real droplet the child collected,
     // rather than an abstract diamond that "read as a detached diamond
     // rather than a slot that fills".
-    expect(html).toContain(`href="${CLUE_ART.droplet.art.earned.href}"`)
+    expect(html).toContain(`data-art="${CLUE_ART.droplet.art.earned.href}"`)
     expect(html).not.toContain(CLUE_ART.droplet.art.drained.href)
   })
 
@@ -196,7 +196,7 @@ describe('PistasRail slots', () => {
     expect(html).toContain('role="img"')
     expect(html).toContain('aria-label="Pista guardada: gota"')
     expect(html).toContain('class="pistas-flight"')
-    expect(html).toContain(`src="${CLUE_ART.droplet.art.earned.href}"`)
+    expect(html).toContain(`data-art="${CLUE_ART.droplet.art.earned.href}"`)
   })
 
   it('a drained slot shows the SAME clue art in its drained state, in a grey socket', () => {
@@ -205,7 +205,7 @@ describe('PistasRail slots', () => {
     expect(html).toContain(`stroke="${CLUE_DRAINED}"`)
     // `drainedSlot` is the CORN trail, so this also pins that a slot shows
     // its own trail's art rather than a shared generic placeholder.
-    expect(html).toContain(`href="${CLUE_ART.corn.art.drained.href}"`)
+    expect(html).toContain(`data-art="${CLUE_ART.corn.art.drained.href}"`)
     expect(html).not.toContain(CLUE_ART.corn.art.earned.href)
     expect(html).toContain('aria-label="Pista pendiente: maíz"')
     expect(html).not.toContain('pistas-flight')
@@ -215,17 +215,17 @@ describe('PistasRail slots', () => {
     // A slot the caller knows nothing about must not show a grey clue: that
     // would claim a trail exists and is merely unfinished.
     const html = renderToString(<PistasRail slots={[filedSlot]} lampOn={false} />)
-    const marks = (html.match(/<image/g) ?? []).length
+    const marks = (html.match(/<image|<path[^>]*data-art="\/art\/clue-/g) ?? []).length
     // One lamp + exactly one clue mark for the one known slot.
     expect(marks).toBe(2)
   })
 
-  it('holds each clue file\'s aspect ratio inside the socket', () => {
+  it('draws each clue mark at the socket\'s one mark height', () => {
     const html = renderToString(
       <PistasRail slots={[{ kind: 'feather', filed: true }]} lampOn={false} />,
     )
-    const art = CLUE_ART.feather.art.earned
-    expect(html).toContain(`width="${(16 * art.w) / art.h}"`)
+    // Paper marks are all authored in one 100-unit box, so one scale fits them all.
+    expect(html).toContain('scale(0.160 0.160)')
   })
 
   it('draws a socket behind each mark, so a slot reads as a container that fills rather than a loose floating diamond', () => {

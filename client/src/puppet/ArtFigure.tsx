@@ -16,6 +16,7 @@ import {
   PROMISED_ANIMAL_ART,
   PULPITO_POSE_ART,
   SECTOR_ADVENTURE_ART,
+  TRANSITION_LENS_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
 } from '../detective/assets'
 import type { TracePaper } from '../canvas/TraceCanvas'
@@ -69,6 +70,8 @@ const PUPPET_FIGURES: ReadonlyMap<string, PuppetFigure> = new Map<string, Puppet
   [DUCKLING_ART[2].href, { name: 'patito', state: { pose: 2 } }],
   // See-through: whatever is under the fingertip stays visible through the glass.
   [CARRIER_LENS_ART.href, { name: 'lupa' }],
+  // The big glass of a screen change: its ring lands on the hole `lupaWipe` measured.
+  [TRANSITION_LENS_ART.href, { name: 'lupa', accessories: { glass: false } }],
 ])
 
 export function puppetFigureFor(art: { readonly href: string }): PuppetFigure | undefined {

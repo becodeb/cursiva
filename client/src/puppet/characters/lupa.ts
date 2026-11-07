@@ -23,10 +23,10 @@ export function drawLupa(p: RigBuilder): RigUpdate {
   ])
   p.flat(`M${CX + 6} 240L${CX + 16} 240C${CX + 18} 282 ${CX + 27} 318 ${CX + 27} 348C${CX + 27} 360 ${CX + 18} 366 ${CX + 10} 366C${CX + 14} 330 ${CX + 8} 282 ${CX + 6} 240Z`, 'handleD', { part: 'tool' })
   // A translucent disc, then the ring as a stroke, so its hole is really a hole.
-  p.flat(ell(CX, CY, RING - 8), 'rgba(167,224,218,.28)', { part: 'tool', step: 7 })
+  p.flat(ell(CX, CY, RING - 8), 'rgba(167,224,218,.28)', { part: 'tool/glass', step: 7 })
   p.line(ell(CX + 3, CY + 6, RING), { part: 'tool', w: 28, c: PAPER_SHADOW_FILL })
   p.line(ell(CX, CY, RING), { part: 'tool', w: 28, c: 'gold' })
-  p.line('M58 106Q62 70 96 56', { part: 'tool', w: 11, c: '#ffffff' })
+  p.line('M58 106Q62 70 96 56', { part: 'tool/glass', w: 11, c: '#ffffff' })
 
   return (pose, set) => {
     const { wave, cheer, sad, sleep, scare } = pose.a

@@ -15,6 +15,8 @@ import { paperMarkFor } from '../marks'
 import { paperPropFor } from '../props'
 import { SECTOR_ADVENTURE_ART, HAZARD_STARFISH_ART } from '../../detective/assets'
 import { DRAWN_SPINE } from '../../levels/artCorridor'
+import { CARRIER_LENS_ART, TRANSITION_LENS_ART } from '../../detective/assets'
+import { puppetView } from '../characters'
 
 const LAW = 55
 const SHEET_PAPER = '#fdfcf7'
@@ -211,5 +213,22 @@ describe('the paper snakes', () => {
     const grey = paperPropFor(SECTOR_ADVENTURE_ART.snakeSmallGrey)!.layers[0].pieces[0].c
     expect(grey.slice(1, 3)).toBe(grey.slice(3, 5))
     expect(grey.slice(3, 5)).toBe(grey.slice(5, 7))
+  })
+})
+
+describe('the screen-change glass', () => {
+  it("its puppet's ring sits on the hole the wipe was measured with", () => {
+    const art = TRANSITION_LENS_ART
+    const view = puppetView('lupa', art.w / art.h)
+    expect((117 - view.x) / view.w).toBeCloseTo(art.hole.cx, 1)
+    expect((115 - view.y) / view.h).toBeCloseTo(art.hole.cy, 1)
+    // The ring's inner edge is at 96 - 12 units: it must clear the hole's own radius.
+    expect(84 / view.w).toBeGreaterThanOrEqual(art.hole.r - 0.02)
+  })
+
+  it('its glass is empty: it ends up over the whole screen and must tint nothing', () => {
+    const html = renderToString(<ArtImg art={TRANSITION_LENS_ART} />)
+    expect(html).not.toContain('rgba(167,224,218')
+    expect(renderToString(<ArtImg art={CARRIER_LENS_ART} />)).toContain('rgba(167,224,218')
   })
 })

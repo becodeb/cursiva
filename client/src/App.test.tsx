@@ -8,6 +8,12 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const gameScreenProbe: { current: Record<string, unknown> | null } = { current: null }
+// The screen-change lens is a puppet, and this suite's small fake DOM has no CSS
+// variables or observers to mount one: the flow under test does not depend on it.
+vi.mock('./puppet/ArtFigure', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./puppet/ArtFigure')>()),
+  ArtImg: () => null,
+}))
 vi.mock('./screen/GameScreen', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./screen/GameScreen')>()
   return {
@@ -196,6 +202,7 @@ type FakeElement = {
 function fakeDocument(): FakeElement & {
   defaultView?: unknown
   createElement: (tagName: string) => FakeElement
+  createElementNS: (namespace: string, tagName: string) => FakeElement
   createTextNode: (text: string) => FakeElement & { data: string }
   documentElement: FakeElement
   body: FakeElement
@@ -208,6 +215,7 @@ function fakeDocument(): FakeElement & {
     documentElement,
     body,
     createElement: fakeElement,
+    createElementNS: (_namespace: string, tagName: string) => fakeElement(tagName),
     createTextNode: fakeText,
   }
 }

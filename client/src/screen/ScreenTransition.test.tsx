@@ -117,8 +117,8 @@ describe("ScreenTransition kind='native' (T31 follow-up #2)", () => {
     )
     expect(html).toContain('class="cv-lupa-rim cv-lupa-rim--vt"')
     expect(html).toContain('class="cv-lupa-circle"')
-    expect(html).toContain('class="cv-lupa-lens"')
-    expect(html).toContain(`src="${TRANSITION_LENS_ART.href}"`)
+    expect(html).toContain('cv-lupa-lens')
+    expect(html).toContain(`data-art="${TRANSITION_LENS_ART.href}"`)
   })
 
   it('the rim renders AFTER children, so it paints above both View Transition snapshots', () => {

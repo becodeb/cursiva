@@ -23,10 +23,13 @@ export interface PuppetAccessories {
   readonly apron?: boolean
   readonly lens?: boolean
   readonly bow?: boolean
+  /** The tint in the lupa's ring. Off for the screen-change glass, which ends up
+   *  covering the whole screen and has to be truly empty. */
+  readonly glass?: boolean
 }
 
 /** Dressed as the prototype: cap and apron on, lens and bow put away. */
-const DEFAULT_ACCESSORIES: Required<PuppetAccessories> = { cap: true, apron: true, lens: false, bow: false }
+const DEFAULT_ACCESSORIES: Required<PuppetAccessories> = { cap: true, apron: true, lens: false, bow: false, glass: true }
 
 export interface PuppetHandle {
   act(name: ActName, seconds?: number): void
