@@ -37,25 +37,24 @@ export function drawGallina(p: RigBuilder): RigUpdate {
 
   p.cluster([{ d: blob([56, 286], [102, 218], [190, 190], [270, 222], [302, 292], [272, 352], [184, 384], [96, 364]), c: 'body', part: 'hull' }])
 
-  // The ruff and the head ride together. The bill grows out of the head, and the
-  // comb and wattle out of it too: all drawn behind it, so it covers their base.
-  // The comb and wattle grow out of the head too, three soft lobes each side of it.
+  // Comb, wattle and bill grow out from behind the head, which covers their base.
   p.cluster([
-    { d: ell(232, 56, 26, 28), c: 'comb', part: 'neck/skull/combTop' },
-    { d: ell(270, 38, 30, 34), c: 'comb', part: 'neck/skull/combTop' },
-    { d: ell(302, 68, 24, 27), c: 'comb', part: 'neck/skull/combTop' },
+    { d: ell(262, 62, 24, 26), c: 'comb', part: 'neck/skull/combTop' },
+    { d: ell(296, 42, 28, 32), c: 'comb', part: 'neck/skull/combTop' },
+    { d: ell(328, 66, 22, 25), c: 'comb', part: 'neck/skull/combTop' },
   ])
-  p.cluster([{ d: blob([310, 142], [344, 144], [356, 182], [336, 206], [314, 186]), c: 'comb', part: 'neck/skull/wattle' }])
-  p.cluster([{ d: 'M304 126C324 130 340 136 352 146C338 156 318 156 300 150Z', c: 'beakD', part: 'neck/skull/billLow' }])
-  p.cluster([{ d: 'M298 84C332 90 360 108 370 134C346 146 318 144 294 138Z', c: 'beak', part: 'neck/skull/billUp' }])
-  // Head and ruff are one paper piece, one shadow; the ruff hangs in scallops.
+  p.cluster([{ d: blob([328, 150], [362, 150], [372, 186], [350, 208], [330, 186]), c: 'comb', part: 'neck/skull/wattle' }])
+  p.cluster([{ d: 'M326 128C348 130 368 134 382 142C368 154 344 154 324 148Z', c: 'beakD', part: 'neck/skull/billLow' }])
+  p.cluster([{ d: 'M322 86C350 92 386 108 400 132C378 144 348 144 322 138Z', c: 'beak', part: 'neck/skull/billUp' }])
+  // One paper piece, one shadow: a round head, a real neck, and the ruff it opens into.
   p.cluster([
-    ...[[190, 226, 25], [220, 250, 27], [256, 258, 28], [292, 250, 27], [320, 226, 25]].map(([x, y, r]) => ({ d: ell(x, y, r, r), c: 'ruff', part: 'neck' })),
-    { d: blob([196, 96], [220, 58], [268, 50], [304, 82], [310, 128], [314, 182], [332, 226], [254, 250], [172, 226], [186, 164]), c: 'ruff', part: 'neck/skull' },
+    ...[[198, 240, 25], [234, 262, 27], [274, 272, 28], [316, 262, 27], [350, 240, 25]].map(([x, y, r]) => ({ d: ell(x, y, r, r), c: 'ruff', part: 'neck' })),
+    { d: blob([240, 142], [346, 142], [350, 196], [372, 244], [274, 266], [184, 244], [216, 196]), c: 'ruff', part: 'neck' },
+    { d: ell(296, 112, 60, 62), c: 'ruff', part: 'neck/skull' },
   ])
-  p.flat(ell(250, 150, 14, 9), 'pink', { part: 'neck/skull' })
-  p.eye('eye', 270, 112, 20, { part: 'neck/skull', ry: 24 })
-  p.line(browPath(238, 80, 286, 70), { part: 'neck/skull/brow', w: 7, c: 'bodyD' })
+  p.flat(ell(272, 136, 13, 8), 'pink', { part: 'neck/skull' })
+  p.eye('eye', 312, 106, 17, { part: 'neck/skull', ry: 21 })
+  p.line(browPath(292, 76, 332, 70), { part: 'neck/skull/brow', w: 6, c: 'bodyD' })
 
   p.cluster([{ d: blob([206, 272], [166, 246], [104, 252], [72, 288], [90, 300], [80, 324], [118, 326], [126, 346], [172, 332], [210, 302]), c: 'bodyD', part: 'wing' }])
 
@@ -65,19 +64,19 @@ export function drawGallina(p: RigBuilder): RigUpdate {
     const peck = Math.max(0, Math.sin(pose.t * 5.5)) * wave
     const ruffle = 1 + scare * 0.18 + cheer * pose.hop * 0.05
     set('neck', {
-      ox: 232,
+      ox: 272,
       oy: 262,
       sx: ruffle,
       sy: ruffle,
       x: scare * -6,
       r: peck * 24 + sad * 18 + sleep * 34 + Math.sin(pose.t * 7.5) * 4 * cheer + pose.look[0] * 3,
     })
-    set('skull', { ox: 240, oy: 160, r: pose.look[0] * 3 + sleep * 16 + sad * 6 })
+    set('skull', { ox: 290, oy: 170, r: pose.look[0] * 3 + sleep * 16 + sad * 6 })
     const jaw = pose.open
-    set('billUp', { ox: 300, oy: 116, r: -jaw * 8 })
-    set('billLow', { ox: 302, oy: 138, r: jaw * 20 + 2 - sad * 4 })
-    set('combTop', { ox: 256, oy: 74, r: Math.sin(pose.t * 7.5) * 5 * cheer + sad * 12 + Math.sin(pose.t * 5.5) * 5 * wave, sy: 1 + scare * 0.1 })
-    set('wattle', { ox: 312, oy: 152, r: Math.sin(pose.t * 11) * 9 * Math.max(cheer, wave) })
+    set('billUp', { ox: 326, oy: 114, r: -jaw * 8 })
+    set('billLow', { ox: 328, oy: 138, r: jaw * 20 + 2 - sad * 4 })
+    set('combTop', { ox: 296, oy: 72, r: Math.sin(pose.t * 7.5) * 5 * cheer + sad * 12 + Math.sin(pose.t * 5.5) * 5 * wave, sy: 1 + scare * 0.1 })
+    set('wattle', { ox: 340, oy: 152, r: Math.sin(pose.t * 11) * 9 * Math.max(cheer, wave) })
     set('brow', { y: -scare * 3 })
     const flap = Math.sin(pose.t * (2 + cheer * 24 + scare * 28))
     set('wing', { ox: 196, oy: 270, r: -flap * (1 + cheer * 22 + scare * 16) + sad * 8 + wave * Math.sin(pose.t * 11) * 3 })

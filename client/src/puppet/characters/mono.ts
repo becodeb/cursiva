@@ -86,16 +86,26 @@ const footPath = (near: boolean): DynamicPath => (pose) => {
   return ell(f[0] + (near ? 8 : -8), f[1] + 6, 31, 15)
 }
 
-/** A mitten: a palm and three fingers fanned away from the wrist. */
-const handPath = (hand: (pose: Pose) => Vec, shoulder: Vec): DynamicPath => (pose) => {
+/** A real hand: a small palm, four long fingers fanned away from the wrist and a thumb
+ *  set low on one side. It is what a monkey is for. */
+const FINGER_FAN = [-0.72, -0.24, 0.24, 0.72]
+const handPath = (hand: (pose: Pose) => Vec, shoulder: Vec, thumbSide: 1 | -1): DynamicPath => (pose) => {
   const h = hand(pose)
   const th = Math.atan2(h[1] - shoulder[1] - dropOf(pose), h[0] - shoulder[0])
-  let d = ell(h[0], h[1], 18, 18)
-  for (const fan of [-0.62, 0, 0.62]) {
-    const a = th + fan
-    d += ell(h[0] + Math.cos(a) * 20, h[1] + Math.sin(a) * 20, 8, 8)
-  }
-  return d
+  const finger = (a: number, from: number, length: number, width: number): string =>
+    tubePath(
+      [
+        [h[0] + Math.cos(a) * from, h[1] + Math.sin(a) * from],
+        [h[0] + Math.cos(a) * (from + length * 0.5), h[1] + Math.sin(a) * (from + length * 0.5)],
+        [h[0] + Math.cos(a) * (from + length), h[1] + Math.sin(a) * (from + length)],
+      ],
+      () => width,
+    )
+  let d = ell(h[0], h[1], 16, 16)
+  FINGER_FAN.forEach((fan, i) => {
+    d += finger(th + fan, 11, i === 0 || i === 3 ? 19 : 24, 5)
+  })
+  return d + finger(th + thumbSide * 1.55, 9, 16, 5.5)
 }
 
 const tail: DynamicPath = (pose) => {
@@ -119,7 +129,7 @@ const tail: DynamicPath = (pose) => {
 export function drawMono(p: RigBuilder): RigUpdate {
   p.cluster([{ d: tail, c: 'fur' }])
   p.cluster([{ d: legPath(HIP_F, false), c: 'furD' }, { d: footPath(false), c: 'skinD' }])
-  p.cluster([{ d: armPath(SHOULDER_F, farHand, 16), c: 'furD' }, { d: handPath(farHand, SHOULDER_F), c: 'skinD' }])
+  p.cluster([{ d: armPath(SHOULDER_F, farHand, 16), c: 'furD' }, { d: handPath(farHand, SHOULDER_F, -1), c: 'skinD' }])
 
   p.cluster([{ d: blob([84, 206], [144, 206], [166, 268], [158, 330], [114, 356], [68, 332], [60, 268]), c: 'fur', part: 'trunk' }])
   p.flat(blob([92, 246], [136, 246], [146, 296], [114, 340], [82, 296]), 'skin', { part: 'trunk' })
@@ -130,7 +140,7 @@ export function drawMono(p: RigBuilder): RigUpdate {
   p.flat('M122 240C112 266 108 292 116 318C110 292 112 262 122 240Z', 'bananaD', { part: 'bananaHeld' })
   p.cluster([{ d: ell(88, 290, 18, 18), c: 'skinD', part: 'bananaHeld' }])
 
-  p.cluster([{ d: armPath(SHOULDER_N, nearHand, -14), c: 'fur' }, { d: handPath(nearHand, SHOULDER_N), c: 'skin' }])
+  p.cluster([{ d: armPath(SHOULDER_N, nearHand, -14), c: 'fur' }, { d: handPath(nearHand, SHOULDER_N, 1), c: 'skin' }])
 
   p.cluster([{ d: ell(46, 128, 26, 28), c: 'fur', part: 'head/earL' }])
   p.flat(ell(46, 128, 15, 17), 'pink', { part: 'head/earL' })
