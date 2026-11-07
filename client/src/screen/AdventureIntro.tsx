@@ -26,7 +26,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
 import { ZOO_SPEECH_BUBBLE_LEFT_ART } from '../detective/assets'
-import { ArtImg } from '../puppet/ArtFigure'
+import { ArtImg, PlaceResidents } from '../puppet/ArtFigure'
 import { PAPER_CARD_SHADOW, PAPER_EDGE } from '../puppet/rig'
 import { SHEET_PAPER, fitContentWithInsets } from '../canvas/TraceCanvas'
 import { RevealLayer } from '../canvas/RevealLayer'
@@ -35,6 +35,8 @@ import { backdropFor } from '../zoo/backdrops'
 import { TRACE_PAPER } from '../puppet/ArtFigure'
 import { ArtBackdrop, SCENE_CSS, ScenePicture, sceneFor } from '../puppet/scene/Scene'
 import { introBubbleArt, type Adventure } from '../zoo/adventures'
+import { residentsOf } from '../zoo/residents'
+import type { Records } from '../zoo/sectors'
 import { introCoverFor, INTRO_COVER_VIEWBOX_HEIGHT } from './introCover'
 import { IntroChromeGhost, levelChromeFacts } from './introChrome'
 import { LEVEL_CHROME_SIDE_INSET } from './LevelPlay'
@@ -53,6 +55,8 @@ import {
 import { bubbleContentCssVars, bubbleContentFracs } from './bubbleCssVars'
 import { useViewportSize } from './useViewportSize'
 import { placeStageBubble } from './stageBubble'
+
+const NO_RECORDS: Records = {}
 
 /* The stage is a percentage box with container-type: inline-size, the same
    fix the zoo map's own bubble uses (ZooMap.tsx's ZOO_CSS): everything
@@ -168,6 +172,8 @@ ${BUBBLE_POP_CSS}
 
 export interface AdventureIntroProps {
   adventure: Adventure
+  /** Who is already home, for who stands on the place. Absent: nobody yet. */
+  records?: Records
   onStart: () => void
 }
 
@@ -186,8 +192,9 @@ export function introSpokenLine(adventure: Adventure): string {
 /** The reusable narrative entry (`docs/13` §5 item 1). No `aria-label` on
  * the button — the caption inside already names it, and an `aria-label`
  * would override the only sentence on the screen. */
-export default function AdventureIntro({ adventure, onStart }: AdventureIntroProps) {
+export default function AdventureIntro({ adventure, records = NO_RECORDS, onStart }: AdventureIntroProps) {
   const backdrop = backdropFor(adventure.levelIds[0])
+  const residents = backdrop ? residentsOf(backdrop.art, records) : []
   // T31 (odd/tasks/prewriting-stage-completion.md): "dice que el vidrio está
   // empañado, pero se ve el fondo limpio" — the level as it will look the
   // instant play starts (the fog/sand/leaves/mud cover, night's darkness, a
@@ -322,7 +329,9 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
               width={displayBounds.width}
               height={displayBounds.height}
               artHref={cover.backdropHref}
-            />
+            >
+              <PlaceResidents residents={residents} />
+            </ScenePicture>
           ) : (
             <image
               href={cover.backdropHref}
@@ -351,7 +360,11 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
       {chromeFacts && typeof window !== 'undefined' && (
         <IntroChromeGhost facts={chromeFacts} topRef={topGhostRef} bottomRef={bottomGhostRef} />
       )}
-      {backdrop && !cover && <ArtBackdrop className="cv-intro-backdrop" art={backdrop.art} />}
+      {backdrop && !cover && (
+        <ArtBackdrop className="cv-intro-backdrop" art={backdrop.art}>
+          <PlaceResidents residents={residents} />
+        </ArtBackdrop>
+      )}
       <div className="cv-intro-frame">
         <button type="button" className="cv-intro-stage" onClick={onStart}>
           <span

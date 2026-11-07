@@ -8,8 +8,6 @@ import { blade, lump, peak, poly, rise, SCENE_H, SCENE_W, tuft, type SceneDef, t
 
 const scene = (base: string, layers: readonly SceneLayer[]): SceneDef => ({ w: SCENE_W, h: SCENE_H, base, layers })
 
-const INK = '#1a2226'
-
 const reedBed = (x: number, y: number, dir: 1 | -1): ScenePiece[] => [
   { d: blade(x, y, 240, 26 * dir, 13), c: '#3b8452' },
   { d: blade(x + 46 * dir, y, 300, -18 * dir, 14), c: '#357a4c' },
@@ -20,17 +18,36 @@ const reedBed = (x: number, y: number, dir: 1 | -1): ScenePiece[] => [
   { d: ell(x + 28 * dir, y - 306, 15, 48), c: '#6f4526' },
 ]
 
-const fish = (x: number, y: number, k: number, body: string, fin: string, dir: 1 | -1): ScenePiece[] => {
-  const X = (u: number): number => x + u * k * dir
-  const Y = (v: number): number => y + v * k
+/** A chest you can name at a glance: a box, a domed lid on its own piece, two straps
+ *  over both, and a gold clasp. Stands on `y`, `w` units wide. */
+const chest = (x: number, y: number, w: number): SceneLayer[] => {
+  const h = w * 0.46
+  const lid = y - h
   return [
-    { d: poly([X(-52), Y(0)], [X(-98), Y(-34)], [X(-90), Y(0)], [X(-98), Y(34)]), c: fin },
-    { d: ell(x, y, 66 * k, 36 * k), c: body },
-    { d: poly([X(-12), Y(-30)], [X(14), Y(-58)], [X(30), Y(-28)]), c: fin },
-    { d: ell(X(36), Y(-8), 10 * k, 10 * k), c: '#ffffff' },
-    { d: ell(X(39), Y(-8), 5 * k, 5 * k), c: INK },
+    {
+      pieces: [
+        { d: poly([x - w / 2, y], [x - w / 2 + 6, lid], [x + w / 2 - 6, lid], [x + w / 2, y]), c: '#e6a070' },
+        { d: `M${x - w / 2 - 6} ${lid + 6}C${x - w / 2} ${lid - h * 0.92} ${x + w / 2} ${lid - h * 0.92} ${x + w / 2 + 6} ${lid + 6}Z`, c: '#efb084' },
+      ],
+    },
+    {
+      pieces: [
+        { d: poly([x - w * 0.34, lid - h * 0.5], [x - w * 0.24, lid - h * 0.56], [x - w * 0.24, y], [x - w * 0.34, y]), c: '#dd9463' },
+        { d: poly([x + w * 0.24, lid - h * 0.56], [x + w * 0.34, lid - h * 0.5], [x + w * 0.34, y], [x + w * 0.24, y]), c: '#dd9463' },
+        { d: poly([x - w / 2 - 6, lid - 4], [x + w / 2 + 6, lid - 4], [x + w / 2 + 6, lid + 8], [x - w / 2 - 6, lid + 8]), c: '#dd9463' },
+      ],
+      flat: true,
+    },
+    { pieces: [{ d: poly([x - w * 0.09, lid - h * 0.16], [x + w * 0.09, lid - h * 0.16], [x + w * 0.09, lid + h * 0.3], [x - w * 0.09, lid + h * 0.3]), c: '#ffd84f' }] },
+    { pieces: [{ d: ell(x, lid + h * 0.08, w * 0.026, w * 0.034), c: '#dd9463' }], flat: true },
   ]
 }
+
+/** A whole stone: its body and the lighter face the light falls on. */
+const stone = (x: number, y: number, rx: number, ry: number, body: string, face: string): SceneLayer[] => [
+  { pieces: [{ d: `M${x - rx} ${y}C${x - rx * 1.02} ${y - ry * 0.72} ${x - rx * 0.5} ${y - ry * 1.08} ${x - rx * 0.04} ${y - ry}C${x + rx * 0.5} ${y - ry * 1.02} ${x + rx * 1.02} ${y - ry * 0.56} ${x + rx} ${y}Z`, c: body }] },
+  { pieces: [{ d: ell(x - rx * 0.26, y - ry * 0.62, rx * 0.36, ry * 0.22), c: face }], flat: true },
+]
 
 const palm = (x: number, y: number, h: number, dir: 1 | -1, trunk: string, frond: string): SceneLayer[] => {
   const topX = x + 56 * dir
@@ -56,6 +73,29 @@ const palm = (x: number, y: number, h: number, dir: 1 | -1, trunk: string, frond
 const tree = (x: number, y: number, h: number, trunk: string, crown: string, delay = 0): SceneLayer[] => [
   { pieces: [{ d: poly([x - 20, y], [x - 12, y - h * 0.62], [x + 12, y - h * 0.62], [x + 20, y]), c: trunk }] },
   { pieces: [{ d: lump(x, y - h * 0.74, h * 0.34, h * 0.32), c: crown }], motion: 'sway', origin: [x, y - h * 0.55], delay },
+]
+
+/** A rope hung from the canopy: a strip and its knots, the way a rope reads in paper. */
+const rope = (x: number, top: number, length: number, delay = 0): SceneLayer[] => [
+  {
+    pieces: [{ d: poly([x - 9, top], [x + 9, top], [x + 9, top + length], [x - 9, top + length]), c: '#ecd79a' }],
+    motion: 'sway',
+    origin: [x, top],
+    delay,
+  },
+  {
+    pieces: [0.3, 0.55, 0.8, 1].map((u): ScenePiece => ({ d: ell(x, top + length * u, 15, 12), c: '#dcc37f' })),
+    flat: true,
+    motion: 'sway',
+    origin: [x, top],
+    delay,
+  },
+]
+
+const apple = (x: number, y: number, r: number, c: string): ScenePiece[] => [
+  { d: ell(x, y, r, r * 0.94), c },
+  { d: poly([x - 3, y - r * 0.85], [x + 3, y - r * 0.85], [x + 6, y - r * 1.3], [x, y - r * 1.3]), c: '#c9ac6d' },
+  { d: ell(x + r * 0.42, y - r * 1.06, r * 0.34, r * 0.17), c: '#a9d96a' },
 ]
 
 const flower = (x: number, y: number, r: number, petal: string, heart: string): ScenePiece[] => [
@@ -113,6 +153,13 @@ const LAGOON = scene('#56a9c4', [
       ...flower(748, 900, 11, '#e68aa6', '#efc23f'),
     ],
   },
+  // Bubbles coming up from under the water ("dejó burbujas").
+  {
+    pieces: [[1000, 852, 16], [1036, 806, 11], [1006, 772, 8], [1130, 838, 13], [1160, 790, 9], [1458, 846, 14], [1484, 802, 9]].map(([x, y, r]): ScenePiece => ({ d: ell(x, y, r, r), c: '#9ad0de' })),
+    flat: true,
+    motion: 'bob',
+    delay: 0.6,
+  },
   { pieces: reedBed(400, 1000, 1), motion: 'sway', origin: [470, 1000] },
   { pieces: reedBed(1610, 1000, -1), motion: 'sway', origin: [1540, 1000], delay: 1.4 },
   { pieces: reedBed(90, 1000, 1), motion: 'sway', origin: [160, 1000], delay: 0.7 },
@@ -142,6 +189,28 @@ const SLOPE = scene('#b9dc6e', [
     }),
   },
   { pieces: [{ d: poly([402, 176], [790, 188], [790, 200], [402, 188]), c: '#efd9ac' }], flat: true },
+  // The wire on the near ridge, where the wool caught ("lana en el alambrado"). Clear of
+  // the bubble at every screen, because a child has to be able to find it.
+  {
+    pieces: [980, 1080, 1180, 1280, 1380].flatMap((x, i): ScenePiece[] => {
+      const y = 214 - i * 4
+      return [{ d: poly([x - 7, y - 58], [x + 7, y - 58], [x + 7, y + 8], [x - 7, y + 8]), c: '#efd9ac' }]
+    }),
+  },
+  {
+    pieces: [
+      { d: poly([972, 166], [1388, 150], [1388, 158], [972, 174]), c: '#e3cb94' },
+      { d: poly([972, 190], [1388, 174], [1388, 182], [972, 198]), c: '#e3cb94' },
+    ],
+    flat: true,
+  },
+  {
+    pieces: [
+      { d: lump(1030, 168, 34, 26, 3), c: '#ffffff' },
+      { d: lump(1232, 176, 28, 22, 3), c: '#ffffff' },
+      { d: lump(1334, 160, 30, 24, 3), c: '#ffffff' },
+    ],
+  },
   { pieces: [{ d: rise([[-100, 244], [460, 216], [1000, 246], [1500, 222], [2100, 240]]), c: '#b9dc6e' }] },
   ...tree(220, 420, 300, '#d0a878', '#96cc5a', 1),
   ...tree(1830, 400, 280, '#d0a878', '#96cc5a', 2),
@@ -196,6 +265,23 @@ const FOREST = scene('#7fb54e', [
   { pieces: [{ d: poly([1580, 1100], [1606, 90], [1662, 90], [1690, 1100]), c: '#967450' }] },
   { pieces: [{ d: lump(300, 96, 330, 110), c: '#4f8f45' }], motion: 'sway', origin: [300, 200] },
   { pieces: [{ d: lump(1700, 90, 340, 120), c: '#4f8f45' }], motion: 'sway', origin: [1700, 200], delay: 1.5 },
+  // The lianas someone went off on, and the hive the bee flies back to.
+  { pieces: [{ d: `M470 150C500 300 452 400 490 560C462 410 440 300 450 150Z`, c: '#5f9a42' }], motion: 'sway', origin: [460, 150], delay: 0.5 },
+  { pieces: [{ d: `M1560 130C1530 290 1574 380 1540 520C1566 390 1584 280 1580 130Z`, c: '#5f9a42' }], motion: 'sway', origin: [1570, 130], delay: 1.1 },
+  {
+    pieces: [
+      { d: poly([1474, 150], [1486, 150], [1486, 190], [1474, 190]), c: '#8b6a45' },
+      { d: `M1480 180C1530 180 1554 226 1546 266C1538 306 1512 330 1480 330C1448 330 1422 306 1414 266C1406 226 1430 180 1480 180Z`, c: '#e0a83a' },
+    ],
+  },
+  {
+    pieces: [
+      { d: poly([1424, 222], [1536, 222], [1542, 238], [1418, 238]), c: '#c98f2a' },
+      { d: poly([1416, 268], [1544, 268], [1538, 284], [1422, 284]), c: '#c98f2a' },
+      { d: ell(1480, 300, 15, 15), c: '#8b6a45' },
+    ],
+    flat: true,
+  },
   { pieces: [{ d: rise([[-100, 880], [460, 846], [1000, 900], [1540, 852], [2100, 884]]), c: '#6aa347' }] },
   {
     pieces: [
@@ -207,9 +293,11 @@ const FOREST = scene('#7fb54e', [
   },
   {
     pieces: [
-      ...flower(700, 932, 15, '#ef9db8', '#f3c23f'),
-      ...flower(1090, 962, 13, '#ef9db8', '#f3c23f'),
-      ...flower(1360, 954, 16, '#d9c050', '#d88a3a'),
+      ...flower(1010, 902, 22, '#ef9db8', '#f3c23f'),
+      ...flower(1090, 915, 22, '#ef9db8', '#f3c23f'),
+      ...flower(1200, 904, 20, '#d9c050', '#d88a3a'),
+      ...flower(1360, 912, 24, '#d9c050', '#d88a3a'),
+      ...flower(1470, 892, 20, '#ef9db8', '#f3c23f'),
       // A stump and two toadstools at the foot of the near trunk.
       { d: poly([600, 980], [608, 912], [660, 912], [672, 980]), c: '#967450' },
       { d: ell(634, 912, 37, 13), c: '#b8926a' },
@@ -219,28 +307,23 @@ const FOREST = scene('#7fb54e', [
   },
 ])
 
-// The aquarium, seen through its glass. The grime veil is luma 109 and the snake-free
+// The aquarium, seen through its glass. Empty: the glass is clean and "no hay ni un pez"
+// (`zoo/adventures.ts`). A place has no eyes (`scene.test.tsx`): whoever lives here is a
+// resident, and arrives with its own rescue. The grime veil is luma 109 and the snake-free
 // water must be seen when it is wiped, so everything is 164 or lighter, ink aside.
 const AQUARIUM = scene('#94dbea', [
   // The glass catches the light in two long slants.
   { pieces: [{ d: poly([420, -20], [500, -20], [190, 1020], [110, 1020]), c: '#b6e9f2' }, { d: poly([540, -20], [574, -20], [264, 1020], [230, 1020]), c: '#b6e9f2' }], flat: true },
   { pieces: [{ d: rise([[-100, 884], [420, 852], [1000, 898], [1560, 856], [2100, 886]]), c: '#f4dfae' }] },
   { pieces: [{ d: blade(470, 900, 320, 44, 30), c: '#6fcf8f' }, { d: blade(540, 900, 240, -30, 26), c: '#86d69a' }, { d: blade(420, 900, 190, -48, 22), c: '#86d69a' }], motion: 'sway', origin: [470, 900] },
-  { pieces: [{ d: blade(1480, 900, 340, -38, 30), c: '#6fcf8f' }, { d: blade(1560, 900, 220, 34, 26), c: '#86d69a' }], motion: 'sway', origin: [1500, 900], delay: 1.2 },
-  {
-    pieces: [
-      { d: poly([1180, 958], [1188, 884], [1320, 884], [1328, 958]), c: '#e8b76a' },
-      { d: `M1180 890C1190 846 1318 846 1328 890Z`, c: '#f0c98a' },
-      { d: lump(800, 952, 74, 30, 3), c: '#d9d3c4' },
-      { d: lump(690, 968, 44, 18, 3), c: '#e4dfd2' },
-    ],
-  },
-  { pieces: fish(490, 190, 1.1, '#ffb04d', '#ff9a6b', 1), motion: 'bob' },
-  { pieces: fish(1510, 150, 0.9, '#d7b6f0', '#c4a0e8', -1), motion: 'bob', delay: 1 },
-  { pieces: fish(1590, 620, 1.05, '#ffc65c', '#ff9f6b', -1), motion: 'bob', delay: 2 },
-  { pieces: fish(420, 610, 0.8, '#f7a8c0', '#f293ad', 1), motion: 'bob', delay: 1.6 },
-  { pieces: fish(170, 360, 1, '#ffc65c', '#ff9f6b', 1), motion: 'bob', delay: 0.8 },
-  { pieces: fish(1840, 400, 1.1, '#ffb04d', '#ff9a6b', -1), motion: 'bob', delay: 2.4 },
+  { pieces: [{ d: blade(1470, 900, 400, -38, 34), c: '#6fcf8f' }, { d: blade(1530, 900, 300, 30, 30), c: '#86d69a' }, { d: blade(1630, 900, 340, -26, 30), c: '#6fcf8f' }], motion: 'sway', origin: [1500, 900], delay: 1.2 },
+  // What the Pulpito names when the glass is clean: the algae above, the chest and the
+  // stones here, all on the sand and clear of where he stands. Nobody lives here until
+  // the fish are back: the fish are residents (`zoo/residents.ts`), never paint.
+  ...stone(1040, 918, 66, 52, '#b9c2c8', '#d3dade'),
+  ...chest(1250, 930, 250),
+  ...stone(1486, 912, 84, 66, '#b4bdc4', '#d0d8dc'),
+  ...stone(1584, 926, 52, 40, '#c2cace', '#d9dfe2'),
   {
     pieces: [ell(600, 150, 18), ell(632, 96, 12), ell(1420, 120, 15), ell(1394, 62, 10)].map((d) => ({ d, c: '#dbf4f8' })),
     flat: true,
@@ -265,16 +348,43 @@ const SAND = scene('#f2d694', [
   { pieces: [{ d: rise([[-100, 620], [260, 650], [430, 780], [560, 1100]]), c: '#ebc97f' }] },
   { pieces: [{ d: rise([[1470, 1100], [1580, 780], [1740, 640], [2100, 600]]), c: '#ebc97f' }] },
   { pieces: [{ d: rise([[-100, 900], [500, 858], [1000, 910], [1500, 862], [2100, 898]]), c: '#ebc97f' }] },
+  // The furrow and the prints someone left on the sand ("un surco en la arena"). A
+  // trace, never the animal.
   {
     pieces: [
-      { d: ell(660, 948, 36, 22), c: '#f5a98c' },
-      { d: poly([646, 934], [660, 920], [674, 934]), c: '#f5a98c' },
-      { d: `M1266 960C1272 910 1344 910 1350 960Z`, c: '#fbe6cf' },
-      { d: poly([1298, 960], [1308, 918], [1318, 960]), c: '#f5a98c' },
-      ...[0, 72, 144, 216, 288].map((deg): ScenePiece => {
-        const a = (deg * Math.PI) / 180
-        return { d: poly([980 + Math.sin(a - 0.7) * 10, 948 - Math.cos(a - 0.7) * 10], [980 + Math.sin(a) * 34, 948 - Math.cos(a) * 34], [980 + Math.sin(a + 0.7) * 10, 948 - Math.cos(a + 0.7) * 10]), c: '#f9c08a' }
-      }),
+      { d: `M980 812C1090 776 1190 836 1300 802C1400 772 1500 806 1640 780L1642 796C1502 822 1402 788 1302 818C1192 852 1092 792 982 828Z`, c: '#e3c585' },
+      ...[[1020, 790], [1120, 846], [1220, 786], [1330, 838], [1430, 768], [1540, 824]].flatMap(([x, y]): ScenePiece[] => [
+        { d: ell(x, y, 15, 11), c: '#dcbc7a' },
+        { d: ell(x - 15, y - 13, 5, 5), c: '#dcbc7a' },
+        { d: ell(x, y - 17, 5, 5), c: '#dcbc7a' },
+        { d: ell(x + 15, y - 13, 5, 5), c: '#dcbc7a' },
+      ]),
+    ],
+    flat: true,
+  },
+  // What the Pulpito names in the clean pen: the stones and the log.
+  {
+    pieces: [
+      { d: `M1176 914C1176 884 1206 878 1236 878L1436 870C1458 870 1470 888 1470 906C1470 926 1456 940 1434 940L1236 948C1204 948 1176 942 1176 914Z`, c: '#d9ae78' },
+    ],
+  },
+  {
+    pieces: [
+      { d: ell(1204, 913, 27, 34), c: '#f0d3a4' },
+      { d: ell(1204, 913, 13, 18), c: '#e3bd85' },
+      { d: poly([1270, 894], [1400, 888], [1400, 896], [1270, 902]), c: '#d3a870' },
+      { d: poly([1290, 922], [1430, 916], [1430, 924], [1290, 930]), c: '#d3a870' },
+    ],
+    flat: true,
+  },
+  ...stone(1060, 946, 70, 56, '#c7cdd0', '#dfe3e5'),
+  ...stone(1560, 950, 80, 62, '#bfc6ca', '#dadfe2'),
+  {
+    pieces: [
+      { d: ell(860, 948, 36, 22), c: '#f5a98c' },
+      { d: poly([846, 934], [860, 920], [874, 934]), c: '#f5a98c' },
+      { d: `M1660 972C1666 922 1738 922 1744 972Z`, c: '#fbe6cf' },
+      { d: poly([1692, 972], [1702, 930], [1712, 972]), c: '#f5a98c' },
     ],
   },
 ])
@@ -295,16 +405,54 @@ const MONKEYS = scene('#f6c873', [
       { d: poly([1576, 322], [1588, 322], [1588, 150], [1576, 150]), c: '#eed39b' },
     ],
   },
-  { pieces: [{ d: `M570 120C596 360 546 470 586 640C560 470 530 360 546 120Z`, c: '#d2dc74' }], motion: 'sway', origin: [558, 120] },
-  { pieces: [{ d: `M1436 110C1406 310 1450 390 1420 540C1440 390 1456 300 1456 110Z`, c: '#d2dc74' }], motion: 'sway', origin: [1446, 110], delay: 1.4 },
+  // The ropes the Pulpito names ("las sogas"), knotted, and one swing to hang from.
+  ...rope(556, 120, 580),
+  ...rope(1446, 110, 500, 1.4),
+  {
+    pieces: [
+      { d: poly([1130, 110], [1142, 110], [1142, 276], [1130, 276]), c: '#ecd79a' },
+      { d: poly([1266, 110], [1278, 110], [1278, 276], [1266, 276]), c: '#ecd79a' },
+      { d: poly([1110, 270], [1298, 270], [1298, 294], [1110, 294]), c: '#e3b778' },
+    ],
+    motion: 'sway',
+    origin: [1204, 110],
+    delay: 0.6,
+  },
   { pieces: [{ d: rise([[-100, 896], [500, 860], [1000, 906], [1500, 864], [2100, 898]]), c: '#eeb95f' }] },
   {
     pieces: [
-      { d: `M720 946C760 972 830 972 866 928C862 962 794 996 718 958Z`, c: '#ffe25f' },
-      { d: `M748 912C786 942 850 942 884 894C884 932 816 964 744 924Z`, c: '#ffe25f' },
       ...tuft(1220, 950, 72, '#c4d865'),
       ...tuft(1040, 960, 54, '#c4d865'),
       ...tuft(520, 940, 62, '#c4d865'),
+    ],
+  },
+  // The fruit ("las frutas"): a whole bunch of bananas and a pile of apples in a crate,
+  // where nothing stands over them.
+  {
+    pieces: [
+      { d: poly([1250, 950], [1490, 950], [1472, 880], [1268, 880]), c: '#e3b778' },
+    ],
+  },
+  {
+    pieces: [
+      { d: poly([1262, 910], [1478, 910], [1474, 898], [1266, 898]), c: '#d6a766' },
+      { d: poly([1256, 934], [1484, 934], [1480, 922], [1260, 922]), c: '#d6a766' },
+    ],
+    flat: true,
+  },
+  {
+    pieces: [
+      ...apple(1306, 858, 34, '#f29470'),
+      ...apple(1372, 846, 38, '#f49a60'),
+      ...apple(1436, 860, 32, '#f29470'),
+    ],
+  },
+  {
+    pieces: [
+      { d: `M1030 940C1020 880 1040 830 1086 800C1066 846 1062 896 1078 950C1060 956 1040 952 1030 940Z`, c: '#ffe25f' },
+      { d: `M1078 950C1058 892 1066 836 1100 796C1098 846 1104 896 1132 946C1116 958 1094 960 1078 950Z`, c: '#ffd93f' },
+      { d: `M1132 946C1104 898 1096 840 1114 796C1128 846 1150 888 1188 926C1172 944 1150 952 1132 946Z`, c: '#ffe25f' },
+      { d: poly([1086, 806], [1116, 800], [1112, 770], [1092, 772]), c: '#e3cf58' },
     ],
   },
 ])
@@ -341,6 +489,16 @@ const PATH = scene('#e9b36c', [
     }),
   },
   { pieces: [{ d: rise([[-100, 918], [500, 884], [1000, 926], [1500, 888], [2100, 920]]), c: '#e0a55e' }] },
+  // What the mud was hiding ("¡Son huellas!"): a line of prints along the road, a paw
+  // and an arm's round print, going off toward the gate.
+  {
+    pieces: [[720, 816], [860, 766], [1000, 824], [1140, 770], [1280, 826], [1420, 772]].flatMap(([x, y], i): ScenePiece[] =>
+      i % 2 === 0
+        ? [{ d: ell(x, y + 6, 26, 20), c: '#c99757' }, { d: ell(x - 26, y - 20, 9, 10), c: '#c99757' }, { d: ell(x, y - 30, 9, 10), c: '#c99757' }, { d: ell(x + 26, y - 20, 9, 10), c: '#c99757' }]
+        : [{ d: ell(x, y, 16, 32), c: '#c99757' }, { d: ell(x - 15, y - 44, 8, 9), c: '#c99757' }, { d: ell(x + 13, y - 42, 7, 8), c: '#c99757' }],
+    ),
+    flat: true,
+  },
   {
     pieces: [
       { d: lump(610, 960, 60, 24, 3), c: '#dcd3c2' },
@@ -405,4 +563,38 @@ export const SCENES = {
 } as const satisfies Readonly<Record<string, SceneDef>>
 
 export type SceneName = keyof typeof SCENES
+
+/** Where the things a line names stand, in scene units: a test holds each one whole
+ *  inside what every screen shape shows (`scene.test.tsx`). A word in a closing means
+ *  nothing if the crop cuts the thing in half. */
+export const NAMED_THINGS: Readonly<Partial<Record<SceneName, Readonly<Record<string, { x0: number; x1: number; y0: number; y1: number }>>>>> = {
+  aquarium: {
+    algas: { x0: 1400, x1: 1660, y0: 500, y1: 900 },
+    cofre: { x0: 1119, x1: 1381, y0: 700, y1: 930 },
+    piedras: { x0: 974, x1: 1636, y0: 846, y1: 926 },
+  },
+  sand: {
+    piedras: { x0: 990, x1: 1640, y0: 888, y1: 950 },
+    tronco: { x0: 1176, x1: 1470, y0: 870, y1: 948 },
+    surco: { x0: 980, x1: 1642, y0: 760, y1: 852 },
+  },
+  monkeys: {
+    sogas: { x0: 540, x1: 1460, y0: 110, y1: 700 },
+    frutas: { x0: 1030, x1: 1490, y0: 770, y1: 960 },
+  },
+  path: {
+    huellas: { x0: 690, x1: 1450, y0: 720, y1: 850 },
+  },
+  slope: {
+    lana: { x0: 980, x1: 1370, y0: 130, y1: 200 },
+  },
+  forest: {
+    flores: { x0: 980, x1: 1500, y0: 840, y1: 960 },
+    panal: { x0: 1410, x1: 1550, y0: 150, y1: 330 },
+    lianas: { x0: 440, x1: 1590, y0: 130, y1: 560 },
+  },
+  lagoon: {
+    burbujas: { x0: 985, x1: 1500, y0: 760, y1: 870 },
+  },
+}
 

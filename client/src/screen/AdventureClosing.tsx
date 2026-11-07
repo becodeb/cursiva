@@ -57,11 +57,13 @@ import {
   ZOO_SPEECH_BUBBLE_LEFT_ART,
 } from '../detective/assets'
 import { PlaceholderAnimalBadge } from '../detective/icons'
-import { ArtImg } from '../puppet/ArtFigure'
+import { ArtImg, PlaceResidents } from '../puppet/ArtFigure'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import { ArtBackdrop, SCENE_CSS } from '../puppet/scene/Scene'
 import type { Adventure, ClosingBeat } from '../zoo/adventures'
+import { residentsOf } from '../zoo/residents'
+import type { Records } from '../zoo/sectors'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
@@ -236,8 +238,12 @@ export interface AdventureClosingProps {
    *  this component with the next one on each tap. This component never
    *  reads `adventure.closingBeat` itself and never advances on its own. */
   beat: ClosingBeat
+  /** Who is home, for who stands on the place. Absent: only this closing's own animal. */
+  records?: Records
   onContinue: () => void
 }
+
+const NO_RECORDS: Records = {}
 
 /** The reusable transformation beat (`docs/13` §5 item 6). Reachable ONLY
  *  for an adventure whose `closingBeat` is defined — `closingLevel`
@@ -247,8 +253,11 @@ export interface AdventureClosingProps {
  *  `RescueCelebration` renders under (T8) — every entrance enclosure and
  *  `night` recover no animal and never celebrate; every other shipped row
  *  does, on its own (and, since T8, only) closing beat. */
-export default function AdventureClosing({ adventure, beat, onContinue }: AdventureClosingProps) {
+export default function AdventureClosing({ adventure, beat, records = NO_RECORDS, onContinue }: AdventureClosingProps) {
   const backdrop = backdropFor(adventure.levelIds[adventure.levelIds.length - 1])
+  // Where the line says they went: the fish are found in the lagoon and go home to the tank.
+  const place = adventure.home ?? backdrop?.art
+  const residents = place ? residentsOf(place, records, { arriving: adventure.animal }) : []
   // T24 (the rescue flight, docs/19 section 2.1 step 5 + section 6): the
   // wrapper this ref measures is what `recordDeparture` (zoo/rescueFlight.ts)
   // freezes into a plain rect BEFORE the tap that unmounts this whole
@@ -299,7 +308,11 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
   return (
     <main className="cv-closing" style={{ backgroundColor: backdrop?.quiet ?? SHEET_PAPER }}>
       <style>{CLOSING_CSS + SCENE_CSS}</style>
-      {backdrop && <ArtBackdrop className="cv-closing-backdrop" art={backdrop.art} />}
+      {place && (
+        <ArtBackdrop className="cv-closing-backdrop" art={place}>
+          <PlaceResidents residents={residents} />
+        </ArtBackdrop>
+      )}
       <div className="cv-closing-frame">
         <button
           type="button"

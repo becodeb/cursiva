@@ -173,7 +173,8 @@ import {
   ZOO_ANIMAL_ART,
   ZOO_STAR_ART,
 } from '../detective/assets'
-import { ArtImg, standingFigure, TRACE_PAPER } from '../puppet/ArtFigure'
+import { ArtImg, PlaceResidents, standingFigure, TRACE_PAPER } from '../puppet/ArtFigure'
+import { residentsOf } from '../zoo/residents'
 import { sceneFor } from '../puppet/scene/Scene'
 import { PAPER_CARD_SHADOW, PAPER_EDGE } from '../puppet/rig'
 import type { PuppetHandle } from '../puppet/Puppet'
@@ -1845,6 +1846,8 @@ html, body, #root { margin: 0; padding: 0; }
 export interface LevelPlayProps {
   level: LevelConfig
   record: LevelRecord
+  /** Who is home: a veil wiped off a clean pen uncovers whoever lives there now. */
+  records?: Readonly<Record<string, LevelRecord>>
   /** Parent persists — this screen never writes storage. */
   onAttempt: (attempt: LevelAttempt) => void
   onNext: () => void
@@ -2195,7 +2198,7 @@ export const LEVEL_CHROME_SIDE_INSET = 16
 /** Thin enough that the hole of an `e` stays a hole at letter scale. */
 const NOTEBOOK_INK_WIDTH = 12
 
-export default function LevelPlay({ level, record, onAttempt, onNext, onBack, progress }: LevelPlayProps) {
+export default function LevelPlay({ level, record, records, onAttempt, onNext, onBack, progress }: LevelPlayProps) {
   // T7 rework #2 (orchestrator review, "fit the content box into the
   // viewport minus the chrome's safe insets"): .cv-top/.cv-foot's own
   // RENDERED CSS-pixel heights, measured live — the same real-browser-only
@@ -4074,7 +4077,20 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     // colour it can land on clears the paint by the 55-luma law (`scene.test.ts`),
     // so the marker `edge` a picture needs would only be a line on cut paper.
     const scene = sceneFor(b.art)
-    return { href: b.art.href, quiet: b.quiet, channel: b.channel, ...(scene ? { scene } : b.edge ? { edge: b.edge } : {}), ...(b.dim ? { dim: b.dim } : {}) }
+    // Only under a veil: everywhere else the corridor's luma law is measured against the
+    // bare place, and a level played again must not move that.
+    const living = b.tile && records ? residentsOf(b.art, records) : []
+    return {
+      href: b.art.href,
+      quiet: b.quiet,
+      channel: b.channel,
+      ...(scene ? { scene } : b.edge ? { edge: b.edge } : {}),
+      ...(b.dim ? { dim: b.dim } : {}),
+      ...(living.length > 0 ? { residents: <PlaceResidents residents={living} still /> } : {}),
+    }
+    // Who is home cannot change while a level is open; `records` is a fresh object on
+    // every save, so depending on it would rebuild the backdrop on each attempt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backdropEntry])
 
   // The level is drawn in a PLACE — a sector's backdrop or the detective

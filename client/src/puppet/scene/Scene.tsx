@@ -2,7 +2,7 @@
 // the registry picture it always used and gets a scene when it has one, the PNG
 // otherwise (`ArtFigure.tsx` does the same for characters). A scene is static paths,
 // with CSS keyframes on a few groups when it may breathe: no JS clock, no ticker.
-import { memo, type CSSProperties, type Ref } from 'react'
+import { memo, type CSSProperties, type ReactNode, type Ref } from 'react'
 import {
   SECTOR_BACKGROUND_ART,
   ZOO_MAP_ART,
@@ -113,12 +113,14 @@ export interface ScenePictureProps {
   svgRef?: Ref<SVGSVGElement>
   /** Which registry picture this scene stands in for, as a puppet says too. */
   artHref?: string
+  /** Who stands on the place, in scene units, above its paper. */
+  children?: ReactNode
 }
 
 /** A scene as an `<svg>` of its own: nested in a level's sheet or standing alone on
  *  an HTML screen. `slice` here does what the PNG's `object-fit: cover` did, and an
  *  `<svg>` clips itself with no `clipPath`. */
-export function ScenePicture({ scene, still = false, x, y, width = '100%', height = '100%', className, style, svgRef, artHref }: ScenePictureProps) {
+export function ScenePicture({ scene, still = false, x, y, width = '100%', height = '100%', className, style, svgRef, artHref, children }: ScenePictureProps) {
   return (
     <svg
       ref={svgRef}
@@ -137,6 +139,7 @@ export function ScenePicture({ scene, still = false, x, y, width = '100%', heigh
     >
       <rect x={-scene.w} y={-scene.h} width={scene.w * 3} height={scene.h * 3} fill={scene.base} />
       <SceneLayers scene={scene} still={still} />
+      {children}
     </svg>
   )
 }
@@ -145,12 +148,18 @@ export interface ArtBackdropProps {
   art: { readonly href: string }
   still?: boolean
   className?: string
+  /** Who stands on the place: a picture with no scene has nowhere to stand them. */
+  children?: ReactNode
 }
 
 /** For HTML surfaces: a scene, or the `<img>` it replaces. Breathes by default: only
  *  the trace screen asks for it `still`, and it does not come through here. */
-export function ArtBackdrop({ art, still = false, className }: ArtBackdropProps) {
+export function ArtBackdrop({ art, still = false, className, children }: ArtBackdropProps) {
   const scene = sceneFor(art)
   if (!scene) return <img className={className} src={art.href} alt="" />
-  return <ScenePicture scene={scene} still={still} className={className} artHref={art.href} />
+  return (
+    <ScenePicture scene={scene} still={still} className={className} artHref={art.href}>
+      {children}
+    </ScenePicture>
+  )
 }

@@ -76,6 +76,13 @@ Se autora 2:1 con lo importante en el 4:3 central. Una capa puede tener `motion`
 leerse sobre todo color que pueda pisar (`coloursInReach`, con su test de luma en `puppet/scene/scene.test.tsx`).
 Se engancha por `sceneFor` (`puppet/scene/Scene.tsx`).
 
+**Un lugar no tiene ojos.** Quien vive ahí no se pinta: se para encima como residente
+(`zoo/residents.ts`), leído de los mismos registros que el mapa, así la pecera está vacía
+hasta que los peces vuelven y nadie tiene que acordarse. **Lo que una frase nombra está en
+el lugar, entero, en toda forma de pantalla** (`NAMED_THINGS`, `puppet/scene/scenes.ts`):
+dentro del 4:3 central y de las 924 filas que deja un teléfono apaisado. Las dos reglas las
+guarda `zoo/residents.test.tsx`, que también ve un pez pintado si alguien vuelve a pintarlo.
+
 ### 0.5 El mapa y el Pulpito del chico
 
 - **Mapa vivo** (`zoo/mapLife.ts`, `screen/LivingAnimals.tsx`): cada rescatado hace lo que

@@ -16,6 +16,7 @@ import {
   HEDGEHOG_ART,
   OCTOPUS_ART,
   SECTOR_ADVENTURE_ART,
+  SECTOR_BACKGROUND_ART,
   SIGN_ART,
   ZOO_ANIMAL_ART,
   ZOO_OCTOPUS_PRINT_ART,
@@ -215,6 +216,14 @@ interface AdventureBase {
    *  `if (!adventure.closingBeat)` guard needs the empty case
    *  unrepresentable to stay byte-unchanged. */
   closingBeat?: readonly [ClosingBeat, ...ClosingBeat[]]
+  /** The picture of the place its closing line says the animal went back to, when it is
+   *  not where the adventure happened: the fish are found in the lagoon and go home to
+   *  their tank. Absent is the adventure's own place. */
+  home?: ArtImage
+  /** What a clean enclosure says when it is played again after its animals came back. The
+   *  story moved on, so "no hay ni un pez" would no longer be true. `animal` absent means
+   *  once anyone at all is back (`closingBeats`). */
+  afterRescue?: { readonly animal?: ZooAnimalId; readonly beats: readonly [ClosingBeat, ...ClosingBeat[]] }
   /** A chapter of letters: it ends on the map, where the story picks up. Without
    *  this it would chain, as an animal-less row does, into its sector's next
    *  adventure (the duck's letters into the fish, past the sheep). */
@@ -356,6 +365,7 @@ export const ADVENTURES: readonly Adventure[] = [
         art: SIGN_ART.fish,
       },
     ],
+    afterRescue: { animal: 'pez', beats: [{ line: '¡Qué limpito! Y los peces nadan contentos.', art: SIGN_ART.fish }] },
   },
   {
     id: 'tortugas',
@@ -370,6 +380,7 @@ export const ADVENTURES: readonly Adventure[] = [
         art: SIGN_ART.turtles,
       },
     ],
+    afterRescue: { animal: 'tortuga', beats: [{ line: '¡Qué limpito! Y las tortugas toman sol.', art: SIGN_ART.turtles }] },
   },
   {
     id: 'monos',
@@ -384,6 +395,7 @@ export const ADVENTURES: readonly Adventure[] = [
         art: SIGN_ART.monkeys,
       },
     ],
+    afterRescue: { animal: 'mono', beats: [{ line: '¡Qué limpito! Y los monos ya se cuelgan de las sogas.', art: SIGN_ART.monkeys }] },
   },
   {
     id: 'sendero',
@@ -413,6 +425,7 @@ export const ADVENTURES: readonly Adventure[] = [
         figure: OCTOPUS_ART,
       },
     ],
+    afterRescue: { beats: [{ line: 'El sendero quedó reluciente.', art: CART_ART }] },
   },
   {
     id: 'night',
@@ -542,6 +555,7 @@ export const ADVENTURES: readonly Adventure[] = [
     // position is unaffected either way (the monkey's own placement lives
     // in `entrada`, not `bosque`).
     closingBeat: [{ line: '¡Encontramos a los monos! Ya volvieron a sus sogas.', art: ZOO_ANIMAL_ART.mono }],
+    home: SECTOR_BACKGROUND_ART.monkeys,
   },
   {
     id: 'fish',
@@ -586,6 +600,7 @@ export const ADVENTURES: readonly Adventure[] = [
     // (T8, docs/18 §4.7 item 1) — only the SECOND, lower-priority surface
     // `mapBubble` offers once the journey itself is exhausted.
     closingBeat: [{ line: '¡Encontramos a los peces! Ya volvieron a su pecera.', art: ZOO_ANIMAL_ART.pez }],
+    home: SECTOR_BACKGROUND_ART.aquarium,
   },
   {
     id: 'dolphin',
@@ -617,6 +632,8 @@ export const ADVENTURES: readonly Adventure[] = [
     // read that way. Replaces the earlier "Al erizo le faltan las espinas.
     // ¿Se las dibujamos?", which opened as a fresh scene instead.
     intro: 'Del susto se hizo bolita. Si le acomodamos las espinas, se anima a salir.',
+    // He is a ball in this line, so he is a ball in the bubble.
+    introArt: HEDGEHOG_ART.curled,
     closing: '¡El erizo tiene todas sus espinas!',
     // Rescue closing (T8) — the snake/bee/dolphin rows' own reasoning,
     // restated. Appended at the END of the registry (amendment 9's rule for
@@ -744,6 +761,17 @@ export function everyAdventureFiled(records: Records): boolean {
 export function isRescued(records: Records, animal: ZooAnimalId): boolean {
   const adventure = ADVENTURES.find((a) => a.animal === animal)
   return !!adventure && adventure.levelIds.every((id) => isFiled(records, id))
+}
+
+/** The beats a closing plays right now. Played again after the story moved on, a line about
+ *  what is missing must not be said in front of what came back. */
+export function closingBeats(adventure: Adventure, records: Records): readonly ClosingBeat[] {
+  const after = adventure.afterRescue
+  if (after) {
+    const back = after.animal ? isRescued(records, after.animal) : ADVENTURES.some((a) => a.animal && isRescued(records, a.animal))
+    if (back) return after.beats
+  }
+  return adventure.closingBeat ?? []
 }
 
 /** What the Pulpito says about the sector the huellas point at, and the

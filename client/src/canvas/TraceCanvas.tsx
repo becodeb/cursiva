@@ -583,6 +583,8 @@ export interface TraceBackdrop {
   edge?: string
   /** The paper place to draw instead of `href`, when the picture has one. */
   scene?: CutScene
+  /** Who stands on that place, in its own units, under the veil. */
+  residents?: ReactNode
   /** A flat veil over the whole backdrop art, under every play layer (T50).
    * ABSENT = the art at full strength, byte-identical to before. A plain
    * `<rect>` with `opacity` — no `<defs>`, no `url(#…)`. */
@@ -1799,7 +1801,9 @@ export default function TraceCanvas({
               width={displayBounds.width}
               height={displayBounds.height}
               artHref={backdrop.href}
-            />
+            >
+              {backdrop.residents}
+            </ScenePicture>
           ) : (
             <image
               ref={backdropImgRef as Ref<SVGImageElement>}

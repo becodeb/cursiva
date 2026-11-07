@@ -30,6 +30,7 @@ import type { PuppetName } from './characters'
 import Puppet, { type PuppetAccessories, type PuppetHandle } from './Puppet'
 import { lookAccessories, lookColours, type PulpitoLook } from '../zoo/pulpitoLook'
 import { usePulpitoLook } from './useLook'
+import type { Resident } from '../zoo/residents'
 
 export interface PuppetFigure {
   readonly name: PuppetName
@@ -224,6 +225,27 @@ export function ArtInSvg({ art, box, still = true, entrance, holding, followPoin
       holding={holding}
       followPointer={followPointer}
     />
+  )
+}
+
+/** Who stands on a place, in the scene's own units (`zoo/residents.ts`). Always a still
+ *  puppet, which costs nothing on the ticker however many fish there are; a fish in water
+ *  gets the scene's own `bob`, a CSS keyframe, only where the place may breathe. */
+export function PlaceResidents({ residents, still = false }: { residents: readonly Resident[]; still?: boolean }) {
+  return (
+    <>
+      {residents.map((r, i) => {
+        const w = (r.h * r.art.w) / r.art.h
+        const box = { x: r.x - w / 2, y: r.y - r.h, width: w, height: r.h }
+        const figure = <ArtInSvg art={r.art} box={box} still />
+        const facing = r.flip ? <g transform={`translate(${2 * r.x} 0) scale(-1 1)`}>{figure}</g> : figure
+        return (
+          <g key={i} data-resident={r.animal} className={!still && r.bob !== undefined ? 'cv-scene-bob' : undefined} style={!still && r.bob ? { animationDelay: `${-r.bob}s` } : undefined}>
+            {facing}
+          </g>
+        )
+      })}
+    </>
   )
 }
 

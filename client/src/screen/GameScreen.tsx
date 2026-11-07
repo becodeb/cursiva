@@ -21,7 +21,7 @@ import NotebookKeepsake from './NotebookKeepsake'
 import { FinaleGate } from './StrokeFinale'
 import { isDevMode } from '../canvas/devMode'
 import { sectorOf } from '../zoo/sectors'
-import { adventureFor, closingLevel, introLevel, isRescued } from '../zoo/adventures'
+import { adventureFor, closingBeats, closingLevel, introLevel, isRescued } from '../zoo/adventures'
 import { adventureProgress } from '../zoo/progress'
 import { prefersReducedMotion, supportsViewTransitions } from '../zoo/rescueFlight'
 import ScreenTransition, { ROOT_VIEW_TRANSITION_CSS, type ScreenTransitionKind } from './ScreenTransition'
@@ -325,7 +325,7 @@ export function advanceClosing(
 ): CloseAction | ExitAction | EnterAction {
   const adventure = closingLevel(levelId)
   if (!adventure) return { type: 'exit' }
-  if (beat + 1 < adventure.closingBeat!.length) {
+  if (beat + 1 < closingBeats(adventure, records).length) {
     return { type: 'close', levelId, beat: beat + 1 }
   }
   const after = resolveAfterAdventure(levelId, records)
@@ -684,6 +684,7 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
           <ScreenTransition screenKey={screenTransitionKey(state)} kind={screenTransitionKind}>
             <AdventureIntro
               adventure={adventure}
+              records={store.all()}
               onStart={() => dispatch({ type: 'play', levelId: state.levelId })}
             />
           </ScreenTransition>
@@ -712,7 +713,8 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
     const adventure = closingLevel(state.levelId)
     if (adventure) {
       const index = state.beat ?? 0
-      const beat = adventure.closingBeat![index] ?? adventure.closingBeat![0]
+      const beats = closingBeats(adventure, store.all())
+      const beat = beats[index] ?? beats[0]
       return (
         <>
           <style>{ROOT_VIEW_TRANSITION_CSS}</style>
@@ -721,6 +723,7 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
               <AdventureClosing
                 adventure={adventure}
                 beat={beat}
+                records={store.all()}
                 onContinue={() => {
                   const action = advanceClosing(state.levelId, index, store.all())
                   if (action.type === 'exit') onExit()
@@ -778,6 +781,7 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
           // `LevelPlay` a new prop value through the ordinary render cycle —
           // no separate subscription or local mirror of store state needed.
           progress={adventureProgress(state.levelId, store.all())}
+          records={store.all()}
           onAttempt={handleAttempt}
           onNext={handleNext}
           onBack={onExit}
