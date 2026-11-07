@@ -5,16 +5,23 @@ import { describe, expect, it } from 'vitest'
 import { ACT_NAMES, createActor, type ActName, type RigState } from './actor'
 import { puppetFigureFor } from './ArtFigure'
 import { getRig, PUPPET_NAMES, puppetView, type PuppetName } from './characters'
-import { GOAL_MEDUSA_ART, PROMISED_ANIMAL_ART, SECTOR_ADVENTURE_ART, type ArtImage } from '../detective/assets'
+import { GOAL_MEDUSA_ART, HEDGEHOG_ART, MONKEY_FAMILY_ART, PROMISED_ANIMAL_ART, SECTOR_ADVENTURE_ART, type ArtImage } from '../detective/assets'
 import Puppet from './Puppet'
 import { computeFrame, frameBounds, placementTransform, type Rig } from './rig'
 
 const REGISTRY: readonly (readonly [PuppetName, ArtImage])[] = [
+  ['mono', MONKEY_FAMILY_ART[0]],
   ['oveja', SECTOR_ADVENTURE_ART.sheep],
   ['llama', SECTOR_ADVENTURE_ART.llama],
   ['pez', PROMISED_ANIMAL_ART.pez],
   ['medusa', GOAL_MEDUSA_ART],
   ['tortuga', PROMISED_ANIMAL_ART.tortuga],
+  ['erizo', HEDGEHOG_ART.profile],
+  ['erizo', HEDGEHOG_ART.curled],
+  ['erizo', HEDGEHOG_ART.uncurling],
+  ['vibora', SECTOR_ADVENTURE_ART.snakeSmall],
+  ['vibora', SECTOR_ADVENTURE_ART.snakeMedium],
+  ['vibora', SECTOR_ADVENTURE_ART.snakeLarge],
 ]
 
 function frameOf(rig: Rig, act: ActName | null, state?: RigState, t = 0.37) {
@@ -39,6 +46,51 @@ describe.each(REGISTRY)('%s in its PNG box', (name, art) => {
     expect((bounds.maxX - bounds.minX) / view.w).toBeGreaterThan(0.78)
     expect((bounds.maxY - bounds.minY) / view.h).toBeGreaterThan(0.78)
     expect(view.y + view.h).toBeCloseTo(bounds.maxY, 6)
+  })
+})
+
+describe('the monkey family', () => {
+  it('stands in one frame at one scale, so the three poses line up on a level', () => {
+    const views = MONKEY_FAMILY_ART.map((art) => puppetView(puppetFigureFor(art)!.name, art.w / art.h, puppetFigureFor(art)!.state))
+    expect(views[1]).toEqual(views[0])
+    expect(views[2]).toEqual(views[0])
+  })
+
+  it('has one rig for its three pictures, and the banana only when sitting', () => {
+    const rig = getRig('mono')
+    const banana = (pose: number) => frameOf(rig, null, { pose }).parts.get('bananaHeld')!.sx
+    expect(banana(1)).toBe(1)
+    expect(banana(0)).toBe(0)
+    expect(banana(2)).toBe(0)
+  })
+})
+
+describe('the hedgehog', () => {
+  const rig = getRig('erizo')
+  it('bristles on a fright even with its quills down', () => {
+    expect(frameOf(rig, null, { curl: 0, quills: 0 }).parts.get('coatLayer')!.sx).toBe(0)
+    expect(frameOf(rig, 'scare', { curl: 0, quills: 0 }).parts.get('coatLayer')!.sx).toBe(1)
+    const calm = frameBounds(rig, frameOf(rig, null, { curl: 0, quills: 1 }))
+    const scared = frameBounds(rig, frameOf(rig, 'scare', { curl: 0, quills: 1 }))
+    expect(scared.minY).toBeLessThan(calm.minY - 10)
+  })
+
+  it('hides its feet when it curls, and shows them to walk', () => {
+    expect(frameOf(rig, null, { curl: 1, quills: 0 }).parts.get('footF1')!.sy).toBeLessThan(0.01)
+    expect(frameOf(rig, null, { curl: 0, quills: 1 }).parts.get('footF1')!.sy).toBe(1)
+  })
+})
+
+describe('the snake', () => {
+  const rig = getRig('vibora')
+  it('is one rig: length only changes how thin and how many waves', () => {
+    const a = frameBounds(rig, frameOf(rig, null, { length: 0 }))
+    const c = frameBounds(rig, frameOf(rig, null, { length: 2 }))
+    expect(Math.abs(a.maxX - a.minX - (c.maxX - c.minX))).toBeLessThan(40)
+  })
+
+  it('slithers: the body changes from one moment to the next', () => {
+    expect(frameOf(rig, null, { length: 1 }, 0.1).dyn[0]).not.toBe(frameOf(rig, null, { length: 1 }, 0.6).dyn[0])
   })
 })
 

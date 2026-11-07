@@ -313,7 +313,7 @@ export default function Puppet({
     return (
       <g ref={placedRef} transform={placement ? placementTransform(placement, feet(box)) : undefined}>
         <g
-          transform={`translate(${(box.x - view.x * k).toFixed(2)} ${(box.y - view.y * k).toFixed(2)})scale(${k.toFixed(4)})`}
+          transform={`translate(${(box.x - view.x * k).toFixed(2)} ${(box.y - view.y * k).toFixed(2)})scale(${k.toFixed(5)})`}
           aria-hidden="true"
           style={style}
         >

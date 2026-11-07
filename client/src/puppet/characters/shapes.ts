@@ -1,6 +1,6 @@
 // Small drawing helpers shared by the cast, so a body stays a few lines of numbers.
 import { ell, fmt, polyline, smoothClosed, tangentAt, type Vec } from '../geometry'
-import type { ClusterShape, DynamicPath } from '../rig'
+import type { ClusterShape } from '../rig'
 
 /** A soft closed shape through these points: most bodies are one of these. */
 export const blob = (...points: readonly Vec[]): string => smoothClosed(points)
@@ -49,8 +49,25 @@ export function sideBand(pts: readonly Vec[], from: number, to: number, outer: (
   return polyline([...out, ...back.reverse()], true)
 }
 
-/** A tiny "z" pair would need text: sleep is shown by lids and posture only. */
+/** One quadratic stroke: creases, gills, curls of wool. */
 export const line = (x1: number, y1: number, cx: number, cy: number, x2: number, y2: number): string =>
   `M${fmt(x1)} ${fmt(y1)}Q${fmt(cx)} ${fmt(cy)} ${fmt(x2)} ${fmt(y2)}`
 
-export type { DynamicPath }
+
+/** A limb as one soft tube: a shoulder, a hand, and how far the elbow sags to one side. */
+export function limbPoints(from: Vec, to: Vec, sag: number, n = 12): Vec[] {
+  const mx = (from[0] + to[0]) / 2
+  const my = (from[1] + to[1]) / 2
+  const len = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1
+  const cx = mx + (-(to[1] - from[1]) / len) * sag
+  const cy = my + ((to[0] - from[0]) / len) * sag
+  const pts: Vec[] = []
+  for (let i = 0; i <= n; i++) {
+    const t = i / n
+    const u = 1 - t
+    pts.push([u * u * from[0] + 2 * u * t * cx + t * t * to[0], u * u * from[1] + 2 * u * t * cy + t * t * to[1]])
+  }
+  return pts
+}
+
+export const mix = (a: Vec, b: Vec, t: number): Vec => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]

@@ -2,16 +2,19 @@
 // seed and shared by every puppet on screen.
 import { RigBuilder, computeFrame, figureView, frameBounds, type Bounds, type Rig, type RigUpdate, type RootMotion, type ViewBox } from '../rig'
 import { createActor, type RigState } from '../actor'
+import { drawErizo, ERIZO_PALETTE } from './erizo'
 import { drawLlama, LLAMA_PALETTE } from './llama'
 import { drawMedusa, MEDUSA_PALETTE } from './medusa'
+import { drawMono, MONO_PALETTE } from './mono'
 import { drawOveja, OVEJA_PALETTE } from './oveja'
 import { drawPato, PATO_PALETTE } from './pato'
 import { drawPez, PEZ_PALETTE } from './pez'
 import { drawPulpo, PULPO_PALETTE } from './pulpo'
 
 import { drawTortuga, TORTUGA_PALETTE } from './tortuga'
+import { drawVibora, VIBORA_PALETTE } from './vibora'
 
-export type PuppetName = 'pulpo' | 'pato' | 'oveja' | 'llama' | 'pez' | 'medusa' | 'tortuga'
+export type PuppetName = 'pulpo' | 'pato' | 'oveja' | 'llama' | 'pez' | 'medusa' | 'tortuga' | 'mono' | 'erizo' | 'vibora'
 
 interface CharacterDef {
   readonly draw: (b: RigBuilder) => RigUpdate
@@ -33,6 +36,9 @@ const CHARACTERS: Readonly<Record<PuppetName, CharacterDef>> = {
   pez: { draw: drawPez, palette: PEZ_PALETTE, centreX: null, motion: { pivot: [226, 200], hop: 0.7 } },
   medusa: { draw: drawMedusa, palette: MEDUSA_PALETTE, centreX: null, motion: { pivot: [178, 200], hop: 0.6, squash: 0.4 } },
   tortuga: { draw: drawTortuga, palette: TORTUGA_PALETTE, centreX: null, motion: { pivot: [190, 290], hop: 0.5, shake: 0.5, tilt: 0.5 } },
+  mono: { draw: drawMono, palette: MONO_PALETTE, centreX: null, motion: { pivot: [120, 440] }, viewState: { pose: 0 } },
+  erizo: { draw: drawErizo, palette: ERIZO_PALETTE, centreX: null, motion: { pivot: [230, 300], hop: 0.6 } },
+  vibora: { draw: drawVibora, palette: VIBORA_PALETTE, centreX: null, motion: { pivot: [500, 180], hop: 0.15, tilt: 0, shake: 0.6, squash: 0.2 } },
 }
 
 export const DEFAULT_SEED = 7
