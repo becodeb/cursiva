@@ -26,10 +26,35 @@ export interface PuppetAccessories {
   /** The tint in the lupa's ring. Off for the screen-change glass, which ends up
    *  covering the whole screen and has to be truly empty. */
   readonly glass?: boolean
+  // What the child dressed him in (`zoo/backpack.ts`). The head ones go in place of the cap.
+  readonly hat?: boolean
+  readonly sailor?: boolean
+  readonly straw?: boolean
+  readonly crown?: boolean
+  readonly flower?: boolean
+  readonly scarf?: boolean
+  readonly shells?: boolean
+  readonly backpack?: boolean
+  readonly cape?: boolean
 }
 
 /** Dressed as the prototype: cap and apron on, lens and bow put away. */
-const DEFAULT_ACCESSORIES: Required<PuppetAccessories> = { cap: true, apron: true, lens: false, bow: false, glass: true }
+const DEFAULT_ACCESSORIES: Required<PuppetAccessories> = {
+  cap: true,
+  apron: true,
+  lens: false,
+  bow: false,
+  glass: true,
+  hat: false,
+  sailor: false,
+  straw: false,
+  crown: false,
+  flower: false,
+  scarf: false,
+  shells: false,
+  backpack: false,
+  cape: false,
+}
 
 export interface PuppetHandle {
   act(name: ActName, seconds?: number): void
@@ -70,27 +95,33 @@ export interface PuppetProps {
   style?: CSSProperties
   /** Which registry picture this puppet stands in for, when it does. */
   artHref?: string
+  /** All one flat colour, no shadow and no face: an animal not found yet. */
+  silhouette?: string
   seed?: number
 }
 
-function renderNodes(nodes: readonly PaperNode[], frame: PuppetFrame, hidden: ReadonlySet<string>) {
+function renderNodes(nodes: readonly PaperNode[], frame: PuppetFrame, hidden: ReadonlySet<string>, silhouette?: string) {
   return nodes.map((node, i) => {
     if (node.kind === 'group') {
       if (hidden.has(node.part)) return null
       const xf = frame.parts.get(node.part)
       return (
         <g key={i} data-part={node.part} transform={xf ? partTransform(xf) : undefined}>
-          {renderNodes(node.children, frame, hidden)}
+          {renderNodes(node.children, frame, hidden, silhouette)}
         </g>
       )
     }
+    if (silhouette && node.shadow) return null
+    const style = silhouette
+      ? { ...node.style, ...(node.style.fill === 'none' ? { stroke: silhouette } : { fill: silhouette, ...(node.style.stroke ? { stroke: silhouette } : null) }) }
+      : node.style
     return (
       <path
         key={i}
         d={node.dyn !== null ? frame.dyn[node.dyn] : (node.d ?? undefined)}
         data-dyn={node.dyn ?? undefined}
         transform={node.shadow ? PAPER_SHADOW_TRANSFORM : undefined}
-        style={node.style as CSSProperties}
+        style={style as CSSProperties}
       />
     )
   })
@@ -125,6 +156,7 @@ export default function Puppet({
   className,
   style,
   artHref,
+  silhouette,
   seed = 7,
 }: PuppetProps) {
   const rig = getRig(name, seed)
@@ -307,7 +339,7 @@ export default function Puppet({
       transform={partTransform(firstFrame.root)}
       style={vars}
     >
-      {renderNodes(rig.nodes, firstFrame, hidden)}
+      {renderNodes(rig.nodes, firstFrame, hidden, silhouette)}
     </g>
   )
 

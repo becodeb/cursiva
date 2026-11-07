@@ -87,7 +87,75 @@ const greetingArm: DynamicPath = (pose) => {
 
 const holdingArm: DynamicPath = (pose) => tubePath(holdingSpine(pose), armWidth)
 
+/** Worn on the back: behind the arms, its straps come over the chest further down. */
+function drawBackItems(p: RigBuilder): void {
+  p.aside(9000, () => {
+    p.cluster([
+      { d: 'M106 170C106 140 294 140 294 170L306 296C306 316 94 316 94 296Z', c: '#3c6e9e', part: 'backpack' },
+      { d: ell(200, 146, 30, 18), c: '#2a4f75', part: 'backpack' },
+    ])
+    p.cluster([
+      { d: 'M150 186C110 230 84 300 92 352C140 374 260 374 308 352C316 300 290 230 250 186Z', c: '#6d4fc2', part: 'cape' },
+    ])
+    p.flat('M160 216C130 256 116 300 118 340C130 348 146 352 158 354C156 300 166 250 176 214Z', '#8a6cdb', { part: 'cape' })
+  })
+}
+
+/** Worn on the head, in place of the cap: never wider than the arms, so his box stays. */
+function drawHeadItems(p: RigBuilder): void {
+  p.aside(9200, () => {
+    p.cluster([
+      { d: ell(200, 24, 11), c: '#f6c23a', part: 'head/hat' },
+      { d: 'M122 92C112 2 288 2 278 92C240 74 160 74 122 92Z', c: '#d9574f', part: 'head/hat' },
+      { d: 'M110 84L132 80L138 148C138 160 116 160 112 148Z', c: '#2f8fa8', part: 'head/hat' },
+      { d: 'M290 84L268 80L262 148C262 160 284 160 288 148Z', c: '#2f8fa8', part: 'head/hat' },
+    ])
+    p.flat('M124 84C160 66 240 66 276 84L278 66C240 50 160 50 122 66Z', '#f6c23a', { part: 'head/hat' })
+    for (const x of [146, 174, 202, 230, 256]) p.flat(`M${x - 11} 72L${x} 54L${x + 11} 72Z`, '#2f8fa8', { part: 'head/hat' })
+
+    p.cluster([
+      { d: 'M128 86C116 4 284 4 272 86C240 70 160 70 128 86Z', c: '#fbfbf5', part: 'head/sailor' },
+      { d: 'M118 88C150 66 250 66 282 88C282 100 270 100 262 96C230 84 170 84 138 96C130 100 118 100 118 88Z', c: '#2d6aa6', part: 'head/sailor' },
+    ])
+    p.flat(ell(200, 44, 13, 10), '#2d6aa6', { part: 'head/sailor' })
+
+    p.cluster([
+      { d: ell(200, 78, 122, 22), c: '#ecc96f', part: 'head/straw' },
+      { d: 'M126 78C118 4 282 4 274 78C232 90 168 90 126 78Z', c: '#f3d98a', part: 'head/straw' },
+    ])
+    p.flat('M126 62C170 76 230 76 274 62L274 78C230 92 170 92 126 78Z', '#3e9a7f', { part: 'head/straw' })
+
+    p.cluster([{ d: 'M126 92L118 28L160 60L200 14L240 60L282 28L274 92C240 76 160 76 126 92Z', c: '#f6c23a', part: 'head/crown' }])
+    p.flat(ell(200, 60, 10), '#e0557d', { part: 'head/crown' })
+    p.flat(ell(154, 72, 7), '#2f8fa8', { part: 'head/crown' })
+    p.flat(ell(246, 72, 7), '#2f8fa8', { part: 'head/crown' })
+
+    // A flower tucked at the side goes with whatever is on his head.
+    const petals = [0, 72, 144, 216, 288].map((deg) => ({ d: ell(266 + Math.sin(rad(deg)) * 15, 86 - Math.cos(rad(deg)) * 15, 12), c: '#ffffff', part: 'head/flower' }))
+    p.cluster(petals)
+    p.flat(ell(266, 86, 10), '#f6c23a', { part: 'head/flower' })
+  })
+}
+
+/** Worn round the neck, over everything but his chin. */
+function drawNeckItems(p: RigBuilder): void {
+  p.aside(9400, () => {
+    p.cluster([
+      { d: 'M226 206L256 212L262 280L232 284Z', c: '#d9574f', part: 'scarf' },
+      { d: 'M136 190C170 206 230 206 264 190C272 206 268 222 258 228C224 240 176 240 142 228C132 222 128 206 136 190Z', c: '#e8706a', part: 'scarf' },
+    ])
+    p.flat('M232 240L258 240L259 252L233 254Z', '#f8e8bf', { part: 'scarf' })
+    p.flat('M234 264L260 262L261 274L235 276Z', '#f8e8bf', { part: 'scarf' })
+
+    for (const [x, y, c] of [[140, 206, '#f59a7b'], [168, 222, '#ffe8d6'], [200, 230, '#f59a7b'], [232, 222, '#ffe8d6'], [260, 206, '#f59a7b']] as const) {
+      p.cluster([{ d: `M${x - 18} ${y - 2}C${x - 18} ${y - 22} ${x + 18} ${y - 22} ${x + 18} ${y - 2}L${x} ${y + 20}Z`, c, part: 'shells' }])
+      p.line(`M${x} ${y - 12}L${x} ${y + 8}`, { w: 4, c: '#b56a4a', part: 'shells' })
+    }
+  })
+}
+
 export function drawPulpo(p: RigBuilder): RigUpdate {
+  drawBackItems(p)
   const arms: { d: DynamicPath; c: string }[] = ARM_PAIRS.flatMap((def) => [
     { d: pairedArm(def, -1), c: def[6] },
     { d: pairedArm(def, 1), c: def[6] },
@@ -133,13 +201,22 @@ export function drawPulpo(p: RigBuilder): RigUpdate {
   p.cluster([{ d: ell(0, -22, 29), c: 'blue', part: 'lens' }])
   p.line('M-15 -32Q-11 -41 -2 -41', { part: 'lens', w: 7, c: '#ffffff' })
 
+  // After the lens in the tree, but a lens stands off to his side: nothing they share.
+  drawHeadItems(p)
+
   p.cluster([
     { d: 'M200 202L160 182C152 178 146 184 146 192L146 218C146 226 154 228 162 224Z', c: 'gold', part: 'bow' },
     { d: 'M200 202L240 182C248 178 254 184 254 192L254 218C254 226 246 228 238 224Z', c: 'gold', part: 'bow' },
     { d: ell(200, 202, 13, 12), c: 'goldD', part: 'bow' },
   ])
+  drawNeckItems(p)
+  p.aside(9600, () => {
+    p.flat('M150 176L168 174L176 214L156 216Z', '#7a4a24', { part: 'backpack' })
+    p.flat('M250 176L232 174L224 214L244 216Z', '#7a4a24', { part: 'backpack' })
+  })
 
   return (pose, set) => {
+    // Every `head` group takes this same transform: the costume has its own after the lens.
     set('head', {
       ox: 200,
       oy: 196,

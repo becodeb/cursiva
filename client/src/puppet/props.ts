@@ -9,6 +9,7 @@ import {
 } from '../detective/assets'
 import { DRAWN_SPINE, type DrawnSpine } from '../levels/artCorridor'
 import { CHROME_PROPS } from './chrome'
+import { WARDROBE_PROPS } from './wardrobe'
 import { ell, tubePath, type Vec } from './geometry'
 import { cutScene, poly, type CutScene, type SceneLayer, type ScenePiece } from './scene/engine'
 
@@ -278,6 +279,7 @@ const PROPS: ReadonlyMap<string, CutScene> = new Map<string, CutScene>([
   [SECTOR_ADVENTURE_ART.snakeMediumGrey.href, paperSnake(SECTOR_ADVENTURE_ART.snakeMediumGrey, DRAWN_SPINE.snakeMedium, true)],
   [SECTOR_ADVENTURE_ART.snakeLargeGrey.href, paperSnake(SECTOR_ADVENTURE_ART.snakeLargeGrey, DRAWN_SPINE.snakeLarge, true)],
   ...CHROME_PROPS,
+  ...WARDROBE_PROPS,
 ])
 
 /** The paper drawing for a registry picture of a thing, if it has one. */

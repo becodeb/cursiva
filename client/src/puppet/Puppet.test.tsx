@@ -170,3 +170,52 @@ describe('accessories and colours', () => {
     expect(viewBox(on)).toBe(viewBox(off))
   })
 })
+
+describe('a silhouette', () => {
+  it('is one colour with no face and no shadow, in the same window', () => {
+    const windowOf = (html: string): string | undefined => /viewBox="([^"]+)"/.exec(html)?.[1]
+    const html = renderToString(<Puppet name="pato" still silhouette="#123456" />)
+    const body = html.replace(/--[a-zA-Z0-9]+:[^;"]+;?/g, '')
+    expect(body).not.toContain('#ffffff')
+    expect(body).not.toContain(PAPER_SHADOW_FILL)
+    expect(body).toContain('#123456')
+    expect(windowOf(html)).toBe(windowOf(renderToString(<Puppet name="pato" still />)))
+  })
+})
+
+describe('the Pulpito in costume', () => {
+  const ITEMS = ['hat', 'sailor', 'straw', 'crown', 'flower', 'scarf', 'shells', 'backpack', 'cape', 'bow'] as const
+
+  it('wears nothing extra unless asked, and each item shows when it is', () => {
+    const plain = renderToString(<Puppet name="pulpo" still />)
+    for (const item of ITEMS) {
+      expect(plain, item).not.toContain(`data-part="${item}"`)
+      const worn = renderToString(<Puppet name="pulpo" still accessories={{ [item]: true }} />)
+      expect(worn, item).toContain(`data-part="${item}"`)
+    }
+  })
+
+  it('stands in the same window whatever he wears: no costume moves or resizes him', () => {
+    const windowOf = (html: string): string | undefined => /viewBox="([^"]+)"/.exec(html)?.[1]
+    const plain = windowOf(renderToString(<Puppet name="pulpo" still />))
+    for (const item of ITEMS) {
+      expect(windowOf(renderToString(<Puppet name="pulpo" still accessories={{ [item]: true }} />)), item).toBe(plain)
+    }
+  })
+
+  it('fits every costume inside the box he had without them', () => {
+    const costume = new Set<string>(ITEMS.filter((i) => i !== 'bow'))
+    const without = (nodes: readonly PaperNode[]): PaperNode[] =>
+      nodes.flatMap((n): PaperNode[] => (n.kind !== 'group' ? [n] : costume.has(n.part) ? [] : [{ ...n, children: without(n.children) }]))
+    const rig = getRig('pulpo')
+    const frame = computeFrame(rig, createActor(7), true)
+    const whole = frameBounds(rig, frame)
+    const bare = frameBounds({ ...rig, nodes: without(rig.nodes) }, frame)
+    expect(whole).toEqual(bare)
+  })
+
+  it('takes colours as overrides, never as a second drawing', () => {
+    const html = renderToString(<Puppet name="pulpo" still colors={{ body: '#2f86d4' }} />)
+    expect(html).toContain('--body:#2f86d4')
+  })
+})

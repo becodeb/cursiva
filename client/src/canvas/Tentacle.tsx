@@ -7,6 +7,8 @@ import { demoTipAt, cueTipAt, TENTACLE_PAPER, tentacleOutline, type DemoTiming, 
 import type { Vec } from '../puppet/geometry'
 import { PAPER_SHADOW_FILL, PAPER_SHADOW_TRANSFORM } from '../puppet/rig'
 import { puppetTicker } from '../puppet/ticker'
+import { usePulpitoLook } from '../puppet/useLook'
+import { lookColours } from '../zoo/pulpitoLook'
 
 export function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -38,10 +40,12 @@ function useArmPaths(root: Vec, tipAt: ((t: number) => Vec) | null) {
 }
 
 function ArmPaper({ arm, d }: { arm: ReturnType<typeof useArmPaths>; d?: string }) {
+  // It is his arm: it is the colour the child made him.
+  const look = usePulpitoLook()
   return (
     <>
       <path ref={arm.shadow} d={d} fill={PAPER_SHADOW_FILL} transform={PAPER_SHADOW_TRANSFORM} />
-      <path ref={arm.paper} d={d} fill={TENTACLE_PAPER} />
+      <path ref={arm.paper} d={d} fill={lookColours(look)?.body ?? TENTACLE_PAPER} />
     </>
   )
 }

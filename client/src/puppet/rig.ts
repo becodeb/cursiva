@@ -150,6 +150,15 @@ export class RigBuilder {
     this.mount({ kind: 'path', d: cut, dyn: null, style, shadow, halfStroke }, part)
   }
 
+  /** Draws with its own scissors: what is added here leaves every later piece cut
+   *  exactly as it was, so a costume never reshapes the character it was added to. */
+  aside(seed: number, draw: () => void): void {
+    const kept = this.seed
+    this.seed = seed
+    draw()
+    this.seed = kept
+  }
+
   /** Pieces lifted off the sheet: every shadow first, then every piece. */
   cluster(shapes: readonly ClusterShape[]): void {
     for (const s of shapes) this.shape(s.d, { part: s.part, style: { fill: PAPER_SHADOW_FILL }, shadow: true })

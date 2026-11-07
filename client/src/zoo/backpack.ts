@@ -6,6 +6,8 @@
 // actually grant something.
 import { ANDEAN_HAT_ART, CARRIER_LENS_ART, CART_ART, SECTOR_ADVENTURE_ART, type ArtImage } from '../detective/assets'
 import { isFiled, type Records, type SectorId } from './sectors'
+import type { ZooAnimalId } from '../detective/assets'
+import { isAnimalRescued } from './notebook'
 
 export interface BackpackItem {
   id: string
@@ -96,6 +98,40 @@ export const BACKPACK_ITEMS: readonly BackpackItem[] = [
     earnedWhen: ['bee4'],
   },
 ]
+
+export type WearSlot = 'head' | 'neck' | 'back' | 'side'
+export type WearableId = 'backpack' | 'scarf' | 'hat' | 'bow' | 'flower' | 'shells' | 'cape' | 'sailor' | 'straw' | 'crown'
+
+/** Something for the Pulpito to wear: one per rescue, given by the animal that came
+ *  home. Earned by the same records as the rest of this file, so there is nothing to
+ *  buy and nothing to lose. */
+export interface Wearable {
+  readonly id: WearableId
+  readonly slot: WearSlot
+  readonly rescuedBy: ZooAnimalId
+  /** Spoken in the wardrobe: the child does not read. */
+  readonly name: string
+  /** Spoken when it arrives. */
+  readonly giftLine: string
+}
+
+export const WEARABLES: readonly Wearable[] = [
+  { id: 'backpack', slot: 'back', rescuedBy: 'pato', name: 'La mochila', giftLine: '¡El pato me regaló una mochila! ¿Me queda bien?' },
+  { id: 'scarf', slot: 'neck', rescuedBy: 'oveja', name: 'La bufanda', giftLine: '¡Las ovejas me tejieron una bufanda! ¡Qué calentita!' },
+  // The andean hat of the llamas' own story (`andean-hat`, above).
+  { id: 'hat', slot: 'head', rescuedBy: 'llama', name: 'El gorro andino', giftLine: '¡La llama me dejó el gorro andino! ¿Me queda bien?' },
+  { id: 'bow', slot: 'neck', rescuedBy: 'vibora', name: 'El moño', giftLine: '¡Las víboras me regalaron un moño! ¡Qué elegante!' },
+  { id: 'flower', slot: 'side', rescuedBy: 'abeja', name: 'La flor', giftLine: '¡La abeja me trajo una flor! ¡Qué linda!' },
+  { id: 'shells', slot: 'neck', rescuedBy: 'delfin', name: 'El collar de caracoles', giftLine: '¡Los delfines me dieron un collar de caracoles!' },
+  { id: 'cape', slot: 'back', rescuedBy: 'erizo', name: 'La capa', giftLine: '¡El erizo me regaló una capa! ¡Parezco un héroe!' },
+  { id: 'sailor', slot: 'head', rescuedBy: 'pez', name: 'La gorra de marinero', giftLine: '¡Los peces me dieron una gorra de marinero!' },
+  { id: 'straw', slot: 'head', rescuedBy: 'tortuga', name: 'El sombrero de paja', giftLine: '¡Las tortugas me prestaron un sombrero de paja!' },
+  { id: 'crown', slot: 'head', rescuedBy: 'mono', name: 'La corona', giftLine: '¡Los monos me hicieron una corona! ¡Qué honor!' },
+]
+
+export function earnedWearables(records: Records): readonly Wearable[] {
+  return WEARABLES.filter((w) => isAnimalRescued(w.rescuedBy, records))
+}
 
 export function earnedItems(records: Records): readonly BackpackItem[] {
   return BACKPACK_ITEMS.filter(

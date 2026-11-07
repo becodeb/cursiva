@@ -28,6 +28,8 @@ import { SceneLayers } from './scene/Scene'
 import type { CutScene } from './scene/engine'
 import type { PuppetName } from './characters'
 import Puppet, { type PuppetAccessories, type PuppetHandle } from './Puppet'
+import { lookAccessories, lookColours, type PulpitoLook } from '../zoo/pulpitoLook'
+import { usePulpitoLook } from './useLook'
 
 export interface PuppetFigure {
   readonly name: PuppetName
@@ -80,6 +82,13 @@ export function puppetFigureFor(art: { readonly href: string }): PuppetFigure | 
   return PUPPET_FIGURES.get(art.href)
 }
 
+/** The Pulpito wears what the child chose wherever he appears. What a picture's own
+ *  story has him hold (the lens) goes on top of that choice. */
+function dressed(figure: PuppetFigure, look: PulpitoLook): { accessories?: PuppetAccessories; colors?: Readonly<Record<string, string>> } {
+  if (figure.name !== 'pulpo') return { accessories: figure.accessories }
+  return { accessories: { ...lookAccessories(look), ...figure.accessories }, colors: lookColours(look) }
+}
+
 interface ArtPicture {
   readonly href: string
   readonly w: number
@@ -100,12 +109,15 @@ export interface FigureLife {
 
 export interface ArtImgProps extends FigureLife {
   art: ArtPicture
+  /** A puppet's outline in this one colour, for an animal not found yet. */
+  silhouette?: string
   className?: string
   style?: CSSProperties
 }
 
 /** For HTML surfaces: a puppet `<svg>`, or the `<img>` it replaces. */
-export function ArtImg({ art, className, style, still = true, entrance, holding, followPointer, puppetRef }: ArtImgProps) {
+export function ArtImg({ art, className, style, still = true, entrance, holding, followPointer, puppetRef, silhouette }: ArtImgProps) {
+  const look = usePulpitoLook()
   const figure = puppetFigureFor(art)
   if (!figure) {
     const thing = paperPropFor(art)
@@ -130,10 +142,11 @@ export function ArtImg({ art, className, style, still = true, entrance, holding,
     <Puppet
       ref={puppetRef}
       name={figure.name}
-      accessories={figure.accessories}
+      {...dressed(figure, look)}
       state={figure.state}
       aspect={art.w / art.h}
-      artHref={art.href}
+      artHref={silhouette ? undefined : art.href}
+      silhouette={silhouette}
       className={className}
       style={style}
       still={still}
@@ -166,6 +179,7 @@ function PropInSvg({ art, thing, box }: { art: ArtPicture; thing: CutScene; box:
 
 /** For SVG surfaces: a puppet `<g>` filling `box`, or the `<image>` it replaces. */
 export function ArtInSvg({ art, box, still = true, entrance, holding, followPointer, puppetRef }: ArtInSvgProps) {
+  const look = usePulpitoLook()
   const figure = puppetFigureFor(art)
   if (!figure) {
     const thing = paperPropFor(art)
@@ -191,7 +205,7 @@ export function ArtInSvg({ art, box, still = true, entrance, holding, followPoin
     <Puppet
       ref={puppetRef}
       name={figure.name}
-      accessories={figure.accessories}
+      {...dressed(figure, look)}
       state={figure.state}
       box={box}
       artHref={art.href}
