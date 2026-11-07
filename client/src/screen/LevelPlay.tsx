@@ -141,6 +141,8 @@ import {
 // T45 (`docs/21` N5/N6): segment levels, each path its own stroke.
 import {
   emptySegmentState,
+  nearestClearStand,
+  routeKeepOut,
   segmentStandPoint,
   settleSegmentRelease,
   type SegmentState,
@@ -172,6 +174,7 @@ import {
   ZOO_STAR_ART,
 } from '../detective/assets'
 import { standingFigure } from '../puppet/ArtFigure'
+import type { PuppetHandle } from '../puppet/Puppet'
 import CaptionedArt from '../detective/CaptionedArt'
 import TrailProgressBar, { ANIMAL_MAX_WIDTH } from '../detective/TrailProgressBar'
 import CollectBar from '../detective/CollectBar'
@@ -720,7 +723,45 @@ export function octopusFeetOverride(target: LevelTarget, hasSegments: boolean): 
   // [T45 follow-up] On a segment level the octopus stands beside the
   // segments, never on a start dot, stop mark, clue or corridor.
   if (hasSegments) return segmentOctopusFeet(target)
-  return undefined
+  return target.start ? besideRouteFeet(target, target.start) : undefined
+}
+
+/** What the sheet shows at this level besides its ink: the finger must find all
+ *  of it uncovered. Standing art's own feet are on the point it stands on. */
+function standingArtKeepOut(target: LevelTarget): { x: number; y: number; width: number; height: number }[] {
+  const { config } = target
+  const out: { x: number; y: number; width: number; height: number }[] = []
+  const standing = (at: { x: number; y: number }, size: number): void => {
+    out.push({ x: at.x - size / 2 - 8, y: at.y - size - 8, width: size + 16, height: size + 24 })
+  }
+  const goal = goalMarkerOf(target)
+  if (goal) standing(goal, END_MARK_SIZE)
+  if (config.collect) {
+    for (const item of resolveCollectItems(config.collect, target.polyline, target.length, config.corridorWidth)) {
+      standing(item, config.collect.size)
+    }
+  }
+  if (config.waypoints) {
+    const start = config.waypoints.start
+    out.push({ x: start.x - 40, y: start.y - 40, width: 80, height: 80 })
+    for (const stop of config.waypoints.stops) out.push({ x: stop.x - 60, y: stop.y - 60, width: 120, height: 120 })
+  }
+  return out
+}
+
+/** Beside where the stroke begins, never on it: the child's ink starts at a
+ *  point he does not cover and never crosses him (`docs/18` §7 N3). The live
+ *  corridor first, the authored one if a widened corridor leaves no room, and his
+ *  old spot on the start only if the sheet has none at all. */
+function besideRouteFeet(target: LevelTarget, start: { x: number; y: number }): { x: number; y: number } | undefined {
+  const band = drawingBand(target.ideal, target.corridorWidth, target.config.surface)
+  const bounds = { x: 0, y: band.y, width: target.viewBoxWidth, height: band.height }
+  const art = standingArtKeepOut(target)
+  const clearOf = (corridor: number) =>
+    nearestClearStand(start, [...routeKeepOut(target.routes, corridor), ...art], OCTOPUS_SIZE, OCTOPUS_ASPECT, bounds)
+  // The last try keeps him off the half of the corridor ink actually runs on:
+  // some shapes (bridges, packed ovals) leave no gap a whole corridor away.
+  return clearOf(target.corridorWidth) ?? clearOf(target.config.corridorWidth) ?? clearOf(target.corridorWidth / 2)
 }
 
 /**
@@ -732,12 +773,25 @@ export function octopusFeetOverride(target: LevelTarget, hasSegments: boolean): 
  * rule is the consequence — the sentence is just the invitation to go again.
  */
 export const RESTART_MESSAGE = 'Volvé a empezar'
+/** What he says when the run goes back to the start: warm, and only about what
+ *  to do next. Three so a child who bounces a few times is not told the same
+ *  sentence again and again. */
+export const RESTART_SPOKEN_LINES: readonly string[] = [
+  '¡Uy! Otra vez desde acá.',
+  'Dale, de nuevo desde acá.',
+  'No pasa nada, arrancamos acá.',
+]
+export function restartSpokenLine(restarts: number): string {
+  return RESTART_SPOKEN_LINES[restarts % RESTART_SPOKEN_LINES.length]
+}
 /** How long the restart cue stays up before the standing hint returns. */
 const RESTART_CUE_MS = 2200
 /** docs/25 §7 1.2: the wall-contact restart cue's own spoken debounce — a
  *  child bouncing off the same wall repeatedly hears `RESTART_MESSAGE` at
  *  most this often, never on every single contact. */
 const WALL_CUE_COOLDOWN_MS = 3000
+/** How long he looks worried: a glance, gone before the child is back at the start. */
+const RESTART_SCARE_SECONDS = 1.1
 /** T10: how often `animNow` is allowed to re-render while a flashlight
  *  grow is in flight — well under the ~400ms/~1400ms durations themselves,
  *  and well over the 60fps `onFrame` cadence, so the grow reads as smooth
@@ -2971,6 +3025,33 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // than on every single contact, the same "don't nag" shape `shouldSpeakAgain`
   // already gives the correction lines above.
   const lastWallCueAtRef = useRef<number>(Number.NEGATIVE_INFINITY)
+  const restartsRef = useRef(0)
+  // Both drawings of him are mounted (`TraceCanvas`'s held-carrier swap): the one
+  // showing reacts, and the other is simply not seen.
+  const octopusHandleRef = useRef<PuppetHandle | null>(null)
+  const octopusEmptyHandleRef = useRef<PuppetHandle | null>(null)
+  const octopusFigures = useMemo(
+    () => ({
+      holding: standingFigure(OCTOPUS_ART, octopusHandleRef),
+      empty: standingFigure(OCTOPUS_EMPTY_HANDED_ART, octopusEmptyHandleRef),
+    }),
+    [],
+  )
+  const reactToRestart = useCallback((): void => {
+    const feet = octopusFeetOverride(target, !!level.segments) ?? target.start
+    const start = target.start
+    for (const handle of [octopusHandleRef.current, octopusEmptyHandleRef.current]) {
+      handle?.act('scare', RESTART_SCARE_SECONDS)
+      if (feet && start) {
+        const glance = (d: number): number => Math.max(-1, Math.min(1, d / OCTOPUS_SIZE))
+        handle?.lookAt(glance(start.x - feet.x), glance(start.y - (feet.y - OCTOPUS_SIZE / 2)))
+      }
+    }
+    const now = performance.now()
+    if (now - lastWallCueAtRef.current < WALL_CUE_COOLDOWN_MS) return
+    lastWallCueAtRef.current = now
+    if (!isSpeaking()) speak(restartSpokenLine(restartsRef.current++))
+  }, [target, level.segments])
   const restartRun = useCallback((): void => {
     contactRef.current = NO_CONTACT
     // Back to the start of the route with NO progress banked. This is what
@@ -3001,35 +3082,11 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     setResetSignal((n) => n + 1)
     setRestarted(true)
     setRevealState(EMPTY_REVEAL)
-    // docs/25 §7 1.2: a wall contact used to be "sin texto, sin voz y sin
-    // sonido" on every `resetOnContact` level (the detective-world trails
-    // and the collect levels — duck-trail/trail*/sheep-hill/llama-peak,
-    // `levels/catalog.ts`'s own `resetOnContact: true` set). Gated on
-    // `resetOnContact` alone, not on `drawnPlace`/`collectDef`: every level
-    // that sets it IS one of those two families (confirmed against
-    // `levels/catalog.ts`), and `resetOnContact` is already in scope here
-    // with no extra hook reordering needed. A HAZARD-triggered restart
-    // (turtles/monkeys, `resetOnContact: false`) never reaches this branch
-    // — this task is the wall only, matching docs/25's own evidence.
-    //
-    // Sound: `playSfx('wrong')` reused on purpose — `audio/sfx.ts`'s own
-    // header already built it to be "a soft, LOW, NEUTRAL hum… closer to a
-    // quiet 'hmm' than any kind of alert", exactly the "no error buzzer, no
-    // red" property this task asks for, not a new sound.
-    //
-    // Speech: `RESTART_MESSAGE` ('Volvé a empezar') already exists as the
-    // text this screen shows on a CLASSIC level's own restart cue (below,
-    // `!drawnPlace && !collectDef`'s branch) — speaking that exact line
-    // here, debounced the same "don't nag" way as the correction lines
-    // above, is reusing it, not inventing a new phrase.
-    if (resetOnContact) {
-      playSfx('wrong')
-      const now = performance.now()
-      if (now - lastWallCueAtRef.current >= WALL_CUE_COOLDOWN_MS) {
-        lastWallCueAtRef.current = now
-        if (!isSpeaking()) speak(RESTART_MESSAGE)
-      }
-    }
+    // docs/25 P2-1: the restart is heard and shown, never scolded. A wall or a
+    // hazard, the same answer: he looks worried, his arm goes back to the start
+    // (`idleCue`, below) and he says so kindly. No red and no failure sound
+    // (`docs/01` §5). He moves because the finger caused it.
+    reactToRestart()
     // T41: a bee level reaches `restartRun` now (its hazard), and the
     // flowers it already opened STAY open — the rule T29 set for collected
     // items ("collected things persist"). Only `seen` goes back to 0, because
@@ -3076,7 +3133,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     debugSearch,
     target.viewWidth,
     target.viewBoxWidth,
-    resetOnContact,
+    reactToRestart,
   ])
 
   // The cue is a passing line, not a state the child has to dismiss.
@@ -3697,9 +3754,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // detective trail) — pushing the slide clear of its own larger
         // drawn footprint, the screenshot that caught it nearly invisible
         // underneath it.
-        hasStartArt: inWorld,
+        // Off to one side of the start, he no longer stands in the slide's way.
+        hasStartArt: inWorld && !startArtAt,
       }),
-    [level, startMarker, directionArrow, spineState, inWorld],
+    [level, startMarker, directionArrow, spineState, inWorld, startArtAt],
   )
   const nudgeElapsedMs = idlePollNow - lastTouchAtRef.current
   const nudgePhase = idleNudgePhase(nudgeElapsedMs)
@@ -3732,7 +3790,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // intro: both of those require `phase === 'ready'` to even poll
   // (`idleNudgeArmed`, above), and a fresh touch is exactly what a wall
   // contact just gave the sheet.
-  const wallResetCueActive = resetOnContact && restarted
+  const wallResetCueActive = restarted
   const showIdleCue = introCuePlaying || nudgePhase === 'nudge' || wallResetCueActive
   const idleCueKey = introCuePlaying
     ? -1
@@ -3740,7 +3798,16 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       ? -100 - resetSignal // negative range disjoint from both -1 and nudgeCueIndex (>= 0)
       : nudgeCueIndex
   const idleCue =
-    showIdleCue && idleCueSegment
+    wallResetCueActive && startMarker
+      ? {
+          // After a restart his arm points at the one thing that matters: here.
+          visual: 'point' as const,
+          from: startMarker,
+          to: startMarker,
+          cueKey: idleCueKey,
+          reducedMotion: reducedMotionRef.current,
+        }
+      : showIdleCue && idleCueSegment
       ? {
           visual: idleCueSegment.visual as IdleCueVisual,
           from: idleCueSegment.from,
@@ -4620,6 +4687,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         insetLeft={SIDE_INSET}
         insetRight={SIDE_INSET}
         startMarker={showMarkers ? startMarker : undefined}
+        startDotBesideArt={!!startArtAt && !level.artCorridor && !segmentDef}
         idleNudgeActive={idleNudgeActive}
         idleCue={idleCue}
         // The octopus stands where the route begins, in place of the green dot
@@ -4628,7 +4696,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // passes nothing and keeps its dot. On an art-corridor level `at`
         // moves its feet beside the drawn body instead of onto it (N3).
         startArt={
-          drawnPlace ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE, at: startArtAt, render: standingFigure(OCTOPUS_ART) } : undefined
+          drawnPlace ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE, at: startArtAt, render: octopusFigures.holding } : undefined
         }
         // T38: the octopus's own art already holds the magnifying glass, so
         // on a level whose carrier IS that glass he keeps it in his hand while
@@ -4638,7 +4706,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // exact gate.
         startArtEmptyHanded={
           drawnPlace && octopusHoldsLens(level) && !waypointDebugCarrier
-            ? { ...OCTOPUS_EMPTY_HANDED_ART, size: OCTOPUS_SIZE, at: startArtAt, render: standingFigure(OCTOPUS_EMPTY_HANDED_ART) }
+            ? { ...OCTOPUS_EMPTY_HANDED_ART, size: OCTOPUS_SIZE, at: startArtAt, render: octopusFigures.empty }
             : undefined
         }
         // Shown wherever the start dot is shown (docs/03 §3): from phase 3 on,

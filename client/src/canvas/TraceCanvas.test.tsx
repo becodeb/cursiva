@@ -4,6 +4,7 @@
 // form preserves the previous one-path behavior. Timeline completion itself is
 // mode-side (readyMs in guidedTrace), not asserted here.
 import { renderToString } from 'react-dom/server'
+import { TENTACLE_PAPER } from '../puppet/tentacle'
 import { describe, expect, it } from 'vitest'
 import TraceCanvas, {
   BACKDROP_IMAGE_ASPECT,
@@ -2224,98 +2225,84 @@ describe('TraceCanvas idleNudgeActive', () => {
   })
 })
 
-describe('TraceCanvas idleCue (T33 follow-up: an unmistakable marker-style hand)', () => {
-  const HAND_RECT_COUNT = 3 // palm + thumb + finger
-  const TRAIL_COPIES = 3 // the live hand + two fading ghosts
-
+describe('TraceCanvas idleCue: the Pulpito\'s own arm', () => {
   it('renders nothing when absent', () => {
     const html = renderToString(<TraceCanvas startMarker={{ x: 100, y: 300 }} />)
     expect(html).not.toContain('data-idle-cue')
   })
 
-  it('every visual (hand/wipe/torch) draws the SAME paper-and-ink hand, never a plain dot or a coloured rect', () => {
-    for (const visual of ['hand', 'wipe', 'torch'] as const) {
+  it('every visual draws the same arm, in his own paper, and no hand', () => {
+    for (const visual of ['hand', 'wipe', 'torch', 'point'] as const) {
       const html = renderToString(
         <TraceCanvas
           idleCue={{ visual, from: { x: 430, y: 300 }, to: { x: 570, y: 260 }, cueKey: 0, reducedMotion: false }}
         />,
       )
       expect(html).toContain(`data-idle-cue="${visual}"`)
-      // Every rect is paper-filled (zero baseline occurrences on a bare
-      // TraceCanvas, unlike the ink stroke colour below) with the thick dark
-      // ink stroke, never a saturated colour of its own — one hand design,
-      // not three.
-      expect((html.match(/fill="#fdfcf7"/g) ?? []).length).toBe(HAND_RECT_COUNT * TRAIL_COPIES)
-      expect((html.match(/stroke="#1e293b"/g) ?? []).length).toBeGreaterThanOrEqual(HAND_RECT_COUNT * TRAIL_COPIES)
-      expect(html).not.toContain('#f5a524') // the old torch amber
-      expect(html).not.toContain('#a8a29e') // the old wipe grey
+      expect(html).toContain(`fill="${TENTACLE_PAPER}"`)
+      expect(html).not.toContain('<rect x="-30"') // the old palm
     }
   })
 
-  it('is oriented toward `to` — a diagonal cue rotates, a flat one does not', () => {
-    const flat = renderToString(
-      <TraceCanvas
-        idleCue={{ visual: 'wipe', from: { x: 430, y: 300 }, to: { x: 570, y: 300 }, cueKey: 0, reducedMotion: false }}
-      />,
-    )
-    expect(flat).toContain('rotate(0)')
-    const diagonal = renderToString(
-      <TraceCanvas
-        idleCue={{ visual: 'torch', from: { x: 430, y: 260 }, to: { x: 570, y: 340 }, cueKey: 0, reducedMotion: false }}
-      />,
-    )
-    expect(diagonal).not.toContain('rotate(0)')
-  })
-
-  it('rotates the hand around its own local origin via a plain SVG attribute, never framer-motion\'s bounding-box-centred CSS default', () => {
-    const html = renderToString(
-      <TraceCanvas
-        idleCue={{ visual: 'hand', from: { x: 100, y: 300 }, to: { x: 170, y: 260 }, cueKey: 0, reducedMotion: false }}
-      />,
-    )
-    // The translate (framer-motion, CSS) and the rotate (a plain SVG
-    // attribute on a nested <g>) must stay on two DIFFERENT elements — see
-    // this cue's own render comment for why combining them on one element
-    // rotates around the wrong point.
-    expect(html).toMatch(/transform:translateX\(100px\) translateY\(300px\)/)
-    expect(html).toMatch(/<g transform="rotate\(-?[\d.]+\)">/)
-    expect(html).not.toContain('transform-box:fill-box;transform:') // rotate never riding the CSS transform
-  })
-
-  it('a routed slide (visual: hand) plays ONCE — no repeated back-and-forth keyframes', () => {
+  it('starts at the beginning of its slide', () => {
     const html = renderToString(
       <TraceCanvas
         idleCue={{ visual: 'hand', from: { x: 100, y: 300 }, to: { x: 170, y: 280 }, cueKey: 0, reducedMotion: false }}
       />,
     )
-    // A one-shot slide's own SSR frame sits at the FIRST keyframe (`from`) —
-    // framer-motion renders `initial`, not a mid-animation sample.
-    expect(html).toContain('translateX(100px) translateY(300px)')
+    expect(html).toContain('data-tentacle-tip="100 300"')
   })
 
-  it('wipe/torch scrub back and forth (not a single slide) — the trail read as sitting still under reduced motion', () => {
+  it('under reduced motion it rests where the cue ends, whole', () => {
     const html = renderToString(
       <TraceCanvas
         idleCue={{ visual: 'wipe', from: { x: 430, y: 300 }, to: { x: 570, y: 300 }, cueKey: 0, reducedMotion: true }}
       />,
     )
-    // Reduced motion renders exactly ONE hand (no fading ghosts — a trail
-    // IS motion), sitting at the finished `to` position, full size.
+    expect(html).toContain('data-tentacle-tip="570 300"')
     expect((html.match(/data-idle-cue="wipe"/g) ?? []).length).toBe(1)
-    expect((html.match(/<rect x="-30"/g) ?? []).length).toBe(1) // one palm, not three
-    expect(html).toContain('translateX(570px) translateY(300px)')
   })
 
-  it('a live (non-reduced-motion) cue renders the live hand plus two fading trail ghosts', () => {
-    const html = renderToString(
-      <TraceCanvas
-        idleCue={{ visual: 'hand', from: { x: 100, y: 300 }, to: { x: 170, y: 280 }, cueKey: 0, reducedMotion: false }}
-      />,
+  it('comes out of his body when he stands on the sheet, from the corner when he does not', () => {
+    const cue = { visual: 'hand' as const, from: { x: 300, y: 300 }, to: { x: 400, y: 300 }, cueKey: 0, reducedMotion: true }
+    const firstPoint = (html: string) => html.match(new RegExp(`d="M(-?[\\d.]+) (-?[\\d.]+)L[^"]*" fill="${TENTACLE_PAPER}"`))
+    const alone = firstPoint(renderToString(<TraceCanvas idleCue={cue} />))
+    expect(Number(alone?.[1])).toBeLessThan(0)
+    const standing = firstPoint(
+      renderToString(
+        <TraceCanvas
+          idleCue={cue}
+          startMarker={{ x: 200, y: 400 }}
+          startArt={{ href: '/art/x.png', w: 100, h: 100, size: 100 }}
+        />,
+      ),
     )
-    expect((html.match(/<rect x="-30"/g) ?? []).length).toBe(TRAIL_COPIES) // one palm per trail copy
-    expect(html).toContain('opacity="1"') // the live hand
-    expect(html).toContain('opacity="0.4"') // first ghost
-    expect(html).toContain('opacity="0.18"') // second ghost
+    expect(Number(standing?.[1])).toBeGreaterThan(100)
+    expect(Number(standing?.[1])).toBeLessThan(300)
+  })
+})
+
+describe('TraceCanvas demo: the arm is the pen', () => {
+  it('a demonstration brings his arm, one per demonstration and not per stroke', () => {
+    const html = renderToString(<TraceCanvas demo={[demo(), demo({ d: 'M 9 9 L 8 8', delay: 2, duration: 0.5 })]} />)
+    expect((html.match(/data-tentacle-demo/g) ?? []).length).toBe(1)
+  })
+
+  it('no demonstration, no arm', () => {
+    expect(renderToString(<TraceCanvas />)).not.toContain('data-tentacle-demo')
+  })
+})
+
+describe('TraceCanvas startDotBesideArt', () => {
+  const art = { href: '/art/x.png', w: 100, h: 100, size: 100 }
+
+  it('a figure standing on the start replaces the dot', () => {
+    expect(renderToString(<TraceCanvas startMarker={{ x: 200, y: 400 }} startArt={art} />)).not.toContain('fill="#22c55e"')
+  })
+
+  it('a figure beside the start leaves the dot, green even in the ink-only world', () => {
+    const html = renderToString(<TraceCanvas startMarker={{ x: 200, y: 400 }} startArt={art} startDotBesideArt inkOnly />)
+    expect(html).toContain('fill="#22c55e"')
   })
 })
 

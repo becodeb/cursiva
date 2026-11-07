@@ -117,8 +117,10 @@ export function ArtInSvg({ art, box, still = true, entrance, holding, followPoin
  *  function per picture, so its identity is stable across renders. */
 const standingRenderers = new Map<string, (box: ArtBox) => ReactNode>()
 
-export function standingFigure(art: ArtPicture): ((box: ArtBox) => ReactNode) | undefined {
+export function standingFigure(art: ArtPicture, puppetRef?: Ref<PuppetHandle>): ((box: ArtBox) => ReactNode) | undefined {
   if (!puppetFigureFor(art)) return undefined
+  // A caller that wants to reach the figure keeps its own function stable.
+  if (puppetRef) return (box) => <ArtInSvg art={art} box={box} still puppetRef={puppetRef} />
   let render = standingRenderers.get(art.href)
   if (!render) {
     render = (box) => <ArtInSvg art={art} box={box} still />

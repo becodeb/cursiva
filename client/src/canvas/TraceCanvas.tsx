@@ -36,7 +36,6 @@
 //   `carrier`          a small character riding the fingertip.
 //   `resetSignal`      the run goes back to the start (docs/01 principle 2).
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { motion } from 'framer-motion'
 import { inkPath, inkPolicyAllowsLive, inkPolicyAllowsSettled, traceInk, type InkRenderPolicy } from './ink'
 import { taperedCorridor, type CorridorSegment } from './corridorTaper'
 import type { ScatterMark } from './groundScatter'
@@ -49,6 +48,8 @@ import { TorchPool, TorchVeil, type TraceTorch } from './TorchLayer'
 import { ArtCorridorLayer } from './ArtCorridorLayer'
 import { SpineLayer } from './SpineLayer'
 import { WaypointLayer } from './WaypointLayer'
+import { TentacleCueArm, TentacleDemoArm } from './Tentacle'
+import { armRootOf } from '../puppet/tentacle'
 import { devCheckpointState, type DevCheckpointState } from './devCheckpointState'
 import { DevCheckpointOverlay } from './devCheckpointOverlay'
 import type { LetterCheckpoint } from '../letters/types'
@@ -363,7 +364,7 @@ export const INK_COLOR = '#1e293b'
 const OFF_PATH_INK = '#94a3b8'
 const INK_WIDTH = 18
 
-/** Animated draw demo: framer-motion `pathLength` 0→1, times in seconds. */
+/** Animated draw demo, drawn by the Pulpito's arm (`Tentacle.tsx`), times in seconds. */
 export interface DrawDemo {
   d: string
   delay: number
@@ -463,63 +464,6 @@ export const HAZARD_STICKER_FILTER = [
   `drop-shadow(0 -4px 0.8px ${SHEET_PAPER})`,
   'drop-shadow(0 2px 2.5px rgba(26, 26, 26, 0.3))',
 ].join(' ')
-
-/**
- * T33 follow-up (orchestrator screenshot review, "the cues work but are
- * nearly invisible"): the idle-nudge cue's own hand — a marker-style
- * pointing hand, drawn from three plain rounded rects (never a filled dot or
- * a grey cloth-coloured rect, both too small/muted to register for a
- * 6-year-old), paper-filled with the SAME thick dark ink outline the rest of
- * the app's chrome uses. Local coordinates: `(0, 0)` is the WRIST — the
- * anchor a caller translates to `from`/`to` and rotates toward the
- * direction of travel around, the same convention `directionArrow`'s own
- * dart already uses (rotate around its own local origin, never the SVG's).
- * The palm/thumb sit BEHIND the wrist (negative x), the index finger points
- * AHEAD of it (positive x) — rest orientation +x, `rotate(deg)` matches
- * `screen/directionArrow.ts`'s own SVG-clockwise convention.
- *
- * Overall bounding box: x in [-30, 48] (78 wide), y in [-36, 26] (62 tall).
- * BOTH dimensions matter, not just the larger one: a rotated hand's
- * on-screen AXIS-ALIGNED box shrinks toward its SMALLER local dimension at
- * a 90-degree direction of travel (a level whose route starts nearly
- * vertical) — 62 stays comfortably above the task's own "56px" measured
- * floor even then, confirmed live (`hedgehog1`, whose spine anchors point in
- * every direction around the body, measured 59.7-93px across several
- * anchors, never below the floor; the horizontal `glass1` wipe, the one
- * angle with NO rotation gain, measured 77.4x51.6 — its own local size,
- * unrotated). The un-rotated width (78) lands just past the task's own
- * "64-80 px" TARGET band, on purpose: that band describes the icon at its
- * OWN size, and the 90-degree case needed height raised to match rather than
- * width trimmed down.
- */
-const HAND_CUE_PALM = { x: -30, y: -26, width: 42, height: 52, rx: 18 }
-const HAND_CUE_THUMB = { x: -24, y: -36, width: 18, height: 16, rx: 8 }
-const HAND_CUE_FINGER = { x: 8, y: -8, width: 40, height: 16, rx: 8 }
-const HAND_CUE_STROKE = 4
-
-/** One hand instance (palm + thumb + finger), reused for the live cue and
- *  each trailing ghost behind it — `opacity` is the only thing that ever
- *  differs between calls. */
-function HandCueShape({ opacity }: { opacity: number }): ReactNode {
-  return (
-    <g opacity={opacity}>
-      <rect {...HAND_CUE_PALM} fill={SHEET_PAPER} stroke={INK_COLOR} strokeWidth={HAND_CUE_STROKE} />
-      <rect {...HAND_CUE_THUMB} fill={SHEET_PAPER} stroke={INK_COLOR} strokeWidth={HAND_CUE_STROKE} />
-      <rect {...HAND_CUE_FINGER} fill={SHEET_PAPER} stroke={INK_COLOR} strokeWidth={HAND_CUE_STROKE} />
-    </g>
-  )
-}
-
-/** Trailing ghost copies behind the live hand — a delayed START of the SAME
- *  translate animation reads as "a moment behind", the cheapest correct way
- *  to trail a translate+rotate without a second geometry system. The first
- *  entry (`delay: 0`, full opacity) IS the live hand a child actually reads
- *  as "the hand"; the other two are the fading trail. */
-const HAND_CUE_TRAIL: readonly { delay: number; opacity: number }[] = [
-  { delay: 0, opacity: 1 },
-  { delay: 0.12, opacity: 0.4 },
-  { delay: 0.24, opacity: 0.18 },
-]
 
 /**
  * The carried character (`LevelConfig.carrier`), and the point it rests on
@@ -997,7 +941,7 @@ export interface TraceCanvasProps {
   guideD?: string
   /** Animated draw demo(s) (guided mode) — input is ignored until they end.
    * A single `DrawDemo` keeps the previous one-path behavior; an array renders
-   * one `motion.path` per entry, each with its own d/delay/duration. */
+   * one stroke per entry, each with its own d/delay/duration. */
   demo?: DrawDemo | DrawDemo[]
   /** False ignores pointer input entirely (guided demo phase). */
   enabled?: boolean
@@ -1056,7 +1000,7 @@ export interface TraceCanvasProps {
    *  `levels/revealGrid.ts`'s own `growthFraction` already documents).
    *  `null`/absent renders nothing. */
   idleCue?: {
-    visual: 'hand' | 'wipe' | 'torch'
+    visual: 'hand' | 'wipe' | 'torch' | 'point'
     from: { x: number; y: number }
     to: { x: number; y: number }
     cueKey: number
@@ -1089,6 +1033,9 @@ export interface TraceCanvasProps {
    * predates T38. Has no effect without `startArt` and `carrier`. See
    * {@link heldCarrierView}. */
   startArtEmptyHanded?: TraceStandingArt
+  /** The standing figure is beside the start rather than on it, so nothing says
+   *  where to begin: the green dot stays. Absent: the figure replaces the dot. */
+  startDotBesideArt?: boolean
   /** Goal mark — where the route ends. Drawn UNDER the start dot and the arrow
    * and always HOLLOW, which is what makes a collision harmless by
    * construction: on a closed shape like `f3-o` the route ends about where it
@@ -1305,6 +1252,7 @@ export default function TraceCanvas({
   startMarker,
   startArt,
   startArtEmptyHanded,
+  startDotBesideArt = false,
   endMarker,
   endArt,
   routeMarkers,
@@ -1724,6 +1672,15 @@ export default function TraceCanvas({
   // (`viewBoxY`/`viewBoxHeight`), not the full 600: a cropped level shows less
   // paper, and the character has to fit in what is actually shown.
   const sheetBounds = { x: 0, y: viewBoxY, width: viewBoxWidth, height: viewBoxHeight }
+  const armTarget = idleCue?.to ?? startMarker ?? { x: viewBoxWidth / 2, y: viewBoxY }
+  // From his body when he is on the sheet; otherwise in from the sheet's corner.
+  const armRoot: readonly [number, number] =
+    standingStartArt && startMarker
+      ? armRootOf(
+          clampArtBox(placeArt({ ...standingStartArt, grip: STANDING_GRIP }, standingStartArt.size, standingStartArt.at ?? startMarker), sheetBounds),
+          armTarget,
+        )
+      : [-30, viewBoxY + viewBoxHeight + 30]
 
   return (
     <svg
@@ -2101,25 +2058,6 @@ export default function TraceCanvas({
           ))}
         </g>
       )}
-      {demo && !inkHidden && (
-        <g>
-          {(Array.isArray(demo) ? demo : [demo]).map((d, idx) => (
-            <motion.path
-              key={idx}
-              d={d.d}
-              fill="none"
-              stroke={backdrop?.channel ? SHEET_PAPER : DEMO_STROKE}
-              strokeWidth={d.strokeWidth}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ delay: d.delay, duration: d.duration }}
-              pointerEvents="none"
-            />
-          ))}
-        </g>
-      )}
       {vertexArt && (
         // Static art standing at one or more points on the route
         // (design.md §3.3) — the sheep on their humps, the llamas on their
@@ -2285,82 +2223,39 @@ export default function TraceCanvas({
             />
           ) : null,
         )}
-      {startMarker && !startArt && (
+      {startMarker && (!startArt || startDotBesideArt) && (
         // "Empezá desde el punto verde" (docs/03 §7).
         <g pointerEvents="none" className={idleNudgeActive ? 'cv-idle-nudge-start' : undefined}>
           <circle
             cx={startMarker.x}
             cy={startMarker.y}
             r={22}
-            fill={inkOnly ? 'none' : '#22c55e'}
-            stroke={inkOnly ? INK_COLOR : 'none'}
-            strokeWidth={inkOnly ? 3 : 0}
+            fill={inkOnly && !startDotBesideArt ? 'none' : '#22c55e'}
+            stroke={inkOnly && !startDotBesideArt ? INK_COLOR : 'none'}
+            strokeWidth={inkOnly && !startDotBesideArt ? 3 : 0}
             opacity={0.9}
           />
           <circle cx={startMarker.x} cy={startMarker.y} r={5} fill="#ffffff" />
         </g>
       )}
-      {idleCue && (() => {
-        // T33 follow-up (orchestrator screenshot review, "the cues work but
-        // are nearly invisible… make every cue unmistakable"): every
-        // `idleCue.visual` now draws the SAME marker-style hand
-        // (`HandCueShape`) — a filled dot and a small grey rect both read as
-        // decoration, not an instruction, at this size. Only the MOTION
-        // differs: `'hand'` (a routed level, the bee, a hedgehog spine)
-        // slides ONCE from `from` to `to`; `'wipe'`/`'torch'` (cleaning /
-        // night) scrub back and forth twice — "a wiping motion over the
-        // cover" and "the hand sweeps the torch" are both a repeated pass,
-        // never a one-shot slide, over ground with no single target point.
-        // Keyed on `cueKey` so a fresh occurrence remounts and replays
-        // `initial -> animate` instead of freezing at its last finished
-        // frame. `reducedMotion` renders ONE static hand at `to`, at the
-        // SAME full size — "static but still large", never shrunk.
-        const angleDeg =
-          (Math.atan2(idleCue.to.y - idleCue.from.y, idleCue.to.x - idleCue.from.x) * 180) / Math.PI
-        const xs =
-          idleCue.visual === 'hand'
-            ? [idleCue.from.x, idleCue.to.x]
-            : [idleCue.from.x, idleCue.to.x, idleCue.from.x, idleCue.to.x, idleCue.from.x]
-        const ys =
-          idleCue.visual === 'hand'
-            ? [idleCue.from.y, idleCue.to.y]
-            : [idleCue.from.y, idleCue.to.y, idleCue.from.y, idleCue.to.y, idleCue.from.y]
-        const duration = idleCue.visual === 'hand' ? 2 : 2.4
-        return (
-          <g pointerEvents="none" data-idle-cue={idleCue.visual}>
-            {(idleCue.reducedMotion ? [HAND_CUE_TRAIL[0]] : HAND_CUE_TRAIL).map((ghost) => (
-              <motion.g
-                key={`${idleCue.cueKey}-${ghost.delay}`}
-                // ONLY translate here — framer-motion's `x`/`y` on an SVG
-                // element compiles to `transform: translate(...)`, which
-                // transform-origin never affects, so no pivot concern exists
-                // for this element at all. Rotation is a SEPARATE, plain SVG
-                // `transform="rotate(...)"` ATTRIBUTE one level in (below),
-                // never a framer-motion CSS value: framer defaults an SVG
-                // element's `transform-origin` to its own bounding-box
-                // CENTRE (`transform-box: fill-box`), which would rotate the
-                // hand around the wrong point (its visual centre, not the
-                // wrist this group is being translated to) — measured
-                // directly in this file's own SSR output before this split.
-                // A plain attribute rotates around local `(0, 0)` with no
-                // origin concept at all, exactly matching `directionArrow`'s
-                // own dart below.
-                initial={idleCue.reducedMotion ? { x: idleCue.to.x, y: idleCue.to.y } : { x: xs[0], y: ys[0] }}
-                animate={idleCue.reducedMotion ? { x: idleCue.to.x, y: idleCue.to.y } : { x: xs, y: ys }}
-                transition={
-                  idleCue.reducedMotion
-                    ? { duration: 0 }
-                    : { duration, delay: ghost.delay, ease: 'easeInOut' }
-                }
-              >
-                <g transform={`rotate(${angleDeg})`}>
-                  <HandCueShape opacity={ghost.opacity} />
-                </g>
-              </motion.g>
-            ))}
-          </g>
-        )
-      })()}
+      {demo && !inkHidden && (
+        <TentacleDemoArm
+          root={armRoot}
+          demos={Array.isArray(demo) ? demo : [demo]}
+          strokeColour={backdrop?.channel ? SHEET_PAPER : DEMO_STROKE}
+        />
+      )}
+      {idleCue && (
+        // Every cue is the Pulpito's own arm. Only the motion differs: a slide for
+        // a route, a repeated pass for ground with no single target, and a point
+        // back at the start after a restart. Keyed so a new occurrence replays.
+        <TentacleCueArm
+          key={idleCue.cueKey}
+          root={armRoot}
+          cue={{ visual: idleCue.visual, from: [idleCue.from.x, idleCue.from.y], to: [idleCue.to.x, idleCue.to.y] }}
+          reducedMotion={idleCue.reducedMotion}
+        />
+      )}
       {directionArrow && (
         // A NOTCHED DART, not a plain triangle. The previous `0,-12 26,0 0,12`
         // was 26 long and 24 wide — near-equilateral, so at the ~23 CSS px it

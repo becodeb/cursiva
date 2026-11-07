@@ -14,7 +14,7 @@ import type { LetterCheckpoint, LetterConfig, Point } from '../letters/types'
 /** One-line rescue guidance; `wrong` marks a direction fault. Free mode reuses it. */
 export function RescueHint({ wrong, y = 140 }: { wrong: boolean; y?: number }) {
   return (
-    <text x={500} y={y} textAnchor="middle" fontSize={26} fill={wrong ? '#b91c1c' : '#3b82f6'}>
+    <text x={500} y={y} textAnchor="middle" fontSize={26} fill="#3b82f6">
       {wrong ? 'Seguí el orden del trazo' : 'Repasá sobre la guía'}
     </text>
   )

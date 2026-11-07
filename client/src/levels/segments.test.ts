@@ -7,6 +7,8 @@ import {
   furrowSegments,
   judgeSegmentStroke,
   projectOnRoute,
+  nearestClearStand,
+  routeKeepOut,
   segmentStandPoint,
   segmentsComplete,
   settleSegmentRelease,
@@ -329,5 +331,35 @@ describe('the octopus stands clear of every segment (both shipped levels)', () =
   it('gives up (undefined) rather than overlapping when nothing fits', () => {
     const r = route({ x: 0, y: 300 }, { x: 1000, y: 300 })
     expect(segmentStandPoint([r], 590, OCTOPUS_H, ASPECT, { x: 0, y: 0, width: 1000, height: 600 })).toBeUndefined()
+  })
+})
+
+describe('standing beside a route', () => {
+  const route = {
+    polyline: [
+      { x: 100, y: 300 },
+      { x: 500, y: 300 },
+    ],
+  } as unknown as RouteSegment
+  const bounds = { x: 0, y: 0, width: 1000, height: 600 }
+
+  it('cuts a long straight leg into boxes, so a figure can stand close to it', () => {
+    const boxes = routeKeepOut([route], 60)
+    expect(boxes.length).toBeGreaterThan(10)
+    for (const box of boxes) expect(box.width).toBeLessThan(120)
+  })
+
+  it('finds the nearest spot clear of every box, inside the bounds', () => {
+    const feet = nearestClearStand({ x: 100, y: 300 }, routeKeepOut([route], 60), 100, 1, bounds)!
+    const box = standingBox(feet, 100, 1)
+    for (const k of routeKeepOut([route], 60)) {
+      expect(box.x < k.x + k.width && k.x < box.x + box.width && box.y < k.y + k.height && k.y < box.y + box.height).toBe(false)
+    }
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(Math.hypot(feet.x - 100, feet.y - 300)).toBeLessThan(160)
+  })
+
+  it('reports no spot when the sheet has none', () => {
+    expect(nearestClearStand({ x: 1, y: 1 }, [bounds], 100, 1, bounds)).toBeUndefined()
   })
 })

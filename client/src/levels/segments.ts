@@ -250,14 +250,25 @@ export function segmentStandPoint(
 ): Point | undefined {
   const start = routes[0]?.polyline[0]
   if (!start) return undefined
-  const keepOut = segmentKeepOut(routes, corridorWidth)
+  return nearestClearStand(start, segmentKeepOut(routes, corridorWidth), height, aspect, bounds)
+}
+
+/** The spot nearest `near` where a standing figure stays inside `bounds` and
+ *  touches no keep-out box. `undefined` when the sheet has no such spot. */
+export function nearestClearStand(
+  near: Point,
+  keepOut: readonly SegmentBox[],
+  height: number,
+  aspect: number,
+  bounds: SegmentBox,
+): Point | undefined {
   const inside = (b: SegmentBox) =>
     b.x >= bounds.x && b.y >= bounds.y && b.x + b.width <= bounds.x + bounds.width && b.y + b.height <= bounds.y + bounds.height
   const STEP = 5
   const candidates: { feet: Point; d: number }[] = []
   for (let x = bounds.x; x <= bounds.x + bounds.width; x += STEP) {
     for (let y = bounds.y; y <= bounds.y + bounds.height; y += STEP) {
-      candidates.push({ feet: { x, y }, d: Math.hypot(x - start.x, y - start.y) })
+      candidates.push({ feet: { x, y }, d: Math.hypot(x - near.x, y - near.y) })
     }
   }
   candidates.sort((a, b) => a.d - b.d)
@@ -266,4 +277,33 @@ export function segmentStandPoint(
     if (inside(box) && keepOut.every((k) => !overlaps(box, k))) return feet
   }
   return undefined
+}
+
+/** A route's corridor as a chain of small boxes, tight enough to stand in the
+ *  bend of a wave: `segmentKeepOut`'s one box per route would cover the sheet. */
+export function routeKeepOut(routes: readonly RouteSegment[], corridorWidth: number): SegmentBox[] {
+  const pad = corridorWidth / 2 + SEGMENT_STAND_CLEARANCE
+  const CHUNK = 24
+  const boxes: SegmentBox[] = []
+  for (const { polyline } of routes) {
+    for (let i = 1; i < polyline.length; i++) {
+      const p = polyline[i - 1]
+      const q = polyline[i]
+      // A straight leg can be one long segment: cut it, or its box covers the sheet.
+      const parts = Math.max(1, Math.ceil(Math.hypot(q.x - p.x, q.y - p.y) / CHUNK))
+      for (let k = 0; k < parts; k++) {
+        const x0 = p.x + ((q.x - p.x) * k) / parts
+        const y0 = p.y + ((q.y - p.y) * k) / parts
+        const x1 = p.x + ((q.x - p.x) * (k + 1)) / parts
+        const y1 = p.y + ((q.y - p.y) * (k + 1)) / parts
+        boxes.push({
+          x: Math.min(x0, x1) - pad,
+          y: Math.min(y0, y1) - pad,
+          width: Math.abs(x1 - x0) + pad * 2,
+          height: Math.abs(y1 - y0) + pad * 2,
+        })
+      }
+    }
+  }
+  return boxes
 }

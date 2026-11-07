@@ -96,7 +96,8 @@ import LevelPlay, {
   OCTOPUS_SIZE,
   releasedRevealState,
   resultSpeechLine,
-  RESTART_MESSAGE,
+  RESTART_SPOKEN_LINES,
+  restartSpokenLine,
   seedCameraFor,
   shouldFileClue,
   shouldSpeakAgain,
@@ -106,6 +107,7 @@ import LevelPlay, {
   TORCH_MARKER_GLOW,
 } from './LevelPlay'
 import { approvedLineFor, forgetSessionLines } from '../zoo/tracedLine'
+import { obstacleAt } from '../levels/obstacles'
 import {
   CARRIER_LENS_ART,
   CLUE_ART,
@@ -1602,13 +1604,10 @@ describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', (
     })
   })
 
-  // docs/25 §7 1.2 (P2-1: "el reinicio es mudo"): a wall contact on a
-  // `resetOnContact` level (the detective-world trails and the collect
-  // levels, `sheep-hill1` included) must now play the soft, non-punishing
-  // cue sound and speak the existing `RESTART_MESSAGE` text, not run
-  // silently. Reuses the exact same off-path sequence the test just above
-  // already proves triggers `restartRun`.
-  it('a wall contact on a resetOnContact level plays the soft cue sound and speaks "Volvé a empezar"', () => {
+  // docs/25 P2-1 ("el reinicio es mudo"), docs/01 §5: a wall contact is heard as a
+  // kind sentence, with no failure sound at all. Reuses the off-path sequence the
+  // test just above already proves triggers `restartRun`.
+  it('a wall contact speaks a kind line and plays no failure sound', () => {
     playSfxMock.mockClear()
     speakMock.mockClear()
     const level = getLevel('sheep-hill1')
@@ -1627,15 +1626,32 @@ describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', (
     for (let i = 0; i < 6; i++) {
       onFrame([{ x: target.polyline[1].x + half * 10, y: target.polyline[1].y + half * 10 }], true, 400 + i * 200)
     }
-    expect(playSfxMock).toHaveBeenCalledWith('wrong')
-    expect(speakMock).toHaveBeenCalledWith(RESTART_MESSAGE)
+    expect(playSfxMock).not.toHaveBeenCalledWith('wrong')
+    expect(RESTART_SPOKEN_LINES).toContain(speakMock.mock.calls.at(-1)?.[0])
   })
 
-  // The SAME wall contact on a level with `resetOnContact: false` (the
-  // hazard-only families, e.g. monkeys/turtles) must stay exactly as silent
-  // as it was before this task — this task's own scope is the wall, never
-  // the hazard, and `resetOnContact: false` levels are out of scope entirely.
-  it('does not play the wall-reset cue on a resetOnContact: false level', () => {
+  it('a hazard restart gets the same kind answer as a wall, on a forgiving level too', () => {
+    playSfxMock.mockClear()
+    speakMock.mockClear()
+    const level = getLevel('monkey3')
+    expect(level.resetOnContact).toBe(false)
+    const target = buildLevelTarget(level)
+    renderToString(<LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />)
+    const onFrame = traceCanvasProbe.current?.onFrame as (p: TracePoint[], drawing: boolean, t: number) => void
+    for (let t = 0; t < 3000; t += 100) {
+      const at = obstacleAt(level.obstacles![0], target, t)
+      onFrame([{ x: at.x, y: at.y } as TracePoint], true, t)
+    }
+    expect(playSfxMock).not.toHaveBeenCalledWith('wrong')
+    expect(RESTART_SPOKEN_LINES).toContain(speakMock.mock.calls.at(-1)?.[0])
+  })
+
+  it('a child bouncing around hears different words, never the same sentence over and over', () => {
+    expect(new Set(RESTART_SPOKEN_LINES.map((_, i) => restartSpokenLine(i))).size).toBe(RESTART_SPOKEN_LINES.length)
+    expect(restartSpokenLine(RESTART_SPOKEN_LINES.length)).toBe(restartSpokenLine(0))
+  })
+
+  it('rendering a resetOnContact: false level says nothing by itself', () => {
     playSfxMock.mockClear()
     speakMock.mockClear()
     const level = getLevel('turtle1')
@@ -1644,7 +1660,7 @@ describe('LevelPlay collect-along-the-path wiring (T17, docs/19 §2.2/§3.4)', (
       <LevelPlay level={level} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
     expect(playSfxMock).not.toHaveBeenCalledWith('wrong')
-    expect(speakMock).not.toHaveBeenCalledWith(RESTART_MESSAGE)
+    for (const line of RESTART_SPOKEN_LINES) expect(speakMock).not.toHaveBeenCalledWith(line)
   })
 
   // T41: a hazard restarts the run even where the walls are forgiving

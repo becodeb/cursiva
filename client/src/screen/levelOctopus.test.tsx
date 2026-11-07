@@ -28,6 +28,10 @@ const FILES = import.meta.glob('../../public/art/carrier-octopus*.png', {
   import: 'default',
 }) as Record<string, string>
 
+/** Shapes with no gap a whole corridor away: he stands clear of the half of the
+ *  corridor ink actually runs on instead (`besideRouteFeet`'s last try). */
+const TIGHT_ROUTES: readonly string[] = ['duck-trail1', 'turtle4']
+
 const intersects = (a: ArtBox, b: ArtBox): boolean =>
   a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
 
@@ -133,6 +137,33 @@ describe('the start octopus at OCTOPUS_SIZE never hides what lies under him', ()
       }
     }
     expect(offenders).toEqual([])
+  })
+
+  it('never on the ink: the whole route runs clear of him, the start included', () => {
+    const covered: string[] = []
+    const tight: string[] = []
+    let beside = 0
+    for (const { id } of STANDING_LEVELS) {
+      const { level, target, box } = octopusOn(id)
+      if (level.artCorridor || level.segments || target.routes.length === 0) continue
+      beside += 1
+      const hits = (half: number) =>
+        target.routes.some((route) =>
+          route.polyline.some((p) => paintsOver(box, { x: p.x - half, y: p.y - half, width: half * 2, height: half * 2 })),
+        )
+      if (hits(target.corridorWidth / 4)) covered.push(id)
+      else if (hits(target.corridorWidth / 2)) tight.push(id)
+    }
+    expect(beside).toBeGreaterThan(30)
+    expect(covered).toEqual([])
+    expect(tight).toEqual(TIGHT_ROUTES)
+  })
+
+  it('the start dot shows wherever he moved aside, and nowhere he still marks it', () => {
+    const html = renderToString(
+      <LevelPlay level={getLevel('duck-trail1')} record={EMPTY_RECORD} onAttempt={() => undefined} onNext={() => undefined} onBack={() => undefined} />,
+    )
+    expect(html).toContain('fill="#22c55e"')
   })
 
   it('when he holds the glass he stands exactly on his spot, never clamped off it at the sheet’s edge', () => {
