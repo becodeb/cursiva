@@ -301,15 +301,13 @@ const COMPOSERS: Readonly<Record<FinaleKind, Composer>> = {
     const fit = boundsOf(track)
     const [plate, strip] = finale.tint ?? ['#a9c777', '#4f7f4a']
     const centre: Vec = [fit.x + fit.w / 2, fit.y + fit.h / 2]
-    const props = track
-      .filter((_, i) => i % Math.max(1, Math.floor(track.length / 8)) === 0)
-      .map((p, i): FinaleProp => ({
-        kind: 'scute',
-        x: lerp(p[0], centre[0], 0.42),
-        y: lerp(p[1], centre[1], 0.42),
-        size: 23,
-        at: 2.6 + i * 0.05,
-      }))
+    const scutes = Math.max(5, Math.min(7, Math.round(boundsOf(track).w / 55)))
+    const arcs = arcLengths(track)
+    const perimeter = arcs[arcs.length - 1]
+    const props = Array.from({ length: scutes }, (_, i): FinaleProp => {
+      const p = pointAtArc(track, arcs, (perimeter * i) / scutes)
+      return { kind: 'scute', x: lerp(p[0], centre[0], 0.5), y: lerp(p[1], centre[1], 0.5), size: 20, at: 2.6 + i * 0.07 }
+    })
     // The art's own back spans about this share of its width: it ends up under the line.
     const artWidth = fit.w / 0.58
     return {
@@ -405,7 +403,7 @@ const COMPOSERS: Readonly<Record<FinaleKind, Composer>> = {
     const centre: Vec = [fit.x + fit.w / 2, fit.y + fit.h / 2]
     return {
       strokes,
-      strip: { colour: '#6b4a2e', width: 11, edge: 3 },
+      strip: { colour: '#6b4a2e', width: 15, edge: 3 },
       track: [centre, centre],
       carriage: { size: Math.min(fit.h, fit.w) * 0.74, anchor: 0.5, lean: 0, motion: 'none', front: false },
       draw: [0.3, 3.2],

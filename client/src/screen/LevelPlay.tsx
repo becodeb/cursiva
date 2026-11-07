@@ -3780,16 +3780,10 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // cue is done). `-1` is a key no real `nudgeCueIndex` ever takes (it starts
   // at 0), so the intro's own mount never collides with the nudge's first
   // occurrence.
-  // docs/25 §7 1.2: a wall contact on a `resetOnContact` level now shows this
-  // SAME "start here" cue right after the reset — `restarted` is already
-  // true for exactly `RESTART_CUE_MS` after `restartRun` (above), the
-  // identical timing the on-screen `RESTART_MESSAGE` cue already uses, so
-  // the two read as one event. `resetOnContact` keeps this off every other
-  // level kind (a classic level's own restart, if it ever gets one, is out
-  // of this task's scope). Never overlaps the idle nudge or the one-shot
-  // intro: both of those require `phase === 'ready'` to even poll
-  // (`idleNudgeArmed`, above), and a fresh touch is exactly what a wall
-  // contact just gave the sheet.
+  // docs/25 P2-1: after a restart, from a wall or a hazard, his arm goes back to
+  // the start for as long as the restart cue lasts (`RESTART_CUE_MS`). Never
+  // overlaps the idle nudge or the one-shot intro: both of those need an idle
+  // sheet, and a contact is a finger on it.
   const wallResetCueActive = restarted
   const showIdleCue = introCuePlaying || nudgePhase === 'nudge' || wallResetCueActive
   const idleCueKey = introCuePlaying

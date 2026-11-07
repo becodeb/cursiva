@@ -124,10 +124,11 @@ export function FinaleSceneView({ scene, art, reducedMotion, onFrame, onFinished
     const body = Array.from(root.querySelectorAll('[data-finale-body]'))
     const stripe = root.querySelector('[data-finale-stripe]')
     const head = root.querySelector('[data-finale-head]')
-    let t = 0
+    // Real seconds: a slow tablet shows fewer frames, not a longer finale.
+    const began = performance.now()
     let finished = false
-    const stop = puppetTicker.subscribe((dt) => {
-      t += dt
+    const stop = puppetTicker.subscribe(() => {
+      const t = (performance.now() - began) / 1000
       const frame = finaleFrame(scene, t)
       fills.forEach((node, i) => {
         const fill = scene.fills[i]
