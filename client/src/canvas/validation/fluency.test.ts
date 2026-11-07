@@ -1,22 +1,61 @@
 // Fluency pillar contract (docs/02 section 5.3).
 import { describe, expect, it } from 'vitest'
 import type { TracePoint } from '../useTraceInput'
-import { fluencyScore } from './fluency'
+import { abruptTurnCount, fluencyScore } from './fluency'
 
 /** An evenly paced stroke: constant step, constant dt — the ideal movement. */
 function evenStroke(n = 40, step = 10, dt = 16, t0 = 0): TracePoint[] {
   return Array.from({ length: n }, (_, i) => ({ x: 100 + i * step, y: 300, t: t0 + i * dt }))
 }
 
-/** A stroke drawn in jerks: the step size swings wildly between samples. */
-function jerkyStroke(n = 40, dt = 16): TracePoint[] {
+/** A stroke drawn in jerks, on the time scale of a hand: stops of about a quarter
+ *  of a second, each followed by a lurch. (An earlier version alternated step sizes
+ *  on every 16 ms event. That is what irregular event delivery looks like, and it
+ *  is the very thing `docs/25` P1-1 found scoring the same stroke 32 and 97, so it
+ *  stopped being a jerk: see the event-rate tests below.) */
+function jerkyStroke(lurches = 10, dt = 16): TracePoint[] {
   const points: TracePoint[] = []
   let x = 100
-  for (let i = 0; i < n; i++) {
-    points.push({ x, y: 300, t: i * dt })
-    x += i % 2 === 0 ? 1 : 60 // stop-and-lurch
+  let t = 0
+  for (let i = 0; i < lurches; i++) {
+    for (let k = 0; k < 16; k++) {
+      points.push({ x, y: 300, t }) // holding still
+      t += dt
+    }
+    for (let k = 0; k < 6; k++) {
+      points.push({ x, y: 300, t })
+      x += 14
+      t += dt
+    }
   }
   return points
+}
+
+/** The same line, as a device with some event rate would report it. */
+function reported(line: TracePoint[], gaps: readonly number[]): TracePoint[] {
+  const totalMs = line[line.length - 1].t ?? 0
+  const at = (ms: number): TracePoint => {
+    const i = Math.min(line.length - 2, Math.floor((ms / totalMs) * (line.length - 1)))
+    const f = (ms / totalMs) * (line.length - 1) - i
+    return { x: line[i].x + (line[i + 1].x - line[i].x) * f, y: line[i].y + (line[i + 1].y - line[i].y) * f, t: ms }
+  }
+  const out: TracePoint[] = []
+  let ms = 0
+  for (let i = 0; ms < totalMs; i++) {
+    out.push(at(ms))
+    ms += gaps[i % gaps.length]
+  }
+  out.push(at(totalMs))
+  return out
+}
+
+/** A curved line at a steady pace, three seconds long. */
+function steadyCurve(): TracePoint[] {
+  return Array.from({ length: 188 }, (_, i) => ({
+    x: 100 + i * 4,
+    y: 300 + Math.sin(i / 18) * 60,
+    t: i * 16,
+  }))
 }
 
 describe('fluencyScore — regularity', () => {
@@ -53,12 +92,90 @@ describe('fluencyScore — regularity', () => {
     )
   })
 
+  it('a short rest is a rest, not a failure', () => {
+    const rest: TracePoint[] = []
+    for (const p of evenStroke(120)) rest.push(p)
+    const last = rest[rest.length - 1]
+    const paused = rest.map((p, i) => (i < 60 ? p : { ...p, t: (p.t ?? 0) + 300 }))
+    expect(last).toBeDefined()
+    expect(fluencyScore([paused], 1).fluency).toBeGreaterThanOrEqual(50)
+  })
+
   it('ignores zero-length steps instead of reading them as stops', () => {
     const withRepeats: TracePoint[] = []
     for (const p of evenStroke(20)) {
       withRepeats.push(p, { ...p, t: (p.t ?? 0) + 8 }) // duplicated sample
     }
     expect(fluencyScore([withRepeats], 1).fluency).toBe(100)
+  })
+})
+
+describe('fluencyScore — the device is not the child (`docs/25` P1-1)', () => {
+  const rates: Record<string, readonly number[]> = {
+    '60 Hz': [16.7],
+    '120 Hz': [8.3],
+    '30 Hz with drops': [33, 33, 66, 33, 100, 33],
+    'bursty delivery': [4, 4, 40, 4, 4, 60],
+  }
+  for (const [name, gaps] of Object.entries(rates)) {
+    it(`scores one clean stroke within 8 points at ${name}`, () => {
+      const base = fluencyScore([steadyCurve()], 1).fluency
+      const atRate = fluencyScore([reported(steadyCurve(), gaps)], 1).fluency
+      expect(Math.abs(atRate - base)).toBeLessThanOrEqual(8)
+      expect(atRate).toBeGreaterThanOrEqual(85)
+    })
+  }
+})
+
+describe('fluencyScore — abrupt direction changes', () => {
+  const zigzag = (amplitude: number, wavelength: number): TracePoint[] =>
+    Array.from({ length: 400 }, (_, i) => {
+      const along = i * 3
+      const phase = (along % wavelength) / wavelength
+      return { x: 100 + along, y: 300 + amplitude * (phase < 0.5 ? 4 * phase - 1 : 3 - 4 * phase), t: i * 16 }
+    })
+
+  it('sinks a zigzag at a perfectly even pace, the case speed alone passed', () => {
+    expect(fluencyScore([zigzag(55, 60)], 1).fluency).toBeLessThan(25)
+    expect(fluencyScore([zigzag(30, 50)], 1).fluency).toBeLessThan(25)
+  })
+
+  it('does not charge a shaky hand: small wobble is not a corner', () => {
+    const shaky: TracePoint[] = Array.from({ length: 300 }, (_, i) => ({
+      x: 100 + i * 3,
+      y: 300 + Math.sin(i / 8) * 8 + Math.sin(i / 2.3) * 1.5,
+      t: i * 16,
+    }))
+    expect(fluencyScore([shaky], 1).fluency).toBeGreaterThanOrEqual(80)
+  })
+
+  it('does not charge a corner the model itself has', () => {
+    // Up and straight back down, the stem of an `m`.
+    const cusp: TracePoint[] = Array.from({ length: 60 }, (_, i) => ({
+      x: 300 + (i < 30 ? i : 60 - i) * 0.4,
+      y: 400 - (i < 30 ? i : 60 - i) * 4,
+      t: i * 16,
+    }))
+    expect(fluencyScore([cusp], 1).fluency).toBeLessThan(fluencyScore([cusp], 1, { expectedTurns: 1 }).fluency)
+    expect(fluencyScore([cusp], 1, { expectedTurns: 1 }).fluency).toBeGreaterThanOrEqual(85)
+  })
+
+  it('counts one corner once, however slowly it is drawn', () => {
+    const corner = (step: number): TracePoint[] => {
+      const out: TracePoint[] = []
+      for (let x = 0; x <= 200; x += step) out.push({ x, y: 0 })
+      for (let y = step; y <= 200; y += step) out.push({ x: 200, y })
+      return out
+    }
+    expect(abruptTurnCount(corner(10))).toBe(0) // 90 degrees is a curve here
+    const hairpin = (step: number): TracePoint[] => {
+      const out: TracePoint[] = []
+      for (let x = 0; x <= 200; x += step) out.push({ x, y: 0 })
+      for (let x = 200 - step; x >= 0; x -= step) out.push({ x, y: 2 })
+      return out
+    }
+    expect(abruptTurnCount(hairpin(2))).toBe(1)
+    expect(abruptTurnCount(hairpin(25))).toBe(1)
   })
 })
 
@@ -123,6 +240,7 @@ describe('fluencyScore — missing timestamps', () => {
   })
 
   it('still detects jerkiness from spacing alone', () => {
+    // No clock: every event counts as one tick, so holding still still reads.
     const noTimeJerky: TracePoint[] = jerkyStroke().map(({ x, y }) => ({ x, y }))
     expect(fluencyScore([noTimeJerky], 1).fluency).toBeLessThan(50)
   })

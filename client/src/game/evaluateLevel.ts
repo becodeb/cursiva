@@ -12,9 +12,10 @@
 // average: a child with high accuracy and low fluency is drawing the letter,
 // and that is exactly the problem this app exists to detect (docs/02 5.3).
 import { resample } from '../canvas/resample'
+import { checkBackAndForth } from '../canvas/validation/backAndForth'
 import { checkCheckpointOrder } from '../canvas/validation/checkpoints'
 import { K, TolPen, TolTouch } from '../canvas/validation/constants'
-import { fluencyScore } from '../canvas/validation/fluency'
+import { abruptTurnCount, fluencyScore } from '../canvas/validation/fluency'
 import { score } from '../canvas/validation/score'
 import type { TracePoint } from '../canvas/useTraceInput'
 import type { Point } from '../letters/types'
@@ -205,11 +206,18 @@ export function evaluateLevel(
   const order = checkCheckpointOrder(all, target.checkpoints)
   // When the level does not enforce order the pillar cannot block approval, but
   // the real flag is KEPT: an inverted turn still earns its coaching message.
-  const directionOk = rules.enforceOrder ? order.orderPassed : true
+  // On a letter, reaching every zone in turn is not enough: a zigzag crosses the
+  // route at each of them (`docs/25` P1-1). Only letters ask: everywhere else
+  // the corridor is the exercise, and how the child got through is their own.
+  const isLetter = target.config.letters.length > 0
+  const toAndFro = isLetter && checkBackAndForth(strokes, target.polyline).backAndForth
+  const directionOk = rules.enforceOrder ? order.orderPassed && !toAndFro : true
   const wrongDirection = order.wrongDirection
 
   // ── Pilar 3: fluidez — ¿fue un movimiento o fueron muchos? ─────────────────
-  const { fluency, extraLifts } = fluencyScore(strokes, allowedStrokes)
+  const { fluency, extraLifts } = fluencyScore(strokes, allowedStrokes, {
+    expectedTurns: abruptTurnCount(target.polyline),
+  })
 
   const accuracyOk = accuracy >= rules.minAccuracy
   const orderOk = directionOk && !(rules.enforceOrder && wrongDirection)
@@ -234,5 +242,6 @@ export function evaluateLevel(
     extraLifts,
     approved,
     failedPillar,
+    ...(toAndFro ? { backAndForth: true } : {}),
   }
 }

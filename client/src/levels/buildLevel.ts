@@ -51,6 +51,19 @@ function round1(n: number): number {
 }
 
 /**
+ * A letter's order zones: wider than the corridor, so a stroke inside it always
+ * touches them, and far smaller than the letter, whose body is only 120 units
+ * tall. At the shared 35-60 a single zone covered half an `o`, so a stroke that
+ * merely wandered nearby was read as having gone there (`docs/25` P1-1). Grows
+ * with the adaptive corridor, so widening keeps helping.
+ */
+const LETTER_ZONE_MARGIN = 12
+const MIN_LETTER_ZONE = 30
+export function letterZoneRadius(corridorWidth: number): number {
+  return Math.max(MIN_LETTER_ZONE, Math.round(corridorWidth / 2 + LETTER_ZONE_MARGIN))
+}
+
+/**
  * Where a level BEGINS as a POINT, for everything that needs one rather than
  * a route: the carrier's resting place, the standing octopus, the start dot.
  *
@@ -243,10 +256,11 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
 
   const artCorridor = config.artCorridor?.map((piece) => placeArtCorridor(piece, tx))
 
+  const zoneRadius = config.letters.length > 0 ? letterZoneRadius(corridorWidth) : undefined
   // Main checkpoints, uniform in ARC LENGTH over the resampled centreline.
   const checkpoints: LetterCheckpoint[] =
     polyline.length >= 2 && length > 0
-      ? generateCheckpoints(resample(polyline, CHECKPOINT_SAMPLES), length)
+      ? generateCheckpoints(resample(polyline, CHECKPOINT_SAMPLES), length, zoneRadius)
       : []
 
   const ideal: Array<readonly [number, number]> = []
@@ -268,6 +282,7 @@ export function buildLevelTarget(config: LevelConfig, widthFactor?: number): Lev
       const segCheckpoints = generateCheckpoints(
         resample(points, CHECKPOINT_SAMPLES),
         segLength,
+        zoneRadius,
       )
       for (const cp of segCheckpoints) {
         const order = checkpoints.length + 1

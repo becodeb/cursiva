@@ -91,6 +91,7 @@ export function applyAttempt(record: LevelRecord, attempt: LevelAttempt): LevelR
 export function coachMessage(attempt: LevelAttempt): string {
   if (attempt.approved) return '¡Muy bien!'
   if (attempt.wrongDirection) return 'Probá al revés: seguí la flecha desde el punto verde.'
+  if (attempt.backAndForth) return 'Despacito y para adelante, sin ir y volver.'
   if (attempt.failedPillar === 'fluency') {
     return attempt.extraLifts > 0
       ? 'Casi. Probá otra vez sin levantar el dedo.'

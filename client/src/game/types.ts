@@ -18,6 +18,9 @@ export interface LevelAttempt extends PillarScores {
   approved: boolean
   /** which rule blocked approval, for the coaching message. */
   failedPillar: 'accuracy' | 'direction' | 'fluency' | null
+  /** Set on a letter only: the stroke reached every zone by going to and fro
+   *  across the route (`canvas/validation/backAndForth.ts`). */
+  backAndForth?: boolean
   /** 1.6 (`odd/tasks/review-batch-1.md`, `docs/25_REVISION_PSICOPEDAGOGICA.md`
    *  section 7 item 1.6): how long THIS attempt took, pointer-down of its
    *  first stroke to this exact resolution (approved or not) —

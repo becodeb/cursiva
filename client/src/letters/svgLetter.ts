@@ -693,15 +693,20 @@ export function splitMainTail(
  *  - order is strictly 1..N
  *  - radius is adaptive: clamp(round(segmentArcLength * 0.55), 35, 60), where
  *    segmentArcLength = totalLength / (N - 1). This keeps a correct stroke from
- *    "sticking" on dense curves.
+ *    "sticking" on dense curves. `fixedRadius` replaces it for a letter level,
+ *    where a zone that size is as big as the letter (`docs/25` P1-1).
  *
  * `points` is the path already sampled into a polyline (see `resample`); the
  * exact point at each arc fraction is found by linear interpolation over it.
  */
-export function generateCheckpoints(points: Point[], totalLength: number): LetterCheckpoint[] {
+export function generateCheckpoints(
+  points: Point[],
+  totalLength: number,
+  fixedRadius?: number,
+): LetterCheckpoint[] {
   const N = clamp(Math.round(totalLength / 90), 6, 12)
   const segmentArcLength = totalLength / (N - 1)
-  const radius = clamp(Math.round(segmentArcLength * 0.55), 35, 60)
+  const radius = fixedRadius ?? clamp(Math.round(segmentArcLength * 0.55), 35, 60)
   const checkpoints: LetterCheckpoint[] = []
   for (let i = 0; i < N; i++) {
     const frac = i / (N - 1)
