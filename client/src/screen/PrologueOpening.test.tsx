@@ -133,7 +133,7 @@ describe('PrologueOpening idle life and bubble pop-in (prewriting-stage-completi
     for (let i = 0; i < PROLOGUE_PLATES.length; i++) {
       const html = renderToString(<PrologueOpening from={i} onDone={() => {}} />)
       expect(html, `plate ${i}`).toContain('class="cv-prologue-octopus"')
-      expect(html, `plate ${i}`).toContain('class="cv-octopus-life"')
+      expect(html, `plate ${i}`).toContain('class="cv-puppet cv-octopus-life"')
       expect(html, `plate ${i}`).toContain('cv-octopus-breathe')
       expect(html, `plate ${i}`).toContain('cv-octopus-blink')
       expect(html, `plate ${i}`).toContain('@media (prefers-reduced-motion: reduce)')

@@ -136,13 +136,13 @@ describe('PistasRail lamp (design.md "Light is drawn, never blurred")', () => {
 
   it('lights the lamp with the lit art when on', () => {
     const html = renderToString(<PistasRail slots={[]} lampOn />)
-    expect(html).toContain(`href="${LAMP_ART.on.href}"`)
+    expect(html).toContain(`data-art="${LAMP_ART.on.href}"`)
     expect(html).not.toContain(LAMP_ART.off.href)
   })
 
   it('leaves the lamp drained when off', () => {
     const html = renderToString(<PistasRail slots={[]} lampOn={false} />)
-    expect(html).toContain(`href="${LAMP_ART.off.href}"`)
+    expect(html).toContain(`data-art="${LAMP_ART.off.href}"`)
     expect(html).not.toContain(LAMP_ART.on.href)
     // The drained grey still reaches the bar through the four empty sockets,
     // which is what makes an unlit rail read as waiting rather than broken.
@@ -215,9 +215,10 @@ describe('PistasRail slots', () => {
     // A slot the caller knows nothing about must not show a grey clue: that
     // would claim a trail exists and is merely unfinished.
     const html = renderToString(<PistasRail slots={[filedSlot]} lampOn={false} />)
-    const marks = (html.match(/<image|<path[^>]*data-art="\/art\/clue-/g) ?? []).length
-    // One lamp + exactly one clue mark for the one known slot.
-    expect(marks).toBe(2)
+    const marks = (html.match(/<path[^>]*data-art="\/art\/clue-/g) ?? []).length
+    // Exactly one clue mark for the one known slot, beside the lamp.
+    expect(marks).toBe(1)
+    expect(html).toContain('data-art="/art/lamp-off.png"')
   })
 
   it('draws each clue mark at the socket\'s one mark height', () => {
