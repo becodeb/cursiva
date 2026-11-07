@@ -3,7 +3,7 @@
 // string, the same convention every other detective-mode test file uses.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { ANIMAL_ART } from './assets'
+import { ANIMAL_ART, CART_ART } from './assets'
 import CaptionedArt from './CaptionedArt'
 
 describe('CaptionedArt (spec: detective-mode "Captioned Art Invariant")', () => {
@@ -16,17 +16,17 @@ describe('CaptionedArt (spec: detective-mode "Captioned Art Invariant")', () => 
   })
 
   it('renders the picture and the word as a sibling HTML caption, never an SVG <text>', () => {
-    const html = renderToString(<CaptionedArt art={ANIMAL_ART.vaca} label="Vaca" size={36} />)
+    const html = renderToString(<CaptionedArt art={CART_ART} label="Carrito" size={36} />)
     expect(html).toContain('class="cv-captioned"')
-    expect(html).toContain(`href="${ANIMAL_ART.vaca.href}"`)
-    expect(html).toContain('class="cv-caption">Vaca<')
+    expect(html).toContain(`href="${CART_ART.href}"`)
+    expect(html).toContain('class="cv-caption">Carrito<')
     expect(html).not.toContain('<text')
     expect(html).not.toContain('url(#')
   })
 
   it('sizes the picture by height, deriving width from the source aspect ratio', () => {
-    const art = ANIMAL_ART.vaca // 448x405 — not square, so a shared multiplier would distort it
-    const html = renderToString(<CaptionedArt art={art} label="Vaca" size={40} />)
+    const art = CART_ART // 216x256 — not square, so a shared multiplier would distort it
+    const html = renderToString(<CaptionedArt art={art} label="Carrito" size={40} />)
     const expectedWidth = (40 * art.w) / art.h
     expect(html).toContain(`width="${expectedWidth}"`)
     expect(html).toContain('height="40"')
@@ -46,8 +46,8 @@ describe('CaptionedArt (spec: detective-mode "Captioned Art Invariant")', () => 
   // stays byte-identical to before the prop existed (the outer svg's own
   // `height` is still exactly `size`).
   it('omits cropHeight by default: the outer svg height/viewBox stay exactly size, byte-identical to before the prop existed', () => {
-    const art = ANIMAL_ART.vaca
-    const html = renderToString(<CaptionedArt art={art} label="Vaca" size={40} />)
+    const art = CART_ART
+    const html = renderToString(<CaptionedArt art={art} label="Carrito" size={40} />)
     const width = (40 * art.w) / art.h
     expect(html).toContain(`viewBox="${-width / 2} ${-20} ${width} 40"`)
     expect(html).toContain('height="40"')
@@ -60,8 +60,8 @@ describe('CaptionedArt (spec: detective-mode "Captioned Art Invariant")', () => 
   // `<clipPath>`/`mask`/`url(#…)` anywhere — TraceCanvas.tsx's header is the
   // rule this follows).
   it('crops to cropHeight via the outer svg viewBox/height while the image keeps drawing at the full size', () => {
-    const art = ANIMAL_ART.vaca
-    const html = renderToString(<CaptionedArt art={art} label="Vaca" size={40} cropHeight={30} />)
+    const art = CART_ART
+    const html = renderToString(<CaptionedArt art={art} label="Carrito" size={40} cropHeight={30} />)
     const width = (40 * art.w) / art.h
     expect(html).toContain(`viewBox="${-width / 2} ${-20} ${width} 30"`)
     expect(html).toContain('width="' + width + '" height="30"')

@@ -6,6 +6,8 @@
 import type { CSSProperties, ReactNode } from 'react'
 import {
   ANIMAL_ART,
+  CARRIER_LENS_ART,
+  DUCKLING_ART,
   GOAL_MEDUSA_ART,
   HEDGEHOG_ART,
   MONKEY_FAMILY_ART,
@@ -51,6 +53,17 @@ const PUPPET_FIGURES: ReadonlyMap<string, PuppetFigure> = new Map<string, Puppet
   [SECTOR_ADVENTURE_ART.snakeSmall.href, { name: 'vibora', state: { length: 0 } }],
   [SECTOR_ADVENTURE_ART.snakeMedium.href, { name: 'vibora', state: { length: 1 } }],
   [SECTOR_ADVENTURE_ART.snakeLarge.href, { name: 'vibora', state: { length: 2 } }],
+  [SECTOR_ADVENTURE_ART.bee.href, { name: 'abeja' }],
+  [SECTOR_ADVENTURE_ART.dolphin.href, { name: 'delfin' }],
+  [SECTOR_ADVENTURE_ART.snail.href, { name: 'caracol' }],
+  [ANIMAL_ART.gallina.href, { name: 'gallina' }],
+  [ANIMAL_ART.vaca.href, { name: 'vaca' }],
+  [ANIMAL_ART.gato.href, { name: 'gato' }],
+  [DUCKLING_ART[0].href, { name: 'patito', state: { pose: 0 } }],
+  [DUCKLING_ART[1].href, { name: 'patito', state: { pose: 1 } }],
+  [DUCKLING_ART[2].href, { name: 'patito', state: { pose: 2 } }],
+  // See-through: whatever is under the fingertip stays visible through the glass.
+  [CARRIER_LENS_ART.href, { name: 'lupa' }],
 ])
 
 export function puppetFigureFor(art: { readonly href: string }): PuppetFigure | undefined {

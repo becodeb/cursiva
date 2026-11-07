@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { ACT_NAMES, createActor, type ActName, type RigState } from './actor'
 import { puppetFigureFor } from './ArtFigure'
 import { getRig, PUPPET_NAMES, puppetView, type PuppetName } from './characters'
-import { GOAL_MEDUSA_ART, HEDGEHOG_ART, MONKEY_FAMILY_ART, PROMISED_ANIMAL_ART, SECTOR_ADVENTURE_ART, type ArtImage } from '../detective/assets'
+import { ANIMAL_ART, CARRIER_LENS_ART, DUCKLING_ART, GOAL_MEDUSA_ART, HEDGEHOG_ART, MONKEY_FAMILY_ART, PROMISED_ANIMAL_ART, SECTOR_ADVENTURE_ART, type ArtImage } from '../detective/assets'
 import Puppet from './Puppet'
 import { computeFrame, frameBounds, placementTransform, type Rig } from './rig'
 
@@ -22,6 +22,14 @@ const REGISTRY: readonly (readonly [PuppetName, ArtImage])[] = [
   ['vibora', SECTOR_ADVENTURE_ART.snakeSmall],
   ['vibora', SECTOR_ADVENTURE_ART.snakeMedium],
   ['vibora', SECTOR_ADVENTURE_ART.snakeLarge],
+  ['abeja', SECTOR_ADVENTURE_ART.bee],
+  ['delfin', SECTOR_ADVENTURE_ART.dolphin],
+  ['caracol', SECTOR_ADVENTURE_ART.snail],
+  ['gallina', ANIMAL_ART.gallina],
+  ['vaca', ANIMAL_ART.vaca],
+  ['gato', ANIMAL_ART.gato],
+  ['patito', DUCKLING_ART[0]],
+  ['lupa', CARRIER_LENS_ART],
 ]
 
 function frameOf(rig: Rig, act: ActName | null, state?: RigState, t = 0.37) {
@@ -62,6 +70,24 @@ describe('the monkey family', () => {
     expect(banana(1)).toBe(1)
     expect(banana(0)).toBe(0)
     expect(banana(2)).toBe(0)
+  })
+})
+
+describe('the magnifying glass', () => {
+  it('has a see-through glass: no opaque fill behind the ring, and no mask', () => {
+    const html = renderToString(<Puppet name="lupa" still />)
+    expect(html).toMatch(/fill:rgba\(167,224,218,\.28\)/)
+    expect(html).not.toMatch(/<mask|<clipPath/)
+  })
+
+  it('keeps the ring round the grip of the picture it replaces', () => {
+    const rig = getRig('lupa')
+    const bounds = frameBounds(rig, computeFrame(rig, createActor(7), true))
+    const view = puppetView('lupa', CARRIER_LENS_ART.w / CARRIER_LENS_ART.h)
+    const [gx, gy] = CARRIER_LENS_ART.grip!
+    expect(Math.abs(view.x + gx * view.w - 117)).toBeLessThan(2)
+    expect(Math.abs(view.y + gy * view.h - 115)).toBeLessThan(2)
+    expect(bounds.minY).toBeLessThan(10)
   })
 })
 

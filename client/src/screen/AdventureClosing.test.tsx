@@ -9,7 +9,7 @@ import AdventureClosing, { closingBubbleText } from './AdventureClosing'
 import { NOTEBOOK_HINT_LINE } from './notebookDiscovery'
 import { auditCaptions } from '../detective/captionAudit'
 import {
-  CARRIER_LENS_ART,
+  CART_ART,
   isPlaceholderArt,
   PULPITO_POSE_ART,
   SECTOR_ADVENTURE_ART,
@@ -37,7 +37,7 @@ const peces = ADVENTURES.find((a) => a.id === 'peces')!
  */
 const fixtureBeat: ClosingBeat = {
   line: '¡Encontramos todo en la oscuridad! La linterna va a la mochila.',
-  art: CARRIER_LENS_ART,
+  art: CART_ART,
 }
 
 const fixtureAdventure: Adventure = {
