@@ -55,7 +55,7 @@ defaults to confirm, not settled answers.
 - [x] T4 — Tentacle demo and wordless corrections with spoken feedback (`docs/25` P2-1). Route: delegated.
 - [ ] T5 — Fix the letter score (`docs/25` 4.1). Route: delegated.
 - [ ] T6 — The bridge to letters: bridge levels, the notebook, the letter sequence and its place in the journey (`docs/25` 4.2 to 4.6). Route: delegated.
-- [ ] T7 — The rest of the cast on the engine. Route: delegated, reviewed side by side.
+- [x] T7 — The rest of the cast on the engine. Route: delegated, reviewed side by side. Merged in `2dc31e3` (20 characters). Parent review: bee, cow, snail and jellyfish strongest; hen, fish fins and monkey hands weakest, second pass pending. Surfaces still PNG on the trace screen move to T9.
 - [ ] T8 — Living map, album and the child's own Pulpito. Route: delegated.
 - [ ] T9 — Paper theatre: backgrounds, corridor, marks and transitions. Route: delegated.
 - [ ] T10 — Docs: audience 5 to 7, style guide, what remains. Route: inline or delegated.
