@@ -10,6 +10,8 @@ import { blob } from './shapes'
 export const ERIZO_PALETTE = {
   ink: PAPER_INK,
   skin: '#cfa077',
+  skinD: '#b0835c',
+  skinL: '#e0bb94',
   coat: '#6d4629',
   coatL: '#8d6239',
   coatD: '#4f301a',
@@ -93,11 +95,37 @@ const LOW_TICKS: readonly (readonly [number, number, number])[] = [
   [206, 268, -14], [278, 276, 12], [340, 244, 40], [236, 320, -6], [306, 316, 24],
 ]
 
+/** A soft V of cut fur, its point outward from `(cx, cy)`. */
+function furMark(cx: number, cy: number, x: number, y: number): string {
+  const a = Math.atan2(y - cy, x - cx)
+  const ux = Math.cos(a)
+  const uy = Math.sin(a)
+  const arm = 10
+  return `M${fmt(x - uy * arm - ux * 8)} ${fmt(y + ux * arm - uy * 8)}L${fmt(x + ux * 4)} ${fmt(y + uy * 4)}L${fmt(x + uy * arm - ux * 8)} ${fmt(y - ux * arm - uy * 8)}`
+}
+
+/** Rings of fur over a body of this shape, so the paper is a coat and not a flat disc. */
+function furRings(cx: number, cy: number, rx: number, ry: number, floor: number): string[] {
+  const out: string[] = []
+  for (const [share, count] of [[0.3, 6], [0.56, 11], [0.8, 16]] as const) {
+    for (let i = 0; i < count; i++) {
+      const a = ((i + share * 3) / count) * Math.PI * 2
+      const y = cy + Math.sin(a) * ry * share
+      if (y < floor) out.push(furMark(cx, cy, cx + Math.cos(a) * rx * share, y))
+    }
+  }
+  return out
+}
+
 export function drawErizo(p: RigBuilder): RigUpdate {
   for (const [x, part] of [[326, 'footB2'], [172, 'footF2']] as const) {
     p.cluster([{ d: footOf(x), c: 'feetD', part }])
   }
   p.cluster([{ d: skinPath, c: 'skin' }])
+  // Only the ball's lit side and its fur: a walking body has the fur of its own shape.
+  p.flat(blob([120, 62], [200, 18], [288, 28], [262, 52], [190, 54], [132, 96]), 'skinL', { part: 'fuzzBall' })
+  for (const d of furRings(224, 176, 172, 172, 400)) p.line(d, { w: 6, c: 'skinD', part: 'fuzzBall' })
+  for (const d of furRings(250, 180, 192, 138, 262)) p.line(d, { w: 6, c: 'skinD', part: 'fuzzWalk' })
   p.cluster([{ d: coatPath, c: 'coat', part: 'coatLayer' }])
   for (const [x, y, r] of TICKS) {
     p.line(`M${x} ${y}L${fmt(x + Math.sin(rad(r)) * 26)} ${fmt(y - Math.cos(rad(r)) * 26)}`, { w: 8, c: 'coatL', part: 'coatLayer' })
@@ -125,11 +153,16 @@ export function drawErizo(p: RigBuilder): RigUpdate {
     const q = quillsOf(pose)
     const d = domeOf(pose)
     set('coatLayer', { ox: d.cx, oy: d.cy + 20, sx: q, sy: q })
+    const ball = Math.max(clamp((curl - 0.7) * 4, 0, 1), 0.001)
+    const walking = Math.max(clamp((0.3 - curl) * 4, 0, 1), 0.001)
+    set('fuzzBall', { ox: 224, oy: 176, sx: ball, sy: ball })
+    set('fuzzWalk', { ox: 250, oy: 180, sx: walking, sy: walking })
     const low = q * clamp((curl - 0.5) * 3, 0, 1)
     set('ticksLow', { ox: d.cx, oy: d.cy + 60, sx: Math.max(low, 0.001), sy: Math.max(low, 0.001) })
-    const k = lerp(1, 0.82, curl)
+    const k = lerp(1, 0.78, curl)
     set('skull', {
-      x: lerp(116, 110, curl),
+      // Tucked into the ball, so a mark around it still rings a ball.
+      x: lerp(116, 128, curl),
       y: lerp(190, 232, curl) + sad * 8,
       sx: k,
       sy: k,

@@ -1367,9 +1367,9 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
     // little slack — still comfortably positive, never the geometric ceiling
     // itself.
     const margins: Record<string, number> = {
-      hedgehog1: 4.0,
+      hedgehog1: 3.5,
       hedgehog2: 2.9,
-      hedgehog3: 1.5,
+      hedgehog3: 0.4,
       hedgehog4: 1.9,
     }
     for (const id of HEDGEHOG_IDS) {

@@ -22,9 +22,10 @@ import {
   spineMarks,
   spineRings,
   type SpineConfig,
+  hedgehogBodySize,
+  hedgehogSilhouette,
 } from '../levels/spines'
 import { LEVELS } from '../levels/catalog'
-import { HEDGEHOG_SILHOUETTE } from '../detective/assets'
 
 const CFG: SpineConfig = {
   pose: 'profile',
@@ -220,9 +221,9 @@ describe('SpineLayer — the coincidence proof (stage 2, the real catalog, both 
       const cfg = LEVELS.find((l) => l.id === id)!.spines!
       const { images } = renderAndParse(cfg)
       const box = images[0]
-      const [gx, gy] = HEDGEHOG_SILHOUETTE[cfg.pose].centroid
+      const [gx, gy] = hedgehogSilhouette(cfg.pose).centroid
       const recoveredCentre = { x: box.x + gx * box.width, y: box.y + gy * box.height }
-      const recoveredCfg: SpineConfig = { ...cfg, body: { centre: recoveredCentre, height: box.height } }
+      const recoveredCfg: SpineConfig = { ...cfg, body: { centre: recoveredCentre, height: box.height / hedgehogBodySize(cfg.pose) } }
       const implied = spineAnchors(recoveredCfg)
       const real = spineAnchors(cfg)
       implied.forEach((a, i) => {

@@ -14,6 +14,12 @@ export const PAPER_SHADOW_OFFSET = { x: 3, y: 6 } as const
 export const PAPER_SHADOW_TRANSFORM = `translate(${PAPER_SHADOW_OFFSET.x} ${PAPER_SHADOW_OFFSET.y})`
 export const PAPER_SHADOW_FILL = 'rgba(16,28,24,.3)'
 export const PAPER_INK = '#1a2226'
+/** A card of the interface is cut from the same sheet: a slightly darker cut edge and
+ *  the same offset shadow, never a black outline. The edge keeps the width a border
+ *  always had, so no measured layout moves. */
+export const PAPER_EDGE = '#decca6'
+export const PAPER_LIP = '#bfa877'
+export const PAPER_CARD_SHADOW = '3px 5px 0 rgba(16,28,24,.3)'
 const WOBBLE_AMP = 0.55
 const LINE_WIDTH_SCALE = 0.85
 
@@ -263,12 +269,15 @@ function applyTransform(p: Vec, { x = 0, y = 0, r = 0, sx = 1, sy = 1, ox = 0, o
   return [px * Math.cos(th) - py * Math.sin(th) + x + ox, px * Math.sin(th) + py * Math.cos(th) + y + oy]
 }
 
-/** The box a frame really paints, shadows and stroke thickness included. */
-export function frameBounds(rig: Rig, frame: PuppetFrame): Bounds {
-  let minX = Infinity
-  let minY = Infinity
-  let maxX = -Infinity
-  let maxY = -Infinity
+/** One outline of a frame, in figure units. */
+export interface FrameOutline {
+  readonly points: readonly Vec[]
+  readonly node: PaperPath
+}
+
+/** Every outline a frame paints, with each part's transforms applied. */
+export function frameOutlines(rig: Rig, frame: PuppetFrame, step = 6): FrameOutline[] {
+  const out: FrameOutline[] = []
   const walk = (nodes: readonly PaperNode[], chain: readonly PartTransform[]): void => {
     for (const node of nodes) {
       if (node.kind === 'group') {
@@ -277,18 +286,31 @@ export function frameBounds(rig: Rig, frame: PuppetFrame): Bounds {
       }
       const d = node.dyn !== null ? frame.dyn[node.dyn] : node.d
       if (!d) continue
-      for (const raw of sampleAnchored(d, 6)) {
+      const points = sampleAnchored(d, step).map((raw): Vec => {
         const start: Vec = node.shadow ? [raw[0] + PAPER_SHADOW_OFFSET.x, raw[1] + PAPER_SHADOW_OFFSET.y] : raw
-        const placed = chain.reduce<Vec>((p, xf) => applyTransform(p, xf), start)
-        const [x, y] = applyTransform(placed, frame.root)
-        minX = Math.min(minX, x - node.halfStroke)
-        minY = Math.min(minY, y - node.halfStroke)
-        maxX = Math.max(maxX, x + node.halfStroke)
-        maxY = Math.max(maxY, y + node.halfStroke)
-      }
+        return applyTransform(chain.reduce<Vec>((p, xf) => applyTransform(p, xf), start), frame.root)
+      })
+      out.push({ points, node })
     }
   }
   walk(rig.nodes, [])
+  return out
+}
+
+/** The box a frame really paints, shadows and stroke thickness included. */
+export function frameBounds(rig: Rig, frame: PuppetFrame): Bounds {
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const { points, node } of frameOutlines(rig, frame)) {
+    for (const [x, y] of points) {
+      minX = Math.min(minX, x - node.halfStroke)
+      minY = Math.min(minY, y - node.halfStroke)
+      maxX = Math.max(maxX, x + node.halfStroke)
+      maxY = Math.max(maxY, y + node.halfStroke)
+    }
+  }
   return { minX, minY, maxX, maxY }
 }
 

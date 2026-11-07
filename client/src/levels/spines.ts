@@ -13,14 +13,17 @@
 // disagree by construction. `spineAim`'s live half carries `aiming` only —
 // render state, never scored.
 //
-// Anchors are DERIVED from a build-time-measured silhouette
-// (`detective/assets.ts`'s `HEDGEHOG_SILHOUETTE`), never hand-authored
-// coordinates (design.md §2 D2) — the same generator the body `<image>`'s
-// own box comes from, so the art and the scored geometry cannot drift apart
-// (paso E's failure class).
+// Anchors are DERIVED from the silhouette of the puppet that is drawn
+// (`puppet/silhouette.ts`), never hand-authored coordinates (design.md §2 D2) — the
+// same generator the body's own box comes from, so the art and the scored geometry
+// cannot drift apart (paso E's failure class). The old PNG table
+// (`HEDGEHOG_SILHOUETTE`) now only sets the size: the puppet stands big enough that its
+// edge is as far from its middle as the picture's was, so spines keep their room and a
+// stroke that scored before scores now.
 import type { Point } from '../letters/types'
 import { placeArt, type ArtBox } from '../canvas/placeArt'
 import { HEDGEHOG_ART, HEDGEHOG_SILHOUETTE, type HedgehogSilhouette } from '../detective/assets'
+import { measureSilhouette } from '../puppet/silhouette'
 
 export type HedgehogPose = 'profile' | 'curled'
 
@@ -96,6 +99,39 @@ export const SPINE_MARK_R = 11
  *  subdivided — `trailPasses`'s own argument, restated. */
 const BODY_STEP = 8
 
+const mean = (values: readonly number[]): number => values.reduce((sum, v) => sum + v, 0) / values.length
+
+/** The rig state each pose's picture stands for (`puppet/ArtFigure.tsx`). */
+export const POSE_STATE: Readonly<Record<HedgehogPose, { curl: number; quills: number }>> = {
+  curled: { curl: 1, quills: 0 },
+  profile: { curl: 0, quills: 0 },
+}
+
+const measured = new Map<HedgehogPose, { profile: SilhouetteProfile; size: number }>()
+
+/** The drawn hedgehog of a pose: its outline, and how much taller than the configured
+ *  height it stands so that its mean radius is the one the levels were tuned on. */
+function drawnBody(pose: HedgehogPose): { profile: SilhouetteProfile; size: number } {
+  let body = measured.get(pose)
+  if (!body) {
+    const art = HEDGEHOG_ART[pose]
+    const profile = measureSilhouette('erizo', POSE_STATE[pose], art.w / art.h)
+    body = { profile, size: mean(HEDGEHOG_SILHOUETTE[pose].radii) / mean(profile.radii) }
+    measured.set(pose, body)
+  }
+  return body
+}
+
+/** The drawn hedgehog's outline: what the anchors ring. */
+export function hedgehogSilhouette(pose: HedgehogPose): SilhouetteProfile {
+  return drawnBody(pose).profile
+}
+
+/** How much taller than its configured height the drawn body stands. */
+export function hedgehogBodySize(pose: HedgehogPose): number {
+  return drawnBody(pose).size
+}
+
 /** Linear interpolation of the measured radius table at an arbitrary
  *  degree, wrapping at 360 — `radii` is 24 equally spaced rays. */
 function radiusAt(profile: SilhouetteProfile, deg: number): number {
@@ -117,8 +153,8 @@ function radiusAt(profile: SilhouetteProfile, deg: number): number {
  */
 export function spineBody(cfg: SpineConfig): { href: string; box: ArtBox } {
   const art = HEDGEHOG_ART[cfg.pose]
-  const { centroid } = HEDGEHOG_SILHOUETTE[cfg.pose]
-  const box = placeArt({ w: art.w, h: art.h, grip: centroid }, cfg.body.height, cfg.body.centre)
+  const { profile, size } = drawnBody(cfg.pose)
+  const box = placeArt({ w: art.w, h: art.h, grip: profile.centroid as [number, number] }, cfg.body.height * size, cfg.body.centre)
   return { href: art.href, box }
 }
 
@@ -143,7 +179,7 @@ function bodyScale(cfg: SpineConfig): number {
  */
 export function spineAnchors(cfg: SpineConfig): readonly SpineAnchor[] {
   const art = HEDGEHOG_ART[cfg.pose]
-  const profile = HEDGEHOG_SILHOUETTE[cfg.pose]
+  const profile = hedgehogSilhouette(cfg.pose)
   const scale = bodyScale(cfg)
   const { centre } = cfg.body
   const { from, to } = cfg.arc
@@ -285,7 +321,7 @@ function angleBetweenDeg(ax: number, ay: number, bx: number, by: number): number
  */
 function crossesBody(stroke: readonly Point[], anchor: SpineAnchor, cfg: SpineConfig): boolean {
   const art = HEDGEHOG_ART[cfg.pose]
-  const profile = HEDGEHOG_SILHOUETTE[cfg.pose]
+  const profile = hedgehogSilhouette(cfg.pose)
   const scale = bodyScale(cfg)
   const { centre } = cfg.body
   // T39: the start zone around the anchor is measure 1's outer reach, not

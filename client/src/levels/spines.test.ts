@@ -3,6 +3,8 @@
 // convention `waypoints.test.ts` follows.
 import { describe, expect, it } from 'vitest'
 import type { Point } from '../letters/types'
+import { HEDGEHOG_ART, HEDGEHOG_SILHOUETTE } from '../detective/assets'
+import { puppetFigureFor } from '../puppet/ArtFigure'
 import { getLevel } from './catalog'
 import {
   DEMO_SPINES,
@@ -25,6 +27,9 @@ import {
   spineSpikePaths,
   type SpineAnchor,
   type SpineConfig,
+  hedgehogBodySize,
+  hedgehogSilhouette,
+  POSE_STATE,
 } from './spines'
 
 function makeConfig(over: Partial<SpineConfig> = {}): SpineConfig {
@@ -96,7 +101,7 @@ describe('spineBody', () => {
   it("places the grip point (the measured centroid) at cfg.body.centre", () => {
     const cfg = makeConfig()
     const { box } = spineBody(cfg)
-    const [gx, gy] = [0.5002, 0.5029] // HEDGEHOG_SILHOUETTE.curled.centroid
+    const [gx, gy] = hedgehogSilhouette('curled').centroid
     expect(box.x + gx * box.width).toBeCloseTo(cfg.body.centre.x, 3)
     expect(box.y + gy * box.height).toBeCloseTo(cfg.body.centre.y, 3)
   })
@@ -1017,5 +1022,27 @@ describe('every export runs with no DOM — no jsdom, no testing-library, no com
     expect(() => debugSpineStrokes(cfg, 2)).not.toThrow()
     expect(() => debugSpines(cfg, 2)).not.toThrow()
     expect(() => seedSpines(cfg, null)).not.toThrow()
+  })
+})
+
+describe('the marks ring the hedgehog that is drawn', () => {
+  it('measures the rig state the seam really draws for each pose', () => {
+    expect(puppetFigureFor(HEDGEHOG_ART.curled)?.state).toEqual(POSE_STATE.curled)
+    expect(puppetFigureFor(HEDGEHOG_ART.profile)?.state).toEqual(POSE_STATE.profile)
+  })
+
+  it('keeps the size the levels were tuned on: mean radius in sheet units is unchanged', () => {
+    for (const pose of ['curled', 'profile'] as const) {
+      const table = HEDGEHOG_SILHOUETTE[pose].radii
+      const drawn = hedgehogSilhouette(pose).radii
+      const meanOf = (v: readonly number[]): number => v.reduce((a, b) => a + b, 0) / v.length
+      expect(meanOf(drawn) * hedgehogBodySize(pose)).toBeCloseTo(meanOf(table), 5)
+    }
+  })
+
+  it('finds a ball round enough to ring: no ray more than a fifth off the mean', () => {
+    const { radii } = hedgehogSilhouette('curled')
+    const meanR = radii.reduce((a, b) => a + b, 0) / radii.length
+    for (const r of radii) expect(Math.abs(r - meanR) / meanR).toBeLessThan(0.2)
   })
 })
