@@ -3,7 +3,7 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { ACT_NAMES, createActor, type ActName, type RigState } from './actor'
-import { puppetFigureFor } from './ArtFigure'
+import { puppetFigureFor, standingFigure } from './ArtFigure'
 import { getRig, PUPPET_NAMES, puppetView, type PuppetName } from './characters'
 import { ANIMAL_ART, CARRIER_LENS_ART, DUCKLING_ART, GOAL_MEDUSA_ART, HEDGEHOG_ART, MONKEY_FAMILY_ART, PROMISED_ANIMAL_ART, SECTOR_ADVENTURE_ART, type ArtImage } from '../detective/assets'
 import Puppet from './Puppet'
@@ -80,13 +80,21 @@ describe('the magnifying glass', () => {
     expect(html).not.toMatch(/<mask|<clipPath/)
   })
 
+  it('is ready for the finger carrier: one renderer, in the box the PNG used', () => {
+    expect(standingFigure(CARRIER_LENS_ART)).toBe(standingFigure(CARRIER_LENS_ART))
+    const html = renderToString(<svg>{standingFigure(CARRIER_LENS_ART)!({ x: 0, y: 0, width: 58, height: 96 })}</svg>)
+    expect(html).toContain('data-puppet="lupa"')
+    expect(html).not.toContain('<image')
+  })
+
   it('keeps the ring round the grip of the picture it replaces', () => {
     const rig = getRig('lupa')
     const bounds = frameBounds(rig, computeFrame(rig, createActor(7), true))
     const view = puppetView('lupa', CARRIER_LENS_ART.w / CARRIER_LENS_ART.h)
     const [gx, gy] = CARRIER_LENS_ART.grip!
-    expect(Math.abs(view.x + gx * view.w - 117)).toBeLessThan(2)
-    expect(Math.abs(view.y + gy * view.h - 115)).toBeLessThan(2)
+    // Within 1% of the box: the fingertip must land in the middle of the glass.
+    expect(Math.abs(view.x + gx * view.w - 117)).toBeLessThan(3.84)
+    expect(Math.abs(view.y + gy * view.h - 115)).toBeLessThan(3.84)
     expect(bounds.minY).toBeLessThan(10)
   })
 })

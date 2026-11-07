@@ -3,7 +3,7 @@
 import { ell, lerp } from '../geometry'
 import { PAPER_INK, type RigBuilder, type RigUpdate } from '../rig'
 import { browPath } from './face'
-import { blob, cloud } from './shapes'
+import { blob } from './shapes'
 
 export const GALLINA_PALETTE = {
   ink: PAPER_INK,
@@ -45,13 +45,13 @@ export function drawGallina(p: RigBuilder): RigUpdate {
     { d: ell(270, 38, 30, 34), c: 'comb', part: 'neck/skull/combTop' },
     { d: ell(302, 68, 24, 27), c: 'comb', part: 'neck/skull/combTop' },
   ])
-  p.cluster([{ d: blob([304, 150], [336, 150], [344, 188], [324, 208], [304, 190]), c: 'comb', part: 'neck/skull/wattle' }])
+  p.cluster([{ d: blob([310, 142], [344, 144], [356, 182], [336, 206], [314, 186]), c: 'comb', part: 'neck/skull/wattle' }])
   p.cluster([{ d: 'M304 126C324 130 340 136 352 146C338 156 318 156 300 150Z', c: 'beakD', part: 'neck/skull/billLow' }])
-  p.cluster([{ d: 'M300 92C330 98 356 112 368 136C344 144 318 142 296 136Z', c: 'beak', part: 'neck/skull/billUp' }])
+  p.cluster([{ d: 'M298 84C332 90 360 108 370 134C346 146 318 144 294 138Z', c: 'beak', part: 'neck/skull/billUp' }])
   // Head and ruff are one paper piece, one shadow; the ruff hangs in scallops.
   p.cluster([
-    ...cloud(254, 226, 64, 34, 12, 26, 'ruff', 'neck', 0.3),
-    { d: blob([190, 100], [218, 60], [268, 50], [306, 82], [312, 128], [316, 176], [312, 232], [200, 232], [176, 170]), c: 'ruff', part: 'neck/skull' },
+    ...[[190, 226, 25], [220, 250, 27], [256, 258, 28], [292, 250, 27], [320, 226, 25]].map(([x, y, r]) => ({ d: ell(x, y, r, r), c: 'ruff', part: 'neck' })),
+    { d: blob([196, 96], [220, 58], [268, 50], [304, 82], [310, 128], [314, 182], [332, 226], [254, 250], [172, 226], [186, 164]), c: 'ruff', part: 'neck/skull' },
   ])
   p.flat(ell(250, 150, 14, 9), 'pink', { part: 'neck/skull' })
   p.eye('eye', 270, 112, 20, { part: 'neck/skull', ry: 24 })
