@@ -46,8 +46,6 @@ export type GameView =
   // closes the case in place.
   | { view: 'deduce'; caseId: string; afterLevelId?: string }
   | { view: 'close'; levelId: string; beat?: number }
-  // A finished word, on the notebook page, before the flow goes on.
-  | { view: 'keepsake'; levelId: string }
 
 /**
  * The identity `ScreenTransition` (prewriting-stage-completion T8 item 4)
@@ -71,8 +69,6 @@ export function screenTransitionKey(view: GameView): string {
       return `play:${view.levelId}`
     case 'close':
       return `close:${view.levelId}`
-    case 'keepsake':
-      return `keepsake:${view.levelId}`
     case 'deduce':
       return `deduce:${view.caseId}`
   }
@@ -636,6 +632,9 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
   // The gesture turning into the letter plays once per entry into a letter, before
   // its first step: local state, so a return from the map shows it again.
   const [morphsSeen, setMorphsSeen] = useState<readonly string[]>([])
+  // A finished word stays on its page a moment before the flow goes on. Local
+  // state too: nothing routes to it, and it is never a place to come back to.
+  const [keepsakeLevelId, setKeepsakeLevelId] = useState<string | null>(null)
 
   const goOnFrom = (levelId: string): void => {
     // `resolveNextAction` returns `NextAction` — `GameAction` widened
@@ -651,13 +650,18 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
     else dispatch(action)
   }
 
-  if (state.view === 'keepsake') {
-    const level = getLevel(state.levelId)
+  if (keepsakeLevelId) {
     return (
       <>
         <style>{ROOT_VIEW_TRANSITION_CSS}</style>
-        <ScreenTransition screenKey={screenTransitionKey(state)} kind={screenTransitionKind}>
-          <NotebookKeepsake level={level} onDone={() => goOnFrom(state.levelId)} />
+        <ScreenTransition screenKey={`keepsake:${keepsakeLevelId}`} kind={screenTransitionKind}>
+          <NotebookKeepsake
+            level={getLevel(keepsakeLevelId)}
+            onDone={() => {
+              setKeepsakeLevelId(null)
+              goOnFrom(keepsakeLevelId)
+            }}
+          />
         </ScreenTransition>
       </>
     )
@@ -740,7 +744,7 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
       setVersion((n) => n + 1)
     }
     const handleNext = (): void => {
-      if (level.notebook?.step === 'word') advanceView({ view: 'keepsake', levelId: state.levelId })
+      if (level.notebook?.step === 'word') setKeepsakeLevelId(state.levelId)
       else goOnFrom(state.levelId)
     }
     const morph = level.notebook?.morph

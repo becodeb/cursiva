@@ -72,9 +72,9 @@ const NOTEBOOK_CSS = `
 .cv-notebook-tab svg { width: 100%; height: 100%; display: block; }
 /* What the child wrote: their own strokes on the rule, nothing else on the page. */
 .cv-notebook-writing { position: relative; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 1.5dvh 2%; padding: 0 3% 2dvh; }
-.cv-notebook-written { flex: none; height: clamp(90px, 26dvh, 200px); padding: 0; border: none; background: none; cursor: pointer; }
+.cv-notebook-written { flex: none; max-width: 100%; height: clamp(90px, 26dvh, 200px); padding: 0; border: none; background: none; cursor: pointer; }
 .cv-notebook-written--word { height: clamp(100px, 34dvh, 260px); }
-.cv-notebook-written svg { height: 100%; width: auto; display: block; }
+.cv-notebook-written svg { height: 100%; width: 100%; display: block; }
 .cv-notebook-close { flex: none; width: max(44px, min(9dvh, 60px)); height: max(44px, min(9dvh, 60px)); box-sizing: border-box; border-radius: 50%; border: none; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
 /* One shared card face for both the tools strip and the animal grid —
    marker style: warm paper, thick dark ink outline, no shadow
@@ -180,11 +180,12 @@ function WrittenPiece({ writing }: { writing: Writing }) {
       type="button"
       className={isWord ? 'cv-notebook-written cv-notebook-written--word' : 'cv-notebook-written'}
       aria-label={writing.key}
+      style={{ aspectRatio: `${w} / ${h}` }}
       onClick={() => {
         if (canAutoSpeak()) speak(writing.key)
       }}
     >
-      <svg viewBox={viewBox} style={{ aspectRatio: `${w} / ${h}` }} aria-hidden="true" data-cv-picture="true">
+      <svg viewBox={viewBox} aria-hidden="true" data-cv-picture="true">
         <NotebookRule />
         {writing.strokes.map((stroke, i) => (
           <path

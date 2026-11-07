@@ -4709,6 +4709,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
           <span>Para dibujar cómodo, usá el juego en horizontal. Podés volver al mapa con el botón Volver.</span>
         </section>
       )}
+      {/* Under the canvas: on a phone a long word starts where he stands, and the
+       * start dot and the ink must stay on top of him. */}
+      {onNotebookPage && (
+        <span className="cv-nb-octopus" aria-hidden="true">
+          <ArtImg art={OCTOPUS_EMPTY_HANDED_ART} puppetRef={notebookFigureRef} />
+        </span>
+      )}
       <div className="cv-sheet">
         <TraceCanvas
         key={`${level.id}-${demoRun}`}
@@ -5025,11 +5032,6 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         </TraceCanvas>
       </div>
       {onNotebookPage && <NotebookFrame />}
-      {onNotebookPage && (
-        <span className="cv-nb-octopus" aria-hidden="true">
-          <ArtImg art={OCTOPUS_EMPTY_HANDED_ART} puppetRef={notebookFigureRef} />
-        </span>
-      )}
       <div className="cv-foot" ref={bottomChromeRef}>
       {/* T3 revision (orchestrator QA regression): this used to be a
        * `.cv-result` row in `.cv-foot`, first popping into existence on

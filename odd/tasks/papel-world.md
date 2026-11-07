@@ -53,8 +53,8 @@ defaults to confirm, not settled answers.
 - [x] T2 — Pulpito and duck on the engine, wired into one complete adventure (intro, level, closing, map). Route: delegated.
 - [x] T3 — Your stroke is the drawing: capture the real trace and replay it in the duck closing, then the other families. Route: delegated.
 - [x] T4 — Tentacle demo and wordless corrections with spoken feedback (`docs/25` P2-1). Route: delegated.
-- [ ] T5 — Fix the letter score (`docs/25` 4.1). Route: delegated.
-- [ ] T6 — The bridge to letters: bridge levels, the notebook, the letter sequence and its place in the journey (`docs/25` 4.2 to 4.6). Route: delegated.
+- [x] T5 — Fix the letter score (`docs/25` 4.1). Route: delegated. Calibration on real tablets still owed.
+- [x] T6 — The bridge to letters: bridge levels, the notebook, the letter sequence and its place in the journey (`docs/25` 4.2 to 4.6). Route: delegated. Real children still owed.
 - [x] T7 — The rest of the cast on the engine. Route: delegated, reviewed side by side. Merged in `2dc31e3` (20 characters). Parent review: bee, cow, snail and jellyfish strongest; hen, fish fins and monkey hands weakest, second pass pending. Surfaces still PNG on the trace screen move to T9.
 - [ ] T8 — Living map, album and the child's own Pulpito. Route: delegated.
 - [ ] T9 — Paper theatre: backgrounds, corridor, marks and transitions. Route: delegated.
@@ -115,6 +115,27 @@ the user's decisions.
 - Decisions to confirm: the hazard restart also speaks and points (the brief names the wall);
   the sound on restart is gone; the arm also replaces the idle-cue hand on all cues.
 
+- T5 done (`30b097d`): `canvas/validation/fluency.ts` reads speed in 120 ms windows and abrupt turns
+  along the arc (not counting the model's own), `backAndForth.ts` reads line drawn per route covered,
+  letter zones shrink to corridor/2 + 12 (`levels/buildLevel.ts`). Simulated at four event rates in
+  `testing/childStrokes.ts`: clean 100, wobbly 74 to 81, zigzag 0, all within a few points between rates.
+  Two `fluency.test.ts` cases changed premise: alternating steps on every 16 ms event is what event
+  delivery looks like, so "jerky" is now stops on a hand's time scale.
+- T6 done (`65b9632`, `133c9da`, `f4480b4` and the commit that records this). Four chapters, one row
+  each (`letters-mn`, `letters-u`, `letters-oa`, `letters-le`), each opening with its bridge level.
+  `levels/notebookLevels.ts` is the table. Letters on `screen/NotebookPaper.tsx` through `LevelPlay`,
+  morph in `screen/LetterMorph.tsx`, keepsake in `screen/NotebookKeepsake.tsx`, writing kept in
+  `cursiva.libreta.v1` (`zoo/notebookWriting.ts`), notebook's own page by a pencil icon.
+  Words: `mano`, `ola`, `luna`. Defaults recorded in `docs/25` §9.
+- Evidence: `npx vitest run --maxWorkers=2` 136 files, 4249 tests green; `npm run build` green. Real
+  drags through the bridge, morph, all of `o`, `a`, `mano`, keepsake, closing and notebook at
+  1024x768 and 844x390, plus `e`, `l`, `m`, `ola`, `luna` and the four bridges. A fresh profile reached
+  `duck-puente` through the map with no query string, skipping levels with the dev build's own button.
+- Open: `f3-*` keep their classic screen (dev link only). Guard tests whose premise changed: the catalog
+  tables now exclude the notebook levels, which `levels/notebookLevels.test.ts` checks instead.
+- Not checked: real children, real tablets, real touch (Playwright drove a mouse pointer; touch is only
+  in the simulated scoring), real speech timing against the demo.
+
 ## Next step
 
-Parent reads the T3 and T4 captures, then T5.
+User tests the letter stage. Then T8, T9, T10.
