@@ -831,3 +831,17 @@ describe('finaleBubblePlacement (promised-animals task B: "covers least" with no
     expect(placed.h).toBeCloseTo((240 * 372) / 488, 6)
   })
 })
+
+describe('finaleBubblePlacement with the animals standing (docs/18 §7 N1)', () => {
+  it('takes the corner that covers the least of them', () => {
+    const animals = [
+      { x: 175, y: 360, w: 50, h: 48 },
+      { x: 180, y: 90, w: 50, h: 48 },
+    ]
+    const overlap = (box: { x: number; y: number; w: number; h: number }) =>
+      animals.reduce((sum, o) => sum + Math.max(0, Math.min(box.x + box.w, o.x + o.w) - Math.max(box.x, o.x)) * Math.max(0, Math.min(box.y + box.h, o.y + o.h) - Math.max(box.y, o.y)), 0)
+    const placed = finaleBubblePlacement(animals)
+    expect(overlap(placed)).toBeLessThanOrEqual(overlap(finaleBubblePlacement()))
+    expect(overlap(placed)).toBe(0)
+  })
+})

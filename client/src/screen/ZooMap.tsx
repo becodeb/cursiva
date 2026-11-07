@@ -852,7 +852,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // zero-area target already has nothing to avoid, and the finale is a
   // one-off closing beat, not part of ordinary journey play).
   const bubblePlaced = finale
-    ? finaleBubblePlacement()
+    ? finaleBubblePlacement(recoveredBoxes)
     : bubbleSector?.hit
       ? bubblePlacement(bubbleSector.hit, recoveredBoxes)
       : null
