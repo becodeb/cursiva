@@ -57,9 +57,9 @@ const digit = (x: number, y: number, angle: number, length: number, width: numbe
 const hen = (spread: number): string =>
   digit(-10, 0, 0, 52, 8) + digit(-10, 0, spread, 44, 7) + digit(-10, 0, -spread, 44, 7) + digit(-10, 0, 180, 26, 6) + ell(-10, 0, 13, 13)
 
-/** Webbed: a fan cut as one piece, three pointed toes with the scallops between them. */
+/** Webbed: a short heel, three round toes and a shallow web between them, so it never reads as an arrow. */
 const web = (lean: number): string =>
-  `M-46 ${fmt(lean * 0.5 - 7)}Q-30 -8 -22 -8Q6 -30 34 -42Q28 -24 24 -13Q38 -8 50 ${fmt(lean)}Q38 8 24 13Q28 24 34 42Q6 30 -22 8Q-30 8 -46 ${fmt(lean * 0.5 + 7)}Z`
+  `M-46 -8Q-26 -8 -14 -15L30 -42Q46 -50 48 -34Q42 -20 36 -13Q44 ${fmt(lean - 14)} 52 ${fmt(lean - 7)}Q60 ${fmt(lean)} 52 ${fmt(lean + 7)}Q44 ${fmt(lean + 14)} 36 13Q42 20 48 34Q46 50 30 42L-14 15Q-26 8 -46 8Q-52 0 -46 -8Z`
 
 /** A palm and five fingers, the thumb spread to the side. */
 const hand = (spread: number): string => {

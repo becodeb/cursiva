@@ -172,6 +172,8 @@ the user's decisions.
   (still positive: 3.5, 2.9, 0.4, 0.7, so the start zones do not overlap, but hedgehog3 is tight); a record's
   size bound went from 2 kB to 6 kB; the journey no longer visits the three resting dotted levels.
 
+- Parent review after T8: the webfoot read as a plane, redrawn with round toes and a shallow web (`puppet/marks.ts`). Measured on `duck-trail6`: every mark faces within 62 degrees of the trail's direction, none backward. 142 files, 4416 tests green.
+
 ## What remains
 
 - **Real children and real tablets.** The chapter split, the gift moment, a tap on an animal standing in the
