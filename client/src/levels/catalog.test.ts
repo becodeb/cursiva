@@ -1370,7 +1370,7 @@ describe('LEVELS — the hedgehog family (radial-spines, design.md §8/§10/§11
       hedgehog1: 3.5,
       hedgehog2: 2.9,
       hedgehog3: 0.4,
-      hedgehog4: 1.9,
+      hedgehog4: 0.7,
     }
     for (const id of HEDGEHOG_IDS) {
       const cfg = getLevel(id).spines!

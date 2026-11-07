@@ -30,6 +30,11 @@ export function keepsakeLine(word: string): string {
   return `¡Escribiste ${word}! Lo guardo en la libreta.`
 }
 
+/** The end of a sitting says it is one: the map keeps the next letter for later. */
+export function sittingEndLine(named: string): string {
+  return `¡Ya sabés escribir ${named}! La guardo en la libreta. Seguimos cuando quieras.`
+}
+
 export function strokePath(stroke: Writing['strokes'][number]): string {
   return smoothStrokePath(stroke)
 }
@@ -57,7 +62,8 @@ export default function NotebookKeepsake({ level, onDone, writing }: NotebookKee
   const word = level.notebook?.text ?? ''
   const [shown] = useState(() => writing ?? loadWritings()[word] ?? null)
   const [calm] = useState(prefersReducedMotion)
-  useNarration(keepsakeLine(word))
+  const sittingEnd = level.notebook?.sittingEnd
+  useNarration(sittingEnd ? sittingEndLine(sittingEnd.named) : keepsakeLine(word))
   const doneRef = useRef(onDone)
   doneRef.current = onDone
   useEffect(() => {
@@ -91,7 +97,7 @@ export default function NotebookKeepsake({ level, onDone, writing }: NotebookKee
           <ArtImg art={OCTOPUS_EMPTY_HANDED_ART} still={calm} entrance={{ act: 'cheer', seconds: 3 }} />
         </span>
         <span className="cv-keepsake-animal">
-          <ArtImg art={level.notebook?.animal ?? ZOO_ANIMAL_ART.tortuga} still={calm} holding="cheer" />
+          <ArtImg art={sittingEnd?.animal ?? level.notebook?.animal ?? ZOO_ANIMAL_ART.tortuga} still={calm} holding="cheer" />
         </span>
       </button>
     </main>

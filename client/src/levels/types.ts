@@ -57,6 +57,8 @@ export interface LetterMorphConfig {
 
 export interface NotebookConfig {
   readonly step: NotebookStep
+  /** This letter ends a sitting: its keepsake goes back to the map. */
+  readonly sittingEnd?: { readonly named: string; readonly animal: ArtImage }
   /** What is being written: a letter, or a word. */
   readonly text: string
   /** The written step is judged by its shape, wherever on the page it landed. */

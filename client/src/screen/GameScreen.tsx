@@ -659,7 +659,10 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
             level={getLevel(keepsakeLevelId)}
             onDone={() => {
               setKeepsakeLevelId(null)
-              goOnFrom(keepsakeLevelId)
+              // A letter that ends a sitting goes back to the map, where the chapter
+              // waits on the very next step (`zoo/sectors.ts`'s `nextAdventure`).
+              if (getLevel(keepsakeLevelId).notebook?.sittingEnd) onExit()
+              else goOnFrom(keepsakeLevelId)
             }}
           />
         </ScreenTransition>
@@ -744,7 +747,7 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
       setVersion((n) => n + 1)
     }
     const handleNext = (): void => {
-      if (level.notebook?.step === 'word') setKeepsakeLevelId(state.levelId)
+      if (level.notebook?.step === 'word' || level.notebook?.sittingEnd) setKeepsakeLevelId(state.levelId)
       else goOnFrom(state.levelId)
     }
     const morph = level.notebook?.morph

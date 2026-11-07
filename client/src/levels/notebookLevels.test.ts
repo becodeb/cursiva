@@ -7,7 +7,7 @@ import { evaluateLevel } from '../game/evaluateLevel'
 import { EVENT_RATES, reportAt, wobblyFiveYearOldLine, zigzagLine } from '../testing/childStrokes'
 import { buildLevelTarget } from './buildLevel'
 import { DEGRADED_LEVEL_IDS, LEVELS, getLevel } from './catalog'
-import { BRIDGE_LEVELS, CHAPTER_LEVEL_IDS, LETTER_LEVELS, WORDS, WORD_LEVELS, letterLevelIds } from './notebookLevels'
+import { BRIDGE_LEVELS, CHAPTER_LEVEL_IDS, LETTER_LEVELS, RESTING_LEVEL_IDS, WORDS, WORD_LEVELS, letterLevelIds } from './notebookLevels'
 
 const ALL = [...BRIDGE_LEVELS, ...LETTER_LEVELS, ...WORD_LEVELS]
 
@@ -108,4 +108,46 @@ describe('the notebook levels', () => {
       expect(good.approved, JSON.stringify(good)).toBe(true)
     })
   }
+})
+
+describe('a chapter fits a sitting', () => {
+  const sittings = (ids: readonly string[]): string[][] => {
+    const out: string[][] = [[]]
+    for (const id of ids) {
+      out[out.length - 1].push(id)
+      if (getLevel(id).notebook?.sittingEnd) out.push([])
+    }
+    return out
+  }
+
+  it('never asks a child for more than five levels before the map', () => {
+    for (const ids of Object.values(CHAPTER_LEVEL_IDS)) {
+      for (const sitting of sittings(ids)) expect(sitting.length, sitting.join()).toBeLessThanOrEqual(5)
+    }
+  })
+
+  it('stops the two-letter chapters right after the first letter, on its last step', () => {
+    expect(CHAPTER_LEVEL_IDS.mn.indexOf('m-memoria')).toBe(4)
+    expect(getLevel('m-memoria').notebook?.sittingEnd?.named).toBe('la eme')
+    expect(getLevel('o-memoria').notebook?.sittingEnd?.named).toBe('la o')
+    expect(getLevel('l-memoria').notebook?.sittingEnd?.named).toBe('la ele')
+    expect(getLevel('u-memoria').notebook?.sittingEnd).toBeUndefined()
+  })
+
+  it('counts the levels the story now asks for', () => {
+    expect(CHAPTER_LEVEL_IDS.mn).toHaveLength(8)
+    expect(CHAPTER_LEVEL_IDS.u).toHaveLength(5)
+    expect(CHAPTER_LEVEL_IDS.oa).toHaveLength(9)
+    expect(CHAPTER_LEVEL_IDS.le).toHaveLength(10)
+  })
+
+  it('leaves out a dotted step only, and keeps those levels in the catalog', () => {
+    const inStory = new Set<string>(Object.values(CHAPTER_LEVEL_IDS).flat())
+    expect(RESTING_LEVEL_IDS).toEqual(['n-punteado', 'a-punteado', 'e-punteado'])
+    for (const id of RESTING_LEVEL_IDS) {
+      expect(inStory.has(id), id).toBe(false)
+      expect(getLevel(id).id).toBe(id)
+    }
+    for (const row of LETTER_LEVELS) if (!RESTING_LEVEL_IDS.includes(row.id)) expect(inStory.has(row.id), row.id).toBe(true)
+  })
 })

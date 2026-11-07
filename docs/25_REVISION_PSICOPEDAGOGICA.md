@@ -580,7 +580,7 @@ estos supuestos. Son valores por defecto para confirmar, no respuestas (`odd/tas
 | Pregunta de §8 | Se hizo así | Por qué, y qué cambia si la respuesta es otra |
 |---|---|---|
 | 1. Trazo de entrada | Las letras arrancan con entrada desde el renglón, como `f3-l` y `f3-o` | Es lo que dibujan los SVG de `letters/svg/`. Si la escuela arranca directo en la letra, hay que redibujar esas entradas |
-| 2. Sesión y quién para | El juego no corta: cada capítulo se puede dejar y el mapa lo retoma en el paso que quedó | Sin datos de duración real. Si la docente quiere cortes, van entre letras |
+| 2. Sesión y quién para | El juego propone parar entre las dos letras de un par y vuelve al mapa, sin obligar: un toque sigue en el paso que quedó (ver "Largo de un capítulo") | Sin datos de duración real. Si la docente quiere otros cortes, se mueven en la tabla de `levels/notebookLevels.ts` |
 | 3. Animal como misterio | Sigue siendo misterio hasta la deducción (revisión anterior, `caseMystery.test.ts`) | Sin cambio en esta tanda |
 | 4. Etapa de letras | Dentro de la historia: la libreta del detective (4.5), una página de papel recortado dibujada en código | Si se prefiere pantalla sobria, se cambia la página, no la secuencia |
 | 5. Cuaderno en paralelo | Pauta de tres zonas, con el cuerpo de la letra teñido | Si usan renglón simple, se saca la línea alta y el tinte |
@@ -594,6 +594,32 @@ a su gesto. Si la autora quiere `o a` primero, hay que reordenar el recorrido, n
 `buildWord` no sabe hacer el acento y escribiría `mama`. En las costuras del modelo hay un
 pequeño retroceso de 20 unidades (`combinations.ts`), que se ve en la guía como un guioncito;
 el corredor lo absorbe y no se le exige al trazo.
+
+**Largo de un capítulo.** Es el riesgo pedagógico principal: 9 niveles (`m n`) y 11 (`l e`) de
+corrido son mucho para un chico de 5 años. La duración sigue sin medirse (§7, tanda 1.6): según la
+estimación de `docs/21` §5, un nivel de letra con su demo y su frase ronda los 45–60 s, con
+reintentos más, así que 9–11 niveles son 8–15 minutos *además* de la aventura que los precede. Se
+decidió:
+
+- **Una parada natural después de la primera letra del par.** Al terminar `m-memoria`, `o-memoria`
+  o `l-memoria`, el chico ve su letra en la libreta, el Pulpito dice "¡Ya sabés escribir la eme! La
+  guardo en la libreta. Seguimos cuando quieras" y vuelve al mapa. Nada se pierde: el foco sigue en
+  ese sector y un toque entra en el paso que quedó (`nextAdventure`). Si el chico quiere seguir,
+  sigue.
+- **La segunda letra sin el paso punteado**: ya conoce la rutina, y calcar y después copiar es lo
+  que pide la evidencia (C8). `n-punteado`, `a-punteado` y `e-punteado` siguen en el catálogo, con
+  su id, pero fuera del recorrido.
+
+| Capítulo | Antes | Ahora | Tandas |
+|---|---|---|---|
+| `m n` | 9 | 8 | 5 + 3 |
+| `u` | 5 | 5 | 5 |
+| `o a` + `mano` | 10 | 9 | 5 + 4 |
+| `l e` + `ola`, `luna` | 11 | 10 | 5 + 5 |
+
+Ninguna tanda pasa de cinco niveles. Es una decisión de escritorio: hay que confirmarla con chicos
+reales y con el dato de la tanda 1.6. Si cinco siguen siendo muchos, el corte que sigue es entre
+copia y memoria, no sacar más niveles.
 
 **Niveles.** Cada letra son cuatro niveles guardados: `<letra>-calco` (demo y corredor),
 `-punteado`, `-copia`, `-memoria`, más un nivel puente por familia (`duck-puente`,

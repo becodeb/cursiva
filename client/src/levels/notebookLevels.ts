@@ -47,6 +47,8 @@ interface LetterRow {
   /** Spoken while the arm draws it. */
   readonly description: string
   readonly morph: LetterMorphConfig
+  /** The first letter of a pair ends a sitting: back to the map, the rest waits there. */
+  readonly sittingEnd?: { readonly named: string; readonly animal: ArtImage }
 }
 
 function morph(bridgeLevelId: string, family: string, fraction: number, named: string): LetterMorphConfig {
@@ -60,6 +62,7 @@ const LETTERS: readonly LetterRow[] = [
     char: 'm',
     description: 'Subo y bajo, tres puentes, sin levantar el dedo. ¡Mirá!',
     morph: morph('duck-puente', 'duck', 1, 'la eme'),
+    sittingEnd: { named: 'la eme', animal: ZOO_ANIMAL_ART.pato },
   },
   {
     char: 'n',
@@ -75,6 +78,7 @@ const LETTERS: readonly LetterRow[] = [
     char: 'o',
     description: 'Subo, doy la vuelta para atrás y termino arriba, en la rayita.',
     morph: morph('turtle-puente', 'turtles', 1 / 3, 'la o'),
+    sittingEnd: { named: 'la o', animal: ZOO_ANIMAL_ART.tortuga },
   },
   {
     char: 'a',
@@ -85,6 +89,7 @@ const LETTERS: readonly LetterRow[] = [
     char: 'l',
     description: 'Subo bien alto, doy la vuelta y bajo derecho a la raya.',
     morph: morph('monkey-puente', 'monkeys', 1 / 3, 'la ele'),
+    sittingEnd: { named: 'la ele', animal: ZOO_ANIMAL_ART.mono },
   },
   {
     char: 'e',
@@ -169,9 +174,15 @@ function letterLevels(row: LetterRow): LevelConfig[] {
       guideBand: 'none',
       demoSeconds: 5,
       keepWriting: char,
-      notebook: { step: 'memory', text: char, freehand: true },
+      notebook: { step: 'memory', text: char, freehand: true, ...(row.sittingEnd ? { sittingEnd: row.sittingEnd } : null) },
     },
   ]
+}
+
+/** Calco, copia, memoria: the routine again, without its dotted step. */
+function secondLetterIds(char: string): readonly string[] {
+  const [trace, , copy, memory] = letterLevelIds(char)
+  return [trace, copy, memory]
 }
 
 interface WordRow {
@@ -282,8 +293,14 @@ export const WORD_LEVELS: readonly LevelConfig[] = WORDS.map(wordLevel)
 /** The levels of each chapter, in play order. Here rather than in `zoo/`, because
  *  both the sectors and the adventures read it and adventures imports sectors. */
 export const CHAPTER_LEVEL_IDS = {
-  mn: ['duck-puente', ...letterLevelIds('m'), ...letterLevelIds('n')],
+  mn: ['duck-puente', ...letterLevelIds('m'), ...secondLetterIds('n')],
   u: ['fish-puente', ...letterLevelIds('u')],
-  oa: ['turtle-puente', ...letterLevelIds('o'), ...letterLevelIds('a'), 'palabra-mano'],
-  le: ['monkey-puente', ...letterLevelIds('l'), ...letterLevelIds('e'), 'palabra-ola', 'palabra-luna'],
+  oa: ['turtle-puente', ...letterLevelIds('o'), ...secondLetterIds('a'), 'palabra-mano'],
+  le: ['monkey-puente', ...letterLevelIds('l'), ...secondLetterIds('e'), 'palabra-ola', 'palabra-luna'],
 } as const
+
+/** A second letter's dotted step is left out of the story: the child already knows the
+ *  routine, and tracing then copying is what the evidence asks for (`docs/25` C8). The
+ *  levels stay in the catalog, because a level id is never deleted: a child who filed
+ *  one keeps it, and a dev link still opens it. */
+export const RESTING_LEVEL_IDS: readonly string[] = ['n', 'a', 'e'].map((char) => `${char}-punteado`)

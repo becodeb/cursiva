@@ -1,6 +1,7 @@
 // JOURNEY / nextJourneyStep tests (adventure-flow-and-map-guidance T4).
 // Node environment, no DOM — every function under test is pure over plain
 // data, the same convention `sectors.test.ts`/`adventures.test.ts` use.
+import { RESTING_LEVEL_IDS } from '../levels/notebookLevels'
 import { describe, expect, it } from 'vitest'
 import { EMPTY_RECORD, type LevelRecord } from '../game/types'
 import { ADVENTURES, adventureFor } from './adventures'
@@ -263,7 +264,10 @@ describe('the letters on the journey (`docs/25` P1-2: no child ever reached one)
       records = { ...records, ...filed(...idsFor(entryLevel)) }
     }
     for (const char of 'mnuoale') {
-      for (const step of ['calco', 'punteado', 'copia', 'memoria']) expect(seen).toContain(`${char}-${step}`)
+      for (const step of ['calco', 'copia', 'memoria']) expect(seen).toContain(`${char}-${step}`)
     }
+    // The dotted step is every first letter's; a second one already knows the routine.
+    for (const char of 'muol') expect(seen).toContain(`${char}-punteado`)
+    for (const id of RESTING_LEVEL_IDS) expect(seen).not.toContain(id)
   })
 })
