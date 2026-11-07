@@ -193,9 +193,10 @@ describe('the clue marks are drawn over the start octopus', () => {
     )
     const glassAt = html.indexOf(OCTOPUS_ART.href)
     const emptyAt = html.indexOf(OCTOPUS_EMPTY_HANDED_ART.href)
-    // A clue mark is an <image> centred by its own transform (the HUD's clue
+    // A clue mark is a paper path placed by its own transform (the HUD's clue
     // pictures elsewhere on the screen are not).
-    const clueAt = html.search(/<image href="[^"]*" x="[^"]*" y="[^"]*" width="[^"]*" height="[^"]*" transform="translate\(/)
+    // (The first is the route's end, which stands under the octopus on purpose.)
+    const clueAt = [...html.matchAll(/<path [^>]*data-art="\/art\/clue-[^"]*" transform="translate\(/g)][1]?.index ?? -1
     expect(glassAt).toBeGreaterThan(-1)
     expect(emptyAt).toBeGreaterThan(-1)
     expect(clueAt, 'no clue mark rendered').toBeGreaterThan(-1)

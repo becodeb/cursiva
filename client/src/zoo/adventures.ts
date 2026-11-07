@@ -901,6 +901,6 @@ export function bubblePlacement(targetHit: Rect, avoid: readonly Rect[] = []): B
  * name here, keeps this placement automatically correct if `BUBBLE_ANCHORS`
  * or the stage geometry ever change.
  */
-export function finaleBubblePlacement(): BubbleBox {
-  return bubblePlacement({ x: PLAZA_CENTRE.x, y: PLAZA_CENTRE.y, w: 0, h: 0 })
+export function finaleBubblePlacement(avoid: readonly Rect[] = []): BubbleBox {
+  return bubblePlacement({ x: PLAZA_CENTRE.x, y: PLAZA_CENTRE.y, w: 0, h: 0 }, avoid)
 }

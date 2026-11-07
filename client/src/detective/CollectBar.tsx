@@ -22,6 +22,7 @@
 // authors `collect` — the same absolutely-positioned centred slot in
 // `.cv-head` either bar occupies, never both at once, so this adds no row and
 // no height (the T3/T5/T7 lesson `TrailProgressBar.tsx`'s own header cites).
+import { ArtImg, ArtInSvg } from '../puppet/ArtFigure'
 import { useRef } from 'react'
 import { isPlaceholderArt, type ArtImage } from './assets'
 import { PlaceholderAnimalBadge } from './icons'
@@ -89,7 +90,7 @@ export default function CollectBar({ collected, art, arts }: CollectBarProps) {
                 (placeholder ? (
                   <PlaceholderAnimalBadge className="pistas-flight" style={{ width: MARK_HEIGHT, height: MARK_HEIGHT }} />
                 ) : (
-                  <img className="pistas-flight" src={slotArt.href} width={width} height={MARK_HEIGHT} alt="" aria-hidden="true" />
+                  <ArtImg art={slotArt} className="pistas-flight" style={{ width, height: MARK_HEIGHT }} />
                 ))}
               <svg
                 className="pistas-slot"
@@ -114,14 +115,7 @@ export default function CollectBar({ collected, art, arts }: CollectBarProps) {
                   (placeholder ? (
                     <PlaceholderAnimalBadge x={12 - MARK_HEIGHT / 2} y={12 - MARK_HEIGHT / 2} width={MARK_HEIGHT} height={MARK_HEIGHT} />
                   ) : (
-                    <image
-                      href={slotArt.href}
-                      x={12 - width / 2}
-                      y={12 - MARK_HEIGHT / 2}
-                      width={width}
-                      height={MARK_HEIGHT}
-                      preserveAspectRatio="xMidYMid meet"
-                    />
+                    <ArtInSvg art={slotArt} box={{ x: 12 - width / 2, y: 12 - MARK_HEIGHT / 2, width, height: MARK_HEIGHT }} />
                   ))}
               </svg>
             </span>

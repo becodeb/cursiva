@@ -31,6 +31,7 @@
 import { useState, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
 import { ZOO_MAP_ART, ZOO_CARETAKER_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import { ArtBackdrop, SCENE_CSS } from '../puppet/scene/Scene'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { PROLOGUE_PLATES, advancePlate } from '../zoo/prologue'
 import { useNarration } from '../voice/useNarration'
@@ -253,14 +254,14 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
 
   return (
     <main className="cv-prologue">
-      <style>{PROLOGUE_CSS}</style>
+      <style>{PROLOGUE_CSS + SCENE_CSS}</style>
       {/* docs/16 §4's own beat 0 brief: "el zoológico abierto y con
           animales" — the map art is the only shipped picture of the whole,
           populated zoo (`zoo/prologue.ts`'s own header on why no new art
           was commissioned for this). Shared, unchanged, across all three
           plates — the scene does not change while the caretaker talks, only
           the map itself does once the child reaches it for real. */}
-      <img className="cv-prologue-backdrop" src={ZOO_MAP_ART.href} alt="" />
+      <ArtBackdrop className="cv-prologue-backdrop" art={ZOO_MAP_ART} />
       <div className="cv-prologue-frame">
         <button type="button" className="cv-prologue-stage" onClick={handleTap}>
           <span className="cv-prologue-octopus" style={{ [stance.corner]: `${octopusBox.x}%` } as CSSProperties}>

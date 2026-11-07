@@ -117,6 +117,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { LUPA_VT_CSS, LUPA_WIPE_CSS, lupaRimOriginStyle } from './lupaWipe'
 import { TRANSITION_LENS_ART } from '../detective/assets'
+import { ArtImg } from '../puppet/ArtFigure'
 
 /** How long the native View Transition's own circle grows for — matches
  *  `WIPE_DURATION_MS` below so the two paths feel the same regardless of
@@ -221,7 +222,7 @@ export default function ScreenTransition({ screenKey, kind = 'wipe', origin, chi
         {children}
         <div className="cv-lupa-rim cv-lupa-rim--vt" style={lupaRimOriginStyle(origin)} aria-hidden="true">
           <div className="cv-lupa-circle">
-            <img className="cv-lupa-lens" src={TRANSITION_LENS_ART.href} alt="" />
+            <ArtImg art={TRANSITION_LENS_ART} className="cv-lupa-lens" />
           </div>
         </div>
       </div>
@@ -248,7 +249,7 @@ export default function ScreenTransition({ screenKey, kind = 'wipe', origin, chi
       </div>
       <div className="cv-lupa-rim" style={lupaRimOriginStyle(origin)} aria-hidden="true">
         <div className="cv-lupa-circle">
-          <img className="cv-lupa-lens" src={TRANSITION_LENS_ART.href} alt="" />
+          <ArtImg art={TRANSITION_LENS_ART} className="cv-lupa-lens" />
         </div>
       </div>
     </div>

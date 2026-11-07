@@ -31,6 +31,7 @@
 // `<radialGradient>`, `<filter>`, `<mask>` or `<clipPath>`. An `<image>`
 // needs none of them, which is precisely why it is the mechanism that
 // survives the ban.
+import { ArtImg, ArtInSvg } from '../puppet/ArtFigure'
 import { CLUE_ART, LAMP_ART, type ClueKind } from './assets'
 import { CLUE_DRAINED } from './palette'
 
@@ -155,14 +156,7 @@ function Slot({ slot }: { slot: PistasSlot | undefined }) {
       data-filed={filed ? 'true' : 'false'}
     >
       {filed && art && (
-        <img
-          className="pistas-flight"
-          src={art.href}
-          width={markWidth}
-          height={markHeight}
-          alt=""
-          aria-hidden="true"
-        />
+        <ArtImg art={art} className="pistas-flight" style={{ width: markWidth, height: markHeight }} />
       )}
       <svg
         className="pistas-slot"
@@ -185,14 +179,7 @@ function Slot({ slot }: { slot: PistasSlot | undefined }) {
           opacity={slot ? 1 : 0.55}
         />
         {art && (
-          <image
-            href={art.href}
-            x={12 - markWidth / 2}
-            y={12 - markHeight / 2}
-            width={markWidth}
-            height={markHeight}
-            preserveAspectRatio="xMidYMid meet"
-          />
+          <ArtInSvg art={art} box={{ x: 12 - markWidth / 2, y: 12 - markHeight / 2, width: markWidth, height: markHeight }} />
         )}
       </svg>
     </span>

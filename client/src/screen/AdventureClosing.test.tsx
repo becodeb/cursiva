@@ -67,7 +67,7 @@ describe('AdventureClosing (main-screen spec "AdventureClosing Screen Renders th
   it("renders beat.art's href and beat.line for sendero's first beat", () => {
     const beat = sendero.closingBeat![0]
     const html = renderToString(<AdventureClosing adventure={sendero} beat={beat} onContinue={() => {}} />)
-    expect(html).toContain(`href="${beat.art.href}"`)
+    expect(html).toContain(`data-art="${beat.art.href}"`)
     expect(html.split(beat.line).length - 1).toBe(1)
   })
 

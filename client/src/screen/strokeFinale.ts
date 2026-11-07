@@ -3,7 +3,8 @@
 // so `StrokeFinale.tsx` only writes attributes and every moment can be tested
 // without a DOM. The line is scaled uniformly and never reshaped: the wobble the
 // child drew is the wobble the duck rides.
-import { clamp, fmt, lerp, tubePath, type Vec } from '../puppet/geometry'
+import { getCharacterView } from '../puppet/characters'
+import { clamp, fmt, lerp, smoothClosed, tubePath, type Vec } from '../puppet/geometry'
 import type { AdventureFinale, FinaleKind } from '../zoo/adventures'
 import type { TracedLine } from '../zoo/tracedLine'
 
@@ -39,6 +40,8 @@ export interface FinaleProp {
   readonly life?: number
   /** How far it drifts up over its life. */
   readonly rise?: number
+  /** How it lies, degrees. */
+  readonly turn?: number
 }
 
 export interface FinaleStrip {
@@ -103,8 +106,46 @@ export interface FinaleFrame {
 
 const ease = (t: number): number => t * t * (3 - 2 * t)
 
-function pathOf(points: readonly Vec[], closed = false): string {
-  return `M${points.map((p) => `${fmt(p[0])} ${fmt(p[1])}`).join('L')}${closed ? 'Z' : ''}`
+/** A curve through every point the child's line kept: the wobble stays, the corners
+ *  a simplified polyline would add do not. Never fitted: each point is on the curve. */
+function curveOf(points: readonly Vec[]): string {
+  const at = (i: number): Vec => points[Math.max(0, Math.min(points.length - 1, i))]
+  let d = `M${fmt(points[0][0])} ${fmt(points[0][1])}`
+  for (let i = 0; i < points.length - 1; i++) {
+    const [a, b, c, e] = [at(i - 1), at(i), at(i + 1), at(i + 2)]
+    d += `C${fmt(b[0] + (c[0] - a[0]) / 6)} ${fmt(b[1] + (c[1] - a[1]) / 6)} ${fmt(c[0] - (e[0] - b[0]) / 6)} ${fmt(c[1] - (e[1] - b[1]) / 6)} ${fmt(c[0])} ${fmt(c[1])}`
+  }
+  return d
+}
+
+/** The same line, calmer: what a surface looks like further from the top. */
+function calmed(points: readonly Vec[], window: number): Vec[] {
+  return points.map((_, i): Vec => {
+    let x = 0
+    let y = 0
+    let n = 0
+    for (let j = i - window; j <= i + window; j++) {
+      const q = points[Math.max(0, Math.min(points.length - 1, j))]
+      x += q[0]
+      y += q[1]
+      n++
+    }
+    return [x / n, y / n]
+  })
+}
+
+const SWELL_REACH = 620
+const SWELL_STEP = 62
+
+/** The surface past the line's own ends: a swell that dies away, so the child's line
+ *  runs on into the place instead of stopping at a flat step. `side` is -1 or 1. */
+function swell(from: Vec, side: -1 | 1, height: number): Vec[] {
+  const out: Vec[] = []
+  for (let d = SWELL_STEP; d <= SWELL_REACH; d += SWELL_STEP) {
+    const fade = 1 - d / SWELL_REACH
+    out.push([from[0] + side * d, from[1] - Math.sin((d / SWELL_REACH) * Math.PI * 3) * height * fade])
+  }
+  return out
 }
 
 /** Seen from the point it travels: cumulative arc length of a polyline. */
@@ -170,23 +211,24 @@ export function firstLoop(points: readonly Vec[]): Vec[] {
   return points.slice()
 }
 
-/** The ground under a line: the line as its top edge, carried off both sides. */
-function groundUnder(track: readonly Vec[], dx = 0, dy = 0): string {
-  const first = track[0]
-  const last = track[track.length - 1]
-  const [left, right] = first[0] <= last[0] ? [first, last] : [last, first]
-  const ordered = first[0] <= last[0] ? track : [...track].reverse()
-  const top = ordered.map((p): Vec => [p[0] + dx, p[1] + dy])
-  return pathOf(
-    [
-      [-OFF_STAGE, left[1] + dy],
-      ...top,
-      [OFF_STAGE, right[1] + dy],
-      [OFF_STAGE, OFF_STAGE],
-      [-OFF_STAGE, OFF_STAGE],
-    ],
-    true,
-  )
+/** The ground under a line: the line as its top edge, carried off both sides on a
+ *  dying swell. `calm` softens it, for a sheet further from the line itself. */
+function groundUnder(track: readonly Vec[], dy = 0, calm = 0, swellHeight = 22): string {
+  const ordered = track[0][0] <= track[track.length - 1][0] ? track : [...track].reverse()
+  const top = (calm > 0 ? calmed(ordered, calm) : ordered).map((p): Vec => [p[0], p[1] + dy])
+  const first = top[0]
+  const last = top[top.length - 1]
+  const surface = [...swell(first, -1, swellHeight).reverse(), ...top, ...swell(last, 1, swellHeight)]
+  const ends: Vec = [surface[0][0] - OFF_STAGE, surface[0][1]]
+  const far: Vec = [surface[surface.length - 1][0] + OFF_STAGE, surface[surface.length - 1][1]]
+  return `${curveOf([ends, ...surface, far])}L${fmt(far[0])} ${OFF_STAGE}L${fmt(ends[0])} ${OFF_STAGE}Z`
+}
+
+/** A level surface with a slow wave, for water that is not made of the line. */
+function waterSheet(y: number, height: number, phase: number): string {
+  const top: Vec[] = []
+  for (let x = -800; x <= 1800; x += 70) top.push([x, y + Math.sin(x / 92 + phase) * height])
+  return `${curveOf(top)}L1800 ${OFF_STAGE}L-800 ${OFF_STAGE}Z`
 }
 
 /** A prop roughly every `every` units of the track, timed to when the animal
@@ -225,6 +267,14 @@ interface Composed {
 
 const WIDE_BOX = { x: 70, y: 200, w: 860, h: 250 }
 
+/** The turtle's shell on her rig (`puppet/characters/tortuga.ts`): the plate covers it. */
+const TURTLE_SHELL = { left: 36, right: 314, top: 24, bottom: 214 } as const
+const SHELL_PLATE = '#74c63f'
+const SHELL_RIM = '#25583c'
+/** The monkey's raised hand on its rig (`puppet/characters/mono.ts`, `pose` 0). */
+const MONKEY_HAND: Vec = [234, 38]
+const LIANA = '#3f6f32'
+
 type Composer = (line: TracedLine, joined: readonly Vec[], finale: AdventureFinale, artAspect: number) => Composed
 
 function joinedFit(line: TracedLine, joined: readonly Vec[], box: { x: number; y: number; w: number; h: number }): Vec[] {
@@ -243,8 +293,8 @@ const COMPOSERS: Readonly<Record<FinaleKind, Composer>> = {
       // visibly made of it. Nearest last: a deeper sheet lies over the one above.
       fills: [
         { d: groundUnder(track), colour: top, rise: 420, from: 0.5, to: 1.2 },
-        { d: groundUnder(track, 26, 72), colour: middle, rise: 420, from: 0.62, to: 1.32 },
-        { d: groundUnder(track, -18, 150), colour: deep, rise: 420, from: 0.74, to: 1.44 },
+        { d: groundUnder(track, 66, 4, 16), colour: middle, rise: 420, from: 0.62, to: 1.32 },
+        { d: groundUnder(track, 138, 10, 10), colour: deep, rise: 420, from: 0.74, to: 1.44 },
       ],
       carriage: { size: 165, anchor: 0.12, lean: 0.4, motion: 'float', front: true },
     }
@@ -268,8 +318,8 @@ const COMPOSERS: Readonly<Record<FinaleKind, Composer>> = {
       strokes: [track],
       strip: { colour: '#e8f7f8', width: 10, edge: 4 },
       fills: [
-        { d: pathOf([[-OFF_STAGE, surface + 26], [OFF_STAGE, surface + 26], [OFF_STAGE, OFF_STAGE], [-OFF_STAGE, OFF_STAGE]], true), colour: deep, rise: 260, from: 0.4, to: 1.1 },
-        { d: pathOf([[-OFF_STAGE, surface + 60], [OFF_STAGE, surface + 60], [OFF_STAGE, OFF_STAGE], [-OFF_STAGE, OFF_STAGE]], true), colour: top, rise: 260, from: 0.5, to: 1.2 },
+        { d: waterSheet(surface + 26, 7, 0), colour: deep, rise: 260, from: 0.4, to: 1.1 },
+        { d: waterSheet(surface + 60, 8, 1.7), colour: top, rise: 260, from: 0.5, to: 1.2 },
       ],
       props,
       carriage: { size: 140, anchor: 0.5, lean: 1, motion: 'none', front: true },
@@ -283,8 +333,8 @@ const COMPOSERS: Readonly<Record<FinaleKind, Composer>> = {
       strokes: [track],
       strip: { colour: '#fbf6e4', width: 10, edge: 0 },
       fills: [
-        { d: groundUnder(track, 70, -30), colour: far, rise: 380, from: 0.5, to: 1.2 },
-        { d: groundUnder(track), colour: near, rise: 380, from: 0.7, to: 1.4 },
+        { d: groundUnder(track, -34, 9, 30), colour: far, rise: 380, from: 0.5, to: 1.2 },
+        { d: groundUnder(track, 0, 0, 30), colour: near, rise: 380, from: 0.7, to: 1.4 },
       ],
       carriage: { size: 150, anchor: 0.06, lean: 0.4, motion: 'walk', front: true },
     }
@@ -299,41 +349,82 @@ const COMPOSERS: Readonly<Record<FinaleKind, Composer>> = {
     const local = turned.map((p): Vec => [p[0] - size.x, p[1] - size.y])
     const track = fitStrokes([local], { w: size.w, h: size.h }, { x: 330, y: 190, w: 320, h: 225 })[0]
     const fit = boundsOf(track)
-    const [plate, strip] = finale.tint ?? ['#a9c777', '#4f7f4a']
+    const [plate, strip] = finale.tint ?? [SHELL_PLATE, SHELL_RIM]
     const centre: Vec = [fit.x + fit.w / 2, fit.y + fit.h / 2]
-    const scutes = Math.max(5, Math.min(7, Math.round(boundsOf(track).w / 55)))
+    const scutes = Math.max(5, Math.min(7, Math.round(fit.w / 55)))
     const arcs = arcLengths(track)
     const perimeter = arcs[arcs.length - 1]
     const props = Array.from({ length: scutes }, (_, i): FinaleProp => {
       const p = pointAtArc(track, arcs, (perimeter * i) / scutes)
-      return { kind: 'scute', x: lerp(p[0], centre[0], 0.5), y: lerp(p[1], centre[1], 0.5), size: 20, at: 2.6 + i * 0.07 }
+      const toward = (Math.atan2(centre[1] - p[1], centre[0] - p[0]) * 180) / Math.PI
+      return { kind: 'scute', x: lerp(p[0], centre[0], 0.42), y: lerp(p[1], centre[1], 0.42), size: fit.h * 0.14, turn: toward, at: 2.6 + i * 0.07 }
     })
-    // The art's own back spans about this share of its width: it ends up under the line.
-    const artWidth = fit.w / 0.58
+    // The turtle's real shell, measured off her rig, ends up just inside the line: her
+    // head and legs stick out of the child's own oval, whatever its proportions.
+    const view = getCharacterView('tortuga', artAspect)
+    const scale = Math.min(fit.w / (TURTLE_SHELL.right - TURTLE_SHELL.left), fit.h / (TURTLE_SHELL.bottom - TURTLE_SHELL.top)) * 0.98
+    const heart: Vec = [(TURTLE_SHELL.left + TURTLE_SHELL.right) / 2, (TURTLE_SHELL.top + TURTLE_SHELL.bottom) / 2]
     return {
       strokes: [[...track, track[0]]],
-      strip: { colour: strip, width: 18, edge: 5 },
-      fills: [{ d: pathOf(track, true), colour: plate, rise: 0, from: 2.2, to: 2.7 }],
+      strip: { colour: strip, width: 13, edge: 0 },
+      fills: [{ d: smoothClosed(track), colour: plate, rise: 0, from: 2.2, to: 2.7 }],
       props,
       track: [centre, centre],
-      carriage: { size: artWidth / artAspect, anchor: 0.6, pivotX: 0.42, lean: 0, motion: 'none', front: false },
+      carriage: {
+        size: view.h * scale,
+        anchor: 1 - (heart[1] - view.y) / view.h,
+        pivotX: (heart[0] - view.x) / view.w,
+        lean: 0,
+        motion: 'none',
+        front: false,
+      },
       draw: [0.2, 2.4],
       move: [2.7, 4.2],
     }
   },
   // The loops become lianas, hung from the top of the stage.
-  lianas: (line, joined, finale) => {
-    const track = joinedFit(line, joined, { x: 70, y: 110, w: 860, h: 230 })
-    const [vine] = finale.tint ?? ['#4f8a43']
+  lianas: (line, joined, finale, artAspect) => {
+    const track = joinedFit(line, joined, { x: 90, y: 170, w: 820, h: 215 })
+    const [vine] = finale.tint ?? [LIANA]
     const tops = track.filter((p, i) => i > 0 && i < track.length - 1 && p[1] < track[i - 1][1] && p[1] <= track[i + 1][1])
-    const spaced = tops.filter((p, i) => i === 0 || Math.abs(p[0] - tops[i - 1][0]) > 90)
+    // Every loop is held up by its top, but only a few vines reach the canopy: more
+    // than this and the eye reads a cage instead of something to swing from.
+    const hung = tops.reduce<Vec[]>((kept, p) => {
+      if (kept.length === 0 || Math.abs(p[0] - kept[kept.length - 1][0]) > 220) kept.push(p)
+      return kept
+    }, [])
+    if (hung.length === 0) hung.push(track[0])
+    const canopy = (bump: number): string => {
+      const edge: Vec[] = []
+      for (let x = -800; x <= 1800; x += 84) edge.push([x, 44 + bump + Math.sin(x / 50) * 16])
+      return `${curveOf(edge)}L1800 -${OFF_STAGE}L-800 -${OFF_STAGE}Z`
+    }
+    // The monkey's raised hand, measured off the rig, is what rides the line.
+    const view = getCharacterView('mono', artAspect, { pose: 0 })
     return {
       strokes: [track],
-      strip: { colour: vine, width: 15, edge: 4 },
-      hangs: (spaced.length > 0 ? spaced : [track[0]]).map((p) => pathOf([[p[0], -OFF_STAGE], p])),
-      props: alongTrack(track, 110, (f) => lerp(0.1, DRAW_END, f), (p, at): FinaleProp => ({ kind: 'leaf', x: p[0], y: p[1], size: 22, at })),
-      // Held by its raised hand, which the art carries at its top left.
-      carriage: { size: 165, anchor: 0.98, pivotX: 0.13, lean: 0, motion: 'swing', front: true },
+      strip: { colour: vine, width: 11, edge: 0 },
+      hangs: hung.map((p) =>
+        curveOf([
+          [p[0] + 26, 20],
+          [p[0] + 34, lerp(20, p[1], 0.36)],
+          [p[0] + 12, lerp(20, p[1], 0.72)],
+          p,
+        ]),
+      ),
+      fills: [
+        { d: canopy(22), colour: '#4f8f45', rise: 0, from: 0, to: 0.4 },
+        { d: canopy(0), colour: '#3f7f3f', rise: 0, from: 0.05, to: 0.45 },
+      ],
+      props: alongTrack(track, 130, (f) => lerp(0.1, DRAW_END, f), (p, at, i): FinaleProp => ({ kind: 'leaf', x: p[0], y: p[1], size: 20, turn: i % 2 === 0 ? -34 : 28, at })),
+      carriage: {
+        size: 170,
+        anchor: 1 - (MONKEY_HAND[1] - view.y) / view.h,
+        pivotX: (MONKEY_HAND[0] - view.x) / view.w,
+        lean: 0,
+        motion: 'swing',
+        front: true,
+      },
     }
   },
   // The line wakes up: it is the snake's body, and it leaves.
@@ -423,7 +514,7 @@ export function composeFinale(finale: AdventureFinale, line: TracedLine, artAspe
   return {
     kind: finale.kind,
     seconds: FINALE_SECONDS,
-    strokes: composed.strokes.map((s) => pathOf(s)),
+    strokes: composed.strokes.map((s) => curveOf(s)),
     strokeLengths: composed.strokes.map((s) => {
       const arcs = arcLengths(s)
       return arcs[arcs.length - 1]

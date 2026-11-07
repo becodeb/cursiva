@@ -82,13 +82,14 @@ export function setActorState(actor: Actor, values: RigState): void {
   Object.assign(actor.stateGoal, values)
 }
 
-/** Advances one frame. Calm snaps moods to their goal instead of easing them
- *  and does not breathe, blink or hop, but an act still shows and still ends. */
-export function stepActor(actor: Actor, dt: number, calm: boolean): void {
+/** Advances one frame. Calm does not breathe, blink or hop, but an act still shows and
+ *  still ends. `snap` jumps moods to their goal, for reduced motion: a `still` puppet
+ *  on the trace screen eases its reaction like any other, it just has no idle life. */
+export function stepActor(actor: Actor, dt: number, calm: boolean, snap: boolean = calm): void {
   actor.clock += dt
   if (calm) actor.t = 0
   else actor.t += dt
-  const ease = calm ? 1 : 1 - Math.exp(-dt * 9)
+  const ease = snap ? 1 : 1 - Math.exp(-dt * 9)
   for (const name of ACT_NAMES) {
     const goal = actor.clock < actor.until[name] ? 1 : 0
     actor.acts[name] += (goal - actor.acts[name]) * ease

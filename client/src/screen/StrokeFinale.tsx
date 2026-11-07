@@ -11,6 +11,7 @@ import { fmt } from '../puppet/geometry'
 import { PAPER_SHADOW_FILL, PAPER_SHADOW_TRANSFORM } from '../puppet/rig'
 import { puppetTicker } from '../puppet/ticker'
 import { backdropFor } from '../zoo/backdrops'
+import { ArtBackdrop, SCENE_CSS } from '../puppet/scene/Scene'
 import { adventureIcon, type Adventure, type ClosingBeat } from '../zoo/adventures'
 import { approvedLineFor, type TracedLine } from '../zoo/tracedLine'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
@@ -58,13 +59,13 @@ function propDrawing(kind: FinaleProp['kind']): ReactNode {
     case 'drop':
       return <circle r={14} fill="#f1fcfd" />
     case 'scute':
-      return <path d="M0 -14L12 -7L12 7L0 14L-12 7L-12 -7Z" fill="#7a9e58" />
+      return <path d="M-13 -7C-8 -14 8 -14 13 -7C16 0 13 9 6 12C0 14 -8 13 -12 8C-16 3 -16 -3 -13 -7Z" fill="#25583c" />
   }
 }
 
 function propTransform(prop: FinaleProp, frame: FinaleFrame['props'][number]): string {
   const scale = (prop.size / 14) * frame.shown
-  return `translate(${fmt(frame.x)} ${fmt(frame.y)})scale(${scale.toFixed(3)})`
+  return `translate(${fmt(frame.x)} ${fmt(frame.y)})rotate(${prop.turn ?? 0})scale(${scale.toFixed(3)})`
 }
 
 function fillTransform(rise: number, shown: number): string | undefined {
@@ -287,8 +288,8 @@ export default function StrokeFinale({ adventure, beat, scene, onDone, reducedMo
 
   return (
     <main className="cv-finale" style={{ backgroundColor: backdrop?.quiet ?? SHEET_PAPER }}>
-      <style>{FINALE_CSS}</style>
-      {backdrop && <img className="cv-finale-backdrop" src={backdrop.art.href} alt="" />}
+      <style>{FINALE_CSS + SCENE_CSS}</style>
+      {backdrop && <ArtBackdrop className="cv-finale-backdrop" art={backdrop.art} />}
       <button type="button" className="cv-finale-tap" aria-label="Seguir" onClick={() => doneRef.current()}>
         <FinaleSceneView
           scene={scene}

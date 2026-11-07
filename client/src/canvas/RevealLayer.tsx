@@ -56,6 +56,7 @@
 // about a decorative veil composited from polygon-boolean output); plain
 // `M`/`L`/`Z` commands, still no `<mask>`/`<clipPath>`/`<filter>`/`url(#…)`,
 // this file's own ban, unchanged.
+import type { ReactNode } from 'react'
 import { clampArtBox, placeArt, type ArtBox } from './placeArt'
 import { difference as clipDifference, union as clipUnion } from 'polygon-clipping'
 import type { MultiPolygon as ClipMultiPolygon, Polygon as ClipPolygon } from 'polygon-clipping'
@@ -294,6 +295,8 @@ export interface RevealLayerProps {
    * covers for ANY image aspect — a wide 2:1 backdrop needs no change here.
    */
   displayBounds?: ArtBox
+  /** How a paper world draws a hidden object (`TracePaper.art`). Absent is its picture. */
+  drawArt?: (art: { href: string; w: number; h: number }, box: ArtBox) => ReactNode
   /** T33 (`odd/tasks/prewriting-stage-completion.md`, "help a stuck child"):
    *  the night's own second-level hint — a faint sparkle somewhere in the
    *  REGION of the nearest still-hidden object (`levels/revealGrid.ts`'s
@@ -1105,7 +1108,7 @@ function wholePaneLeafRakes(sheetBounds: ArtBox): readonly { path: string; probe
   })
 }
 
-export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds, nightHint = null }: RevealLayerProps) {
+export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds, nightHint = null, drawArt }: RevealLayerProps) {
   const glassFog = isGlassFog(reveal.fill)
   const nightVeil = isNightVeil(reveal.fill)
   const sand = reveal.visual === 'sand'
@@ -1235,12 +1238,16 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds, 
         />
       ))}
       {hiddenArt.map((obj, idx) => (
-        <image
-          key={`reveal-art-hidden-${idx}`}
-          href={obj.href}
-          {...clampArtBox(placeArt(obj, obj.size, { x: obj.x, y: obj.y }), sheetBounds)}
-          preserveAspectRatio="xMidYMid meet"
-        />
+        drawArt ? (
+          <g key={`reveal-art-hidden-${idx}`}>{drawArt(obj, clampArtBox(placeArt(obj, obj.size, { x: obj.x, y: obj.y }), sheetBounds))}</g>
+        ) : (
+          <image
+            key={`reveal-art-hidden-${idx}`}
+            href={obj.href}
+            {...clampArtBox(placeArt(obj, obj.size, { x: obj.x, y: obj.y }), sheetBounds)}
+            preserveAspectRatio="xMidYMid meet"
+          />
+        )
       ))}
       {nightVeil && hiddenArt.map((obj, idx) => (
         <g key={`night-hint-${idx}`} data-night-hint="true">
@@ -1568,7 +1575,7 @@ export function RevealLayer({ reveal, sheetBounds, displayBounds = sheetBounds, 
         const box = clampArtBox(placeArt(obj, obj.size * (nightVeil ? 1.16 : 1), { x: obj.x, y: obj.y }), sheetBounds)
         return (
           <g key={`reveal-art-found-${idx}`} data-night-discovery="true">
-            <image href={obj.href} {...box} preserveAspectRatio="xMidYMid meet" opacity={nightVeil ? 1 : undefined} />
+            {drawArt ? drawArt(obj, box) : <image href={obj.href} {...box} preserveAspectRatio="xMidYMid meet" opacity={nightVeil ? 1 : undefined} />}
           </g>
         )
       })}

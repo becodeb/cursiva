@@ -23,10 +23,13 @@ export interface PuppetAccessories {
   readonly apron?: boolean
   readonly lens?: boolean
   readonly bow?: boolean
+  /** The tint in the lupa's ring. Off for the screen-change glass, which ends up
+   *  covering the whole screen and has to be truly empty. */
+  readonly glass?: boolean
 }
 
 /** Dressed as the prototype: cap and apron on, lens and bow put away. */
-const DEFAULT_ACCESSORIES: Required<PuppetAccessories> = { cap: true, apron: true, lens: false, bow: false }
+const DEFAULT_ACCESSORIES: Required<PuppetAccessories> = { cap: true, apron: true, lens: false, bow: false, glass: true }
 
 export interface PuppetHandle {
   act(name: ActName, seconds?: number): void
@@ -163,7 +166,8 @@ export default function Puppet({
     })
 
     const media = prefersReducedMotion()
-    const isCalm = (): boolean => still || media?.matches === true
+    const isSnapped = (): boolean => media?.matches === true
+    const isCalm = (): boolean => still || isSnapped()
     const apply = (): void => {
       const frame = computeFrame(rig, actor, isCalm())
       root.setAttribute('transform', partTransform(frame.root))
@@ -177,7 +181,7 @@ export default function Puppet({
     let onScreen = true
     let stop: (() => void) | null = null
     const onTick = (dt: number): void => {
-      stepActor(actor, dt, isCalm())
+      stepActor(actor, dt, isCalm(), isSnapped())
       apply()
       sync()
     }
@@ -193,7 +197,7 @@ export default function Puppet({
     syncRef.current = sync
 
     const onMotionChange = (): void => {
-      stepActor(actor, 0, isCalm())
+      stepActor(actor, 0, isCalm(), isSnapped())
       apply()
       sync()
     }
@@ -221,7 +225,7 @@ export default function Puppet({
       window.addEventListener('pointerdown', onPointer, { passive: true })
     }
 
-    stepActor(actor, 0, isCalm())
+    stepActor(actor, 0, isCalm(), isSnapped())
     apply()
     sync()
     return () => {

@@ -77,6 +77,10 @@ export function getRig(name: PuppetName, seed: number = DEFAULT_SEED): Rig {
   return rig
 }
 
+/** `puppetView` under a name a pure composition can read: where a part of a rig ends
+ *  up in the box that stands in for its picture. */
+export const getCharacterView = (name: PuppetName, aspect: number | null, state?: RigState): ViewBox => puppetView(name, aspect, state)
+
 /** The window onto `name` for a box of `aspect`, from its fully dressed still
  *  pose. Every costume of a character shares it, so taking the lens away neither
  *  moves nor resizes him. */

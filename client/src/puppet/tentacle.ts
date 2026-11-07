@@ -5,11 +5,11 @@ import { clamp, lerp, tubePath, type Vec } from './geometry'
 
 /** His own body colour (`characters/pulpo.ts`), so it reads as one of his arms. */
 export const TENTACLE_PAPER = '#f7682c'
-const BASE_WIDTH = 11
-const TIP_WIDTH = 4.5
+const BASE_WIDTH = 7
+const TIP_WIDTH = 3
 const SAMPLES = 26
 /** How far the arm bows, as a share of its reach. */
-const BOW = 0.16
+const BOW = 0.3
 
 /** The arm's centre line: leaves his body, bows, and arrives at the tip. */
 export function tentacleSpine(root: Vec, tip: Vec): Vec[] {

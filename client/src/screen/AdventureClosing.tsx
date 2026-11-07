@@ -60,6 +60,7 @@ import { PlaceholderAnimalBadge } from '../detective/icons'
 import { ArtImg } from '../puppet/ArtFigure'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
+import { ArtBackdrop, SCENE_CSS } from '../puppet/scene/Scene'
 import type { Adventure, ClosingBeat } from '../zoo/adventures'
 import { useNarration } from '../voice/useNarration'
 import SpeakButton from '../voice/SpeakButton'
@@ -297,8 +298,8 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
     : null
   return (
     <main className="cv-closing" style={{ backgroundColor: backdrop?.quiet ?? SHEET_PAPER }}>
-      <style>{CLOSING_CSS}</style>
-      {backdrop && <img className="cv-closing-backdrop" src={backdrop.art.href} alt="" />}
+      <style>{CLOSING_CSS + SCENE_CSS}</style>
+      {backdrop && <ArtBackdrop className="cv-closing-backdrop" art={backdrop.art} />}
       <div className="cv-closing-frame">
         <button
           type="button"

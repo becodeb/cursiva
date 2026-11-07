@@ -51,10 +51,12 @@ function withoutPreloadLinks(html: string): string {
 const estanque = SECTORS.find((s) => s.id === 'estanque')!
 
 describe('ZooMap (zoo-map spec "Image-to-ViewBox Transform and Background")', () => {
-  it('renders the map image full-bleed with xMidYMid slice', () => {
+  it('draws the map in stage units as a paper diorama over the grown window, with no picture', () => {
     const html = render()
-    expect(html).toContain('href="/art/zoo-map.png"')
-    expect(html).toContain('preserveAspectRatio="xMidYMid slice"')
+    expect(html).toContain('data-art="/art/zoo-map.png"')
+    expect(html).not.toContain('href="/art/zoo-map.png"')
+    expect(html).not.toContain('href="/art/zoo-fog-')
+    expect(html).not.toContain('href="/art/zoo-octopus-print.png"')
   })
 
   it('the outer background is the measured green, never white', () => {

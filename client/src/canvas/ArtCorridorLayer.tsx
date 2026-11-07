@@ -38,13 +38,18 @@
 // SAME amount as the parent's, with no `viewBox` — so the inner `<image>` is
 // drawn at `(0, 0)`, one-for-one with the outer box's own coordinates,
 // instead of needing a second coordinate system to reason about.
+import type { ReactNode } from 'react'
+import type { ArtBox } from './placeArt'
 import type { TraceArtCorridor } from './TraceCanvas'
 
 export interface ArtCorridorLayerProps {
   artCorridor: TraceArtCorridor
+  /** How a paper world draws a piece (`TracePaper.art`), in the same box and on the
+   *  same measured spine. Absent is its picture. */
+  drawArt?: (art: { href: string; w: number; h: number }, box: ArtBox) => ReactNode
 }
 
-export function ArtCorridorLayer({ artCorridor }: ArtCorridorLayerProps) {
+export function ArtCorridorLayer({ artCorridor, drawArt }: ArtCorridorLayerProps) {
   return (
     <g pointerEvents="none">
       {artCorridor.map((piece, idx) => {
@@ -66,15 +71,19 @@ export function ArtCorridorLayer({ artCorridor }: ArtCorridorLayerProps) {
           // me next" pulse, so the base `<image>`'s own rotation semantics
           // (and the coincidence test that parses them) are untouched.
           <g key={`art-corridor-${idx}`} {...(piece.next ? { className: 'cv-snake-next' } : {})}>
-            <image
-              href={piece.href}
-              x={piece.box.x}
-              y={piece.box.y}
-              width={piece.box.width}
-              height={piece.box.height}
-              preserveAspectRatio="xMidYMid meet"
-              {...rotateAttr}
-            />
+            {drawArt ? (
+              <g {...rotateAttr}>{drawArt({ href: piece.href, w: piece.box.width, h: piece.box.height }, piece.box)}</g>
+            ) : (
+              <image
+                href={piece.href}
+                x={piece.box.x}
+                y={piece.box.y}
+                width={piece.box.width}
+                height={piece.box.height}
+                preserveAspectRatio="xMidYMid meet"
+                {...rotateAttr}
+              />
+            )}
             {piece.colourHref && revealWidth > 0 && (
               <svg
                 x={piece.box.x}
@@ -84,14 +93,18 @@ export function ArtCorridorLayer({ artCorridor }: ArtCorridorLayerProps) {
                 style={{ overflow: 'hidden' }}
                 {...rotateAttr}
               >
-                <image
-                  href={piece.colourHref}
-                  x={0}
-                  y={0}
-                  width={piece.box.width}
-                  height={piece.box.height}
-                  preserveAspectRatio="xMidYMid meet"
-                />
+                {drawArt ? (
+                  drawArt({ href: piece.colourHref, w: piece.box.width, h: piece.box.height }, { x: 0, y: 0, width: piece.box.width, height: piece.box.height })
+                ) : (
+                  <image
+                    href={piece.colourHref}
+                    x={0}
+                    y={0}
+                    width={piece.box.width}
+                    height={piece.box.height}
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                )}
               </svg>
             )}
           </g>

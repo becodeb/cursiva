@@ -93,6 +93,8 @@ export function TentacleDemoArm({ root, demos, strokeColour }: TentacleDemoArmPr
   const arm = useArmPaths(root, tipAt)
   return (
     <g pointerEvents="none" data-tentacle-demo="">
+      {/* Under the blue line: the arm draws it and never covers what it has drawn. */}
+      <ArmPaper arm={arm} />
       {demos.map((demo, i) => (
         <path
           key={i}
@@ -111,7 +113,6 @@ export function TentacleDemoArm({ root, demos, strokeColour }: TentacleDemoArmPr
           opacity={0}
         />
       ))}
-      <ArmPaper arm={arm} />
     </g>
   )
 }

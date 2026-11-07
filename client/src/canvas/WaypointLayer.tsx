@@ -14,6 +14,7 @@
 //
 // The ring stroke is resolved by the CALLER, never by this component:
 // `TraceCanvas` holds no palette token, `TraceClueMark`'s own convention.
+import type { ReactNode } from 'react'
 import { clampArtBox, placeArt, type ArtBox } from './placeArt'
 import type { TraceWaypoints } from './TraceCanvas'
 
@@ -22,18 +23,24 @@ export interface WaypointLayerProps {
   /** The visible sheet band, for `clampArtBox` — the same `sheetBounds`
    *  every other art layer in `TraceCanvas.tsx` clamps against. */
   sheetBounds: ArtBox
+  /** How a paper world draws the flowers and the hive (`TracePaper.art`). */
+  drawArt?: (art: { href: string; w: number; h: number }, box: ArtBox) => ReactNode
 }
 
-export function WaypointLayer({ waypoints, sheetBounds }: WaypointLayerProps) {
+export function WaypointLayer({ waypoints, sheetBounds, drawArt }: WaypointLayerProps) {
   return (
     <g pointerEvents="none">
       {waypoints.art.map((obj, idx) => (
-        <image
-          key={`waypoint-art-${idx}`}
-          href={obj.href}
-          {...clampArtBox(placeArt(obj, obj.size, { x: obj.x, y: obj.y }), sheetBounds)}
-          preserveAspectRatio="xMidYMid meet"
-        />
+        drawArt ? (
+          <g key={`waypoint-art-${idx}`}>{drawArt(obj, clampArtBox(placeArt(obj, obj.size, { x: obj.x, y: obj.y }), sheetBounds))}</g>
+        ) : (
+          <image
+            key={`waypoint-art-${idx}`}
+            href={obj.href}
+            {...clampArtBox(placeArt(obj, obj.size, { x: obj.x, y: obj.y }), sheetBounds)}
+            preserveAspectRatio="xMidYMid meet"
+          />
+        )
       ))}
       {waypoints.rings?.map((ring, idx) => (
         <circle
