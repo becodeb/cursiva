@@ -59,7 +59,7 @@ const hen = (spread: number): string =>
 
 /** Webbed: a fan cut as one piece, three pointed toes with the scallops between them. */
 const web = (lean: number): string =>
-  `M-46 ${fmt(lean * 0.5 - 6)}L-24 -6L32 -40L20 -14L48 ${fmt(lean)}L20 14L32 40L-24 6L-46 ${fmt(lean * 0.5 + 6)}Z`
+  `M-46 ${fmt(lean * 0.5 - 7)}Q-30 -8 -22 -8Q6 -30 34 -42Q28 -24 24 -13Q38 -8 50 ${fmt(lean)}Q38 8 24 13Q28 24 34 42Q6 30 -22 8Q-30 8 -46 ${fmt(lean * 0.5 + 7)}Z`
 
 /** A palm and five fingers, the thumb spread to the side. */
 const hand = (spread: number): string => {
