@@ -15,7 +15,7 @@ import {
   ZOO_ANIMAL_ART,
   ZOO_OCTOPUS_PRINT_ART,
 } from '../detective/assets'
-import { PLAZA_CENTRE, SECTORS, type Records } from './sectors'
+import { animalPlacements, PLAZA_CENTRE, SECTORS, type Records } from './sectors'
 import {
   ADVENTURES,
   adventureFor,
@@ -24,6 +24,7 @@ import {
   closingLevel,
   everyAdventureFiled,
   finaleBubblePlacement,
+  finishedZooBubble,
   introLevel,
   isRescued,
   mapBubble,
@@ -848,5 +849,30 @@ describe('finaleBubblePlacement with the animals standing (docs/18 §7 N1)', () 
     const placed = finaleBubblePlacement(animals)
     expect(overlap(placed)).toBeLessThanOrEqual(overlap(finaleBubblePlacement()))
     expect(overlap(placed)).toBe(0)
+  })
+})
+
+describe('finishedZooBubble: the last line, on the finished zoo', () => {
+  const everything = filed(...ADVENTURES.flatMap((a) => a.levelIds))
+  const animals = SECTORS.flatMap((s) => animalPlacements(s, everything)).map((p) => ({ x: p.box.x, y: p.box.y, w: p.box.width, h: p.box.height }))
+  const entrance = SECTORS.find((s) => s.id === 'entrada')!.hit!
+
+  it('covers no animal and stays on the stage', () => {
+    expect(animals.length).toBe(10)
+    const box = finishedZooBubble(animals)
+    for (const animal of animals) {
+      expect(Math.max(0, Math.min(box.x + box.w, animal.x + animal.w) - Math.max(box.x, animal.x)) * Math.max(0, Math.min(box.y + box.h, animal.y + animal.h) - Math.max(box.y, animal.y))).toBe(0)
+    }
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.y + box.h).toBeLessThanOrEqual(600)
+  })
+
+  it('stays off the entrance pens at any screen shape: it is authored in stage units', () => {
+    const box = finishedZooBubble(animals)
+    expect(box.y + box.h).toBeLessThanOrEqual(entrance.y)
+  })
+
+  it('gives way to the old corners if someone ever stands there', () => {
+    expect(finishedZooBubble([{ x: 300, y: 300, w: 40, h: 40 }]).anchor).not.toBe('below-left')
   })
 })

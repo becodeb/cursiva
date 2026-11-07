@@ -51,6 +51,13 @@ import { isSectorDebug } from '../canvas/devMode'
 import { earnedItems } from '../zoo/backpack'
 import { STARS_VISIBLE_IN_HUD, recordSeenStars, seenStars, starsIncreased, totalStars } from '../zoo/stars'
 import DetectiveNotebook from './DetectiveNotebook'
+import PulpitoWardrobe from './PulpitoWardrobe'
+import { AnimalFigure, AnimalHit, KeepsakeLine, useMapLife, type LivingAnimal } from './LivingAnimals'
+import type { PuppetHandle } from '../puppet/Puppet'
+import { usePulpitoLook } from '../puppet/useLook'
+import { WEARABLE_ART } from '../puppet/wardrobe'
+import { currentLook, lookColours, PULPITO_COLOURS, pendingGifts, receiveGifts, setLook } from '../zoo/pulpitoLook'
+import { loadTracedLines, type TracedLine } from '../zoo/tracedLine'
 import {
   MAP_STAGE_BOX,
   overlapArea,
@@ -73,8 +80,9 @@ import {
 } from '../zoo/sectors'
 import {
   bubblePlacement,
+  ADVENTURES,
   everyAdventureFiled,
-  finaleBubblePlacement,
+  finishedZooBubble,
   mapBubble,
   type BubbleAnchor,
 } from '../zoo/adventures'
@@ -82,6 +90,29 @@ import { nextJourneyStep } from '../zoo/journey'
 import { getLevel } from '../levels/catalog'
 import { canAutoSpeak, speak } from '../voice/narrator'
 import VoiceToggle from '../voice/VoiceToggle'
+
+/** The one line of a family's own, to keep on the map and to walk along. */
+function lineFor(id: ZooAnimalId, lines: Partial<Record<string, TracedLine>>): TracedLine | null {
+  const row = ADVENTURES.find((a) => a.animal === id)
+  return (row && lines[row.id]) ?? null
+}
+
+/** The picture on the dress-up button: his head, in the colour he is. */
+function PulpitoHead({ body, pink }: { body: string; pink: string }) {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" data-cv-picture="true">
+      <circle cx="33" cy="35" r="26" fill={PAPER_SHADOW_FILL} />
+      <circle cx="32" cy="32" r="26" fill={body} />
+      <ellipse cx="17" cy="42" rx="5" ry="3.4" fill={pink} />
+      <ellipse cx="47" cy="42" rx="5" ry="3.4" fill={pink} />
+      <ellipse cx="24" cy="29" rx="7" ry="8" fill="#ffffff" />
+      <ellipse cx="40" cy="29" rx="7" ry="8" fill="#ffffff" />
+      <ellipse cx="24" cy="30" rx="5" ry="6" fill="#1a2226" />
+      <ellipse cx="40" cy="30" rx="5" ry="6" fill="#1a2226" />
+      <path d="M25 46C29 50 35 50 39 46" fill="none" stroke="#1a2226" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  )
+}
 
 /** How long the map bubble stays up before it hides itself, milliseconds
  *  (D4: it used to say the same thing forever with no way to dismiss it —
@@ -152,7 +183,16 @@ html, body, #root { margin: 0; height: 100%; }
 .cv-zoo-octopus-control { cursor: pointer; }
 .cv-zoo-octopus-control:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 6px; }
 .cv-zoo-hud { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 2% 3%; box-sizing: border-box; pointer-events: none; }
-.cv-zoo-hud-left, .cv-zoo-hud-right, .cv-zoo-hud-right-group { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
+.cv-zoo-hud-left, .cv-zoo-hud-right, .cv-zoo-hud-right-group, .cv-zoo-hud-left-group { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
+.cv-zoo-hud-left-group { gap: 10px; }
+/* On a phone the tools stay in the notebook: a pill of them would sit on the night sector. */
+@media (max-height: 480px) { .cv-zoo-hud-left > svg:not(:first-child) { display: none; } }
+/* The dress-up button: his own head, the size every round control has. */
+.cv-zoo-dress { box-sizing: border-box; width: 48px; height: 48px; padding: 0; border: none; background: none; cursor: pointer; flex: none; }
+.cv-zoo-dress svg { display: block; width: 100%; height: 100%; }
+@keyframes cv-zoo-dress-new { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.25) rotate(-8deg); } 70% { transform: scale(0.95) rotate(5deg); } }
+.cv-zoo-dress--new { animation: cv-zoo-dress-new 900ms ease-out 3; }
+@media (prefers-reduced-motion: reduce) { .cv-zoo-dress--new { animation: none; outline: 4px solid #f2b632; border-radius: 50%; } }
 /* Each HUD group is a pill so it reads as interface, not as scenery: bare
    portraits at the top centre were drawn straight over the montanas and the
    animals standing there (measured at 1024x768 once five animals were back),
@@ -802,11 +842,26 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // the comparison always sees the OLD total.
   const starsJustIncreased = starsIncreased(seenStars(), stars)
   const backpack = earnedItems(records)
+  const look = usePulpitoLook()
+  const lookPaper = lookColours(look) ?? PULPITO_COLOURS[0].colours
+  // What the animal that just came home gave him. Read once on arrival: the first
+  // render already knows, so the bubble can say so instead of the way onward.
+  const [gift, setGift] = useState(() => {
+    if (typeof window === 'undefined') return null
+    const gifts = pendingGifts(currentLook(), records)
+    return gifts.length === 1 ? gifts[0] : null
+  })
+  const [dressNew, setDressNew] = useState(false)
+  const [wardrobeOpen, setWardrobeOpen] = useState(false)
+  const pulpitoRef = useRef<PuppetHandle | null>(null)
   // Every animal standing in the zoo right now, across every sector — the
   // SVG world shows each one at its own `animalSpot` (T23 dropped the HUD's
   // own small-icon echo of this same list, `docs/19` §5.3: "el mapa y la
   // libreta ya lo dicen").
   const recovered = SECTORS.flatMap((sector) => animalPlacements(sector, records))
+  const [lines] = useState(() => loadTracedLines())
+  const living: readonly LivingAnimal[] = recovered.map((p) => ({ ...p, line: lineFor(p.id, lines) }))
+  const life = useMapLife(living, living.map((a) => a.id).join())
   // T32 (N1, N4): the same list, reshaped from `placeArt`'s own `ArtBox`
   // (`x`/`y`/`width`/`height`) into this file's `Rect` (`x`/`y`/`w`/`h`) once,
   // so both `bubblePlacement`'s and `playBadgePlacement`'s own obstacle lists
@@ -841,7 +896,9 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // (`ZooMap.tsx`'s own `{finale && <RescueCelebration />}` below), so it
   // reads as one consistent celebratory moment rather than an unrelated
   // fourth image.
-  const bubbleContent = finale
+  const bubbleContent = gift
+    ? { art: WEARABLE_ART[gift.id], label: gift.giftLine }
+    : finale
     ? { art: ZOO_STAR_ART, label: FINALE_LINE }
     : bubbleSector
       ? mapBubble(bubbleSector, records, spotlightSector !== null)
@@ -852,7 +909,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // zero-area target already has nothing to avoid, and the finale is a
   // one-off closing beat, not part of ordinary journey play).
   const bubblePlaced = finale
-    ? finaleBubblePlacement(recoveredBoxes)
+    ? finishedZooBubble(recoveredBoxes)
     : bubbleSector?.hit
       ? bubblePlacement(bubbleSector.hit, recoveredBoxes)
       : null
@@ -872,7 +929,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   // `'finale'` is a key no real `ZooSector.id` can ever collide with, the
   // same reason `bubbleSector?.id ?? null` (the pre-finale expression) never
   // collided with a real id either.
-  const bubbleKey = finale ? 'finale' : (bubbleSector?.id ?? null)
+  const bubbleKey = gift ? `gift-${gift.id}` : finale ? 'finale' : (bubbleSector?.id ?? null)
   const [bubbleVisible, setBubbleVisible] = useState(true)
   const [reopenNonce, setReopenNonce] = useState(0)
   // T23 (odd/tasks/prewriting-stage-completion.md, docs/19 §5.3): the
@@ -945,10 +1002,23 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
       speak(bubbleContent.label)
     }
     if (typeof window === 'undefined') return undefined
-    const timer = window.setTimeout(() => setBubbleVisible(false), BUBBLE_AUTO_HIDE_MS)
+    // A gift's line gives way to the usual one instead of leaving nothing behind.
+    const timer = window.setTimeout(() => (gift ? setGift(null) : setBubbleVisible(false)), BUBBLE_AUTO_HIDE_MS)
     return () => window.clearTimeout(timer)
   }, [bubbleKey, reopenNonce])
-  const dismissBubble = () => setBubbleVisible(false)
+  // Every gift earned goes in the bag once; a single new one goes on him at once.
+  useEffect(() => {
+    const before = currentLook()
+    const gifts = pendingGifts(before, records)
+    if (gifts.length === 0) return
+    setLook(receiveGifts(before, gifts))
+    setDressNew(true)
+    if (gifts.length === 1) pulpitoRef.current?.act('cheer', 2.2)
+  }, [])
+  useEffect(() => {
+    life.setPaused(notebookOpen || wardrobeOpen)
+  }, [life, notebookOpen, wardrobeOpen])
+  const dismissBubble = () => (gift ? setGift(null) : setBubbleVisible(false))
   const reopenBubble = () => setReopenNonce((n) => n + 1)
   const pulpitoArt = finale ? OCTOPUS_ART : ZOO_OCTOPUS_BACKPACK_ART
   const pulpitoBox = placeArt(pulpitoArt, 150, PLAZA_CENTRE)
@@ -1035,6 +1105,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
     // though the big SVG-to-map flight itself is skipped for them.
     setJustRescuedAnimalId(departure.animalId)
     setBackpackReceived(true)
+    life.arrive(departure.animalId, RESCUE_FLIGHT_DURATION_MS / 1000)
     const reduced = prefersReducedMotion(
       typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null,
     )
@@ -1075,6 +1146,17 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
     const timer = window.setTimeout(() => setRescueFlight(null), RESCUE_FLIGHT_DURATION_MS + 80)
     return () => window.clearTimeout(timer)
   }, [rescueFlight])
+
+  const playBadgeAt = spotlightSector?.hit
+    ? playBadgePlacement(
+        spotlightSector.hit,
+        recoveredBoxes,
+        undefined,
+        undefined,
+        displayBounds,
+        pxToViewBoxUnits(BADGE_MIN_EDGE_MARGIN_PX, containerSize?.width ?? 0, displayBounds),
+      )
+    : null
 
   return (
     <main className="cv-zoo">
@@ -1177,17 +1259,20 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               `PlaceholderAnimalBadge` every other such spot now uses,
               standing PERMANENTLY at the enclosure once rescued, same as
               every other animal. */}
-          {recovered.map((placed, i) =>
-            isPlaceholderArt(placed.art) ? (
+          {living.map((animal) => (
+            <KeepsakeLine key={`line-${animal.id}`} animal={animal} />
+          ))}
+          {living.map((animal) =>
+            isPlaceholderArt(animal.art) ? (
               <PlaceholderAnimalBadge
-                key={`animal-${i}`}
-                x={placed.box.x}
-                y={placed.box.y}
-                width={placed.box.width}
-                height={placed.box.height}
+                key={`animal-${animal.id}`}
+                x={animal.box.x}
+                y={animal.box.y}
+                width={animal.box.width}
+                height={animal.box.height}
               />
             ) : (
-              <ArtInSvg key={`animal-${i}`} art={placed.art} box={placed.box} still={false} />
+              <AnimalFigure key={`animal-${animal.id}`} animal={animal} life={life} />
             ),
           )}
 
@@ -1225,16 +1310,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
                     own drawn edge off the viewport's own edge too — the
                     lagoon's own reported defect (the badge's right side
                     exactly on the screen's right border at 1024×768). */}
-                <SpotlightBadge
-                  at={playBadgePlacement(
-                    spotlightSector.hit,
-                    recoveredBoxes,
-                    undefined,
-                    undefined,
-                    displayBounds,
-                    pxToViewBoxUnits(BADGE_MIN_EDGE_MARGIN_PX, containerSize?.width ?? 0, displayBounds),
-                  )}
-                />
+                <SpotlightBadge at={playBadgeAt!} />
               </g>
             </>
           )}
@@ -1279,7 +1355,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
           >
             {/* A puppet paints only its pieces: this keeps the whole box tappable. */}
             <rect {...pulpitoBox} fill="transparent" />
-            <ArtInSvg art={pulpitoArt} box={pulpitoBox} still={false} followPointer />
+            <ArtInSvg art={pulpitoArt} box={pulpitoBox} still={false} followPointer puppetRef={pulpitoRef} />
           </g>
 
           {/* Transparent hit-rects — the only tappable surface. Tapping an
@@ -1313,7 +1389,18 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
                 fill="transparent"
                 style={{ cursor: 'pointer' }}
               />
+              {/* The green button says "tap here": it must work wherever it had to go to
+                  stay off an animal, even a little outside the sector's own rect. */}
+              {spotlightSector?.id === sector.id && playBadgeAt && (
+                <circle data-play-target="true" cx={playBadgeAt.x} cy={playBadgeAt.y} r={SPOTLIGHT_BADGE_RADIUS + 8} fill="transparent" style={{ cursor: 'pointer' }} />
+              )}
             </g>
+          ))}
+
+          {/* Above the sectors: a tap on an animal is for the animal. It stays smaller
+              than the sector it stands in, so the way in is still there around it. */}
+          {living.filter((a) => !isPlaceholderArt(a.art)).map((animal) => (
+            <AnimalHit key={`animal-hit-${animal.id}`} animal={animal} life={life} />
           ))}
 
           {/* `?debug=sectores` (docs/12 §4): every `hit` and `animalSpot` in
@@ -1367,6 +1454,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               one-shot bounce the instant an animal is delivered
               (`backpackReceived`), and its own small paw badge rides along
               with it. */}
+          <div className="cv-zoo-hud-left-group">
           <button
             type="button"
             className={
@@ -1383,6 +1471,19 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
             ))}
             {backpackReceived && <PawPrintIcon className="cv-zoo-backpack-badge" />}
           </button>
+          {/* His colour and what he has on. The picture is him, so it needs no word. */}
+          <button
+            type="button"
+            className={dressNew ? 'cv-zoo-dress cv-zoo-dress--new' : 'cv-zoo-dress'}
+            aria-label="Vestir al Pulpito"
+            onClick={() => {
+              setDressNew(false)
+              setWardrobeOpen(true)
+            }}
+          >
+            <PulpitoHead body={lookPaper.body} pink={lookPaper.pink} />
+          </button>
+          </div>
           {/* T7 (docs/18 D1/§3): the mute toggle now shares this SLOT with
               the star pill, as a separate round control beside it rather
               than inside it — `.cv-zoo-hud-right-group` (ZOO_CSS) is what
@@ -1431,6 +1532,8 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
             highlightId={notebookHighlightId}
           />
         )}
+
+        {wardrobeOpen && <PulpitoWardrobe records={records} onClose={() => setWardrobeOpen(false)} />}
 
         {/* The map bubble (T4, D4; content source T8, D27/D28; the finale
             branch below, promised-animals task B). Its BOX comes from

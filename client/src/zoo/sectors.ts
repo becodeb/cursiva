@@ -693,8 +693,8 @@ export function recentlyDiscovered(records: Records): ZooSector | null {
 export function animalPlacements(
   sector: ZooSector,
   records: Records,
-): readonly { art: ArtImage; box: ArtBox }[] {
-  const placed: { art: ArtImage; box: ArtBox }[] = []
+): readonly { id: ZooAnimalId; art: ArtImage; box: ArtBox }[] {
+  const placed: { id: ZooAnimalId; art: ArtImage; box: ArtBox }[] = []
   for (const animal of sector.animals) {
     if (!animal.appearsWhen.every((id) => isFiled(records, id))) continue
     const art = ZOO_ANIMAL_ART[animal.id]
@@ -702,7 +702,7 @@ export function animalPlacements(
       x: sector.animalSpot.x + animal.dx,
       y: sector.animalSpot.y + animal.dy,
     })
-    placed.push({ art, box })
+    placed.push({ id: animal.id, art, box })
   }
   return placed
 }

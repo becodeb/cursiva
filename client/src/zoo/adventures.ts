@@ -904,3 +904,14 @@ export function bubblePlacement(targetHit: Rect, avoid: readonly Rect[] = []): B
 export function finaleBubblePlacement(avoid: readonly Rect[] = []): BubbleBox {
   return bubblePlacement({ x: PLAZA_CENTRE.x, y: PLAZA_CENTRE.y, w: 0, h: 0 }, avoid)
 }
+
+/** Over the forest's trees, between the bee and the entrance pens, its tail up at his
+ *  head: on the finished zoo every corner around the plaza holds someone, and at a
+ *  phone's 844x390 the corners also ran over the entrance's pens. */
+const FINISHED_ZOO_BOX: BubbleBox = { x: 204, y: 236, w: BUBBLE_WIDTH, h: BUBBLE_HEIGHT, anchor: 'below-left' }
+
+/** Where the closing line goes once every animal is home: the clear spot while it is
+ *  clear, and the corner that covers the least if it ever stops being. */
+export function finishedZooBubble(avoid: readonly Rect[]): BubbleBox {
+  return avoid.every((box) => overlapArea(FINISHED_ZOO_BOX, box) === 0) ? FINISHED_ZOO_BOX : finaleBubblePlacement(avoid)
+}
