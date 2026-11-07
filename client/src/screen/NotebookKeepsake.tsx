@@ -8,6 +8,7 @@ import { ArtImg } from '../puppet/ArtFigure'
 import { useNarration } from '../voice/useNarration'
 import { prefersReducedMotion } from '../canvas/Tentacle'
 import { loadWritings, type Writing } from '../zoo/notebookWriting'
+import { smoothStrokePath } from '../zoo/tracedLine'
 import NotebookPaper, { NotebookFrame, NotebookRule } from './NotebookPaper'
 
 const KEEPSAKE_CSS = `
@@ -30,7 +31,7 @@ export function keepsakeLine(word: string): string {
 }
 
 export function strokePath(stroke: Writing['strokes'][number]): string {
-  return stroke.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join('')
+  return smoothStrokePath(stroke)
 }
 
 /** A window around the writing, the rule's lines kept in it. */

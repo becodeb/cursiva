@@ -1,7 +1,8 @@
-// The child's own approved stroke, kept as a small list of points ("your stroke
-// is the drawing"). Simplified and normalized, never smoothed and never pulled
-// toward the model path: the wobble is the point, because it is what makes the
-// water, the shell or the liana recognisably theirs.
+// The child's own approved stroke, kept as a list of points ("your stroke is the
+// drawing"). Thinned and normalized, never averaged and never pulled toward the model
+// path: the wobble is the point, because it is what makes the water, the shell or the
+// liana recognisably theirs. The curve drawn through the points (`smoothStrokePath`)
+// only rounds the corners thinning would add: every kept point stays on it.
 //
 // Pure functions plus a little storage, following `zoo/stars.ts` (module-scope
 // session memory) and `screen/notebookDiscovery.ts` (a storage-shaped parameter,
@@ -25,10 +26,11 @@ export interface RawPoint {
 }
 
 export const TRACED_LINES_KEY = 'cursiva.trazos.v1'
-/** Across every stroke of one line: what keeps a record near 1.5 kB. */
-export const MAX_TRACED_POINTS = 120
+/** Across every stroke of one line: what keeps a record near 5 kB. Stored records
+ *  are only ever shorter than this, so older ones load as they are. */
+export const MAX_TRACED_POINTS = 400
 /** Far under what a five-year-old's wobble measures on a drawing this size. */
-const SIMPLIFY_TOLERANCE = 0.005
+const SIMPLIFY_TOLERANCE = 0.002
 const COORD_FACTOR = 1000
 
 function perpendicularDistance(p: TracedPoint, a: TracedPoint, b: TracedPoint): number {
@@ -63,6 +65,38 @@ export function simplifyPoints(points: readonly TracedPoint[], tolerance: number
     }
   }
   return points.filter((_, i) => keep[i])
+}
+
+const pathNum = (v: number): string => v.toFixed(1)
+
+/**
+ * A smooth curve through every point, in the coordinates it is given (sheet or scene
+ * units, one decimal kept). Handles follow the neighbours' direction and are as long
+ * as a third of their own segment, so a long run beside a short one cannot overshoot,
+ * and they shrink to nothing where the finger turned right back, so a real reversal
+ * stays a reversal. Never fitted: each point is on the curve.
+ */
+export function smoothStrokePath(points: readonly TracedPoint[]): string {
+  if (points.length === 0) return ''
+  const at = (i: number): TracedPoint => points[Math.max(0, Math.min(points.length - 1, i))]
+  const handle = (before: TracedPoint, here: TracedPoint, after: TracedPoint, length: number): TracedPoint => {
+    const dx = after[0] - before[0]
+    const dy = after[1] - before[1]
+    const across = Math.hypot(dx, dy)
+    const walked = Math.hypot(here[0] - before[0], here[1] - before[1]) + Math.hypot(after[0] - here[0], after[1] - here[1])
+    if (across === 0 || walked === 0) return [0, 0]
+    const k = ((across / walked) * length) / 3 / across
+    return [dx * k, dy * k]
+  }
+  let d = `M${pathNum(points[0][0])} ${pathNum(points[0][1])}`
+  for (let i = 0; i < points.length - 1; i++) {
+    const [a, b, c, e] = [at(i - 1), at(i), at(i + 1), at(i + 2)]
+    const length = Math.hypot(c[0] - b[0], c[1] - b[1])
+    const out = handle(a, b, c, length)
+    const into = handle(b, c, e, length)
+    d += `C${pathNum(b[0] + out[0])} ${pathNum(b[1] + out[1])} ${pathNum(c[0] - into[0])} ${pathNum(c[1] - into[1])} ${pathNum(c[0])} ${pathNum(c[1])}`
+  }
+  return d
 }
 
 const countPoints = (strokes: readonly (readonly TracedPoint[])[]): number =>

@@ -6,7 +6,7 @@
 import { getCharacterView } from '../puppet/characters'
 import { clamp, fmt, lerp, smoothClosed, tubePath, type Vec } from '../puppet/geometry'
 import type { AdventureFinale, FinaleKind } from '../zoo/adventures'
-import type { TracedLine } from '../zoo/tracedLine'
+import { smoothStrokePath, type TracedLine } from '../zoo/tracedLine'
 
 export const FINALE_STAGE = { w: 1000, h: 625 } as const
 /** Past any viewport, so a big shape never shows its edge. */
@@ -107,16 +107,8 @@ export interface FinaleFrame {
 const ease = (t: number): number => t * t * (3 - 2 * t)
 
 /** A curve through every point the child's line kept: the wobble stays, the corners
- *  a simplified polyline would add do not. Never fitted: each point is on the curve. */
-function curveOf(points: readonly Vec[]): string {
-  const at = (i: number): Vec => points[Math.max(0, Math.min(points.length - 1, i))]
-  let d = `M${fmt(points[0][0])} ${fmt(points[0][1])}`
-  for (let i = 0; i < points.length - 1; i++) {
-    const [a, b, c, e] = [at(i - 1), at(i), at(i + 1), at(i + 2)]
-    d += `C${fmt(b[0] + (c[0] - a[0]) / 6)} ${fmt(b[1] + (c[1] - a[1]) / 6)} ${fmt(c[0] - (e[0] - b[0]) / 6)} ${fmt(c[1] - (e[1] - b[1]) / 6)} ${fmt(c[0])} ${fmt(c[1])}`
-  }
-  return d
-}
+ *  a thinned line would add do not. */
+const curveOf = smoothStrokePath
 
 /** The same line, calmer: what a surface looks like further from the top. */
 function calmed(points: readonly Vec[], window: number): Vec[] {

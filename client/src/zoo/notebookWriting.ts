@@ -5,9 +5,11 @@
 import { simplifyPoints, type RawPoint, type StorageLike, type TracedPoint } from './tracedLine'
 
 export const WRITINGS_KEY = 'cursiva.libreta.v1'
-/** A word is several letters long: more than a family's one-gesture line. */
-export const MAX_WRITING_POINTS = 280
-const SIMPLIFY_TOLERANCE = 1.2
+/** A word is several letters long and each letter has its own wobble: far more than a
+ *  family's one-gesture line. Near 12 kB at the very most. */
+export const MAX_WRITING_POINTS = 900
+/** Sheet units: well under a child's wobble, which is many units wide. */
+const SIMPLIFY_TOLERANCE = 0.6
 
 export interface Writing {
   /** The letter, the word, or the bridge level this line came from. */

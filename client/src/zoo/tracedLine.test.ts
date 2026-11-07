@@ -4,6 +4,7 @@ import {
   forgetSessionLines,
   loadTracedLines,
   MAX_TRACED_POINTS,
+  smoothStrokePath,
   parseTracedLine,
   recordApprovedStroke,
   saveTracedLine,
@@ -131,10 +132,10 @@ describe('persistence', () => {
     expect(all.bee?.levelId).toBe('bee4')
   })
 
-  it('stays small: a record is about a kilobyte and a half', () => {
+  it('stays small: a record is about five kilobytes, room for the real wobble', () => {
     const storage = memoryStorage()
     recordApprovedStroke('duck', 'duck-trail4', [wobblyWave(2000)], storage)
-    expect(storage.data[TRACED_LINES_KEY].length).toBeLessThan(2000)
+    expect(storage.data[TRACED_LINES_KEY].length).toBeLessThan(6000)
   })
 
   it('survives corrupt data, dropping only the bad entry', () => {
@@ -165,5 +166,46 @@ describe('persistence', () => {
     recordApprovedStroke('duck', 'duck-trail4', [wobblyWave()], storage)
     forgetSessionLines()
     expect(approvedLineFor('duck', storage)?.levelId).toBe('duck-trail4')
+  })
+})
+
+describe('smoothStrokePath', () => {
+  const ends = (d: string): number[][] =>
+    [...d.matchAll(/(?:M|C[^C]*?\s)(-?[\d.]+) (-?[\d.]+)(?=C|$)/g)].map((m) => [Number(m[1]), Number(m[2])])
+
+  it('goes through every point the finger left, in order', () => {
+    const points: [number, number][] = [[10, 10], [40, 12], [55, 60], [120, 58], [121, 20]]
+    expect(ends(smoothStrokePath(points))).toEqual(points)
+  })
+
+  it('draws curves, not straight facets', () => {
+    expect(smoothStrokePath([[0, 0], [50, 40], [100, 0]])).toMatch(/^M0\.0 0\.0C/)
+  })
+
+  it('does not overshoot when a long run meets a short one', () => {
+    const d = smoothStrokePath([[0, 0], [300, 0], [303, 2], [306, 0]])
+    const xs = [...d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => Number(m[1]))
+    expect(Math.max(...xs)).toBeLessThanOrEqual(306)
+    const ys = [...d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => Math.abs(Number(m[2])))
+    expect(Math.max(...ys)).toBeLessThan(4)
+  })
+
+  it('keeps a real reversal where it happened', () => {
+    const d = smoothStrokePath([[0, 0], [100, 0], [0, 0]])
+    const xs = [...d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => Number(m[1]))
+    expect(Math.max(...xs)).toBe(100)
+  })
+
+  it('says nothing for nothing, and survives a point repeated', () => {
+    expect(smoothStrokePath([])).toBe('')
+    expect(smoothStrokePath([[5, 5]])).toBe('M5.0 5.0')
+    expect(smoothStrokePath([[5, 5], [5, 5], [5, 5]])).not.toContain('NaN')
+  })
+})
+
+describe('records saved before the line kept more points', () => {
+  it('still load, at the old 120-point size', () => {
+    const old = { levelId: 'duck-trail4', w: 1, h: 0.4, strokes: [Array.from({ length: 120 }, (_, i) => [i / 119, 0.2])] }
+    expect(parseTracedLine(old)?.strokes[0]).toHaveLength(120)
   })
 })

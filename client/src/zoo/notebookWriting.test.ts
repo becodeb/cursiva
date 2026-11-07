@@ -75,3 +75,16 @@ describe('the child\'s writing, kept', () => {
     expect(shown.map((w) => w.key)).toEqual(['mano', 'o'])
   })
 })
+
+describe('a whole word', () => {
+  it('keeps far more points than a letter needs, so its wobble survives', () => {
+    const raw = Array.from({ length: 4000 }, (_, i) => ({
+      x: i * 0.3,
+      y: 360 + Math.sin(i / 30) * 60 + Math.sin(i / 3.1) * 2.5,
+    }))
+    const writing = toWriting('luna', [raw])!
+    const kept = writing.strokes.reduce((n, s) => n + s.length, 0)
+    expect(kept).toBeGreaterThan(280)
+    expect(kept).toBeLessThanOrEqual(MAX_WRITING_POINTS)
+  })
+})
