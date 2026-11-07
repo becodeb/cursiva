@@ -18,7 +18,7 @@ describe('CaptionedArt (spec: detective-mode "Captioned Art Invariant")', () => 
   it('renders the picture and the word as a sibling HTML caption, never an SVG <text>', () => {
     const html = renderToString(<CaptionedArt art={CART_ART} label="Carrito" size={36} />)
     expect(html).toContain('class="cv-captioned"')
-    expect(html).toContain(`href="${CART_ART.href}"`)
+    expect(html).toContain(`data-art="${CART_ART.href}"`)
     expect(html).toContain('class="cv-caption">Carrito<')
     expect(html).not.toContain('<text')
     expect(html).not.toContain('url(#')

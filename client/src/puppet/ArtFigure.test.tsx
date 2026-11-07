@@ -25,11 +25,12 @@ describe('the seam', () => {
     expect(puppetFigureFor(PULPITO_POSE_ART.cheers)?.accessories?.lens).toBeFalsy()
   })
 
-  it('renders the PNG when there is no puppet, in both worlds', () => {
-    const img = renderToString(<ArtImg art={SIGN_ART.fish} className="x" />)
-    expect(img).toContain(`src="${SIGN_ART.fish.href}"`)
-    const image = renderToString(<svg><ArtInSvg art={SIGN_ART.fish} box={BOX} /></svg>)
-    expect(image).toContain(`href="${SIGN_ART.fish.href}"`)
+  it('renders the PNG when there is neither a puppet nor paper, in both worlds', () => {
+    const noPaper = { href: '/art/no-paper-for-this.png', w: 100, h: 100 }
+    const img = renderToString(<ArtImg art={noPaper} className="x" />)
+    expect(img).toContain(`src="${noPaper.href}"`)
+    const image = renderToString(<svg><ArtInSvg art={noPaper} box={BOX} /></svg>)
+    expect(image).toContain(`href="${noPaper.href}"`)
     expect(image).toContain('width="80"')
     expect(image).not.toContain('data-puppet')
   })

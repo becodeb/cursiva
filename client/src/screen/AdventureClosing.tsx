@@ -182,8 +182,8 @@ ${BUBBLE_POP_CSS}
    block -- one inside a comment ends this template literal early (this
    file's own top note). */
 .cv-closing-bubble { position: absolute; container-type: inline-size; }
-.cv-closing-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
-.cv-closing-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
+.cv-closing-bubble .cv-bubble-pop > svg { display: block; width: 100%; height: auto; }
+.cv-closing-bubble--mirror-x .cv-bubble-pop > svg { transform: scaleX(-1); }
 /* [T51] The caption block carries the caption font too: its line boxes take
    their height from the BLOCK strut as well as the inline caption, so a block
    left at the page font (16px, normal line height) spaced small captions
@@ -380,7 +380,7 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
               className="cv-bubble-pop"
               style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
             >
-              <img src={ZOO_SPEECH_BUBBLE_LEFT_ART.href} alt="" />
+              <ArtImg art={ZOO_SPEECH_BUBBLE_LEFT_ART} />
               {isRescue ? (
                 <p className="cv-closing-bubble-text">{bubbleText}</p>
               ) : (

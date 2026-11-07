@@ -11,7 +11,7 @@
 // that survives this repo's ban (`TraceCanvas.tsx:69-86` — it hydrates
 // BLANK on real devices).
 import { ell } from '../puppet/geometry'
-import { PAPER_SHADOW_FILL } from '../puppet/rig'
+import { PAPER_CARD_SHADOW, PAPER_EDGE, PAPER_SHADOW_FILL } from '../puppet/rig'
 import { SCENE_CSS, SceneLayers, sceneFor } from '../puppet/scene/Scene'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { flushSync } from 'react-dom'
@@ -183,8 +183,8 @@ html, body, #root { margin: 0; height: 100%; }
    load-bearing for that layout.
    NO BACKTICKS in this block -- one inside a comment ends this template
    literal early (this file's own top-of-file note). */
-.cv-zoo-hud-left, .cv-zoo-hud-right { background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; border-radius: 999px; padding: 4px 10px; }
-.cv-zoo-hud-left img { width: 30px; height: 30px; object-fit: contain; }
+.cv-zoo-hud-left, .cv-zoo-hud-right { background: ${SHEET_PAPER}; border: 3px solid ${PAPER_EDGE}; box-shadow: ${PAPER_CARD_SHADOW}; border-radius: 999px; padding: 4px 10px; }
+.cv-zoo-hud-left svg, .cv-zoo-hud-left img { width: 30px; height: 30px; object-fit: contain; }
 /* The backpack pill is now a real <button> (T23: it opens the notebook) —
    reset the browser's own button chrome so it keeps reading as the exact
    same pill it always was. position: relative (T31) is what lets the
@@ -225,7 +225,7 @@ html, body, #root { margin: 0; height: 100%; }
 @media (prefers-reduced-motion: reduce) { .cv-zoo-backpack-receive { animation: none; } }
 .cv-zoo-backpack-badge {
   position: absolute; top: -6px; right: -6px; width: 22px; height: 22px;
-  background: #f2d377; border: 2px solid #1a1a1a; border-radius: 50%; padding: 3px; box-sizing: border-box;
+  background: #f2d377; border: 2px solid #d9b24d; border-radius: 50%; padding: 3px; box-sizing: border-box;
   animation: cv-zoo-backpack-badge-pop 900ms ease-out;
 }
 @keyframes cv-zoo-backpack-badge-pop {
@@ -327,7 +327,7 @@ ${BUBBLE_POP_CSS}
    negative z-index from sinking below the map. */
 .cv-zoo-bubble .cv-rescue-celebration { z-index: -1; }
 .cv-zoo-bubble-dismiss { position: absolute; inset: 0; display: block; width: 100%; height: 100%; margin: 0; padding: 0; border: none; background: none; cursor: pointer; }
-.cv-zoo-bubble-dismiss > img { display: block; width: 100%; height: 100%; }
+.cv-zoo-bubble-dismiss > svg:first-child { display: block; width: 100%; height: 100%; }
 /* The tail is NOT at the file's own centre: it hangs at ~10% of the width,
    near the bottom ~18% of the height. A bubble placed to the LEFT of the
    Pulpito needs its tail on its own RIGHT side to point at him - the
@@ -335,9 +335,9 @@ ${BUBBLE_POP_CSS}
    the TOP rather than the bottom - the vertically flipped (scaleY(-1))
    position. The two modifiers compose (a below-left bubble mirrors AND
    flips) rather than needing a fourth, hand-authored transform. */
-.cv-zoo-bubble--mirror-x .cv-zoo-bubble-dismiss > img { transform: scaleX(-1); }
-.cv-zoo-bubble--flip-y .cv-zoo-bubble-dismiss > img { transform: scaleY(-1); }
-.cv-zoo-bubble--mirror-x.cv-zoo-bubble--flip-y .cv-zoo-bubble-dismiss > img { transform: scale(-1, -1); }
+.cv-zoo-bubble--mirror-x .cv-zoo-bubble-dismiss > svg:first-child { transform: scaleX(-1); }
+.cv-zoo-bubble--flip-y .cv-zoo-bubble-dismiss > svg:first-child { transform: scaleY(-1); }
+.cv-zoo-bubble--mirror-x.cv-zoo-bubble--flip-y .cv-zoo-bubble-dismiss > svg:first-child { transform: scale(-1, -1); }
 /* The oval's readable interior, inset from the drawn outline on all four
    sides. The tail occupies the bottom ~18% of the file when unflipped,
    which is why the box spans 14%-74% rather than filling the bubble - that
@@ -1377,9 +1377,9 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
             aria-label="Abrir la libreta del detective"
             onClick={openNotebook}
           >
-            <img src={ZOO_BACKPACK_ART.href} alt="" height={40} />
+            <ArtImg art={ZOO_BACKPACK_ART} />
             {backpack.map((item) => (
-              <img key={item.id} src={item.art.href} alt="" height={32} />
+              <ArtImg key={item.id} art={item.art} />
             ))}
             {backpackReceived && <PawPrintIcon className="cv-zoo-backpack-badge" />}
           </button>
@@ -1486,7 +1486,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
                   onClick={dismissBubble}
                   style={{ transformOrigin: `${tailOrigin.x}% ${tailOrigin.y}%` }}
                 >
-                  <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+                  <ArtImg art={ZOO_SPEECH_BUBBLE_ART} />
                   {/* `size` is the UNSTYLED height; `ZOO_CSS`'s
                       `.cv-zoo-bubble .cv-captioned > svg` overrides it with a
                       percentage of the bubble so the print tracks the stage. 76

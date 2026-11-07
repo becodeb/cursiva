@@ -17,6 +17,7 @@ import {
   PULPITO_POSE_ART,
   SECTOR_ADVENTURE_ART,
   TRANSITION_LENS_ART,
+  ZOO_CARETAKER_ART,
   ZOO_OCTOPUS_BACKPACK_ART,
 } from '../detective/assets'
 import type { TracePaper } from '../canvas/TraceCanvas'
@@ -43,6 +44,7 @@ const PUPPET_FIGURES: ReadonlyMap<string, PuppetFigure> = new Map<string, Puppet
   [PULPITO_POSE_ART.thinks.href, { name: 'pulpo' }],
   // No backpack on the engine yet: the map's figure wears what the others wear.
   [ZOO_OCTOPUS_BACKPACK_ART.href, { name: 'pulpo' }],
+  [ZOO_CARETAKER_ART.href, { name: 'pulpo' }],
   [ANIMAL_ART.pato.href, { name: 'pato' }],
   [SECTOR_ADVENTURE_ART.sheep.href, { name: 'oveja' }],
   [SECTOR_ADVENTURE_ART.llama.href, { name: 'llama' }],

@@ -52,6 +52,7 @@ import {
   type ZooAnimalId,
 } from '../detective/assets'
 import { ArtImg, ArtInSvg } from '../puppet/ArtFigure'
+import { PAPER_CARD_SHADOW, PAPER_EDGE, PAPER_LIP } from '../puppet/rig'
 import { playSfx } from '../audio/sfx'
 import { clueKindsOf, lineupOrder, type DeductionForm, type DetectiveCase } from '../detective/cases'
 import CaptionedArt from '../detective/CaptionedArt'
@@ -575,18 +576,18 @@ ${BUBBLE_POP_CSS}
 .cv-deduction-speak { position: absolute; top: 6px; right: 12px; z-index: 2; }
 /* The evidence board: kraft paper, the lens badge straddling its top edge,
  * one pinned photo per clue. */
-.cv-evidence-board { position: absolute; border: ${BOARD_BORDER}px solid #1a1a1a; border-radius: 22px; background: #e2c48f; }
-.cv-evidence-badge { position: absolute; border-radius: 50%; border: 3px solid #1a1a1a; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; }
+.cv-evidence-board { position: absolute; box-shadow: ${PAPER_CARD_SHADOW}; border: ${BOARD_BORDER}px solid #b58f57; border-radius: 22px; background: #e2c48f; }
+.cv-evidence-badge { position: absolute; border-radius: 50%; box-shadow: ${PAPER_CARD_SHADOW}; border: 3px solid ${PAPER_EDGE}; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; }
 .cv-evidence-badge img, .cv-evidence-badge svg { display: block; height: 72%; width: auto; }
-.cv-evidence-tile { position: absolute; border: 3px solid #1a1a1a; border-radius: 10px; background: ${SHEET_PAPER}; transform: rotate(var(--cv-tilt)); }
+.cv-evidence-tile { position: absolute; box-shadow: ${PAPER_CARD_SHADOW}; border: 3px solid ${PAPER_EDGE}; border-radius: 10px; background: ${SHEET_PAPER}; transform: rotate(var(--cv-tilt)); }
 .cv-evidence-tile > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* A strip of tape holding the photo up: flat, translucent paper. */
-.cv-evidence-tape { position: absolute; left: 32%; top: -7px; width: 36%; height: 14px; border-radius: 3px; background: rgba(255, 252, 240, 0.75); border: 2px solid rgba(26, 26, 26, 0.35); }
+.cv-evidence-tape { position: absolute; left: 32%; top: -7px; width: 36%; height: 14px; border-radius: 3px; background: rgba(255, 252, 240, 0.75); border: 2px solid rgba(180, 150, 100, 0.5); }
 /* The "=" between a comparison's sample and its candidates. */
-.cv-deduction-relation { position: absolute; border-radius: 50%; border: 3px solid #1a1a1a; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; }
+.cv-deduction-relation { position: absolute; border-radius: 50%; box-shadow: ${PAPER_CARD_SHADOW}; border: 3px solid ${PAPER_EDGE}; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; }
 .cv-deduction-relation > svg { width: 80%; height: 80%; }
 /* The prompt pill: a pointing hand + a few words, centred over the cards. */
-.cv-deduction-prompt { position: absolute; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.35em; border-radius: 999px; border: 3px solid #1a1a1a; background: #ffe58a; color: #1e293b; font-weight: 800; white-space: nowrap; line-height: 1; }
+.cv-deduction-prompt { position: absolute; margin: 0; display: flex; align-items: center; justify-content: center; gap: 0.35em; border-radius: 999px; box-shadow: ${PAPER_CARD_SHADOW}; border: 3px solid #e4c55f; background: #ffe58a; color: #1e293b; font-weight: 800; white-space: nowrap; line-height: 1; }
 .cv-deduction-prompt > svg { flex: none; }
 /* Once the case is closed there is nothing left to tap: the pill goes (its
  * place is kept, so nothing moves). */
@@ -601,7 +602,8 @@ ${BUBBLE_POP_CSS}
   min-height: 64px;
   min-width: 64px;
   padding: ${'var(--cv-card-pad-top) var(--cv-card-pad-x) 4px'};
-  border: 3px solid #1a1a1a;
+  border: 3px solid ${PAPER_EDGE};
+  border-bottom-color: ${PAPER_LIP};
   border-bottom-width: 9px;
   border-radius: 22px;
   background: ${SHEET_PAPER};
@@ -676,8 +678,8 @@ ${BUBBLE_POP_CSS}
 .cv-deduction-octopus { position: absolute; bottom: 2%; height: ${DEDUCTION_OCTOPUS_SIZE_PCT}%; width: auto; }
 .cv-deduction-octopus img, .cv-deduction-octopus svg { display: block; width: auto; height: 100%; }
 .cv-deduction-bubble { position: absolute; container-type: inline-size; }
-.cv-deduction-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
-.cv-deduction-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
+.cv-deduction-bubble .cv-bubble-pop > svg { display: block; width: 100%; height: auto; }
+.cv-deduction-bubble--mirror-x .cv-bubble-pop > svg { transform: scaleX(-1); }
 /* TEXT ONLY inside the bubble (deductionHint's own header): the content box
  * is the measured-safe rectangle DEDUCTION_BUBBLE_CONTENT describes. */
 .cv-deduction-bubble-text { position: absolute; left: var(--cv-content-left); top: var(--cv-content-top); width: var(--cv-content-width); margin: 0; font-size: var(--cv-caption-font); line-height: ${LINE_HEIGHT}; font-weight: 700; color: #1e293b; text-align: left; }
@@ -875,7 +877,7 @@ export function DeductionView({
             className="cv-bubble-pop"
             style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
           >
-            <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+            <ArtImg art={ZOO_SPEECH_BUBBLE_ART} />
             <p className="cv-deduction-bubble-text">{hintText}</p>
           </span>
         </span>

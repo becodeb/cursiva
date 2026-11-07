@@ -31,6 +31,8 @@
 import { useState, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
 import { ZOO_MAP_ART, ZOO_CARETAKER_ART, ZOO_SPEECH_BUBBLE_ART } from '../detective/assets'
+import { ArtImg } from '../puppet/ArtFigure'
+import { PAPER_CARD_SHADOW, PAPER_EDGE } from '../puppet/rig'
 import { ArtBackdrop, SCENE_CSS } from '../puppet/scene/Scene'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { PROLOGUE_PLATES, advancePlate } from '../zoo/prologue'
@@ -84,6 +86,7 @@ const PROLOGUE_CSS = `
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.02) translateY(-1%); }
 }
+.cv-puppet.cv-octopus-life { animation: none; }
 .cv-octopus-life { display: block; height: 100%; width: auto; animation: cv-octopus-blink 6.4s ease-in-out infinite; transform-origin: 50% 50%; }
 @keyframes cv-octopus-blink {
   0%, 92%, 100% { transform: scaleY(1); }
@@ -101,8 +104,8 @@ ${BUBBLE_POP_CSS}
    in this block — one inside a comment ends this template literal early
    (this file's own top-of-file note). */
 .cv-prologue-bubble { position: absolute; container-type: inline-size; }
-.cv-prologue-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
-.cv-prologue-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
+.cv-prologue-bubble .cv-bubble-pop > svg { display: block; width: 100%; height: auto; }
+.cv-prologue-bubble--mirror-x .cv-bubble-pop > svg { transform: scaleX(-1); }
 /* T36 (docs/18 D3's own fix): the first plate's bubble carries no picture
    (zoo/prologue.ts's own ProloguePlate.art header) -- .cv-prologue-bubble-
    text is its bare-caption sibling of .cv-captioned, sharing the SAME
@@ -134,7 +137,7 @@ ${BUBBLE_POP_CSS}
    anywhere in this block — one inside a comment ends this template literal
    early (this file's own top-of-file note). */
 .cv-prologue-speak { position: absolute; top: ${STAGE_MARGIN_PCT}%; right: ${STAGE_MARGIN_PCT}%; z-index: 2; }
-.cv-prologue-skip { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; border-radius: 16px; padding: 6px 10px; cursor: pointer; }
+.cv-prologue-skip { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; background: ${SHEET_PAPER}; border: 3px solid ${PAPER_EDGE}; box-shadow: ${PAPER_CARD_SHADOW}; border-radius: 16px; padding: 6px 10px; cursor: pointer; }
 /* (V1, docs/25 section 5.4) CaptionedArt's own markup has NO whitespace
    between its <svg> and its <span class="cv-caption"> (two adjacent JSX
    children, never a text node) -- left to the default inline flow, that is
@@ -265,7 +268,7 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
       <div className="cv-prologue-frame">
         <button type="button" className="cv-prologue-stage" onClick={handleTap}>
           <span className="cv-prologue-octopus" style={{ [stance.corner]: `${octopusBox.x}%` } as CSSProperties}>
-            <img src={ZOO_CARETAKER_ART.href} alt="" className="cv-octopus-life" />
+            <ArtImg art={ZOO_CARETAKER_ART} className="cv-octopus-life" still={false} />
           </span>
           {/* Before the start tap the bubble is not shown yet: it pops in
               with the voice, so the line appears exactly when it is heard. */}
@@ -298,7 +301,7 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
                 className="cv-bubble-pop"
                 style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
               >
-                <img src={ZOO_SPEECH_BUBBLE_ART.href} alt="" />
+                <ArtImg art={ZOO_SPEECH_BUBBLE_ART} />
                 {/* `plate.art` absent (the first plate, docs/18 D3's own fix,
                     `zoo/prologue.ts`'s header) renders a TEXT-ONLY bubble —
                     `CaptionedArt` itself requires an `art` prop, so this plate

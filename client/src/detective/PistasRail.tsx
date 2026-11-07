@@ -108,14 +108,7 @@ function Lamp({ on }: { on: boolean }) {
       aria-hidden="true"
       focusable="false"
     >
-      <image
-        href={art.href}
-        x={0}
-        y={0}
-        width={LAMP_ART.on.w}
-        height={LAMP_ART.on.h}
-        preserveAspectRatio="xMidYMid meet"
-      />
+      <ArtInSvg art={art} box={{ x: 0, y: 0, width: LAMP_ART.on.w, height: LAMP_ART.on.h }} />
     </svg>
   )
 }

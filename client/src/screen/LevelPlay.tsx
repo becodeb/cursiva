@@ -175,6 +175,7 @@ import {
 } from '../detective/assets'
 import { ArtImg, standingFigure, TRACE_PAPER } from '../puppet/ArtFigure'
 import { sceneFor } from '../puppet/scene/Scene'
+import { PAPER_CARD_SHADOW, PAPER_EDGE } from '../puppet/rig'
 import type { PuppetHandle } from '../puppet/Puppet'
 import CaptionedArt from '../detective/CaptionedArt'
 import TrailProgressBar, { ANIMAL_MAX_WIDTH } from '../detective/TrailProgressBar'
@@ -1324,8 +1325,8 @@ html, body, #root { margin: 0; padding: 0; }
   padding: 5px 12px;
   border-radius: 999px;
   background: ${SHEET_PAPER};
-  border: 3px solid #1a1a1a;
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.3);
+  border: 3px solid ${PAPER_EDGE};
+  box-shadow: ${PAPER_CARD_SHADOW};
   pointer-events: none;
   /* (V3, docs/25 section 5.4: "Barra de dolphin4 con ~16 casilleros,
      cortada en los dos bordes en vertical") the DEFAULT square size/gap for
@@ -1487,7 +1488,8 @@ html, body, #root { margin: 0; padding: 0; }
   padding: 10px 22px;
   border-radius: 999px;
   background: ${SHEET_PAPER};
-  border: 3px solid #1a1a1a;
+  border: 3px solid ${PAPER_EDGE};
+  box-shadow: ${PAPER_CARD_SHADOW};
   color: #1e293b;
   font-size: 22px;
   font-weight: 700;
@@ -1511,7 +1513,7 @@ html, body, #root { margin: 0; padding: 0; }
  * signal). */
 .cv-result-check { color: #16a34a; font-weight: 900; margin-right: 8px; }
 .cv-actions { flex: 0 0 auto; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-.cv-btn { min-height: 64px; padding: 0 28px; border-radius: 18px; border: 3px solid #1a1a1a; background: ${SHEET_PAPER}; color: #1e293b; font-size: 20px; font-weight: 600; cursor: pointer; }
+.cv-btn { min-height: 64px; padding: 0 28px; border-radius: 18px; border: 3px solid ${PAPER_EDGE}; box-shadow: ${PAPER_CARD_SHADOW}; background: ${SHEET_PAPER}; color: #1e293b; font-size: 20px; font-weight: 600; cursor: pointer; }
 .cv-btn-back { min-height: 56px; padding: 0 18px; }
 .cv-btn-ok { background: #dcfce7; border-color: #16a34a; }
 .cv-btn-off { opacity: 0.45; cursor: default; }

@@ -29,6 +29,7 @@
 // also what keeps the caption licence (`detective/captionAudit.ts`'s
 // `CAPTION_CONTAINERS`) satisfied with no change to that registry.
 import { useRef } from 'react'
+import { ArtInSvg } from '../puppet/ArtFigure'
 import { CLUE_ART, ZOO_ANIMAL_ART, ZOO_STAR_ART, type ZooAnimalId } from './assets'
 import { CLUE_DRAINED } from './palette'
 import { pistasCountStyle } from './pistasFit'
@@ -193,14 +194,7 @@ function Slot({ slot, justFiled }: { slot: AdventureProgressSlot; justFiled: boo
           strokeWidth={slot.filed ? 2.6 : 1.5}
         />
         {art && (
-          <image
-            href={art.href}
-            x={12 - markWidth / 2}
-            y={12 - MARK_HEIGHT / 2}
-            width={markWidth}
-            height={MARK_HEIGHT}
-            preserveAspectRatio="xMidYMid meet"
-          />
+          <ArtInSvg art={art} box={{ x: 12 - markWidth / 2, y: 12 - MARK_HEIGHT / 2, width: markWidth, height: MARK_HEIGHT }} />
         )}
       </svg>
     </span>

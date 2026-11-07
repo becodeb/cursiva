@@ -476,15 +476,15 @@ describe('DeductionView rendering — case-independent layout', () => {
     expect(html).not.toContain('url(#')
   })
 
-  it('gives the lineup marker-style cards (docs/09 §1: paper fill, thick dark outline, no shadow — T21 follow-up)', () => {
+  it('gives the lineup paper cards (docs/09: a cut edge and the offset paper shadow, never a black outline)', () => {
     // [T21 follow-up, orchestrator screenshot review] This used to forbid
     // border/border-radius outright (the pre-docs/19 design.md "Layout"
     // rule) — the redesign deliberately gives every silhouette a marker-
     // style CARD, the SAME identity voice/SpeakButton.tsx/
     // voice/VoiceToggle.tsx/screen/ZooMap.tsx's HUD pills already carry.
-    // What still never ships, on this screen or any other: a shadow.
-    expect(DEDUCTION_CSS).not.toContain('box-shadow')
-    expect(DEDUCTION_CSS).toMatch(/\.animal-btn\s*\{[^}]*border:\s*3px solid #1a1a1a/)
+    // The paper world's cards cast the one offset shadow every piece casts.
+    expect(DEDUCTION_CSS).not.toContain('#1a1a1a')
+    expect(DEDUCTION_CSS).toMatch(/\.animal-btn\s*\{[^}]*border:\s*3px solid #decca6/)
     expect(DEDUCTION_CSS).toMatch(/\.animal-btn\s*\{[^}]*border-radius:/)
     expect(DEDUCTION_CSS).toMatch(/\.animal-btn\s*\{[^}]*background:\s*#fdfcf7/)
   })

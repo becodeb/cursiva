@@ -75,7 +75,7 @@ describe('AdventureClosing (main-screen spec "AdventureClosing Screen Renders th
     const html = renderToString(
       <AdventureClosing adventure={fixtureAdventure} beat={fixtureBeat} onContinue={() => {}} />,
     )
-    expect(html).toContain(`href="${fixtureBeat.art.href}"`)
+    expect(html).toContain(`data-art="${fixtureBeat.art.href}"`)
     expect(html.split(fixtureBeat.line).length - 1).toBe(1)
   })
 
@@ -83,7 +83,7 @@ describe('AdventureClosing (main-screen spec "AdventureClosing Screen Renders th
     const html = renderToString(
       <AdventureClosing adventure={sendero} beat={sendero.closingBeat![0]} onContinue={() => {}} />,
     )
-    expect(html).toContain(`src="${ZOO_SPEECH_BUBBLE_LEFT_ART.href}"`)
+    expect(html).toContain(`data-art="${ZOO_SPEECH_BUBBLE_LEFT_ART.href}"`)
   })
 
   it('[T49, docs/19 §4.1] a rescue closing shows the Pulpito cheering', () => {
@@ -132,7 +132,7 @@ describe('AdventureClosing (main-screen spec "AdventureClosing Screen Renders th
         const audit = auditCaptions(html)
         expect(audit.uncaptioned, `${id}: ${beat.line}`).toEqual([])
         expect(audit.imagelessContainers, `${id}: ${beat.line}`).toEqual([])
-        expect(html, id).toContain(`href="${beat.art.href}"`)
+        expect(html, id).toContain(`data-art="${beat.art.href}"`)
         expect(html, id).not.toContain('url(#')
       }
     }
@@ -180,7 +180,7 @@ describe('AdventureClosing rescue celebration (T8)', () => {
       <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
     )
     expect(html).toContain('class="cv-rescue-celebration" aria-hidden="true"')
-    const starCount = html.match(new RegExp(`src="${ZOO_STAR_ART.href}"`, 'g'))?.length ?? 0
+    const starCount = html.match(new RegExp(`data-art="${ZOO_STAR_ART.href}"`, 'g'))?.length ?? 0
     expect(starCount).toBeGreaterThan(0)
   })
 
@@ -406,8 +406,8 @@ describe('AdventureClosing idle life and bubble pop-in (prewriting-stage-complet
     expect(html).toContain(`data-art="${beat.figure!.href}"`)
     expect(html).not.toContain(`data-art="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
     const wrapperOpen = html.indexOf('class="cv-closing-octopus"')
-    const imgOpen = html.indexOf('<img', wrapperOpen)
+    const figureOpen = html.indexOf(`data-art="${beat.figure!.href}"`)
     expect(wrapperOpen).toBeGreaterThanOrEqual(0)
-    expect(imgOpen).toBeGreaterThan(wrapperOpen)
+    expect(figureOpen).toBeGreaterThan(wrapperOpen)
   })
 })

@@ -26,7 +26,7 @@ describe('FinaleSceneView', () => {
   it('art with no puppet comes through as its picture, with no error', () => {
     const scene = composeFinale({ kind: 'bubbles' }, line, 1)!
     const html = renderToString(<FinaleSceneView scene={scene} art={CART_ART} reducedMotion={false} />)
-    expect(html).toContain(`href="${CART_ART.href}"`)
+    expect(html).toContain(`data-art="${CART_ART.href}"`)
   })
 
   it('uses nothing the repo bans on an SVG', () => {

@@ -27,6 +27,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
 import { ZOO_SPEECH_BUBBLE_LEFT_ART } from '../detective/assets'
 import { ArtImg } from '../puppet/ArtFigure'
+import { PAPER_CARD_SHADOW, PAPER_EDGE } from '../puppet/rig'
 import { SHEET_PAPER, fitContentWithInsets } from '../canvas/TraceCanvas'
 import { RevealLayer } from '../canvas/RevealLayer'
 import type { ArtBox } from '../canvas/placeArt'
@@ -119,8 +120,8 @@ ${BUBBLE_POP_CSS}
    HTML. NO BACKTICKS in this block -- one inside a comment ends this
    template literal early (this file's own top note). */
 .cv-intro-bubble { position: absolute; container-type: inline-size; }
-.cv-intro-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
-.cv-intro-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
+.cv-intro-bubble .cv-bubble-pop > svg { display: block; width: 100%; height: auto; }
+.cv-intro-bubble--mirror-x .cv-bubble-pop > svg { transform: scaleX(-1); }
 /* [T51] The caption block carries the caption font too: its line boxes take
    their height from the BLOCK strut as well as the inline caption, so a block
    left at the page font (16px, normal line height) spaced small captions
@@ -153,7 +154,7 @@ ${BUBBLE_POP_CSS}
    caption read as nearly illegible against a busy mountain backdrop with
    no plate behind it. NO BACKTICKS in this block -- one inside a comment
    ends this template literal early (this file's own top-of-file note). */
-.cv-intro-tool { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; background: ${SHEET_PAPER}; border: 3px solid #1a1a1a; border-radius: 16px; padding: 6px 10px; }
+.cv-intro-tool { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; background: ${SHEET_PAPER}; border: 3px solid ${PAPER_EDGE}; box-shadow: ${PAPER_CARD_SHADOW}; border-radius: 16px; padding: 6px 10px; }
 /* (V1 sibling, docs/25 section 5.4: PrologueOpening.tsx's own
    .cv-prologue-skip carries the identical fix, and its header explains
    why) CaptionedArt's <svg> and <span class="cv-caption"> are adjacent
@@ -385,7 +386,7 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
               className="cv-bubble-pop"
               style={{ transformOrigin: `${placement.tailOriginX}% ${placement.tailOriginY}%` }}
             >
-              <img src={ZOO_SPEECH_BUBBLE_LEFT_ART.href} alt="" />
+              <ArtImg art={ZOO_SPEECH_BUBBLE_LEFT_ART} />
               <CaptionedArt
                 art={icon}
                 label={adventure.intro}

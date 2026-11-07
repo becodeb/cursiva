@@ -10,6 +10,7 @@
 import { useEffect } from 'react'
 import { playSfx } from '../audio/sfx'
 import { ZOO_STAR_ART } from '../detective/assets'
+import { ArtImg } from '../puppet/ArtFigure'
 
 /**
  * The celebration's own CSS, meant to be interpolated into whichever
@@ -30,7 +31,7 @@ import { ZOO_STAR_ART } from '../detective/assets'
  */
 export const RESCUE_CELEBRATION_CSS = `
 .cv-rescue-celebration { position: absolute; inset: 0; pointer-events: none; }
-.cv-rescue-celebration img { position: absolute; width: 9%; height: auto; opacity: 0; animation: cv-rescue-celebrate 1s ease-out forwards; }
+.cv-rescue-celebration svg { position: absolute; width: 9%; height: auto; opacity: 0; animation: cv-rescue-celebrate 1s ease-out forwards; }
 @keyframes cv-rescue-celebrate {
   0% { opacity: 0; transform: scale(0.4) rotate(-15deg); }
   60% { opacity: 1; transform: scale(1.15) rotate(8deg); }
@@ -72,12 +73,7 @@ export default function RescueCelebration() {
   return (
     <div className="cv-rescue-celebration" aria-hidden="true">
       {CELEBRATION_STARS.map((spot, i) => (
-        <img
-          key={i}
-          src={ZOO_STAR_ART.href}
-          alt=""
-          style={{ top: spot.top, left: spot.left, animationDelay: spot.delay }}
-        />
+        <ArtImg key={i} art={ZOO_STAR_ART} style={{ top: spot.top, left: spot.left, animationDelay: spot.delay }} />
       ))}
     </div>
   )

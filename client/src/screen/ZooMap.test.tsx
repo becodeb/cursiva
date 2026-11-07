@@ -534,7 +534,7 @@ describe('ZooMap finale (promised-animals task B: the story has an ending)', () 
   it('still shows a short star burst — the finale reuses RescueCelebration, not a bespoke flourish', () => {
     const html = render(filed(...allLevelIds))
     expect(html).toContain('cv-rescue-celebration')
-    const starCount = html.match(/src="\/art\/zoo-star\.png"/g)?.length ?? 0
+    const starCount = html.match(/data-art="\/art\/zoo-star\.png"/g)?.length ?? 0
     expect(starCount).toBeGreaterThan(0)
   })
 

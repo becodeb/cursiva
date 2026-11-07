@@ -1,12 +1,13 @@
 // Control icons for a detective trail (design unit 12, Orchestrator
 // Correction C1: "Controls become icon-only and keep the shipped 64px tap
-// floor"). The button faces (back, retry, replay, next, close) are the
-// author's hand-drawn button art since T50 (`ButtonArt` below); the other
-// marks here (the notebook pad, the paw, the pointing hand) are still ink
-// shapes drawn in code, no text, no `url(#...)`, no font, no `@font-face` —
-// consistent with `PistasRail.tsx`'s drawn word.
+// floor"). The button faces (back, retry, replay, next, close) are paper
+// (`ButtonArt` below); the other marks here (the notebook pad, the paw, the
+// pointing hand) are flat shapes drawn in code, no text, no `url(#...)`, no
+// font, no `@font-face` — consistent with `PistasRail.tsx`'s drawn word.
 import type { CSSProperties } from 'react'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
+import { ArtImg } from '../puppet/ArtFigure'
+import { PAPER_SHADOW_FILL } from '../puppet/rig'
 import { UI_BUTTON_ART, type ArtImage } from './assets'
 
 /** The glyphs are aria-hidden on purpose: they carry no accessible name of
@@ -14,39 +15,23 @@ import { UI_BUTTON_ART, type ArtImage } from './assets'
  * screen stays wordless for the child; the control stays named for anyone
  * using a screen reader. Those are not the same requirement.
  */
-/** Matches the shipped ink `TraceCanvas.tsx:89` (`INK_COLOR '#1e293b'`, not
- * exported) — the same hand that draws the child's own trace and the
- * `PistasRail` word. */
+/** The shipped ink (`TraceCanvas.tsx`'s `INK_COLOR`): the same hand that draws the
+ * child's own trace and the `PistasRail` word. */
 const ICON_INK = '#1e293b'
 
-/** T50 (`docs/23` D36, §7.7): the chrome buttons are the author's own
- * hand-drawn round buttons (`UI_BUTTON_ART`, cut from `botones lamina.png`),
- * not code-drawn glyphs any more. Each one is the WHOLE face of its button:
- * the wrapping `<button>` drops its own pill chrome (`.cv-btn-art` in
- * `LevelPlay.tsx`'s `LAYOUT_CSS`, or the button's own style) and keeps its
- * `aria-label` and its tap size. Sized by its button (100% of the box),
- * aria-hidden for the reason this file's header gives, and not draggable so
- * a long press never starts an image drag on a tablet. */
+/** The round chrome buttons, in paper (`puppet/chrome.ts`). Each one is the WHOLE
+ * face of its button: the wrapping `<button>` drops its own pill chrome
+ * (`.cv-btn-art` in `LevelPlay.tsx`'s `LAYOUT_CSS`, or the button's own style) and
+ * keeps its `aria-label` and its tap size. Sized by its button (100% of the box),
+ * aria-hidden for the reason this file's header gives. */
 export function ButtonArt({ art }: { art: ArtImage }) {
-  return (
-    <img
-      className="cv-btn-art-img"
-      src={art.href}
-      width={art.w}
-      height={art.h}
-      alt=""
-      aria-hidden="true"
-      draggable={false}
-      style={BUTTON_ART_STYLE}
-    />
-  )
+  return <ArtImg art={art} className="cv-btn-art-img" style={BUTTON_ART_STYLE} />
 }
 
 const BUTTON_ART_STYLE: CSSProperties = {
   display: 'block',
   width: '100%',
   height: '100%',
-  objectFit: 'contain',
   pointerEvents: 'none',
 }
 
@@ -118,9 +103,11 @@ export function NotebookPadIcon() {
 export function PencilIcon() {
   return (
     <svg viewBox="0 0 64 64" aria-hidden="true" data-cv-picture="true">
-      <path d="M12 52L16 38L44 10L54 20L26 48Z" fill="#f4c34d" stroke="#1a1a1a" strokeWidth={4} strokeLinejoin="round" />
-      <path d="M12 52L16 38L26 48Z" fill="#f6dfb4" stroke="#1a1a1a" strokeWidth={4} strokeLinejoin="round" />
-      <path d="M38 16L48 26" fill="none" stroke="#1a1a1a" strokeWidth={4} />
+      <path d="M12 52L16 38L44 10L54 20L26 48Z" fill={PAPER_SHADOW_FILL} transform="translate(2 3)" />
+      <path d="M12 52L16 38L44 10L54 20L26 48Z" fill="#f4c34d" />
+      <path d="M12 52L16 38L26 48Z" fill="#f6dfb4" />
+      <path d="M12 52L14 45L19 50Z" fill={ICON_INK} />
+      <path d="M38 16L44 10L54 20L48 26Z" fill="#e9825f" />
     </svg>
   )
 }
@@ -146,10 +133,10 @@ export function PawPrintIcon({ className }: { className?: string }) {
 function PawGlyph() {
   return (
     <>
-      <ellipse cx="50" cy="64" rx="24" ry="20" fill="none" stroke={ICON_INK} strokeWidth="6" />
-      <circle cx="24" cy="34" r="11" fill="none" stroke={ICON_INK} strokeWidth="6" />
-      <circle cx="50" cy="21" r="11" fill="none" stroke={ICON_INK} strokeWidth="6" />
-      <circle cx="76" cy="34" r="11" fill="none" stroke={ICON_INK} strokeWidth="6" />
+      <ellipse cx="50" cy="64" rx="24" ry="20" fill={ICON_INK} />
+      <circle cx="24" cy="36" r="11" fill={ICON_INK} />
+      <circle cx="50" cy="23" r="11" fill={ICON_INK} />
+      <circle cx="76" cy="36" r="11" fill={ICON_INK} />
     </>
   )
 }
@@ -205,12 +192,10 @@ export function PlaceholderAnimalBadge({
       width={width}
       height={height}
     >
-      {/* Marker-style card, restated as a circle (`docs/09` §1: paper fill,
-          thick dark outline, no shadow) — the same visual language
-          `.animal-btn`/`.cv-notebook-card`/`.cv-deduction-chip` already
-          carry, so a badge with no HTML card around it still reads as one
-          of this app's own marker pictures instead of a bare ink doodle. */}
-      <circle cx="50" cy="50" r="46" fill={SHEET_PAPER} stroke={ICON_INK} strokeWidth="6" />
+      {/* A paper disc, the same language as every other card in the game, so a badge
+          with no HTML card around it does not read as a bare doodle. */}
+      <circle cx="52" cy="53" r="46" fill={PAPER_SHADOW_FILL} />
+      <circle cx="50" cy="50" r="46" fill={SHEET_PAPER} />
       <PawGlyph />
     </svg>
   )
@@ -242,8 +227,8 @@ export function PointingHandIcon({ height, picture = false }: { height: number; 
       focusable="false"
       {...(picture ? { 'data-cv-picture': 'true' } : {})}
     >
-      <g fill={SHEET_PAPER} stroke={ICON_INK} strokeWidth="4" strokeLinejoin="round">
-        <rect x="14" y="2" width="38" height="12" rx="4" />
+      <g fill="#f8d9b2" stroke="#b9875a" strokeWidth="2.5" strokeLinejoin="round">
+        <rect x="14" y="2" width="38" height="12" rx="4" fill="#3e9a7f" stroke="#2d7a63" />
         <rect x="8" y="10" width="48" height="38" rx="15" />
         <rect x="44" y="26" width="13" height="22" rx="6.5" />
         <rect x="33" y="30" width="13" height="22" rx="6.5" />

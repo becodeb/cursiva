@@ -609,7 +609,7 @@ describe('LevelPlay backdrop (duck-undulations-and-sector-backdrop design.md §3
       <LevelPlay level={getLevel('duck-trail2')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
     expect(html).toMatch(/class="cv-btn cv-btn-back cv-btn-art"[^>]*aria-label="Volver"/)
-    expect(html).toContain('src="/art/ui-button-back.png"')
+    expect(html).toContain('data-art="/art/ui-button-back.png"')
     expect(LAYOUT_CSS).toMatch(/\.cv-btn\.cv-btn-art \{[^}]*border: none;[^}]*background: transparent;[^}]*\}/)
   })
 
@@ -915,7 +915,7 @@ describe('LevelPlay adventure progress bar (adventure-flow-and-map-guidance T6)'
   // uses for its colour claim.
   it('gives the whole bar a paper backing that clears the 55-luma legibility bar against every socket outline colour (T34)', () => {
     expect(LAYOUT_CSS).toMatch(/\.pistas-bar\s*\{\s*position:\s*absolute;[^}]*background:\s*#fdfcf7;/)
-    expect(LAYOUT_CSS).toMatch(/\.pistas-bar\s*\{[^}]*border:\s*3px solid #1a1a1a;/)
+    expect(LAYOUT_CSS).toMatch(/\.pistas-bar\s*\{[^}]*border:\s*3px solid #decca6;/)
     // The pending-slot outline (CLUE_DRAINED) and the earned-star gold
     // (TrailProgressBar.tsx's own private STAR_COLOR, mirrored here the same
     // way CollectBar.tsx already mirrors it as EARNED_COLOR) both clear
@@ -2950,10 +2950,10 @@ describe('LevelPlay T7 (prewriting-stage-completion): full-viewport backdrop, ma
     // `.cv-btn` is the base every remaining chrome button shares (back,
     // demo/play, and — on a classic level only — Borrar/Siguiente), so
     // asserting it once covers all of them without re-asserting per button.
-    expect(LAYOUT_CSS).toMatch(/\.cv-btn \{[^}]*border: 3px solid #1a1a1a;[^}]*\}/)
+    expect(LAYOUT_CSS).toMatch(/\.cv-btn \{[^}]*border: 3px solid #decca6;[^}]*\}/)
     expect(LAYOUT_CSS).toMatch(new RegExp(`\\.cv-btn \\{[^}]*background: ${SHEET_PAPER};[^}]*\\}`))
     expect(LAYOUT_CSS).not.toMatch(/\.cv-btn \{[^}]*background: #ffffff;/)
-    expect(LAYOUT_CSS).toMatch(/\.cv-result-pill \{[^}]*border: 3px solid #1a1a1a;[^}]*\}/)
+    expect(LAYOUT_CSS).toMatch(/\.cv-result-pill \{[^}]*border: 3px solid #decca6;[^}]*\}/)
     expect(LAYOUT_CSS).toMatch(new RegExp(`\\.cv-result-pill \\{[^}]*background: ${SHEET_PAPER};[^}]*\\}`))
   })
 
@@ -3011,7 +3011,7 @@ describe('LevelPlay docs/16 wooden zoo signs (finish-mvp-roadmap U14)', () => {
     const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
 
     expect(body).toContain('class="cv-captioned cv-level-zoo-sign"')
-    expect(body).toContain(`href="${href}"`)
+    expect(body).toContain(`data-art="${href}"`)
     expect(body).toContain(`<span class="cv-caption">${label}</span>`)
     // T3 revision (orchestrator QA regression): the sign's own dedicated row
     // (T5's first pass) cost .cv-sheet a permanent ~84px of height. It now
@@ -3049,7 +3049,7 @@ describe('LevelPlay docs/16 wooden zoo signs (finish-mvp-roadmap U14)', () => {
     const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
 
     expect(body).toContain('class="cv-captioned cv-level-zoo-sign"')
-    expect(body).toContain(`href="${href}"`)
+    expect(body).toContain(`data-art="${href}"`)
     expect(body).toContain(`<span class="cv-caption">${label}</span>`)
     expect(body.indexOf('cv-level-zoo-sign')).toBeGreaterThan(body.indexOf('cv-btn-back'))
     expect(body.indexOf('cv-level-zoo-sign')).toBeLessThan(body.indexOf('class="cv-sheet"'))
@@ -3118,7 +3118,7 @@ describe('LevelPlay docs/16 wooden zoo signs (finish-mvp-roadmap U14)', () => {
       <LevelPlay level={getLevel('glass1')} record={EMPTY_RECORD} onAttempt={noop} onNext={noop} onBack={noop} />,
     )
     const body = html.replace(/<style>[\s\S]*?<\/style>/, '')
-    const svgMatch = body.match(/<svg viewBox="([^"]+)" width="([^"]+)" height="([^"]+)" aria-hidden="true" focusable="false"><image href="\/art\/sign-fish\.png"[^>]*height="(\d+(?:\.\d+)?)"/)
+    const svgMatch = body.match(/<svg viewBox="([^"]+)" width="([^"]+)" height="([^"]+)" aria-hidden="true" focusable="false"><svg [^>]*height="(\d+(?:\.\d+)?)"[^>]*data-art="\/art\/sign-fish\.png"/)
     expect(svgMatch, body).toBeTruthy()
     const [, viewBox, , outerHeight, imageHeight] = svgMatch!
     // The outer svg (and its viewBox) is cropped to SIGN_CROP_HEIGHT...
