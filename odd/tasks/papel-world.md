@@ -56,9 +56,9 @@ defaults to confirm, not settled answers.
 - [x] T5 — Fix the letter score (`docs/25` 4.1). Route: delegated. Calibration on real tablets still owed.
 - [x] T6 — The bridge to letters: bridge levels, the notebook, the letter sequence and its place in the journey (`docs/25` 4.2 to 4.6). Route: delegated. Real children still owed.
 - [x] T7 — The rest of the cast on the engine. Route: delegated, reviewed side by side. Merged in `2dc31e3` (20 characters). Parent review: bee, cow, snail and jellyfish strongest; hen, fish fins and monkey hands weakest, second pass pending. Surfaces still PNG on the trace screen move to T9.
-- [ ] T8 — Living map, album and the child's own Pulpito. Route: delegated.
+- [x] T8 — Living map, album and the child's own Pulpito, plus the parent review's leftovers. Route: delegated. Commits `488fc03`..`3833c06`.
 - [x] T9 — Paper theatre: backgrounds, corridor, marks and transitions. Route: delegated. Merged from `feat/papel-cast` (`7c7053f`..`7554316`): ten scenes, map, trace surfaces, finale polish. Parent review of contact sheets: coherent; weakest are the hedgehog's flat body, PNG chrome (bubbles, buttons, HUD) and small clue marks.
-- [ ] T10 — Docs: audience 5 to 7, style guide, what remains. Route: inline or delegated.
+- [x] T10 — Docs: audience 5 to 7, style guide, what remains. Route: delegated, with T8.
 
 ## Acceptance
 
@@ -136,6 +136,51 @@ the user's decisions.
 - Not checked: real children, real tablets, real touch (Playwright drove a mouse pointer; touch is only
   in the simulated scoring), real speech timing against the demo.
 
+- T8 done. Pure parts and their tests first, then the screens, then the real flow.
+  - Living map: `zoo/mapLife.ts` (routines, turns, keepsake layout), `screen/LivingAnimals.tsx` (one
+    controller on the shared ticker; moving ones leave `still` only for their turn). Duck, fish, bee and
+    snake go along the child's line when there is one. Arrival hop, tap reacts and speaks. The green
+    play button became a real tap target, since it can sit outside the sector's rect and animals now
+    take their own taps.
+  - Album: extended `screen/DetectiveNotebook.tsx`, no new screen: the backpack already opens it, and it
+    already held the animals and the writing. Live puppet once found, the puppet's own outline before
+    (`Puppet.silhouette`), the child's letter or line beside it, no word on a card, every card heard.
+  - His Pulpito: `zoo/pulpitoLook.ts` (`cursiva.pulpito.v1`), `zoo/backpack.ts` `WEARABLES` (ten gifts,
+    one per animal, derived from level records), `screen/PulpitoWardrobe.tsx`, costume parts in
+    `characters/pulpo.ts` under `p.aside` so the approved cuts do not change, pictures cut from the same
+    rig (`puppet/wardrobe.ts`). The seam dresses every appearance, and the demo arm follows his colour.
+  - Leftovers: paper chrome (`puppet/chrome.ts`, card edges keep their width, so no layout moved);
+    hedgehog fur and marks measured from the puppet (`puppet/silhouette.ts`, `levels/spines.ts`), at a size
+    that keeps the mean radius the levels were tuned on; marks redrawn (puddle, seeds, bubbles, webfoot,
+    crumb); writing keeps up to 400 and 900 points through `smoothStrokePath`; finished-zoo bubble clear
+    of the pens.
+  - Chapter length: stop after a pair's first letter, second letter without its dotted step. Levels
+    `m n` 9 to 8 (5+3), `u` 5, `o a` 10 to 9 (5+4), `l e` 11 to 10 (5+5). `docs/25` §9 has the reasoning.
+- Evidence: `npx vitest run --maxWorkers=2` 142 files, 4416 tests green; `npm run build` green. Real drags
+  from an empty profile, no query string, through prologue, four pens, the whole duck adventure with its
+  deduction, the letter chapter with its stop, and back to the map, at 1024x768 and 844x390: 18 levels, 0
+  skips, 0 page errors. Finished map on this Pi, built app: 59.5 rAF fps, at most 3 moving, frozen under
+  overlays, static under reduced motion. Corrupt values on every new key and on the level records: app
+  renders, 0 errors.
+- PNG use, measured on the built app (154 visits: every level, entry, closing, deduction, the prologue,
+  the finished map, notebook and wardrobe): 164 of 196 PNGs and all 10 webp never fetched. Of the 32 fetched,
+  25 only by the hen's old `trail1`-`trail4`, off the story; the normal flow fetches 7: the favicon and 6
+  deduction silhouettes. A visit does not play a level, so art shown only after a play was checked by the
+  seam, not by a fetch. No art was deleted.
+- Guard tests whose premise changed: tests read `src=`/`href=` of chrome now read `data-art=`; `not box-shadow`
+  and `border #1a1a1a` became the paper edge and shadow; the two hedgehog margins follow the measured puppet
+  (still positive: 3.5, 2.9, 0.4, 0.7, so the start zones do not overlap, but hedgehog3 is tight); a record's
+  size bound went from 2 kB to 6 kB; the journey no longer visits the three resting dotted levels.
+
+## What remains
+
+- **Real children and real tablets.** The chapter split, the gift moment, a tap on an animal standing in the
+  highlighted sector, and the score's calibration are all desk decisions. `docs/25` tanda 1.6 still owed.
+- Deduction silhouettes are still PNG, the last art of the normal flow. `Puppet.silhouette` can replace them.
+- Hen and old `trail*`, `f3-*` and the classic level screen stay as they were: dev links only.
+- A family's line was only seen for real on the duck; the other keepsakes on the map were injected lines.
+- `docs/00` §2 and §3 still describe the older state; it now says so at the top.
+
 ## Next step
 
-User tests the letter stage. Then T8, T9, T10.
+The user tests the whole game and decides on slicing and merge.

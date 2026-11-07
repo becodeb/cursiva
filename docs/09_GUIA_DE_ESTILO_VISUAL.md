@@ -1,11 +1,97 @@
 # Guía de Estilo Visual
 
-Decidida el 2026-09-10. Rige todo lo visual del juego: assets, UI y
-pantallas. Si algo nuevo no cumple esto, no entra.
+**Actualizada el 2026-11-07: el juego es de papel recortado, dibujado en código.** La §0
+manda sobre todo lo que sigue. Las secciones 1 a 9 cuentan la dirección anterior
+(marcador grueso y PNG generados) y quedan por las reglas que siguen valiendo: la marca
+repetida (§5), la hoja como lugar (§7) y la tipografía (§8). Lo que digan de contorno
+negro, de "sin sombra" o del generador de imágenes ya no rige.
 
 ---
 
-## 1. La dirección: marcador grueso
+## 0. Papel recortado, en código
+
+Público: **chicos de 5 a 7 años que todavía no leen.** Nada de texto solo; todo se oye.
+
+### 0.1 Cómo se ve
+
+- **Piezas apiladas**, cada una con la misma sombra corrida. Sin contornos: una pieza se
+  separa de su fondo por la sombra y por el color.
+- **Bordes de tijera**: polilíneas con un temblor chico y sembrado (`puppet/geometry.ts`),
+  que no cambia entre renders.
+- **Colores planos.** Sin degradé, sin brillo pintado: un brillo es otra pieza pegada.
+- **La interfaz es del mismo papel** (`puppet/chrome.ts`, `puppet/rig.ts`): globo, botones
+  redondos, carteles, estrella, tarjetas. Una tarjeta tiene un borde de corte un poco más
+  oscuro (`PAPER_EDGE`) y la sombra `PAPER_CARD_SHADOW`, nunca negro. El borde conserva el
+  ancho que tenía, así no se mueve ninguna medida.
+- **Lo que se lee va oscuro sobre claro.** `CHROME_INK` pasa 7:1 sobre un botón y sobre el
+  globo (`puppet/chrome.test.ts`).
+
+### 0.2 Reglas que no se discuten
+
+1. **Prohibidos `url(#)`, `mask`, `clipPath`, `pattern`, `filter` y gradientes en SVG.** Se
+   hidratan en blanco en dispositivos reales (cabecera de `canvas/TraceCanvas.tsx`). Solo
+   paths y transforms.
+2. **Mientras se traza, solo se mueve lo que causa el dedo** (`docs/01` §5). Sin fondos que
+   se muevan, sin música. Un personaje sobre la hoja va `still`; la vida va antes y después.
+3. **Pose: un personaje mira al chico con la cabeza entera y se para sobre los pies.** La
+   caja se mide del dibujo completo, accesorios incluidos: sacarle algo no lo mueve ni lo
+   cambia de tamaño. Un accesorio nuevo tiene que entrar en la caja que ya tenía
+   (`puppet/Puppet.test.tsx`).
+4. **Las cejas nunca bajan hacia la nariz**: eso es enojo, y este juego no se enoja. Salen de
+   `characters/face.ts` (`browPath`).
+5. **El pico va detrás de la cabeza** en el orden de dibujo: pegado al frente parece una nariz
+   postiza.
+6. **Una marca es el rastro, nunca el animal**: la deducción tiene que tener algo que deducir
+   (`docs/25` tanda 2.1). Y tiene que leerse repetida a 28 unidades, también en gris
+   (`puppet/marks.ts`; una marca es un solo path, con huecos por sentido de giro).
+7. **El trazo del chico es de él.** Se guarda lo que el dedo hizo, se ralea sin promediar y se
+   dibuja con una curva que pasa por cada punto (`smoothStrokePath`). Nunca se lo acerca al
+   modelo.
+8. **Sin rojo de castigo, sin sonido de error, sin bloquear.**
+
+### 0.3 Cómo se agrega un personaje
+
+1. `puppet/characters/<nombre>.ts`: la paleta como constante y `draw<Nombre>(p: RigBuilder)`,
+   que dibuja de atrás hacia adelante: `p.cluster` (piezas con sombra), `p.flat` (pegado sobre
+   lo de abajo), `p.line`, `p.eye`, `p.mouth`. Devuelve la función que, para cada pose, dice
+   dónde va cada parte. Los humores (`wave`, `cheer`, `scare`, `sad`, `sleep`) llegan solos.
+2. Se registra en `puppet/characters/index.ts`: `centreX`, y `motion` si su pivote no son los
+   pies del Pulpito.
+3. Se engancha por la costura: una fila en `PUPPET_FIGURES` (`puppet/ArtFigure.tsx`) con el
+   `href` de su entrada del registro. El títere ocupa la caja exacta del PNG, así toda medida
+   (agarre, globo, zona de toque) sigue valiendo. Un personaje entra de a una fila.
+4. Para un accesorio que no debe cambiar los cortes aprobados: `p.aside(semilla, …)`.
+5. `puppet/cast.test.tsx` lo recorre solo: pose completa, sin `url(`, caja estable. Si vive en
+   el mapa, agregarlo a `zoo/mapLife.ts` con su rutina.
+6. **Se acepta con una captura lado a lado leída por una persona.** Un test no ve si tiene gracia.
+
+Un objeto sin vida (piedra, flor, cartel) es una mini escena sin actor: `puppet/props.ts` o, si
+es interfaz, `puppet/chrome.ts`. Una marca de pista va en `puppet/marks.ts`.
+
+### 0.4 Cómo se agrega una escena
+
+`puppet/scene/scenes.ts`, con `cutScene` de `puppet/scene/engine.ts`: un fondo plano y capas.
+Se autora 2:1 con lo importante en el 4:3 central. Una capa puede tener `motion` (`sway`, `drift`,
+`rays`, `bob`), que solo corre fuera de la hoja: el trazo la dibuja `still`. El corredor tiene que
+leerse sobre todo color que pueda pisar (`coloursInReach`, con su test de luma en `puppet/scene/scene.test.tsx`).
+Se engancha por `sceneFor` (`puppet/scene/Scene.tsx`).
+
+### 0.5 El mapa y el Pulpito del chico
+
+- **Mapa vivo** (`zoo/mapLife.ts`, `screen/LivingAnimals.tsx`): cada rescatado hace lo que
+  aprendió, a lo sumo tres a la vez y por turnos; los demás no gastan nada. Con movimiento
+  reducido nadie camina y un toque igual reacciona.
+- **Recuerdo:** la línea real del chico queda como cinta junto a su animal.
+- **Su Pulpito** (`zoo/pulpitoLook.ts`, clave `cursiva.pulpito.v1`): seis colores revisados contra
+  sus ojos, su boca y su delantal, nunca un selector libre. Diez regalos, uno por animal
+  (`WEARABLES`, `zoo/backpack.ts`), derivados de los niveles: no hay tienda ni moneda. Se ve en toda
+  aparición por la costura. Dato corrupto = el Pulpito de siempre.
+
+---
+
+## 1. La dirección anterior: marcador grueso
+
+Decidida el 2026-09-10, reemplazada por la §0.
 
 Todo está dibujado con un marcador grueso.
 

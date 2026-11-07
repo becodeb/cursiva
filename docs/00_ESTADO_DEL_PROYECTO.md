@@ -13,6 +13,11 @@ corta la demo. **Lo que queda está en `docs/18`
 §7**, que reemplaza la lista de §3 de acá para todo lo que toca. Leer `18`
 primero.
 
+**2026-11-07:** el juego pasó a papel recortado dibujado en código, con letras dentro de la
+historia y el público corregido a 5–7 años: ver `odd/tasks/papel-world.md`, `docs/09` §0 y `docs/25`
+§9. Los números y la lista de §2 y §3 de este documento son anteriores a ese trabajo: **para
+contar niveles, tests o arte, medir en el código.**
+
 ---
 
 ## 1. Los documentos, y cuál manda
@@ -23,7 +28,7 @@ nuevo.**
 | Doc | Qué es | Vigencia |
 |---|---|---|
 | `01`–`08` | Visión, motor de trazo, progresión, MVP, roadmap, docker, animaciones, motor de niveles | **Técnicos, vigentes.** Los pedagógicos (`01`, `03`, `04`, `05`) están escritos en lenguaje de "Nivel N" y quedaron viejos: la unidad hoy es la aventura |
-| `09_GUIA_DE_ESTILO_VISUAL` | Marcador grueso, paleta, el Pulpito, la hoja como lugar | **Vigente**, pero ver §4: hay arte de referencia nuevo con otra dirección |
+| `09_GUIA_DE_ESTILO_VISUAL` | §0: papel recortado en código, cómo agregar un personaje o una escena | **Vigente.** Su §0 manda; el marcador grueso de §1 quedó como historia |
 | `10_HOME_LA_OFICINA_DEL_PULPO` | La home como oficina de objetos perdidos | **Reemplazado** por `12`. Vuelve más adelante como pantalla de capítulo (ver `15`) |
 | `11_PULPITO_DETECTIVE_DIRECTIVA` | Primera directiva completa: Niveles 1 a 4 | **Parcialmente vigente.** Su "Nivel 1" (peces, tortugas, nace el detective) es la base de `16`. Su numeración por niveles la reemplazó `13` |
 | `12_MAPA_DEL_ZOOLOGICO` | El mapa como pantalla principal | **Vigente e implementado** |
@@ -33,6 +38,7 @@ nuevo.**
 | `16_PROLOGO_EL_CUIDADOR` | El prólogo: el Pulpito es el cuidador, limpia cuatro recintos, nacen las huellas y el detective | **Vigente e implementado** |
 | `17_PEDIDOS_DE_ARTE_PROLOGO` | Los cuatro pedidos de arte del prólogo y cómo entra una lámina nueva | **Vigente.** Acorta la lista de `16` §7: cuatro de esos diez pedidos ya estaban dibujados |
 | `18_DIAGNOSTICO_Y_REDISENO_PEDAGOGICO` | La app jugada como un chico de primer grado (2026-09-22): 29 defectos, qué hacen Matific y Glifing, la historia propuesta, pedidos de arte y lo que falta | **Vigente. Manda sobre `12`, `13` y `16`** en el flujo entre niveles, el orden de la entrada, qué es una pista y cómo se recupera un animal |
+| `25_REVISION_PSICOPEDAGOGICA` | Revisión pedagógica y lo que se decidió para las letras (§9) | **Vigente.** Las etapas `19`–`24` y `26` se leen desde ahí |
 
 Los PDF y `.docx` originales están fuera del repo, en
 `~/cursiva-pdfs-originales/`. Sus transcripciones (`11`, `14`, `15`) y sus
