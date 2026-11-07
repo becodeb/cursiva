@@ -51,6 +51,7 @@ import {
   type ArtImage,
   type ZooAnimalId,
 } from '../detective/assets'
+import { ArtImg, ArtInSvg } from '../puppet/ArtFigure'
 import { playSfx } from '../audio/sfx'
 import { clueKindsOf, lineupOrder, type DeductionForm, type DetectiveCase } from '../detective/cases'
 import CaptionedArt from '../detective/CaptionedArt'
@@ -104,14 +105,7 @@ export {
 function Art({ art, size }: { art: ArtImage; size: number }) {
   const width = (size * art.w) / art.h
   return (
-    <image
-      href={art.href}
-      x={-width / 2}
-      y={-size / 2}
-      width={width}
-      height={size}
-      preserveAspectRatio="xMidYMid meet"
-    />
+    <ArtInSvg art={art} box={{ x: -width / 2, y: -size / 2, width, height: size }} />
   )
 }
 
@@ -679,7 +673,7 @@ ${BUBBLE_POP_CSS}
  * it must never block a tap. */
 .cv-deduction-frame { position: absolute; container-type: inline-size; pointer-events: none; }
 .cv-deduction-octopus { position: absolute; bottom: 2%; height: ${DEDUCTION_OCTOPUS_SIZE_PCT}%; width: auto; }
-.cv-deduction-octopus img { display: block; width: auto; height: 100%; }
+.cv-deduction-octopus img, .cv-deduction-octopus svg { display: block; width: auto; height: 100%; }
 .cv-deduction-bubble { position: absolute; container-type: inline-size; }
 .cv-deduction-bubble .cv-bubble-pop > img { display: block; width: 100%; height: auto; }
 .cv-deduction-bubble--mirror-x .cv-bubble-pop > img { transform: scaleX(-1); }
@@ -860,7 +854,7 @@ export function DeductionView({
       {holding && <button type="button" className="cv-celebrate-skip" aria-label="Continuar" onClick={onSkipHold} />}
       <div className="cv-deduction-frame" style={rectStyle(frame)}>
         <span className="cv-deduction-octopus" style={{ left: `${OCTOPUS_BOX.x}%` }}>
-          <img src={DEDUCTION_OCTOPUS_ART.href} alt="" />
+          <ArtImg art={DEDUCTION_OCTOPUS_ART} still={false} followPointer />
         </span>
         <span
           className={`cv-deduction-bubble${placement.mirrored ? ' cv-deduction-bubble--mirror-x' : ''}`}

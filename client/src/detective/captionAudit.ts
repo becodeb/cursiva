@@ -183,7 +183,9 @@ export function auditCaptions(html: string): CaptionAudit {
     const selfClosing = /\/>\s*$/.test(token) || VOID_TAGS.has(tagName)
     if (
       ((tagName === 'image' || tagName === 'img') && carriesHrefOrSrc(token)) ||
-      (tagName === 'svg' && carriesDrawnPicture(token))
+      (tagName === 'svg' && carriesDrawnPicture(token)) ||
+      // A puppet (`puppet/Puppet.tsx`) is the registry picture drawn in code.
+      (tagName === 'g' && /\sdata-puppet="[^"]*"/.test(token))
     ) {
       markImageSeen()
     }

@@ -171,6 +171,7 @@ import {
   ZOO_ANIMAL_ART,
   ZOO_STAR_ART,
 } from '../detective/assets'
+import { standingFigure } from '../puppet/ArtFigure'
 import CaptionedArt from '../detective/CaptionedArt'
 import TrailProgressBar, { ANIMAL_MAX_WIDTH } from '../detective/TrailProgressBar'
 import CollectBar from '../detective/CollectBar'
@@ -3848,7 +3849,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     : level.goalArt
       ? { ...level.goalArt, size: GOAL_ART_SIZE }
       : isLastOfAnimalAdventure
-        ? { ...ZOO_ANIMAL_ART[adventure!.animal!], size: END_MARK_SIZE }
+        ? { ...ZOO_ANIMAL_ART[adventure!.animal!], size: END_MARK_SIZE, render: standingFigure(ZOO_ANIMAL_ART[adventure!.animal!]) }
         : clueDef
           ? {
               ...(trailLampOn ? CLUE_ART[clueDef.kind].art.earned : CLUE_ART[clueDef.kind].art.drained),
@@ -4610,7 +4611,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // passes nothing and keeps its dot. On an art-corridor level `at`
         // moves its feet beside the drawn body instead of onto it (N3).
         startArt={
-          drawnPlace ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE, at: startArtAt } : undefined
+          drawnPlace ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE, at: startArtAt, render: standingFigure(OCTOPUS_ART) } : undefined
         }
         // T38: the octopus's own art already holds the magnifying glass, so
         // on a level whose carrier IS that glass he keeps it in his hand while
@@ -4620,7 +4621,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // exact gate.
         startArtEmptyHanded={
           drawnPlace && octopusHoldsLens(level) && !waypointDebugCarrier
-            ? { ...OCTOPUS_EMPTY_HANDED_ART, size: OCTOPUS_SIZE, at: startArtAt }
+            ? { ...OCTOPUS_EMPTY_HANDED_ART, size: OCTOPUS_SIZE, at: startArtAt, render: standingFigure(OCTOPUS_EMPTY_HANDED_ART) }
             : undefined
         }
         // Shown wherever the start dot is shown (docs/03 §3): from phase 3 on,

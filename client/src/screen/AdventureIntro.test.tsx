@@ -20,7 +20,7 @@ const adventure = ADVENTURES[0] // the duck
 describe('AdventureIntro (main-screen spec "Narrative Entry Screen Content")', () => {
   it("renders the three registered hrefs: pointing octopus, stage speech bubble, the duck case's first clue (T49; review batch 2)", () => {
     const html = renderToString(<AdventureIntro adventure={adventure} onStart={() => {}} />)
-    expect(html).toContain(`src="${PULPITO_POSE_ART.points.href}"`)
+    expect(html).toContain(`data-art="${PULPITO_POSE_ART.points.href}"`)
     expect(html).toContain(`src="${ZOO_SPEECH_BUBBLE_LEFT_ART.href}"`)
     expect(html).toContain(`href="${CLUE_ART.puddle.art.earned.href}"`)
     expect(html).not.toContain(`href="${ZOO_ANIMAL_ART[adventure.animal!].href}"`)
@@ -171,7 +171,7 @@ describe('AdventureIntro idle life and bubble pop-in (prewriting-stage-completio
   it('the octopus breathes, and blinks — both disabled under reduced motion', () => {
     const html = renderToString(<AdventureIntro adventure={adventure} onStart={() => {}} />)
     expect(html).toContain('class="cv-intro-octopus"')
-    expect(html).toContain('class="cv-octopus-life"')
+    expect(html).toContain('class="cv-puppet cv-octopus-life"')
     expect(html).toContain('cv-octopus-breathe')
     expect(html).toContain('cv-octopus-blink')
     expect(html).toContain('@media (prefers-reduced-motion: reduce)')

@@ -27,6 +27,7 @@ import {
   ZOO_STAR_ART,
   type ZooAnimalId,
 } from '../detective/assets'
+import { ArtImg, ArtInSvg } from '../puppet/ArtFigure'
 import { PlaceholderAnimalBadge, PawPrintIcon } from '../detective/icons'
 import { hasOpenedNotebookOnce, markNotebookOpenedOnce } from './notebookDiscovery'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
@@ -924,6 +925,8 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
   }, [bubbleKey, reopenNonce])
   const dismissBubble = () => setBubbleVisible(false)
   const reopenBubble = () => setReopenNonce((n) => n + 1)
+  const pulpitoArt = finale ? OCTOPUS_ART : ZOO_OCTOPUS_BACKPACK_ART
+  const pulpitoBox = placeArt(pulpitoArt, 150, PLAZA_CENTRE)
   // T8 item 3: records THIS render's total as "seen" so the NEXT map visit's
   // own comparison (`starsJustIncreased`, above) has something to compare
   // against. `renderToString` never runs effects (this file's own header,
@@ -1155,15 +1158,7 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
                 height={placed.box.height}
               />
             ) : (
-              <image
-                key={`animal-${i}`}
-                href={placed.art.href}
-                x={placed.box.x}
-                y={placed.box.y}
-                width={placed.box.width}
-                height={placed.box.height}
-                preserveAspectRatio="xMidYMid meet"
-              />
+              <ArtInSvg key={`animal-${i}`} art={placed.art} box={placed.box} still={false} />
             ),
           )}
 
@@ -1253,11 +1248,9 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               reopenBubble()
             }}
           >
-            <image
-              href={finale ? OCTOPUS_ART.href : ZOO_OCTOPUS_BACKPACK_ART.href}
-              {...placeArt(finale ? OCTOPUS_ART : ZOO_OCTOPUS_BACKPACK_ART, 150, PLAZA_CENTRE)}
-              preserveAspectRatio="xMidYMid meet"
-            />
+            {/* A puppet paints only its pieces: this keeps the whole box tappable. */}
+            <rect {...pulpitoBox} fill="transparent" />
+            <ArtInSvg art={pulpitoArt} box={pulpitoBox} still={false} followPointer />
           </g>
 
           {/* Transparent hit-rects — the only tappable surface. Tapping an
@@ -1532,10 +1525,8 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
                 style={rescueFlightOverlayStyle(rescueFlight, toRect)}
               />
             ) : (
-              <img
-                src={rescueFlight.art.href}
-                alt=""
-                aria-hidden="true"
+              <ArtImg
+                art={rescueFlight.art}
                 className="cv-zoo-rescue-flight"
                 style={rescueFlightOverlayStyle(rescueFlight, toRect)}
               />

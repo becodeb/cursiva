@@ -57,6 +57,7 @@ import {
   ZOO_SPEECH_BUBBLE_LEFT_ART,
 } from '../detective/assets'
 import { PlaceholderAnimalBadge } from '../detective/icons'
+import { ArtImg } from '../puppet/ArtFigure'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
 import type { Adventure, ClosingBeat } from '../zoo/adventures'
@@ -120,6 +121,8 @@ html, body, #root { margin: 0; height: 100%; }
   50% { transform: scale(1.02) translateY(-1%); }
 }
 .cv-octopus-life { display: block; width: 100%; height: auto; animation: cv-octopus-blink 6.4s ease-in-out infinite; transform-origin: 50% 50%; }
+/* A puppet breathes and blinks by itself: the keyframes are for a PNG figure. */
+.cv-closing-octopus:has(> .cv-puppet), .cv-puppet.cv-octopus-life { animation: none; }
 @keyframes cv-octopus-blink {
   0%, 92%, 100% { transform: scaleY(1); }
   95% { transform: scaleY(0.82); }
@@ -155,6 +158,8 @@ html, body, #root { margin: 0; height: 100%; }
    this block -- this file's own top note. */
 .cv-closing-rescue-animal { position: absolute; display: flex; align-items: center; justify-content: center; }
 .cv-closing-rescue-animal img, .cv-closing-rescue-animal svg { display: block; height: 100%; width: auto; max-width: 100%; animation: cv-rescue-jump 1.1s ease-in-out infinite; transform-origin: 50% 100%; }
+/* A puppet does its own jumping (the hold on the cheer act, below). */
+.cv-closing-rescue-animal svg.cv-puppet { animation: none; }
 @keyframes cv-rescue-jump {
   0%, 100% { transform: translateY(0) scale(1); }
   35% { transform: translateY(-10%) scale(1.05); }
@@ -332,10 +337,11 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
               {isPlaceholderArt(ZOO_ANIMAL_ART[adventure.animal!]) ? (
                 <PlaceholderAnimalBadge style={{ viewTransitionName: RESCUE_FLIGHT_VT_NAME } as CSSProperties} />
               ) : (
-                <img
-                  src={ZOO_ANIMAL_ART[adventure.animal!].href}
-                  alt=""
+                <ArtImg
+                  art={ZOO_ANIMAL_ART[adventure.animal!]}
                   style={{ viewTransitionName: RESCUE_FLIGHT_VT_NAME } as CSSProperties}
+                  still={false}
+                  holding="cheer"
                 />
               )}
             </span>
@@ -344,7 +350,13 @@ export default function AdventureClosing({ adventure, beat, onContinue }: Advent
             className="cv-closing-octopus"
             style={{ [stance.corner]: `${octopusBox.x}%`, width: `${octopusBox.w}%` } as CSSProperties}
           >
-            <img src={octopusArt.href} alt="" className="cv-octopus-life" />
+            <ArtImg
+              art={octopusArt}
+              className="cv-octopus-life"
+              still={false}
+              entrance={isRescue ? { act: 'cheer', seconds: 4 } : undefined}
+              followPointer
+            />
           </span>
           <span
             className={`cv-closing-bubble${placement.mirrored ? ' cv-closing-bubble--mirror-x' : ''}`}

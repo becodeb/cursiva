@@ -6,6 +6,7 @@
 // which would leave the resting glass beside his tentacle). Clue marks are
 // drawn OVER him (`TraceCanvas`'s clue layer comes after the start art), so
 // none can be hidden; the SSR check at the end pins that order.
+import { puppetView } from '../puppet/characters'
 import { describe, expect, it } from 'vitest'
 import { renderToString } from 'react-dom/server'
 import { inlinedPng, type Raster } from '../testing/decodePng'
@@ -174,13 +175,14 @@ describe('the clue marks are drawn over the start octopus', () => {
     const html = renderToString(
       <LevelPlay level={getLevel('duck-trail1')} record={EMPTY_RECORD} onAttempt={() => undefined} onNext={() => undefined} onBack={() => undefined} />,
     )
-    const boxOf = (href: string): string => {
-      const tag = html.match(new RegExp(`<image[^>]*href="${href}"[^>]*>`))?.[0] ?? ''
-      return ['x', 'y', 'width', 'height'].map((k) => tag.match(new RegExp(` ${k}="([^"]+)"`))?.[1]).join(',')
-    }
-    const glassBox = boxOf(OCTOPUS_ART.href)
-    expect(glassBox.split(',').every((v) => v !== 'undefined')).toBe(true)
-    expect(boxOf(OCTOPUS_EMPTY_HANDED_ART.href)).toBe(glassBox)
-    expect(Number(glassBox.split(',')[3])).toBeCloseTo(OCTOPUS_SIZE, 6)
+    // A puppet's placement is the wrapper <g> around the figure naming its art.
+    const placementOf = (href: string): string =>
+      html.match(new RegExp(`<g transform="([^"]+)" aria-hidden="true"[^>]*><g [^>]*data-art="${href}"`))?.[1] ?? ''
+    const glass = placementOf(OCTOPUS_ART.href)
+    expect(glass).not.toBe('')
+    expect(placementOf(OCTOPUS_EMPTY_HANDED_ART.href)).toBe(glass)
+    // The figure's window, scaled by the placement, is the PNG's box height.
+    const scale = Number(glass.match(/scale\(([\d.]+)\)/)?.[1])
+    expect(puppetView('pulpo', OCTOPUS_ART.w / OCTOPUS_ART.h).h * scale).toBeCloseTo(OCTOPUS_SIZE, 1)
   })
 })

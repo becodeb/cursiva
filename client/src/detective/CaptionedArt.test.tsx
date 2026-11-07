@@ -7,11 +7,19 @@ import { ANIMAL_ART } from './assets'
 import CaptionedArt from './CaptionedArt'
 
 describe('CaptionedArt (spec: detective-mode "Captioned Art Invariant")', () => {
-  it('renders the picture and the word as a sibling HTML caption, never an SVG <text>', () => {
+  it('draws a character on the puppet engine as that puppet, still, in the same window', () => {
     const html = renderToString(<CaptionedArt art={ANIMAL_ART.pato} label="Pato" size={36} />)
-    expect(html).toContain('class="cv-captioned"')
-    expect(html).toContain(`href="${ANIMAL_ART.pato.href}"`)
+    expect(html).toContain('data-puppet="pato"')
+    expect(html).toContain(`data-art="${ANIMAL_ART.pato.href}"`)
+    expect(html).not.toContain(`href="${ANIMAL_ART.pato.href}"`)
     expect(html).toContain('class="cv-caption">Pato<')
+  })
+
+  it('renders the picture and the word as a sibling HTML caption, never an SVG <text>', () => {
+    const html = renderToString(<CaptionedArt art={ANIMAL_ART.vaca} label="Vaca" size={36} />)
+    expect(html).toContain('class="cv-captioned"')
+    expect(html).toContain(`href="${ANIMAL_ART.vaca.href}"`)
+    expect(html).toContain('class="cv-caption">Vaca<')
     expect(html).not.toContain('<text')
     expect(html).not.toContain('url(#')
   })

@@ -141,12 +141,15 @@ export function stageSizePx(viewportWidth: number, viewportHeight: number): numb
  *    columns 0.80-0.95 start at y 0.33 or lower -> (0.86, 0.20).
  *  - carrier, with the lens (326x384, a closing beat's figure): head right
  *    edge x 0.88 at y 0.30, columns 0.90-0.95 start at y 0.45 -> (0.96, 0.32).
+ *  [papel-world T2] Stage figures are puppets now, standing in these same
+ *  boxes. For `points` the puppet's cap brim reaches x 0.79, so the anchor
+ *  moved out to (0.86, 0.30), which also stays clear of the PNG.
  *  Before T51 the tip landed 2% above the box's top edge at 78% of its
  *  width, which on the T49 poses is above the hat's crown: lower anchors
  *  point at the head and also let the bubble grow (its height is bounded
  *  by how far the tip sits below the stage's top). */
 export const STAGE_SPEECH_ANCHORS: ReadonlyMap<string, { readonly x: number; readonly y: number }> = new Map([
-  [PULPITO_POSE_ART.points.href, { x: 0.74, y: 0.33 }],
+  [PULPITO_POSE_ART.points.href, { x: 0.86, y: 0.3 }],
   [PULPITO_POSE_ART.cheers.href, { x: 0.72, y: 0.06 }],
   [ZOO_OCTOPUS_BACKPACK_ART.href, { x: 0.86, y: 0.2 }],
   [OCTOPUS_ART.href, { x: 0.96, y: 0.32 }],

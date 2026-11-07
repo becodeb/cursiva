@@ -2,6 +2,7 @@
 // Renders the Transformation"; add-caretaker-prologue design.md D3). Node
 // environment, no DOM: `renderToString` on the HTML string, the same
 // convention `AdventureIntro.test.tsx` uses.
+import { puppetFigureFor } from '../puppet/ArtFigure'
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import AdventureClosing, { closingBubbleText } from './AdventureClosing'
@@ -88,23 +89,23 @@ describe('AdventureClosing (main-screen spec "AdventureClosing Screen Renders th
   it('[T49, docs/19 §4.1] a rescue closing shows the Pulpito cheering', () => {
     const duck = ADVENTURES.find((a) => a.id === 'duck')!
     const html = renderToString(<AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />)
-    expect(html).toContain(`src="${PULPITO_POSE_ART.cheers.href}"`)
-    expect(html).not.toContain(`src="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
+    expect(html).toContain(`data-art="${PULPITO_POSE_ART.cheers.href}"`)
+    expect(html).not.toContain(`data-art="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
   })
 
   it('renders the standing octopus (ZOO_OCTOPUS_BACKPACK_ART) when the beat carries no figure override', () => {
     const beat = peces.closingBeat![0]
     expect(beat.figure).toBeUndefined()
     const html = renderToString(<AdventureClosing adventure={peces} beat={beat} onContinue={() => {}} />)
-    expect(html).toContain(`src="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
+    expect(html).toContain(`data-art="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
   })
 
   it("renders the magnifier beat's own figure override instead of the standing octopus", () => {
     const beat = sendero.closingBeat![1]
     expect(beat.figure).toBeDefined()
     const html = renderToString(<AdventureClosing adventure={sendero} beat={beat} onContinue={() => {}} />)
-    expect(html).toContain(`src="${beat.figure!.href}"`)
-    expect(html).not.toContain(`src="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
+    expect(html).toContain(`data-art="${beat.figure!.href}"`)
+    expect(html).not.toContain(`data-art="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
   })
 
   it('keeps auditCaptions green for each of sendero\'s two beats: zero uncaptioned words, zero imageless containers', () => {
@@ -253,7 +254,7 @@ describe('AdventureClosing rescue animal and flight (T24)', () => {
       <AdventureClosing adventure={duck} beat={duck.closingBeat![0]} onContinue={() => {}} />,
     )
     expect(html).toContain('class="cv-closing-rescue-animal"')
-    expect(html).toContain(`src="${ZOO_ANIMAL_ART.pato.href}"`)
+    expect(html).toContain(`data-art="${ZOO_ANIMAL_ART.pato.href}"`)
   })
 
   it('renders no big-animal element for an animal-less closing (the four entrance enclosures, and night)', () => {
@@ -283,7 +284,9 @@ describe('AdventureClosing rescue animal and flight (T24)', () => {
         expect(html, adventure.id).not.toContain(`src="${art.href}"`)
         expect(html, adventure.id).toContain('data-cv-picture="true"')
       } else {
-        expect(html, adventure.id).toContain(`src="${art.href}"`)
+        // The duck already stands as a puppet; every other animal keeps its PNG.
+        const shown = puppetFigureFor(art) ? `data-art="${art.href}"` : `src="${art.href}"`
+        expect(html, adventure.id).toContain(shown)
       }
     }
   })
@@ -381,7 +384,7 @@ describe('AdventureClosing idle life and bubble pop-in (prewriting-stage-complet
       <AdventureClosing adventure={sendero} beat={sendero.closingBeat![0]} onContinue={() => {}} />,
     )
     expect(html).toContain('class="cv-closing-octopus"')
-    expect(html).toContain('class="cv-octopus-life"')
+    expect(html).toContain('class="cv-puppet cv-octopus-life"')
     expect(html).toContain('cv-octopus-breathe')
     expect(html).toContain('cv-octopus-blink')
     expect(html).toContain('@media (prefers-reduced-motion: reduce)')
@@ -400,8 +403,8 @@ describe('AdventureClosing idle life and bubble pop-in (prewriting-stage-complet
     const beat = sendero.closingBeat![1]
     expect(beat.figure).toBeDefined()
     const html = renderToString(<AdventureClosing adventure={sendero} beat={beat} onContinue={() => {}} />)
-    expect(html).toContain(`src="${beat.figure!.href}"`)
-    expect(html).not.toContain(`src="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
+    expect(html).toContain(`data-art="${beat.figure!.href}"`)
+    expect(html).not.toContain(`data-art="${ZOO_OCTOPUS_BACKPACK_ART.href}"`)
     const wrapperOpen = html.indexOf('class="cv-closing-octopus"')
     const imgOpen = html.indexOf('<img', wrapperOpen)
     expect(wrapperOpen).toBeGreaterThanOrEqual(0)

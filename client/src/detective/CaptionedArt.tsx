@@ -16,6 +16,7 @@
 // invariant across a whole screen: that no caller ever hand-writes a
 // `cv-caption` span next to an imageless container. This component is the
 // type-level half; the audit is the runtime half.
+import { ArtInSvg } from '../puppet/ArtFigure'
 import type { ArtImage } from './assets'
 
 export interface CaptionedArtProps {
@@ -69,14 +70,7 @@ export default function CaptionedArt({ art, label, size, className, cropHeight }
         aria-hidden="true"
         focusable="false"
       >
-        <image
-          href={art.href}
-          x={-width / 2}
-          y={-size / 2}
-          width={width}
-          height={size}
-          preserveAspectRatio="xMidYMid meet"
-        />
+        <ArtInSvg art={art} box={{ x: -width / 2, y: -size / 2, width, height: size }} />
       </svg>
       <span className="cv-caption">{label}</span>
     </span>

@@ -728,6 +728,12 @@ export interface TraceStandingArt {
   /** Rendered HEIGHT in viewBox units. Width follows from the aspect ratio. */
   size: number
   /**
+   * Draws this figure in code inside its placed box, in place of the `<image>`
+   * (`puppet/ArtFigure.tsx`'s `standingFigure`). The caller supplies it because
+   * this canvas holds no registry; absent keeps the `<image>`.
+   */
+  render?: (box: ArtBox) => ReactNode
+  /**
    * Where the feet actually land, when it differs from the route's own
    * marker point. Absent on every ordinary route, where "on the point" (the
    * grip's whole reason to exist, above) is exactly where a character should
@@ -2165,15 +2171,21 @@ export default function TraceCanvas({
         // being cut in half by it, and then `clampArtBox` slides it the
         // minimum needed to stay inside the sheet — a route ending against
         // the edge used to cut the lamp in half the other way.
-        <image
-          href={endArt.href}
-          {...clampArtBox(
-            placeArt({ ...endArt, grip: STANDING_GRIP }, endArt.size, endMarker),
-            sheetBounds,
-          )}
-          preserveAspectRatio="xMidYMid meet"
-          pointerEvents="none"
-        />
+        endArt.render ? (
+          <g pointerEvents="none">
+            {endArt.render(clampArtBox(placeArt({ ...endArt, grip: STANDING_GRIP }, endArt.size, endMarker), sheetBounds))}
+          </g>
+        ) : (
+          <image
+            href={endArt.href}
+            {...clampArtBox(
+              placeArt({ ...endArt, grip: STANDING_GRIP }, endArt.size, endMarker),
+              sheetBounds,
+            )}
+            preserveAspectRatio="xMidYMid meet"
+            pointerEvents="none"
+          />
+        )
       )}
       {endMarker && !endArt && (
         // The goal (docs/03 §7). Two nested HOLLOW diamonds: a silhouette no
@@ -2252,7 +2264,16 @@ export default function TraceCanvas({
         // is then a visibility flip on an already-decoded image, never a
         // fresh request that would leave the spot blank for the first touch.
         [startArt, carrier ? startArtEmptyHanded : undefined].map((art, idx) =>
-          art ? (
+          art?.render ? (
+            <g
+              key={`start-art-${idx}`}
+              className={idleNudgeActive ? 'cv-idle-nudge-start' : undefined}
+              pointerEvents="none"
+              visibility={art === standingStartArt ? undefined : 'hidden'}
+            >
+              {art.render(clampArtBox(placeArt({ ...art, grip: STANDING_GRIP }, art.size, art.at ?? startMarker), sheetBounds))}
+            </g>
+          ) : art ? (
             <image
               key={`start-art-${idx}`}
               href={art.href}

@@ -26,6 +26,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
 import { ZOO_SPEECH_BUBBLE_LEFT_ART } from '../detective/assets'
+import { ArtImg } from '../puppet/ArtFigure'
 import { SHEET_PAPER, fitContentWithInsets } from '../canvas/TraceCanvas'
 import { RevealLayer } from '../canvas/RevealLayer'
 import type { ArtBox } from '../canvas/placeArt'
@@ -94,6 +95,8 @@ const INTRO_CSS = `
   50% { transform: scale(1.02) translateY(-1%); }
 }
 .cv-octopus-life { display: block; width: 100%; height: auto; animation: cv-octopus-blink 6.4s ease-in-out infinite; transform-origin: 50% 50%; }
+/* A puppet breathes and blinks by itself: the keyframes are for a PNG figure. */
+.cv-intro-octopus:has(> .cv-puppet), .cv-puppet.cv-octopus-life { animation: none; }
 @keyframes cv-octopus-blink {
   0%, 92%, 100% { transform: scaleY(1); }
   95% { transform: scaleY(0.82); }
@@ -347,11 +350,13 @@ export default function AdventureIntro({ adventure, onStart }: AdventureIntroPro
             className="cv-intro-octopus"
             style={{ [stance.corner]: `${octopusBox.x}%`, width: `${octopusBox.w}%` } as CSSProperties}
           >
-            <img
-              src={INTRO_OCTOPUS_ART.href}
-              alt=""
+            <ArtImg
+              art={INTRO_OCTOPUS_ART}
               className="cv-octopus-life"
               style={stance.corner === 'right' ? { scale: '-1 1' } : undefined}
+              still={false}
+              entrance={{ act: 'wave', seconds: 3.2 }}
+              followPointer
             />
           </span>
           <span
