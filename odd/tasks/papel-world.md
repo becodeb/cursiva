@@ -49,8 +49,8 @@ defaults to confirm, not settled answers.
 
 ## Tasks
 
-- [ ] T1 — Puppet engine in `client/src/puppet/`, paper treatment only, pure and testable. Route: delegated.
-- [ ] T2 — Pulpito and duck on the engine, wired into one complete adventure (intro, level, closing, map). Route: delegated.
+- [x] T1 — Puppet engine in `client/src/puppet/`, paper treatment only, pure and testable. Route: delegated.
+- [x] T2 — Pulpito and duck on the engine, wired into one complete adventure (intro, level, closing, map). Route: delegated.
 - [ ] T3 — Your stroke is the drawing: capture the real trace and replay it in the duck closing, then the other families. Route: delegated.
 - [ ] T4 — Tentacle demo and wordless corrections with spoken feedback (`docs/25` P2-1). Route: delegated.
 - [ ] T5 — Fix the letter score (`docs/25` 4.1). Route: delegated.
@@ -84,8 +84,19 @@ the user's decisions.
 
 ## Progress
 
-Created; nothing implemented yet.
+- T1 done (`e9c3f92`): `client/src/puppet/`. Pure rig and actor, one shared
+  ticker capped near 30 fps, calm mode for `still` and reduced motion.
+- T2 done (`bef9549`): `puppet/ArtFigure.tsx` is the seam, keyed on the registry
+  href. Puppets stand in the PNG's exact box. Wired: map, intro, level, deduction,
+  closing, rescue flight, captioned art.
+- Evidence: `npx vitest run --maxWorkers=2` 123 files, 3722 tests green;
+  `npm run build` green. In the browser: trace screen attributes unchanged over
+  700 ms, intro, closing and map moving, reduced-motion intro static after its act.
+- Still PNG in the duck adventure: ducklings, clue marks, the fingertip lens. The
+  notebook still shows the PNG duck. The gold puppet lens becomes the PNG lens on
+  touch, a visible mismatch to settle in T7.
+- The intro speech anchor moved to (0.86, 0.30), clear of the puppet's cap brim.
 
 ## Next step
 
-T1 and T2.
+Parent reads the T2 captures side by side, then T3.
