@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { renderToString } from 'react-dom/server'
 import { ADVENTURES, type Adventure } from '../zoo/adventures'
-import { ANIMAL_ART, ZOO_ANIMAL_ART } from '../detective/assets'
+import { ANIMAL_ART, CART_ART, ZOO_ANIMAL_ART } from '../detective/assets'
 import { forgetSessionLines, recordApprovedStroke, type TracedLine } from '../zoo/tracedLine'
 import { composeFinale, FINALE_STAGE } from './strokeFinale'
 import StrokeFinale, { FinaleGate, FinaleSceneView, finaleSceneFor } from './StrokeFinale'
@@ -23,10 +23,10 @@ describe('FinaleSceneView', () => {
     expect(html).toContain('data-puppet="pato"')
   })
 
-  it('an animal still a PNG comes through as its picture, with no error', () => {
+  it('art with no puppet comes through as its picture, with no error', () => {
     const scene = composeFinale({ kind: 'bubbles' }, line, 1)!
-    const html = renderToString(<FinaleSceneView scene={scene} art={ZOO_ANIMAL_ART.pez} reducedMotion={false} />)
-    expect(html).toContain(`href="${ZOO_ANIMAL_ART.pez.href}"`)
+    const html = renderToString(<FinaleSceneView scene={scene} art={CART_ART} reducedMotion={false} />)
+    expect(html).toContain(`href="${CART_ART.href}"`)
   })
 
   it('uses nothing the repo bans on an SVG', () => {
