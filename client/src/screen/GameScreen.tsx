@@ -16,6 +16,8 @@ import type { LevelAttempt, LevelRecord } from '../game/types'
 import { openProgressStore } from '../game/openProgressStore'
 import { DETECTIVE_CASES, caseSolvedId, resolveCase } from '../detective/cases'
 import AdventureClosing from './AdventureClosing'
+import LetterMorph from './LetterMorph'
+import NotebookKeepsake from './NotebookKeepsake'
 import { FinaleGate } from './StrokeFinale'
 import { isDevMode } from '../canvas/devMode'
 import { sectorOf } from '../zoo/sectors'
@@ -44,6 +46,8 @@ export type GameView =
   // closes the case in place.
   | { view: 'deduce'; caseId: string; afterLevelId?: string }
   | { view: 'close'; levelId: string; beat?: number }
+  // A finished word, on the notebook page, before the flow goes on.
+  | { view: 'keepsake'; levelId: string }
 
 /**
  * The identity `ScreenTransition` (prewriting-stage-completion T8 item 4)
@@ -67,6 +71,8 @@ export function screenTransitionKey(view: GameView): string {
       return `play:${view.levelId}`
     case 'close':
       return `close:${view.levelId}`
+    case 'keepsake':
+      return `keepsake:${view.levelId}`
     case 'deduce':
       return `deduce:${view.caseId}`
   }
@@ -414,7 +420,7 @@ export function resolveAfterAdventure(
   records: Readonly<Record<string, LevelRecord>>,
 ): GameView | null {
   const adventure = adventureFor(lastLevelId)
-  if (!adventure || adventure.animal !== undefined) return null
+  if (!adventure || adventure.animal !== undefined || adventure.chapter) return null
   const sector = sectorOf(lastLevelId)
   if (!sector) return null
   const index = sector.adventureIds.indexOf(lastLevelId)
@@ -627,6 +633,35 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
   const screenTransitionKind: ScreenTransitionKind = nativeTransitionsCapable && !reducedMotion ? 'native' : 'wipe'
 
   const dispatch = (action: GameAction): void => advanceView(nextView(state, action))
+  // The gesture turning into the letter plays once per entry into a letter, before
+  // its first step: local state, so a return from the map shows it again.
+  const [morphsSeen, setMorphsSeen] = useState<readonly string[]>([])
+
+  const goOnFrom = (levelId: string): void => {
+    // `resolveNextAction` returns `NextAction` — `GameAction` widened
+    // by the THREE outcomes `nextView` cannot express (design.md §6,
+    // §6.3; adventure-flow-and-map-guidance T2 amendment). This is the
+    // single point that has to discriminate before dispatching, so
+    // `dispatch` never silently becomes the fallback for "leave the
+    // shell", "show the transformation" or "enter the next adventure".
+    const action = resolveNextAction(levelId, store.all())
+    if (action.type === 'exit') onExit()
+    else if (action.type === 'close') advanceView({ view: 'close', levelId: action.levelId })
+    else if (action.type === 'enter') advanceView(action.view)
+    else dispatch(action)
+  }
+
+  if (state.view === 'keepsake') {
+    const level = getLevel(state.levelId)
+    return (
+      <>
+        <style>{ROOT_VIEW_TRANSITION_CSS}</style>
+        <ScreenTransition screenKey={screenTransitionKey(state)} kind={screenTransitionKind}>
+          <NotebookKeepsake level={level} onDone={() => goOnFrom(state.levelId)} />
+        </ScreenTransition>
+      </>
+    )
+  }
 
   if (state.view === 'intro') {
     // The narrative entry (docs/13 §5 item 1, design.md §4): shown once per
@@ -705,17 +740,19 @@ export default function GameScreen({ footer, initial, onExit }: GameScreenProps)
       setVersion((n) => n + 1)
     }
     const handleNext = (): void => {
-      // `resolveNextAction` returns `NextAction` — `GameAction` widened
-      // by the THREE outcomes `nextView` cannot express (design.md §6,
-      // §6.3; adventure-flow-and-map-guidance T2 amendment). This is the
-      // single point that has to discriminate before dispatching, so
-      // `dispatch` never silently becomes the fallback for "leave the
-      // shell", "show the transformation" or "enter the next adventure".
-      const action = resolveNextAction(state.levelId, store.all())
-      if (action.type === 'exit') onExit()
-      else if (action.type === 'close') advanceView({ view: 'close', levelId: action.levelId })
-      else if (action.type === 'enter') advanceView(action.view)
-      else dispatch(action)
+      if (level.notebook?.step === 'word') advanceView({ view: 'keepsake', levelId: state.levelId })
+      else goOnFrom(state.levelId)
+    }
+    const morph = level.notebook?.morph
+    if (state.view === 'play' && morph && !morphsSeen.includes(level.id)) {
+      return (
+        <>
+          <style>{ROOT_VIEW_TRANSITION_CSS}</style>
+          <ScreenTransition screenKey={screenTransitionKey(state)} kind={screenTransitionKind}>
+            <LetterMorph level={level} morph={morph} onDone={() => setMorphsSeen((seen) => [...seen, level.id])} />
+          </ScreenTransition>
+        </>
+      )
     }
     return (
       <>

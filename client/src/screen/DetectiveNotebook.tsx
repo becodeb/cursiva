@@ -23,15 +23,18 @@
 // aspect slot) rather than a JS-computed pixel size: any aspect ratio, from
 // the llama's tall portrait to vibora's long low body, simply shrinks to
 // fit the same card shape.
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { playSfx } from '../audio/sfx'
-import { CloseIcon, NotebookPadIcon, PawPrintIcon } from '../detective/icons'
+import { CloseIcon, NotebookPadIcon, PawPrintIcon, PencilIcon } from '../detective/icons'
 import { CARRIER_LENS_ART, type ZooAnimalId } from '../detective/assets'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { BACKPACK_ITEMS, earnedItems } from '../zoo/backpack'
 import { notebookEntries } from '../zoo/notebook'
 import type { Records } from '../zoo/sectors'
 import { canAutoSpeak, speak } from '../voice/narrator'
+import { loadWritings, notebookWritings, type Writing } from '../zoo/notebookWriting'
+import { strokePath, writingViewBox } from './NotebookKeepsake'
+import { NotebookRule } from './NotebookPaper'
 
 const INK = '#1a1a1a'
 
@@ -64,6 +67,14 @@ const NOTEBOOK_CSS = `
    dialog's own aria-label already names the screen for assistive tech). */
 .cv-notebook-title { display: flex; align-items: center; gap: 10px; }
 .cv-notebook-title img, .cv-notebook-title svg { height: min(6dvh, 42px); width: auto; display: block; }
+.cv-notebook-header-right { display: flex; align-items: center; gap: 8px; }
+.cv-notebook-tab { flex: none; width: max(44px, min(9dvh, 60px)); height: max(44px, min(9dvh, 60px)); box-sizing: border-box; border-radius: 50%; border: 3px solid ${INK}; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; padding: 7px; cursor: pointer; }
+.cv-notebook-tab svg { width: 100%; height: 100%; display: block; }
+/* What the child wrote: their own strokes on the rule, nothing else on the page. */
+.cv-notebook-writing { position: relative; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 1.5dvh 2%; padding: 0 3% 2dvh; }
+.cv-notebook-written { flex: none; height: clamp(90px, 26dvh, 200px); padding: 0; border: none; background: none; cursor: pointer; }
+.cv-notebook-written--word { height: clamp(100px, 34dvh, 260px); }
+.cv-notebook-written svg { height: 100%; width: auto; display: block; }
 .cv-notebook-close { flex: none; width: max(44px, min(9dvh, 60px)); height: max(44px, min(9dvh, 60px)); box-sizing: border-box; border-radius: 50%; border: none; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
 /* One shared card face for both the tools strip and the animal grid —
    marker style: warm paper, thick dark ink outline, no shadow
@@ -158,6 +169,39 @@ button.cv-notebook-card:disabled { cursor: default; }
 }
 `
 
+/** One thing the child wrote, in their own stroke. Tapped, it is read to them: they
+ *  wrote it before they could read it. */
+function WrittenPiece({ writing }: { writing: Writing }) {
+  const isWord = writing.key.length > 1
+  const viewBox = writingViewBox(writing, 30)
+  const [, , w, h] = viewBox.split(' ').map(Number)
+  return (
+    <button
+      type="button"
+      className={isWord ? 'cv-notebook-written cv-notebook-written--word' : 'cv-notebook-written'}
+      aria-label={writing.key}
+      onClick={() => {
+        if (canAutoSpeak()) speak(writing.key)
+      }}
+    >
+      <svg viewBox={viewBox} style={{ aspectRatio: `${w} / ${h}` }} aria-hidden="true" data-cv-picture="true">
+        <NotebookRule />
+        {writing.strokes.map((stroke, i) => (
+          <path
+            key={i}
+            d={strokePath(stroke)}
+            fill="none"
+            stroke="#2a3442"
+            strokeWidth={11}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ))}
+      </svg>
+    </button>
+  )
+}
+
 export interface DetectiveNotebookProps {
   records: Records
   onClose: () => void
@@ -166,6 +210,8 @@ export interface DetectiveNotebookProps {
    *  every later open) — `null`/`undefined` renders the plain grid,
    *  unchanged. */
   highlightId?: ZooAnimalId | null
+  /** Tests pin it: there is no `localStorage` under `renderToString`. */
+  writings?: readonly Writing[]
 }
 
 /**
@@ -176,7 +222,9 @@ export interface DetectiveNotebookProps {
  * for the pieces that DO need one (this one does not: there is no auto-hide
  * timer to drive).
  */
-export default function DetectiveNotebook({ records, onClose, highlightId }: DetectiveNotebookProps) {
+export default function DetectiveNotebook({ records, onClose, highlightId, writings }: DetectiveNotebookProps) {
+  const [written] = useState(() => writings ?? notebookWritings(loadWritings()))
+  const [page, setPage] = useState<'animals' | 'writing'>('animals')
   const animals = notebookEntries(records)
   const earnedIds = new Set(earnedItems(records).map((item) => item.id))
 
@@ -197,6 +245,21 @@ export default function DetectiveNotebook({ records, onClose, highlightId }: Det
           <img src={CARRIER_LENS_ART.href} alt="" />
           <NotebookPadIcon />
         </div>
+        <div className="cv-notebook-header-right">
+        {written.length > 0 && (
+          <button
+            type="button"
+            className="cv-notebook-tab"
+            data-cv-notebook-tab={page === 'animals' ? 'writing' : 'animals'}
+            aria-label={page === 'animals' ? 'Lo que escribí' : 'Los animales'}
+            onClick={() => {
+              playSfx('notebook')
+              setPage(page === 'animals' ? 'writing' : 'animals')
+            }}
+          >
+            {page === 'animals' ? <PencilIcon /> : <PawPrintIcon />}
+          </button>
+        )}
         <button
           type="button"
           className="cv-notebook-close"
@@ -208,7 +271,17 @@ export default function DetectiveNotebook({ records, onClose, highlightId }: Det
         >
           <CloseIcon />
         </button>
+        </div>
       </div>
+      {page === 'writing' && (
+        <div className="cv-notebook-writing" data-cv-notebook-writing="">
+          {written.map((writing) => (
+            <WrittenPiece key={writing.key} writing={writing} />
+          ))}
+        </div>
+      )}
+      {page === 'animals' && (
+      <>
       <div className="cv-notebook-tools" role="group" aria-label="Herramientas">
         {BACKPACK_ITEMS.map((item) => (
           <div
@@ -255,6 +328,8 @@ export default function DetectiveNotebook({ records, onClose, highlightId }: Det
           </button>
         ))}
       </div>
+      </>
+      )}
     </div>
   )
 }

@@ -114,6 +114,17 @@ export function NotebookPadIcon() {
  *  header case), so the audit needs one explicit, narrow opt-in rather than
  *  treating every aria-hidden decorative glyph in the app as captioned art
  *  by accident. */
+/** The notebook's other page: what the child has written. */
+export function PencilIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" data-cv-picture="true">
+      <path d="M12 52L16 38L44 10L54 20L26 48Z" fill="#f4c34d" stroke="#1a1a1a" strokeWidth={4} strokeLinejoin="round" />
+      <path d="M12 52L16 38L26 48Z" fill="#f6dfb4" stroke="#1a1a1a" strokeWidth={4} strokeLinejoin="round" />
+      <path d="M38 16L48 26" fill="none" stroke="#1a1a1a" strokeWidth={4} />
+    </svg>
+  )
+}
+
 export function PawPrintIcon({ className }: { className?: string }) {
   return (
     <svg

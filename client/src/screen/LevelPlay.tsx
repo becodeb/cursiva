@@ -122,7 +122,7 @@ import type { TraceArtCorridor } from '../canvas/TraceCanvas'
 import type { TraceTorch } from '../canvas/TorchLayer'
 import { directionArrowOf } from './directionArrow'
 import { goalMarkerOf } from './goalMarker'
-import type { LevelConfig, LevelTarget, RevealConfig } from '../levels/types'
+import type { GuideBand, LevelConfig, LevelTarget, RevealConfig } from '../levels/types'
 import { luma } from '../detective/palette'
 import { isCaseTrail, inDetectiveWorld } from '../levels/world'
 import type { LevelAttempt, LevelRecord } from '../game/types'
@@ -173,16 +173,21 @@ import {
   ZOO_ANIMAL_ART,
   ZOO_STAR_ART,
 } from '../detective/assets'
-import { standingFigure } from '../puppet/ArtFigure'
+import { ArtImg, standingFigure } from '../puppet/ArtFigure'
 import type { PuppetHandle } from '../puppet/Puppet'
 import CaptionedArt from '../detective/CaptionedArt'
 import TrailProgressBar, { ANIMAL_MAX_WIDTH } from '../detective/TrailProgressBar'
 import CollectBar from '../detective/CollectBar'
-import { BackIcon, PlaceholderAnimalBadge, ReplayIcon } from '../detective/icons'
+import { BackIcon, ContinueIcon, PlaceholderAnimalBadge, ReplayIcon } from '../detective/icons'
 import { PISTAS_BAR_CHROME_PX, PISTAS_BUDGET_VW_FRAC, PISTAS_MIN_SLOT } from '../detective/pistasFit'
 import { useNarration } from '../voice/useNarration'
 import { canAutoSpeak, isSpeaking, speak } from '../voice/narrator'
 import { recordApprovedStroke, type RawPoint } from '../zoo/tracedLine'
+import { recordWriting } from '../zoo/notebookWriting'
+import { transformPathD } from '../letters/svgLetter'
+import { exitKindFor } from '../letters/anchors'
+import NotebookPaper, { NotebookFrame, NotebookRule, PeekingRule } from './NotebookPaper'
+import { exitCueOf, letterCoachLine, notebookHelpFor } from './notebookStep'
 import SpeakButton from '../voice/SpeakButton'
 
 /** Keeps the child's own approved line for the closing finale (`zoo/tracedLine.ts`).
@@ -754,7 +759,7 @@ function standingArtKeepOut(target: LevelTarget): { x: number; y: number; width:
  *  corridor first, the authored one if a widened corridor leaves no room, and his
  *  old spot on the start only if the sheet has none at all. */
 function besideRouteFeet(target: LevelTarget, start: { x: number; y: number }): { x: number; y: number } | undefined {
-  const band = drawingBand(target.ideal, target.corridorWidth, target.config.surface)
+  const band = levelBand(target)
   const bounds = { x: 0, y: band.y, width: target.viewBoxWidth, height: band.height }
   const art = standingArtKeepOut(target)
   const clearOf = (corridor: number) =>
@@ -878,6 +883,12 @@ export function drawingBand(
   const top = Math.max(0, Math.floor(Math.min(PAUTA_TOP - BAND_MARGIN, minY - reach)))
   const bottom = Math.min(SHEET_HEIGHT, Math.ceil(Math.max(PAUTA_BOTTOM + BAND_MARGIN, maxY + reach)))
   return { y: top, height: bottom - top }
+}
+
+/** What of the sheet a level shows: its own window, or the band its drawing needs. */
+function levelBand(target: LevelTarget): { y: number; height: number } {
+  const { view, surface } = target.config
+  return view ? { y: view.y, height: view.height } : drawingBand(target.ideal, target.corridorWidth, surface)
 }
 
 /**
@@ -1101,6 +1112,8 @@ export function seedCameraFor(
  * and the column overflows anyway.
  */
 export const LAYOUT_CSS = `
+.cv-nb-octopus { position: absolute; left: 3%; bottom: 2%; height: min(30dvh, 200px); aspect-ratio: 1 / 1; pointer-events: none; z-index: 0; }
+.cv-nb-octopus > * { display: block; width: 100%; height: 100%; }
 .cv-play, .cv-play * { box-sizing: border-box; }
 html, body, #root { margin: 0; padding: 0; }
 .cv-play {
@@ -1957,7 +1970,7 @@ function neighbourhoodNearest(
  * `showGuide === false` still forces `'none'`: `f5-mama` is the motor-memory
  * exam and must stay one whatever the child's accuracy is.
  */
-export type GuideLevel = 'full' | 'dotted' | 'minimal' | 'none'
+export type GuideLevel = GuideBand
 
 export const GUIDE_DOTTED_FROM = 40
 export const GUIDE_MINIMAL_FROM = 70
@@ -1968,6 +1981,9 @@ export const WITHDRAWAL_FROM_PHASE = 3
 
 export function guideLevelFor(record: LevelRecord, level: LevelConfig): GuideLevel {
   if (!level.showGuide) return 'none'
+  // A step of the letter sequence IS a band (`docs/25` 4.4): it moves on by the
+  // sequence, not by mastery.
+  if (level.guideBand) return level.guideBand
   if (level.phase < WITHDRAWAL_FROM_PHASE) return 'full'
   const mastery = record.bestAccuracy
   if (mastery >= GUIDE_NONE_FROM) return 'none'
@@ -2174,6 +2190,9 @@ function Pillar({
  *  which reads from here rather than restating the literal a second time. */
 export const LEVEL_CHROME_SIDE_INSET = 16
 
+/** Thin enough that the hole of an `e` stays a hole at letter scale. */
+const NOTEBOOK_INK_WIDTH = 12
+
 export default function LevelPlay({ level, record, onAttempt, onNext, onBack, progress }: LevelPlayProps) {
   // T7 rework #2 (orchestrator review, "fit the content box into the
   // viewport minus the chrome's safe insets"): .cv-top/.cv-foot's own
@@ -2282,12 +2301,20 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // T13: `level.spines` alone picks the faster pace — never `target.kind` or
   // anything about the shape of `demoPaths` itself, so a future routeless
   // family that is NOT spines keeps the original shared pace by default.
-  const demoStepS = level.spines ? SPINE_DEMO_STEP_S : level.waypoints ? WAYPOINT_DEMO_STEP_S : DEMO_STEP_S
-  const demoDurationS = level.spines
-    ? SPINE_DEMO_DURATION_S
-    : level.waypoints
-      ? WAYPOINT_DEMO_DURATION_S
-      : DEMO_DURATION_S
+  const demoStepS = level.demoSeconds
+    ? level.demoSeconds + 0.1
+    : level.spines
+      ? SPINE_DEMO_STEP_S
+      : level.waypoints
+        ? WAYPOINT_DEMO_STEP_S
+        : DEMO_STEP_S
+  const demoDurationS = level.demoSeconds
+    ? level.demoSeconds
+    : level.spines
+      ? SPINE_DEMO_DURATION_S
+      : level.waypoints
+        ? WAYPOINT_DEMO_DURATION_S
+        : DEMO_DURATION_S
   const demos = useMemo<DrawDemo[]>(
     () =>
       target.demoPaths.map((d, idx) => ({
@@ -3659,6 +3686,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       // A collect level was kept at its last item; this release is the same line,
       // now complete, so it replaces it.
       if (result.approved) keepApprovedStroke(level.id, level.spines ? acceptedSpinesRef.current : snapshot)
+      if (result.approved && level.keepWriting) recordWriting(level.keepWriting, snapshot)
       setAttempt(result)
       setPhase('result')
       // T29: on a collect level, `onFrame` already ran this exact override
@@ -3922,7 +3950,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // whichever levels this task's own mechanic applies to — never a
   // hardcoded `snake4` id, so a future snake level inherits the rule for
   // free — the same way `collectDef` already suppresses it above.
-  const endArt = collectDef || hasSnakeColour || segmentDef
+  const endArt = collectDef || hasSnakeColour || segmentDef || level.notebook || level.peekingRule
     ? undefined
     : level.goalArt
       ? { ...level.goalArt, size: GOAL_ART_SIZE }
@@ -3972,10 +4000,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   }, [strokes, inkWarp, level.spines, level.segments, segmentInk])
   const fluencyEvaluated = level.rules.minFluency > 0
   // Same cost as the ideal grid and the same inputs, so it rides along.
-  const band = useMemo(
-    () => drawingBand(target.ideal, target.corridorWidth, level.surface),
-    [target.ideal, target.corridorWidth, level.surface],
-  )
+  const band = useMemo(() => levelBand(target), [target])
 
   // Canvas clue layer (design unit 4, already shipped in `TraceCanvas`):
   // WHICH art a mark shows is resolved HERE, never inside the canvas
@@ -4037,7 +4062,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // Kept as the RAW registry row (not only the `TraceBackdrop`-shaped prop
   // below) so the reveal grid can read `tile`/`ink`/`inkDim` — fields
   // `TraceBackdrop` deliberately does not carry (design.md §2.5, §4.1).
-  const backdropEntry = useMemo(() => backdropFor(level.id), [level.id])
+  // A letter is written on the notebook page, wherever its chapter happens.
+  const onNotebookPage = !!level.notebook
+  const backdropEntry = useMemo(() => (level.notebook ? undefined : backdropFor(level.id)), [level.id, level.notebook])
   const backdrop = useMemo<TraceBackdrop | undefined>(() => {
     const b = backdropEntry
     return b ? { href: b.art.href, quiet: b.quiet, channel: b.channel, ...(b.edge ? { edge: b.edge } : {}), ...(b.dim ? { dim: b.dim } : {}) } : undefined
@@ -4048,7 +4075,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   // paper, yield to ink. Today `backdrop ⇒ inWorld`, so every shipped level
   // renders byte-identically; the eight mountain levels are the first to be
   // a place without being the world (design.md §3.2).
-  const drawnPlace = inWorld || !!backdrop
+  const drawnPlace = inWorld || !!backdrop || onNotebookPage
   // T7: see `onStart`'s own comment above (`clearOnFailedRetryRef`) — a
   // route level only (`level.kind === 'path'`), never a `free` one
   // (reveal/spines/waypoints/coverage), whose own accumulated strokes are
@@ -4474,8 +4501,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
   const lastResultLineAtRef = useRef<number>(Number.NEGATIVE_INFINITY)
   useEffect(() => {
     if (!attempt) return
-    const coachLine =
-      !drawnPlace && !collectDef && !attempt.approved ? coachMessage(attempt) : undefined
+    const coachLine = attempt.approved
+      ? undefined
+      : level.notebook
+        ? letterCoachLine(attempt, level.notebook.step)
+        : !drawnPlace && !collectDef
+          ? coachMessage(attempt)
+          : undefined
     const lightTotal = level.reveal?.mode === 'light' ? level.reveal.objects.length : undefined
     const line = resultSpeechLine(level.id, level.reveal?.mode, attempt.approved, {
       lit: revealState.lit.size,
@@ -4499,6 +4531,73 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
     collectDef,
   ])
 
+  // The page's own life (`docs/25` 4.3): he reacts to a finished stroke, a stuck
+  // child gets the guide back and then a way forward, and nothing here moves while
+  // the finger is down.
+  const notebookFigureRef = useRef<PuppetHandle | null>(null)
+  const [notebookFails, setNotebookFails] = useState(0)
+  const notebookHelp = notebookHelpFor(notebookFails)
+  const replayDemoRef = useRef(replayDemo)
+  replayDemoRef.current = replayDemo
+  const lastReactedAttemptRef = useRef<LevelAttempt | null>(null)
+  useEffect(() => {
+    if (!level.notebook || !attempt || lastReactedAttemptRef.current === attempt) return
+    lastReactedAttemptRef.current = attempt
+    notebookFigureRef.current?.act(attempt.approved ? 'cheer' : 'wave', 2)
+    if (attempt.approved) return
+    const fails = notebookFails + 1
+    setNotebookFails(fails)
+    if (notebookHelpFor(fails) === 'show-again') {
+      setGuideRequested(true)
+      replayDemoRef.current()
+    }
+  }, [attempt, level.notebook, notebookFails])
+  const forgiveAndGoOn = (): void => {
+    playSfx('tap')
+    if (level.keepWriting && strokes.length > 0) recordWriting(level.keepWriting, strokes)
+    if (attempt) onAttempt({ ...attempt, approved: true, failedPillar: null })
+    onNext()
+  }
+  const notebookUnderlay = useMemo(() => {
+    if (level.peekingRule) return <PeekingRule />
+    if (!level.notebook) return undefined
+    const { modelDx, step } = level.notebook
+    return (
+      <>
+        <NotebookRule />
+        {step === 'dotted' && !guideRequested && (
+          <g data-cv-letter-dots="" pointerEvents="none">
+            {target.paths.map((d, i) => (
+              <path key={i} d={d} fill="none" stroke="#7b8ba0" strokeWidth={9} strokeDasharray="0.1 17" strokeLinecap="round" strokeLinejoin="round" />
+            ))}
+          </g>
+        )}
+        {modelDx !== undefined && (
+          <g data-cv-letter-model="" pointerEvents="none">
+            {target.paths.map((d, i) => (
+              <path
+                key={i}
+                d={transformPathD(d, 1, 1, -modelDx, 0)}
+                fill="none"
+                stroke="#2a3442"
+                strokeWidth={9}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ))}
+          </g>
+        )}
+      </>
+    )
+  }, [level.peekingRule, level.notebook, target.paths, guideRequested])
+  const notebookEnd =
+    onNotebookPage && showCorridor ? target.polyline[target.polyline.length - 1] : undefined
+  const exitCue = useMemo(() => {
+    const text = level.notebook?.text
+    if (!text || text.length !== 1 || exitKindFor(text) !== 'top' || !showMarkers) return undefined
+    return exitCueOf(target.polyline)
+  }, [level.notebook?.text, showMarkers, target.polyline])
+
   return (
     <main
       className={mainClassName}
@@ -4512,6 +4611,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
       data-level-id={level.id}
     >
       <style>{LAYOUT_CSS}</style>
+      {onNotebookPage && <NotebookPaper />}
       <div className="cv-top" ref={topChromeRef}>
       <header className={`cv-head${zooSign || hasProgressBar ? ' cv-head-wide' : ''}`}>
         <button
@@ -4624,7 +4724,8 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // dotted bands; from `minimal` on there is nothing but the start point
         // and the arrow, and at `none` not even those — which is how phase 5
         // and `f5-mama` become a motor-memory exam (docs/08 §5).
-        corridor={corridor}
+        // The dotted step is only the dots (`notebookUnderlay`): the walls are gone.
+        corridor={level.notebook?.step === 'dotted' && !guideRequested ? undefined : corridor}
         // The corridor alone is the TOLERATED ZONE, and from phase 3 on it is
         // wider than the strokes of the glyph itself — a channel with no shape
         // inside it. The crisp centreline on top is the SHAPE TO DRAW, so the
@@ -4647,7 +4748,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         showCentreLine={showCorridor && !level.maze && !level.artCorridor}
         // Fases 1-2 draw on blank paper: the pauta means nothing before a
         // letter exists (docs/01 principle 1).
-        surface={level.surface}
+        // The notebook page and a bridge level draw the rule themselves, past the
+        // sheet's edge (`underlay`).
+        surface={onNotebookPage || level.peekingRule ? 'blank' : level.surface}
+        underlay={notebookUnderlay}
+        noSheet={onNotebookPage}
+        inkWidth={onNotebookPage ? NOTEBOOK_INK_WIDTH : undefined}
         // A sendero becomes a real laberinto — walls, not a hint (docs/01 fase 1).
         maze={level.maze}
         inkWarp={inkWarp}
@@ -4690,7 +4796,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // passes nothing and keeps its dot. On an art-corridor level `at`
         // moves its feet beside the drawn body instead of onto it (N3).
         startArt={
-          drawnPlace ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE, at: startArtAt, render: octopusFigures.holding } : undefined
+          drawnPlace && !onNotebookPage ? { ...OCTOPUS_ART, size: OCTOPUS_SIZE, at: startArtAt, render: octopusFigures.holding } : undefined
         }
         // T38: the octopus's own art already holds the magnifying glass, so
         // on a level whose carrier IS that glass he keeps it in his hand while
@@ -4706,7 +4812,7 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // Shown wherever the start dot is shown (docs/03 §3): from phase 3 on,
         // "where the letter ends" is real information, not decoration. At the
         // 'none' band it goes too, or `f5-mama` would stop being a memory test.
-        endMarker={showMarkers ? endMarker : undefined}
+        endMarker={showMarkers && !onNotebookPage ? endMarker : undefined}
         // Whatever stands where the route ends (see the `endArt` derivation
         // above: goalArt, an adventure's own animal, a case's clue, or a
         // star) is drained/off until `trailLampOn` says this run has
@@ -4723,7 +4829,9 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         // octopus's head — observed on a screenshot. On a letter level there
         // is no character at the start, so the arrow stays the only thing
         // carrying direction.
-        directionArrow={showMarkers && !drawnPlace ? directionArrow : undefined}
+        // On the notebook page the arrow stays: direction is the lesson there, and
+        // he stands in the corner, not on the start.
+        directionArrow={showMarkers && (!drawnPlace || onNotebookPage) ? directionArrow : undefined}
         // `?debug=estela:<k>`'s implied trail rides as ONE extra entry here,
         // and `?debug=espinas:<k>`'s spines as k extra entries (one per
         // spine — a spine is a loose stroke, not a leg of a polyline). Both
@@ -4855,6 +4963,19 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         onFrame={onFrame}
         onRelease={onRelease}
       >
+        {notebookEnd && (
+          // Where the letter ends, quietly: at this zoom the shared diamond would
+          // be as big as the letter's own body.
+          <circle pointerEvents="none" cx={notebookEnd.x} cy={notebookEnd.y} r={11} fill="#ffffff" stroke="#5d7185" strokeWidth={4} data-cv-notebook-end="" />
+        )}
+        {exitCue && (
+          // `docs/25` 4.6: a letter that ends high has its own sign, because that
+          // is where the next letter joins it.
+          <g pointerEvents="none" data-cv-exit-cue="">
+            <path d={exitCue.tail} fill="none" stroke="#2f8f83" strokeWidth={6} strokeDasharray="4 12" strokeLinecap="round" />
+            <circle cx={exitCue.x} cy={exitCue.y} r={15} fill="none" stroke="#2f8f83" strokeWidth={5} />
+          </g>
+        )}
         {isSpineDebug(debugSearch) && target.paths.length > 0 && (
           // `?debug=espina` (design.md §8): overlays the FITTED centreline
           // over the art, so §1.4's coincidence is photographable rather
@@ -4903,6 +5024,12 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
         )}
         </TraceCanvas>
       </div>
+      {onNotebookPage && <NotebookFrame />}
+      {onNotebookPage && (
+        <span className="cv-nb-octopus" aria-hidden="true">
+          <ArtImg art={OCTOPUS_EMPTY_HANDED_ART} puppetRef={notebookFigureRef} />
+        </span>
+      )}
       <div className="cv-foot" ref={bottomChromeRef}>
       {/* T3 revision (orchestrator QA regression): this used to be a
        * `.cv-result` row in `.cv-foot`, first popping into existence on
@@ -5038,11 +5165,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
             Borrar
           </button>
         )}
-        {playDemo && (
+        {(playDemo || onNotebookPage) && (
           <button
             type="button"
             onClick={() => {
               playSfx('tap')
+              // On a withdrawn step this is also the way back to the guide.
+              if (onNotebookPage) setGuideRequested(true)
               replayDemo()
             }}
             className={drawnPlace ? 'cv-btn cv-btn-art' : 'cv-btn'}
@@ -5065,6 +5194,13 @@ export default function LevelPlay({ level, record, onAttempt, onNext, onBack, pr
             className="cv-btn"
           >
             Ver la guía
+          </button>
+        )}
+        {/* Never blocks (`docs/01` §5): after enough tries the way forward is here,
+         * with what they wrote still counted as theirs. */}
+        {onNotebookPage && notebookHelp === 'offer-continue' && !attempt?.approved && (
+          <button type="button" onClick={forgiveAndGoOn} className="cv-btn cv-btn-art" aria-label="Seguir">
+            <ContinueIcon />
           </button>
         )}
         {/* T7 (decision: auto-advance replaces the manual "Siguiente" tap on

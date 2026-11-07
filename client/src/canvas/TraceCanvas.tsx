@@ -970,6 +970,13 @@ export interface TraceCanvasProps {
   corridor?: TraceCorridor
   /** Thin dashed centre line over the corridor (assisted-rail phases). */
   showCentreLine?: boolean
+  /** Drawn on the page, above the backdrop and under every corridor and stroke:
+   *  in sheet units, and free to run past the sheet's edge. */
+  underlay?: ReactNode
+  /** The page is already on screen behind the canvas: no sheet rect of its own. */
+  noSheet?: boolean
+  /** The child's line, at a zoomed-in letter's own scale. Absent = the shared width. */
+  inkWidth?: number
   /** The paper itself. `'ruled'` (the default, so every existing caller is
    * untouched) draws the four-line pauta; `'blank'` draws NO ruled lines at
    * all. Fases 1-2 train visuomotor control and rhythm, where the writing
@@ -1243,6 +1250,9 @@ export default function TraceCanvas({
   corridor,
   showCentreLine = false,
   surface = 'ruled',
+  underlay,
+  noSheet = false,
+  inkWidth = INK_WIDTH,
   maze = false,
   idleNudgeActive = false,
   idleCue,
@@ -1710,7 +1720,7 @@ export default function TraceCanvas({
       aria-label="Trace surface: draw the letter between the sky and grass guides"
       {...bind}
     >
-      {contain && (
+      {contain && !noSheet && (
         <rect
           x={0}
           y={viewBoxY}
@@ -1777,6 +1787,7 @@ export default function TraceCanvas({
           )}
         </g>
       )}
+      {underlay}
       {reveal && (
         // The reveal grid's covering layer (`reveal-grid` capability,
         // design.md §4.1-4.2): immediately after the backdrop group and
@@ -2282,7 +2293,7 @@ export default function TraceCanvas({
               d={d}
               fill="none"
               stroke={inkColor}
-              strokeWidth={INK_WIDTH}
+              strokeWidth={inkWidth}
               strokeLinecap="round"
               strokeLinejoin="round"
               opacity={0.85}
@@ -2305,7 +2316,7 @@ export default function TraceCanvas({
               d={d}
               fill="none"
               stroke={inkColor}
-              strokeWidth={INK_WIDTH}
+              strokeWidth={inkWidth}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -2315,7 +2326,7 @@ export default function TraceCanvas({
               d={fading.ink}
               fill="none"
               stroke={inkColor}
-              strokeWidth={INK_WIDTH}
+              strokeWidth={inkWidth}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -2363,7 +2374,7 @@ export default function TraceCanvas({
         data-ink-policy={inkPolicy}
         fill="none"
         stroke={offPath ? inkDimColor : inkColor}
-        strokeWidth={INK_WIDTH}
+        strokeWidth={inkWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
         style={showLiveInkLayer ? undefined : { display: 'none' }}
