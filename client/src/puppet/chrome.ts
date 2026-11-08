@@ -3,9 +3,10 @@
 // ticker, standing in the PNG's own box through the same seam as every other prop, so a
 // tap size, a measured tail or a text area keeps meaning what it meant.
 //
-// Everything a child must read at a glance sits dark on light: glyphs are `CHROME_INK`
-// on a pale disc, and a piece is told apart from its background by its shadow, never by
-// a black outline (`docs/09`).
+// A control is a small object, not a glyph on a disc: an arrow sign, a speaker, a pencil.
+// A piece is told apart from its background by its shadow, never by a black outline
+// (`docs/09`). `puppet/PaperButton.tsx` lifts each one off its shadow so a press can push
+// it back down.
 import {
   ANDEAN_HAT_ART,
   CART_ART,
@@ -16,7 +17,7 @@ import {
   ZOO_SPEECH_BUBBLE_LEFT_ART,
   ZOO_STAR_ART,
 } from '../detective/assets'
-import { ell, type Vec } from './geometry'
+import { ell, tubePath, type Vec } from './geometry'
 import { cutScene, poly, type CutScene, type SceneLayer, type ScenePiece } from './scene/engine'
 
 const SHEET = 200
@@ -30,8 +31,6 @@ export const BUBBLE_EDGE = '#efe3c8'
 
 const sheet = (layers: readonly SceneLayer[], seed: number, w = SHEET, h = SHEET, grain = 0.14): CutScene =>
   cutScene({ w, h, base: 'none', layers, grain }, seed)
-
-const ROUND = ell(100, 100, 94, 94)
 
 /** A band of a circle, angles in degrees: the shape a round arrow or a sound wave is. */
 function arcBand(cx: number, cy: number, r: number, width: number, from: number, to: number): string {
@@ -56,12 +55,181 @@ function bar(a: Vec, b: Vec, width: number): string {
   return poly([a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny])
 }
 
-const button = (face: string, glyph: readonly ScenePiece[], seed: number): CutScene =>
-  sheet([{ pieces: [{ d: ROUND, c: face }] }, { pieces: glyph, flat: true }], seed)
+/** A polygon with the corners a pair of scissors rounds off: kinder to a small hand than
+ *  a point, and it still reads as the same shape at 52 px. */
+function softPoly(points: readonly Vec[], radius: number): string {
+  let d = ''
+  points.forEach((v, i) => {
+    const prev = points[(i - 1 + points.length) % points.length]
+    const next = points[(i + 1) % points.length]
+    const toward = (to: Vec): Vec => {
+      const k = Math.min(radius / Math.hypot(to[0] - v[0], to[1] - v[1]), 0.5)
+      return [v[0] + (to[0] - v[0]) * k, v[1] + (to[1] - v[1]) * k]
+    }
+    const a = toward(prev)
+    const b = toward(next)
+    d += `${i === 0 ? 'M' : 'L'}${a[0].toFixed(1)} ${a[1].toFixed(1)}C${v[0]} ${v[1]} ${v[0]} ${v[1]} ${b[0].toFixed(1)} ${b[1].toFixed(1)}`
+  })
+  return `${d}Z`
+}
 
-const ink = (d: string): ScenePiece => ({ d, c: CHROME_INK })
+// One family of small objects, in the wood and the paper the enclosure signs are cut from.
+// Secondary controls are quiet furniture: cream and wood, no colour that shouts. The one
+// primary action is the only warm gold thing on a screen (`GO_ARROW`).
+const WOOD = '#dba565'
+const WOOD_LIGHT = '#ecc78e'
+const WOOD_DARK = '#9c6a36'
+const CREAM = '#fff0cf'
+const CREAM_SHADE = '#e6d3a6'
 
-const SPEAKER = poly([46, 82], [72, 82], [106, 54], [106, 146], [72, 118], [46, 118])
+/** The way out, everywhere: a wooden arrow on its post. The same object goes back from a
+ *  level and closes the notebook and the wardrobe, so there is one thing to learn. */
+const ARROW_SIGN = sheet(
+  [
+    {
+      pieces: [
+        { d: poly([104, 118], [130, 116], [132, 196], [106, 196]), c: WOOD_DARK },
+        { d: softPoly([[10, 78], [78, 14], [80, 46], [188, 40], [192, 116], [80, 122], [78, 150]], 11), c: WOOD },
+      ],
+    },
+    {
+      pieces: [
+        { d: poly([78, 58], [178, 52], [179, 64], [78, 70]), c: WOOD_LIGHT },
+        { d: poly([80, 92], [180, 86], [181, 94], [80, 100]), c: '#c8914f' },
+        { d: ell(168, 76, 6.5, 6.5), c: WOOD_DARK },
+      ],
+      flat: true,
+    },
+  ],
+  61,
+)
+
+const SPEAKER_BODY: readonly SceneLayer[] = [
+  {
+    pieces: [
+      { d: softPoly([[12, 72], [58, 72], [58, 132], [12, 132]], 8), c: WOOD },
+      { d: softPoly([[52, 74], [116, 22], [116, 182], [52, 130]], 8), c: CREAM },
+    ],
+  },
+  {
+    pieces: [
+      { d: ell(113, 102, 11, 62), c: CREAM_SHADE },
+      { d: poly([22, 92], [46, 92], [46, 112], [22, 112]), c: WOOD_LIGHT },
+    ],
+    flat: true,
+  },
+]
+
+/** A paper speaker with its two waves cut out too, each a piece of its own. */
+const SPEAKER_ON = sheet(
+  [...SPEAKER_BODY, { pieces: [{ d: arcBand(116, 102, 42, 15, -46, 46), c: WOOD }, { d: arcBand(116, 102, 70, 15, -42, 42), c: WOOD }] }],
+  73,
+)
+
+/** The same speaker with a strip of paper taped over where the waves were. No red: this
+ *  game does not scold (`docs/25`). */
+const SPEAKER_OFF = sheet(
+  [
+    ...SPEAKER_BODY.map((layer) => ({ ...layer, pieces: layer.pieces.map((p) => ({ d: p.d, c: p.c === CREAM ? '#e8e2d2' : p.c === WOOD ? '#b9ad96' : p.c })) })),
+    { pieces: [{ d: bar([128, 66], [188, 138], 20), c: '#8d8675' }, { d: bar([188, 66], [128, 138], 20), c: '#8d8675' }] },
+  ],
+  75,
+)
+
+const ARM = '#f2743a'
+const ARM_PALE = '#ffc9a3'
+
+/** "Show me again": a little sheet with the line dotted on it and the Pulpito's arm still
+ *  drawing it, which is exactly what the demo is. Not a play triangle: nothing here is a
+ *  video. The sheet is what lets the dots read on a busy place. */
+const SHOW_AGAIN = (() => {
+  const dots: Vec[] = Array.from({ length: 9 }, (_, i): Vec => [38 + i * 13, 92 + Math.sin((i / 8) * Math.PI * 2) * 34])
+  const tip = dots[dots.length - 1]
+  const arm: Vec[] = [[198, 196], [182, 172], [162, 152], [146, 128], [tip[0] + 6, tip[1] + 10]]
+  const cups: Vec[] = [[176, 168], [158, 146], [146, 126]]
+  return sheet(
+    [
+      { pieces: [{ d: softPoly([[18, 26], [176, 14], [188, 168], [26, 182]], 8), c: '#fff8e6' }] },
+      { pieces: [{ d: poly([150, 15], [176, 14], [177, 40]), c: CREAM_SHADE }, ...dots.slice(0, -1).map(([x, y]): ScenePiece => ({ d: ell(x, y, 7.5, 7.5), c: '#b97a3e' }))], flat: true },
+      { pieces: [{ d: tubePath(arm, (u) => 26 - u * 12), c: ARM }, { d: ell(tip[0] + 6, tip[1] + 10, 13, 13), c: ARM }] },
+      { pieces: cups.map(([x, y], i): ScenePiece => ({ d: ell(x, y, 7.5 - i, 7.5 - i), c: ARM_PALE })), flat: true },
+    ],
+    65,
+  )
+})()
+
+/** The one big thing to press: a chunky gold arrow on a darker sheet, with a lighter strip
+ *  glued along its top. Every screen has at most one of these. */
+const GO_ARROW = sheet(
+  [
+    { pieces: [{ d: softPoly([[12, 62], [96, 56], [96, 10], [192, 100], [96, 190], [96, 144], [12, 138]], 14), c: '#e58a24' }] },
+    { pieces: [{ d: softPoly([[20, 62], [102, 56], [102, 22], [180, 94], [102, 166], [102, 132], [20, 130]], 12), c: BUTTON_GOLD }], flat: true },
+    { pieces: [{ d: softPoly([[28, 68], [106, 62], [106, 40], [146, 76], [32, 88]], 8), c: '#ffdf7e' }], flat: true },
+  ],
+  63,
+)
+
+const PENCIL = sheet(
+  [
+    { pieces: [{ d: softPoly([[150, 16], [188, 54], [62, 178], [18, 186], [26, 142]], 6), c: '#f4c34d' }] },
+    {
+      pieces: [
+        { d: poly([26, 142], [62, 178], [18, 186]), c: '#f6dfb4' },
+        { d: poly([22, 166], [36, 180], [18, 186]), c: CHROME_INK },
+        { d: poly([150, 16], [188, 54], [166, 76], [128, 38]), c: '#e9825f' },
+        { d: poly([128, 38], [166, 76], [156, 86], [118, 48]), c: '#cfd6da' },
+        { d: poly([104, 72], [120, 88], [58, 150], [42, 134]), c: '#e2ab35' },
+      ],
+      flat: true,
+    },
+  ],
+  71,
+)
+
+const PAW = sheet(
+  [
+    { pieces: [{ d: ell(100, 128, 52, 44), c: WOOD }, { d: ell(42, 72, 24, 28), c: WOOD }, { d: ell(100, 46, 25, 30), c: WOOD }, { d: ell(158, 72, 24, 28), c: WOOD }] },
+    { pieces: [{ d: ell(100, 136, 28, 20), c: WOOD_LIGHT }], flat: true },
+  ],
+  77,
+)
+
+/** The Pulpito's head in any colour he comes in: the wardrobe's swatches and the map's
+ *  way into the wardrobe. Cut once per colour. */
+const heads = new Map<string, CutScene>()
+export function pulpitoHead(body: string, pink: string): CutScene {
+  const key = `${body}${pink}`
+  let cut = heads.get(key)
+  if (!cut) {
+    cut = sheet(
+      [
+        { pieces: [{ d: ell(100, 112, 84, 78), c: body }] },
+        {
+          pieces: [
+            { d: ell(40, 136, 14, 9), c: pink },
+            { d: ell(160, 136, 14, 9), c: pink },
+            { d: ell(72, 104, 21, 24), c: '#ffffff' },
+            { d: ell(128, 104, 21, 24), c: '#ffffff' },
+            { d: ell(74, 107, 14, 17), c: '#1a2226' },
+            { d: ell(126, 107, 14, 17), c: '#1a2226' },
+            { d: ell(79, 100, 4.5, 4.5), c: '#ffffff' },
+            { d: ell(131, 100, 4.5, 4.5), c: '#ffffff' },
+            { d: `M78 150C88 164 112 164 122 150L116 146C108 154 92 154 84 146Z`, c: '#1a2226' },
+          ],
+          flat: true,
+        },
+        { pieces: [{ d: `M28 70C36 8 164 8 172 70Z`, c: '#f3e6c4' }] },
+        { pieces: [{ d: poly([24, 58], [176, 58], [180, 76], [20, 76]), c: '#2f8f6f' }], flat: true },
+      ],
+      91,
+    )
+    heads.set(key, cut)
+  }
+  return cut
+}
+
+/** Named cuts with no registry picture of their own. */
+export const PAPER_ICONS = { pencil: PENCIL, paw: PAW } as const
 
 /** The bubble's own outline, drawn on the measured curve of the picture it replaces: its
  *  oval holds the measured text area and its tail ends on the measured tip. */
@@ -246,26 +414,12 @@ export const CHROME_PROPS: ReadonlyMap<string, CutScene> = new Map<string, CutSc
   [ZOO_BACKPACK_ART.href, backpack],
   [CART_ART.href, cart],
   [ANDEAN_HAT_ART.href, andeanHat],
-  [UI_BUTTON_ART.back.href, button(BUTTON_PAPER, [ink(poly([40, 100], [104, 44], [104, 78], [160, 78], [160, 122], [104, 122], [104, 156]))], 61)],
-  [UI_BUTTON_ART.next.href, button(BUTTON_GOLD, [ink(poly([160, 100], [96, 44], [96, 78], [40, 78], [40, 122], [96, 122], [96, 156]))], 63)],
-  [UI_BUTTON_ART.replay.href, button(BUTTON_PAPER, [ink(poly([70, 46], [70, 154], [154, 100]))], 65)],
-  [UI_BUTTON_ART.retry.href, button(BUTTON_PAPER, [ink(arcBand(100, 104, 46, 22, -40, 240)), ink(poly([116, 22], [172, 58], [112, 86]))], 67)],
-  [UI_BUTTON_ART.close.href, button(BUTTON_PAPER, [ink(bar([58, 58], [142, 142], 26)), ink(bar([142, 58], [58, 142], 26))], 69)],
-  [
-    UI_BUTTON_ART.notebook.href,
-    button(
-      BUTTON_PAPER,
-      [
-        ink(poly([56, 40], [146, 40], [146, 160], [56, 160])),
-        { d: poly([68, 54], [136, 54], [136, 148], [68, 148]), c: BUTTON_PAPER },
-        ink(poly([80, 76], [124, 76], [124, 84], [80, 84])),
-        ink(poly([80, 96], [124, 96], [124, 104], [80, 104])),
-        ink(poly([80, 116], [110, 116], [110, 124], [80, 124])),
-      ],
-      71,
-    ),
-  ],
-  [UI_BUTTON_ART.sound.href, button(BUTTON_PAPER, [ink(SPEAKER), ink(arcBand(106, 100, 30, 12, -48, 48)), ink(arcBand(106, 100, 54, 12, -48, 48))], 73)],
-  // Muted reads by the marks over it, in the same ink: no red in this game (`docs/25`).
-  [UI_BUTTON_ART.soundOff.href, button('#e6e2d6', [ink(SPEAKER), ink(bar([124, 78], [166, 122], 14)), ink(bar([166, 78], [124, 122], 14))], 75)],
+  [UI_BUTTON_ART.back.href, ARROW_SIGN],
+  [UI_BUTTON_ART.close.href, ARROW_SIGN],
+  [UI_BUTTON_ART.next.href, GO_ARROW],
+  [UI_BUTTON_ART.replay.href, SHOW_AGAIN],
+  [UI_BUTTON_ART.retry.href, SHOW_AGAIN],
+  [UI_BUTTON_ART.notebook.href, PENCIL],
+  [UI_BUTTON_ART.sound.href, SPEAKER_ON],
+  [UI_BUTTON_ART.soundOff.href, SPEAKER_OFF],
 ])

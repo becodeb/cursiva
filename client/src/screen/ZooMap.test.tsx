@@ -843,7 +843,8 @@ describe('playBadgePlacement (T32, N4: the play badge must never sit on top of a
     it('the OLD call (no outer/margin) really does spill past a real viewport at 1024x768 — the bug this task fixes', () => {
       const [vw] = [1024, 768]
       const displayBounds = fitContentWithInsets(MAP_STAGE_BOX, vw, 768)
-      const placed = playBadgePlacement(hit, centreOccupied())
+      // The size the badge had when the defect was reported: this fixes that call in place.
+      const placed = playBadgePlacement(hit, centreOccupied(), 30)
       // Real px position of the badge's own right edge, against the SAME
       // scale ZooMap.tsx's own svg viewBox draws at.
       const scale = vw / displayBounds.width
@@ -853,16 +854,18 @@ describe('playBadgePlacement (T32, N4: the play badge must never sit on top of a
       expect(rightEdgePx).toBeGreaterThan(vw - 1)
     })
 
+    const BADGE_RADIUS = 40
+
     for (const [vw, vh] of REQUIRED_VIEWPORTS) {
       it(`viewport=${vw}x${vh}: the badge's own drawn edge clears every side by at least 12px`, () => {
         const displayBounds = fitContentWithInsets(MAP_STAGE_BOX, vw, vh)
         const edgeMargin = pxToViewBoxUnits(12, vw, displayBounds)
         const placed = playBadgePlacement(hit, centreOccupied(), undefined, undefined, displayBounds, edgeMargin)
         const scale = vw / displayBounds.width
-        const leftPx = (placed.x - 30 - displayBounds.x) * scale
-        const rightPx = vw - (placed.x + 30 - displayBounds.x) * scale
-        const topPx = (placed.y - 30 - displayBounds.y) * scale
-        const bottomPx = vh - (placed.y + 30 - displayBounds.y) * scale
+        const leftPx = (placed.x - BADGE_RADIUS - displayBounds.x) * scale
+        const rightPx = vw - (placed.x + BADGE_RADIUS - displayBounds.x) * scale
+        const topPx = (placed.y - BADGE_RADIUS - displayBounds.y) * scale
+        const bottomPx = vh - (placed.y + BADGE_RADIUS - displayBounds.y) * scale
         expect(leftPx, 'left').toBeGreaterThanOrEqual(12 - 1e-6)
         expect(rightPx, 'right').toBeGreaterThanOrEqual(12 - 1e-6)
         expect(topPx, 'top').toBeGreaterThanOrEqual(12 - 1e-6)
@@ -877,10 +880,10 @@ describe('playBadgePlacement (T32, N4: the play badge must never sit on top of a
       const centre = hitCentre(hit)
       const animalBox = { x: centre.x - 40, y: centre.y - 40, w: 80, h: 80 }
       const placed = playBadgePlacement(hit, [animalBox], undefined, undefined, displayBounds, edgeMargin)
-      const overlapX = Math.min(placed.x + 30, animalBox.x + animalBox.w) - Math.max(placed.x - 30, animalBox.x)
-      const overlapY = Math.min(placed.y + 30, animalBox.y + animalBox.h) - Math.max(placed.y - 30, animalBox.y)
+      const overlapX = Math.min(placed.x + BADGE_RADIUS, animalBox.x + animalBox.w) - Math.max(placed.x - BADGE_RADIUS, animalBox.x)
+      const overlapY = Math.min(placed.y + BADGE_RADIUS, animalBox.y + animalBox.h) - Math.max(placed.y - BADGE_RADIUS, animalBox.y)
       expect(Math.max(0, overlapX) * Math.max(0, overlapY)).toBe(0)
-      expect(placed.x - 30).toBeGreaterThanOrEqual(displayBounds.x + edgeMargin - 1e-6)
+      expect(placed.x - BADGE_RADIUS).toBeGreaterThanOrEqual(displayBounds.x + edgeMargin - 1e-6)
     })
   })
 })

@@ -8,27 +8,15 @@
 // this is dropped into a caller's own stylesheet as chrome with a fixed
 // visual identity, not a shape the caller should have to restate.
 import { useState, type CSSProperties } from 'react'
+import { playSfx } from '../audio/sfx'
 import { loadVoiceSettings, saveVoiceSettings } from './narrator'
 import { SpeakerIcon } from './icons'
 
-/** Identical footprint to `SpeakButton`'s own `BASE_STYLE` — the two controls
- *  are siblings in the same visual language (the game's marker style: warm
- *  paper fill, thick dark outline, no shadow), never two different chrome
- *  styles competing on the same screen. Restyled alongside `SpeakButton`
- *  (T7 rework #2, `odd/tasks/prewriting-stage-completion.md`) — this one
- *  sits DIRECTLY BESIDE `ZooMap.tsx`'s own star pill, so leaving it on the
- *  old white-pill identity would have recreated the exact "two chrome
- *  families on one screen" mismatch that rework fixed for the star/
- *  backpack/recovered pills. */
+/** Identical footprint to `SpeakButton`: the same paper object in the same family. */
 const BASE_STYLE: CSSProperties = {
-  width: 44,
-  height: 44,
-  minWidth: 44,
-  minHeight: 44,
+  width: 'var(--cv-tap-size, 64px)',
+  height: 'var(--cv-tap-size, 64px)',
   boxSizing: 'border-box',
-  borderRadius: '50%',
-  // T50: the hand-drawn button art (`SpeakerIcon`) is the whole face, its
-  // own outline and paper fill included, so the button draws no chrome.
   border: 'none',
   background: 'transparent',
   display: 'inline-flex',
@@ -59,6 +47,7 @@ export default function VoiceToggle({ className }: VoiceToggleProps) {
 
   const toggle = () => {
     const next = !muted
+    playSfx('tap')
     saveVoiceSettings({ muted: next })
     setMuted(next)
   }
@@ -67,6 +56,7 @@ export default function VoiceToggle({ className }: VoiceToggleProps) {
     <button
       type="button"
       className={className}
+      data-paper-tap=""
       style={BASE_STYLE}
       aria-label={muted ? 'Activar la voz' : 'Silenciar la voz'}
       onClick={toggle}

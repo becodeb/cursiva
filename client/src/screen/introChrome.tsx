@@ -97,18 +97,17 @@ export function IntroChromeGhost({ facts, topRef, bottomRef }: IntroChromeGhostP
           )}
           {!zooSign && hasProgressBar && progress && <TrailProgressBar progress={progress} />}
           <div className="cv-head-right">
+            {playDemo && (
+              <button type="button" className="cv-btn cv-btn-art" tabIndex={-1}>
+                <ReplayIcon />
+              </button>
+            )}
             <SpeakButton line="" />
           </div>
         </header>
       </div>
       <div className="cv-foot" ref={bottomRef}>
-        <nav aria-label="Acciones" className="cv-actions">
-          {playDemo && (
-            <button type="button" className="cv-btn cv-btn-art" tabIndex={-1}>
-              <ReplayIcon />
-            </button>
-          )}
-        </nav>
+        <nav aria-label="Acciones" className="cv-actions" />
       </div>
     </div>
   )

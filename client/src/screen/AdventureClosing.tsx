@@ -56,7 +56,8 @@ import {
   ZOO_OCTOPUS_BACKPACK_ART,
   ZOO_SPEECH_BUBBLE_LEFT_ART,
 } from '../detective/assets'
-import { PlaceholderAnimalBadge } from '../detective/icons'
+import { ContinueIcon, PlaceholderAnimalBadge } from '../detective/icons'
+import { playSfx } from '../audio/sfx'
 import { ArtImg, PlaceResidents } from '../puppet/ArtFigure'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { backdropFor } from '../zoo/backdrops'
@@ -305,6 +306,18 @@ export default function AdventureClosing({ adventure, beat, records = NO_RECORDS
         viewport: currentViewport(),
       })
     : null
+  const leave = (): void => {
+    // T24: freeze the departure BEFORE onContinue starts the
+    // navigation that unmounts this screen — `rescueAnimalRef` is
+    // absent for an animal-less closing (entrance enclosures,
+    // night), so this is a no-op there, exactly like
+    // `RescueCelebration` staying unrendered for the same rows.
+    if (adventure.animal !== undefined && rescueAnimalRef.current) {
+      const rect = rescueAnimalRef.current.getBoundingClientRect()
+      recordDeparture(adventure.animal, { x: rect.x, y: rect.y, width: rect.width, height: rect.height })
+    }
+    onContinue()
+  }
   return (
     <main className="cv-closing" style={{ backgroundColor: backdrop?.quiet ?? SHEET_PAPER }}>
       <style>{CLOSING_CSS + SCENE_CSS}</style>
@@ -317,18 +330,7 @@ export default function AdventureClosing({ adventure, beat, records = NO_RECORDS
         <button
           type="button"
           className="cv-closing-stage"
-          onClick={() => {
-            // T24: freeze the departure BEFORE onContinue starts the
-            // navigation that unmounts this screen — `rescueAnimalRef` is
-            // absent for an animal-less closing (entrance enclosures,
-            // night), so this is a no-op there, exactly like
-            // `RescueCelebration` staying unrendered for the same rows.
-            if (adventure.animal !== undefined && rescueAnimalRef.current) {
-              const rect = rescueAnimalRef.current.getBoundingClientRect()
-              recordDeparture(adventure.animal, { x: rect.x, y: rect.y, width: rect.width, height: rect.height })
-            }
-            onContinue()
-          }}
+          onClick={leave}
         >
           {isRescue && rescueAnimalBox && (
             <span
@@ -410,6 +412,17 @@ export default function AdventureClosing({ adventure, beat, records = NO_RECORDS
         </button>
       </div>
       <SpeakButton line={bubbleText} className="cv-closing-speak" />
+      <button
+        type="button"
+        className="cv-go"
+        aria-label="Seguir"
+        onClick={() => {
+          playSfx('tap')
+          leave()
+        }}
+      >
+        <ContinueIcon />
+      </button>
     </main>
   )
 }

@@ -39,7 +39,8 @@ import { PROLOGUE_PLATES, advancePlate } from '../zoo/prologue'
 import { useNarration } from '../voice/useNarration'
 import { canAutoSpeak, speak } from '../voice/narrator'
 import SpeakButton from '../voice/SpeakButton'
-import { ReplayIcon } from '../detective/icons'
+import { ContinueIcon } from '../detective/icons'
+import { playSfx } from '../audio/sfx'
 import { BUBBLE_POP_CSS } from './BubblePop'
 import { ZOO_SPEECH_BUBBLE_TAIL } from './bubblePlacement'
 import {
@@ -137,7 +138,7 @@ ${BUBBLE_POP_CSS}
    anywhere in this block — one inside a comment ends this template literal
    early (this file's own top-of-file note). */
 .cv-prologue-speak { position: absolute; top: ${STAGE_MARGIN_PCT}%; right: ${STAGE_MARGIN_PCT}%; z-index: 2; }
-.cv-prologue-skip { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; display: flex; flex-direction: column; align-items: center; background: ${SHEET_PAPER}; border: 3px solid ${PAPER_EDGE}; box-shadow: ${PAPER_CARD_SHADOW}; border-radius: 16px; padding: 6px 10px; cursor: pointer; }
+.cv-prologue-skip { position: absolute; top: ${STAGE_MARGIN_PCT}%; left: ${STAGE_MARGIN_PCT}%; z-index: 2; box-sizing: border-box; min-height: var(--cv-tap-size, 64px); display: flex; flex-direction: column; align-items: center; justify-content: center; background: ${SHEET_PAPER}; border: 3px solid ${PAPER_EDGE}; box-shadow: ${PAPER_CARD_SHADOW}; border-radius: 16px; padding: 6px 12px; cursor: pointer; }
 /* (V1, docs/25 section 5.4) CaptionedArt's own markup has NO whitespace
    between its <svg> and its <span class="cv-caption"> (two adjacent JSX
    children, never a text node) -- left to the default inline flow, that is
@@ -154,8 +155,8 @@ ${BUBBLE_POP_CSS}
 /* docs/25 P2-5 (tanda 1, item 1.3): the start tap. A browser will not speak
    before the page has seen a gesture, so on a first visit plate 0's line was
    silent. While audio is still locked, the WHOLE screen is one button (any
-   tap starts, nothing to aim at) with the shipped round play-triangle button
-   art (the same face as the levels' replay button) large in the middle; the
+   tap starts, nothing to aim at) with the big gold arrow, the same face every
+   primary action in the game has, large in the middle; the
    skip pill stays above it (z-index 2) for the grown-up. No words. NO
    BACKTICKS in this block. */
 .cv-prologue-start { position: absolute; inset: 0; z-index: 1; border: none; background: transparent; padding: 0; margin: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -333,17 +334,30 @@ export default function PrologueOpening({ from, onDone }: PrologueOpeningProps) 
       {awaitingStart ? (
         <button type="button" className="cv-prologue-start" aria-label="Empezar" onClick={handleStart}>
           <span className="cv-prologue-start-disc">
-            <ReplayIcon />
+            <ContinueIcon />
           </span>
         </button>
       ) : (
-        <SpeakButton line={plate.line} className="cv-prologue-speak" />
+        <>
+          <SpeakButton line={plate.line} className="cv-prologue-speak" />
+          <button
+            type="button"
+            className="cv-go"
+            aria-label="Seguir"
+            onClick={() => {
+              playSfx('tap')
+              handleTap()
+            }}
+          >
+            <ContinueIcon />
+          </button>
+        </>
       )}
       {/* The "go to the map" skip control — a marker-style pill, always
           reachable (design.md D1/D8: the opening is never mandatory). Text
           + picture, never bare (`docs/12` §3, `detective/captionAudit.ts`):
           the map thumbnail is what the word "mapa" refers to. */}
-      <button type="button" className="cv-prologue-skip" onClick={onDone}>
+      <button type="button" className="cv-prologue-skip" data-paper-card="" onClick={onDone}>
         <CaptionedArt art={ZOO_MAP_ART} label="Ir al mapa" size={28} />
       </button>
     </main>

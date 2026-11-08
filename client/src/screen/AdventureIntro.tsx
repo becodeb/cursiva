@@ -26,6 +26,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import CaptionedArt from '../detective/CaptionedArt'
 import { ZOO_SPEECH_BUBBLE_LEFT_ART } from '../detective/assets'
+import { ContinueIcon } from '../detective/icons'
+import { playSfx } from '../audio/sfx'
 import { ArtImg, PlaceResidents } from '../puppet/ArtFigure'
 import { PAPER_CARD_SHADOW, PAPER_EDGE } from '../puppet/rig'
 import { SHEET_PAPER, fitContentWithInsets } from '../canvas/TraceCanvas'
@@ -421,6 +423,18 @@ export default function AdventureIntro({ adventure, records = NO_RECORDS, onStar
         </div>
       )}
       <SpeakButton line={spokenLine} className="cv-intro-speak" />
+      {/* The whole stage still answers a tap; this is the one thing that says so. */}
+      <button
+        type="button"
+        className="cv-go"
+        aria-label="Empezar"
+        onClick={() => {
+          playSfx('tap')
+          onStart()
+        }}
+      >
+        <ContinueIcon />
+      </button>
     </main>
   )
 }

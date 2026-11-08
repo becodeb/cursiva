@@ -14,35 +14,17 @@
 // relative to its own bubble/row) — never for re-skinning the button
 // itself, which is why the base styles are not overridable through it.
 import type { CSSProperties } from 'react'
+import { playSfx } from '../audio/sfx'
 import { speak } from './narrator'
 import { SpeakerIcon } from './icons'
 
-/** 44 CSS px in every dimension — the shipped child tap-target floor this
- *  whole app already uses for a control that is meant to be pressed on
- *  purpose (`screen/LevelPlay.tsx`'s own `.cv-btn`/`.cv-btn-back` share the
- *  same floor at their narrowest breakpoint).
- *
- *  T7 rework (`odd/tasks/prewriting-stage-completion.md`, "restyle the
- *  sound button in the same marker style"): warm paper fill, thick dark
- *  outline, no shadow — `docs/09_GUIA_DE_ESTILO_VISUAL.md` §1's own rule
- *  ("Nada de sombreado, ni volumen, ni brillo") — the SAME identity
- *  `screen/LevelPlay.tsx`'s `.cv-btn` already carries, restated here
- *  rather than imported: this component is deliberately leaf-level
- *  (`voice/`), never importing from `canvas/` for one colour literal,
- *  the same restatement-over-cross-import call `zoo/backdrops.ts`'s own
- *  `LEAF_BASE` comment makes for `LEAF_LITTER`. This is still the ONE
- *  shared identity across all five screens this component mounts on
- *  (prologue/intro/closing/map/level) — none of them has its OWN, still
- *  white-pill "hear it again" button left to disagree with. */
+/** The app's one tap size (`--cv-tap-size`, `puppet/PaperButton.tsx`): 64 px on a tablet,
+ *  smaller paper with a 64 px hit area on a phone. The speaker is the whole face, so the
+ *  button draws no chrome of its own. Inline for the reason the header gives. */
 const BASE_STYLE: CSSProperties = {
-  width: 44,
-  height: 44,
-  minWidth: 44,
-  minHeight: 44,
+  width: 'var(--cv-tap-size, 64px)',
+  height: 'var(--cv-tap-size, 64px)',
   boxSizing: 'border-box',
-  borderRadius: '50%',
-  // T50: the hand-drawn button art (`SpeakerIcon`) is the whole face, its
-  // own outline and paper fill included, so the button draws no chrome.
   border: 'none',
   background: 'transparent',
   display: 'inline-flex',
@@ -79,9 +61,13 @@ export default function SpeakButton({ line, className }: SpeakButtonProps) {
     <button
       type="button"
       className={className}
+      data-paper-tap=""
       style={BASE_STYLE}
       aria-label="Escuchar"
-      onClick={() => speak(line)}
+      onClick={() => {
+        playSfx('tap')
+        speak(line)
+      }}
     >
       <SpeakerIcon />
     </button>

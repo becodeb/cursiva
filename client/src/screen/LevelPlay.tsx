@@ -1523,8 +1523,8 @@ html, body, #root { margin: 0; padding: 0; }
  * becomes a square tap box of the same height the pill had. Two-class
  * selectors so the media-query .cv-btn/.cv-btn-back overrides below never
  * bring the pill's padding back. */
-.cv-btn.cv-btn-art { padding: 0; border: none; background: transparent; border-radius: 50%; width: 64px; height: 64px; min-height: 0; display: inline-flex; align-items: center; justify-content: center; }
-.cv-btn-art.cv-btn-back { width: 56px; height: 56px; }
+.cv-btn.cv-btn-art { position: relative; padding: 0; border: none; background: transparent; box-shadow: none; border-radius: 0; width: var(--cv-tap-size, 64px); height: var(--cv-tap-size, 64px); min-height: 0; display: inline-flex; align-items: center; justify-content: center; }
+.cv-btn.cv-btn-art.cv-btn-go { width: var(--cv-go-size, 96px); height: var(--cv-go-size, 96px); }
 /* T7 auto-advance: the transparent full-screen tap target that skips the
  * celebration. Below the dev-only skip button's own z-index (9999,
  * GameScreen.tsx's DEV_SKIP_BUTTON) so that corner keeps working
@@ -1765,8 +1765,6 @@ html, body, #root { margin: 0; padding: 0; }
    * land here) — the decision's own "big touch targets >= 56px". */
   .cv-btn { min-height: 58px; padding: 0 22px; font-size: 18px; }
   .cv-btn-back { min-height: 56px; }
-  .cv-btn.cv-btn-art { width: 58px; height: 58px; }
-  .cv-btn-art.cv-btn-back { width: 56px; height: 56px; }
   /* Both target viewports at this breakpoint (1280x720, 1024x768) want the
    * whole bar around 40px tall — the animal end-cap is the tallest element,
    * so it alone is sized to the target; the slots stay a little under it.
@@ -1802,7 +1800,6 @@ html, body, #root { margin: 0; padding: 0; }
   .cv-coach { margin: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cv-btn { min-height: 48px; padding: 0 16px; font-size: 16px; }
   .cv-btn-back { min-height: 48px; padding: 0 12px; font-size: 16px; }
-  .cv-btn.cv-btn-art, .cv-btn-art.cv-btn-back { width: 48px; height: 48px; }
   /* width: 30px -> ~32px tall, comfortably inside the 44px back button row
    * this breakpoint sets (844x390 lands here). */
   .cv-level-zoo-sign > svg { width: 30px; }
@@ -4644,6 +4641,7 @@ export default function LevelPlay({ level, record, records, onAttempt, onNext, o
             onBack()
           }}
           className={drawnPlace ? 'cv-btn cv-btn-back cv-btn-art' : 'cv-btn cv-btn-back'}
+          data-paper-tap=""
           aria-label={drawnPlace ? 'Volver' : undefined}
         >
           {drawnPlace ? <BackIcon /> : '‹ Volver'}
@@ -4708,6 +4706,24 @@ export default function LevelPlay({ level, record, records, onAttempt, onNext, o
             <h1 className="cv-title">
               Fase {level.phase} · {level.title}
             </h1>
+          )}
+          {/* "Show me again" lives with the other quiet controls: on a drawn place the
+           * row under the sheet stays empty, and all of that height goes to the writing. */}
+          {drawnPlace && (playDemo || onNotebookPage) && (
+            <button
+              type="button"
+              onClick={() => {
+                playSfx('tap')
+                // On a withdrawn step this is also the way back to the guide.
+                if (onNotebookPage) setGuideRequested(true)
+                replayDemo()
+              }}
+              className="cv-btn cv-btn-art"
+              data-paper-tap=""
+              aria-label="Ver de nuevo"
+            >
+              <ReplayIcon />
+            </button>
           )}
           <SpeakButton line={level.hint} />
         </div>
@@ -5191,19 +5207,16 @@ export default function LevelPlay({ level, record, records, onAttempt, onNext, o
             Borrar
           </button>
         )}
-        {(playDemo || onNotebookPage) && (
+        {!drawnPlace && playDemo && (
           <button
             type="button"
             onClick={() => {
               playSfx('tap')
-              // On a withdrawn step this is also the way back to the guide.
-              if (onNotebookPage) setGuideRequested(true)
               replayDemo()
             }}
-            className={drawnPlace ? 'cv-btn cv-btn-art' : 'cv-btn'}
-            aria-label={drawnPlace ? 'Ver de nuevo' : undefined}
+            className="cv-btn"
           >
-            {drawnPlace ? <ReplayIcon /> : 'Ver de nuevo'}
+            Ver de nuevo
           </button>
         )}
         {/* Structurally unreachable in the detective world anyway — phase 1
@@ -5225,7 +5238,7 @@ export default function LevelPlay({ level, record, records, onAttempt, onNext, o
         {/* Never blocks (`docs/01` §5): after enough tries the way forward is here,
          * with what they wrote still counted as theirs. */}
         {onNotebookPage && notebookHelp === 'offer-continue' && !attempt?.approved && (
-          <button type="button" onClick={forgiveAndGoOn} className="cv-btn cv-btn-art" aria-label="Seguir">
+          <button type="button" onClick={forgiveAndGoOn} className="cv-btn cv-btn-art cv-btn-go" aria-label="Seguir">
             <ContinueIcon />
           </button>
         )}

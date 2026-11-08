@@ -23,6 +23,14 @@ Público: **chicos de 5 a 7 años que todavía no leen.** Nada de texto solo; to
   redondos, carteles, estrella, tarjetas. Una tarjeta tiene un borde de corte un poco más
   oscuro (`PAPER_EDGE`) y la sombra `PAPER_CARD_SHADOW`, nunca negro. El borde conserva el
   ancho que tenía, así no se mueve ninguna medida.
+- **Los controles son objetos de papel, no un dibujito en un círculo** (`puppet/chrome.ts`,
+  `puppet/PaperButton.tsx`). Volver y cerrar son el mismo cartel de madera con flecha, siempre
+  arriba a la izquierda; el sonido es un parlante de papel, arriba a la derecha; "ver de nuevo"
+  es una hojita con la línea punteada y el brazo del Pulpito dibujándola. Lo secundario es crema
+  y madera, quieto. **Lo único dorado de una pantalla es la flecha grande**: la acción principal,
+  una sola por pantalla, ninguna mientras se traza. Al tocar, la pieza baja sobre su propia
+  sombra y rebota al soltar (sin movimiento con movimiento reducido). Un control mide 64 px en
+  tableta; en un teléfono apaisado el papel baja a 52 px y la zona de toque sigue en 64.
 - **Lo que se lee va oscuro sobre claro.** `CHROME_INK` pasa 7:1 sobre un botón y sobre el
   globo (`puppet/chrome.test.ts`).
 

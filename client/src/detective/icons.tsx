@@ -1,12 +1,15 @@
-// Control icons for a detective trail (design unit 12, Orchestrator
-// Correction C1: "Controls become icon-only and keep the shipped 64px tap
-// floor"). The button faces (back, retry, replay, next, close) are paper
-// (`ButtonArt` below); the other marks here (the notebook pad, the paw, the
-// pointing hand) are flat shapes drawn in code, no text, no `url(#...)`, no
+// Control faces (design unit 12, Orchestrator Correction C1: "Controls become
+// icon-only and keep the shipped 64px tap floor"). Every control is a small
+// paper object that a press pushes onto its shadow (`puppet/PaperButton.tsx`,
+// `ButtonArt` below); the other marks here (the notebook pad, the paw on a card,
+// the pointing hand) are flat shapes drawn in code, no text, no `url(#...)`, no
 // font, no `@font-face` — consistent with `PistasRail.tsx`'s drawn word.
 import type { CSSProperties } from 'react'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { ArtImg } from '../puppet/ArtFigure'
+import { PAPER_ICONS } from '../puppet/chrome'
+import { PaperFace } from '../puppet/PaperButton'
+import { paperPropFor } from '../puppet/props'
 import { PAPER_SHADOW_FILL } from '../puppet/rig'
 import { UI_BUTTON_ART, type ArtImage } from './assets'
 
@@ -19,12 +22,12 @@ import { UI_BUTTON_ART, type ArtImage } from './assets'
  * child's own trace and the `PistasRail` word. */
 const ICON_INK = '#1e293b'
 
-/** The round chrome buttons, in paper (`puppet/chrome.ts`). Each one is the WHOLE
- * face of its button: the wrapping `<button>` drops its own pill chrome
- * (`.cv-btn-art` in `LevelPlay.tsx`'s `LAYOUT_CSS`, or the button's own style) and
- * keeps its `aria-label` and its tap size. Sized by its button (100% of the box),
- * aria-hidden for the reason this file's header gives. */
+/** A control's whole face, in paper (`puppet/chrome.ts`): the wrapping `<button>`
+ * drops its own chrome and keeps its `aria-label` and its tap size. Sized by its
+ * button (100% of the box), aria-hidden for the reason this file's header gives. */
 export function ButtonArt({ art }: { art: ArtImage }) {
+  const paper = paperPropFor(art)
+  if (paper) return <PaperFace scene={paper} artHref={art.href} className="cv-btn-art-img" />
   return <ArtImg art={art} className="cv-btn-art-img" style={BUTTON_ART_STYLE} />
 }
 
@@ -35,29 +38,29 @@ const BUTTON_ART_STYLE: CSSProperties = {
   pointerEvents: 'none',
 }
 
-/** Back ("‹ Volver"): the round button with the arrow pointing left. */
+/** Back ("‹ Volver"): the wooden arrow on its post. */
 export function BackIcon() {
   return <ButtonArt art={UI_BUTTON_ART.back} />
 }
 
-/** Retry ("Borrar"): the round button with the circular arrow. */
+/** Retry ("Borrar"): only the classic screens name it. */
 export function RetryIcon() {
   return <ButtonArt art={UI_BUTTON_ART.retry} />
 }
 
-/** Watch again ("Ver de nuevo"): the round button with the play triangle. */
+/** Watch again ("Ver de nuevo"): his arm drawing the dotted line. */
 export function ReplayIcon() {
   return <ButtonArt art={UI_BUTTON_ART.replay} />
 }
 
-/** Next ("Siguiente"): the yellow round button with the fat right arrow —
- *  the one meant to draw the eye first (`docs/23` D36). */
+/** Next ("Siguiente"): the big gold arrow, the one thing meant to draw the eye
+ *  first (`docs/23` D36). At most one per screen. */
 export function ContinueIcon() {
   return <ButtonArt art={UI_BUTTON_ART.next} />
 }
 
-/** Closes an overlay (`screen/DetectiveNotebook.tsx`, T23): the round
- *  button with the fat X. */
+/** Leaves an overlay: the same arrow sign as going back, in the same corner, so a
+ *  child has one way out to learn. */
 export function CloseIcon() {
   return <ButtonArt art={UI_BUTTON_ART.close} />
 }
@@ -103,15 +106,12 @@ export function NotebookPadIcon() {
  *  by accident. */
 /** The notebook's other page: what the child has written. */
 export function PencilIcon() {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true" data-cv-picture="true">
-      <path d="M12 52L16 38L44 10L54 20L26 48Z" fill={PAPER_SHADOW_FILL} transform="translate(2 3)" />
-      <path d="M12 52L16 38L44 10L54 20L26 48Z" fill="#f4c34d" />
-      <path d="M12 52L16 38L26 48Z" fill="#f6dfb4" />
-      <path d="M12 52L14 45L19 50Z" fill={ICON_INK} />
-      <path d="M38 16L44 10L54 20L48 26Z" fill="#e9825f" />
-    </svg>
-  )
+  return <PaperFace scene={PAPER_ICONS.pencil} picture />
+}
+
+/** The way back to the animals from that page. */
+export function PaperPawIcon() {
+  return <PaperFace scene={PAPER_ICONS.paw} picture />
 }
 
 export function PawPrintIcon({ className }: { className?: string }) {

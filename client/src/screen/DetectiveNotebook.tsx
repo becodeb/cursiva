@@ -24,7 +24,7 @@
 // fit the same card shape.
 import { useEffect, useRef, useState } from 'react'
 import { playSfx } from '../audio/sfx'
-import { CloseIcon, NotebookPadIcon, PawPrintIcon, PencilIcon } from '../detective/icons'
+import { CloseIcon, NotebookPadIcon, PaperPawIcon, PawPrintIcon, PencilIcon } from '../detective/icons'
 import { CARRIER_LENS_ART, type ZooAnimalId } from '../detective/assets'
 import { ArtImg } from '../puppet/ArtFigure'
 import { SHEET_PAPER } from '../canvas/TraceCanvas'
@@ -67,22 +67,21 @@ const NOTEBOOK_CSS = `
   pointer-events: none;
 }
 .cv-notebook-header, .cv-notebook-tools, .cv-notebook-grid { position: relative; }
-.cv-notebook-header { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 1.2dvh 3% 0.6dvh; }
+.cv-notebook-header { flex: none; display: flex; align-items: center; gap: 14px; padding: 1.2dvh 3% 0.6dvh; }
 /* The title: no word anywhere, per this task's own brief ("no reading
    needed") — the Pulpito's own lupa beside a spiral-bound pad icon, both
    drawn/existing art, both aria-hidden (nothing here is read aloud; the
    dialog's own aria-label already names the screen for assistive tech). */
 .cv-notebook-title { display: flex; align-items: center; gap: 10px; }
 .cv-notebook-title img, .cv-notebook-title svg { height: min(6dvh, 42px); width: auto; display: block; }
-.cv-notebook-header-right { display: flex; align-items: center; gap: 8px; }
-.cv-notebook-tab { flex: none; width: max(44px, min(9dvh, 60px)); height: max(44px, min(9dvh, 60px)); box-sizing: border-box; border-radius: 50%; border: 3px solid ${PAPER_EDGE}; box-shadow: ${PAPER_CARD_SHADOW}; background: ${SHEET_PAPER}; display: flex; align-items: center; justify-content: center; padding: 7px; cursor: pointer; }
-.cv-notebook-tab svg { width: 100%; height: 100%; display: block; }
+.cv-notebook-header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; min-height: var(--cv-tap-size, 64px); }
+.cv-notebook-tab { flex: none; width: var(--cv-tap-size, 64px); height: var(--cv-tap-size, 64px); box-sizing: border-box; border: none; background: transparent; padding: 0; cursor: pointer; }
 /* What the child wrote: their own strokes on the rule, nothing else on the page. */
 .cv-notebook-writing { position: relative; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 1.5dvh 2%; padding: 0 3% 2dvh; }
 .cv-notebook-written { flex: none; max-width: 100%; height: clamp(90px, 26dvh, 200px); padding: 0; border: none; background: none; cursor: pointer; }
 .cv-notebook-written--word { height: clamp(100px, 34dvh, 260px); }
 .cv-notebook-written svg { height: 100%; width: 100%; display: block; }
-.cv-notebook-close { flex: none; width: max(44px, min(9dvh, 60px)); height: max(44px, min(9dvh, 60px)); box-sizing: border-box; border-radius: 50%; border: none; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
+.cv-notebook-close { flex: none; width: var(--cv-tap-size, 64px); height: var(--cv-tap-size, 64px); box-sizing: border-box; border: none; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
 /* One shared card face for both the tools strip and the animal grid —
    marker style: warm paper, thick dark ink outline, no shadow
    (docs/09_GUIA_DE_ESTILO_VISUAL.md section 1), the same chrome
@@ -263,6 +262,7 @@ function AlbumCard({ entry, highlighted, writing, line }: { entry: NotebookAnima
       className={classes.join(' ')}
       aria-label={entry.rescued ? `${entry.id}, ${entry.caption}` : 'Animal todavía no encontrado'}
       data-cv-album={entry.id}
+      data-paper-card=""
       data-cv-album-found={entry.rescued ? 'true' : 'false'}
       onClick={() => {
         playSfx('tap')
@@ -340,28 +340,11 @@ export default function DetectiveNotebook({ records, onClose, highlightId, writi
       <style>{NOTEBOOK_CSS}</style>
       <div className="cv-notebook-page" aria-hidden="true" />
       <div className="cv-notebook-header">
-        <div className="cv-notebook-title">
-          <ArtImg art={CARRIER_LENS_ART} />
-          <NotebookPadIcon />
-        </div>
-        <div className="cv-notebook-header-right">
-        {written.length > 0 && (
-          <button
-            type="button"
-            className="cv-notebook-tab"
-            data-cv-notebook-tab={page === 'animals' ? 'writing' : 'animals'}
-            aria-label={page === 'animals' ? 'Lo que escribí' : 'Los animales'}
-            onClick={() => {
-              playSfx('notebook')
-              setPage(page === 'animals' ? 'writing' : 'animals')
-            }}
-          >
-            {page === 'animals' ? <PencilIcon /> : <PawPrintIcon />}
-          </button>
-        )}
+        {/* The way out, in the same corner as on every other screen. */}
         <button
           type="button"
           className="cv-notebook-close"
+          data-paper-tap=""
           aria-label="Cerrar la libreta"
           onClick={() => {
             playSfx('tap')
@@ -370,6 +353,26 @@ export default function DetectiveNotebook({ records, onClose, highlightId, writi
         >
           <CloseIcon />
         </button>
+        <div className="cv-notebook-title">
+          <ArtImg art={CARRIER_LENS_ART} />
+          <NotebookPadIcon />
+        </div>
+        <div className="cv-notebook-header-right">
+          {written.length > 0 && (
+            <button
+              type="button"
+              className="cv-notebook-tab"
+              data-paper-tap=""
+              data-cv-notebook-tab={page === 'animals' ? 'writing' : 'animals'}
+              aria-label={page === 'animals' ? 'Lo que escribí' : 'Los animales'}
+              onClick={() => {
+                playSfx('notebook')
+                setPage(page === 'animals' ? 'writing' : 'animals')
+              }}
+            >
+              {page === 'animals' ? <PencilIcon /> : <PaperPawIcon />}
+            </button>
+          )}
         </div>
       </div>
       {page === 'writing' && (

@@ -8,6 +8,8 @@ import { SHEET_PAPER } from '../canvas/TraceCanvas'
 import { OCTOPUS_EMPTY_HANDED_ART } from '../detective/assets'
 import { CloseIcon } from '../detective/icons'
 import { ArtImg } from '../puppet/ArtFigure'
+import { pulpitoHead } from '../puppet/chrome'
+import { PaperFace } from '../puppet/PaperButton'
 import type { PuppetHandle } from '../puppet/Puppet'
 import { PAPER_CARD_SHADOW, PAPER_EDGE } from '../puppet/rig'
 import { usePulpitoLook } from '../puppet/useLook'
@@ -23,36 +25,26 @@ const WARDROBE_CSS = `
 .cv-wardrobe-stage .cv-puppet { height: 86%; width: auto; max-width: 96%; }
 .cv-wardrobe-shelves { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2.4dvh; padding: 2dvh 3% 2dvh 0; }
 .cv-wardrobe-row { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(6px, 1.4dvh, 12px); }
-.cv-swatch, .cv-garment { box-sizing: border-box; flex: none; width: clamp(48px, 15dvh, 92px); height: clamp(48px, 15dvh, 92px); padding: 5px; border-radius: 22%; border: 3px solid ${PAPER_EDGE}; background: ${SHEET_PAPER}; box-shadow: ${PAPER_CARD_SHADOW}; cursor: pointer; }
-.cv-garment { background: #bfdfd1; }
-.cv-swatch { border-radius: 50%; padding: 0; width: clamp(44px, 12dvh, 72px); height: clamp(44px, 12dvh, 72px); }
+.cv-garment { box-sizing: border-box; flex: none; width: clamp(64px, 15dvh, 92px); height: clamp(64px, 15dvh, 92px); padding: 6px; border-radius: 22%; border: 3px solid ${PAPER_EDGE}; background: ${SHEET_PAPER}; box-shadow: ${PAPER_CARD_SHADOW}; cursor: pointer; }
+.cv-swatch { position: relative; box-sizing: border-box; flex: none; width: clamp(60px, 12dvh, 76px); height: clamp(60px, 12dvh, 76px); padding: 6px; border: none; border-radius: 50%; background: transparent; cursor: pointer; }
 .cv-swatch svg, .cv-garment svg { display: block; width: 100%; height: 100%; }
-.cv-swatch[aria-pressed="true"], .cv-garment[aria-pressed="true"] { border-color: #f2b632; outline: 4px solid #f2b632; outline-offset: 1px; }
-.cv-garment--waiting { background: #e6e2d6; }
-.cv-garment--waiting svg { opacity: 0.2; }
-.cv-wardrobe-close { position: absolute; top: 2dvh; right: 2%; width: max(44px, min(9dvh, 60px)); height: max(44px, min(9dvh, 60px)); padding: 0; border: none; background: transparent; cursor: pointer; }
+/* Chosen is a gold sheet under the piece, and the piece stays pressed onto it. */
+.cv-swatch[aria-pressed="true"] { background: #f6c23a; }
+.cv-swatch[aria-pressed="true"] .cv-paper-face { transform: translate(6px, 10px); }
+.cv-garment[aria-pressed="true"] { background: #ffe39a; border-color: #f2b632; transform: translate(3px, 5px); box-shadow: none; }
+/* Still to come: its outline on bare paper, no card, nothing to press yet. */
+.cv-garment--waiting { background: transparent; border: 3px dashed #b9c9bf; box-shadow: none; }
+.cv-garment--waiting svg { opacity: 0.22; }
+.cv-wardrobe-close { position: absolute; top: 2dvh; left: 2%; z-index: 1; width: var(--cv-tap-size, 64px); height: var(--cv-tap-size, 64px); padding: 0; border: none; background: transparent; cursor: pointer; }
 @media (orientation: portrait) {
   .cv-wardrobe { flex-direction: column; }
   .cv-wardrobe-stage { flex: 0 0 40%; }
 }
 `
 
-const FACE_EYE = '#ffffff'
-
-/** A swatch is his own face in that colour, not a bare dot: nothing to decode. */
+/** A swatch is his own head in that colour, not a bare dot: nothing to decode. */
 function ColourFace({ body, pink }: { body: string; pink: string }) {
-  return (
-    <svg viewBox="0 0 100 100" aria-hidden="true" data-cv-picture="true">
-      <circle cx="50" cy="50" r="48" fill={body} />
-      <ellipse cx="22" cy="66" rx="9" ry="6" fill={pink} />
-      <ellipse cx="78" cy="66" rx="9" ry="6" fill={pink} />
-      <ellipse cx="34" cy="44" rx="13" ry="15" fill={FACE_EYE} />
-      <ellipse cx="66" cy="44" rx="13" ry="15" fill={FACE_EYE} />
-      <ellipse cx="34" cy="45" rx="9" ry="11" fill="#1a2226" />
-      <ellipse cx="66" cy="45" rx="9" ry="11" fill="#1a2226" />
-      <path d="M38 72C44 80 56 80 62 72" fill="none" stroke="#1a2226" strokeWidth="5" strokeLinecap="round" />
-    </svg>
-  )
+  return <PaperFace scene={pulpitoHead(body, pink)} picture />
 }
 
 export interface PulpitoWardrobeProps {
@@ -105,6 +97,7 @@ export default function PulpitoWardrobe({ records, onClose }: PulpitoWardrobePro
                 key={item.id}
                 type="button"
                 className={has ? 'cv-garment' : 'cv-garment cv-garment--waiting'}
+                data-paper-card={has ? '' : undefined}
                 aria-label={has ? item.name : 'Un regalo que todavía no llegó'}
                 aria-pressed={has && look.worn.includes(item.id)}
                 data-cv-garment={item.id}
@@ -128,6 +121,7 @@ export default function PulpitoWardrobe({ records, onClose }: PulpitoWardrobePro
       <button
         type="button"
         className="cv-wardrobe-close"
+        data-paper-tap=""
         aria-label="Cerrar"
         onClick={() => {
           playSfx('tap')

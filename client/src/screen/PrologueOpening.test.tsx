@@ -184,7 +184,7 @@ describe('PrologueOpening start tap (docs/25 P2-5)', () => {
     const html = renderToString(<PrologueOpening onDone={() => {}} />)
     expect(html).toContain('class="cv-prologue-start"')
     expect(html).toContain('aria-label="Empezar"')
-    expect(html).toContain(UI_BUTTON_ART.replay.href)
+    expect(html).toContain(UI_BUTTON_ART.next.href)
     // The line pops in with the voice, on the tap — not before it.
     expect(html).not.toContain(PROLOGUE_PLATES[0].line)
     expect(html).not.toContain('class="cv-prologue-bubble')

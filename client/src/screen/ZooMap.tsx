@@ -29,9 +29,13 @@ import {
   ZOO_SPEECH_BUBBLE_ART,
   ZOO_STAR_ART,
   type ZooAnimalId,
+  UI_BUTTON_ART,
 } from '../detective/assets'
 import { ArtImg, ArtInSvg } from '../puppet/ArtFigure'
-import { PlaceholderAnimalBadge, PawPrintIcon } from '../detective/icons'
+import { pulpitoHead } from '../puppet/chrome'
+import { PaperFace } from '../puppet/PaperButton'
+import { paperPropFor } from '../puppet/props'
+import { ButtonArt, PlaceholderAnimalBadge, PawPrintIcon } from '../detective/icons'
 import { hasOpenedNotebookOnce, markNotebookOpenedOnce } from './notebookDiscovery'
 import RescueCelebration, { RESCUE_CELEBRATION_CSS } from './RescueCelebration'
 import { BUBBLE_POP_CSS } from './BubblePop'
@@ -99,19 +103,7 @@ function lineFor(id: ZooAnimalId, lines: Partial<Record<string, TracedLine>>): T
 
 /** The picture on the dress-up button: his head, in the colour he is. */
 function PulpitoHead({ body, pink }: { body: string; pink: string }) {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true" data-cv-picture="true">
-      <circle cx="33" cy="35" r="26" fill={PAPER_SHADOW_FILL} />
-      <circle cx="32" cy="32" r="26" fill={body} />
-      <ellipse cx="17" cy="42" rx="5" ry="3.4" fill={pink} />
-      <ellipse cx="47" cy="42" rx="5" ry="3.4" fill={pink} />
-      <ellipse cx="24" cy="29" rx="7" ry="8" fill="#ffffff" />
-      <ellipse cx="40" cy="29" rx="7" ry="8" fill="#ffffff" />
-      <ellipse cx="24" cy="30" rx="5" ry="6" fill="#1a2226" />
-      <ellipse cx="40" cy="30" rx="5" ry="6" fill="#1a2226" />
-      <path d="M25 46C29 50 35 50 39 46" fill="none" stroke="#1a2226" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  )
+  return <PaperFace scene={pulpitoHead(body, pink)} picture />
 }
 
 /** How long the map bubble stays up before it hides itself, milliseconds
@@ -179,17 +171,21 @@ html, body, #root { margin: 0; height: 100%; }
   .cv-zoo-portrait-guidance::after { content: "Para recorrer el zoológico cómodo, usá el juego en horizontal."; display: block; color: #475569; font-size: 18px; font-weight: 600; }
 }
 .cv-zoo-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* A tap is not a keyboard: only the keyboard draws the dashed ring, never the browser's box. */
+.cv-zoo-sector-control:focus { outline: none; }
 .cv-zoo-sector-control:focus-visible .cv-zoo-sector-hit { stroke: #1d4ed8; stroke-width: 8; stroke-dasharray: 18 12; }
 .cv-zoo-octopus-control { cursor: pointer; }
 .cv-zoo-octopus-control:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 6px; }
 .cv-zoo-hud { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 2% 3%; box-sizing: border-box; pointer-events: none; }
 .cv-zoo-hud-left, .cv-zoo-hud-right, .cv-zoo-hud-right-group, .cv-zoo-hud-left-group { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
-.cv-zoo-hud-left-group { gap: 10px; }
-/* On a phone the tools stay in the notebook: a pill of them would sit on the night sector. */
-@media (max-height: 480px) { .cv-zoo-hud-left > svg:not(:first-child) { display: none; } }
-/* The dress-up button: his own head, the size every round control has. */
-.cv-zoo-dress { box-sizing: border-box; width: 48px; height: 48px; padding: 0; border: none; background: none; cursor: pointer; flex: none; }
-.cv-zoo-dress svg { display: block; width: 100%; height: 100%; }
+.cv-zoo-hud-left-group { gap: 14px; }
+/* The tools he has been given peek out of the top of the bag: it is where they are. On a
+   phone they stay in the notebook, because they would sit on the night sector. */
+.cv-zoo-bag-tool { position: absolute; top: -16%; width: 44%; height: 44%; pointer-events: none; }
+.cv-zoo-bag-tool svg, .cv-zoo-bag-tool img { display: block; width: 100%; height: 100%; object-fit: contain; }
+@media (max-height: 480px) { .cv-zoo-bag-tool { display: none; } }
+/* The dress-up button: his own head, the size every control has. */
+.cv-zoo-dress { position: relative; box-sizing: border-box; width: var(--cv-tap-size, 64px); height: var(--cv-tap-size, 64px); padding: 0; border: none; background: none; cursor: pointer; flex: none; }
 @keyframes cv-zoo-dress-new { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.25) rotate(-8deg); } 70% { transform: scale(0.95) rotate(5deg); } }
 .cv-zoo-dress--new { animation: cv-zoo-dress-new 900ms ease-out 3; }
 @media (prefers-reduced-motion: reduce) { .cv-zoo-dress--new { animation: none; outline: 4px solid #f2b632; border-radius: 50%; } }
@@ -223,14 +219,13 @@ html, body, #root { margin: 0; height: 100%; }
    load-bearing for that layout.
    NO BACKTICKS in this block -- one inside a comment ends this template
    literal early (this file's own top-of-file note). */
-.cv-zoo-hud-left, .cv-zoo-hud-right { background: ${SHEET_PAPER}; border: 3px solid ${PAPER_EDGE}; box-shadow: ${PAPER_CARD_SHADOW}; border-radius: 999px; padding: 4px 10px; }
-.cv-zoo-hud-left svg, .cv-zoo-hud-left img { width: 30px; height: 30px; object-fit: contain; }
+.cv-zoo-hud-right { background: ${SHEET_PAPER}; border: 3px solid ${PAPER_EDGE}; box-shadow: ${PAPER_CARD_SHADOW}; border-radius: 999px; padding: 4px 10px; }
 /* The backpack pill is now a real <button> (T23: it opens the notebook) —
    reset the browser's own button chrome so it keeps reading as the exact
    same pill it always was. position: relative (T31) is what lets the
    receive badge (below) overlay the pill itself, the same reason
    .cv-zoo-hud-right sets it for the star spark. */
-.cv-zoo-hud-left { cursor: pointer; font: inherit; position: relative; }
+.cv-zoo-hud-left { cursor: pointer; font: inherit; position: relative; box-sizing: border-box; width: var(--cv-tap-size, 64px); height: var(--cv-tap-size, 64px); padding: 0; border: none; background: none; border-radius: 50%; }
 /* T31 (odd/tasks/prewriting-stage-completion.md, notebook discoverability):
    "no sabia que esto existia" - the backpack pill opened the notebook
    already but nothing on screen ever pointed at it.
@@ -512,7 +507,7 @@ function SpotlightRing({ hit, pad = SPOTLIGHT_PAD }: { hit: Rect; pad?: number }
 /** The play badge's own drawn radius (`SpotlightBadge`'s circle `r`), named
  *  so `playBadgePlacement`'s own overlap test reasons about the SAME
  *  footprint the badge actually draws instead of a second guessed number. */
-const SPOTLIGHT_BADGE_RADIUS = 30
+const SPOTLIGHT_BADGE_RADIUS = 40
 
 /** T36 (`odd/tasks/prewriting-stage-completion.md`): the smallest real
  *  on-screen gap the badge's own drawn edge keeps from the viewport's own
@@ -616,7 +611,9 @@ export function playBadgePlacement(
   return clamp(best)
 }
 
-/** The round "play" badge, placed at `at` (`playBadgePlacement`'s own
+const GO_FACE = paperPropFor(UI_BUTTON_ART.next)!
+
+/** The map's "go here": the big gold arrow every primary action has, placed at `at` (`playBadgePlacement`'s own
  *  answer). The bounce animation (`cv-zoo-spotlight-badge`, `ZOO_CSS`) lands
  *  on an INNER `<g>` with no `transform` attribute of its own — the OUTER
  *  `<g>` carries the positional `transform="translate(...)"` attribute that
@@ -627,8 +624,7 @@ function SpotlightBadge({ at }: { at: { x: number; y: number } }) {
   return (
     <g transform={`translate(${at.x.toFixed(2)} ${at.y.toFixed(2)})`}>
       <g className="cv-zoo-spotlight-badge">
-        <circle r={SPOTLIGHT_BADGE_RADIUS} fill="#22c55e" stroke="#ffffff" strokeWidth={4} />
-        <path d="M -9 -14 L -9 14 L 15 0 Z" fill="#ffffff" />
+        <PaperFace scene={GO_FACE} artHref={UI_BUTTON_ART.next.href} box={{ x: -SPOTLIGHT_BADGE_RADIUS, y: -SPOTLIGHT_BADGE_RADIUS, size: SPOTLIGHT_BADGE_RADIUS * 2 }} />
       </g>
     </g>
   )
@@ -1310,7 +1306,6 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
                     own drawn edge off the viewport's own edge too — the
                     lagoon's own reported defect (the badge's right side
                     exactly on the screen's right border at 1024×768). */}
-                <SpotlightBadge at={playBadgeAt!} />
               </g>
             </>
           )}
@@ -1392,7 +1387,11 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
               {/* The green button says "tap here": it must work wherever it had to go to
                   stay off an animal, even a little outside the sector's own rect. */}
               {spotlightSector?.id === sector.id && playBadgeAt && (
-                <circle data-play-target="true" cx={playBadgeAt.x} cy={playBadgeAt.y} r={SPOTLIGHT_BADGE_RADIUS + 8} fill="transparent" style={{ cursor: 'pointer' }} />
+                <>
+                  {/* Inside the control, so a press on the sector pushes the arrow down. */}
+                  <SpotlightBadge at={playBadgeAt} />
+                  <circle data-play-target="true" cx={playBadgeAt.x} cy={playBadgeAt.y} r={SPOTLIGHT_BADGE_RADIUS + 8} fill="transparent" style={{ cursor: 'pointer' }} />
+                </>
               )}
             </g>
           ))}
@@ -1465,16 +1464,19 @@ export default function ZooMap({ records, onEnter, debug }: ZooMapProps) {
             aria-label="Abrir la libreta del detective"
             onClick={openNotebook}
           >
-            <ArtImg art={ZOO_BACKPACK_ART} />
-            {backpack.map((item) => (
-              <ArtImg key={item.id} art={item.art} />
+            {backpack.map((item, i) => (
+              <span key={item.id} className="cv-zoo-bag-tool" style={{ left: `${8 + i * 19}%`, rotate: `${(i - (backpack.length - 1) / 2) * 14}deg` }}>
+                <ArtImg art={item.art} />
+              </span>
             ))}
+            <ButtonArt art={ZOO_BACKPACK_ART} />
             {backpackReceived && <PawPrintIcon className="cv-zoo-backpack-badge" />}
           </button>
           {/* His colour and what he has on. The picture is him, so it needs no word. */}
           <button
             type="button"
             className={dressNew ? 'cv-zoo-dress cv-zoo-dress--new' : 'cv-zoo-dress'}
+            data-paper-tap=""
             aria-label="Vestir al Pulpito"
             onClick={() => {
               setDressNew(false)
