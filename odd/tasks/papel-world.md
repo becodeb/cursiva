@@ -59,6 +59,7 @@ defaults to confirm, not settled answers.
 - [x] T8 — Living map, album and the child's own Pulpito, plus the parent review's leftovers. Route: delegated. Commits `488fc03`..`3833c06`.
 - [x] T9 — Paper theatre: backgrounds, corridor, marks and transitions. Route: delegated. Merged from `feat/papel-cast` (`7c7053f`..`7554316`): ten scenes, map, trace surfaces, finale polish. Parent review of contact sheets: coherent; weakest are the hedgehog's flat body, PNG chrome (bubbles, buttons, HUD) and small clue marks.
 - [x] T10 — Docs: audience 5 to 7, style guide, what remains. Route: delegated, with T8.
+- [x] T11 — User feedback: scenes that contradict the story, and one paper button system. Route: delegated. Commits `64395d4`, `2deae48`.
 
 ## Acceptance
 
@@ -173,6 +174,25 @@ the user's decisions.
   size bound went from 2 kB to 6 kB; the journey no longer visits the three resting dotted levels.
 
 - Parent review after T8: the webfoot read as a plane, redrawn with round toes and a shallow web (`puppet/marks.ts`). Measured on `duck-trail6`: every mark faces within 62 degrees of the trail's direction, none backward. 142 files, 4416 tests green.
+
+- T11 done. Story (`64395d4`): a place has no eyes; animals stand on it as residents read from the
+  level records (`zoo/residents.ts`), so the aquarium is empty before the fish rescue and alive after,
+  in its intro, under its veil on a replay and in its closing. Fish and monkeys close in the home their
+  line names (`home`); a clean enclosure played again after its animals came back has a new line
+  (`afterRescue`, `closingBeats`). Every named thing is drawn whole inside the 4:3 and a phone's 924
+  rows (`NAMED_THINGS`). Guards: `zoo/residents.test.tsx` (every adventure's intro shows no animal of
+  its kind, even with every other animal home; eye detector over every scene, proven on a painted fish;
+  named things inside the safe rect).
+- Buttons (`2deae48`): `puppet/PaperButton.tsx` (face lifted off its ground shadow, press lands on the
+  shadow and bounces, CSS only, reduced motion drops the travel, focus ring), cuts in `puppet/chrome.ts`.
+  Back and close are one wooden arrow sign, top left; a paper speaker top right; "ver de nuevo" a sheet
+  with the dotted line and the arm, moved to the top row so the foot row is empty on a drawn place; the
+  gold arrow is the only primary (intro, closing, prologue, map, stuck child), none while tracing.
+  `--cv-tap-size` 64 px, 52 px on a phone with a 64 px hit area. Guards: `puppet/PaperButton.test.tsx`.
+- Evidence: `npx vitest run --maxWorkers=2` 144 files, 4492 tests green; `npm run build` green. Captures in
+  the session scratchpad `t11/`. Guard tests whose premise changed: the prologue start shows the gold
+  arrow, not the play triangle; the map badge's radius went from 30 to 40, so the "old call spills"
+  regression now names its old radius explicitly and the margin checks use 40.
 
 ## What remains
 
