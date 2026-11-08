@@ -196,6 +196,12 @@ the user's decisions.
 
 ## What remains
 
+- **Letter recognition without the guide (reported by the user, 2026-11-08, for a later session).** When the
+  guide is gone (copy and memory steps), a letter that is the same drawing but a little narrower, flatter or
+  shifted sideways is judged wrong. Expected: compare the shape after normalising position, scale and aspect
+  (within limits, so a dot or a line still fails), as `docs/25` 4.4 and the T6 note claim it already does.
+  First reproduce with the user's real strokes, find which check rejects them (zones, corridor wall, size cap,
+  back-and-forth), then fix the class with tests built from such strokes.
 - **Real children and real tablets.** The chapter split, the gift moment, a tap on an animal standing in the
   highlighted sector, and the score's calibration are all desk decisions. `docs/25` tanda 1.6 still owed.
 - Deduction silhouettes are still PNG, the last art of the normal flow. `Puppet.silhouette` can replace them.
